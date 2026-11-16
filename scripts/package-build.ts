@@ -6,8 +6,8 @@ import type { Result } from "../core/values/result.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
-import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
-import { dependencyNamesOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { deadLinksOf, misplacedEntriesOf, otherVersionTarballsOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
+import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { PACKAGE_IDENTITY } from "./package-identity.ts";
 import {
   type BundledPackage,
@@ -414,12 +414,19 @@ const withManifest = (request: {
     : { outcome: "ok", value: [{ path: MANIFEST, text: manifest.value }, ...request.files] };
 };
 
-const linkedFiles = (request: { readonly files: readonly OutputFile[] }): Built<readonly OutputFile[]> => {
-  const checked = failedOnProblems({
+const linkedFiles = (request: { readonly files: readonly OutputFile[]; readonly version: string }): Built<readonly OutputFile[]> => {
+  const linked = failedOnProblems({
     label: "a shipped page links to a file the package does not ship",
     problems: deadLinksOf({ files: request.files }),
   });
-  return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.files };
+  if (linked.outcome === "failed") {
+    return linked;
+  }
+  const versioned = failedOnProblems({
+    label: "a shipped page names the tarball at another version",
+    problems: otherVersionTarballsOf({ files: request.files, name: PACKAGE_IDENTITY.name, version: request.version }),
+  });
+  return versioned.outcome === "failed" ? versioned : { outcome: "ok", value: request.files };
 };
 
 const writtenFile = (request: { readonly context: BuildContext; readonly file: OutputFile }): Built<string> => {
@@ -462,6 +469,10 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   if (dependencies.outcome === "failed") {
     return failedWith({ label: MANIFEST, detail: dependencies.error.detail });
   }
+  const version = packageVersionOf({ developmentManifest: developmentManifest.value });
+  if (version.outcome === "failed") {
+    return failedWith({ label: MANIFEST, detail: version.error.detail });
+  }
   const staged = await stagedBundleOf({ context: request.context, plan: plan.value, peers: peers.value, dependencies: dependencies.value });
   if (staged.outcome === "failed") {
     return staged;
@@ -471,7 +482,7 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
     return files;
   }
   const manifested = withManifest({ plan: plan.value, developmentManifest: developmentManifest.value, files: files.value });
-  return manifested.outcome === "failed" ? manifested : linkedFiles({ files: manifested.value });
+  return manifested.outcome === "failed" ? manifested : linkedFiles({ files: manifested.value, version: version.value });
 };
 
 export const buildPackage = async (request: {
