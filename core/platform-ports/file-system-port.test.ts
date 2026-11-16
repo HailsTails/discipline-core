@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { createDirectoryPort, type DirectoryEntry, type DirectorySurface } from "./file-system-port.ts";
 
-const DIRECTORY = absolutePathSchema.parse("H:\\Development\\project files\\src");
+const DIRECTORY = absolutePathSchema.parse("D:\\work\\project files\\src");
 
 describe("createDirectoryPort", () => {
   it("forwards the unchanged native path once and returns all entries in UTF16 name order without mutating input", () => {
@@ -35,7 +35,7 @@ describe("createDirectoryPort", () => {
       { name: "😀", kind: "file" },
       { name: "Z", kind: "directory" },
     ]);
-    expect(list).toHaveBeenCalledExactlyOnceWith({ path: "H:\\Development\\project files\\src" });
+    expect(list).toHaveBeenCalledExactlyOnceWith({ path: "D:\\work\\project files\\src" });
   });
 
   it("returns an observed empty directory as successful empty entries", () => {

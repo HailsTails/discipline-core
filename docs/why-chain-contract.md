@@ -1,6 +1,6 @@
 # The why-chain contract
 
-A why-chain explains why an exception is needed. It starts at the symptom, which is the exception itself, and traces cause to cause until it reaches a root that someone owns. Every new or edited `whyChain` in `discipline-exceptions.json` follows this contract, and core refuses one that breaks a mechanical rule; a chain written before it is handled as [below](#chains-written-to-the-earlier-contract). Rin's DD-7 and R7 point here for the chain's shape.
+A why-chain explains why an exception is needed. It starts at the symptom, which is the exception itself, and traces cause to cause until it reaches a root that someone owns. Every new or edited `whyChain` in `discipline-exceptions.json` follows this contract, and core refuses one that breaks a mechanical rule; a chain written before it is handled as [below](#chains-written-to-the-earlier-contract).
 
 The contract keeps exactly five whys. What it fixes is the shape of the chain. A chain that lists five objections ("why not X?", "why only this file?") or restates one reason five times is not a chain: each why must ask why the answer before it is true.
 

@@ -8,7 +8,7 @@ import {
   type ExecutionSpawnProvider,
 } from "./execution-port.ts";
 
-const WORKING_DIRECTORY = absolutePathSchema.parse("H:\\Development\\project files");
+const WORKING_DIRECTORY = absolutePathSchema.parse("D:\\work\\project files");
 
 describe("createExecutionPort", () => {
   it("binds policy and environment once and snapshots inputs across direct argv runs", () => {
