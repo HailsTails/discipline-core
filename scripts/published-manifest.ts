@@ -19,6 +19,8 @@ const peerSectionsSchema = publishedSectionsSchema.pick({ peerDependencies: true
 
 const dependencySectionsSchema = z.object({ dependencies: versionsSchema });
 
+const versionSectionSchema = publishedSectionsSchema.pick({ version: true });
+
 const MANIFEST_EXPORT = "./package.json";
 
 const exportPathOf = (path: string): string => `./${path}`;
@@ -51,6 +53,11 @@ export const dependencyNamesOf = (request: {
 }): Result<readonly string[], ManifestFailure> => {
   const sections = sectionsOf({ developmentManifest: request.developmentManifest, schema: dependencySectionsSchema });
   return sections.outcome === "failed" ? sections : { outcome: "ok", value: Object.keys(sections.value.dependencies) };
+};
+
+export const packageVersionOf = (request: { readonly developmentManifest: string }): Result<string, ManifestFailure> => {
+  const sections = sectionsOf({ developmentManifest: request.developmentManifest, schema: versionSectionSchema });
+  return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.version };
 };
 
 export const publishManifestOf = (request: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
+import { deadLinksOf, misplacedEntriesOf, otherVersionTarballsOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
 
 const output = (request: {
   readonly path: string;
@@ -198,6 +198,38 @@ describe("deadLinksOf", () => {
       "README.md links to tests/test-fixtures/walkthrough",
       "README.md links to MIGRATING.md",
       "rules/CD-1/README.md links to mechanisms/eslint/CD-1/README.md",
+    ]);
+  });
+});
+
+describe("otherVersionTarballsOf", () => {
+  it("accepts pages naming only this version's tarball, a placeholder version and other packages' tarballs", () => {
+    expect(
+      otherVersionTarballsOf({
+        files: [
+          { path: "README.md", text: "Download `discipline-core-0.1.0-pre.1.tgz`, or `discipline-core-<version>.tgz` later." },
+          { path: "ADOPTING.md", text: "Not `other-core-0.0.0.tgz`." },
+          { path: "rules/CD-1/discipline.json", text: "discipline-core-0.0.0.tgz" },
+        ],
+        name: "discipline-core",
+        version: "0.1.0-pre.1",
+      }),
+    ).toEqual([]);
+  });
+
+  it("names each shipped page that names the package's tarball at another version", () => {
+    expect(
+      otherVersionTarballsOf({
+        files: [
+          { path: "README.md", text: "wrote artefacts/discipline-core-0.0.0.tgz" },
+          { path: "ADOPTING.md", text: "vendor/discipline-core/discipline-core-0.1.0.tgz and discipline-core-0.1.0-pre.1.tgz" },
+        ],
+        name: "discipline-core",
+        version: "0.1.0-pre.1",
+      }),
+    ).toEqual([
+      "README.md names discipline-core-0.0.0.tgz, not discipline-core-0.1.0-pre.1.tgz",
+      "ADOPTING.md names discipline-core-0.1.0.tgz, not discipline-core-0.1.0-pre.1.tgz",
     ]);
   });
 });
