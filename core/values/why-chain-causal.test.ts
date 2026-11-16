@@ -473,12 +473,12 @@ describe("whyChainSchema keeps the five-why floor", () => {
 
 describe("whyChainFormOf tells a causal chain from one written to the legacy contract", () => {
   it.each([
-    ["a chain with a readback and a root check", "causal", CAUSAL_WHY_CHAIN],
-    ["a chain with only a root check", "causal", (({ readback: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
-    ["a chain with only a readback", "causal", (({ rootCheck: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
-    ["a chain with neither", "legacy", (({ rootCheck: _, readback: __, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
-    ["a value that is not a chain", "causal", "five whys"],
-  ])("reads %s as %s", (_label, form, chain) => {
+    { label: "a chain with a readback and a root check", form: "causal", chain: CAUSAL_WHY_CHAIN },
+    { label: "a chain with only a root check", form: "causal", chain: (({ readback: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
+    { label: "a chain with only a readback", form: "causal", chain: (({ rootCheck: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
+    { label: "a chain with neither", form: "legacy", chain: (({ rootCheck: _, readback: __, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
+    { label: "a value that is not a chain", form: "causal", chain: "five whys" },
+  ])("reads $label as $form", ({ form, chain }) => {
     expect(whyChainFormOf({ chain })).toBe(form);
   });
 });

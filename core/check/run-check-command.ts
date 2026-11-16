@@ -54,7 +54,7 @@ const checkRunOf = (request: {
     ? request.report
     : { outcome: "ok", value: { report: request.report.value, output: request.output } };
 
-const checkResult = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
+export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
   const parsed = parseCheckArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
     return parsed;
@@ -88,6 +88,6 @@ const checkResult = async (request: CommandRequest): Promise<Result<CheckRun, Lo
 };
 
 export const runCheckCommand = (request: CommandRequest): Promise<void> =>
-  checkResult(request).then((checked) =>
+  checkRunFor(request).then((checked) =>
     printOutcome({ process: request.process, outcome: checkCommandOutcome({ result: checked }) }),
   );

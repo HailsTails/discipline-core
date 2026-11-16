@@ -186,10 +186,10 @@ describe("createExecutionSpawn", () => {
       outcome: "ok",
       value: { status: 2, stdout: "diagnostics λ", stderr: "warnings" },
     });
-    expect(spawnProvider).toHaveBeenCalledExactlyOnceWith(
-      "node",
-      ["tool entry.mjs", "--label=a & b"],
-      expect.objectContaining({
+    expect(spawnProvider).toHaveBeenCalledExactlyOnceWith({
+      command: "node",
+      commandArguments: ["tool entry.mjs", "--label=a & b"],
+      options: expect.objectContaining({
         encoding: "utf8",
         cwd: WORKING_DIRECTORY,
         env: { PATH: "child path", OPTIONAL: undefined },
@@ -198,17 +198,9 @@ describe("createExecutionSpawn", () => {
         killSignal: "SIGKILL",
         maxBuffer: 16777216,
       }),
-    );
-    expect(spawnProvider).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ shell: true }),
-    );
-    expect(spawnProvider).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ detached: true }),
-    );
+    });
+    expect(spawnProvider).not.toHaveBeenCalledWith(expect.objectContaining({ options: expect.objectContaining({ shell: true }) }));
+    expect(spawnProvider).not.toHaveBeenCalledWith(expect.objectContaining({ options: expect.objectContaining({ detached: true }) }));
   });
 
   it.each([

@@ -26,7 +26,7 @@ export const check: WalkerPiece = {
         }
         const text = readText();
         if (text.outcome === "failed") return text;
-        const observed = text.value.split(/\r?\n/).reduce<SwitchState>((state, line, index) => {
+        const observed = [...text.value.split(/\r?\n/).entries()].reduce<SwitchState>((state, [index, line]) => {
           const trimmed = line.trim();
           if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return state;
           const opens = (line.match(SWITCH_OPEN) ?? []).length;

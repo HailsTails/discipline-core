@@ -76,11 +76,11 @@ describe("sameClauseAddress", () => {
   );
 
   it.each([
-    ["rule set", "CD-14#no-class-syntax", "probe/CD-14#no-class-syntax"],
-    ["rule-set name", "probe/CD-14#no-class-syntax", "team/CD-14#no-class-syntax"],
-    ["discipline", "CD-14#no-class-syntax", "CD-15#no-class-syntax"],
-    ["clause", "CD-14#no-class-syntax", "CD-14#no-class-keyword"],
-  ])("is different when the %s differs", (_part, left, right) => {
+    { part: "rule set", left: "CD-14#no-class-syntax", right: "probe/CD-14#no-class-syntax" },
+    { part: "rule-set name", left: "probe/CD-14#no-class-syntax", right: "team/CD-14#no-class-syntax" },
+    { part: "discipline", left: "CD-14#no-class-syntax", right: "CD-15#no-class-syntax" },
+    { part: "clause", left: "CD-14#no-class-syntax", right: "CD-14#no-class-keyword" },
+  ])("is different when the $part differs", ({ left, right }) => {
     expect(
       sameClauseAddress({
         left: clauseAddressSchema.parse(left),
