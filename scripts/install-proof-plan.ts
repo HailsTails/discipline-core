@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
-import { PACKAGE_IDENTITY, type PackageIdentity } from "./package-identity.ts";
+import { TOOL_IDENTITY, type ToolIdentity } from "../core/values/tool-identity.ts";
 
 export type EntryKind = "folder" | "file";
 
@@ -37,14 +37,14 @@ export type ManifestFailure = { readonly kind: "manifest-invalid"; readonly deta
 
 const PASSING_REPORT = "verdict: pass\n";
 
-const ESLINT_PROJECTION = `import piece0 from "${PACKAGE_IDENTITY.name}/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
+const ESLINT_PROJECTION = `import piece0 from "${TOOL_IDENTITY.packageName}/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "${TOOL_IDENTITY.packageName}/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error", "discipline/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error", "hone/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },
   },
 ];
 `;
@@ -93,21 +93,21 @@ export const PROOF_CASES: readonly ProofCase[] = [
   { consumer: "eslint-missing", mechanism: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
 ];
 
-export const PACKAGED_SCRIPTS: Readonly<Record<CommandScript, string>> = {
-  check: "discipline:check",
-  project: "discipline:project",
-};
+export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({
+  check: `${request.identity.command}:check`,
+  project: `${request.identity.command}:project`,
+});
 
 export const PACKAGED_CONSUMER_NPMRC = "node-options=--no-experimental-strip-types\n";
 
-export const packagedConsumerManifest = (request: { readonly identity: PackageIdentity }): string =>
+export const packagedConsumerManifest = (request: { readonly identity: ToolIdentity }): string =>
   `${JSON.stringify(
     {
       private: true,
       type: "commonjs",
       scripts: {
-        [PACKAGED_SCRIPTS.check]: `${request.identity.checkBin} --repo .`,
-        [PACKAGED_SCRIPTS.project]: `${request.identity.projectBin} --repo .`,
+        [packagedScriptsOf(request).check]: `${request.identity.command} check --repo .`,
+        [packagedScriptsOf(request).project]: `${request.identity.command} project --repo .`,
       },
     },
     null,

@@ -23,6 +23,7 @@ import { sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import {
@@ -157,7 +158,7 @@ const configuredClause = (request: {
   if (settings.data.pluginNamespace === reservedNamespace) {
     return pieceInvalid({
       pieceRoot: request.clause.pieceRoot,
-      detail: `the plugin namespace ${reservedNamespace} is reserved for discipline core`,
+      detail: `the plugin namespace ${reservedNamespace} is reserved for ${TOOL_IDENTITY.command}'s own rules`,
     });
   }
   return {

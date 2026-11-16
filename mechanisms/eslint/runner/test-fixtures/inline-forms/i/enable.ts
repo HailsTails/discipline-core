@@ -1,2 +1,2 @@
-/* eslint-enable discipline/no-class-authoring */
+/* eslint-enable hone/no-class-authoring */
 export class Kept {}

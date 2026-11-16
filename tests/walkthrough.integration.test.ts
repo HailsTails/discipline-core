@@ -77,7 +77,7 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
     fileText: createDefaultFileTextPort({}),
     modules: createDefaultModuleLoaderPort({}),
     git: trackingGit({ tracked: request.tracked }),
-    moduleUrl: new URL("../core/check/check-command.ts", import.meta.url).href,
+    moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
   });
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
 };

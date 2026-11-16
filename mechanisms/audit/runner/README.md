@@ -1,6 +1,6 @@
 # Audit runner
 
-The audit runner is discipline-core's standalone mechanism for checks that read a project's TypeScript source directly. Core hands it the selected clauses and the files to check; it loads each clause's piece module, parses each file once, visits every node of the syntax tree, and reports a hit wherever a piece's check finds one. It reports no native exceptions: the audit mechanism has no suppression format of its own, so its `exceptionPath` is `standalone`.
+The audit runner is Hone's standalone mechanism for checks that read a project's TypeScript source directly. Core hands it the selected clauses and the files to check; it loads each clause's piece module, parses each file once, visits every node of the syntax tree, and reports a hit wherever a piece's check finds one. It reports no native exceptions: the audit mechanism has no suppression format of its own, so its `exceptionPath` is `standalone`.
 
 ## Runtime
 

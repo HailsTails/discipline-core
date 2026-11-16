@@ -6,7 +6,7 @@
     {
       "clause": "cognitive-complexity",
       "settings": {
-        "pluginNamespace": "discipline-cd41",
+        "pluginNamespace": "hone-cd41",
         "pluginModule": "cd41/cd41.eslint-plugin.ts",
         "rule": "cognitive-complexity"
       }
@@ -14,7 +14,7 @@
     {
       "clause": "function-length",
       "settings": {
-        "pluginNamespace": "discipline-cd41",
+        "pluginNamespace": "hone-cd41",
         "pluginModule": "cd41/cd41.eslint-plugin.ts",
         "rule": "function-length"
       }

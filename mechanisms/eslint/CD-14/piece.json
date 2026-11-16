@@ -6,7 +6,7 @@
     {
       "clause": "class-syntax",
       "settings": {
-        "pluginNamespace": "discipline",
+        "pluginNamespace": "hone",
         "pluginModule": "cd14/cd14.eslint-plugin.ts",
         "rule": "no-class-authoring"
       }
@@ -14,7 +14,7 @@
     {
       "clause": "static-only-class",
       "settings": {
-        "pluginNamespace": "discipline",
+        "pluginNamespace": "hone",
         "pluginModule": "cd14/cd14.eslint-plugin.ts",
         "rule": "no-extraneous-class",
         "options": [

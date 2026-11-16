@@ -1,5 +1,6 @@
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { Result } from "../core/values/result.ts";
+import { TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import type { CommandRunPort } from "./install-proof-ports.ts";
 import { type BuiltPackage, buildPackage, type PackageBuildPorts } from "./package-build.ts";
 
@@ -23,7 +24,7 @@ const PACKED_BUILD_FOLDER = "package-build";
 
 const PACKED_TARBALL_FOLDER = "package-tarball";
 
-const DETERMINISM_PREFIX = "discipline-core-package-determinism-";
+const DETERMINISM_PREFIX = `${TOOL_IDENTITY.packageName}-package-determinism-`;
 
 const NODE_MODULES = "node_modules";
 

@@ -1,6 +1,6 @@
 # CD-1 ESLint piece
 
-This piece enforces CD-1's `explicit-any` and `implicit-any-let` clauses through ESLint, in the plugin `cd1/cd1.eslint-plugin.ts` under the namespace `discipline-cd1`.
+This piece enforces CD-1's `explicit-any` and `implicit-any-let` clauses through ESLint, in the plugin `cd1/cd1.eslint-plugin.ts` under the namespace `hone-cd1`.
 
 - `no-explicit-any` reuses typescript-eslint's rule with default options and flags every `any` type.
 - `implicit-any-let` flags a `let` or `var` with neither a type annotation nor an initialiser in a `.ts` or `.tsx` file, once per declaration.

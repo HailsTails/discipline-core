@@ -1,2 +1,2 @@
-// eslint-disable-next-line discipline/no-class-authoring
+// eslint-disable-next-line hone/no-class-authoring
 export class Kept {}

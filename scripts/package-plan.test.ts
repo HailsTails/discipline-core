@@ -15,9 +15,8 @@ const SOURCE_PATHS = [
   "package.json",
   "docs/why-chain-contract.md",
   "docs/adding-a-discipline-or-mechanism.md",
-  "core/check/check-command.ts",
-  "core/check/check-command.test.ts",
-  "core/check/project-command.ts",
+  "core/check/tool-command.ts",
+  "core/check/tool-command.test.ts",
   "core/check/run-check.ts",
   "mechanisms/audit/runner/runner.ts",
   "mechanisms/audit/runner/runner.test.ts",
@@ -51,8 +50,8 @@ const ESLINT_PIECE = {
     discipline: "CD-14",
     mechanism: "eslint",
     clauses: [
-      { clause: "class-syntax", settings: { pluginNamespace: "discipline", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class" } },
-      { clause: "static-only-class", settings: { pluginNamespace: "discipline", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "static" } },
+      { clause: "class-syntax", settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class" } },
+      { clause: "static-only-class", settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "static" } },
     ],
   }),
 };
@@ -69,19 +68,18 @@ describe("piecePathsIn", () => {
 describe("packagePlanOf", () => {
   const plan = packagePlanOf({ sourcePaths: SOURCE_PATHS, pieces: [AUDIT_PIECE, ESLINT_PIECE] });
 
-  it("builds the two commands, each runner and each piece module a shipped piece names, once each", () => {
+  it("builds the one command, each runner and each piece module a shipped piece names, once each", () => {
     expect(plan).toMatchObject({
       outcome: "ok",
       value: {
         entryPoints: [
-          "core/check/check-command.ts",
-          "core/check/project-command.ts",
+          "core/check/tool-command.ts",
           "mechanisms/audit/runner/runner.ts",
           "mechanisms/eslint/runner/runner.ts",
           "mechanisms/audit/CD-23/export-test-sibling.ts",
           "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts",
         ],
-        commands: { check: "core/check/check-command.js", project: "core/check/project-command.js" },
+        command: "core/check/tool-command.js",
       },
     });
   });
@@ -150,7 +148,7 @@ describe("packagePlanOf", () => {
           {
             clause: "class-syntax",
             module: "clause.ts",
-            settings: { pluginNamespace: "discipline", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class", options: [{ module: "option.ts" }] },
+            settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class", options: [{ module: "option.ts" }] },
           },
         ],
       }),
@@ -169,7 +167,7 @@ describe("packagePlanOf", () => {
                   {
                     clause: "class-syntax",
                     module: "clause.ts",
-                    settings: { pluginNamespace: "discipline", pluginModule: "cd14/cd14.eslint-plugin.js", rule: "no-class", options: [{ module: "option.ts" }] },
+                    settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.js", rule: "no-class", options: [{ module: "option.ts" }] },
                   },
                 ],
               },

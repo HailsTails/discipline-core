@@ -59,7 +59,7 @@ describe("CD-14 ESLint piece.json", () => {
           {
             clause: "class-syntax",
             settings: {
-              pluginNamespace: "discipline",
+              pluginNamespace: "hone",
               pluginModule: "cd14/cd14.eslint-plugin.ts",
               rule: "no-class-authoring",
             },
@@ -67,7 +67,7 @@ describe("CD-14 ESLint piece.json", () => {
           {
             clause: "static-only-class",
             settings: {
-              pluginNamespace: "discipline",
+              pluginNamespace: "hone",
               pluginModule: "cd14/cd14.eslint-plugin.ts",
               rule: "no-extraneous-class",
               options: [{ allowConstructorOnly: true, allowEmpty: true, allowStaticOnly: false, allowWithDecorator: true }],
@@ -82,7 +82,7 @@ describe("CD-14 ESLint piece.json", () => {
     expect(eslintPieceSettingsSchema.safeParse(piece.clauses[0].settings)).toEqual({
       success: true,
       data: {
-        pluginNamespace: "discipline",
+        pluginNamespace: "hone",
         pluginModule: "cd14/cd14.eslint-plugin.ts",
         rule: "no-class-authoring",
       },

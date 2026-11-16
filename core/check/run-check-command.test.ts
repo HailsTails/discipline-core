@@ -11,7 +11,7 @@ import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import { type CommandRequest, runCheckCommand } from "./run-check-command.ts";
 
-const ENTRY_URL = "file:///install/core/check/check-command.ts";
+const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
 type FakeFile = {
   readonly read: ReturnType<FileTextPort["read"]>;
@@ -84,11 +84,11 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
 };
 
 const FILE_PATHS: Readonly<Record<string, string>> = {
-  [ENTRY_URL]: "/install/core/check/check-command.ts",
+  [ENTRY_URL]: "/install/core/check/tool-command.ts",
 };
 
 const DIRECTORIES: Readonly<Record<string, string>> = {
-  "/install/core/check/check-command.ts": "/install/core/check",
+  "/install/core/check/tool-command.ts": "/install/core/check",
   "/install/core/check": "/install/core",
   "/install/core": "/install",
 };

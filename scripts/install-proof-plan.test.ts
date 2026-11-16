@@ -4,6 +4,7 @@ import {
   judgedStep,
   PROOF_CASES,
   packagedConsumerManifest,
+  packagedScriptsOf,
   type ProofAction,
   type StepExpectation,
   toolchainManifest,
@@ -140,14 +141,14 @@ describe("toolchainManifest, over this package's own package.json read as a buil
   });
 });
 
-const PROJECTION = `import piece0 from "discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
+const PROJECTION = `import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error", "discipline/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error", "hone/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },
   },
 ];
 `;
@@ -192,10 +193,16 @@ describe("the proof cases", () => {
       { consumer: "eslint-missing", mechanism: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
     ]);
   });
-  it("give a packaged consumer scripts calling the two bins on the repository root", () => {
-    expect(packagedConsumerManifest({ identity: { name: "core", description: "Core.", checkBin: "core-check", projectBin: "core-project" } })).toBe(
+  it("name a packaged consumer's scripts after the command and its subcommands", () => {
+    expect(packagedScriptsOf({ identity: { packageName: "core-package", command: "core", description: "Core." } })).toEqual({
+      check: "core:check",
+      project: "core:project",
+    });
+  });
+  it("give a packaged consumer scripts calling the command's two subcommands on the repository root", () => {
+    expect(packagedConsumerManifest({ identity: { packageName: "core-package", command: "core", description: "Core." } })).toBe(
       `${JSON.stringify(
-        { private: true, type: "commonjs", scripts: { "discipline:check": "core-check --repo .", "discipline:project": "core-project --repo ." } },
+        { private: true, type: "commonjs", scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." } },
         null,
         2,
       )}\n`,

@@ -1,6 +1,6 @@
 # CD-6 ESLint piece
 
-This piece enforces CD-6's `naming-convention` clause through ESLint. It is one rule, `naming-convention`, in the plugin `cd6/cd6.eslint-plugin.ts` under the namespace `discipline-cd6`. It reuses typescript-eslint's `naming-convention` with the option list carried in `piece.json`, which sets the allowed case for each kind of name.
+This piece enforces CD-6's `naming-convention` clause through ESLint. It is one rule, `naming-convention`, in the plugin `cd6/cd6.eslint-plugin.ts` under the namespace `hone-cd6`. It reuses typescript-eslint's `naming-convention` with the option list carried in `piece.json`, which sets the allowed case for each kind of name.
 
 `piece.json` names the clause, the namespace, the plugin module, the rule and its `options`. It is the only file core reads to find the rule.
 

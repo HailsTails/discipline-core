@@ -114,7 +114,7 @@ describe("CD-1 no-explicit-any rule through the ESLint runner's lintSourceCases"
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd1",
+        pluginNamespace: "hone-cd1",
         rule: "no-explicit-any",
         options: [],
         cases: [sourceCase],
@@ -132,7 +132,7 @@ describe("CD-1 implicit-any-let rule through the ESLint runner's lintSourceCases
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd1",
+        pluginNamespace: "hone-cd1",
         rule: "implicit-any-let",
         options: [],
         cases: [sourceCase],

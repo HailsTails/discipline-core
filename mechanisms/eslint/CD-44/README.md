@@ -1,6 +1,6 @@
 # CD-44 ESLint piece
 
-This piece enforces CD-44's `parameter-reassignment` clause through ESLint. It is one rule, `no-param-reassign`, in the plugin `cd44/cd44.eslint-plugin.ts` under the namespace `discipline-cd44`. It reuses ESLint's `no-param-reassign` with the `options` `{ "props": false }` carried in `piece.json`, so it flags reassignment of a parameter itself and leaves its fields to the audit's `parameter-mutation` clause.
+This piece enforces CD-44's `parameter-reassignment` clause through ESLint. It is one rule, `no-param-reassign`, in the plugin `cd44/cd44.eslint-plugin.ts` under the namespace `hone-cd44`. It reuses ESLint's `no-param-reassign` with the `options` `{ "props": false }` carried in `piece.json`, so it flags reassignment of a parameter itself and leaves its fields to the audit's `parameter-mutation` clause.
 
 ## Adopting the rule
 

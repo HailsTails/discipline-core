@@ -1,8 +1,8 @@
-# Adopting discipline core
+# Adopting Hone
 
 This page takes a TypeScript repository from nothing to a checked, passing run. Do the steps in order. Every command is run from the root of the repository being checked, which this page calls `<repo>`. Nothing here needs AIDLC or any agent harness. A repository that adopted the disciplines through the older standalone copy route follows [MIGRATING.md](MIGRATING.md), which uses these steps.
 
-Discipline core reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks over every git-tracked file, applies the exceptions in `discipline-exceptions.json`, and prints one report ending in `verdict: pass` or `verdict: fail`.
+Hone reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks over every git-tracked file, applies the exceptions in `discipline-exceptions.json`, and prints one report ending in `verdict: pass` or `verdict: fail`.
 
 ## 1. Check the prerequisites
 
@@ -10,28 +10,32 @@ Discipline core reads `disciplines.json` in `<repo>`, runs the selected discipli
 node --version
 ```
 
-It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of your own whose piece modules are `.ts` files needs Node 22.18.0 or later, because core loads those modules as they are. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
+It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of your own whose piece modules are `.ts` files needs Node 22.18.0 or later, because Hone loads those modules as they are. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
 
-## 2. Install the core package
+## 2. Install the Hone package
 
-Core ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node. The current version, `0.1.0-pre.1`, is a pre-release under a provisional name: the package and command names may change before a first named release, and nothing is published to a registry. This page writes the tarball's location as `<discipline-core-tarball>`: a path such as `vendor/discipline-core/discipline-core-0.1.0-pre.1.tgz`, or an `https://` URL your team serves it from.
+Hone ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node.
 
-The main route is to download `discipline-core-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/discipline-core/releases/tag/v0.1.0-pre.1), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.1` is pushed. Until that tag exists the release page does not, and the route below is the one that works.
+**The npm package is named `honed`, not `hone`.** The name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `honed` installs one command, `hone`.
 
-The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/discipline-core/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
+The current version, `0.1.0-pre.1`, is a pre-release: its commands, flags and files may still change before `0.1.0`, and nothing is published to a registry yet. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.1.tgz`, or an `https://` URL your team serves it from.
+
+The main route is to download `honed-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.1` is pushed. Until that tag exists the release page does not, and the route below is the one that works.
+
+The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
 ```bash
-git clone -c core.longpaths=true https://github.com/HailsTails/discipline-core.git /tmp/discipline-core-source
-git -C /tmp/discipline-core-source checkout <pinned-sha>
-cd /tmp/discipline-core-source && bun install --frozen-lockfile && bun run pack-package && cd -
+git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/honed-source
+git -C /tmp/honed-source checkout <pinned-sha>
+cd /tmp/honed-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/artefacts/discipline-core-0.1.0-pre.1.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/discipline-core/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/honed-0.1.0-pre.1.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/honed/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 
 ```bash
-npm install --save-dev <discipline-core-tarball>
+npm install --save-dev <honed-tarball>
 ```
 
 npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
@@ -40,14 +44,14 @@ Add the two commands to the root `package.json` scripts:
 
 ```json
 "scripts": {
-  "discipline:check": "discipline-core-check --repo .",
-  "discipline:project": "discipline-core-project --repo ."
+  "hone:check": "hone check --repo .",
+  "hone:project": "hone project --repo ."
 }
 ```
 
-`discipline-core-check` and `discipline-core-project` are the package's two commands. The package name and command names are provisional until the tool is named.
+`hone` is the package's one command, with two subcommands: `hone check` runs the check and `hone project` writes the ESLint projection. `hone` with no subcommand, or with any other, exits `2` with a `load failure: arguments-invalid` line that prints the usage.
 
-Core runs on the toolchain the repository already uses, which the package declares as optional peer dependencies. Keep the versions you have; core supports these ranges:
+Hone runs on the toolchain the repository already uses, which the package declares as optional peer dependencies. Keep the versions you have; Hone supports these ranges:
 
 | Package | Needed for | Range |
 | --- | --- | --- |
@@ -56,9 +60,9 @@ Core runs on the toolchain the repository already uses, which the package declar
 | `@typescript-eslint/parser` | any `eslint` clause | `^8.56.0` |
 | `@typescript-eslint/eslint-plugin` | any `eslint` clause | `^8.56.0` |
 
-A repository that already has them in range needs nothing more. A package that is missing or out of range is named when the check runs; add it at a version inside its range and inside the range your other tooling accepts, without moving ESLint or TypeScript to another major for core's sake.
+A repository that already has them in range needs nothing more. A package that is missing or out of range is named when the check runs; add it at a version inside its range and inside the range your other tooling accepts, without moving ESLint or TypeScript to another major for Hone's sake.
 
-Core finds these by Node's resolution upward from where the package is installed, so in a monorepo they must resolve from the repository root: declare them in the root `package.json` (with pnpm, `pnpm add -Dw` at the versions the packages already use), even where packages also declare their own. Yarn Plug'n'Play is not supported, because core resolves the toolchain through `node_modules`.
+Hone finds these by Node's resolution upward from where the package is installed, so in a monorepo they must resolve from the repository root: declare them in the root `package.json` (with pnpm, `pnpm add -Dw` at the versions the packages already use), even where packages also declare their own. Yarn Plug'n'Play is not supported, because Hone resolves the toolchain through `node_modules`.
 
 Commit `package.json`, the lockfile and the tarball if it is a file in the repository. To update later, repeat this step with a newer tarball.
 
@@ -92,7 +96,7 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/adding-a-discipline-or-mechanism.md](docs/adding-a-discipline-or-mechanism.md).
 
-Every clause address the core ships:
+Every clause address Hone ships:
 
 ```text
 audit:
@@ -124,7 +128,7 @@ Starting with a few disciplines and adding more once the run passes is easier th
 Skip this if every selected clause is `audit`. Otherwise, after writing `disciplines.json`, write the ESLint projection:
 
 ```bash
-npm run --silent discipline:project
+npm run --silent hone:project
 ```
 
 It prints `disciplines.eslint.mjs written`. Spread its default export last in the repository's flat config. A repository with no ESLint config yet can start from this `eslint.config.mjs`:
@@ -138,20 +142,20 @@ export default [
 ];
 ```
 
-In a monorepo, every `eslint.config.*` that applies to checked files spreads the projection last. Core detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
+In a monorepo, every `eslint.config.*` that applies to checked files spreads the projection last. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
 
 ```json
 { "eslintConfigLookup": "nearest-to-file" }
 ```
 
-Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.12 to 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the core check lists for that file.
+Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.12 to 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
 
-Commit both files. Core's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `discipline:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or core is updated. The projection imports each piece from the package by name, for example `discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `discipline-core` from the repository root. Core's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
+Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `honed` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
 
 ## 5. Run the check
 
 ```bash
-npm run --silent discipline:check
+npm run --silent hone:check
 ```
 
 | Exit code | Meaning |
@@ -160,17 +164,17 @@ npm run --silent discipline:check
 | `1` | `verdict: fail`: the report says why |
 | `2` | an input could not be loaded or a check crashed; the output is one line starting `load failure:` or names the failing piece |
 
-`npm run` passes the exit code through. `sh: discipline-core-check: not found` or `'discipline-core-check' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside core's own install folder, which the line names: delete that `node_modules` folder and reinstall.
+`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
 
 In CI, pass the branch's base so that debt recorded per file is forfeited once that file changes:
 
 ```bash
-npm run --silent discipline:check -- --base-revision origin/main
+npm run --silent hone:check -- --base-revision origin/main
 ```
 
 Add the command to the repository's existing validation script, and run that same script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run. With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
-Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/discipline-core/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
+Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/honed/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
 
 ## 6. Read the report
 
@@ -223,7 +227,7 @@ Every entry needs a `reason`. By default every entry also needs a `whyChain` sha
 }
 ```
 
-The chain runs cause to cause: each why asks why the answer before it is true, each answer cites evidence that can be checked again, the root names the fifth answer's cause and is checked against today, and the readback runs back from the root to the symptom with "therefore". [The why-chain contract](docs/why-chain-contract.md) has a worked example, the checks core runs, and what review still judges. A chain that breaks a check is refused as an `invalidRecords` entry. `file` is an exact repository path.
+The chain runs cause to cause: each why asks why the answer before it is true, each answer cites evidence that can be checked again, the root names the fifth answer's cause and is checked against today, and the readback runs back from the root to the symptom with "therefore". [The why-chain contract](docs/why-chain-contract.md) has a worked example, the checks Hone runs, and what review still judges. A chain that breaks a check is refused as an `invalidRecords` entry. `file` is an exact repository path.
 
 Debt or authorisations already recorded by an earlier system, for example the old standalone route's `.constitution-carve-outs/`, can be imported with `provenance` instead of a `whyChain`, as [MIGRATING.md](MIGRATING.md#3-convert-the-old-records-into-exceptions) step 3 shows. Imported entries are checked against `--base-revision`: by default, any entry you write or change yourself needs the full `whyChain`.
 
@@ -241,7 +245,7 @@ Stage it, since only tracked files are checked, and run the check:
 
 ```bash
 git add src/discipline-probe.ts
-npm run --silent discipline:check
+npm run --silent hone:check
 ```
 
 It must exit `1` with the line `CD-17#clock-sources audit src/discipline-probe.ts:1:0 const probeStartedAt = Date.now();` among its findings. Change the same file to `const probeStartedAt = 0;`, stage it, and run the check again: that finding must be gone. Then remove the probe with `git rm -f src/discipline-probe.ts`. A run that never showed the finding proves nothing: check that the file was staged and is not under an `exclude` entry. For another discipline, take a flag case from its `rules/<ID>/discipline.json`.
@@ -262,15 +266,15 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 ## 10. Update and remove
 
-To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/discipline-core/rules/` with the old ones, re-run `discipline:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
+To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/honed/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
-To remove, run `npm uninstall discipline-core`, delete the two `discipline:` scripts, the tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
+To remove, run `npm uninstall honed`, delete the two `hone:` scripts, the tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 
 ## Worked example
 
-In the discipline-core source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly.
+In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly.
 
-Before, `npm run --silent discipline:check` prints, and exits `1`:
+Before, `npm run --silent hone:check` prints, and exits `1`:
 
 ```text
 excluded (1)

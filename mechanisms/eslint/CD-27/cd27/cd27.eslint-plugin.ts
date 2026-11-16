@@ -101,7 +101,7 @@ const modifierRule = (request: {
 });
 
 export default {
-  meta: { name: "discipline-cd27", version: "0.0.0-local" },
+  meta: { name: "hone-cd27", version: "0.0.0-local" },
   rules: {
     "focused-tests": modifierRule({
       modifier: FOCUSED,

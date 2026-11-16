@@ -12,7 +12,7 @@ import {
 
 const classSyntax = clauseAddressSchema.parse("CD-14#class-syntax");
 const noTmpFiles = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
-const noClassAuthoring = "discipline/no-class-authoring";
+const noClassAuthoring = "hone/no-class-authoring";
 const rootPackageJson = repoPathSchema.parse("package.json");
 const nestedPackageJson = repoPathSchema.parse("packages/a/package.json");
 
@@ -30,11 +30,11 @@ describe("scriptCommandsOf", () => {
   it("keeps single- and double-quoted spans whole and removes their quotes", () => {
     expect(
       scriptCommandsOf({
-        script: `eslint --rule 'discipline/no-class-authoring: off' --ignore-pattern "dist/**"`,
+        script: `eslint --rule 'hone/no-class-authoring: off' --ignore-pattern "dist/**"`,
       }),
     ).toEqual({
       outcome: "ok",
-      value: [["eslint", "--rule", "discipline/no-class-authoring: off", "--ignore-pattern", "dist/**"]],
+      value: [["eslint", "--rule", "hone/no-class-authoring: off", "--ignore-pattern", "dist/**"]],
     });
   });
 
@@ -73,9 +73,9 @@ describe("eslintInvocationsOf", () => {
   it("reads options a package manager forwards after -- the same way", () => {
     expect(
       eslintInvocationsOf({
-        commands: [["pnpm", "exec", "eslint", "src", "--", "--rule", "discipline/no-class-authoring: off"]],
+        commands: [["pnpm", "exec", "eslint", "src", "--", "--rule", "hone/no-class-authoring: off"]],
       }),
-    ).toEqual([{ options: ["src", "--rule", "discipline/no-class-authoring: off"] }]);
+    ).toEqual([{ options: ["src", "--rule", "hone/no-class-authoring: off"] }]);
   });
 
   it("finds each invocation among a script's other commands, counting any command with an eslint token", () => {
@@ -89,34 +89,34 @@ describe("commandLineOptionsOf", () => {
   it("reports --rule in space form when its value names a selected rule id", () => {
     expect(
       commandLineOptionsOf({
-        invocation: { options: ["src", "--rule", "discipline/no-class-authoring: off"] },
+        invocation: { options: ["src", "--rule", "hone/no-class-authoring: off"] },
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([
-      { option: "--rule discipline/no-class-authoring: off", ruleIds: [noClassAuthoring] },
+      { option: "--rule hone/no-class-authoring: off", ruleIds: [noClassAuthoring] },
     ]);
   });
 
   it("reports --rule in = form when its value names a selected rule id", () => {
     expect(
       commandLineOptionsOf({
-        invocation: { options: ["--rule=discipline/no-class-authoring: off"] },
+        invocation: { options: ["--rule=hone/no-class-authoring: off"] },
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([
-      { option: "--rule=discipline/no-class-authoring: off", ruleIds: [noClassAuthoring] },
+      { option: "--rule=hone/no-class-authoring: off", ruleIds: [noClassAuthoring] },
     ]);
   });
 
   it("matches a selected rule id after a comma and spaces in the --rule value", () => {
     expect(
       commandLineOptionsOf({
-        invocation: { options: ["--rule", "no-console: off,   discipline/no-class-authoring : off"] },
+        invocation: { options: ["--rule", "no-console: off,   hone/no-class-authoring : off"] },
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([
       {
-        option: "--rule no-console: off,   discipline/no-class-authoring : off",
+        option: "--rule no-console: off,   hone/no-class-authoring : off",
         ruleIds: [noClassAuthoring],
       },
     ]);
@@ -132,7 +132,7 @@ describe("commandLineOptionsOf", () => {
   });
 
   it.each([
-    "discipline/no-class-authoring-x: off",
+    "hone/no-class-authoring-x: off",
     "no-console: off",
     "discipline: off",
   ])("does not report --rule whose value %s names no selected rule id as a whole id", (ruleValue) => {
@@ -145,9 +145,9 @@ describe("commandLineOptionsOf", () => {
   });
 
   it.each([
-    [["--suppress-rule", "discipline/no-class-authoring"], "--suppress-rule discipline/no-class-authoring"],
-    [["--suppress-rule=discipline/no-class-authoring"], "--suppress-rule=discipline/no-class-authoring"],
-    [["--suppress-rule", "no-console,discipline/no-class-authoring"], "--suppress-rule no-console,discipline/no-class-authoring"],
+    [["--suppress-rule", "hone/no-class-authoring"], "--suppress-rule hone/no-class-authoring"],
+    [["--suppress-rule=hone/no-class-authoring"], "--suppress-rule=hone/no-class-authoring"],
+    [["--suppress-rule", "no-console,hone/no-class-authoring"], "--suppress-rule no-console,hone/no-class-authoring"],
   ])("reports %j when it names a selected rule id", (options, option) => {
     expect(
       commandLineOptionsOf({ invocation: { options }, selectedRuleIds: [noClassAuthoring] }),
@@ -157,7 +157,7 @@ describe("commandLineOptionsOf", () => {
   it("does not report --suppress-rule naming a rule id that only extends a selected one", () => {
     expect(
       commandLineOptionsOf({
-        invocation: { options: ["--suppress-rule", "discipline/no-class-authoring-x"] },
+        invocation: { options: ["--suppress-rule", "hone/no-class-authoring-x"] },
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([]);
@@ -254,7 +254,7 @@ describe("scanPackageJson", () => {
     expect(
       scanPackageJson({
         path: rootPackageJson,
-        text: JSON.stringify({ scripts: { lint: "eslint --rule 'discipline/no-class-authoring: off' src" } }),
+        text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
         selectedRules: [classRule],
       }),
     ).toEqual({
@@ -266,7 +266,7 @@ describe("scanPackageJson", () => {
             clause: classSyntax,
             location: "package.json",
             script: "lint",
-            option: "--rule discipline/no-class-authoring: off",
+            option: "--rule hone/no-class-authoring: off",
           },
         ],
         suppressionsLocations: [],
@@ -278,7 +278,7 @@ describe("scanPackageJson", () => {
     expect(
       scanPackageJson({
         path: rootPackageJson,
-        text: JSON.stringify({ scripts: { lint: "eslint --rule 'discipline/no-class-authoring-x: off' src" } }),
+        text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring-x: off' src" } }),
         selectedRules: [classRule],
       }),
     ).toEqual({ outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } });
