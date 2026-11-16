@@ -38,9 +38,6 @@
     },
     "eslint": {
       "optional": true
-    },
-    "typescript": {
-      "optional": true
     }
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { loadedPeer, supportedRange, type ToolchainRequirement, versionSupport }
 
 const TWO_MAJORS: ToolchainRequirement = {
   packageName: "eslint",
+  peer: "optional",
   lines: [
     { floor: "9.12.0", below: "10.0.0" },
     { floor: "10.0.0", below: "11.0.0" },
@@ -13,6 +14,7 @@ const TWO_MAJORS: ToolchainRequirement = {
 
 const SPAN: ToolchainRequirement = {
   packageName: "typescript",
+  peer: "required",
   lines: [{ floor: "4.8.4", below: "7.0.0" }],
 };
 
@@ -91,7 +93,7 @@ describe("loadedPeer", () => {
   it("names the package as not installed when it does not resolve", async () => {
     await expect(loadedPeer({ ...peerAt({ version: "10.11.0" }), location: { installRoot: INSTALL_ROOT, installForm: "package", locate: vi.fn<PackageLocationPort["locate"]>().mockThrow(missingPackage({ packageName: "eslint" })) } })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
     });
   });
 
@@ -115,6 +117,7 @@ describe("loadedPeer", () => {
       error: {
         kind: "toolchain-unavailable",
         packageName: "eslint",
+        peer: "optional",
         supported: "^9.12.0 || ^10.0.0",
         found: "unloadable: node:eslint (the text is not a file: URL)",
       },
@@ -175,7 +178,7 @@ describe("loadedPeer", () => {
   it("names the installed version when it is outside the supported range", async () => {
     await expect(loadedPeer(peerAt({ version: "8.57.1" }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", supported: "^9.12.0 || ^10.0.0", found: "8.57.1" },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "8.57.1" },
     });
   });
 

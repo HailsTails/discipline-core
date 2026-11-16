@@ -90,7 +90,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "eslint",
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
         },
       },
       pieceLoads: [],
@@ -122,7 +122,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "audit",
-          failure: { kind: "toolchain-unavailable", packageName: "typescript", supported: ">=4.8.4 <7.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" },
         },
       },
       pieceLoads: [],
@@ -141,5 +141,19 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
       printed: `load failure: runner-failed eslint toolchain-shadowed eslint resolved from ${INSTALL_ROOT}/node_modules/eslint/lib/api.js inside the core install ${INSTALL_ROOT}: delete ${INSTALL_ROOT}/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used\n`,
       pieceLoads: [],
     });
+  });
+});
+
+describe("a check whose adopter's install is missing the required peer typescript", () => {
+  it("prints a missing typescript as an incomplete install, since typescript is a required peer", async () => {
+    const checked = await checkWith({
+      fixture: "tests/test-fixtures/consumer-proof/audit",
+      runner: auditRunnerWithoutTypescript({ pieces: pieceLoads() }),
+      tracked: [repoPathSchema.parse("src/plain.ts")],
+    });
+    assert(checked.outcome === "failed", "the check fails to load");
+    expect(loadFailureText({ failure: checked.error })).toBe(
+      "load failure: runner-failed audit toolchain-unavailable typescript found not installed, supported >=4.8.4 <7.0.0: typescript is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall\n",
+    );
   });
 });

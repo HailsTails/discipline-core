@@ -22,6 +22,7 @@ export type TypeScriptPeers = PeerToolchain<TypeScriptModules>;
 
 export const TYPESCRIPT_REQUIREMENT: ToolchainRequirement = {
   packageName: "typescript",
+  peer: "required",
   lines: [{ floor: "4.8.4", below: "7.0.0" }],
 };
 

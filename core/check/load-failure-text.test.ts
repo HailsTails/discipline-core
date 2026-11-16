@@ -48,13 +48,13 @@ describe("loadFailureText", () => {
     ).toBe("load failure: runner-failed audit file-unparseable src/a.ts unexpected token\n");
   });
 
-  it("prints toolchain-unavailable with the package, what was found, the supported range and where to install it", () => {
+  it("prints a missing optional peer with the package, what was found, the supported range and where to install it", () => {
     expect(
       loadFailureText({
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
         },
       }),
     ).toBe(
@@ -126,5 +126,38 @@ describe("loadFailureText", () => {
         failure: { kind: "runner-failed", mechanism: WALKER, failure: { kind: "tool-failed", detail: "crashed\nverdict: pass" } },
       }),
     ).toBe("load failure: runner-failed audit tool-failed crashed\\nverdict: pass\n");
+  });
+});
+
+describe("loadFailureText for a missing required peer", () => {
+  it("prints a missing required peer as an incomplete install of the package, with what was found, the supported range and how to repair it", () => {
+    expect(
+      loadFailureText({
+        failure: {
+          kind: "runner-failed",
+          mechanism: WALKER,
+          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" },
+        },
+      }),
+    ).toBe(
+      "load failure: runner-failed audit toolchain-unavailable typescript found not installed, supported >=4.8.4 <7.0.0: typescript is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall\n",
+    );
+  });
+
+  it.each([
+    { state: "out of range", found: "7.0.0" },
+    { state: "unloadable", found: "unloadable: Cannot find module './lib/typescript.js'" },
+  ])("prints a required peer that is installed but $state with the plain repair, not as an incomplete install", ({ found }) => {
+    expect(
+      loadFailureText({
+        failure: {
+          kind: "runner-failed",
+          mechanism: WALKER,
+          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found },
+        },
+      }),
+    ).toBe(
+      `load failure: runner-failed audit toolchain-unavailable typescript found ${found}, supported >=4.8.4 <7.0.0: add a supported version to the devDependencies of the repository root\n`,
+    );
   });
 });

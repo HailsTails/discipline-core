@@ -1,6 +1,8 @@
+import { z } from "zod";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
+import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import {
   type CommandScript,
@@ -11,6 +13,7 @@ import {
   type ProofAction,
   type ProofCase,
   type ProofToolchain,
+  requiredPeerPinsOf,
   type StepRun,
   toolchainManifest,
 } from "./install-proof-plan.ts";
@@ -220,11 +223,13 @@ const writtenFile = (request: {
 
 type ConsumerFile = { readonly name: string; readonly text: string };
 
-const CONSUMER_FILES: readonly ConsumerFile[] = [
-  { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY }) },
+const consumerFiles = (request: { readonly requiredPeers: Readonly<Record<string, string>> }): readonly ConsumerFile[] => [
+  { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY, requiredPeers: request.requiredPeers }) },
   { name: ".gitignore", text: IGNORED_INSTALLS },
   { name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC },
 ];
+
+const installedVersionSchema = z.object({ version: z.string() });
 const preparedConsumer = (request: {
   readonly context: ProofContext;
   readonly fixture: string;
@@ -290,6 +295,7 @@ const installedToolchain = (request: {
 type CaseRequest = {
   readonly context: ProofContext;
   readonly temporaryRoot: string;
+  readonly packageManifest: string;
   readonly tarball: string;
   readonly proofCase: ProofCase;
 };
@@ -323,13 +329,47 @@ const packageShipsNoSource = (request: {
   return SUCCEEDED;
 };
 
+const installedVersionOf = (request: { readonly context: ProofContext; readonly manifest: string }): Result<string, string> => {
+  const text = request.context.fileText.read({ path: request.manifest });
+  if (text.outcome === "failed") {
+    return { outcome: "failed", error: text.error.detail };
+  }
+  const parsed = parsedJson({ text: text.value });
+  const installed = parsed.outcome === "failed" ? undefined : installedVersionSchema.safeParse(parsed.value);
+  return installed?.success === true ? { outcome: "ok", value: installed.data.version } : { outcome: "failed", error: `${request.manifest} names no version` };
+};
+
+const requiredPeerAtFloor = (request: {
+  readonly context: ProofContext;
+  readonly consumer: string;
+  readonly repo: string;
+  readonly peer: string;
+  readonly floor: string;
+}): Result<null, string> => {
+  const label = `${request.consumer} resolves the required peer ${request.peer} at its pinned floor ${request.floor}`;
+  const manifest = request.context.path.join({ segments: [request.repo, NODE_MODULES, ...request.peer.split("/"), "package.json"] });
+  const installed = installedVersionOf({ context: request.context, manifest });
+  if (installed.outcome === "failed") {
+    return { outcome: "failed", error: `FAIL: ${label}: ${installed.error}` };
+  }
+  if (installed.value !== request.floor) {
+    return { outcome: "failed", error: `FAIL: ${label}: found ${installed.value}` };
+  }
+  request.context.process.writeOut({ text: `ok: ${label}\n` });
+  return SUCCEEDED;
+};
+
 const provenCase = (request: CaseRequest): Result<null, string> => {
+  const pins = requiredPeerPinsOf({ developmentManifest: request.packageManifest, toolchain: request.proofCase.toolchain });
+  if (pins.outcome === "failed") {
+    return { outcome: "failed", error: `FAIL: package.json: ${pins.error.detail}` };
+  }
   const context = request.context;
   const consumer = request.proofCase.consumer;
   const repo = consumerRepo(request);
   return inOrder({
     steps: [
-      () => preparedConsumer({ context, fixture: consumerFixture(request), repo, files: CONSUMER_FILES }),
+      () => preparedConsumer({ context, fixture: consumerFixture(request), repo, files: consumerFiles({ requiredPeers: pins.value }) }),
       () =>
         ranCommand({
           context,
@@ -344,6 +384,11 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
           consumer,
           installedPackage: context.path.join({ segments: [repo, NODE_MODULES, ...TOOL_IDENTITY.packageName.split("/")] }),
         }),
+      ...Object.entries(pins.value).map(
+        ([peer, floor]): Step =>
+          () =>
+            requiredPeerAtFloor({ context, consumer, repo, peer, floor }),
+      ),
       () => git({ context, repo, consumer, arguments: ["init", "-q"] }),
       () => commitAll({ context, repo, consumer, message: "consumer" }),
       ...request.proofCase.actions.map(

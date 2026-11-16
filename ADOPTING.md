@@ -59,7 +59,7 @@ Add the two commands to the root `package.json` scripts:
 
 `hone` is the package's one command, with two subcommands: `hone check` runs the check and `hone project` writes the ESLint projection. `hone` with no subcommand, or with any other, exits `2` with a `load failure: arguments-invalid` line that prints the usage.
 
-Hone runs on the toolchain the repository already uses, which the package declares as optional peer dependencies. Keep the versions you have; Hone supports these ranges:
+Hone runs on the toolchain the repository already uses, which the package declares as peer dependencies: `typescript` is a required peer, because every `audit` clause needs it, and the ESLint packages are optional peers, needed only for `eslint` clauses. npm 7 and later install a missing required peer on their own, and some other package managers only warn about one, so declare `typescript` yourself at the repository root, at the version the repository already uses, rather than let the package manager choose or skip it. Keep the versions you have; Hone supports these ranges:
 
 | Package | Needed for | Range |
 | --- | --- | --- |
@@ -172,7 +172,7 @@ npm run --silent hone:check
 | `1` | `verdict: fail`: the report says why |
 | `2` | an input could not be loaded or a check crashed; the output is one line starting `load failure:` or names the failing piece |
 
-`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
+`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
 
 In CI, pass the branch's base so that debt recorded per file is forfeited once that file changes:
 
