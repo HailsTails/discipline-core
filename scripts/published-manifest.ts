@@ -24,7 +24,13 @@ const MANIFEST_EXPORT = "./package.json";
 
 const exportPathOf = (path: string): string => `./${path}`;
 
-const repositoryLinksOf = (request: { readonly repository: string }) => ({
+type RepositoryLinks = {
+  readonly repository: { readonly type: "git"; readonly url: string };
+  readonly homepage: string;
+  readonly bugs: { readonly url: string };
+};
+
+const repositoryLinksOf = (request: { readonly repository: string }): RepositoryLinks => ({
   repository: { type: "git", url: `git+${request.repository}.git` },
   homepage: `${request.repository}#readme`,
   bugs: { url: `${request.repository}/issues` },

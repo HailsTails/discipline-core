@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ErrorWriter, ProcessPort } from "../core/platform-ports/process-port.ts";
-import { type ReleaseTextProcess, releaseTextOf, runReleaseText } from "./release-text.ts";
+import type { ProcessPort } from "../core/platform-ports/process-port.ts";
+import { distTagOf, releaseTextOf, runReleaseText } from "./release-text.ts";
 
 const IDENTITY = {
   name: "Tool",
@@ -12,14 +12,14 @@ const IDENTITY = {
   unrelatedNpmPackage: "tool",
 };
 
-const processWith = (request: { readonly arguments: readonly string[] }): ReleaseTextProcess => ({
+const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
   arguments: request.arguments,
   writeOut: vi.fn<ProcessPort["writeOut"]>(),
-  writeError: vi.fn<ErrorWriter>(),
+  writeError: vi.fn<ProcessPort["writeError"]>(),
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const outputOf = (request: { readonly process: ReleaseTextProcess }) => ({
+const outputOf = (request: { readonly process: ProcessPort }) => ({
   writes: vi.mocked(request.process.writeOut).mock.calls,
   errors: vi.mocked(request.process.writeError).mock.calls,
   exits: vi.mocked(request.process.exitWith).mock.calls,
@@ -34,6 +34,22 @@ describe("releaseTextOf", () => {
     expect(releaseTextOf({ identity: IDENTITY, tag: "v0.1.0-pre.1", part: "notes" })).toBe(
       "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled, not tool, which is an unrelated npm package; it provides the command tool.",
     );
+  });
+});
+
+describe("distTagOf", () => {
+  it.each([
+    ["v0.1.0-pre.1", "next"],
+    ["v1.0.0-rc.1+build.5", "next"],
+    ["v1.0.0", "latest"],
+    ["v1.0.0+build-1", "latest"],
+    ["v1.0.0+build.1-a", "latest"],
+  ] as const)("publishes %s under %s, reading a pre-release only from the part before build metadata", (tag, distTag) => {
+    expect(distTagOf({ tag })).toBe(distTag);
+  });
+
+  it("is the release text part dist-tag", () => {
+    expect(releaseTextOf({ identity: IDENTITY, tag: "v1.0.0+build-1", part: "dist-tag" })).toBe("latest");
   });
 });
 
@@ -53,7 +69,7 @@ describe("runReleaseText", () => {
 
     expect(outputOf({ process: processPort })).toEqual({
       writes: [],
-      errors: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
+      errors: [[{ text: "usage: release-text <title|notes|dist-tag> <tag>\n" }]],
       exits: [[{ code: 2 }]],
     });
   });
@@ -65,7 +81,7 @@ describe("runReleaseText", () => {
 
     expect(outputOf({ process: processPort })).toEqual({
       writes: [],
-      errors: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
+      errors: [[{ text: "usage: release-text <title|notes|dist-tag> <tag>\n" }]],
       exits: [[{ code: 2 }]],
     });
   });

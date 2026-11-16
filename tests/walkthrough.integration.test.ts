@@ -69,6 +69,7 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
   const processPort: ProcessPort = {
     arguments: ["--repo", request.repo],
     writeOut: vi.fn<ProcessPort["writeOut"]>(),
+    writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
   };
   await runCheckCommand({

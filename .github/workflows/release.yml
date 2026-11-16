@@ -17,6 +17,10 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: write
+    outputs:
+      tarball-name: ${{ steps.tarball.outputs.name }}
+      tarball-sha256: ${{ steps.tarball.outputs.sha256 }}
+      dist-tag: ${{ steps.dist-tag.outputs.value }}
     defaults:
       run:
         shell: bash
@@ -40,15 +44,30 @@ jobs:
         run: bun run install-proof
       - name: Pack the package
         run: bun run pack-package
+      - name: Fingerprint the packed tarball
+        id: tarball
+        run: |
+          tarballs=(artefacts/*.tgz)
+          test "${#tarballs[@]}" -eq 1
+          sha256="$(sha256sum "${tarballs[0]}" | cut -d ' ' -f 1)"
+          echo "name=$(basename "${tarballs[0]}")" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+      - name: Choose the dist-tag
+        id: dist-tag
+        run: |
+          dist_tag="$(node scripts/release-text-command.ts dist-tag "$GITHUB_REF_NAME")"
+          echo "value=$dist_tag" >> "$GITHUB_OUTPUT"
       - name: Attach the tarball to a release
         env:
           GH_TOKEN: ${{ github.token }}
+          TARBALL_NAME: ${{ steps.tarball.outputs.name }}
+          DIST_TAG: ${{ steps.dist-tag.outputs.value }}
         run: |
           prerelease=()
-          case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
+          case "$DIST_TAG" in next) prerelease=(--prerelease) ;; esac
           title="$(node scripts/release-text-command.ts title "$GITHUB_REF_NAME")"
           notes="$(node scripts/release-text-command.ts notes "$GITHUB_REF_NAME")"
-          gh release create "$GITHUB_REF_NAME" artefacts/*.tgz --verify-tag --title "$title" --notes "$notes" "${prerelease[@]}"
+          gh release create "$GITHUB_REF_NAME" "artefacts/$TARBALL_NAME" --verify-tag --title "$title" --notes "$notes" "${prerelease[@]}"
 
   publish-npm:
     name: Publish the released tarball to npm
@@ -62,6 +81,10 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      TARBALL_NAME: ${{ needs.release.outputs.tarball-name }}
+      TARBALL_SHA256: ${{ needs.release.outputs.tarball-sha256 }}
+      DIST_TAG: ${{ needs.release.outputs.dist-tag }}
     steps:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -72,12 +95,14 @@ jobs:
       - name: Download the tarball attached to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.tgz' --dir artefacts
+        run: |
+          case "$TARBALL_NAME" in */* | '') exit 1 ;; *.tgz) ;; *) exit 1 ;; esac
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "$TARBALL_NAME" --dir artefacts
+      - name: Refuse any tarball but the one the release job packed
+        run: |
+          test -n "$TARBALL_SHA256"
+          printf '%s  %s\n' "$TARBALL_SHA256" "artefacts/$TARBALL_NAME" | sha256sum --check --strict
       - name: Publish the tarball under its dist-tag
         run: |
-          tarballs=(artefacts/*.tgz)
-          test "${#tarballs[@]}" -eq 1
-          test -f "${tarballs[0]}"
-          dist_tag=latest
-          case "$GITHUB_REF_NAME" in *-*) dist_tag=next ;; esac
-          npm publish "./${tarballs[0]}" --tag "$dist_tag"
+          case "$DIST_TAG" in next | latest) ;; *) exit 1 ;; esac
+          npm publish "./artefacts/$TARBALL_NAME" --tag "$DIST_TAG"

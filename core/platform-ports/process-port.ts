@@ -3,14 +3,14 @@ export type ExitCode = 0 | 1 | 2;
 export type ProcessPort = {
   readonly arguments: readonly string[];
   readonly writeOut: (request: { readonly text: string }) => void;
+  readonly writeError: (request: { readonly text: string }) => void;
   readonly exitWith: (request: { readonly code: ExitCode }) => void;
 };
-
-export type ErrorWriter = (request: { readonly text: string }) => void;
 
 export type ProcessSurface = {
   readonly argv: readonly string[];
   readonly write: (request: { readonly text: string }) => void;
+  readonly writeError: (request: { readonly text: string }) => void;
   readonly setExitCode: (request: { readonly code: ExitCode }) => void;
 };
 
@@ -23,6 +23,9 @@ export const createProcessPort = (options: {
   writeOut: (request) => {
     options.processSurface.write({ text: request.text });
   },
+  writeError: (request) => {
+    options.processSurface.writeError({ text: request.text });
+  },
   exitWith: (request) => {
     options.processSurface.setExitCode({ code: request.code });
   },
@@ -33,13 +36,12 @@ export const defaultProcessSurface: ProcessSurface = {
   write: (request) => {
     process.stdout.write(request.text);
   },
+  writeError: (request) => {
+    process.stderr.write(request.text);
+  },
   setExitCode: (request) => {
     process.exitCode = request.code;
   },
-};
-
-export const defaultErrorWriter: ErrorWriter = (request) => {
-  process.stderr.write(request.text);
 };
 
 export const createDefaultProcessPort = (
