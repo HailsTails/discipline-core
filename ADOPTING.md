@@ -14,18 +14,17 @@ It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of y
 
 ## 2. Install the core package
 
-Core ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node. No registry release exists yet. Until one does, the tarball is a file you are given or build yourself, and this page writes its location as `<discipline-core-tarball>`: a path such as `vendor/discipline-core/discipline-core-0.0.0.tgz`, or an `https://` URL your team serves it from.
+Core ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node. No registry release exists yet. Until one does, the tarball is a file you download from a release of this repository, which attaches `discipline-core-<version>.tgz`, or build yourself, and this page writes its location as `<discipline-core-tarball>`: a path such as `vendor/discipline-core/discipline-core-0.0.0.tgz`, or an `https://` URL your team serves it from.
 
-To build the tarball yourself, at a pinned commit of `https://github.com/HailsTails/aidlc-workflows` with [bun](https://bun.sh) installed:
+To build the tarball yourself, from a clone of this repository at a pinned commit with [bun](https://bun.sh) installed:
 
 ```bash
-git clone -c core.longpaths=true --filter=blob:none --no-checkout https://github.com/HailsTails/aidlc-workflows.git /tmp/discipline-core-source
-git -C /tmp/discipline-core-source sparse-checkout set plugins/discipline-core
+git clone -c core.longpaths=true <this-repository-url> /tmp/discipline-core-source
 git -C /tmp/discipline-core-source checkout <pinned-sha>
-cd /tmp/discipline-core-source/plugins/discipline-core && bun install --frozen-lockfile && bun run pack-package && cd -
+cd /tmp/discipline-core-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/plugins/discipline-core/artefacts/discipline-core-0.0.0.tgz`. Copy that file into `<repo>/vendor/discipline-core/` and commit it with a message naming the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/discipline-core-0.0.0.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/discipline-core/` and commit it with a message naming the release or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 

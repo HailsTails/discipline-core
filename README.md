@@ -133,7 +133,7 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 
 ## Installing
 
-Core installs as one npm package, built by `bun run pack-package` into `artefacts/discipline-core-0.0.0.tgz` and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-core-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as optional `peerDependencies` and exposes two commands, `discipline-core-check` and `discipline-core-project`, taking the same flags and exit codes as the two commands under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source. The package name and command names are provisional, and no registry release exists yet.
+Core installs as one npm package, attached to each release of this repository or built by `bun run pack-package` into `artefacts/discipline-core-0.0.0.tgz`, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-core-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as optional `peerDependencies` and exposes two commands, `discipline-core-check` and `discipline-core-project`, taking the same flags and exit codes as the two commands under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source. The package name and command names are provisional, and no registry release exists yet.
 
 With the ESLint mechanism selected, a packaged install's projection imports each piece by package name, `discipline-core/mechanisms/eslint/<DisciplineId>/...`, so the repository's ESLint must resolve the package from the repository root. Core compares the committed projection `disciplines.eslint.mjs` byte for byte with what `project-command` would write now.
 
@@ -174,7 +174,7 @@ This is the first release. Its tests cover each supported platform's ordinary pa
 
 ## Developing core
 
-This directory is self-contained: it holds its own configuration and its own lock. `package.json` declares the packages the code imports and the development tools, `bun.lock` locks both, `tsconfig.json` typechecks the code under `strict`, `lint.biome.json` configures the linter, and `vitest.config.ts` runs its tests. Install with `bun install --frozen-lockfile` in this directory, then run a script from it:
+This repository is self-contained: it holds its own configuration and its own lock. `package.json` declares the packages the code imports and the development tools, `bun.lock` locks both, `tsconfig.json` typechecks the code under `strict`, `lint.biome.json` configures the linter, and `vitest.config.ts` runs its tests. Install with `bun install --frozen-lockfile` in this directory, then run a script from it:
 
 | Script | Runs |
 | --- | --- |
@@ -186,3 +186,7 @@ This directory is self-contained: it holds its own configuration and its own loc
 | `pack-package` | `node scripts/pack-package.ts`: builds `dist/` and packs it with `npm pack` into `artefacts/discipline-core-0.0.0.tgz` |
 | `package-determinism` | `node scripts/check-package-determinism.ts`: builds and packs twice into separate temporary roots and fails naming any file that differs, or when the two packed tarballs differ |
 | `install-proof` | `node scripts/install-proof.ts`: packs the package once into a temporary tarball and installs it offline into four CommonJS consumers in an OS temporary directory outside the working tree: the audit on TypeScript 4.8.4, ESLint 9.12.0, ESLint 10.0.0, and one without `eslint`. It installs each toolchain once, at the peers' floors, in a folder the consumers sharing it sit inside: TypeScript 4.8.4 alone for the audit consumer and the consumer without `eslint`, and ESLint 9.12.0 or 10.0.0 with typescript-eslint 8.56.0 and TypeScript 4.8.4 for the two ESLint consumers. Each consumer runs both commands through the installed bins with type stripping off, expecting a fail on a class, a pass once it is removed, a projection importing each piece by package name, and `toolchain-unavailable` for the consumer without `eslint`; the temporary directory is removed afterwards |
+
+Continuous integration runs `check`, `build-package`, `package-determinism` and `install-proof` on every pull request, drafts included, and on every push to `main`, from `bun.lock` alone. The Windows job is the required one; the Linux job runs the same steps and is not yet required.
+
+A release starts from a pushed tag `v<version>` that matches the `version` in `package.json`. The release workflow runs `check`, packs the tarball with `pack-package` and attaches it to a GitHub release for that tag. Nothing is published to a registry.
