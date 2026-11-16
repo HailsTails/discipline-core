@@ -23,7 +23,7 @@ Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whol
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-7/README.md).
-- `discipline-cd7/filename-case` checks the file name before its first dot, after trimming edge `_`: it must be kebab-case or PascalCase. Each later dot segment must be kebab-case, PascalCase or lowercase.
+- `hone-cd7/filename-case` checks the file name before its first dot, after trimming edge `_`: it must be kebab-case or PascalCase. Each later dot segment must be kebab-case, PascalCase or lowercase.
 - One leading `.`, `+` or `$` is ignored.
 - Route names such as `[slug].ts` and `(group).ts` pass.
 - A bad name is reported at line 1.

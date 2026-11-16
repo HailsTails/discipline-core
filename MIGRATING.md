@@ -1,8 +1,8 @@
 # Migrating from the standalone copy route
 
-This page moves a repository from the older standalone route, which copied rule files into a harness folder and wired selected linter rules by hand, to discipline core. Follow the steps in order. Every command is run from the repository root. Stop at any "stop and ask" line and hand the question to the human; do not guess past it.
+This page moves a repository from the older standalone route, which copied rule files into a harness folder and wired selected linter rules by hand, to Hone. Follow the steps in order. Every command is run from the repository root. Stop at any "stop and ask" line and hand the question to the human; do not guess past it.
 
-A repository already on discipline core whose exceptions predate causal why-chains needs only [section 8](#8-moving-to-causal-why-chains).
+A repository already on Hone, or on discipline Hone before the rename, whose exceptions predate causal why-chains needs only [section 8](#8-moving-to-causal-why-chains).
 
 ## 1. Detect the old install
 
@@ -25,9 +25,9 @@ The chosen disciplines are the `cd-NNN-*.md` files that were copied (CD-1, CD-3 
 
 A CD that a record file names but whose rule file was not copied (for example CD-15, when only CD-1, CD-3 and CD-46 were copied) is expected: select it in step 2 like the others. Stop and ask the human only if a named CD is one of CD-35 to CD-38.
 
-Old code often holds CD-1 `any` the old route never checked. Core flags it in step 3; it is new debt, so fix it or record it only after the human approves (step 3), and any further `any` still fails.
+Old code often holds CD-1 `any` the old route never checked. Hone flags it in step 3; it is new debt, so fix it or record it only after the human approves (step 3), and any further `any` still fails.
 
-## 2. Install core and select the clauses
+## 2. Install Hone and select the clauses
 
 Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`: create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. Leave the old files in place until step 6.
 
@@ -39,8 +39,8 @@ Map each chosen discipline to its clauses with this table. A discipline is adopt
 | CD-3 | all seven `CD-3#...` clauses, audit; then move the flags out of `tsconfig.json` (step 4) |
 | CD-46 | nothing to select: it applies to every file carve-out once the check runs with `--base-revision` |
 | CD-16, CD-20, CD-24 | select their owners, CD-15, CD-19 and CD-23 |
-| CD-35, CD-36, CD-37, CD-38 | not in core; keep their current handling |
-| any other CD | every mechanical clause in `node_modules/discipline-core/rules/<ID>/README.md`'s Clauses table, with a mechanism that table lists |
+| CD-35, CD-36, CD-37, CD-38 | not in Hone; keep their current handling |
+| any other CD | every mechanical clause in `node_modules/honed/rules/<ID>/README.md`'s Clauses table, with a mechanism that table lists |
 
 Clauses whose mechanism is `review` are judgement clauses: do not put them in `disciplines.json`; list them in the agent instructions instead (step 6).
 
@@ -48,10 +48,10 @@ Stop and ask the human if a chosen CD is one of CD-35 to CD-38, or if selecting 
 
 ## 3. Convert the old records into exceptions
 
-Run the check once with no exceptions file, to see what core finds:
+Run the check once with no exceptions file, to see what Hone finds:
 
 ```bash
-npm run --silent discipline:check
+npm run --silent hone:check
 ```
 
 CD-3 findings on `tsconfig.json` are fixed in step 4, not recorded. Then write `discipline-exceptions.json` from the old records, using the format in [README.md](README.md#discipline-exceptionsjson):
@@ -68,9 +68,9 @@ An old record file is a JSON array of entries, each listing one or more files:
 ]
 ```
 
-- Each file in a `.constitution-carve-outs/cd-<id>.json` entry that core now flags becomes one `file-carve-out`: `clause` is the clause the finding names (for example `CD-15#loops`), `file` is the exact path. Two flagged files in one entry become two records with the same `source`.
-- Each file in a `.constitution-authorised-locations/cd-<id>.json` entry that core now flags becomes one `authorised-location`.
-- A listed file core does not flag gets no record: a record that exempts nothing is reported `stale` and fails the run.
+- Each file in a `.constitution-carve-outs/cd-<id>.json` entry that Hone now flags becomes one `file-carve-out`: `clause` is the clause the finding names (for example `CD-15#loops`), `file` is the exact path. Two flagged files in one entry become two records with the same `source`.
+- Each file in a `.constitution-authorised-locations/cd-<id>.json` entry that Hone now flags becomes one `authorised-location`.
+- A listed file Hone does not flag gets no record: a record that exempts nothing is reported `stale` and fails the run.
 - A finding in a file no old record lists is new debt: fix it, or record it only after the human approves.
 
 Each converted record is imported: give it `provenance` naming the old record instead of a `whyChain`, and keep the old `reason`:
@@ -89,9 +89,9 @@ Each converted record is imported: give it `provenance` naming the old record in
 }
 ```
 
-`source` is the old file and the entry's position in its array, counting from `0`, so both files in the example above use `.constitution-carve-outs/cd-15.json#0`. An authorised location uses `{ "kind": "existing-authorisation", "source": ".constitution-authorised-locations/cd-<id>.json#<index>" }`. Core accepts an imported record only while the `--base-revision` holds it unchanged or its `source` entry lists the record's file at that revision, so keep the old record files committed until step 6, and run every check in this migration with `--base-revision HEAD`. A record you write for new debt, or an imported record you later change, needs a full `whyChain` that follows the [why-chain contract](docs/why-chain-contract.md): core refuses it as `import-unverified` otherwise. A repository whose `disciplines.json` sets `"fileExceptionWhyChains": "optional"` may instead give such an `authorised-location` or `file-carve-out` only its `reason`, with no `whyChain` and no `provenance`.
+`source` is the old file and the entry's position in its array, counting from `0`, so both files in the example above use `.constitution-carve-outs/cd-15.json#0`. An authorised location uses `{ "kind": "existing-authorisation", "source": ".constitution-authorised-locations/cd-<id>.json#<index>" }`. Hone accepts an imported record only while the `--base-revision` holds it unchanged or its `source` entry lists the record's file at that revision, so keep the old record files committed until step 6, and run every check in this migration with `--base-revision HEAD`. A record you write for new debt, or an imported record you later change, needs a full `whyChain` that follows the [why-chain contract](docs/why-chain-contract.md): Hone refuses it as `import-unverified` otherwise. A repository whose `disciplines.json` sets `"fileExceptionWhyChains": "optional"` may instead give such an `authorised-location` or `file-carve-out` only its `reason`, with no `whyChain` and no `provenance`.
 
-Stop and ask the human if an old record has no `decision`. Never write a placeholder or a root cause that only says the check was failing: core refuses those as `invalidRecords`.
+Stop and ask the human if an old record has no `decision`. Never write a placeholder or a root cause that only says the check was failing: Hone refuses those as `invalidRecords`.
 
 ## 4. Replace the hand-written linter rules
 
@@ -100,13 +100,13 @@ The ESLint projection from step 2 now carries every `eslint` clause. Remove only
 - `biome.json`: remove `suspicious.noExplicitAny` and `suspicious.noImplicitAnyLet`. If nothing else in the file was added for the trial, remove the file, the `@biomejs/biome` dev dependency the old quick start installed and the `package.json` script that ran `biome lint` (step 6 replaces it); otherwise keep it for its other rules.
 - `eslint.config.*`: remove `@typescript-eslint/no-explicit-any` (and any other rule the old route added for a CD), and spread the projection last as [ADOPTING.md](ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) shows.
 - `.oxlintrc.json`: remove `typescript/no-explicit-any`; remove the file if it held nothing else.
-- CD-3: core flags any of the seven strict flags written in a file named `tsconfig.json`, even when it is `true`, because the flags must be inherited, never set per project. Move them from every `tsconfig.json` into one shared base file with another name, for example `tsconfig.base.json`, and make each `tsconfig.json` extend it (`"extends": "./tsconfig.base.json"`). Keep every other compiler option where it is. Then run the repository's own typecheck, which must still pass.
+- CD-3: Hone flags any of the seven strict flags written in a file named `tsconfig.json`, even when it is `true`, because the flags must be inherited, never set per project. Move them from every `tsconfig.json` into one shared base file with another name, for example `tsconfig.base.json`, and make each `tsconfig.json` extend it (`"extends": "./tsconfig.base.json"`). Keep every other compiler option where it is. Then run the repository's own typecheck, which must still pass.
 
-Then re-run `project-command` and the check. With any `file-carve-out` recorded, pass `--base-revision`: without it core cannot tell whether a carved file was touched, reports `forfeiture-unmeasured` and fails. Locally, `HEAD` measures what is already committed:
+Then re-run `hone:project` and the check. With any `file-carve-out` recorded, pass `--base-revision`: without it Hone cannot tell whether a carved file was touched, reports `forfeiture-unmeasured` and fails. Locally, `HEAD` measures what is already committed:
 
 ```bash
-npm run --silent discipline:project
-npm run --silent discipline:check -- --base-revision HEAD
+npm run --silent hone:project
+npm run --silent hone:check -- --base-revision HEAD
 ```
 
 Stop and ask the human if a rule you are about to remove was there before the trial, or if you cannot tell which rules the trial added (the adoption record or `git log -p -- biome.json` usually says).
@@ -133,7 +133,7 @@ export const probeValue: any = 1;
 
 ```bash
 git add src/discipline-probe-loop.ts src/discipline-probe-any.ts
-npm run --silent discipline:check -- --base-revision HEAD
+npm run --silent hone:check -- --base-revision HEAD
 ```
 
 It must print a `CD-15#loops audit` finding and a `CD-1#explicit-any eslint` finding, then `verdict: fail`, and exit `1`. Use a selected clause in place of either if the repository did not adopt CD-15 or CD-1. Then remove both files (`git rm -f src/discipline-probe-loop.ts src/discipline-probe-any.ts`) and run the check again: it must print `verdict: pass` and exit `0`.
@@ -149,15 +149,15 @@ Only after step 5 passes:
 1. Delete the copied rule files and guides from step 1's harness folder (`.cursor/knowledge/aidlc-shared/code-discipline/` or its `.claude`/`.codex` equivalent).
 2. Delete the copied tools tree and `harness.config.json`, unless anything else in the repository uses them. A repository that also runs the rin AIDLC plugin keeps `harness.config.json`, and in this same change sets `"constitution": { "engine": "discipline-core", "baseRevision": "origin/main" }` in it. Otherwise rin's stage gate, sensors and review lenses keep running the old walker over the old records, and they refuse what this check passes. Set `baseRevision` whenever a file carve-out or an imported entry exists.
 3. Delete `.constitution-carve-outs/` and `.constitution-authorised-locations/`: their content now lives in `discipline-exceptions.json`.
-4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the core check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit.
-5. Rewrite the agent instructions to point at `node_modules/discipline-core/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
+4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the Hone check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit.
+5. Rewrite the agent instructions to point at `node_modules/honed/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
 6. Run the check and the repository's own validation command again, then commit everything in one change.
 
 Stop and ask the human if anything outside the old trial uses the copied tools or `harness.config.json`.
 
 ## 7. Known differences
 
-| | Old route | Discipline core |
+| | Old route | Hone |
 | --- | --- | --- |
 | What is installed | rule text only; checks were the repository's own linters, plus an optional copied tools tree | one package that runs every selected check |
 | Selection | whole CD files, read by an agent; a check ran only if wired by hand | clauses in `disciplines.json`; every mechanical clause of an adopted discipline must be selected |
@@ -168,26 +168,52 @@ Stop and ask the human if anything outside the old trial uses the copied tools o
 | Debt decay (CD-46) | optional `rin-harness-carve-out-decay.ts` run | built into every check run with `--base-revision` |
 | Stale and unrecorded exceptions | not checked | fail the run, including linter ignores or disables with no record |
 | Path matching | old tools matched records by path suffix | exact repository paths |
-| Linter | Biome, ESLint or oxlint for explicit `any` only | ESLint through the generated projection; Biome and oxlint are not core mechanisms |
+| Linter | Biome, ESLint or oxlint for explicit `any` only | ESLint through the generated projection; Biome and oxlint are not Hone mechanisms |
 | CD-8 exhaustive switch | typed ESLint `switch-exhaustiveness-check` suggested | the audit's `switch-defaults` clause only; type-aware linting is not supported |
 | Judgement rules | read by an agent on request | each rule page names a review lens in `methods/lenses/`; ADOPTING step 9 is the procedure |
 
 ## 8. Moving to causal why-chains
 
-A core install from before the [why-chain contract](docs/why-chain-contract.md) holds chains with `whys`, `rootCause` and `owner` only. Core still accepts such a chain while `--base-revision` holds its entry unchanged, but the first run without a base revision reports `legacy-chain-unmeasured` and fails. Do these steps in order:
+An install from before the [why-chain contract](docs/why-chain-contract.md) holds chains with `whys`, `rootCause` and `owner` only. Hone still accepts such a chain while `--base-revision` holds its entry unchanged, but the first run without a base revision reports `legacy-chain-unmeasured` and fails. Do these steps in order:
 
-1. **Give every check a base revision, before you refresh core.** Add `--base-revision` to the check command in `package.json` scripts, CI and the pre-push hook: `origin/main` locally, the pull request's base commit in CI. On a push to the main branch, the base is the commit before the push. Make sure CI fetches enough history to reach the base: `actions/checkout` defaults to one commit, so set `fetch-depth: 0` or fetch the base explicitly. A rin consumer on the `discipline-core` engine sets `constitution.baseRevision` in `harness.config.json`. Rin's stage gate and `disciplines` sensor pass it on.
-2. **Refresh core** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Every chain that is unchanged since the base passes. If the run lists `legacy-chain-unmeasured`, step 1 is missing somewhere. Any `why-chain-refused` entry is a legacy chain that is new or edited since the base.
+1. **Give every check a base revision, before you refresh Hone.** Add `--base-revision` to the check command in `package.json` scripts, CI and the pre-push hook: `origin/main` locally, the pull request's base commit in CI. On a push to the main branch, the base is the commit before the push. Make sure CI fetches enough history to reach the base: `actions/checkout` defaults to one commit, so set `fetch-depth: 0` or fetch the base explicitly. A rin consumer on the `discipline-core` engine sets `constitution.baseRevision` in `harness.config.json`. Rin's stage gate and `disciplines` sensor pass it on.
+2. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Every chain that is unchanged since the base passes. If the run lists `legacy-chain-unmeasured`, step 1 is missing somewhere. Any `why-chain-refused` entry is a legacy chain that is new or edited since the base.
 3. **Rewrite each chain when you next touch its entry.** An edited entry with a legacy chain is refused until the chain follows the contract. Write the chain from the symptom down: ask why the exception exists, then ask why that answer is true, four more times. Add the `rootCheck` you ran today and the `readback`.
 4. **Queue a rewrite of the rest.** Nothing ends the grace period: a legacy chain whose entry is never touched stays accepted. To make every chain causal, rewrite the remaining ones as tracked work. Rewriting a chain is an edit, so each rewritten chain must pass the contract in that change.
 
-## 9. Moving from a copied core to the package
+## 9. Moving from a copied source tree to the package
 
-Core is no longer installed by copying its source into the repository: this version ships no install files for that route. A core copied into `tools/discipline-core/` moves to the package, which gives the same reports from the same `disciplines.json` and `discipline-exceptions.json`, and runs on the repository's own toolchain. To move:
+Hone is no longer installed by copying its source into the repository: this version ships no install files for that route. A copy of the source in `tools/discipline-core/` moves to the package, which gives the same reports from the same `disciplines.json` and `discipline-exceptions.json`, and runs on the repository's own toolchain. To move:
 
-1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-core-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.12.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
-2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-core-package) step 2 says, including the two `discipline:` scripts.
-3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent discipline:check` (pass flags after `--`, as in `npm run --silent discipline:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent discipline:project`. Point agent instructions at `node_modules/discipline-core/rules/`.
+1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.12.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
+2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says, including the two `hone:` scripts.
+3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check` (pass flags after `--`, as in `npm run --silent hone:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent hone:project`. Point agent instructions at `node_modules/honed/rules/`.
 4. **Remove the copy.** Delete `tools/discipline-core/`, its line in `.gitignore`, and its entry in `disciplines.json`'s `exclude`.
-5. **Re-project** if any clause is `eslint`: run `npm run --silent discipline:project`. The projection now imports each piece by package name instead of by a path into `tools/discipline-core/`, so it changes once; commit it.
+5. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection now imports each piece by package name instead of by a path into `tools/discipline-core/`, so it changes once; commit it.
 6. **Run the check.** It must give the same report as the last run on the copy. A `toolchain-unavailable` load failure names a package to install at the repository root.
+
+## 10. Moving from the discipline-core names to Hone
+
+Before `0.1.0-pre.1` the tool was called discipline core, with provisional names. Only the names changed: the checks, the reports, the flags and the exit codes are the same, and `disciplines.json`, `discipline-exceptions.json`, `disciplines.eslint.mjs` and every `CD-*` clause address keep their names. To move:
+
+| Old name | New name |
+| --- | --- |
+| npm package `discipline-core` | npm package `honed` (not `hone`, an unrelated npm package) |
+| tarball `discipline-core-<version>.tgz` | tarball `honed-<version>.tgz` |
+| command `discipline-core-check --repo .` | `hone check --repo .` |
+| command `discipline-core-project --repo .` | `hone project --repo .` |
+| scripts `discipline:check`, `discipline:project` | scripts `hone:check`, `hone:project` |
+| source entries `core/check/check-command.ts`, `core/check/project-command.ts` | `core/check/tool-command.ts check`, `core/check/tool-command.ts project` |
+| ESLint rule ids `discipline/<rule>` (CD-14) | `hone/<rule>` |
+| ESLint rule ids `discipline-cd<N>/<rule>` | `hone-cd<N>/<rule>` |
+| reserved ESLint namespace `discipline-core` (projection block names, `discipline-core/inline-config`) | `honed` (`honed/piece/...`, `honed/inline-config`) |
+| rule pages under `node_modules/discipline-core/rules/` | `node_modules/honed/rules/` |
+
+1. **Swap the package.** Run `npm uninstall discipline-core`, then install `honed-<version>.tgz` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says. Replace the vendored tarball file if the repository keeps one.
+2. **Rename the scripts and repoint their callers.** In `package.json`, replace the two scripts with `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."`, then change every caller of the old scripts or commands: CI, the pre-push hook and the validation script. Flags are unchanged and still go after `--`.
+3. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection's imports, block names and rule ids change once; commit it.
+4. **Rename old rule ids written by hand.** Any `eslint-disable` comment, team config rule entry or suppression that names `discipline/...` or `discipline-cd<N>/...` now names a rule that does not exist; rename it to `hone/...` or `hone-cd<N>/...`. The check reports such channels as before, so the first run lists any you missed.
+5. **Repoint agent instructions** from `node_modules/discipline-core/rules/` to `node_modules/honed/rules/`.
+6. **Run the check.** It must give the same report as the last run under the old names.
+
+A repository whose own tooling calls the commands, such as the rin harness on the `discipline-core` engine, changes those calls on its own side. The engine name in `harness.config.json` belongs to that tooling and is not renamed here.

@@ -1,6 +1,6 @@
 # CD-14 ESLint piece
 
-This piece enforces CD-14's `class-syntax` and `static-only-class` clauses through ESLint, in the plugin `cd14/cd14.eslint-plugin.ts` under the namespace `discipline`. `class-syntax` is the rule `no-class-authoring`. It reports every class declaration and class expression that is not ambient, at its `class` keyword, so it flags the same lines as the audit piece for CD-14. A class with a `declare` modifier, a class inside a `declare` module, namespace or `global` block, and any class in a declaration file are allowed.
+This piece enforces CD-14's `class-syntax` and `static-only-class` clauses through ESLint, in the plugin `cd14/cd14.eslint-plugin.ts` under the namespace `hone`. `class-syntax` is the rule `no-class-authoring`. It reports every class declaration and class expression that is not ambient, at its `class` keyword, so it flags the same lines as the audit piece for CD-14. A class with a `declare` modifier, a class inside a `declare` module, namespace or `global` block, and any class in a declaration file are allowed.
 
 `static-only-class` is the rule `no-extraneous-class`, which re-exports typescript-eslint's rule with `allowConstructorOnly`, `allowEmpty` and `allowWithDecorator` true and `allowStaticOnly` false. It reports a class whose members are all static.
 

@@ -1,6 +1,6 @@
 # CD-10 ESLint piece
 
-This piece enforces CD-10's `throw-only-error` clause through ESLint. It is one rule, `throw-only-error`, in the plugin `cd10/cd10.eslint-plugin.ts` under the namespace `discipline-cd10`. The rule reports a `throw` of a literal, object literal, binary expression, template or `undefined`, and allows `new Error(...)`, identifiers, calls and member access.
+This piece enforces CD-10's `throw-only-error` clause through ESLint. It is one rule, `throw-only-error`, in the plugin `cd10/cd10.eslint-plugin.ts` under the namespace `hone-cd10`. The rule reports a `throw` of a literal, object literal, binary expression, template or `undefined`, and allows `new Error(...)`, identifiers, calls and member access.
 
 `piece.json` names the clause, the namespace, the plugin module and the rule. It is the only file core reads to find the rule.
 

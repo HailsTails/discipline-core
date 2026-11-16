@@ -17,7 +17,7 @@ Review lens: [function-first](../../methods/lenses/function-first.md). The lens 
 
 ## What the check flags
 - The ESLint piece lints whatever files the team's ESLint run includes. It needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-40/README.md).
-- Rule `discipline-cd40/max-params`, which is typescript-eslint's `max-params` with `{ "max": 2, "countVoidThis": true }`.
+- Rule `hone-cd40/max-params`, which is typescript-eslint's `max-params` with `{ "max": 2, "countVoidThis": true }`.
 - A function declaration, function expression, arrow function, method or constructor with more than two parameters. A `this` parameter counts.
 - Allowed: functions with two or fewer parameters.
 - `named-object-argument` is a judgement clause. It cannot be selected and is enforced by review.

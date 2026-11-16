@@ -75,4 +75,4 @@ A chain with neither `rootCheck` nor `readback` is a legacy chain, written befor
 - **A base whose `discipline-exceptions.json` does not parse:** the base holds no entries, so every legacy chain counts as new and is refused.
 - **The `project` command** reads no base revision. It projects legacy chains as it always did, and reports nothing about them.
 
-This grace period has no end date. A legacy chain stays accepted until its entry is touched, so a repository that wants every chain causal rewrites them on purpose. Section 8 of `MIGRATING.md` in the discipline-core source gives the steps.
+This grace period has no end date. A legacy chain stays accepted until its entry is touched, so a repository that wants every chain causal rewrites them on purpose. Section 8 of `MIGRATING.md` in the Hone source gives the steps.

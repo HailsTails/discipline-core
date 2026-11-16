@@ -36,7 +36,7 @@ intuition.
 
 ## Loading the ruleset
 
-1. Resolve the rule pages: `rules/*/README.md` in the discipline-core install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
+1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `di-discipline`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
 3. Read each kept page in full, including its `## Exceptions` section and any examples, and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names the single permitted site for an ambient binding (a factory file, a port-module directory), that is the *only* permitted site; everywhere else the same call is a violation.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no DI discipline and produce an empty finding set — do not invent rules.

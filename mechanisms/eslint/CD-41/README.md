@@ -1,6 +1,6 @@
 # CD-41 ESLint piece
 
-This piece enforces CD-41's `cognitive-complexity` and `function-length` clauses through ESLint, in the plugin `cd41/cd41.eslint-plugin.ts` under the namespace `discipline-cd41`.
+This piece enforces CD-41's `cognitive-complexity` and `function-length` clauses through ESLint, in the plugin `cd41/cd41.eslint-plugin.ts` under the namespace `hone-cd41`.
 
 - `cognitive-complexity` reports a function whose cognitive complexity is above 15, at the function's name.
 - `function-length` reports a function whose body spans more than 50 lines, at the function.
