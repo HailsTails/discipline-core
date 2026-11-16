@@ -18,9 +18,9 @@ Hone ships as one npm package tarball: built JavaScript with its own packages bu
 
 **The npm package is named `honed`, not `hone`.** The name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `honed` installs one command, `hone`.
 
-The current version, `0.1.0-pre.1`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.1.tgz`, or an `https://` URL your team serves it from.
+The current version, `0.1.0-pre.2`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.2.tgz`, or an `https://` URL your team serves it from.
 
-The main route is to download `honed-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.1` is pushed.
+The main route is to download `honed-0.1.0-pre.2.tgz` from the [`v0.1.0-pre.2` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.2` is pushed. Until that tag exists, the [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the previous pre-release, or build the tarball from a pinned commit as below.
 
 The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
@@ -30,7 +30,7 @@ git -C /tmp/honed-source checkout <pinned-sha>
 cd /tmp/honed-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/artefacts/honed-0.1.0-pre.1.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/honed/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/honed-0.1.0-pre.2.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/honed/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 
