@@ -1,5 +1,5 @@
 {
-  "version": "0.0.0",
+  "version": "0.1.0-pre.1",
   "private": true,
   "type": "module",
   "description": "Runs a project's selected disciplines against its own files.",
@@ -12,7 +12,7 @@
     "lint": "biome check --error-on-warnings --config-path=lint.biome.json .",
     "test": "vitest run --config vitest.config.ts",
     "check": "tsc --noEmit -p tsconfig.json && biome check --error-on-warnings --config-path=lint.biome.json . && vitest run --config vitest.config.ts",
-    "self-check": "node scripts/self-check.ts --repo .",
+    "self-check": "node scripts/self-check.ts check --repo .",
     "install-proof": "node scripts/install-proof.ts",
     "build-package": "node scripts/build-package.ts",
     "pack-package": "node scripts/pack-package.ts",

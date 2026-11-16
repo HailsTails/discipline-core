@@ -186,3 +186,24 @@ export const deadLinksOf = (request: { readonly files: readonly ShippedText[] })
         .map((target) => `${file.path} links to ${target}`),
     );
 };
+
+const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+
+const tarballPatternOf = (request: { readonly name: string }): RegExp =>
+  new RegExp(`${request.name.replace(REGEX_SPECIAL, "\\$&")}-(\\d[^\\s\`/]*?)\\.tgz`, "g");
+
+export const otherVersionTarballsOf = (request: {
+  readonly files: readonly ShippedText[];
+  readonly name: string;
+  readonly version: string;
+}): readonly string[] => {
+  const pattern = tarballPatternOf({ name: request.name });
+  const expected = `${request.name}-${request.version}.tgz`;
+  return request.files
+    .filter((file) => file.path.endsWith(PAGE_SUFFIX))
+    .flatMap((file) =>
+      [...file.text.matchAll(pattern)]
+        .filter((match) => match[1] !== request.version)
+        .map((match) => `${file.path} names ${match[0]}, not ${expected}`),
+    );
+};

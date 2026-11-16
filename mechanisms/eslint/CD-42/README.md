@@ -1,6 +1,6 @@
 # CD-42 ESLint piece
 
-This piece enforces CD-42's `useless-else` clause through ESLint. It is one rule, `useless-else`, in the plugin `cd42/cd42.eslint-plugin.ts` under the namespace `discipline-cd42`. The rule reports an `else` that follows an `if` branch which always exits, at the `else` keyword.
+This piece enforces CD-42's `useless-else` clause through ESLint. It is one rule, `useless-else`, in the plugin `cd42/cd42.eslint-plugin.ts` under the namespace `hone-cd42`. The rule reports an `else` that follows an `if` branch which always exits, at the `else` keyword.
 
 `piece.json` names the clause, the namespace, the plugin module and the rule. It is the only file core reads to find the rule.
 

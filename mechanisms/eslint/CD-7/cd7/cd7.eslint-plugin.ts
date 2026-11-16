@@ -62,6 +62,6 @@ const filenameCase: Rule.RuleModule = {
 };
 
 export default {
-  meta: { name: "discipline-cd7", version: "0.0.0-local" },
+  meta: { name: "hone-cd7", version: "0.0.0-local" },
   rules: { "filename-case": filenameCase },
 };

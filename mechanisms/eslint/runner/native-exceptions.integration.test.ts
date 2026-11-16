@@ -38,7 +38,7 @@ const ESLINT_CLAUSE: RunnerClause = {
   address: CLAUSE,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: `${INSTALL_ROOT}/mechanisms/eslint/CD-14`,
-  settings: { pluginNamespace: "discipline", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
+  settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
 };
 
 const WALKER_CLAUSE: RunnerClause = {
@@ -228,7 +228,7 @@ describe.each(ESLINT_LINES)("eslint-suppressions.json files and package.json lin
             clause: CLASS_SYNTAX,
             location: "package.json",
             script: "lint",
-            option: "--rule discipline/no-class-authoring: off",
+            option: "--rule hone/no-class-authoring: off",
             mechanism: "eslint",
           },
           {
@@ -260,7 +260,7 @@ describe.each(ESLINT_LINES)("eslint-suppressions.json files and package.json lin
             clause: CLASS_SYNTAX,
             location: "package.json",
             script: "lint:suppress",
-            option: "--suppress-rule discipline/no-class-authoring",
+            option: "--suppress-rule hone/no-class-authoring",
             mechanism: "eslint",
           },
         ],
@@ -299,7 +299,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
             clause: CLASS_SYNTAX,
             file: "i/disable-file-named.ts",
             line: 1,
-            text: "/* eslint-disable discipline/no-class-authoring */",
+            text: "/* eslint-disable hone/no-class-authoring */",
             mechanism: "eslint",
           },
           {
@@ -307,7 +307,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
             clause: CLASS_SYNTAX,
             file: "i/disable-line.ts",
             line: 2,
-            text: "// eslint-disable-line discipline/no-class-authoring",
+            text: "// eslint-disable-line hone/no-class-authoring",
             mechanism: "eslint",
           },
           {
@@ -315,7 +315,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
             clause: CLASS_SYNTAX,
             file: "i/disable-next-line.ts",
             line: 1,
-            text: "// eslint-disable-next-line discipline/no-class-authoring",
+            text: "// eslint-disable-next-line hone/no-class-authoring",
             mechanism: "eslint",
           },
           {
@@ -323,7 +323,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
             clause: CLASS_SYNTAX,
             file: "i/rule-config.ts",
             line: 1,
-            text: '/* eslint discipline/no-class-authoring: "off" */',
+            text: '/* eslint hone/no-class-authoring: "off" */',
             mechanism: "eslint",
           },
         ],
@@ -342,7 +342,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
             clause: CLASS_SYNTAX,
             file: "i/disable-line.ts",
             anchor: { line: 2, column: 7 },
-            snippet: "export class Kept {} // eslint-disable-line discipline/no-class-authoring",
+            snippet: "export class Kept {} // eslint-disable-line hone/no-class-authoring",
             mechanism: "eslint",
           },
           classFinding({ file: "i/disable-next-line.ts", line: 2 }),

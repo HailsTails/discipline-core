@@ -6,7 +6,7 @@
     {
       "clause": "parameter-count",
       "settings": {
-        "pluginNamespace": "discipline-cd40",
+        "pluginNamespace": "hone-cd40",
         "pluginModule": "cd40/cd40.eslint-plugin.ts",
         "rule": "max-params",
         "options": [

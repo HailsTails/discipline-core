@@ -90,7 +90,7 @@ describe("CD-41 cognitive-complexity rule through the ESLint runner's lintSource
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd41",
+        pluginNamespace: "hone-cd41",
         rule: "cognitive-complexity",
         options: [],
         cases: [sourceCase],
@@ -108,7 +108,7 @@ describe("CD-41 function-length rule through the ESLint runner's lintSourceCases
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd41",
+        pluginNamespace: "hone-cd41",
         rule: "function-length",
         options: [],
         cases: [sourceCase],

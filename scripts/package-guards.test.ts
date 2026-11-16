@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
+import { deadLinksOf, misplacedEntriesOf, otherVersionTarballsOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
 
 const output = (request: {
   readonly path: string;
@@ -34,15 +34,15 @@ describe("unbundledImportsOf", () => {
       unbundledImportsOf({
         outputs: [
           output({ path: "chunks/chunk-A.js", externalImports: ["levn", "eslint"] }),
-          output({ path: "core/check/check-command.js", externalImports: ["fs", "@eslint/plugin-kit", "eslint-plugin-x"] }),
+          output({ path: "core/check/tool-command.js", externalImports: ["fs", "@eslint/plugin-kit", "eslint-plugin-x"] }),
         ],
         peers: ["eslint"],
       }),
     ).toEqual([
       "chunks/chunk-A.js imports levn",
-      "core/check/check-command.js imports fs",
-      "core/check/check-command.js imports @eslint/plugin-kit",
-      "core/check/check-command.js imports eslint-plugin-x",
+      "core/check/tool-command.js imports fs",
+      "core/check/tool-command.js imports @eslint/plugin-kit",
+      "core/check/tool-command.js imports eslint-plugin-x",
     ]);
   });
 });
@@ -66,7 +66,7 @@ describe("misplacedEntriesOf", () => {
   it("names an entry whose code another entry pulled into a shared chunk, and an entry with no output at its path", () => {
     expect(
       misplacedEntriesOf({
-        entryPoints: ["mechanisms/eslint/runner/runner.ts", "core/check/check-command.ts"],
+        entryPoints: ["mechanisms/eslint/runner/runner.ts", "core/check/tool-command.ts"],
         outputs: [
           output({
             path: "mechanisms/eslint/runner/runner.js",
@@ -78,7 +78,7 @@ describe("misplacedEntriesOf", () => {
       }),
     ).toEqual([
       "mechanisms/eslint/runner/runner.ts is not emitted with its own code at mechanisms/eslint/runner/runner.js",
-      "core/check/check-command.ts is not emitted with its own code at core/check/check-command.js",
+      "core/check/tool-command.ts is not emitted with its own code at core/check/tool-command.js",
     ]);
   });
 });
@@ -191,13 +191,45 @@ describe("deadLinksOf", () => {
         files: [
           { path: "README.md", text: "[a](tests/test-fixtures/walkthrough/) [b](MIGRATING.md)" },
           { path: "rules/CD-1/README.md", text: "[piece](../../mechanisms/eslint/CD-1/README.md)" },
-          { path: "core/check/check-command.js", text: "[not](a-link.md)" },
+          { path: "core/check/tool-command.js", text: "[not](a-link.md)" },
         ],
       }),
     ).toEqual([
       "README.md links to tests/test-fixtures/walkthrough",
       "README.md links to MIGRATING.md",
       "rules/CD-1/README.md links to mechanisms/eslint/CD-1/README.md",
+    ]);
+  });
+});
+
+describe("otherVersionTarballsOf", () => {
+  it("accepts pages naming only this version's tarball, a placeholder version and other packages' tarballs", () => {
+    expect(
+      otherVersionTarballsOf({
+        files: [
+          { path: "README.md", text: "Download `honed-0.1.0-pre.1.tgz`, or `honed-<version>.tgz` later." },
+          { path: "ADOPTING.md", text: "Not `other-core-0.0.0.tgz`." },
+          { path: "rules/CD-1/discipline.json", text: "honed-0.0.0.tgz" },
+        ],
+        name: "honed",
+        version: "0.1.0-pre.1",
+      }),
+    ).toEqual([]);
+  });
+
+  it("names each shipped page that names the package's tarball at another version", () => {
+    expect(
+      otherVersionTarballsOf({
+        files: [
+          { path: "README.md", text: "wrote artefacts/honed-0.0.0.tgz" },
+          { path: "ADOPTING.md", text: "vendor/honed/honed-0.1.0.tgz and honed-0.1.0-pre.1.tgz" },
+        ],
+        name: "honed",
+        version: "0.1.0-pre.1",
+      }),
+    ).toEqual([
+      "README.md names honed-0.0.0.tgz, not honed-0.1.0-pre.1.tgz",
+      "ADOPTING.md names honed-0.1.0.tgz, not honed-0.1.0-pre.1.tgz",
     ]);
   });
 });

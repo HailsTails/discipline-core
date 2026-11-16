@@ -52,7 +52,7 @@ const implicitAnyLet: Rule.RuleModule = {
 };
 
 export const createPlugin = (sources: NativeRuleSources) => ({
-  meta: { name: "discipline-cd1", version: "0.0.0-local" },
+  meta: { name: "hone-cd1", version: "0.0.0-local" },
   rules: {
     ...typescriptEslintRules({ names: ["no-explicit-any"], sources }),
     "implicit-any-let": implicitAnyLet,

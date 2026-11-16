@@ -1,6 +1,6 @@
 # CD-40 ESLint piece
 
-This piece enforces CD-40's `parameter-count` clause through ESLint. It is one rule, `max-params`, in the plugin `cd40/cd40.eslint-plugin.ts` under the namespace `discipline-cd40`. It reuses typescript-eslint's `max-params` with the `options` `{ "max": 2, "countVoidThis": true }` carried in `piece.json`, so a function with more than two parameters is reported and a `this` parameter counts.
+This piece enforces CD-40's `parameter-count` clause through ESLint. It is one rule, `max-params`, in the plugin `cd40/cd40.eslint-plugin.ts` under the namespace `hone-cd40`. It reuses typescript-eslint's `max-params` with the `options` `{ "max": 2, "countVoidThis": true }` carried in `piece.json`, so a function with more than two parameters is reported and a `this` parameter counts.
 
 ## Adopting the rule
 

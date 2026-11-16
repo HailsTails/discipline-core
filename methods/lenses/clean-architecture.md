@@ -44,7 +44,7 @@ Read them first; they override any default intuition.
 
 ## Loading the ruleset
 
-1. Resolve the rule pages: `rules/*/README.md` in the discipline-core install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
+1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `clean-architecture`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
 3. Read each kept page in full, including its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names exact permitted sites (a single adapter file, a single redaction layer, a closed list of binding counts), those are the only permitted sites.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no clean-architecture discipline and produce an empty finding set — do not invent rules.

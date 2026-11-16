@@ -78,7 +78,7 @@ describe("CD-40 max-params rule through the ESLint runner's lintSourceCases", ()
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd40",
+        pluginNamespace: "hone-cd40",
         rule: "max-params",
         options: [{ max: 2, countVoidThis: true }],
         cases: [sourceCase],

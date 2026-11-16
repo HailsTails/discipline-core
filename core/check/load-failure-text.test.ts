@@ -71,13 +71,13 @@ describe("loadFailureText", () => {
           failure: {
             kind: "toolchain-shadowed",
             packageName: "eslint",
-            location: "/repo/node_modules/.pnpm/discipline-core@0.0.0/node_modules/discipline-core/node_modules/eslint/lib/api.js",
-            installRoot: "/repo/node_modules/.pnpm/discipline-core@0.0.0/node_modules/discipline-core",
+            location: "/repo/node_modules/.pnpm/honed@0.0.0/node_modules/honed/node_modules/eslint/lib/api.js",
+            installRoot: "/repo/node_modules/.pnpm/honed@0.0.0/node_modules/honed",
           },
         },
       }),
     ).toBe(
-      "load failure: runner-failed audit toolchain-shadowed eslint resolved from /repo/node_modules/.pnpm/discipline-core@0.0.0/node_modules/discipline-core/node_modules/eslint/lib/api.js inside the core install /repo/node_modules/.pnpm/discipline-core@0.0.0/node_modules/discipline-core: delete /repo/node_modules/.pnpm/discipline-core@0.0.0/node_modules/discipline-core/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used\n",
+      "load failure: runner-failed audit toolchain-shadowed eslint resolved from /repo/node_modules/.pnpm/honed@0.0.0/node_modules/honed/node_modules/eslint/lib/api.js inside the core install /repo/node_modules/.pnpm/honed@0.0.0/node_modules/honed: delete /repo/node_modules/.pnpm/honed@0.0.0/node_modules/honed/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used\n",
     );
   });
 
@@ -90,13 +90,13 @@ describe("loadFailureText", () => {
           failure: {
             kind: "toolchain-shadowed",
             packageName: "typescript",
-            location: "/repo/node_modules/discipline-core/node_modules/typescript/lib/typescript.js",
-            installRoot: "/repo/node_modules/discipline-core",
+            location: "/repo/node_modules/honed/node_modules/typescript/lib/typescript.js",
+            installRoot: "/repo/node_modules/honed",
           },
         },
       }),
     ).toBe(
-      "load failure: runner-failed audit toolchain-shadowed typescript resolved from /repo/node_modules/discipline-core/node_modules/typescript/lib/typescript.js inside the core install /repo/node_modules/discipline-core: delete /repo/node_modules/discipline-core/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used\n",
+      "load failure: runner-failed audit toolchain-shadowed typescript resolved from /repo/node_modules/honed/node_modules/typescript/lib/typescript.js inside the core install /repo/node_modules/honed: delete /repo/node_modules/honed/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used\n",
     );
   });
 

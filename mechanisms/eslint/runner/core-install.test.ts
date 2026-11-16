@@ -4,9 +4,9 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { coreInstallOf } from "./core-install.ts";
 
-const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/discipline-core");
+const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/honed");
 
-const MANIFEST = "/repo/node_modules/discipline-core/package.json";
+const MANIFEST = "/repo/node_modules/honed/package.json";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
@@ -24,18 +24,18 @@ const fileTextFailingToRead: FileTextPort = {
 
 describe("coreInstallOf", () => {
   it("is the package its package.json names when built core runs, reading only that manifest", () => {
-    const fileText = fileTextHolding({ text: '{ "name": "discipline-core", "type": "module" }' });
+    const fileText = fileTextHolding({ text: '{ "name": "honed", "type": "module" }' });
 
     const install = coreInstallOf({ fileText, path: posixPath, installRoot: INSTALL_ROOT, moduleExtension: ".js" });
 
     expect({ install, read: vi.mocked(fileText.read).mock.calls }).toEqual({
-      install: { outcome: "ok", value: { form: "package", root: INSTALL_ROOT, name: "discipline-core" } },
+      install: { outcome: "ok", value: { form: "package", root: INSTALL_ROOT, name: "honed" } },
       read: [[{ path: MANIFEST }]],
     });
   });
 
   it("is a source checkout when core runs from source, reading no manifest even when one names a package", () => {
-    const fileText = fileTextHolding({ text: '{ "name": "discipline-core", "type": "module" }' });
+    const fileText = fileTextHolding({ text: '{ "name": "honed", "type": "module" }' });
 
     expect({
       install: coreInstallOf({ fileText, path: posixPath, installRoot: INSTALL_ROOT, moduleExtension: ".ts" }),

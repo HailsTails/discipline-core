@@ -90,7 +90,7 @@ describe("CD-42 useless-else rule through the ESLint runner's lintSourceCases", 
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd42",
+        pluginNamespace: "hone-cd42",
         rule: "useless-else",
         options: [],
         cases: [sourceCase],

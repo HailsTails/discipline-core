@@ -20,7 +20,7 @@ export type CheckRun = {
 
 const LOAD_FAILURE_CODE = 2;
 
-const loadFailureOutcome = (request: { readonly failure: LoadFailure }): CommandOutcome => ({
+export const loadFailureOutcome =(request: { readonly failure: LoadFailure }): CommandOutcome => ({
   code: LOAD_FAILURE_CODE,
   text: loadFailureText(request),
 });

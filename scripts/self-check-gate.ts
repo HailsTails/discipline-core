@@ -1,5 +1,7 @@
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "../core/check/command-outcome.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
+import { runProjectCommand } from "../core/check/run-project-command.ts";
+import { type CommandHandler, toolCommandOf } from "../core/check/run-tool-command.ts";
 import { type CommandRequest, checkRunFor, printOutcome } from "../core/check/run-check-command.ts";
 import type { Result } from "../core/values/result.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
@@ -38,7 +40,11 @@ export const selfCheckOutcomeOf = (request: { readonly result: Result<CheckRun, 
   };
 };
 
-export const runSelfCheck = (request: CommandRequest): Promise<void> =>
+const runGatedCheckCommand: CommandHandler = (request: CommandRequest) =>
   checkRunFor(request).then((ranCheck) =>
     printOutcome({ process: request.process, outcome: selfCheckOutcomeOf({ result: ranCheck }) }),
   );
+
+export const runSelfCheck: CommandHandler = toolCommandOf({
+  subcommands: { check: runGatedCheckCommand, project: runProjectCommand },
+});

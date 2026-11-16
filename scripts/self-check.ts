@@ -11,5 +11,5 @@ await runSelfCheck({
   fileText: createDefaultFileTextPort({}),
   modules: createDefaultModuleLoaderPort({}),
   git: createDefaultGitPort({}),
-  moduleUrl: new URL("../core/check/check-command.ts", import.meta.url).href,
+  moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
 });

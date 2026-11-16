@@ -30,8 +30,8 @@ const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
   "/package/README.md": "# Discipline core\n",
-  "/package/core/check/check-command.ts": "await run();\n",
-  "/package/core/check/project-command.ts": "await project();\n",
+  "/package/core/check/tool-command.ts": "await run();\n",
+  "/package/mechanisms/audit/runner/runner.ts": "await project();\n",
 };
 
 const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_LOCK, "/package/bun.lock": '{ "lockfileVersion": 1, "packages": {}, }' };
@@ -44,16 +44,16 @@ const entryOutput = (request: { readonly source: string; readonly path: string; 
   externalImports: [],
 });
 
-const PROJECT_OUTPUT = entryOutput({ source: "core/check/project-command.ts", path: "core/check/project-command.js", text: "await project();\n" });
+const RUNNER_OUTPUT = entryOutput({ source: "mechanisms/audit/runner/runner.ts", path: "mechanisms/audit/runner/runner.js", text: "await project();\n" });
 
 const BUNDLE: Bundle = {
-  outputs: [entryOutput({ source: "core/check/check-command.ts", path: "core/check/check-command.js", text: "await run();\n" }), PROJECT_OUTPUT],
+  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "await run();\n" }), RUNNER_OUTPUT],
   packageRoots: [],
 };
 
 const DRIFTED: Bundle = {
   ...BUNDLE,
-  outputs: [entryOutput({ source: "core/check/check-command.ts", path: "core/check/check-command.js", text: "drifted\n" }), PROJECT_OUTPUT],
+  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "drifted\n" }), RUNNER_OUTPUT],
 };
 
 const steadyBundler = (): BundlerPort => ({ bundle: vi.fn<BundlerPort["bundle"]>().mockResolvedValue({ outcome: "ok", value: BUNDLE }) });
@@ -72,7 +72,7 @@ const NUMBERED_TARBALL = (request: { readonly packCount: number }): string => `t
 const npmFaking = (request: {
   readonly files: InMemoryFiles;
   readonly tarballText: (request: { readonly packCount: number }) => string;
-}): NpmPacking => npmPacking({ files: request.files, tarballName: "discipline-core-0.0.0.tgz", tarballText: request.tarballText });
+}): NpmPacking => npmPacking({ files: request.files, tarballName: "honed-0.0.0.tgz", tarballText: request.tarballText });
 
 const processPort = (): ProcessPort => ({
   arguments: [],
@@ -111,7 +111,7 @@ describe("createTarballPacker", () => {
     const tarball = await packer.pack({ packageRoot: "/package", workRoot: "/work" });
 
     expect({ tarball, runs: npm.runs(), built: files.texts()["/work/package-build/package.json"] }).toEqual({
-      tarball: { outcome: "ok", value: "/work/package-tarball/discipline-core-0.0.0.tgz" },
+      tarball: { outcome: "ok", value: "/work/package-tarball/honed-0.0.0.tgz" },
       runs: [
         {
           command: "npm",
@@ -119,7 +119,7 @@ describe("createTarballPacker", () => {
           directory: "/package",
         },
       ],
-      built: expect.stringContaining('"name": "discipline-core"'),
+      built: expect.stringContaining('"name": "honed"'),
     });
   });
 
@@ -176,7 +176,7 @@ describe("runPackPackage", () => {
     await runPackPackage(request);
 
     expect({ report: reportOf(request), old: files.texts()["/package/artefacts/old-0.0.0.tgz"] }).toEqual({
-      report: { writes: [[{ text: "pack package: wrote /package/artefacts/discipline-core-0.0.0.tgz\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "pack package: wrote /package/artefacts/honed-0.0.0.tgz\n" }]], exits: [[{ code: 0 }]] },
       old: undefined,
     });
   });
@@ -213,7 +213,7 @@ describe("runPackageDeterminism", () => {
     await runPackageDeterminism(request);
 
     expect(reportOf(request)).toEqual({
-      writes: [[{ text: "FAIL: package determinism: two builds differ in core/check/check-command.js\n" }]],
+      writes: [[{ text: "FAIL: package determinism: two builds differ in core/check/tool-command.js\n" }]],
       exits: [[{ code: 1 }]],
     });
   });

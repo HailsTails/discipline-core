@@ -1,6 +1,6 @@
 # CD-7 ESLint piece
 
-This piece enforces CD-7's `filename-case` clause through ESLint. It is one rule, `filename-case`, in the plugin `cd7/cd7.eslint-plugin.ts` under the namespace `discipline-cd7`. The rule reports at line 1 of any file whose name is not kebab-case or PascalCase before its first dot.
+This piece enforces CD-7's `filename-case` clause through ESLint. It is one rule, `filename-case`, in the plugin `cd7/cd7.eslint-plugin.ts` under the namespace `hone-cd7`. The rule reports at line 1 of any file whose name is not kebab-case or PascalCase before its first dot.
 
 `piece.json` names the clause, the namespace, the plugin module and the rule. It is the only file core reads to find the rule.
 

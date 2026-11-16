@@ -39,7 +39,7 @@ forbidden. Read them first; they override any default intuition.
 
 ## Loading the ruleset
 
-1. Resolve the rule pages: `rules/*/README.md` in the discipline-core install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
+1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `decomposition`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
 3. Read each kept page in full, including its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a clause on a rule page lists a deterministic check (a lint rule, an audit script) in its `## Clauses` table, treat that as a partial mechanical floor: the enforcer catches the obvious cases, but the structural read on diff-touched functions is the lens's job and is not mechanically covered.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no decomposition discipline and produce an empty finding set — do not invent rules or thresholds.
