@@ -20,7 +20,9 @@ describe("publishManifestOf", () => {
     publishManifestOf({
       developmentManifest,
       identity: {
+        name: "Provisional",
         packageName: "provisional-core",
+        reservedEslintNamespace: "provisional-core",
         command: "provisional",
         description: "Checks a repository against its disciplines.",
       },

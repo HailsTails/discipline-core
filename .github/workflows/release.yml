@@ -15,7 +15,7 @@ jobs:
   release:
     name: Release the package tarball
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -33,6 +33,10 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Check
         run: bun run check
+      - name: Check the package builds deterministically
+        run: bun run package-determinism
+      - name: Prove the package installs and runs in real consumers
+        run: bun run install-proof
       - name: Pack the package
         run: bun run pack-package
       - name: Attach the tarball to a release
@@ -41,4 +45,4 @@ jobs:
         run: |
           prerelease=()
           case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
-          gh release create "$GITHUB_REF_NAME" artefacts/*.tgz --verify-tag --title "Hone $GITHUB_REF_NAME" --notes "Hone $GITHUB_REF_NAME. Install the attached tarball as the npm package honed (not hone, an unrelated npm package); it provides the command hone." "${prerelease[@]}"
+          gh release create "$GITHUB_REF_NAME" artefacts/*.tgz --verify-tag --title "$(node scripts/release-text-command.ts title "$GITHUB_REF_NAME")" --notes "$(node scripts/release-text-command.ts notes "$GITHUB_REF_NAME")" "${prerelease[@]}"
