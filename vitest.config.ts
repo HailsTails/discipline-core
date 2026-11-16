@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
     exclude: [...configDefaults.exclude, "**/test-fixtures/**"],
-    name: "plugins-discipline-core",
+    name: "discipline-core",
     testTimeout: 30_000,
   },
 });

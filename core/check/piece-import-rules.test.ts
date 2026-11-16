@@ -8,10 +8,10 @@ import {
   pieceImportRefusals,
 } from "./piece-import-rules.ts";
 
-const INSTALL_ROOT = "plugins/discipline-core";
-const PROBE_ROOT = "plugins/discipline-core/tests/probe-rule-set";
+const INSTALL_ROOT = "packages/discipline-core";
+const PROBE_ROOT = "packages/discipline-core/tests/probe-rule-set";
 
-const PIECE_FOLDER = "plugins/discipline-core/mechanisms/audit/CD-14";
+const PIECE_FOLDER = "packages/discipline-core/mechanisms/audit/CD-14";
 const CLASS_SYNTAX_KEY = "../../mechanisms/audit/CD-14/class-syntax.ts";
 const HELPER_KEY = "../../mechanisms/audit/CD-14/helper.ts";
 const PROBE_KEY = "../../tests/probe-rule-set/mechanisms/audit/PD-1/no-tmp-files.ts";
@@ -19,18 +19,18 @@ const PROBE_FOLDER = "../../tests/probe-rule-set/mechanisms/audit/PD-1";
 const TYPE_PACKAGES_KEY = "../../mechanisms/audit/runner/piece-type-packages.json";
 
 const JOINED_REPOSITORY_PATHS: Readonly<Record<string, string>> = {
-  '["plugins/discipline-core","mechanisms","audit","CD-14"]': PIECE_FOLDER,
-  '["plugins/discipline-core","rules","CD-14"]': "plugins/discipline-core/rules/CD-14",
-  '["plugins/discipline-core","mechanisms","audit","runner"]': "plugins/discipline-core/mechanisms/audit/runner",
-  '["plugins/discipline-core","core"]': "plugins/discipline-core/core",
+  '["packages/discipline-core","mechanisms","audit","CD-14"]': PIECE_FOLDER,
+  '["packages/discipline-core","rules","CD-14"]': "packages/discipline-core/rules/CD-14",
+  '["packages/discipline-core","mechanisms","audit","runner"]': "packages/discipline-core/mechanisms/audit/runner",
+  '["packages/discipline-core","core"]': "packages/discipline-core/core",
   [`["${PIECE_FOLDER}","./nested/helper.ts"]`]: `${PIECE_FOLDER}/nested/helper.ts`,
-  [`["${PIECE_FOLDER}","../runner/walker-piece.ts"]`]: "plugins/discipline-core/mechanisms/audit/runner/walker-piece.ts",
-  [`["${PIECE_FOLDER}","../../../core/values/result.ts"]`]: "plugins/discipline-core/core/values/result.ts",
-  [`["${PIECE_FOLDER}","../../../rules/CD-14/discipline.json"]`]: "plugins/discipline-core/rules/CD-14/discipline.json",
-  [`["${PIECE_FOLDER}","../../eslint/CD-14/cd14.ts"]`]: "plugins/discipline-core/mechanisms/eslint/CD-14/cd14.ts",
-  [`["${PIECE_FOLDER}","../CD-15/no-for-of.ts"]`]: "plugins/discipline-core/mechanisms/audit/CD-15/no-for-of.ts",
+  [`["${PIECE_FOLDER}","../runner/walker-piece.ts"]`]: "packages/discipline-core/mechanisms/audit/runner/walker-piece.ts",
+  [`["${PIECE_FOLDER}","../../../core/values/result.ts"]`]: "packages/discipline-core/core/values/result.ts",
+  [`["${PIECE_FOLDER}","../../../rules/CD-14/discipline.json"]`]: "packages/discipline-core/rules/CD-14/discipline.json",
+  [`["${PIECE_FOLDER}","../../eslint/CD-14/cd14.ts"]`]: "packages/discipline-core/mechanisms/eslint/CD-14/cd14.ts",
+  [`["${PIECE_FOLDER}","../CD-15/no-for-of.ts"]`]: "packages/discipline-core/mechanisms/audit/CD-15/no-for-of.ts",
   [`["${PIECE_FOLDER}","../../eslint/runner/eslint-instance.ts"]`]:
-    "plugins/discipline-core/mechanisms/eslint/runner/eslint-instance.ts",
+    "packages/discipline-core/mechanisms/eslint/runner/eslint-instance.ts",
   '["../..","mechanisms","audit","runner","piece-type-packages.json"]': TYPE_PACKAGES_KEY,
   [`["${TYPE_PACKAGES_KEY}"]`]: TYPE_PACKAGES_KEY,
   '["../../tests/probe-rule-set","mechanisms","audit","PD-1"]': PROBE_FOLDER,
@@ -42,7 +42,7 @@ const JOINED_REPOSITORY_PATHS: Readonly<Record<string, string>> = {
 };
 
 const REPOSITORY_DIRECTORIES: Readonly<Record<string, string>> = {
-  "plugins/discipline-core/mechanisms/audit/CD-14/class-syntax.ts": PIECE_FOLDER,
+  "packages/discipline-core/mechanisms/audit/CD-14/class-syntax.ts": PIECE_FOLDER,
   [PROBE_KEY]: PROBE_FOLDER,
 };
 
@@ -57,7 +57,7 @@ const path: PathPort = {
 };
 
 const WALKER_PIECE: PieceLocation = {
-  file: "plugins/discipline-core/mechanisms/audit/CD-14/class-syntax.ts",
+  file: "packages/discipline-core/mechanisms/audit/CD-14/class-syntax.ts",
   ruleSetRoot: INSTALL_ROOT,
   mechanism: "audit",
   discipline: "CD-14",
@@ -80,9 +80,9 @@ describe("pieceFilesOf", () => {
     expect(
       pieceFilesOf({
         trackedPaths: [
-          "plugins/discipline-core/mechanisms/audit/CD-14/class-syntax.ts",
-          "plugins/discipline-core/mechanisms/audit/CD-14/class-syntax.test.ts",
-          "plugins/discipline-core/mechanisms/audit/CD-14/piece.json",
+          "packages/discipline-core/mechanisms/audit/CD-14/class-syntax.ts",
+          "packages/discipline-core/mechanisms/audit/CD-14/class-syntax.test.ts",
+          "packages/discipline-core/mechanisms/audit/CD-14/piece.json",
         ],
         ruleSetRoots: [INSTALL_ROOT, PROBE_ROOT],
       }),

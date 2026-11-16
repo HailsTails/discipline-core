@@ -90,7 +90,7 @@ describe("whyChainSchema accepts a chain that runs cause to cause", () => {
   });
 
   it.each([
-    ["a URL", "https://github.com/HailsTails/aidlc-workflows/pull/212"],
+    ["a URL", "https://github.com/example/project/pull/212"],
     ["a record number", "issue #385 ruling"],
     ["a measurement", "git grep counts 3 matches"],
     ["a file name", "the matcher in name-matcher.ts"],
@@ -155,7 +155,7 @@ describe("causalProblemsOf refuses the objection lists the Gate 1 and 3 pilot re
       {
         why: "Why is no artefact edited?",
         because: "Because the wrong coordinates are written in two lens reports",
-        evidence: "rin-completeness-reviewer-agent.md:79",
+        evidence: "completeness-reviewer-agent.md:79",
       },
       {
         why: "Why can the lead not correct them?",

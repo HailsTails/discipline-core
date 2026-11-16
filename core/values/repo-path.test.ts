@@ -7,7 +7,7 @@ const ACCEPTED = [
   "é.ts",
   "src/.hidden/a.ts",
   "a..b.ts",
-  "plugins/discipline-core/core/values/repo-path.ts",
+  "packages/discipline-core/core/values/repo-path.ts",
 ];
 
 const REFUSED = [
