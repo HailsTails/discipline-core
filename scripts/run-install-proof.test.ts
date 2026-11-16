@@ -24,6 +24,7 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
       "hone:check": "hone check --repo .",
       "hone:project": "hone project --repo .",
     },
+    devDependencies: { typescript: "4.8.4" },
   },
   null,
   2,
@@ -38,6 +39,8 @@ const PROJECTION = 'import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14
 const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
   [`${CONSUMER}/disciplines.eslint.mjs`]: PROJECTION,
+  [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "4.8.4" }',
+  ["/scratch/typescript-floor/second/node_modules/typescript/package.json"]: '{ "name": "typescript", "version": "4.8.4" }',
 };
 
 const EXPECTING_PASS: ProofCase = {
@@ -91,8 +94,8 @@ const processPort = (): ProcessPort => ({
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const fileTextPort = (): FileTextPort => ({
-  read: ({ path }) => ({ outcome: "ok", value: requiredEntry({ table: PACKAGE_FILES, key: path }) }),
+const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTextPort => ({
+  read: ({ path }) => ({ outcome: "ok", value: requiredEntry({ table: { ...PACKAGE_FILES, ...overrides }, key: path }) }),
   exists: vi.fn<FileTextPort["exists"]>(),
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
@@ -142,12 +145,28 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
         [{ text: "ok: audit check -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit project -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit disciplines.eslint.mjs reads exactly as expected\n" }],
         [{ text: "install proof: pass\n" }],
       ],
       exits: [[{ code: 0 }]],
+    });
+  });
+
+  it("exits 1 naming the version found when a required peer does not resolve at its pinned floor", async () => {
+    const proofProcess = processPort();
+    const fileText = fileTextPort({ [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "6.0.3" }' });
+
+    await runInstallProof(proofRequest({ process: proofProcess, fileText }));
+
+    expect(reportOf({ process: proofProcess })).toEqual({
+      writes: [
+        [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+        [{ text: "FAIL: audit resolves the required peer typescript at its pinned floor 4.8.4: found 6.0.3\n" }],
+      ],
+      exits: [[{ code: 1 }]],
     });
   });
 
@@ -305,6 +324,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
         [
           {
             text: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(REPORT_OF_FINDINGS)}, got exit 1 and output ${JSON.stringify(altered)}\n`,
@@ -323,6 +343,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
         [{ text: 'FAIL: audit check: expected exit 1 and output "verdict: fail\\n", got exit 0 and output "verdict: pass\\n"\n' }],
       ],
       exits: [[{ code: 1 }]],

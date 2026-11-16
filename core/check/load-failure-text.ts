@@ -1,8 +1,16 @@
-import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
+import type { PeerKind, RunnerFailure } from "../mechanism-port/runner-failure.ts";
+import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { LoadFailure } from "./load-failure.ts";
 
 const escapedLineBreaks = (request: { readonly text: string }): string =>
   request.text.replaceAll("\n", "\\n").replaceAll("\r", "\\r");
+
+const OPTIONAL_PEER_REPAIR = "add a supported version to the devDependencies of the repository root";
+
+const missingPeerRepair = (request: { readonly packageName: string; readonly peer: PeerKind }): string =>
+  request.peer === "required"
+    ? `${request.packageName} is a required peer of ${TOOL_IDENTITY.packageName}, so this install is incomplete; ${OPTIONAL_PEER_REPAIR} and reinstall`
+    : OPTIONAL_PEER_REPAIR;
 
 const runnerFailureFields = (request: { readonly failure: RunnerFailure }): readonly string[] => {
   switch (request.failure.kind) {
@@ -15,7 +23,7 @@ const runnerFailureFields = (request: { readonly failure: RunnerFailure }): read
       return [
         request.failure.kind,
         request.failure.packageName,
-        `found ${request.failure.found}, supported ${request.failure.supported}: add a supported version to the devDependencies of the repository root`,
+        `found ${request.failure.found}, supported ${request.failure.supported}: ${missingPeerRepair({ packageName: request.failure.packageName, peer: request.failure.peer })}`,
       ];
     case "toolchain-shadowed":
       return [

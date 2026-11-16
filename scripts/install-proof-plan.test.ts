@@ -6,6 +6,7 @@ import {
   packagedConsumerManifest,
   packagedScriptsOf,
   type ProofAction,
+  requiredPeerPinsOf,
   type StepExpectation,
   toolchainManifest,
 } from "./install-proof-plan.ts";
@@ -87,6 +88,28 @@ const FLOOR_ESLINT_PEERS = {
   "@typescript-eslint/parser": "8.56.0",
   "@typescript-eslint/eslint-plugin": "8.56.0",
 };
+
+describe("requiredPeerPinsOf", () => {
+  it.each(["typescript-floor", "eslint-9-floor", "eslint-10-floor"] as const)(
+    "pins only the required peer typescript at its floor for a $toolchain consumer, over this package's own package.json",
+    (toolchain) => {
+      expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
+        outcome: "ok",
+        value: { typescript: "4.8.4" },
+      });
+    },
+  );
+
+  it("pins nothing when every peer is optional", () => {
+    expect(
+      requiredPeerPinsOf({
+        developmentManifest:
+          '{ "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "peerDependenciesMeta": { "typescript": { "optional": true } }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }',
+        toolchain: "typescript-floor",
+      }),
+    ).toEqual({ outcome: "ok", value: {} });
+  });
+});
 
 describe("toolchainManifest, over this package's own package.json read as a build-time raw module", () => {
   it("gives the TypeScript floor root only typescript, at its floor pin installed under its own name", () => {
@@ -199,10 +222,20 @@ describe("the proof cases", () => {
       project: "core:project",
     });
   });
-  it("give a packaged consumer scripts calling the command's two subcommands on the repository root", () => {
-    expect(packagedConsumerManifest({ identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" } })).toBe(
+  it("give a packaged consumer scripts calling the command's two subcommands on the repository root, and its required peers as development dependencies at the given pins", () => {
+    expect(
+      packagedConsumerManifest({
+        identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" },
+        requiredPeers: { typescript: "4.8.4" },
+      }),
+    ).toBe(
       `${JSON.stringify(
-        { private: true, type: "commonjs", scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." } },
+        {
+          private: true,
+          type: "commonjs",
+          scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." },
+          devDependencies: { typescript: "4.8.4" },
+        },
         null,
         2,
       )}\n`,

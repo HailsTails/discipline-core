@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { dependencyNamesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 
 const DEVELOPMENT_MANIFEST = {
   version: "0.0.0",
@@ -81,6 +81,26 @@ describe("peerNamesOf", () => {
 
   it("names the development manifest invalid when it declares no peers", () => {
     expect(peerNamesOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
+  });
+});
+
+describe("peerKindsOf", () => {
+  it("names each declared peer optional when its meta marks it so, and required otherwise", () => {
+    expect(peerKindsOf({ developmentManifest: JSON.stringify(DEVELOPMENT_MANIFEST) })).toEqual({
+      outcome: "ok",
+      value: { eslint: "optional", typescript: "required" },
+    });
+  });
+
+  it("names every declared peer required when the manifest has no peer metadata", () => {
+    expect(peerKindsOf({ developmentManifest: '{ "peerDependencies": { "typescript": ">=4.8.4" } }' })).toEqual({
+      outcome: "ok",
+      value: { typescript: "required" },
+    });
+  });
+
+  it("names the development manifest invalid when it declares no peers", () => {
+    expect(peerKindsOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
   });
 });
 

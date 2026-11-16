@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
+import type { PeerKind } from "../core/mechanism-port/runner-failure.ts";
 import type { Result } from "../core/values/result.ts";
 import type { ToolIdentity } from "../core/values/tool-identity.ts";
 
@@ -15,6 +16,11 @@ const publishedSectionsSchema = z.object({
 });
 
 const peerSectionsSchema = publishedSectionsSchema.pick({ peerDependencies: true });
+
+const peerKindSectionsSchema = z.object({
+  peerDependencies: versionsSchema,
+  peerDependenciesMeta: publishedSectionsSchema.shape.peerDependenciesMeta.default({}),
+});
 
 const dependencySectionsSchema = z.object({ dependencies: versionsSchema });
 
@@ -59,6 +65,23 @@ export const peerNamesOf = (request: {
 }): Result<readonly string[], ManifestFailure> => {
   const peers = sectionsOf({ developmentManifest: request.developmentManifest, schema: peerSectionsSchema });
   return peers.outcome === "failed" ? peers : { outcome: "ok", value: Object.keys(peers.value.peerDependencies) };
+};
+
+export const peerKindsOf = (request: {
+  readonly developmentManifest: string;
+}): Result<Readonly<Record<string, PeerKind>>, ManifestFailure> => {
+  const peers = sectionsOf({ developmentManifest: request.developmentManifest, schema: peerKindSectionsSchema });
+  return peers.outcome === "failed"
+    ? peers
+    : {
+        outcome: "ok",
+        value: Object.fromEntries(
+          Object.keys(peers.value.peerDependencies).map((name): readonly [string, PeerKind] => [
+            name,
+            peers.value.peerDependenciesMeta[name]?.optional === true ? "optional" : "required",
+          ]),
+        ),
+      };
 };
 
 export const dependencyNamesOf = (request: {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import { TOOL_IDENTITY, type ToolIdentity } from "../core/values/tool-identity.ts";
+import { peerKindsOf } from "./published-manifest.ts";
 
 export type EntryKind = "folder" | "file";
 
@@ -100,7 +101,10 @@ export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }):
 
 export const PACKAGED_CONSUMER_NPMRC = "node-options=--no-experimental-strip-types\n";
 
-export const packagedConsumerManifest = (request: { readonly identity: ToolIdentity }): string =>
+export const packagedConsumerManifest = (request: {
+  readonly identity: ToolIdentity;
+  readonly requiredPeers: Readonly<Record<string, string>>;
+}): string =>
   `${JSON.stringify(
     {
       private: true,
@@ -109,6 +113,7 @@ export const packagedConsumerManifest = (request: { readonly identity: ToolIdent
         [packagedScriptsOf(request).check]: `${request.identity.command} check --repo .`,
         [packagedScriptsOf(request).project]: `${request.identity.command} project --repo .`,
       },
+      devDependencies: request.requiredPeers,
     },
     null,
     2,
@@ -188,19 +193,39 @@ const floorVersions = (request: {
     return version.outcome === "failed" ? version : { outcome: "ok", value: { ...sofar.value, [peer]: version.value } };
   }, { outcome: "ok", value: {} });
 
-export const toolchainManifest = (request: {
+const floorPinsOf = (request: {
   readonly developmentManifest: string;
   readonly toolchain: ProofToolchain;
-}): Result<string, ManifestFailure> => {
+}): Result<FloorPins, ManifestFailure> => {
   const parsed = parsedJson({ text: request.developmentManifest });
   if (parsed.outcome === "failed") {
     return manifestInvalid({ detail: parsed.error });
   }
   const manifest = toolchainManifestSchema.safeParse(parsed.value);
-  if (!manifest.success) {
-    return manifestInvalid({ detail: manifest.error.message });
+  return manifest.success
+    ? floorVersions({ manifest: manifest.data, toolchain: request.toolchain })
+    : manifestInvalid({ detail: manifest.error.message });
+};
+
+export const requiredPeerPinsOf = (request: {
+  readonly developmentManifest: string;
+  readonly toolchain: ProofToolchain;
+}): Result<FloorPins, ManifestFailure> => {
+  const pins = floorPinsOf(request);
+  if (pins.outcome === "failed") {
+    return pins;
   }
-  const versions = floorVersions({ manifest: manifest.data, toolchain: request.toolchain });
+  const kinds = peerKindsOf({ developmentManifest: request.developmentManifest });
+  return kinds.outcome === "failed"
+    ? kinds
+    : { outcome: "ok", value: Object.fromEntries(Object.entries(pins.value).filter(([peer]) => kinds.value[peer] === "required")) };
+};
+
+export const toolchainManifest = (request: {
+  readonly developmentManifest: string;
+  readonly toolchain: ProofToolchain;
+}): Result<string, ManifestFailure> => {
+  const versions = floorPinsOf(request);
   return versions.outcome === "failed"
     ? versions
     : { outcome: "ok", value: `${JSON.stringify({ private: true, devDependencies: versions.value }, null, 2)}\n` };

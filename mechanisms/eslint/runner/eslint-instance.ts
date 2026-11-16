@@ -3,7 +3,7 @@ import type * as TypescriptParserModule from "@typescript-eslint/parser";
 import type { ESLint } from "eslint";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { CaseVerdict } from "../../../core/mechanism-port/runner-result-schema.ts";
-import { type ToolchainRequirement, versionSupport } from "../../../core/mechanism-port/toolchain-requirement.ts";
+import { type ReleaseRange, versionSupport } from "../../../core/mechanism-port/toolchain-requirement.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
@@ -511,7 +511,7 @@ export type EslintClass = Pick<typeof ESLint, "version"> &
 
 export type EslintModule = { readonly ESLint: EslintClass };
 
-type ConfigLookup = { readonly releases: ToolchainRequirement; readonly flags: readonly string[] };
+type ConfigLookup = { readonly releases: ReleaseRange; readonly flags: readonly string[] };
 
 const NEAREST_CONFIG_LOOKUPS: readonly ConfigLookup[] = [
   { releases: { packageName: "eslint", lines: [{ floor: "9.12.0", below: "9.30.0" }] }, flags: ["unstable_config_lookup_from_file"] },

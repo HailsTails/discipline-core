@@ -1,17 +1,19 @@
 import { z } from "zod";
 import type { PackageLocationPort, PackageUnlocatable } from "../platform-ports/package-location-port.ts";
 import type { Result } from "../values/result.ts";
-import type { RunnerFailure } from "./runner-failure.ts";
+import type { PeerKind, RunnerFailure } from "./runner-failure.ts";
 
 export type ReleaseLine = {
   readonly floor: string;
   readonly below: string;
 };
 
-export type ToolchainRequirement = {
+export type ReleaseRange = {
   readonly packageName: string;
   readonly lines: readonly ReleaseLine[];
 };
+
+export type ToolchainRequirement = ReleaseRange & { readonly peer: PeerKind };
 
 export type PeerToolchain<Modules> = {
   readonly location: PackageLocationPort;
@@ -56,7 +58,7 @@ const lineSupport = (request: { readonly line: ReleaseLine; readonly found: Vers
 };
 
 export const versionSupport = (request: {
-  readonly requirement: ToolchainRequirement;
+  readonly requirement: ReleaseRange;
   readonly version: string;
 }): VersionSupport => {
   const found = releaseParts({ version: request.version });
@@ -72,7 +74,7 @@ const lineRange = (request: { readonly line: ReleaseLine }): string => {
     : `>=${request.line.floor} <${request.line.below}`;
 };
 
-export const supportedRange = (request: { readonly requirement: ToolchainRequirement }): string =>
+export const supportedRange = (request: { readonly requirement: ReleaseRange }): string =>
   request.requirement.lines.map((line) => lineRange({ line })).join(" || ");
 
 const toolchainUnavailable = (request: {
@@ -83,6 +85,7 @@ const toolchainUnavailable = (request: {
   error: {
     kind: "toolchain-unavailable",
     packageName: request.requirement.packageName,
+    peer: request.requirement.peer,
     supported: supportedRange({ requirement: request.requirement }),
     found: request.found,
   },
