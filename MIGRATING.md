@@ -40,7 +40,7 @@ Map each chosen discipline to its clauses with this table. A discipline is adopt
 | CD-46 | nothing to select: it applies to every file carve-out once the check runs with `--base-revision` |
 | CD-16, CD-20, CD-24 | select their owners, CD-15, CD-19 and CD-23 |
 | CD-35, CD-36, CD-37, CD-38 | not in Hone; keep their current handling |
-| any other CD | every mechanical clause in `node_modules/honed/rules/<ID>/README.md`'s Clauses table, with a mechanism that table lists |
+| any other CD | every mechanical clause in `node_modules/@hailstails/hone/rules/<ID>/README.md`'s Clauses table, with a mechanism that table lists |
 
 Clauses whose mechanism is `review` are judgement clauses: do not put them in `disciplines.json`; list them in the agent instructions instead (step 6).
 
@@ -150,7 +150,7 @@ Only after step 5 passes:
 2. Delete the copied tools tree and `harness.config.json`, unless anything else in the repository uses them. A repository that also runs the rin AIDLC plugin keeps `harness.config.json`, and in this same change sets `"constitution": { "engine": "discipline-core", "baseRevision": "origin/main" }` in it. Otherwise rin's stage gate, sensors and review lenses keep running the old walker over the old records, and they refuse what this check passes. Set `baseRevision` whenever a file carve-out or an imported entry exists.
 3. Delete `.constitution-carve-outs/` and `.constitution-authorised-locations/`: their content now lives in `discipline-exceptions.json`.
 4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the Hone check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit.
-5. Rewrite the agent instructions to point at `node_modules/honed/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
+5. Rewrite the agent instructions to point at `node_modules/@hailstails/hone/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
 6. Run the check and the repository's own validation command again, then commit everything in one change.
 
 Stop and ask the human if anything outside the old trial uses the copied tools or `harness.config.json`.
@@ -187,33 +187,52 @@ Hone is no longer installed by copying its source into the repository: this vers
 
 1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.12.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
 2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says, including the two `hone:` scripts.
-3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check` (pass flags after `--`, as in `npm run --silent hone:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent hone:project`. Point agent instructions at `node_modules/honed/rules/`.
+3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check` (pass flags after `--`, as in `npm run --silent hone:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent hone:project`. Point agent instructions at `node_modules/@hailstails/hone/rules/`.
 4. **Remove the copy.** Delete `tools/discipline-core/`, its line in `.gitignore`, and its entry in `disciplines.json`'s `exclude`.
 5. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection now imports each piece by package name instead of by a path into `tools/discipline-core/`, so it changes once; commit it.
 6. **Run the check.** It must give the same report as the last run on the copy. A `toolchain-unavailable` load failure names a package to install at the repository root.
 
 ## 10. Moving from the discipline-core names to Hone
 
-Before `0.1.0-pre.1` the tool was called discipline core, with provisional names. Only the names changed: the checks, the reports, the flags and the exit codes are the same, and `disciplines.json`, `discipline-exceptions.json`, `disciplines.eslint.mjs` and every `CD-*` clause address keep their names. To move:
+Before `0.1.0-pre.1` the tool was called discipline core, with provisional names. Its npm package was then named `honed` until `0.1.0-pre.2` renamed it `@hailstails/hone`, as section 11 describes; a repository still on discipline core moves straight to the current names below. Only the names changed: the checks, the reports, the flags and the exit codes are the same, and `disciplines.json`, `discipline-exceptions.json`, `disciplines.eslint.mjs` and every `CD-*` clause address keep their names. To move:
 
 | Old name | New name |
 | --- | --- |
-| npm package `discipline-core` | npm package `honed` (not `hone`, an unrelated npm package) |
-| tarball `discipline-core-<version>.tgz` | tarball `honed-<version>.tgz` |
+| npm package `discipline-core` | npm package `@hailstails/hone` (not the unscoped `hone`, an unrelated npm package) |
+| tarball `discipline-core-<version>.tgz` | tarball `hailstails-hone-<version>.tgz` |
 | command `discipline-core-check --repo .` | `hone check --repo .` |
 | command `discipline-core-project --repo .` | `hone project --repo .` |
 | scripts `discipline:check`, `discipline:project` | scripts `hone:check`, `hone:project` |
 | source entries `core/check/check-command.ts`, `core/check/project-command.ts` | `core/check/tool-command.ts check`, `core/check/tool-command.ts project` |
 | ESLint rule ids `discipline/<rule>` (CD-14) | `hone/<rule>` |
 | ESLint rule ids `discipline-cd<N>/<rule>` | `hone-cd<N>/<rule>` |
-| reserved ESLint namespace `discipline-core` (projection block names, `discipline-core/inline-config`) | `honed` (`honed/piece/...`, `honed/inline-config`) |
-| rule pages under `node_modules/discipline-core/rules/` | `node_modules/honed/rules/` |
+| reserved ESLint namespace `discipline-core` (projection block names, `discipline-core/inline-config`) | `hone-core` (`hone-core/piece/...`, `hone-core/inline-config`) |
+| rule pages under `node_modules/discipline-core/rules/` | `node_modules/@hailstails/hone/rules/` |
 
-1. **Swap the package.** Run `npm uninstall discipline-core`, then install `honed-<version>.tgz` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says. Replace the vendored tarball file if the repository keeps one.
+1. **Swap the package.** Run `npm uninstall discipline-core`, then install `@hailstails/hone` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says. Replace the vendored tarball file if the repository keeps one.
 2. **Rename the scripts and repoint their callers.** In `package.json`, replace the two scripts with `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."`, then change every caller of the old scripts or commands: CI, the pre-push hook and the validation script. Flags are unchanged and still go after `--`.
 3. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection's imports, block names and rule ids change once; commit it.
 4. **Rename old rule ids written by hand.** Any `eslint-disable` comment, team config rule entry or suppression that names `discipline/...` or `discipline-cd<N>/...` now names a rule that no longer exists. The check does not list it: it names no selected rule, so it drops out of `unrecorded` instead of appearing there. What appears is the finding it no longer suppresses, in the repository's own ESLint run. Search the repository for `discipline/` and `discipline-cd` and rename each to `hone/...` or `hone-cd<N>/...`, so the check governs it again.
-5. **Repoint agent instructions** from `node_modules/discipline-core/rules/` to `node_modules/honed/rules/`.
+5. **Repoint agent instructions** from `node_modules/discipline-core/rules/` to `node_modules/@hailstails/hone/rules/`.
 6. **Run the check.** It must give the same report as the last run under the old names.
 
 A repository whose own tooling calls the commands, such as the rin harness on the `discipline-core` engine, changes those calls on its own side. The engine name in `harness.config.json` belongs to that tooling and is not renamed here.
+
+## 11. Moving from `honed` to `@hailstails/hone`
+
+Version `0.1.0-pre.1` was published as the GitHub release tarball `honed-0.1.0-pre.1.tgz`, under the npm package name `honed`. npm refuses that name as too similar to existing packages, so from `0.1.0-pre.2` the package is the scoped `@hailstails/hone`, and `honed` will never be on the registry. The package name and what derives from it changed, and so did Hone's reserved ESLint namespace, from `honed` to `hone-core`, so that no name is left from the old package. The command is still `hone`, the scripts `hone:check` and `hone:project`, and the disciplines' ESLint rule ids `hone/...` and `hone-cd<N>/...`, as are `disciplines.json`, `discipline-exceptions.json` and every `CD-*` clause address.
+
+| `honed` 0.1.0-pre.1 | `@hailstails/hone` |
+| --- | --- |
+| npm package `honed` | npm package `@hailstails/hone` |
+| tarball `honed-<version>.tgz` | tarball `hailstails-hone-<version>.tgz` |
+| projection imports `honed/mechanisms/eslint/...` | `@hailstails/hone/mechanisms/eslint/...` |
+| projection block names `honed/piece/...` and the other `honed/...` blocks | `hone-core/piece/...` and `hone-core/...` |
+| governance rule `honed/inline-config` | `hone-core/inline-config` |
+| rule pages under `node_modules/honed/rules/` | `node_modules/@hailstails/hone/rules/` |
+
+1. **Swap the package.** Run `npm uninstall honed`, then install `@hailstails/hone` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says: the tarball `hailstails-hone-0.1.0-pre.2.tgz` from the `v0.1.0-pre.2` release, or, after the first registry publish, `npm install --save-dev @hailstails/hone@next`. Replace the vendored `honed-0.1.0-pre.1.tgz` if the repository keeps one.
+2. **Re-project straight away** if any clause is `eslint`, before the check, the linter or anything else runs: `npm run --silent hone:project`, then commit `disciplines.eslint.mjs`. Until then the committed projection still imports `honed/...`, which is no longer installed, so the repository's own ESLint cannot load its configuration and the check stops with `load failure: runner-failed eslint team-config-unloadable Cannot find package 'honed' imported from ...disciplines.eslint.mjs` and exit 2. `hone project` does not load the old projection, so it runs and repairs it. Its import specifiers change from `honed/...` to `@hailstails/hone/...`, and its block names from `honed/...` to `hone-core/...`, in that same re-projection. The disciplines' rule ids `hone/...` and `hone-cd<N>/...` stay, so an `eslint-disable` comment, team config entry or suppression needs renaming only if it names `honed/inline-config`, which is now `hone-core/inline-config`.
+3. **Keep the scripts.** `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."` work unchanged, because the command is still `hone`.
+4. **Repoint agent instructions** from `node_modules/honed/rules/` to `node_modules/@hailstails/hone/rules/`.
+5. **Run the check.** It must give the same report as the last run under `honed`.

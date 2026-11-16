@@ -32,7 +32,7 @@ describe("moduleExtensionOf", () => {
   });
 
   it("is .ts for a module run from source", () => {
-    expect(moduleExtensionOf({ moduleUrl: "file:///repo/tools/honed/core/values/install-layout.ts" })).toBe(".ts");
+    expect(moduleExtensionOf({ moduleUrl: "file:///repo/tools/hone/core/values/install-layout.ts" })).toBe(".ts");
   });
 });
 

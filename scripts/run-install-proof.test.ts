@@ -31,9 +31,9 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
 
 const CONSUMER = "/scratch/typescript-floor/audit";
 
-const TARBALL = "/scratch/package-tarball/honed-0.0.0.tgz";
+const TARBALL = "/scratch/package-tarball/hailstails-hone-0.0.0.tgz";
 
-const PROJECTION = 'import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";\n';
+const PROJECTION = 'import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";\n';
 
 const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
@@ -225,12 +225,20 @@ describe("runInstallProof", () => {
     ]);
   });
 
+  it("creates its temporary directory under the package's file stem, which holds no path separator", async () => {
+    const scratch = scratchPort({});
+
+    await runInstallProof(proofRequest({ scratch }));
+
+    expect(vi.mocked(scratch.createTemporaryDirectory).mock.calls).toEqual([[{ prefix: "hailstails-hone-install-proof-" }]]);
+  });
+
   it("lists the installed package under the consumer's node_modules for the source check", async () => {
     const scratch = scratchPort({});
 
     await runInstallProof(proofRequest({ scratch }));
 
-    expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/honed` }]]);
+    expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/@hailstails/hone` }]]);
   });
 
   it("exits 1 naming the count when the installed package holds a .ts file", async () => {
@@ -249,7 +257,7 @@ describe("runInstallProof", () => {
       writes: [
         [
           {
-            text: `FAIL: audit installed package holds no TypeScript source to strip: found 1 .ts and 1 .js files under ${CONSUMER}/node_modules/honed\n`,
+            text: `FAIL: audit installed package holds no TypeScript source to strip: found 1 .ts and 1 .js files under ${CONSUMER}/node_modules/@hailstails/hone\n`,
           },
         ],
       ],
@@ -259,7 +267,7 @@ describe("runInstallProof", () => {
 
   it("exits 1 showing both texts when the projection differs from the expected text", async () => {
     const proofProcess = processPort();
-    const expected = 'import piece0 from "./node_modules/honed/x.js";\n';
+    const expected = 'import piece0 from "./node_modules/@hailstails/hone/x.js";\n';
 
     await runInstallProof(
       proofRequest({

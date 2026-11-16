@@ -3,7 +3,7 @@ import type { PackageLocationPort } from "../../../core/platform-ports/package-l
 import { defaultParsePort, parsePortOn, TYPESCRIPT_LINES } from "../../../tests/typescript-parse-port.ts";
 import { defaultTypeScriptModules, loadParsePort, type TypeScriptModules } from "./typescript-parse.ts";
 
-const INSTALL_ROOT = "/repo/tools/honed";
+const INSTALL_ROOT = "/repo/tools/hone";
 
 const typescriptAt = (request: { readonly version: string }): TypeScriptModules => ({
   typescript: () =>
