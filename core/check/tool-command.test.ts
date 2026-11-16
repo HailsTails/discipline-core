@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const entrySource = import.meta.glob(["./check-command.ts"], {
+const entrySource = import.meta.glob(["./tool-command.ts"], {
   base: "./",
   query: "?raw",
   import: "default",
@@ -22,9 +22,9 @@ import { createDefaultGitPort } from "../platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../platform-ports/path-port.ts";
 import { createDefaultProcessPort } from "../platform-ports/process-port.ts";
-import { runCheckCommand } from "./run-check-command.ts";
+import { runToolCommand } from "./run-tool-command.ts";
 
-await runCheckCommand({
+await runToolCommand({
   process: createDefaultProcessPort({}),
   path: createDefaultPathPort({}),
   fileText: createDefaultFileTextPort({}),
@@ -34,8 +34,8 @@ await runCheckCommand({
 });
 `;
 
-describe("check-command.ts, read as a build-time raw module (CD-47: the entry's own source is the assertion's subject; importing it would run the command, and nothing is spawned)", () => {
-  it("only awaits runCheckCommand with the default port factories and its own module URL", () => {
-    expect(entrySource).toEqual({ "./check-command.ts": WIRING });
+describe("tool-command.ts, read as a build-time raw module (CD-47: the entry's own source is the assertion's subject; importing it would run the command, and nothing is spawned)", () => {
+  it("only awaits runToolCommand with the default port factories and its own module URL", () => {
+    expect(entrySource).toEqual({ "./tool-command.ts": WIRING });
   });
 });

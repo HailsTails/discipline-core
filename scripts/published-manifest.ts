@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
-import type { PackageIdentity } from "./package-identity.ts";
-import type { CommandEntries } from "./package-plan.ts";
+import type { ToolIdentity } from "../core/values/tool-identity.ts";
 
 export type ManifestFailure = { readonly kind: "manifest-invalid"; readonly detail: string };
 
@@ -18,6 +17,8 @@ const publishedSectionsSchema = z.object({
 const peerSectionsSchema = publishedSectionsSchema.pick({ peerDependencies: true });
 
 const dependencySectionsSchema = z.object({ dependencies: versionsSchema });
+
+const versionSectionSchema = publishedSectionsSchema.pick({ version: true });
 
 const MANIFEST_EXPORT = "./package.json";
 
@@ -53,10 +54,15 @@ export const dependencyNamesOf = (request: {
   return sections.outcome === "failed" ? sections : { outcome: "ok", value: Object.keys(sections.value.dependencies) };
 };
 
+export const packageVersionOf = (request: { readonly developmentManifest: string }): Result<string, ManifestFailure> => {
+  const sections = sectionsOf({ developmentManifest: request.developmentManifest, schema: versionSectionSchema });
+  return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.version };
+};
+
 export const publishManifestOf = (request: {
   readonly developmentManifest: string;
-  readonly identity: PackageIdentity;
-  readonly commands: CommandEntries;
+  readonly identity: ToolIdentity;
+  readonly command: string;
   readonly files: readonly string[];
   readonly exported: readonly string[];
   readonly nodeRange: string;
@@ -69,12 +75,12 @@ export const publishManifestOf = (request: {
     outcome: "ok",
     value: manifestText({
       manifest: {
-        name: request.identity.name,
+        name: request.identity.packageName,
         version: published.value.version,
         description: request.identity.description,
         license: published.value.license,
         type: "module",
-        bin: { [request.identity.checkBin]: request.commands.check, [request.identity.projectBin]: request.commands.project },
+        bin: { [request.identity.command]: request.command },
         exports: Object.fromEntries([MANIFEST_EXPORT, ...request.exported.map(exportPathOf)].map((path) => [path, path])),
         files: request.files,
         engines: { node: request.nodeRange },

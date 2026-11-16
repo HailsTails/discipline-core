@@ -208,7 +208,7 @@ const vitestImport = packageImport({ packageName: "vitest" });
 
 const relativeImportUnderCore = relativeImportReaching({ importingFolder: "core/folder", reach: /^core\// });
 
-describe("Vendor confinement over what this repository's own discipline-core source imports, read as build-time raw modules (CD-19, CD-20; CD-47: that source is the assertion's subject and no fake can stand in for it; nothing is spawned or written)", () => {
+describe("Vendor confinement over what this repository's own Hone source imports, read as build-time raw modules (CD-19, CD-20; CD-47: that source is the assertion's subject and no fake can stand in for it; nothing is spawned or written)", () => {
   it("reads a known file through every scanned set, so no set is silently empty", () => {
     expect({
       sourcesOutsideMechanisms,

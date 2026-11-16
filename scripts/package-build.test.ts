@@ -8,7 +8,7 @@ import { buildPackage } from "./package-build.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 
-const STAGE_SOURCE = "/tmp/discipline-core-package-stage-1/source";
+const STAGE_SOURCE = "/tmp/honed-package-stage-1/source";
 
 const DEVELOPMENT_MANIFEST = JSON.stringify({
   version: "0.0.0",
@@ -29,11 +29,10 @@ const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
   "/package/package.json": DEVELOPMENT_MANIFEST,
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
-  "/package/README.md": "# Discipline core\n\n[Rules](rules/CD-15/README.md)\n",
+  "/package/README.md": "# Hone\n\n[Rules](rules/CD-15/README.md)\n",
   "/package/LICENSE": "MIT No Attribution\n",
   "/package/bun.lock": LOCK,
-  "/package/core/check/check-command.ts": "await run();\n",
-  "/package/core/check/project-command.ts": "await project();\n",
+  "/package/core/check/tool-command.ts": "await run();\n",
   "/package/core/check/run-check.test.ts": "test\n",
   "/package/core/tests/helper.ts": "export const helper = 1;\n",
   "/package/mechanisms/audit/runner/runner.ts": "export const runner = {};\n",
@@ -63,24 +62,19 @@ const CHUNK: BundledOutput = {
   externalImports: ["typescript", "eslint/use-at-your-own-risk"],
 };
 
-const CHECK_COMMAND = entryOutput({
-  source: "core/check/check-command.ts",
-  path: "core/check/check-command.js",
+const TOOL_COMMAND = entryOutput({
+  source: "core/check/tool-command.ts",
+  path: "core/check/tool-command.js",
   text: "#!/usr/bin/env node\nawait run();\n",
 });
 
-const PROJECT_COMMAND = entryOutput({
-  source: "core/check/project-command.ts",
-  path: "core/check/project-command.js",
-  text: "#!/usr/bin/env node\nawait project();\n",
-});
 
 const RUNNER = entryOutput({ source: "mechanisms/audit/runner/runner.ts", path: "mechanisms/audit/runner/runner.js", text: "export const runner = {};\n" });
 
 const LOOPS = entryOutput({ source: "mechanisms/audit/CD-15/loops.ts", path: "mechanisms/audit/CD-15/loops.js", text: "export const check = {};\n" });
 
 const BUNDLE: Bundle = {
-  outputs: [CHECK_COMMAND, PROJECT_COMMAND, RUNNER, LOOPS, CHUNK],
+  outputs: [TOOL_COMMAND, RUNNER, LOOPS, CHUNK],
   packageRoots: ["node_modules/zod"],
 };
 
@@ -126,8 +120,7 @@ describe("buildPackage", () => {
         {
           sourceRoot: STAGE_SOURCE,
           entryPoints: [
-            "core/check/check-command.ts",
-            "core/check/project-command.ts",
+            "core/check/tool-command.ts",
             "mechanisms/audit/runner/runner.ts",
             "mechanisms/audit/CD-15/loops.ts",
           ],
@@ -136,8 +129,7 @@ describe("buildPackage", () => {
         },
       ],
       staged: [
-        "core/check/check-command.ts",
-        "core/check/project-command.ts",
+        "core/check/tool-command.ts",
         "mechanisms/audit/CD-15/loops.ts",
         "mechanisms/audit/CD-15/piece.json",
         "mechanisms/audit/runner/runner.ts",
@@ -166,8 +158,7 @@ describe("buildPackage", () => {
             "README.md",
             "THIRD-PARTY-NOTICES.md",
             "chunks/chunk-A.js",
-            "core/check/check-command.js",
-            "core/check/project-command.js",
+            "core/check/tool-command.js",
             "docs/why-chain-contract.md",
             "mechanisms/audit/CD-15/loops.js",
             "mechanisms/audit/CD-15/piece.json",
@@ -183,8 +174,7 @@ describe("buildPackage", () => {
         "README.md",
         "THIRD-PARTY-NOTICES.md",
         "chunks/chunk-A.js",
-        "core/check/check-command.js",
-        "core/check/project-command.js",
+        "core/check/tool-command.js",
         "docs/why-chain-contract.md",
         "mechanisms/audit/CD-15/loops.js",
         "mechanisms/audit/CD-15/piece.json",
@@ -213,7 +203,7 @@ describe("buildPackage", () => {
   it("fails naming each output that imports a package it neither bundles nor declares as a peer, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([CHECK_COMMAND, PROJECT_COMMAND, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
+      bundler: withOutputs([TOOL_COMMAND, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
@@ -228,7 +218,7 @@ describe("buildPackage", () => {
   it("fails naming an entry whose code was moved into a shared chunk, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([CHECK_COMMAND, PROJECT_COMMAND, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
+      bundler: withOutputs([TOOL_COMMAND, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
@@ -278,9 +268,24 @@ describe("buildPackage", () => {
     });
   });
 
+  it("fails naming a shipped page that names the tarball at another version than the package's, writing nothing", async () => {
+    const { files, built } = builtWith({
+      source: { ...SOURCE, "/package/README.md": "# Hone\n\nInstall `honed-0.0.1.tgz`.\n" },
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
+      result: {
+        outcome: "failed",
+        error: "FAIL: a shipped page names the tarball at another version: README.md names honed-0.0.1.tgz, not honed-0.0.0.tgz",
+      },
+      written: NOTHING_WRITTEN,
+    });
+  });
+
   it("fails naming a shipped page that links to a file the package does not ship, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/README.md": "# Discipline core\n\n[Proof](tests/test-fixtures/walkthrough/)\n" },
+      source: { ...SOURCE, "/package/README.md": "# Hone\n\n[Proof](tests/test-fixtures/walkthrough/)\n" },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 

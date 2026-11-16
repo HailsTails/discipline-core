@@ -6,7 +6,7 @@
     {
       "clause": "filename-case",
       "settings": {
-        "pluginNamespace": "discipline-cd7",
+        "pluginNamespace": "hone-cd7",
         "pluginModule": "cd7/cd7.eslint-plugin.ts",
         "rule": "filename-case"
       }

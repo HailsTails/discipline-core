@@ -71,6 +71,6 @@ const throwOnlyError: Rule.RuleModule = {
 };
 
 export default {
-  meta: { name: "discipline-cd10", version: "0.0.0-local" },
+  meta: { name: "hone-cd10", version: "0.0.0-local" },
   rules: { "throw-only-error": throwOnlyError },
 };

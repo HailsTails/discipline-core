@@ -6,7 +6,7 @@
     {
       "clause": "naming-convention",
       "settings": {
-        "pluginNamespace": "discipline-cd6",
+        "pluginNamespace": "hone-cd6",
         "pluginModule": "cd6/cd6.eslint-plugin.ts",
         "rule": "naming-convention",
         "options": [

@@ -68,7 +68,7 @@ describe("CD-14 class-syntax anchors in the audit and the ESLint piece", () => {
       eslint: await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline",
+        pluginNamespace: "hone",
         rule: "no-class-authoring",
         options: [],
         cases: [anchorCase],

@@ -6,11 +6,10 @@ export type PlanFailure = { readonly kind: "piece-invalid"; readonly path: strin
 
 export type PieceText = { readonly path: string; readonly text: string };
 
-export type CommandEntries = { readonly check: string; readonly project: string };
 
 export type PackagePlan = {
   readonly entryPoints: readonly string[];
-  readonly commands: CommandEntries;
+  readonly command: string;
   readonly copied: readonly string[];
   readonly pieces: readonly PieceText[];
   readonly exported: readonly string[];
@@ -32,10 +31,8 @@ const SOURCE_MODULE_EXTENSION = ".ts";
 
 const BUILT_MODULE_EXTENSION = ".js";
 
-const COMMAND_SOURCES: CommandEntries = {
-  check: "core/check/check-command.ts",
-  project: "core/check/project-command.ts",
-};
+const COMMAND_SOURCE = "core/check/tool-command.ts";
+
 
 const RUNNER_ENTRY = /^mechanisms\/[^/]+\/runner\/runner\.ts$/;
 
@@ -188,11 +185,8 @@ export const packagePlanOf = (request: {
   return {
     outcome: "ok",
     value: {
-      entryPoints: [...new Set([COMMAND_SOURCES.check, COMMAND_SOURCES.project, ...runners, ...pieceModules])],
-      commands: {
-        check: builtModulePath({ path: COMMAND_SOURCES.check }),
-        project: builtModulePath({ path: COMMAND_SOURCES.project }),
-      },
+      entryPoints: [...new Set([COMMAND_SOURCE, ...runners, ...pieceModules])],
+      command: builtModulePath({ path: COMMAND_SOURCE }),
       copied: copiedPathsIn(request),
       pieces: pieces.value.map(({ piece, document }) => ({ path: piece.path, text: builtPieceText({ document }) })),
       exported: exportedModulesOf({ pieces: pieces.value }),

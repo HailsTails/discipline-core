@@ -23,7 +23,7 @@ Review lens: [errors-as-data](../../methods/lenses/errors-as-data.md). The lens 
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-10/README.md).
-- `discipline-cd10/throw-only-error` flags a `throw` of a literal, an object literal, a binary expression, a template or tagged template, or `undefined`. It follows the thrown value through `a ? b : c`, `a || b`, assignment and sequence expressions.
+- `hone-cd10/throw-only-error` flags a `throw` of a literal, an object literal, a binary expression, a template or tagged template, or `undefined`. It follows the thrown value through `a ? b : c`, `a || b`, assignment and sequence expressions.
 - Allowed: `new Error(...)`, identifiers, calls and member access.
 - This clause applies to every file the ESLint run includes, not only tests.
 

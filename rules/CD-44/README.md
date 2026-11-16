@@ -25,7 +25,7 @@ Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens re
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-44/README.md).
-- `discipline-cd44/no-param-reassign` is ESLint's `no-param-reassign` with `{ "props": false }`.
+- `hone-cd44/no-param-reassign` is ESLint's `no-param-reassign` with `{ "props": false }`.
 - It flags assigning to a parameter, incrementing or decrementing it, and destructuring-assigning into it.
 - A parameter's fields are not checked here; the audit's `parameter-mutation` clause covers them.
 

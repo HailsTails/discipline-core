@@ -24,7 +24,7 @@ Review lens: [function-first](../../methods/lenses/function-first.md). The lens 
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-14/README.md).
-- `discipline/no-extraneous-class` is typescript-eslint's `no-extraneous-class` with `allowConstructorOnly: true`, `allowEmpty: true`, `allowStaticOnly: false` and `allowWithDecorator: true`.
+- `hone/no-extraneous-class` is typescript-eslint's `no-extraneous-class` with `allowConstructorOnly: true`, `allowEmpty: true`, `allowStaticOnly: false` and `allowWithDecorator: true`.
 - It flags a class whose members are all static.
 - Allowed: empty classes, decorated classes and classes that extend another class.
 

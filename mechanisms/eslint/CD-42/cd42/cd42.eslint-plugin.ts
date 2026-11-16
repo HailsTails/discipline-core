@@ -106,6 +106,6 @@ const uselessElse: Rule.RuleModule = {
 };
 
 export default {
-  meta: { name: "discipline-cd42", version: "0.0.0-local" },
+  meta: { name: "hone-cd42", version: "0.0.0-local" },
   rules: { "useless-else": uselessElse },
 };

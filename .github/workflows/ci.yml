@@ -33,8 +33,14 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Check
         run: bun run check
-      - name: Run core's disciplines on core
-        run: bun run self-check -- --base-revision "${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}"
+      - name: Run Hone's disciplines on Hone
+        shell: bash
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$BASE_REVISION"
+          case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
+          bun run self-check -- --base-revision "$base"
       - name: Build the package
         run: bun run build-package
       - name: Check the package builds deterministically
@@ -60,8 +66,14 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Check
         run: bun run check
-      - name: Run core's disciplines on core
-        run: bun run self-check -- --base-revision "${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}"
+      - name: Run Hone's disciplines on Hone
+        shell: bash
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$BASE_REVISION"
+          case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
+          bun run self-check -- --base-revision "$base"
       - name: Build the package
         run: bun run build-package
       - name: Check the package builds deterministically

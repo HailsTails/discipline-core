@@ -14,7 +14,7 @@ const directoryOf = (path: string): string => posixPath.directoryOf({ path });
 
 describe("installRootAboveEntry", () => {
   it("is the folder holding core/ for a command entry under core/check/", () => {
-    expect(installRootAboveEntry({ entryFile: "/install/core/check/check-command.js", entry: "command", directoryOf })).toBe(
+    expect(installRootAboveEntry({ entryFile: "/install/core/check/tool-command.js", entry: "command", directoryOf })).toBe(
       "/install",
     );
   });
@@ -32,7 +32,7 @@ describe("moduleExtensionOf", () => {
   });
 
   it("is .ts for a module run from source", () => {
-    expect(moduleExtensionOf({ moduleUrl: "file:///repo/tools/discipline-core/core/values/install-layout.ts" })).toBe(".ts");
+    expect(moduleExtensionOf({ moduleUrl: "file:///repo/tools/honed/core/values/install-layout.ts" })).toBe(".ts");
   });
 });
 

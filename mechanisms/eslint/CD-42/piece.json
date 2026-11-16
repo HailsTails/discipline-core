@@ -6,7 +6,7 @@
     {
       "clause": "useless-else",
       "settings": {
-        "pluginNamespace": "discipline-cd42",
+        "pluginNamespace": "hone-cd42",
         "pluginModule": "cd42/cd42.eslint-plugin.ts",
         "rule": "useless-else"
       }

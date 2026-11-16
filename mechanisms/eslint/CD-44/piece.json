@@ -6,7 +6,7 @@
     {
       "clause": "parameter-reassignment",
       "settings": {
-        "pluginNamespace": "discipline-cd44",
+        "pluginNamespace": "hone-cd44",
         "pluginModule": "cd44/cd44.eslint-plugin.ts",
         "rule": "no-param-reassign",
         "options": [

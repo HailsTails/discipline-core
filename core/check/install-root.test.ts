@@ -5,9 +5,9 @@ import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.t
 import type { Result } from "../values/result.ts";
 import { installRootOf } from "./install-root.ts";
 
-const ENTRY_URL = "file:///install/core/check/check-command.ts";
-const NOT_A_FILE_URL = "https://example.invalid/core/check/check-command.ts";
-const WINDOWS_ENTRY_URL = "file:///C:/repo/packages/discipline-core/core/check/check-command.ts";
+const ENTRY_URL = "file:///install/core/check/tool-command.ts";
+const NOT_A_FILE_URL = "https://example.invalid/core/check/tool-command.ts";
+const WINDOWS_ENTRY_URL = "file:///C:/repo/packages/honed/core/check/tool-command.ts";
 
 type FileUrlResult = Result<
   AbsolutePath,
@@ -15,10 +15,10 @@ type FileUrlResult = Result<
 >;
 
 const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
-  [ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/core/check/check-command.ts") },
+  [ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/core/check/tool-command.ts") },
   [WINDOWS_ENTRY_URL]: {
     outcome: "ok",
-    value: absolutePathSchema.parse("C:\\repo\\packages\\discipline-core\\core\\check\\check-command.ts"),
+    value: absolutePathSchema.parse("C:\\repo\\packages\\honed\\core\\check\\tool-command.ts"),
   },
   [NOT_A_FILE_URL]: {
     outcome: "failed",
@@ -27,12 +27,12 @@ const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
 };
 
 const DIRECTORIES: Readonly<Record<string, string>> = {
-  "/install/core/check/check-command.ts": "/install/core/check",
+  "/install/core/check/tool-command.ts": "/install/core/check",
   "/install/core/check": "/install/core",
   "/install/core": "/install",
-  "C:\\repo\\packages\\discipline-core\\core\\check\\check-command.ts": "C:\\repo\\packages\\discipline-core\\core\\check",
-  "C:\\repo\\packages\\discipline-core\\core\\check": "C:\\repo\\packages\\discipline-core\\core",
-  "C:\\repo\\packages\\discipline-core\\core": "C:\\repo\\packages\\discipline-core",
+  "C:\\repo\\packages\\honed\\core\\check\\tool-command.ts": "C:\\repo\\packages\\honed\\core\\check",
+  "C:\\repo\\packages\\honed\\core\\check": "C:\\repo\\packages\\honed\\core",
+  "C:\\repo\\packages\\honed\\core": "C:\\repo\\packages\\honed",
 };
 
 const TABLE_PATH: PathPort = {
@@ -61,7 +61,7 @@ describe("installRootOf", () => {
   it("is the drive-rooted directory three levels above a Windows entry file", () => {
     expect(installRootOf({ path: TABLE_PATH, moduleUrl: WINDOWS_ENTRY_URL })).toEqual({
       outcome: "ok",
-      value: "C:\\repo\\packages\\discipline-core",
+      value: "C:\\repo\\packages\\honed",
     });
   });
 

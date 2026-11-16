@@ -294,7 +294,7 @@ const functionLength: Rule.RuleModule = {
 };
 
 export default {
-  meta: { name: "discipline-cd41", version: "0.0.0-local" },
+  meta: { name: "hone-cd41", version: "0.0.0-local" },
   rules: {
     "cognitive-complexity": cognitiveComplexity,
     "function-length": functionLength,
