@@ -4,6 +4,7 @@ import { createProcessPort, type ProcessSurface } from "./process-port.ts";
 const processSurfaceOver = (surface: Partial<ProcessSurface>): ProcessSurface => ({
   argv: ["/usr/bin/node", "/install/check.ts", "first", "--second"],
   write: vi.fn(),
+  writeError: vi.fn(),
   setExitCode: vi.fn(),
   ...surface,
 });
@@ -24,6 +25,17 @@ describe("createProcessPort", () => {
     });
 
     expect(write).toHaveBeenCalledWith({ text: "verdict: pass\n" });
+  });
+
+  it("writes the given error text to the error stream, not the output stream", () => {
+    const write = vi.fn<ProcessSurface["write"]>();
+    const writeError = vi.fn<ProcessSurface["writeError"]>();
+
+    createProcessPort({ processSurface: processSurfaceOver({ write, writeError }) }).writeError({
+      text: "usage: check\n",
+    });
+
+    expect({ out: write.mock.calls, error: writeError.mock.calls }).toEqual({ out: [], error: [[{ text: "usage: check\n" }]] });
   });
 
   it("sets the exit code given to exitWith", () => {
