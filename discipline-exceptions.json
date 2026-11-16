@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "core/platform-ports/execution-port.ts",
+      "reason": "Current structural CD19/CD21 conformance: this is the sole shipped consumer node:child_process and child-environment wrapping site. Official Node outcomes are mapped to plain ExecutionExit/ExecutionFailure; policy and environment are bound once. Git consumes the plain execution port and retains its own argv/environment policy. The provider alias is used only inside this boundary and its own tests. This current judgement grants no tolerated debt or old-location permission.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#0"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "core/platform-ports/file-system-port.ts",
+      "reason": "Current structural CD19/CD21 conformance: this is the sole shipped consumer node:fs wrapping site for existing text/presence plus immediate directory listing. Existing text implementations and six compatibility exports are preserved. Directory results contain only owned name/kind data; no Dirent escapes. This current judgement grants no tolerated debt or old-location permission.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#1"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "core/platform-ports/module-loader-port.ts",
+      "reason": "Structural CD19 location: createModuleLoaderPort maps an injected ImportModule's resolution or rejection to module-unloadable Result data; defaultImportModule binds node:url pathToFileURL and dynamic import() to that surface and createDefaultModuleLoaderPort wires it. Consumers receive the loaded namespace as unknown inside a Result, never Node types. module-loader-port.test.ts fakes ImportModule with vi.fn. This is the single wrapping site for runner module loading in the discipline-core plugin.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#2"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "core/platform-ports/path-port.ts",
+      "reason": "Structural CD19 location: createPathPort takes a required path flavour named by the project-owned union PathFlavour (\"posix\", \"windows\" or \"platform\"), maps it inside the module to node:path posix, win32 or the host default, and computes join, directoryOf, relative and resolve with that surface, joinRepository and repositoryDirectoryOf with node:path posix, and fromFileUrl with the URL global and node:url fileURLToPath, whose windows option follows the flavour. resolve and relative turn each relative argument absolute by calling the injected WorkingDirectory and passing its result first to the flavour's resolve, so that resolve itself would read process.cwd() only if the injected directory were relative; an absolute argument is normalised without calling it. join, directoryOf and fromFileUrl read no ambient state. defaultWorkingDirectory binds process.cwd() to WorkingDirectory, and createDefaultPathPort alone wires it and the \"platform\" flavour into createPathPort; every other caller names its flavour. The module exports no node:path value or type: consumers pass a flavour name and receive strings, AbsolutePath values, RelativeLocation and Result data, never Node types. path-port.test.ts fakes WorkingDirectory with vi.fn. This is the single wrapping site for path arithmetic and file-URL conversion in the discipline-core plugin.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#3"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "mechanisms/eslint/runner/eslint-instance.ts",
+      "reason": "Structural CD19 location: eslint-instance.ts is the ESLint mechanism runner's single wrapping factory for the eslint package and @typescript-eslint/parser. It constructs the query and governance ESLint instances, runs lintFiles, lintText and calculateConfigForFile, and maps results into the runner's own types (EslintPort, QueryInstance, GovernanceInstance, LintedFile, LintedMessage) and Zod-parsed resolved-config and plugin schemas. Core and pieces receive RepoPath values, runner hit data and Result failures, never ESLint classes or types. create-eslint-runner.ts depends on the EslintPort it exports, and the unit tests fake the injected CreateEslint surface. This is the one place the discipline-core plugin binds the eslint runtime.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#4"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts",
+      "reason": "Structural CD19 location for the CD-14 ESLint piece: the file imports only types (import type { ESLint, Rule }) from eslint to declare its rule module in ESLint's plugin protocol, which the runner loads. It has no runtime eslint import. FR-8 lets a piece type-import only the packages its runner lists, and mechanisms/eslint/runner/piece-type-packages.json lists exactly [\"eslint\"]; core's piece-import check enforces that. The piece's tests run cases through the runner's lintSourceCases, never through eslint or RuleTester directly.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#5"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "scripts/install-proof-ports.ts",
+      "reason": "Structural CD19 location: createScratchFilesPort holds temporary-directory creation and removal, filtered tree copy, file removal and tree listing over an injected ScratchFilesSurface, and createCommandRunPort holds the git/npm/node command mapping, the GIT_-free child environment and the win32 npm shell launch over an injected CommandSpawn, platform, executable path and ambient environment; defaultScratchFilesSurface binds node:fs, node:os and node:path to that surface, defaultCommandSpawn binds node:child_process spawnSync, and createDefaultCommandRunPort passes process.platform, process.execPath and process.env. Consumers receive EffectFailure data in a Result and StepRun values, never Node types. install-proof-ports.test.ts fakes both surfaces with vi.fn and literal values. This is the single wrapping site for the install proof's filesystem and subprocess effects; scripts/install-proof.ts only wires default factories into scripts/run-install-proof.ts.",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": ".constitution-authorised-locations/cd-19.json#6"
+      }
+    }
+  ]
+}

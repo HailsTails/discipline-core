@@ -48,7 +48,7 @@ const SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms", "rules", "metho
 
 const BUNDLED_SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms"];
 
-const BUNDLED_SOURCE_FILES: readonly string[] = ["package.json", "tsconfig.json"];
+const BUNDLED_SOURCE_FILES: readonly string[] = ["package.json", "tsconfig.json", "tsconfig.base.json"];
 
 const LEFT_OUT_FOLDERS: ReadonlySet<string> = new Set(["tests", "test-fixtures", "node_modules"]);
 

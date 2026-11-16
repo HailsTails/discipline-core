@@ -955,10 +955,10 @@ describe("parseExceptionEntries judges a chain without rootCheck and readback by
 
 describe("legacyChainsIn reports whether any entry holds a chain without rootCheck and readback", () => {
   it.each([
-    ["a legacy chain", [LOCATION, LEGACY_CARVE_OUT], "present"],
-    ["only causal chains and imports", [LOCATION, FILE_CARVE_OUT, CLAUSE_WIDE], "absent"],
-    ["no entries", [], "absent"],
-  ] as const)("reads %s as %s", (_label, entries, presence) => {
+    { label: "a legacy chain", entries: [LOCATION, LEGACY_CARVE_OUT], presence: "present" },
+    { label: "only causal chains and imports", entries: [LOCATION, FILE_CARVE_OUT, CLAUSE_WIDE], presence: "absent" },
+    { label: "no entries", entries: [], presence: "absent" },
+  ])("reads $label as $presence", ({ entries, presence }) => {
     expect(legacyChainsIn({ entries })).toBe(presence);
   });
 });
@@ -976,15 +976,25 @@ const IMPORTED_EXCEPTION_RECORD: ExceptionRecord = {
   provenance: IMPORTED_CARVE_OUT.provenance,
 };
 
-const RECORD_IMPORT_CASES: readonly (readonly [string, ExceptionRecord, ImportEvidence])[] = [
-  ["an imported file carve-out", IMPORTED_EXCEPTION_RECORD, { imported: "yes", source: IMPORTED_CARVE_OUT.provenance.source }],
-  ["a chained record that also gives provenance", { ...IMPORTED_EXCEPTION_RECORD, whyChain: CAUSAL_WHY_CHAIN }, { imported: "no" }],
-  ["a reason-only record", { kind: "authorised-location", clause: CLASS_SYNTAX_ADDRESS, mechanism: AUDIT, file: repoPathSchema.parse("src/factory.ts"), reason: REASONED_LOCATION.reason }, { imported: "no" }],
-  ["a clause-wide carve-out", { kind: "clause-wide-carve-out", clause: CLASS_SYNTAX_ADDRESS, mechanism: AUDIT, reason: CLAUSE_WIDE.reason, whyChain: CAUSAL_WHY_CHAIN }, { imported: "no" }],
+type RecordImportCase = { readonly label: string; readonly record: ExceptionRecord; readonly recordImport: ImportEvidence };
+
+const RECORD_IMPORT_CASES: readonly RecordImportCase[] = [
+  { label: "an imported file carve-out", record: IMPORTED_EXCEPTION_RECORD, recordImport: { imported: "yes", source: IMPORTED_CARVE_OUT.provenance.source } },
+  { label: "a chained record that also gives provenance", record: { ...IMPORTED_EXCEPTION_RECORD, whyChain: CAUSAL_WHY_CHAIN }, recordImport: { imported: "no" } },
+  {
+    label: "a reason-only record",
+    record: { kind: "authorised-location", clause: CLASS_SYNTAX_ADDRESS, mechanism: AUDIT, file: repoPathSchema.parse("src/factory.ts"), reason: REASONED_LOCATION.reason },
+    recordImport: { imported: "no" },
+  },
+  {
+    label: "a clause-wide carve-out",
+    record: { kind: "clause-wide-carve-out", clause: CLASS_SYNTAX_ADDRESS, mechanism: AUDIT, reason: CLAUSE_WIDE.reason, whyChain: CAUSAL_WHY_CHAIN },
+    recordImport: { imported: "no" },
+  },
 ];
 
 describe("recordImportOf names the provenance source of an imported record, and of no other", () => {
-  it.each(RECORD_IMPORT_CASES)("reads %s", (_label, record, recordImport) => {
+  it.each(RECORD_IMPORT_CASES)("reads $label", ({ record, recordImport }) => {
     expect(recordImportOf({ record })).toEqual(recordImport);
   });
 });

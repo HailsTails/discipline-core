@@ -27,7 +27,8 @@ const LOCK = '{ "lockfileVersion": 1, "packages": { "zod": ["zod@4.4.3", "", {},
 
 const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
   "/package/package.json": DEVELOPMENT_MANIFEST,
-  "/package/tsconfig.json": "{}\n",
+  "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
+  "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
   "/package/README.md": "# Hone\n\n[Rules](rules/CD-15/README.md)\n",
   "/package/LICENSE": "MIT No Attribution\n",
   "/package/bun.lock": LOCK,
@@ -135,6 +136,7 @@ describe("buildPackage", () => {
         "node_modules/zod/LICENSE",
         "node_modules/zod/package.json",
         "package.json",
+        "tsconfig.base.json",
         "tsconfig.json",
       ],
       left: [],
