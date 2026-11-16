@@ -12,8 +12,8 @@ import type { Result } from "../values/result.ts";
 import type { CommandRequest } from "./run-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
 
-const ENTRY_URL = "file:///install/core/check/project-command.ts";
-const NOT_A_FILE_URL = "https://example.invalid/core/check/project-command.ts";
+const ENTRY_URL = "file:///install/core/check/tool-command.ts";
+const NOT_A_FILE_URL = "https://example.invalid/core/check/tool-command.ts";
 
 type FakeFile = {
   readonly read: ReturnType<FileTextPort["read"]>;
@@ -83,7 +83,7 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
 };
 
 const DIRECTORIES: Readonly<Record<string, string>> = {
-  "/install/core/check/project-command.ts": "/install/core/check",
+  "/install/core/check/tool-command.ts": "/install/core/check",
   "/install/core/check": "/install/core",
   "/install/core": "/install",
 };
@@ -94,7 +94,7 @@ type FileUrlResult = Result<
 >;
 
 const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
-  [ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/core/check/project-command.ts") },
+  [ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/core/check/tool-command.ts") },
   [NOT_A_FILE_URL]: {
     outcome: "failed",
     error: { kind: "not-a-file-url", url: NOT_A_FILE_URL, detail: "the text is not a file: URL" },

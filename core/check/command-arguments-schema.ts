@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
+import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { LoadFailure } from "./load-failure.ts";
 
 export type CheckArguments = {
@@ -71,3 +72,31 @@ export const parseProjectArguments = (request: {
   readonly arguments: readonly string[];
 }): Result<ProjectArguments, LoadFailure> =>
   parsedArguments({ schema: projectArgumentsSchema, arguments: request.arguments });
+
+const subcommandSchema = z.enum(["check", "project"]);
+
+export type Subcommand = z.infer<typeof subcommandSchema>;
+
+export type SubcommandInvocation = {
+  readonly subcommand: Subcommand;
+  readonly arguments: readonly string[];
+};
+
+const USAGE = [
+  `usage: ${TOOL_IDENTITY.command} check ${REPO_OPTION} <path> [${BASE_REVISION_OPTION} <revision>] [${REPORT_OUTPUT_OPTION} <${reportOutputSchema.options.join("|")}>]`,
+  `${TOOL_IDENTITY.command} project ${REPO_OPTION} <path>`,
+].join(" | ");
+
+const subcommandProblem = (request: { readonly given: string | undefined }): string =>
+  request.given === undefined ? "a subcommand is required" : `unknown subcommand ${JSON.stringify(request.given)}`;
+
+export const parseSubcommand = (request: {
+  readonly arguments: readonly string[];
+}): Result<SubcommandInvocation, LoadFailure> => {
+  const [given, ...rest] = request.arguments;
+  const subcommand = subcommandSchema.safeParse(given);
+  if (!subcommand.success) {
+    return { outcome: "failed", error: { kind: "arguments-invalid", detail: `${subcommandProblem({ given })}; ${USAGE}` } };
+  }
+  return { outcome: "ok", value: { subcommand: subcommand.data, arguments: rest } };
+};

@@ -96,7 +96,7 @@ describe("CD-6 naming-convention rule through the ESLint runner's lintSourceCase
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd6",
+        pluginNamespace: "hone-cd6",
         rule: "naming-convention",
         options: [
           {

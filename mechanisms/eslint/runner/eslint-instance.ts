@@ -8,6 +8,7 @@ import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.t
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type RuleState, resolvedConfigSchema, ruleStateOf } from "./eslint-config-schema.ts";
 import {
   type InlineConfigNode,
@@ -19,7 +20,7 @@ import { parseInlineConfigComment } from "./inline-config-parser.ts";
 
 export type { AST, Rule, SourceCode } from "eslint";
 
-export const reservedNamespace = "discipline-core";
+export const reservedNamespace = TOOL_IDENTITY.packageName;
 
 const INLINE_CONFIG_RULE = "inline-config";
 

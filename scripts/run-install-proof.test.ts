@@ -21,8 +21,8 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
     private: true,
     type: "commonjs",
     scripts: {
-      "discipline:check": "discipline-core-check --repo .",
-      "discipline:project": "discipline-core-project --repo .",
+      "hone:check": "hone check --repo .",
+      "hone:project": "hone project --repo .",
     },
   },
   null,
@@ -31,9 +31,9 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
 
 const CONSUMER = "/scratch/typescript-floor/audit";
 
-const TARBALL = "/scratch/package-tarball/discipline-core-0.0.0.tgz";
+const TARBALL = "/scratch/package-tarball/honed-0.0.0.tgz";
 
-const PROJECTION = 'import piece0 from "discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";\n';
+const PROJECTION = 'import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";\n';
 
 const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
@@ -67,7 +67,7 @@ const SECOND_CONSUMER: ProofCase = { ...EXPECTING_PASS, consumer: "second", acti
 
 const INSTALLED_PACKAGE: readonly ListedEntry[] = [
   { path: "core", name: "core", entryKind: "folder" },
-  { path: "core/check/check-command.js", name: "check-command.js", entryKind: "file" },
+  { path: "core/check/tool-command.js", name: "tool-command.js", entryKind: "file" },
 ];
 
 const INSTALLED_PACKAGE_WITH_SOURCE: readonly ListedEntry[] = [
@@ -196,8 +196,8 @@ describe("runInstallProof", () => {
       [{ command: "git", arguments: expect.arrayContaining(["init", "-q"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["add", "-A"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["commit", "-q", "-m", "consumer"]), directory: CONSUMER }],
-      [{ command: "npm", arguments: ["run", "--silent", "discipline:check", "--", "--base-revision", "HEAD"], directory: CONSUMER }],
-      [{ command: "npm", arguments: ["run", "--silent", "discipline:project"], directory: CONSUMER }],
+      [{ command: "npm", arguments: ["run", "--silent", "hone:check", "--", "--base-revision", "HEAD"], directory: CONSUMER }],
+      [{ command: "npm", arguments: ["run", "--silent", "hone:project"], directory: CONSUMER }],
     ]);
   });
 
@@ -229,7 +229,7 @@ describe("runInstallProof", () => {
 
     await runInstallProof(proofRequest({ scratch }));
 
-    expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/discipline-core` }]]);
+    expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/honed` }]]);
   });
 
   it("exits 1 naming the count when the installed package holds a .ts file", async () => {
@@ -248,7 +248,7 @@ describe("runInstallProof", () => {
       writes: [
         [
           {
-            text: `FAIL: audit installed package holds no TypeScript source to strip: found 1 .ts and 1 .js files under ${CONSUMER}/node_modules/discipline-core\n`,
+            text: `FAIL: audit installed package holds no TypeScript source to strip: found 1 .ts and 1 .js files under ${CONSUMER}/node_modules/honed\n`,
           },
         ],
       ],
@@ -258,7 +258,7 @@ describe("runInstallProof", () => {
 
   it("exits 1 showing both texts when the projection differs from the expected text", async () => {
     const proofProcess = processPort();
-    const expected = 'import piece0 from "./node_modules/discipline-core/x.js";\n';
+    const expected = 'import piece0 from "./node_modules/honed/x.js";\n';
 
     await runInstallProof(
       proofRequest({

@@ -6,7 +6,7 @@ import {
   type CommandScript,
   judgedStep,
   PACKAGED_CONSUMER_NPMRC,
-  PACKAGED_SCRIPTS,
+  packagedScriptsOf,
   packagedConsumerManifest,
   type ProofAction,
   type ProofCase,
@@ -16,7 +16,7 @@ import {
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
-import { PACKAGE_IDENTITY } from "./package-identity.ts";
+import { TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 
 export type InstallProofRequest = {
   readonly process: ProcessPort;
@@ -42,7 +42,7 @@ type ProofContext = {
 
 const SUCCEEDED: Result<null, string> = { outcome: "ok", value: null };
 const IGNORED_INSTALLS = "node_modules/\n";
-const TEMPORARY_PREFIX = "discipline-core-install-proof-";
+const TEMPORARY_PREFIX = `${TOOL_IDENTITY.packageName}-install-proof-`;
 const GIT_IDENTITY = ["-c", "user.name=proof", "-c", "user.email=proof@invalid", "-c", "commit.gpgsign=false"];
 const NPM_INSTALL = ["install", "--no-audit", "--no-fund", "--ignore-scripts"];
 const NODE_MODULES = "node_modules";
@@ -125,7 +125,7 @@ const commandRun = (request: {
 }): StepRun =>
   request.context.commands.run({
     command: "npm",
-    arguments: [...NPM_RUN_SILENT, PACKAGED_SCRIPTS[request.script], ...(request.arguments.length === 0 ? [] : ["--", ...request.arguments])],
+    arguments: [...NPM_RUN_SILENT, packagedScriptsOf({ identity: TOOL_IDENTITY })[request.script], ...(request.arguments.length === 0 ? [] : ["--", ...request.arguments])],
     directory: request.repo,
   });
 
@@ -221,7 +221,7 @@ const writtenFile = (request: {
 type ConsumerFile = { readonly name: string; readonly text: string };
 
 const CONSUMER_FILES: readonly ConsumerFile[] = [
-  { name: "package.json", text: packagedConsumerManifest({ identity: PACKAGE_IDENTITY }) },
+  { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY }) },
   { name: ".gitignore", text: IGNORED_INSTALLS },
   { name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC },
 ];
@@ -342,7 +342,7 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
         packageShipsNoSource({
           context,
           consumer,
-          installedPackage: context.path.join({ segments: [repo, NODE_MODULES, ...PACKAGE_IDENTITY.name.split("/")] }),
+          installedPackage: context.path.join({ segments: [repo, NODE_MODULES, ...TOOL_IDENTITY.packageName.split("/")] }),
         }),
       () => git({ context, repo, consumer, arguments: ["init", "-q"] }),
       () => commitAll({ context, repo, consumer, message: "consumer" }),

@@ -14,6 +14,7 @@ import type { FileExceptionWhyChains } from "../values/file-exception-why-chains
 import type { MechanismId } from "../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
+import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import {
   legacyWhyChainSchema,
   type RecordedWhyChain,
@@ -301,8 +302,7 @@ const recordedFile = (request: {
     : { outcome: "failed", error: { kind: "file-not-repo-path", file: request.file } };
 };
 
-const LEGACY_CHAIN_NEW_OR_EDITED =
-  "a new or edited entry's whyChain follows the causal contract (docs/why-chain-contract.md in the discipline-core install); a chain without rootCheck and readback is accepted only while --base-revision holds its entry unchanged";
+const LEGACY_CHAIN_NEW_OR_EDITED = `a new or edited entry's whyChain follows the causal contract (docs/why-chain-contract.md in the ${TOOL_IDENTITY.packageName} package); a chain without rootCheck and readback is accepted only while --base-revision holds its entry unchanged`;
 
 type LegacyChainStanding = "unchanged-since-base" | "base-unmeasured" | "new-or-edited";
 

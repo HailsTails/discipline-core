@@ -151,7 +151,7 @@ describe("CD-14 no-class-authoring rule through the ESLint runner's lintSourceCa
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline",
+        pluginNamespace: "hone",
         rule: "no-class-authoring",
         options: [],
         cases: [sharedCase],

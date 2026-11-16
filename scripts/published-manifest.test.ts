@@ -20,18 +20,17 @@ describe("publishManifestOf", () => {
     publishManifestOf({
       developmentManifest,
       identity: {
-        name: "provisional-core",
+        packageName: "provisional-core",
+        command: "provisional",
         description: "Checks a repository against its disciplines.",
-        checkBin: "provisional-check",
-        projectBin: "provisional-project",
       },
-      commands: { check: "core/check/check-command.js", project: "core/check/project-command.js" },
+      command: "core/check/tool-command.js",
       files: ["LICENSE", "chunks", "core", "mechanisms"],
       exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
       nodeRange: "^22.13.0 || >=24",
     });
 
-  it("names and describes the package for consumers, names its two commands, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
+  it("names and describes the package for consumers, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
     expect(published(JSON.stringify(DEVELOPMENT_MANIFEST))).toEqual({
       outcome: "ok",
       value: `${JSON.stringify(
@@ -41,7 +40,7 @@ describe("publishManifestOf", () => {
           description: "Checks a repository against its disciplines.",
           license: "MIT-0",
           type: "module",
-          bin: { "provisional-check": "core/check/check-command.js", "provisional-project": "core/check/project-command.js" },
+          bin: { provisional: "core/check/tool-command.js" },
           exports: {
             "./package.json": "./package.json",
             "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js": "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",

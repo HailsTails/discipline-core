@@ -6,7 +6,7 @@
     {
       "clause": "focused-tests",
       "settings": {
-        "pluginNamespace": "discipline-cd27",
+        "pluginNamespace": "hone-cd27",
         "pluginModule": "cd27/cd27.eslint-plugin.ts",
         "rule": "focused-tests"
       }
@@ -14,7 +14,7 @@
     {
       "clause": "skipped-tests",
       "settings": {
-        "pluginNamespace": "discipline-cd27",
+        "pluginNamespace": "hone-cd27",
         "pluginModule": "cd27/cd27.eslint-plugin.ts",
         "rule": "skipped-tests"
       }

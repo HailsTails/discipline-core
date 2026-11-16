@@ -8,7 +8,7 @@ type EslintConstructor = new (...options: ConstructorParameters<EslintClass>) =>
 
 const REAL_10 = eslintPeersOn({ line: "eslint-10" });
 
-const INSTALL_ROOT = "/repo/tools/discipline-core";
+const INSTALL_ROOT = "/repo/tools/honed";
 
 const REPOSITORY_LOCATION: ReturnType<PackageLocationPort["locate"]> = { outcome: "ok", value: "/repo/node_modules/package/index.js" };
 

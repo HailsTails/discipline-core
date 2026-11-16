@@ -102,7 +102,7 @@ describe("CD-10 throw-only-error rule through the ESLint runner's lintSourceCase
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd10",
+        pluginNamespace: "hone-cd10",
         rule: "throw-only-error",
         options: [],
         cases: [sourceCase],

@@ -72,7 +72,7 @@ describe("CD-44 no-param-reassign rule through the ESLint runner's lintSourceCas
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd44",
+        pluginNamespace: "hone-cd44",
         rule: "no-param-reassign",
         options: [{ props: false }],
         cases: [sourceCase],

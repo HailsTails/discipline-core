@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 
 const settings = {
-  pluginNamespace: "discipline",
+  pluginNamespace: "hone",
   pluginModule: "cd14/cd14.eslint-plugin.ts",
   rule: "no-class-authoring",
 };
@@ -62,7 +62,7 @@ describe("eslintPieceSettingsSchema", () => {
   it("refuses settings with no rule, at the rule key", () => {
     expect(
       eslintPieceSettingsSchema.safeParse({
-        pluginNamespace: "discipline",
+        pluginNamespace: "hone",
         pluginModule: "cd14/cd14.eslint-plugin.ts",
       }),
     ).toMatchObject({ success: false, error: { issues: [{ path: ["rule"] }] } });

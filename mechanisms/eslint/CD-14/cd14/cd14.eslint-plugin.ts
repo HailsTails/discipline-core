@@ -107,7 +107,7 @@ const noClassAuthoring: Rule.RuleModule = {
 const eslintPlugin = <Plugin extends ESLint.Plugin>(plugin: Plugin): Plugin => plugin;
 export const createPlugin = (sources: NativeRuleSources): ClassAuthoringPlugin =>
 	eslintPlugin({
-		meta: { name: "discipline", version: "0.0.0-local" },
+		meta: { name: "hone", version: "0.0.0-local" },
 		rules: {
 			"no-class-authoring": noClassAuthoring,
 			...typescriptEslintRules({ names: ["no-extraneous-class"], sources }),
