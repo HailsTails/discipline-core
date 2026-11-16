@@ -43,7 +43,7 @@ This lens applies **no lens filter to the rule pages**. Instead:
    another lane; this lens reads PASS claims only.
 2. For each PASS, the rule pages are consulted **solely to
    look up the literal text of the cited clause** — never to find new clauses to
-   test. Resolve the rule pages: `rules/*/README.md` in the discipline-core install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`. Every rule page in scope is loaded, not filtered by lens. If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved — an unloadable ruleset is never a codebase without discipline. Each PASS
+   test. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`. Every rule page in scope is loaded, not filtered by lens. If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved — an unloadable ruleset is never a codebase without discipline. Each PASS
    cites a rule by the discipline id and clause address on the rule page (for example `CD-9#result-failures`), and that rule page is where the literal
    text and its governing principle live, together with its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline.
 3. If the bundle carries zero PASS claims with cited artefacts, produce an empty

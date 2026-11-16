@@ -38,13 +38,13 @@ type EslintFakeParts = {
 };
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
-const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/discipline-core");
-const PIECE_ROOT = "/repo/node_modules/discipline-core/mechanisms/eslint/CD-14";
-const LOOPS_PIECE_ROOT = "/repo/node_modules/discipline-core/mechanisms/eslint/CD-15";
-const PLUGIN_MODULE_PATH = "/repo/node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
-const LOOPS_MODULE_PATH = "/repo/node_modules/discipline-core/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
+const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/honed");
+const PIECE_ROOT = "/repo/node_modules/honed/mechanisms/eslint/CD-14";
+const LOOPS_PIECE_ROOT = "/repo/node_modules/honed/mechanisms/eslint/CD-15";
+const PLUGIN_MODULE_PATH = "/repo/node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const LOOPS_MODULE_PATH = "/repo/node_modules/honed/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
 const PROJECTION_PATH = "/repo/disciplines.eslint.mjs";
-const RULE_ID = "discipline/no-class-authoring";
+const RULE_ID = "hone/no-class-authoring";
 const LOOPS_RULE_ID = "loops/no-for-of";
 
 const ESLINT = mechanismIdSchema.parse("eslint");
@@ -58,7 +58,7 @@ const FACTORY = repoPathSchema.parse("src/factory.ts");
 const FILES = [FILE_A, FACTORY];
 
 const CLASS_SETTINGS = {
-  pluginNamespace: "discipline",
+  pluginNamespace: "hone",
   pluginModule: "cd14/cd14.eslint-plugin.ts",
   rule: "no-class-authoring",
 };
@@ -125,78 +125,78 @@ const CLAUSE_WIDE: ExceptionRecord = {
   whyChain: CAUSAL_WHY_CHAIN,
 };
 
-const ENABLING_PROJECTION = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const ENABLING_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
   },
 ];
 `;
 
-const PACKAGED_ENABLING_PROJECTION = `import piece0 from "discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const PACKAGED_ENABLING_PROJECTION = `import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
   },
 ];
 `;
 
-const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "discipline-core/piece/discipline",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "discipline": piece0 },\r\n    rules: { "discipline/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
+const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "honed/piece/hone",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "hone": piece0 },\r\n    rules: { "hone/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
 
-const FACTORY_LOCATION_PROJECTION = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const FACTORY_LOCATION_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "discipline-core/authorised-location/CD-14#class-syntax/src/factory.ts",
+    name: "honed/authorised-location/CD-14#class-syntax/src/factory.ts",
     files: ["src/factory.ts"],
-    rules: { "discipline/no-class-authoring": "off" },
+    rules: { "hone/no-class-authoring": "off" },
   },
 ];
 `;
 
-const GONE_LOCATION_PROJECTION = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const GONE_LOCATION_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "discipline-core/authorised-location/CD-14#class-syntax/src/gone.ts",
+    name: "honed/authorised-location/CD-14#class-syntax/src/gone.ts",
     files: ["src/gone.ts"],
-    rules: { "discipline/no-class-authoring": "off" },
+    rules: { "hone/no-class-authoring": "off" },
   },
 ];
 `;
 
-const CLAUSE_WIDE_PROJECTION = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const CLAUSE_WIDE_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "discipline-core/clause-wide-carve-out/CD-14#class-syntax",
-    rules: { "discipline/no-class-authoring": "off" },
+    name: "honed/clause-wide-carve-out/CD-14#class-syntax",
+    rules: { "hone/no-class-authoring": "off" },
   },
 ];
 `;
@@ -350,7 +350,7 @@ const TWO_RULES_IN_EFFECT = queryOver({
   },
 });
 
-const SHARED_FOR_OF_RULE_ID = "discipline/no-for-of";
+const SHARED_FOR_OF_RULE_ID = "hone/no-for-of";
 
 const SHARED_MODULE_FOR_OF_CLAUSE: RunnerClause = {
   address: FOR_OF,
@@ -370,14 +370,14 @@ const SHARED_PLUGIN_MODULE = {
 
 const SHARED_MODULE_RUN = runRequest({ clauses: [CLASS_CLAUSE, SHARED_MODULE_FOR_OF_CLAUSE], records: [] });
 
-const SHARED_MODULE_PROJECTION = `import piece0 from "./node_modules/discipline-core/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const SHARED_MODULE_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "discipline-core/piece/discipline",
+    name: "honed/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "discipline": piece0 },
-    rules: { "discipline/no-class-authoring": "error", "discipline/no-for-of": "error" },
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error", "hone/no-for-of": "error" },
   },
 ];
 `;
@@ -400,7 +400,7 @@ const inlineMessageInA = (request: {
     outcome: "ok",
     value: linted({
       messagesInA: [
-        { ruleId: "discipline-core/inline-config", messageId: request.messageId, line: 2, column: 1, message: request.text },
+        { ruleId: "honed/inline-config", messageId: request.messageId, line: 2, column: 1, message: request.text },
       ],
     }),
   });
@@ -456,7 +456,7 @@ describe("the governance run, step 1: selected pieces", () => {
             CLASS_CLAUSE,
             {
               ...LOOPS_CLAUSE,
-              settings: { pluginNamespace: "discipline", pluginModule: "loops/loops.eslint-plugin.ts", rule: "no-for-of" },
+              settings: { pluginNamespace: "hone", pluginModule: "loops/loops.eslint-plugin.ts", rule: "no-for-of" },
             },
           ],
           records: [],
@@ -592,11 +592,11 @@ describe("the governance run, step 3: the projection in effect", () => {
   it("passes plugin-conflict through from the query instance", async () => {
     await expect(
       runnerOver({
-        eslint: eslintOver({ query: failingQuery({ kind: "plugin-conflict", detail: 'Cannot redefine plugin "discipline"' }) }),
+        eslint: eslintOver({ query: failingQuery({ kind: "plugin-conflict", detail: 'Cannot redefine plugin "hone"' }) }),
       }).run(CLASS_RUN),
     ).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "plugin-conflict", detail: 'Cannot redefine plugin "discipline"' },
+      error: { kind: "plugin-conflict", detail: 'Cannot redefine plugin "hone"' },
     });
   });
 
@@ -738,7 +738,7 @@ describe("the governance run, step 4: the governance instance", () => {
         {
           repoRoot: "/repo",
           plugins: {
-            "discipline": expect.objectContaining({
+            "hone": expect.objectContaining({
               rules: expect.objectContaining({ "no-class-authoring": expect.anything() }),
             }),
           },
@@ -866,11 +866,11 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "discipline-core/inline-config",
+                  ruleId: "honed/inline-config",
                   messageId: "inline-disable",
                   line: 4,
                   column: 1,
-                  message: "// eslint-disable-next-line discipline/no-class-authoring",
+                  message: "// eslint-disable-next-line hone/no-class-authoring",
                 },
               ],
             }),
@@ -887,7 +887,7 @@ describe("the governance run, step 5: messages", () => {
             clause: CLASS_SYNTAX_OBJECT,
             file: "src/a.ts",
             line: 4,
-            text: "// eslint-disable-next-line discipline/no-class-authoring",
+            text: "// eslint-disable-next-line hone/no-class-authoring",
           },
         ],
         projection: "current",
@@ -904,11 +904,11 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "discipline-core/inline-config",
+                  ruleId: "honed/inline-config",
                   messageId: "inline-rule-config",
                   line: 1,
                   column: 1,
-                  message: '/* eslint discipline/no-class-authoring: "off" */',
+                  message: '/* eslint hone/no-class-authoring: "off" */',
                 },
               ],
             }),
@@ -925,7 +925,7 @@ describe("the governance run, step 5: messages", () => {
             clause: CLASS_SYNTAX_OBJECT,
             file: "src/a.ts",
             line: 1,
-            text: '/* eslint discipline/no-class-authoring: "off" */',
+            text: '/* eslint hone/no-class-authoring: "off" */',
           },
         ],
         projection: "current",
@@ -942,7 +942,7 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "discipline-core/inline-config",
+                  ruleId: "honed/inline-config",
                   messageId: "inline-config-unreadable",
                   line: 1,
                   column: 1,
@@ -974,7 +974,7 @@ describe("conform", () => {
           expect.objectContaining({
             cwd: PIECE_ROOT,
             plugin: expect.objectContaining({ rules: expect.objectContaining({ "no-class-authoring": expect.anything() }) }),
-            pluginNamespace: "discipline",
+            pluginNamespace: "hone",
             rule: "no-class-authoring",
             cases: [CLASS_CASE],
           }),
@@ -1048,7 +1048,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/discipline-core/package.json": presentFile({ text: '{ "name": "discipline-core" }' }),
+      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "name": "honed" }' }),
     });
     await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
@@ -1065,7 +1065,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/discipline-core/package.json": presentFile({ text: '{ "name": "discipline-core" }' }),
+      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "name": "honed" }' }),
     });
     await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
@@ -1075,7 +1075,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/discipline-core/package.json": presentFile({ text: '{ "private": true }' }),
+      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "private": true }' }),
     });
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
@@ -1086,7 +1086,7 @@ describe("project", () => {
     expect({ write, fileWrites: vi.mocked(fileText.write).mock.calls }).toEqual({
       write: {
         outcome: "failed",
-        error: { kind: "tool-failed", detail: "the core install's /repo/node_modules/discipline-core/package.json names no package" },
+        error: { kind: "tool-failed", detail: "the core install's /repo/node_modules/honed/package.json names no package" },
       },
       fileWrites: [],
     });
@@ -1096,7 +1096,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/discipline-core/package.json": {
+      "/repo/node_modules/honed/package.json": {
         read: { outcome: "failed", error: { kind: "unreadable", path: "package.json", detail: "EACCES" } },
         presence: "present",
       },
@@ -1112,7 +1112,7 @@ describe("project", () => {
         outcome: "failed",
         error: {
           kind: "tool-failed",
-          detail: "the core install's /repo/node_modules/discipline-core/package.json cannot be read: EACCES",
+          detail: "the core install's /repo/node_modules/honed/package.json cannot be read: EACCES",
         },
       },
       fileWrites: [],
@@ -1235,7 +1235,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "discipline/no-class-authoring": { count: 1 } } }),
+              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
             }),
           },
         }),
@@ -1259,7 +1259,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/packages/a/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/x.ts": { "discipline/no-class-authoring": { count: 2 } } }),
+              text: JSON.stringify({ "src/x.ts": { "hone/no-class-authoring": { count: 2 } } }),
             }),
           },
         }),
@@ -1301,7 +1301,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --rule 'discipline/no-class-authoring: off' src" } }),
+              text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
             }),
           },
         }),
@@ -1316,7 +1316,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
             clause: CLASS_SYNTAX_OBJECT,
             location: "package.json",
             script: "lint",
-            option: "--rule discipline/no-class-authoring: off",
+            option: "--rule hone/no-class-authoring: off",
           },
         ],
         projection: "current",
@@ -1334,7 +1334,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
               text: JSON.stringify({ scripts: { lint: "eslint --suppressions-location ci/lint-suppressions.json src" } }),
             }),
             "/repo/ci/lint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "discipline/no-class-authoring": { count: 1 } } }),
+              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
             }),
           },
         }),
@@ -1366,7 +1366,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
               text: JSON.stringify({ scripts: { lint: "eslint --suppressions-location=ci/s.json src" } }),
             }),
             "/repo/packages/a/ci/s.json": presentFile({
-              text: JSON.stringify({ "src/x.ts": { "discipline/no-class-authoring": { count: 1 } } }),
+              text: JSON.stringify({ "src/x.ts": { "hone/no-class-authoring": { count: 1 } } }),
             }),
           },
         }),
@@ -1434,7 +1434,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           query: TWO_RULES_IN_EFFECT,
           lintFiles: inlineMessageInA({
             messageId: "inline-disable",
-            text: "// eslint-disable-next-line discipline/no-class-authoring",
+            text: "// eslint-disable-next-line hone/no-class-authoring",
           }),
         }),
       }).run(TWO_CLAUSE_RUN),
@@ -1448,7 +1448,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             clause: CLASS_SYNTAX_OBJECT,
             file: "src/a.ts",
             line: 2,
-            text: "// eslint-disable-next-line discipline/no-class-authoring",
+            text: "// eslint-disable-next-line hone/no-class-authoring",
           },
         ],
         projection: "out-of-date",
@@ -1464,7 +1464,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           query: TWO_RULES_IN_EFFECT,
           lintFiles: inlineMessageInA({
             messageId: "inline-disable",
-            text: "/* eslint-disable discipline/no-class-authoring, loops/no-for-of */",
+            text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
           }),
         }),
       }).run(TWO_CLAUSE_RUN),
@@ -1478,14 +1478,14 @@ describe("native exceptions: inline directives with several selected clauses", (
             clause: CLASS_SYNTAX_OBJECT,
             file: "src/a.ts",
             line: 2,
-            text: "/* eslint-disable discipline/no-class-authoring, loops/no-for-of */",
+            text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
           },
           {
             kind: "inline-disable",
             clause: FOR_OF_OBJECT,
             file: "src/a.ts",
             line: 2,
-            text: "/* eslint-disable discipline/no-class-authoring, loops/no-for-of */",
+            text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
           },
         ],
         projection: "out-of-date",
@@ -1551,10 +1551,10 @@ describe("the governance run, settled message handling", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --rule 'discipline/no-class-authoring: off' src" } }),
+              text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
             }),
             "/repo/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "discipline/no-class-authoring": { count: 1 } } }),
+              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
             }),
           },
         }),
@@ -1583,7 +1583,7 @@ describe("the governance run, settled message handling", () => {
             clause: CLASS_SYNTAX_OBJECT,
             location: "package.json",
             script: "lint",
-            option: "--rule discipline/no-class-authoring: off",
+            option: "--rule hone/no-class-authoring: off",
           },
         ],
         projection: "current",
@@ -1604,7 +1604,7 @@ describe("the governance run with nothing to lint", () => {
         projection: ENABLING_PROJECTION,
         files: {
           "/repo/package.json": presentFile({
-            text: JSON.stringify({ scripts: { lint: "eslint --rule 'discipline/no-class-authoring: off' src" } }),
+            text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
           }),
         },
       }),
@@ -1625,7 +1625,7 @@ describe("the governance run with nothing to lint", () => {
               clause: CLASS_SYNTAX_OBJECT,
               location: "package.json",
               script: "lint",
-              option: "--rule discipline/no-class-authoring: off",
+              option: "--rule hone/no-class-authoring: off",
             },
           ],
           projection: "current",
@@ -1638,10 +1638,10 @@ describe("the governance run with nothing to lint", () => {
 });
 
 const WINDOWS_REPO_ROOT = absolutePathSchema.parse("C:\\repo");
-const WINDOWS_INSTALL_ROOT = absolutePathSchema.parse("C:\\repo\\node_modules\\discipline-core");
-const WINDOWS_PIECE_ROOT = "C:\\repo\\node_modules\\discipline-core\\mechanisms\\eslint\\CD-14";
+const WINDOWS_INSTALL_ROOT = absolutePathSchema.parse("C:\\repo\\node_modules\\honed");
+const WINDOWS_PIECE_ROOT = "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14";
 const WINDOWS_PLUGIN_MODULE_PATH =
-  "C:\\repo\\node_modules\\discipline-core\\mechanisms\\eslint\\CD-14\\cd14\\cd14.eslint-plugin.ts";
+  "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14\\cd14\\cd14.eslint-plugin.ts";
 const OTHER_DRIVE_PIECE_ROOT = "D:\\dc\\mechanisms\\eslint\\CD-14";
 
 const WINDOWS_PATH = createPathPort({ flavour: "windows", workingDirectory: () => "C:\\repo" });

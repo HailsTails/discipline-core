@@ -40,7 +40,7 @@ they override any default intuition.
 
 ## Loading the ruleset
 
-1. Resolve the rule pages: `rules/*/README.md` in the discipline-core install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
+1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `test-discipline`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
 3. Read each kept page in full, including its `## Exceptions` section, any in-body exception clause, and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names exact allowed constructs, idioms, or excluded file kinds, those are the only ones permitted.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no test-discipline rules and produce an empty finding set — do not invent rules.

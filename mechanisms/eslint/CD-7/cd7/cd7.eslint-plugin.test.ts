@@ -108,7 +108,7 @@ describe("CD-7 filename-case rule through the ESLint runner's lintSourceCases", 
       await eslint.lintSourceCases({
         cwd: PIECE_ROOT,
         plugin: loadedPlugin,
-        pluginNamespace: "discipline-cd7",
+        pluginNamespace: "hone-cd7",
         rule: "filename-case",
         options: [],
         cases: [sourceCase],

@@ -142,20 +142,20 @@ describe("createScratchFilesPort copyTree", () => {
 
     const copied = createScratchFilesPort({ surface: surfaceOver({ copyTree }) }).copyTree({
       from: "/package/core",
-      to: "/repo/tools/discipline-core/core",
+      to: "/repo/tools/honed/core",
       disposition: keepEverything,
     });
 
     expect({ copied, calls: copyTree.mock.calls }).toEqual({
       copied: { outcome: "ok", value: null },
-      calls: [[{ from: "/package/core", to: "/repo/tools/discipline-core/core", disposition: keepEverything }]],
+      calls: [[{ from: "/package/core", to: "/repo/tools/honed/core", disposition: keepEverything }]],
     });
   });
 
   it("returns effect-failed when copying throws", () => {
     const copied = createScratchFilesPort({ surface: surfaceOver({ copyTree: vi.fn<ScratchFilesSurface["copyTree"]>().mockThrow(PERMISSION_DENIED) }) }).copyTree({
       from: "/package/core",
-      to: "/repo/tools/discipline-core/core",
+      to: "/repo/tools/honed/core",
       disposition: keepEverything,
     });
 
@@ -172,16 +172,16 @@ describe("createScratchFilesPort listTree", () => {
       .fn<ScratchFilesSurface["listTree"]>()
       .mockReturnValue([{ path: "core/check/a.ts", name: "a.ts", entryKind: "file" }]);
 
-    const listed = createScratchFilesPort({ surface: surfaceOver({ listTree }) }).listTree({ path: "/repo/tools/discipline-core" });
+    const listed = createScratchFilesPort({ surface: surfaceOver({ listTree }) }).listTree({ path: "/repo/tools/honed" });
 
     expect({ listed, calls: listTree.mock.calls }).toEqual({
       listed: { outcome: "ok", value: [{ path: "core/check/a.ts", name: "a.ts", entryKind: "file" }] },
-      calls: [[{ path: "/repo/tools/discipline-core" }]],
+      calls: [[{ path: "/repo/tools/honed" }]],
     });
   });
 
   it("returns effect-failed when listing throws", () => {
-    const listed = createScratchFilesPort({ surface: surfaceOver({ listTree: vi.fn<ScratchFilesSurface["listTree"]>().mockThrow(PERMISSION_DENIED) }) }).listTree({ path: "/repo/tools/discipline-core" });
+    const listed = createScratchFilesPort({ surface: surfaceOver({ listTree: vi.fn<ScratchFilesSurface["listTree"]>().mockThrow(PERMISSION_DENIED) }) }).listTree({ path: "/repo/tools/honed" });
 
     expect(listed).toEqual({
       outcome: "failed",

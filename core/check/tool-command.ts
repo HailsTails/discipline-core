@@ -4,9 +4,9 @@ import { createDefaultGitPort } from "../platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../platform-ports/path-port.ts";
 import { createDefaultProcessPort } from "../platform-ports/process-port.ts";
-import { runCheckCommand } from "./run-check-command.ts";
+import { runToolCommand } from "./run-tool-command.ts";
 
-await runCheckCommand({
+await runToolCommand({
   process: createDefaultProcessPort({}),
   path: createDefaultPathPort({}),
   fileText: createDefaultFileTextPort({}),

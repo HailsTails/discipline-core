@@ -1,5 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { parseCheckArguments, parseProjectArguments } from "./command-arguments-schema.ts";
+import { parseCheckArguments, parseProjectArguments, parseSubcommand } from "./command-arguments-schema.ts";
+
+const USAGE =
+  "usage: hone check --repo <path> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] | hone project --repo <path>";
+
+describe("parseSubcommand", () => {
+  it("reads check and hands on the arguments after it", () => {
+    expect(parseSubcommand({ arguments: ["check", "--repo", "/work/repo"] })).toEqual({
+      outcome: "ok",
+      value: { subcommand: "check", arguments: ["--repo", "/work/repo"] },
+    });
+  });
+
+  it("reads project and hands on the arguments after it", () => {
+    expect(parseSubcommand({ arguments: ["project", "--repo", "/work/repo"] })).toEqual({
+      outcome: "ok",
+      value: { subcommand: "project", arguments: ["--repo", "/work/repo"] },
+    });
+  });
+
+  it("is arguments-invalid with the usage line when no subcommand is given", () => {
+    expect(parseSubcommand({ arguments: [] })).toEqual({
+      outcome: "failed",
+      error: { kind: "arguments-invalid", detail: `a subcommand is required; ${USAGE}` },
+    });
+  });
+
+  it("is arguments-invalid with the usage line for an unknown subcommand", () => {
+    expect(parseSubcommand({ arguments: ["lint", "--repo", "/work/repo"] })).toEqual({
+      outcome: "failed",
+      error: { kind: "arguments-invalid", detail: `unknown subcommand "lint"; ${USAGE}` },
+    });
+  });
+
+  it("is arguments-invalid with the usage line when an option comes before the subcommand", () => {
+    expect(parseSubcommand({ arguments: ["--repo", "/work/repo", "check"] })).toEqual({
+      outcome: "failed",
+      error: { kind: "arguments-invalid", detail: `unknown subcommand "--repo"; ${USAGE}` },
+    });
+  });
+});
 
 describe("parseCheckArguments", () => {
   it("reads --repo with no base revision", () => {

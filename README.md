@@ -1,25 +1,35 @@
-# Discipline core
+# Hone
 
-Discipline core checks a repository against the coding disciplines it has chosen to adopt. It is a tool, not a framework: it reads what the repository selected, hands each selected clause to the mechanism that checks it, applies the repository's recorded exceptions, and prints one verdict. Core itself enforces nothing and names no discipline and no mechanism. A discipline (for example CD-14, no authored classes) is data under `rules/`, and a mechanism is a runner under `mechanisms/`; core reaches both only through files and one module contract.
+Hone checks a repository against the coding disciplines it has chosen to adopt. It is a tool, not a framework: it reads what the repository selected, hands each selected clause to the mechanism that checks it, applies the repository's recorded exceptions, and prints one verdict. Its core enforces nothing and names no discipline and no mechanism. A discipline (for example CD-14, no authored classes) is data under `rules/`, and a mechanism is a runner under `mechanisms/`; the core reaches both only through files and one module contract.
+
+**Install the npm package `honed`, not `hone`.** The name `hone` on npm belongs to an unrelated package. `honed` installs one command, `hone`:
+
+```bash
+npm install --save-dev ./vendor/honed/honed-0.1.0-pre.1.tgz
+```
+
+Version `0.1.0-pre.1` is a pre-release, downloaded as `honed-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) once that tag is pushed; nothing is published to a registry yet. [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps, and the alternative of building the tarball from a pinned commit.
 
 Two mechanisms ship: `audit`, a standalone TypeScript syntax walker, and `eslint`, which runs the clause as an ESLint rule inside the team's own ESLint setup. [rules/README.md](rules/README.md) lists every shared discipline with its clauses: the audit mechanism checks 20 disciplines, and ESLint pieces check clauses of CD-1, CD-6, CD-7, CD-10, CD-14, CD-27, CD-40, CD-41, CD-42 and CD-44. The rest are judgement rules, applied in review with the review methods in [methods/](methods/README.md).
 
-To adopt the core in another repository, follow [ADOPTING.md](ADOPTING.md) step by step. A repository already using the older standalone route, or a copy of core's source, follows [MIGRATING.md](MIGRATING.md) instead.
+To adopt Hone in another repository, follow [ADOPTING.md](ADOPTING.md) step by step. A repository already using the older standalone route, or a copy of Hone's source, follows [MIGRATING.md](MIGRATING.md) instead.
 
 Adding a discipline or a mechanism, and the full list of ESLint native channels, are covered in [docs/adding-a-discipline-or-mechanism.md](docs/adding-a-discipline-or-mechanism.md).
 
 ## Commands
 
-The package ships two commands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-core-package) shows:
+The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
 
 ```text
-discipline-core-check --repo <dir> [--base-revision <rev>] [--report-output <output>]
-discipline-core-project --repo <dir>
+hone check --repo <dir> [--base-revision <rev>] [--report-output <output>]
+hone project --repo <dir>
 ```
 
-`check-command` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`.
+`hone` with no subcommand, or with one it does not know, is a load failure `arguments-invalid` whose line ends with the usage, and exits `2`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
-| Exit | `check-command` | `project-command` |
+`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`.
+
+| Exit | `hone check` | `hone project` |
 | --- | --- | --- |
 | `0` | the verdict is `pass` | every projection was written or already current |
 | `1` | the verdict is `fail` | not used |
@@ -40,13 +50,13 @@ The report lists the excluded paths, findings, exempted findings, uncovered clau
 
 The output changes only what is printed: the verdict and exit code always come from the whole report. An unknown `--report-output` value is a load failure `arguments-invalid`; an unknown `reportOutput` value makes `disciplines.json` `file-malformed`, even when `--report-output` is given. Load failures print the same in every output.
 
-Without `--base-revision`, core cannot tell which files were touched, so a file carve-out cannot be forfeited; if any file carve-out exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot tell whether an entry with an earlier-contract why-chain is unchanged; if one exists the report lists `legacy-chain-unmeasured` and the run fails.
+Without `--base-revision`, Hone cannot tell which files were touched, so a file carve-out cannot be forfeited; if any file carve-out exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot tell whether an entry with an earlier-contract why-chain is unchanged; if one exists the report lists `legacy-chain-unmeasured` and the run fails.
 
-`project-command` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
+`hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
 ## Adopting the ESLint mechanism
 
-With any clause selected for `eslint`, run `project-command`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per exception record turning the rule `"off"` for that record's file, or everywhere for a clause-wide carve-out. Commit it, and spread its default export last in the repository's flat config:
+With any clause selected for `eslint`, run `hone project`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per exception record turning the rule `"off"` for that record's file, or everywhere for a clause-wide carve-out. Commit it, and spread its default export last in the repository's flat config:
 
 ```js
 import disciplines from "./disciplines.eslint.mjs";
@@ -57,11 +67,11 @@ export default [
 ];
 ```
 
-This is the only supported way to adopt the rules. On every check, core reads the team's resolved configuration for each checked file and fails the run if the projection is missing (`mechanism-not-run eslint missing`), not in effect (`mechanism-not-run eslint not-included`), or differs from what `project-command` would write now (`eslint out-of-date`). Re-run `project-command` after changing the selection or the exceptions.
+This is the only supported way to adopt the rules. On every check, Hone reads the team's resolved configuration for each checked file and fails the run if the projection is missing (`mechanism-not-run eslint missing`), not in effect (`mechanism-not-run eslint not-included`), or differs from what `hone project` would write now (`eslint out-of-date`). Re-run `hone project` after changing the selection or the exceptions.
 
-A file carve-out stays in the projection after it is forfeited, so the team's own ESLint run keeps ignoring that file; core's check is what fails it, as `forfeited`.
+A file carve-out stays in the projection after it is forfeited, so the team's own ESLint run keeps ignoring that file; Hone's check is what fails it, as `forfeited`.
 
-Core's own ESLint run uses only the runner's configuration, with ignores, suppressions and inline configuration off, so nothing in the team's setup can change a finding. Every way the team's setup can weaken a selected rule (a native channel) is reported instead, and only an override that matches an exception record is accepted. The guide has the table.
+Hone's own ESLint run uses only the runner's configuration, with ignores, suppressions and inline configuration off, so nothing in the team's setup can change a finding. Every way the team's setup can weaken a selected rule (a native channel) is reported instead, and only an override that matches an exception record is accepted. The guide has the table.
 
 ## disciplines.json
 
@@ -84,10 +94,10 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - `clauses` maps a clause address to a mechanism id. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the shared rule set. The mechanism must be one the clause lists.
 - Selecting a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not selected are reported as uncovered, and fail the run.
 - A judgement clause cannot be selected; it is enforced by review.
-- `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let core detect it.
+- `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
-- `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude the core's own install when it is vendored inside the repository.
+- `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 
 ## discipline-exceptions.json
 
@@ -107,7 +117,7 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 - An `authorised-location` says the clause does not apply to that file.
 - A `file-carve-out` is debt in one file. It is forfeited once the file is touched.
 - A `clause-wide-carve-out` exempts the clause everywhere.
-- Every entry needs a `whyChain` (an `authorised-location` or `file-carve-out` may leave it out when `fileExceptionWhyChains` is `"optional"`; see below) that follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootCheck`, `readback` and `owner`. The contract lists what core refuses and what review still judges:
+- Every entry needs a `whyChain` (an `authorised-location` or `file-carve-out` may leave it out when `fileExceptionWhyChains` is `"optional"`; see below) that follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootCheck`, `readback` and `owner`. The contract lists what Hone refuses and what review still judges:
 
   ```json
   "whyChain": {
@@ -133,27 +143,27 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 
 ## Installing
 
-Core installs as one npm package, downloaded as `discipline-core-0.1.0-pre.1.tgz` from the `v0.1.0-pre.1` GitHub release once that tag is pushed, or built by `bun run pack-package` into `artefacts/discipline-core-0.1.0-pre.1.tgz`, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-core-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as optional `peerDependencies` and exposes two commands, `discipline-core-check` and `discipline-core-project`, taking the same flags and exit codes as the two commands under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source. Version `0.1.0-pre.1` is a pre-release: the package name and command names are provisional, and no registry release exists.
+Hone installs as one npm package, `honed`, downloaded as `honed-0.1.0-pre.1.tgz` from the `v0.1.0-pre.1` GitHub release once that tag is pushed, or built by `bun run pack-package` into `artefacts/honed-0.1.0-pre.1.tgz`, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as optional `peerDependencies` and exposes one command, `hone`, whose subcommands `hone check` and `hone project` are described under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source. Version `0.1.0-pre.1` is a pre-release, and no registry release exists.
 
-With the ESLint mechanism selected, a packaged install's projection imports each piece by package name, `discipline-core/mechanisms/eslint/<DisciplineId>/...`, so the repository's ESLint must resolve the package from the repository root. Core compares the committed projection `disciplines.eslint.mjs` byte for byte with what `project-command` would write now.
+With the ESLint mechanism selected, a packaged install's projection imports each piece by package name, `honed/mechanisms/eslint/<DisciplineId>/...`, so the repository's ESLint must resolve the package from the repository root. Hone compares the committed projection `disciplines.eslint.mjs` byte for byte with what `hone project` would write now.
 
 ## Runtime
 
-- Windows, Linux, macOS or WSL. Core keeps absolute paths in the platform's own form and repository paths in POSIX form, as git reports them.
+- Windows, Linux, macOS or WSL. Hone keeps absolute paths in the platform's own form and repository paths in POSIX form, as git reports them.
 - The package: Node `^22.13.0 || >=24` (its `engines.node`). It is plain JavaScript, so Node never strips types from it.
 - git 2.24 or later. Older git rejects `--end-of-options`, so the changed-file query fails and forfeiture is reported unmeasured.
-- Core's own packages, `zod`, `jsonc-parser` and `@eslint/plugin-kit`, exact-pinned in `dependencies` and locked by `bun.lock`: bundled into the package. They are implementation details: nothing of theirs crosses into the repository's code or configuration.
-- The repository's own toolchain, declared as optional `peerDependencies`: `typescript` `>=4.8.4 <7.0.0` for the audit mechanism, and for the ESLint mechanism `eslint` `^9.12.0 || ^10.0.0`, `@typescript-eslint/parser` `^8.56.0` and `@typescript-eslint/eslint-plugin` `^8.56.0`. Each floor is the oldest release core is tested on: TypeScript 4.8 is the oldest whose syntax API the audit uses (`getModifiers`), ESLint 9.12.0 the first 9.x that can look up the configuration nearest each file, and typescript-eslint 8.56.0 the first whose peer range accepts ESLint 10. TypeScript stops below 7 because TypeScript 7's compiler API is a different one. Yarn Plug'n'Play is not supported.
+- Hone's own packages, `zod`, `jsonc-parser` and `@eslint/plugin-kit`, exact-pinned in `dependencies` and locked by `bun.lock`: bundled into the package. They are implementation details: nothing of theirs crosses into the repository's code or configuration.
+- The repository's own toolchain, declared as optional `peerDependencies`: `typescript` `>=4.8.4 <7.0.0` for the audit mechanism, and for the ESLint mechanism `eslint` `^9.12.0 || ^10.0.0`, `@typescript-eslint/parser` `^8.56.0` and `@typescript-eslint/eslint-plugin` `^8.56.0`. Each floor is the oldest release Hone is tested on: TypeScript 4.8 is the oldest whose syntax API the audit uses (`getModifiers`), ESLint 9.12.0 the first 9.x that can look up the configuration nearest each file, and typescript-eslint 8.56.0 the first whose peer range accepts ESLint 10. TypeScript stops below 7 because TypeScript 7's compiler API is a different one. Yarn Plug'n'Play is not supported.
 
-Core loads the toolchain by Node's own resolution, upward from the install directory, which is the same resolution the pieces' plugin modules get when the team's ESLint loads the projection. Core's query of the team's configuration, its governance run and the pieces therefore all use one copy, the repository's. Keep the toolchain resolvable from the repository root: declare it in the root `package.json` (in a pnpm workspace, `pnpm add -Dw`). A package may install a different ESLint for its own lint script; core's verdict still comes from the root's, its governance behaviour is the same on either supported line, and the pieces that wrap native rules wrap the root's copies there too. Core's tests run the governance path and every piece's shared cases on four ESLint lines, 9.12.0 and 10.0.0 with typescript-eslint 8.56.0 and 9.39.5 and 10.11.0 with 8.71.2, and the audit pieces' shared cases on TypeScript 4.8.4 and 6.0.3; the in-process consumer fixtures run on ESLint 10.11.0, and `install-proof` runs real consumers on each floor.
+Hone loads the toolchain by Node's own resolution, upward from the install directory, which is the same resolution the pieces' plugin modules get when the team's ESLint loads the projection. Hone's query of the team's configuration, its governance run and the pieces therefore all use one copy, the repository's. Keep the toolchain resolvable from the repository root: declare it in the root `package.json` (in a pnpm workspace, `pnpm add -Dw`). A package may install a different ESLint for its own lint script; Hone's verdict still comes from the root's, its governance behaviour is the same on either supported line, and the pieces that wrap native rules wrap the root's copies there too. Hone's tests run the governance path and every piece's shared cases on four ESLint lines, 9.12.0 and 10.0.0 with typescript-eslint 8.56.0 and 9.39.5 and 10.11.0 with 8.71.2, and the audit pieces' shared cases on TypeScript 4.8.4 and 6.0.3; the in-process consumer fixtures run on ESLint 10.11.0, and `install-proof` runs real consumers on each floor.
 
-A peer that is missing, cannot load, or is outside its range stops the mechanism before any piece loads, with one line such as `load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root`. A peer that resolves from inside the installed package, such as an `eslint` left in `node_modules/discipline-core/node_modules`, stops it as `toolchain-shadowed`, naming where it resolved and the folder to delete before reinstalling core. A source checkout of core is its own development install, so its development toolchain in its own `node_modules` is not a shadow.
+A peer that is missing, cannot load, or is outside its range stops the mechanism before any piece loads, with one line such as `load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root`. A peer that resolves from inside the installed package, such as an `eslint` left in `node_modules/honed/node_modules`, stops it as `toolchain-shadowed`, naming where it resolved and the folder to delete before reinstalling core. A source checkout of Hone is its own development install, so its development toolchain in its own `node_modules` is not a shadow.
 
-A repository can hold one `eslint.config.*` at its root or one per package. Core resolves the team's configuration the way the team's own ESLint run does. ESLint 10, and ESLint 9 started with `--flag v10_config_lookup_from_file` (or `unstable_config_lookup_from_file`), use the `eslint.config.*` nearest each checked file. Plain ESLint 9 uses only the one in the directory it runs from, so for a repository whose `eslint` resolves to 9.x at `node_modules/eslint` and whose lint scripts carry no such flag, core reads the root `eslint.config.*` for every file, and fails the run as `team-config-unloadable` if there is none. When core cannot read an installed `eslint` at the repository root it assumes the nearest-to-file lookup. Each config that applies to a file must spread the projection. Detection cannot see how a task runner starts ESLint, so `disciplines.json` can state the lookup: `"eslintConfigLookup": "nearest-to-file"` or `"repository-root"`, which overrides detection. Both lookups are tested against monorepo fixtures with a config per package.
+A repository can hold one `eslint.config.*` at its root or one per package. Hone resolves the team's configuration the way the team's own ESLint run does. ESLint 10, and ESLint 9 started with `--flag v10_config_lookup_from_file` (or `unstable_config_lookup_from_file`), use the `eslint.config.*` nearest each checked file. Plain ESLint 9 uses only the one in the directory it runs from, so for a repository whose `eslint` resolves to 9.x at `node_modules/eslint` and whose lint scripts carry no such flag, Hone reads the root `eslint.config.*` for every file, and fails the run as `team-config-unloadable` if there is none. When Hone cannot read an installed `eslint` at the repository root it assumes the nearest-to-file lookup. Each config that applies to a file must spread the projection. Detection cannot see how a task runner starts ESLint, so `disciplines.json` can state the lookup: `"eslintConfigLookup": "nearest-to-file"` or `"repository-root"`, which overrides detection. Both lookups are tested against monorepo fixtures with a config per package.
 
 ## Known limits
 
-The namespace and package names are provisional until the tool is named: the mechanism id `audit`, the ESLint plugin namespace `discipline`, and the folder name `discipline-core` may change before a first named release.
+The ESLint pieces use the plugin namespace `hone` for CD-14 and `hone-cd<N>` for the others, so a rule id reads `hone/no-class-authoring`. The namespace `honed`, the package name, is reserved for the projection's block names and the governance rule `honed/inline-config`.
 
 This is the first release. Its tests cover each supported platform's ordinary paths and drives, and a committed ESLint projection checked out with either LF or CRLF line endings. The cases below are not covered by tests. Some may already work, but none is supported until a consumer needs it and a test is added:
 
@@ -172,7 +182,7 @@ This is the first release. Its tests cover each supported platform's ordinary pa
 - Team ESLint configs that imitate projection block names, register a second copy of the plugin, or use processors are not exercised.
 - A byte-order mark at the start of `disciplines.json` or `discipline-exceptions.json`; save them without one.
 
-## Developing core
+## Developing Hone
 
 This repository is self-contained: it holds its own configuration and its own lock. `package.json` declares the packages the code imports and the development tools, `bun.lock` locks both, `tsconfig.json` typechecks the code under `strict`, `lint.biome.json` configures the linter, and `vitest.config.ts` runs its tests. Install with `bun install --frozen-lockfile` in this directory, then run a script from it:
 
@@ -182,8 +192,8 @@ This repository is self-contained: it holds its own configuration and its own lo
 | `lint` | Biome with `lint.biome.json` |
 | `test` | Vitest with `vitest.config.ts` |
 | `check` | all three in that order |
-| `build-package` | `node scripts/build-package.ts`: bundles core with esbuild from its own installed packages into `dist/`, and adds the published `package.json`, the shipped documents and data, and `THIRD-PARTY-NOTICES.md`. It fails if an output imports anything but a `node:` builtin or a declared peer, if a command or runner is not emitted at its own path with its own code, if a bundled package's version is not the one the lock holds, or if a shipped page links to a file the package does not ship. The package name, description and command names live in `scripts/package-identity.ts` |
-| `pack-package` | `node scripts/pack-package.ts`: builds `dist/` and packs it with `npm pack` into `artefacts/discipline-core-<version>.tgz`, named by the `version` in `package.json` |
+| `build-package` | `node scripts/build-package.ts`: bundles Hone with esbuild from its own installed packages into `dist/`, and adds the published `package.json`, the shipped documents and data, and `THIRD-PARTY-NOTICES.md`. It fails if an output imports anything but a `node:` builtin or a declared peer, if a command or runner is not emitted at its own path with its own code, if a bundled package's version is not the one the lock holds, or if a shipped page links to a file the package does not ship. The package name, description and command name live in `core/values/tool-identity.ts`, which the build, the install proof, the command's usage line and the reserved ESLint namespace all read |
+| `pack-package` | `node scripts/pack-package.ts`: builds `dist/` and packs it with `npm pack` into `artefacts/honed-<version>.tgz`, named by the `version` in `package.json` |
 | `package-determinism` | `node scripts/check-package-determinism.ts`: builds and packs twice into separate temporary roots and fails naming any file that differs, or when the two packed tarballs differ |
 | `install-proof` | `node scripts/install-proof.ts`: packs the package once into a temporary tarball and installs it offline into four CommonJS consumers in an OS temporary directory outside the working tree: the audit on TypeScript 4.8.4, ESLint 9.12.0, ESLint 10.0.0, and one without `eslint`. It installs each toolchain once, at the peers' floors, in a folder the consumers sharing it sit inside: TypeScript 4.8.4 alone for the audit consumer and the consumer without `eslint`, and ESLint 9.12.0 or 10.0.0 with typescript-eslint 8.56.0 and TypeScript 4.8.4 for the two ESLint consumers. Each consumer runs both commands through the installed bins with type stripping off, expecting a fail on a class, a pass once it is removed, a projection importing each piece by package name, and `toolchain-unavailable` for the consumer without `eslint`; the temporary directory is removed afterwards |
 
