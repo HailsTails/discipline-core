@@ -16,7 +16,7 @@ const SPAN: ToolchainRequirement = {
   lines: [{ floor: "4.8.4", below: "7.0.0" }],
 };
 
-const INSTALL_ROOT = "/repo/tools/honed";
+const INSTALL_ROOT = "/repo/tools/hone";
 
 const REPOSITORY_LOCATION = "/repo/node_modules/eslint/lib/api.js";
 
@@ -159,8 +159,8 @@ describe("loadedPeer", () => {
       loadedPeer({
         ...peerAt({ version: "10.11.0" }),
         location: locatedAt({
-          installRoot: "C:\\repo\\tools\\honed",
-          location: "C:\\repo\\tools\\honed\\node_modules\\eslint\\lib\\api.js",
+          installRoot: "C:\\repo\\tools\\hone",
+          location: "C:\\repo\\tools\\hone\\node_modules\\eslint\\lib\\api.js",
         }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "toolchain-shadowed" } });
@@ -168,7 +168,7 @@ describe("loadedPeer", () => {
 
   it("does not take a sibling folder sharing the install's name as a prefix for the install", async () => {
     await expect(
-      loadedPeer(peerAt({ version: "10.11.0", location: "/repo/tools/honed-old/node_modules/eslint/lib/api.js" })),
+      loadedPeer(peerAt({ version: "10.11.0", location: "/repo/tools/hone-old/node_modules/eslint/lib/api.js" })),
     ).resolves.toMatchObject({ outcome: "ok" });
   });
 

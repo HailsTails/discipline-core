@@ -16,7 +16,7 @@ import {
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
-import { TOOL_IDENTITY } from "../core/values/tool-identity.ts";
+import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 
 export type InstallProofRequest = {
   readonly process: ProcessPort;
@@ -42,7 +42,7 @@ type ProofContext = {
 
 const SUCCEEDED: Result<null, string> = { outcome: "ok", value: null };
 const IGNORED_INSTALLS = "node_modules/\n";
-const TEMPORARY_PREFIX = `${TOOL_IDENTITY.packageName}-install-proof-`;
+const TEMPORARY_PREFIX = `${packageFileStemOf({ packageName: TOOL_IDENTITY.packageName })}-install-proof-`;
 const GIT_IDENTITY = ["-c", "user.name=proof", "-c", "user.email=proof@invalid", "-c", "commit.gpgsign=false"];
 const NPM_INSTALL = ["install", "--no-audit", "--no-fund", "--ignore-scripts"];
 const NODE_MODULES = "node_modules";

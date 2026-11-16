@@ -144,7 +144,7 @@ describe("governanceConfig", () => {
     ).toEqual({
       "cd/no-class": "error",
       "pd/no-tmp": "error",
-      "honed/inline-config": "error",
+      "hone-core/inline-config": "error",
     });
   });
 
@@ -157,11 +157,11 @@ describe("governanceConfig", () => {
       }).rules,
     ).toEqual({
       "cd/no-class": ["error", { max: 2 }],
-      "honed/inline-config": "error",
+      "hone-core/inline-config": "error",
     });
   });
 
-  it("registers each plugin under its namespace beside the honed plugin carrying inline-config", () => {
+  it("registers each plugin under its namespace beside the hone-core plugin carrying inline-config", () => {
     expect(
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin, pd: tmpFilePlugin },
@@ -171,7 +171,7 @@ describe("governanceConfig", () => {
     ).toEqual({
       cd: classAndFunctionPlugin,
       pd: tmpFilePlugin,
-      "honed": expect.objectContaining({
+      "hone-core": expect.objectContaining({
         rules: { "inline-config": expect.objectContaining({ create: expect.any(Function) }) },
       }),
     });
@@ -231,7 +231,7 @@ describe.each(ESLINT_LINES)("lintSourceCases over real %s", (line) => {
   });
 });
 
-describe.each(ESLINT_LINES)("the honed/inline-config rule over real %s", (eslintLine) => {
+describe.each(ESLINT_LINES)("the hone-core/inline-config rule over real %s", (eslintLine) => {
   it.each([
     { form: "a disable naming no rule", code: "/* eslint-disable */\nconst a = 1;\n", line: 1 },
     {
@@ -257,7 +257,7 @@ describe.each(ESLINT_LINES)("the honed/inline-config rule over real %s", (eslint
   ])("reports $form as inline-disable on its line", async ({ code, line }) => {
     expect(await lintsGovernanceText({ code, line: eslintLine })).toMatchObject([
       {
-        messages: [{ ruleId: "honed/inline-config", messageId: "inline-disable", line }],
+        messages: [{ ruleId: "hone-core/inline-config", messageId: "inline-disable", line }],
       },
     ]);
   });
@@ -268,7 +268,7 @@ describe.each(ESLINT_LINES)("the honed/inline-config rule over real %s", (eslint
     ).toMatchObject([
       {
         messages: [
-          { ruleId: "honed/inline-config", messageId: "inline-rule-config", line: 2 },
+          { ruleId: "hone-core/inline-config", messageId: "inline-rule-config", line: 2 },
         ],
       },
     ]);
@@ -292,7 +292,7 @@ describe.each(ESLINT_LINES)("the honed/inline-config rule over real %s", (eslint
     },
   ])("carries $form exactly as written in source, trimmed, as its message", async ({ code, text }) => {
     expect(await lintsGovernanceText({ code, line: eslintLine })).toMatchObject([
-      { messages: [{ ruleId: "honed/inline-config", message: text }] },
+      { messages: [{ ruleId: "hone-core/inline-config", message: text }] },
     ]);
   });
 
@@ -300,7 +300,7 @@ describe.each(ESLINT_LINES)("the honed/inline-config rule over real %s", (eslint
     expect(await lintsGovernanceText({ code: "/* eslint cd/no-class: [ */\n", line: eslintLine })).toMatchObject([
       {
         messages: [
-          { ruleId: "honed/inline-config", messageId: "inline-rule-config", line: 1 },
+          { ruleId: "hone-core/inline-config", messageId: "inline-rule-config", line: 1 },
         ],
       },
     ]);
@@ -479,7 +479,7 @@ describe("createGovernanceInstance", () => {
         allowInlineConfig: false,
         overrideConfig: expect.objectContaining({
           files: ["**/*.{ts,tsx,mts,cts}"],
-          rules: { "cd/no-class": "error", "honed/inline-config": "error" },
+          rules: { "cd/no-class": "error", "hone-core/inline-config": "error" },
         }),
       },
     });
@@ -567,7 +567,7 @@ describe("lintSourceCases", () => {
         allowInlineConfig: false,
         overrideConfig: expect.objectContaining({
           plugins: expect.objectContaining({ cd: classAndFunctionPlugin }),
-          rules: { "cd/no-class": "error", "honed/inline-config": "error" },
+          rules: { "cd/no-class": "error", "hone-core/inline-config": "error" },
         }),
       }),
     });
@@ -582,7 +582,7 @@ describe("lintSourceCases", () => {
             filePath: "/install/mechanisms/eslint/CD-14/cases/class.ts",
             messages: [
               {
-                ruleId: "honed/inline-config",
+                ruleId: "hone-core/inline-config",
                 messageId: "inline-config-unreadable",
                 line: 1,
                 column: 1,

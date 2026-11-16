@@ -8,7 +8,7 @@ import { buildPackage } from "./package-build.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 
-const STAGE_SOURCE = "/tmp/honed-package-stage-1/source";
+const STAGE_SOURCE = "/tmp/hailstails-hone-package-stage-1/source";
 
 const DEVELOPMENT_MANIFEST = JSON.stringify({
   version: "0.0.0",
@@ -270,14 +270,14 @@ describe("buildPackage", () => {
 
   it("fails naming a shipped page that names the tarball at another version than the package's, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/README.md": "# Hone\n\nInstall `honed-0.0.1.tgz`.\n" },
+      source: { ...SOURCE, "/package/README.md": "# Hone\n\nInstall `hailstails-hone-0.0.1.tgz`.\n" },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
-        error: "FAIL: a shipped page names the tarball at another version: README.md names honed-0.0.1.tgz, not honed-0.0.0.tgz",
+        error: "FAIL: a shipped page names the tarball at another version: README.md names hailstails-hone-0.0.1.tgz, not hailstails-hone-0.0.0.tgz",
       },
       written: NOTHING_WRITTEN,
     });

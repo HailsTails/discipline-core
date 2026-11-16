@@ -42,10 +42,10 @@ describe("createDefaultPackageLocationPort", () => {
   });
 
   it("throws node's module-not-found error naming the package when nothing resolves", () => {
-    expect(() => port.locate({ packageName: "honed-absent-package" })).toThrow(
+    expect(() => port.locate({ packageName: "hone-absent-package" })).toThrow(
       expect.objectContaining({
         code: "ERR_MODULE_NOT_FOUND",
-        message: expect.stringContaining("'honed-absent-package'"),
+        message: expect.stringContaining("'hone-absent-package'"),
       }),
     );
   });

@@ -30,6 +30,8 @@ type RepositoryLinks = {
   readonly bugs: { readonly url: string };
 };
 
+const PUBLIC_ACCESS = { access: "public" } as const;
+
 const repositoryLinksOf = (request: { readonly repository: string }): RepositoryLinks => ({
   repository: { type: "git", url: `git+${request.repository}.git` },
   homepage: `${request.repository}#readme`,
@@ -92,6 +94,7 @@ export const publishManifestOf = (request: {
         description: request.identity.description,
         license: published.value.license,
         ...repositoryLinksOf({ repository: request.identity.repository }),
+        publishConfig: PUBLIC_ACCESS,
         type: "module",
         bin: { [request.identity.command]: request.command },
         exports: Object.fromEntries([MANIFEST_EXPORT, ...request.exported.map(exportPathOf)].map((path) => [path, path])),
