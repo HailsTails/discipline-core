@@ -33,7 +33,7 @@
         }
       ],
       "rootCause": "Running git needs one runtime adapter for child processes behind an owned plain port, and this file is that adapter rather than debt in business code.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261016-discipline-core-migratio, current Gate4 source judgement"
     }
   },
   {
@@ -70,7 +70,7 @@
         }
       ],
       "rootCause": "Hone needs native filesystem effects behind one owned production boundary; this shared wrapper keeps text behaviour and confines directory data without creating debt in business code.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261016-discipline-core-migratio, current Gate4 source judgement"
     }
   },
   {
@@ -107,7 +107,7 @@
         }
       ],
       "rootCause": "Hone needs runner and piece module loading from the runtime, and CD-19/CD-21 place that dependency in one co-located wrapping port whose binding the static audit cannot distinguish from an unconfined import.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261014-discipline-core-foundati"
     }
   },
   {
@@ -144,14 +144,14 @@
         }
       ],
       "rootCause": "Hone needs path arithmetic and file-URL conversion from the runtime, and CD-19/CD-21 place that dependency in one co-located wrapping port whose binding the static audit cannot distinguish from an unconfined import.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261014-discipline-core-foundati"
     }
   },
   {
     "files": [
       "mechanisms/eslint/runner/eslint-instance.ts"
     ],
-    "reason": "Structural CD19 location: eslint-instance.ts is the ESLint mechanism runner's single wrapping module for the eslint and @typescript-eslint/parser APIs: it takes their types, and over the ESLint class that eslint-toolchain.ts loads it constructs the query and governance ESLint instances, runs lintFiles, lintText and calculateConfigForFile, and maps results into the runner's own types (EslintPort, QueryInstance, GovernanceInstance, LintedFile, LintedMessage) and Zod-parsed resolved-config and plugin schemas. Core and pieces receive RepoPath values, runner hit data and Result failures, never ESLint classes or types. create-eslint-runner.ts depends on the EslintPort it exports, and the unit tests fake the injected CreateEslint surface. This is the one place Hone's ESLint runner works with the eslint API.",
+    "reason": "Structural CD19 location: eslint-instance.ts is where the ESLint mechanism runner turns the eslint and @typescript-eslint/parser APIs into its own EslintPort: it takes their types, and over the ESLint class that eslint-toolchain.ts loads it constructs the query and governance ESLint instances, runs lintFiles, lintText and calculateConfigForFile, and maps results into the runner's own types (EslintPort, QueryInstance, GovernanceInstance, LintedFile, LintedMessage) and Zod-parsed resolved-config and plugin schemas. Core and pieces receive RepoPath values, runner hit data and Result failures, never ESLint classes or types. create-eslint-runner.ts depends on the EslintPort it exports, and the unit tests fake the injected CreateEslint surface. Loading eslint, the parser and @typescript-eslint/eslint-plugin at run time is eslint-toolchain.ts's job, and native-rules.ts imports @typescript-eslint/eslint-plugin; this record covers only this file.",
     "whyChain": {
       "whys": [
         {
@@ -161,7 +161,7 @@
         },
         {
           "why": "Why are those imports not spread across the runner?",
-          "because": "CD-19 requires a third-party dependency to sit in one wrapping factory at the boundary; this file is that factory and the rest of the runner depends on its EslintPort.",
+          "because": "CD-19 requires a third-party dependency to sit behind a wrapping port at the boundary; this file builds the EslintPort that wraps eslint's instances, and create-eslint-runner.ts depends on that port rather than on eslint.",
           "evidence": "rules/CD-19/README.md; mechanisms/eslint/runner/create-eslint-runner.ts imports only port types from ./eslint-instance.ts."
         },
         {
@@ -180,8 +180,8 @@
           "evidence": "discipline-exceptions.json authorises this file with provenance .constitution-authorised-locations/cd-19.json#4."
         }
       ],
-      "rootCause": "The ESLint mechanism needs the eslint API, and CD-19 places it in one wrapping module that the audit's specifier list cannot distinguish from an unconfined import.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "rootCause": "The ESLint mechanism needs eslint's API, and CD-19 places that use behind the EslintPort this file builds, which the audit's specifier list cannot distinguish from an unconfined import.",
+      "owner": "rin record 261014-discipline-core-foundati"
     }
   },
   {
@@ -218,7 +218,7 @@
         }
       ],
       "rootCause": "A piece must be typed in its tool's plugin protocol, and the audit's specifier list cannot see that the import is type-only and sanctioned for pieces.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261014-discipline-core-foundati"
     }
   },
   {
@@ -255,7 +255,7 @@
         }
       ],
       "rootCause": "The install proof needs real filesystem and subprocess effects from the runtime, and CD-19/CD-21 place that dependency in one co-located wrapping port whose binding the static audit cannot distinguish from an unconfined import.",
-      "owner": "HailsTails/hone maintainers; record carried over from the repository Hone was extracted from and reworded under HailsTails/hone#8"
+      "owner": "rin record 261014-discipline-core-foundati"
     }
   }
 ]
