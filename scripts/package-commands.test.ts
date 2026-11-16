@@ -77,6 +77,7 @@ const npmFaking = (request: {
 const processPort = (): ProcessPort => ({
   arguments: [],
   writeOut: vi.fn<ProcessPort["writeOut"]>(),
+  writeError: vi.fn<ProcessPort["writeError"]>(),
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 

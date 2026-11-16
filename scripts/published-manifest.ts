@@ -24,6 +24,18 @@ const MANIFEST_EXPORT = "./package.json";
 
 const exportPathOf = (path: string): string => `./${path}`;
 
+type RepositoryLinks = {
+  readonly repository: { readonly type: "git"; readonly url: string };
+  readonly homepage: string;
+  readonly bugs: { readonly url: string };
+};
+
+const repositoryLinksOf = (request: { readonly repository: string }): RepositoryLinks => ({
+  repository: { type: "git", url: `git+${request.repository}.git` },
+  homepage: `${request.repository}#readme`,
+  bugs: { url: `${request.repository}/issues` },
+});
+
 const manifestText = (request: { readonly manifest: object }): string => `${JSON.stringify(request.manifest, null, 2)}\n`;
 
 const sectionsOf = <Sections>(request: {
@@ -79,6 +91,7 @@ export const publishManifestOf = (request: {
         version: published.value.version,
         description: request.identity.description,
         license: published.value.license,
+        ...repositoryLinksOf({ repository: request.identity.repository }),
         type: "module",
         bin: { [request.identity.command]: request.command },
         exports: Object.fromEntries([MANIFEST_EXPORT, ...request.exported.map(exportPathOf)].map((path) => [path, path])),

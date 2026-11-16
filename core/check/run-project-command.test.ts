@@ -136,6 +136,7 @@ const gitTracking = (paths: readonly RepoPath[]): GitPort => ({
 const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
   arguments: request.arguments,
   writeOut: vi.fn<ProcessPort["writeOut"]>(),
+  writeError: vi.fn<ProcessPort["writeError"]>(),
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 

@@ -4,6 +4,8 @@ export type ToolIdentity = {
   readonly command: string;
   readonly reservedEslintNamespace: string;
   readonly description: string;
+  readonly repository: string;
+  readonly unrelatedNpmPackage: string;
 };
 
 export const TOOL_IDENTITY: ToolIdentity = {
@@ -11,5 +13,7 @@ export const TOOL_IDENTITY: ToolIdentity = {
   packageName: "honed",
   command: "hone",
   reservedEslintNamespace: "honed",
-  description: "Checks a repository against the coding disciplines it selects, applies its recorded exceptions and prints one verdict.",
+  description: "Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.",
+  repository: "https://github.com/HailsTails/hone",
+  unrelatedNpmPackage: "hone",
 };
