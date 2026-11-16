@@ -4,8 +4,7 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
@@ -16,6 +15,8 @@ jobs:
     name: Release the package tarball
     runs-on: windows-latest
     timeout-minutes: 25
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
@@ -45,4 +46,38 @@ jobs:
         run: |
           prerelease=()
           case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
-          gh release create "$GITHUB_REF_NAME" artefacts/*.tgz --verify-tag --title "$(node scripts/release-text-command.ts title "$GITHUB_REF_NAME")" --notes "$(node scripts/release-text-command.ts notes "$GITHUB_REF_NAME")" "${prerelease[@]}"
+          title="$(node scripts/release-text-command.ts title "$GITHUB_REF_NAME")"
+          notes="$(node scripts/release-text-command.ts notes "$GITHUB_REF_NAME")"
+          gh release create "$GITHUB_REF_NAME" artefacts/*.tgz --verify-tag --title "$title" --notes "$notes" "${prerelease[@]}"
+
+  publish-npm:
+    name: Publish the released tarball to npm
+    needs: release
+    if: vars.NPM_PUBLISH == 'enabled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install the npm that supports trusted publishing
+        run: npm install --global npm@11.6.2
+      - name: Download the tarball attached to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.tgz' --dir artefacts
+      - name: Publish the tarball under its dist-tag
+        run: |
+          tarballs=(artefacts/*.tgz)
+          test "${#tarballs[@]}" -eq 1
+          test -f "${tarballs[0]}"
+          dist_tag=latest
+          case "$GITHUB_REF_NAME" in *-*) dist_tag=next ;; esac
+          npm publish "./${tarballs[0]}" --tag "$dist_tag"

@@ -25,6 +25,8 @@ describe("publishManifestOf", () => {
         reservedEslintNamespace: "provisional-core",
         command: "provisional",
         description: "Checks a repository against its disciplines.",
+        repository: "https://github.com/example/provisional",
+        unrelatedNpmPackage: "provisional",
       },
       command: "core/check/tool-command.js",
       files: ["LICENSE", "chunks", "core", "mechanisms"],
@@ -32,7 +34,7 @@ describe("publishManifestOf", () => {
       nodeRange: "^22.13.0 || >=24",
     });
 
-  it("names and describes the package for consumers, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
+  it("names and describes the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
     expect(published(JSON.stringify(DEVELOPMENT_MANIFEST))).toEqual({
       outcome: "ok",
       value: `${JSON.stringify(
@@ -41,6 +43,9 @@ describe("publishManifestOf", () => {
           version: "0.0.0",
           description: "Checks a repository against its disciplines.",
           license: "MIT-0",
+          repository: { type: "git", url: "git+https://github.com/example/provisional.git" },
+          homepage: "https://github.com/example/provisional#readme",
+          bugs: { url: "https://github.com/example/provisional/issues" },
           type: "module",
           bin: { provisional: "core/check/tool-command.js" },
           exports: {

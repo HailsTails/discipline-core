@@ -18,9 +18,9 @@ Hone ships as one npm package tarball: built JavaScript with its own packages bu
 
 **The npm package is named `honed`, not `hone`.** The name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `honed` installs one command, `hone`.
 
-The current version, `0.1.0-pre.1`, is a pre-release: its commands, flags and files may still change before `0.1.0`, and nothing is published to a registry yet. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.1.tgz`, or an `https://` URL your team serves it from.
+The current version, `0.1.0-pre.1`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.1.tgz`, or an `https://` URL your team serves it from.
 
-The main route is to download `honed-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.1` is pushed. Until that tag exists the release page does not, and the route below is the one that works.
+The main route is to download `honed-0.1.0-pre.1.tgz` from the [`v0.1.0-pre.1` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.1` is pushed.
 
 The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
@@ -39,6 +39,14 @@ npm install --save-dev <honed-tarball>
 ```
 
 npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
+
+After the first registry publish of `honed`, the registry is a third route, with no tarball to copy or commit. Pre-releases are published under the dist-tag `next`, so name it:
+
+```bash
+npm install --save-dev honed@next
+```
+
+npm records the exact version it installed in the lockfile. Check the name before you run it: `honed`, never `hone`. Until that first publish, npm answers this command with `404 Not Found`; use one of the tarball routes above.
 
 Add the two commands to the root `package.json` scripts:
 

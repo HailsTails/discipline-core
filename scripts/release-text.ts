@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProcessPort } from "../core/platform-ports/process-port.ts";
+import type { ErrorWriter, ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { ToolIdentity } from "../core/values/tool-identity.ts";
 
 const releaseTextArgumentsSchema = z.tuple([z.enum(["title", "notes"]), z.string().min(1)]);
@@ -7,6 +7,8 @@ const releaseTextArgumentsSchema = z.tuple([z.enum(["title", "notes"]), z.string
 export type ReleaseTextPart = z.infer<typeof releaseTextArgumentsSchema>[0];
 
 const USAGE = "usage: release-text <title|notes> <tag>\n";
+
+export type ReleaseTextProcess = ProcessPort & { readonly writeError: ErrorWriter };
 
 export const releaseTextOf = (request: {
   readonly identity: ToolIdentity;
@@ -17,13 +19,13 @@ export const releaseTextOf = (request: {
   if (request.part === "title") {
     return title;
   }
-  return `${title}. Install the attached tarball as the npm package ${request.identity.packageName}; it provides the command ${request.identity.command}.`;
+  return `${title}. Install the attached tarball as the npm package ${request.identity.packageName}, not ${request.identity.unrelatedNpmPackage}, which is an unrelated npm package; it provides the command ${request.identity.command}.`;
 };
 
-export const runReleaseText = (request: { readonly process: ProcessPort; readonly identity: ToolIdentity }): void => {
+export const runReleaseText = (request: { readonly process: ReleaseTextProcess; readonly identity: ToolIdentity }): void => {
   const parsed = releaseTextArgumentsSchema.safeParse(request.process.arguments);
   if (!parsed.success) {
-    request.process.writeOut({ text: USAGE });
+    request.process.writeError({ text: USAGE });
     request.process.exitWith({ code: 2 });
     return;
   }

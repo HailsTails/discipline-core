@@ -14,6 +14,17 @@ describe("TOOL_IDENTITY", () => {
     expect(TOOL_IDENTITY.reservedEslintNamespace).toBe("honed");
   });
 
+  it("names the GitHub repository the package is published from, and the npm name that belongs to an unrelated package", () => {
+    expect({ repository: TOOL_IDENTITY.repository, unrelatedNpmPackage: TOOL_IDENTITY.unrelatedNpmPackage }).toEqual({
+      repository: "https://github.com/HailsTails/hone",
+      unrelatedNpmPackage: "hone",
+    });
+  });
+
+  it("describes the package in one sentence without narrowing the disciplines to code", () => {
+    expect(TOOL_IDENTITY.description).not.toMatch(/coding/);
+  });
+
   it("describes the package in one sentence", () => {
     expect(TOOL_IDENTITY.description).toMatch(/^[^.]+\.$/);
   });

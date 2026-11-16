@@ -1,17 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ProcessPort } from "../core/platform-ports/process-port.ts";
-import { releaseTextOf, runReleaseText } from "./release-text.ts";
+import type { ErrorWriter, ProcessPort } from "../core/platform-ports/process-port.ts";
+import { type ReleaseTextProcess, releaseTextOf, runReleaseText } from "./release-text.ts";
 
-const IDENTITY = { name: "Tool", packageName: "tooled", command: "tool", reservedEslintNamespace: "tooled", description: "Checks." };
+const IDENTITY = {
+  name: "Tool",
+  packageName: "tooled",
+  command: "tool",
+  reservedEslintNamespace: "tooled",
+  description: "Checks.",
+  repository: "https://github.com/example/tool",
+  unrelatedNpmPackage: "tool",
+};
 
-const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
+const processWith = (request: { readonly arguments: readonly string[] }): ReleaseTextProcess => ({
   arguments: request.arguments,
   writeOut: vi.fn<ProcessPort["writeOut"]>(),
+  writeError: vi.fn<ErrorWriter>(),
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const outputOf = (request: { readonly process: ProcessPort }) => ({
+const outputOf = (request: { readonly process: ReleaseTextProcess }) => ({
   writes: vi.mocked(request.process.writeOut).mock.calls,
+  errors: vi.mocked(request.process.writeError).mock.calls,
   exits: vi.mocked(request.process.exitWith).mock.calls,
 });
 
@@ -22,38 +32,40 @@ describe("releaseTextOf", () => {
 
   it("notes which npm package the tarball installs as and the command it provides", () => {
     expect(releaseTextOf({ identity: IDENTITY, tag: "v0.1.0-pre.1", part: "notes" })).toBe(
-      "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled; it provides the command tool.",
+      "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled, not tool, which is an unrelated npm package; it provides the command tool.",
     );
   });
 });
 
 describe("runReleaseText", () => {
-  it("prints the requested part for the tag and exits 0", () => {
+  it("prints the requested part for the tag on standard output and exits 0", () => {
     const processPort = processWith({ arguments: ["title", "v0.1.0-pre.1"] });
 
     runReleaseText({ process: processPort, identity: IDENTITY });
 
-    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: "Tool v0.1.0-pre.1" }]], exits: [[{ code: 0 }]] });
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: "Tool v0.1.0-pre.1" }]], errors: [], exits: [[{ code: 0 }]] });
   });
 
-  it("exits 2 with its usage when the part is unknown", () => {
+  it("exits 2 with its usage on standard error when the part is unknown", () => {
     const processPort = processWith({ arguments: ["body", "v0.1.0-pre.1"] });
 
     runReleaseText({ process: processPort, identity: IDENTITY });
 
     expect(outputOf({ process: processPort })).toEqual({
-      writes: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
+      writes: [],
+      errors: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
       exits: [[{ code: 2 }]],
     });
   });
 
-  it("exits 2 with its usage when the tag is missing", () => {
+  it("exits 2 with its usage on standard error when the tag is missing", () => {
     const processPort = processWith({ arguments: ["notes"] });
 
     runReleaseText({ process: processPort, identity: IDENTITY });
 
     expect(outputOf({ process: processPort })).toEqual({
-      writes: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
+      writes: [],
+      errors: [[{ text: "usage: release-text <title|notes> <tag>\n" }]],
       exits: [[{ code: 2 }]],
     });
   });

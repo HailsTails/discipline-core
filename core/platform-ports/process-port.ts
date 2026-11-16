@@ -6,6 +6,8 @@ export type ProcessPort = {
   readonly exitWith: (request: { readonly code: ExitCode }) => void;
 };
 
+export type ErrorWriter = (request: { readonly text: string }) => void;
+
 export type ProcessSurface = {
   readonly argv: readonly string[];
   readonly write: (request: { readonly text: string }) => void;
@@ -34,6 +36,10 @@ export const defaultProcessSurface: ProcessSurface = {
   setExitCode: (request) => {
     process.exitCode = request.code;
   },
+};
+
+export const defaultErrorWriter: ErrorWriter = (request) => {
+  process.stderr.write(request.text);
 };
 
 export const createDefaultProcessPort = (
