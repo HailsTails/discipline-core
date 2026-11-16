@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dependencyNamesOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 
 const DEVELOPMENT_MANIFEST = {
   version: "0.0.0",
@@ -84,5 +84,15 @@ describe("dependencyNamesOf", () => {
 
   it("names the development manifest invalid when it declares no dependencies", () => {
     expect(dependencyNamesOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
+  });
+});
+
+describe("packageVersionOf", () => {
+  it("reads the version the package is built at", () => {
+    expect(packageVersionOf({ developmentManifest: JSON.stringify(DEVELOPMENT_MANIFEST) })).toEqual({ outcome: "ok", value: "0.0.0" });
+  });
+
+  it("names the development manifest invalid when it declares no version", () => {
+    expect(packageVersionOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
   });
 });
