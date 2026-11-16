@@ -32,7 +32,7 @@ describe("releaseTextOf", () => {
 
   it("notes which npm package the tarball installs as and the command it provides", () => {
     expect(releaseTextOf({ identity: IDENTITY, tag: "v0.1.0-pre.1", part: "notes" })).toBe(
-      "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled, not tool, which is an unrelated npm package; it provides the command tool.",
+      "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled, not the unscoped tool, which is an unrelated npm package; it provides the command tool.",
     );
   });
 });

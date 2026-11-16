@@ -141,7 +141,7 @@ describe("toolchainManifest, over this package's own package.json read as a buil
   });
 });
 
-const PROJECTION = `import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
+const PROJECTION = `import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
 
 export default [
   {

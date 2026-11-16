@@ -34,13 +34,13 @@ const SOURCE_INSTALL: CoreInstall = { form: "source" };
 
 const PACKAGED_INSTALL: CoreInstall = {
   form: "package",
-  root: "/repo/node_modules/honed",
-  name: "honed",
+  root: "/repo/node_modules/@hailstails/hone",
+  name: "@hailstails/hone",
 };
 
 const cd14Piece: ProjectedPiece = {
   pluginNamespace: "hone",
-  pluginImport: "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts",
+  pluginImport: "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts",
   clauses: [{ address: classSyntax, ruleId: "hone/no-class-authoring", options: [] }],
 };
 
@@ -96,7 +96,7 @@ const clauseWideClassSyntax: ExceptionRecord = {
 const authorisedInBUnderEslint10: ExceptionRecord = { ...authorisedInB, mechanism: eslint10 };
 
 const fullProjection = `import piece0 from "../team-rules/mechanisms/eslint/PD-1/plugin.ts";
-import piece1 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+import piece1 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -137,7 +137,7 @@ export default [
 ];
 `;
 
-const enablingOnlyProjection = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const enablingOnlyProjection = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -149,7 +149,7 @@ export default [
 ];
 `;
 
-const enablingWithOptionsProjection = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const enablingWithOptionsProjection = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -161,7 +161,7 @@ export default [
 ];
 `;
 
-const carveOutOnlyProjection = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const carveOutOnlyProjection = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -178,7 +178,7 @@ export default [
 ];
 `;
 
-const authorisedInBOnlyProjection = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const authorisedInBOnlyProjection = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -273,7 +273,7 @@ describe("projectionText", () => {
         selectedPieces: [cd14Piece],
         records: [carveOutInA, { ...authorisedInB, file: repoPathSchema.parse("src/B.ts") }],
       }),
-    ).toBe(`import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+    ).toBe(`import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -414,10 +414,10 @@ describe("pluginImportOf", () => {
         path: posixPath,
         repoRoot,
         install: PACKAGED_INSTALL,
-        pieceRoot: "/repo/node_modules/honed/mechanisms/eslint/CD-14",
+        pieceRoot: "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
       }),
-    ).toEqual({ placement: "importable", specifier: "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });
+    ).toEqual({ placement: "importable", specifier: "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });
   });
 
   it("imports a shipped piece of a scoped package installed through a package store by the package name", () => {
@@ -437,11 +437,11 @@ describe("pluginImportOf", () => {
       pluginImportOf({
         path: windowsPath,
         repoRoot: windowsRepoRoot,
-        install: { form: "package", root: "C:\\repo\\node_modules\\honed", name: "honed" },
+        install: { form: "package", root: "C:\\repo\\node_modules\\honed", name: "@hailstails/hone" },
         pieceRoot: "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
       }),
-    ).toEqual({ placement: "importable", specifier: "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });
+    ).toEqual({ placement: "importable", specifier: "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });
   });
 
   it("keeps the repository's own piece, outside a packaged core install, as its relative path", () => {

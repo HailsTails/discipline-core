@@ -207,11 +207,11 @@ describe("otherVersionTarballsOf", () => {
     expect(
       otherVersionTarballsOf({
         files: [
-          { path: "README.md", text: "Download `honed-0.1.0-pre.1.tgz`, or `honed-<version>.tgz` later." },
+          { path: "README.md", text: "Download `hailstails-hone-0.1.0-pre.1.tgz`, or `hailstails-hone-<version>.tgz` later." },
           { path: "ADOPTING.md", text: "Not `other-core-0.0.0.tgz`." },
-          { path: "rules/CD-1/discipline.json", text: "honed-0.0.0.tgz" },
+          { path: "rules/CD-1/discipline.json", text: "hailstails-hone-0.0.0.tgz" },
         ],
-        name: "honed",
+        tarballStem: "hailstails-hone",
         version: "0.1.0-pre.1",
       }),
     ).toEqual([]);
@@ -221,15 +221,15 @@ describe("otherVersionTarballsOf", () => {
     expect(
       otherVersionTarballsOf({
         files: [
-          { path: "README.md", text: "wrote artefacts/honed-0.0.0.tgz" },
-          { path: "ADOPTING.md", text: "vendor/honed/honed-0.1.0.tgz and honed-0.1.0-pre.1.tgz" },
+          { path: "README.md", text: "wrote artefacts/hailstails-hone-0.0.0.tgz" },
+          { path: "ADOPTING.md", text: "vendor/hailstails-hone/hailstails-hone-0.1.0.tgz and hailstails-hone-0.1.0-pre.1.tgz" },
         ],
-        name: "honed",
+        tarballStem: "hailstails-hone",
         version: "0.1.0-pre.1",
       }),
     ).toEqual([
-      "README.md names honed-0.0.0.tgz, not honed-0.1.0-pre.1.tgz",
-      "ADOPTING.md names honed-0.1.0.tgz, not honed-0.1.0-pre.1.tgz",
+      "README.md names hailstails-hone-0.0.0.tgz, not hailstails-hone-0.1.0-pre.1.tgz",
+      "ADOPTING.md names hailstails-hone-0.1.0.tgz, not hailstails-hone-0.1.0-pre.1.tgz",
     ]);
   });
 });

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { TOOL_IDENTITY } from "./tool-identity.ts";
+import { packageFileStemOf, TOOL_IDENTITY } from "./tool-identity.ts";
 
 describe("TOOL_IDENTITY", () => {
-  it("names the tool Hone, publishes the package honed, which installs the one command hone", () => {
+  it("names the tool Hone, publishes the scoped package @hailstails/hone, which installs the one command hone", () => {
     expect({ name: TOOL_IDENTITY.name, packageName: TOOL_IDENTITY.packageName, command: TOOL_IDENTITY.command }).toEqual({
       name: "Hone",
-      packageName: "honed",
+      packageName: "@hailstails/hone",
       command: "hone",
     });
   });
 
-  it("reserves the ESLint namespace honed in its own field, so renaming the package leaves ESLint behaviour alone", () => {
+  it("keeps the ESLint namespace honed reserved in its own field, so renaming the package to @hailstails/hone left ESLint rule ids and projection block names alone", () => {
     expect(TOOL_IDENTITY.reservedEslintNamespace).toBe("honed");
   });
 
@@ -19,6 +19,13 @@ describe("TOOL_IDENTITY", () => {
       repository: "https://github.com/HailsTails/hone",
       unrelatedNpmPackage: "hone",
     });
+  });
+
+  it.each([
+    ["@hailstails/hone", "hailstails-hone"],
+    ["honed", "honed"],
+  ] as const)("files the package %s under the stem %s, the way npm pack names its tarball", (packageName, stem) => {
+    expect(packageFileStemOf({ packageName })).toBe(stem);
   });
 
   it("describes the package in one sentence without narrowing the disciplines to code", () => {

@@ -189,16 +189,16 @@ export const deadLinksOf = (request: { readonly files: readonly ShippedText[] })
 
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 
-const tarballPatternOf = (request: { readonly name: string }): RegExp =>
-  new RegExp(`${request.name.replace(REGEX_SPECIAL, "\\$&")}-(\\d[^\\s\`/]*?)\\.tgz`, "g");
+const tarballPatternOf = (request: { readonly tarballStem: string }): RegExp =>
+  new RegExp(`${request.tarballStem.replace(REGEX_SPECIAL, "\\$&")}-(\\d[^\\s\`/]*?)\\.tgz`, "g");
 
 export const otherVersionTarballsOf = (request: {
   readonly files: readonly ShippedText[];
-  readonly name: string;
+  readonly tarballStem: string;
   readonly version: string;
 }): readonly string[] => {
-  const pattern = tarballPatternOf({ name: request.name });
-  const expected = `${request.name}-${request.version}.tgz`;
+  const pattern = tarballPatternOf({ tarballStem: request.tarballStem });
+  const expected = `${request.tarballStem}-${request.version}.tgz`;
   return request.files
     .filter((file) => file.path.endsWith(PAGE_SUFFIX))
     .flatMap((file) =>

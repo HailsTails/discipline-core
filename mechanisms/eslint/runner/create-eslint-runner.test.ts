@@ -38,11 +38,11 @@ type EslintFakeParts = {
 };
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
-const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/honed");
-const PIECE_ROOT = "/repo/node_modules/honed/mechanisms/eslint/CD-14";
-const LOOPS_PIECE_ROOT = "/repo/node_modules/honed/mechanisms/eslint/CD-15";
-const PLUGIN_MODULE_PATH = "/repo/node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
-const LOOPS_MODULE_PATH = "/repo/node_modules/honed/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
+const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/@hailstails/hone");
+const PIECE_ROOT = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14";
+const LOOPS_PIECE_ROOT = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-15";
+const PLUGIN_MODULE_PATH = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const LOOPS_MODULE_PATH = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
 const PROJECTION_PATH = "/repo/disciplines.eslint.mjs";
 const RULE_ID = "hone/no-class-authoring";
 const LOOPS_RULE_ID = "loops/no-for-of";
@@ -125,7 +125,7 @@ const CLAUSE_WIDE: ExceptionRecord = {
   whyChain: CAUSAL_WHY_CHAIN,
 };
 
-const ENABLING_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const ENABLING_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -137,7 +137,7 @@ export default [
 ];
 `;
 
-const PACKAGED_ENABLING_PROJECTION = `import piece0 from "honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const PACKAGED_ENABLING_PROJECTION = `import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -149,9 +149,9 @@ export default [
 ];
 `;
 
-const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "honed/piece/hone",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "hone": piece0 },\r\n    rules: { "hone/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
+const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "honed/piece/hone",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "hone": piece0 },\r\n    rules: { "hone/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
 
-const FACTORY_LOCATION_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const FACTORY_LOCATION_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -168,7 +168,7 @@ export default [
 ];
 `;
 
-const GONE_LOCATION_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const GONE_LOCATION_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -185,7 +185,7 @@ export default [
 ];
 `;
 
-const CLAUSE_WIDE_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const CLAUSE_WIDE_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -370,7 +370,7 @@ const SHARED_PLUGIN_MODULE = {
 
 const SHARED_MODULE_RUN = runRequest({ clauses: [CLASS_CLAUSE, SHARED_MODULE_FOR_OF_CLAUSE], records: [] });
 
-const SHARED_MODULE_PROJECTION = `import piece0 from "./node_modules/honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+const SHARED_MODULE_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
@@ -1048,7 +1048,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "name": "honed" }' }),
+      "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
     await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
@@ -1065,7 +1065,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "name": "honed" }' }),
+      "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
     await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
@@ -1075,7 +1075,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/honed/package.json": presentFile({ text: '{ "private": true }' }),
+      "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "private": true }' }),
     });
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
@@ -1086,7 +1086,7 @@ describe("project", () => {
     expect({ write, fileWrites: vi.mocked(fileText.write).mock.calls }).toEqual({
       write: {
         outcome: "failed",
-        error: { kind: "tool-failed", detail: "the core install's /repo/node_modules/honed/package.json names no package" },
+        error: { kind: "tool-failed", detail: "the core install's /repo/node_modules/@hailstails/hone/package.json names no package" },
       },
       fileWrites: [],
     });
@@ -1096,7 +1096,7 @@ describe("project", () => {
     const fileText = fileTextOver({
       ...SOURCE_FILES,
       [PROJECTION_PATH]: ABSENT_FILE,
-      "/repo/node_modules/honed/package.json": {
+      "/repo/node_modules/@hailstails/hone/package.json": {
         read: { outcome: "failed", error: { kind: "unreadable", path: "package.json", detail: "EACCES" } },
         presence: "present",
       },
@@ -1112,7 +1112,7 @@ describe("project", () => {
         outcome: "failed",
         error: {
           kind: "tool-failed",
-          detail: "the core install's /repo/node_modules/honed/package.json cannot be read: EACCES",
+          detail: "the core install's /repo/node_modules/@hailstails/hone/package.json cannot be read: EACCES",
         },
       },
       fileWrites: [],

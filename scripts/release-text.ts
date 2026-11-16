@@ -29,7 +29,7 @@ export const releaseTextOf = (request: {
     case "title":
       return title;
     case "notes":
-      return `${title}. Install the attached tarball as the npm package ${request.identity.packageName}, not ${request.identity.unrelatedNpmPackage}, which is an unrelated npm package; it provides the command ${request.identity.command}.`;
+      return `${title}. Install the attached tarball as the npm package ${request.identity.packageName}, not the unscoped ${request.identity.unrelatedNpmPackage}, which is an unrelated npm package; it provides the command ${request.identity.command}.`;
     case "dist-tag":
       return distTagOf({ tag: request.tag });
   }

@@ -72,7 +72,7 @@ const NUMBERED_TARBALL = (request: { readonly packCount: number }): string => `t
 const npmFaking = (request: {
   readonly files: InMemoryFiles;
   readonly tarballText: (request: { readonly packCount: number }) => string;
-}): NpmPacking => npmPacking({ files: request.files, tarballName: "honed-0.0.0.tgz", tarballText: request.tarballText });
+}): NpmPacking => npmPacking({ files: request.files, tarballName: "hailstails-hone-0.0.0.tgz", tarballText: request.tarballText });
 
 const processPort = (): ProcessPort => ({
   arguments: [],
@@ -112,7 +112,7 @@ describe("createTarballPacker", () => {
     const tarball = await packer.pack({ packageRoot: "/package", workRoot: "/work" });
 
     expect({ tarball, runs: npm.runs(), built: files.texts()["/work/package-build/package.json"] }).toEqual({
-      tarball: { outcome: "ok", value: "/work/package-tarball/honed-0.0.0.tgz" },
+      tarball: { outcome: "ok", value: "/work/package-tarball/hailstails-hone-0.0.0.tgz" },
       runs: [
         {
           command: "npm",
@@ -120,7 +120,7 @@ describe("createTarballPacker", () => {
           directory: "/package",
         },
       ],
-      built: expect.stringContaining('"name": "honed"'),
+      built: expect.stringContaining('"name": "@hailstails/hone"'),
     });
   });
 
@@ -177,7 +177,7 @@ describe("runPackPackage", () => {
     await runPackPackage(request);
 
     expect({ report: reportOf(request), old: files.texts()["/package/artefacts/old-0.0.0.tgz"] }).toEqual({
-      report: { writes: [[{ text: "pack package: wrote /package/artefacts/honed-0.0.0.tgz\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "pack package: wrote /package/artefacts/hailstails-hone-0.0.0.tgz\n" }]], exits: [[{ code: 0 }]] },
       old: undefined,
     });
   });

@@ -16,37 +16,37 @@ It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of y
 
 Hone ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node.
 
-**The npm package is named `honed`, not `hone`.** The name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `honed` installs one command, `hone`.
+**The npm package is named `@hailstails/hone`.** The unscoped name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `@hailstails/hone` installs one command, `hone`. Its tarball is named `hailstails-hone-<version>.tgz`, the file name `npm pack` gives a scoped package. Version `0.1.0-pre.1` was released under the old name `honed`; [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone) says how to move from it.
 
-The current version, `0.1.0-pre.2`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<honed-tarball>`: a path such as `vendor/honed/honed-0.1.0-pre.2.tgz`, or an `https://` URL your team serves it from.
+The current version, `0.1.0-pre.2`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-0.1.0-pre.2.tgz`, or an `https://` URL your team serves it from.
 
-The main route is to download `honed-0.1.0-pre.2.tgz` from the [`v0.1.0-pre.2` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.2` is pushed. Until that tag exists, the [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the previous pre-release, or build the tarball from a pinned commit as below.
+The main route is to download `hailstails-hone-0.1.0-pre.2.tgz` from the [`v0.1.0-pre.2` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.2` is pushed. Until that tag exists, build the tarball from a pinned commit as below; the earlier [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the previous pre-release under the old name `honed`.
 
 The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
 ```bash
-git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/honed-source
-git -C /tmp/honed-source checkout <pinned-sha>
-cd /tmp/honed-source && bun install --frozen-lockfile && bun run pack-package && cd -
+git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/hone-source
+git -C /tmp/hone-source checkout <pinned-sha>
+cd /tmp/hone-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/artefacts/honed-0.1.0-pre.2.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/honed/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-0.1.0-pre.2.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 
 ```bash
-npm install --save-dev <honed-tarball>
+npm install --save-dev <hone-tarball>
 ```
 
 npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
 
-After the first registry publish of `honed`, the registry is a third route, with no tarball to copy or commit. Pre-releases are published under the dist-tag `next`, so name it:
+After the first registry publish of `@hailstails/hone`, the registry is a third route, with no tarball to copy or commit. Pre-releases are published under the dist-tag `next`, so name it:
 
 ```bash
-npm install --save-dev honed@next
+npm install --save-dev @hailstails/hone@next
 ```
 
-npm records the exact version it installed in the lockfile. Check the name before you run it: `honed`, never `hone`. Until that first publish, npm answers this command with `404 Not Found`; use one of the tarball routes above.
+npm records the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. Until that first publish, npm answers this command with `404 Not Found`; use one of the tarball routes above.
 
 Add the two commands to the root `package.json` scripts:
 
@@ -158,7 +158,7 @@ In a monorepo, every `eslint.config.*` that applies to checked files spreads the
 
 Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.12 to 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
 
-Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `honed/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `honed` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
+Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
 
 ## 5. Run the check
 
@@ -182,7 +182,7 @@ npm run --silent hone:check -- --base-revision origin/main
 
 Add the command to the repository's existing validation script, and run that same script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run. With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
-Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/honed/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
+Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
 
 ## 6. Read the report
 
@@ -274,9 +274,9 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 ## 10. Update and remove
 
-To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/honed/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
+To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
-To remove, run `npm uninstall honed`, delete the two `hone:` scripts, the tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
+To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, the tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 
 ## Worked example
 
