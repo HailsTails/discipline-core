@@ -41,7 +41,7 @@ const ESLINT_PROJECTION = `import piece0 from "${TOOL_IDENTITY.packageName}/mech
 
 export default [
   {
-    name: "${TOOL_IDENTITY.packageName}/piece/hone",
+    name: "${TOOL_IDENTITY.reservedEslintNamespace}/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error", "hone/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },

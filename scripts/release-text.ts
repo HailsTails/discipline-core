@@ -1,0 +1,33 @@
+import { z } from "zod";
+import type { ProcessPort } from "../core/platform-ports/process-port.ts";
+import type { ToolIdentity } from "../core/values/tool-identity.ts";
+
+const releaseTextArgumentsSchema = z.tuple([z.enum(["title", "notes"]), z.string().min(1)]);
+
+export type ReleaseTextPart = z.infer<typeof releaseTextArgumentsSchema>[0];
+
+const USAGE = "usage: release-text <title|notes> <tag>\n";
+
+export const releaseTextOf = (request: {
+  readonly identity: ToolIdentity;
+  readonly tag: string;
+  readonly part: ReleaseTextPart;
+}): string => {
+  const title = `${request.identity.name} ${request.tag}`;
+  if (request.part === "title") {
+    return title;
+  }
+  return `${title}. Install the attached tarball as the npm package ${request.identity.packageName}; it provides the command ${request.identity.command}.`;
+};
+
+export const runReleaseText = (request: { readonly process: ProcessPort; readonly identity: ToolIdentity }): void => {
+  const parsed = releaseTextArgumentsSchema.safeParse(request.process.arguments);
+  if (!parsed.success) {
+    request.process.writeOut({ text: USAGE });
+    request.process.exitWith({ code: 2 });
+    return;
+  }
+  const [part, tag] = parsed.data;
+  request.process.writeOut({ text: releaseTextOf({ identity: request.identity, tag, part }) });
+  request.process.exitWith({ code: 0 });
+};
