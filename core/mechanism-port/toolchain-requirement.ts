@@ -30,7 +30,7 @@ type Shadowing = "shadowed" | "unshadowed";
 
 const RELEASE_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
 
-const NOT_INSTALLED = "not installed";
+export const NOT_INSTALLED = "not installed";
 
 const MODULE_NOT_FOUND = "ERR_MODULE_NOT_FOUND";
 

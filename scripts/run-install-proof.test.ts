@@ -40,7 +40,7 @@ const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
   [`${CONSUMER}/disciplines.eslint.mjs`]: PROJECTION,
   [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "4.8.4" }',
-  ["/scratch/typescript-floor/second/node_modules/typescript/package.json"]: '{ "name": "typescript", "version": "4.8.4" }',
+  "/scratch/typescript-floor/second/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }',
 };
 
 const EXPECTING_PASS: ProofCase = {

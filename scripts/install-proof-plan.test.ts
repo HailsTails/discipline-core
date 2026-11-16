@@ -90,9 +90,9 @@ const FLOOR_ESLINT_PEERS = {
 };
 
 describe("requiredPeerPinsOf", () => {
-  it.each(["typescript-floor", "eslint-9-floor", "eslint-10-floor"] as const)(
+  it.each([{ toolchain: "typescript-floor" }, { toolchain: "eslint-9-floor" }, { toolchain: "eslint-10-floor" }] as const)(
     "pins only the required peer typescript at its floor for a $toolchain consumer, over this package's own package.json",
-    (toolchain) => {
+    ({ toolchain }) => {
       expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
         outcome: "ok",
         value: { typescript: "4.8.4" },

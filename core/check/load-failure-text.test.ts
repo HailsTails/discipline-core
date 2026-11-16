@@ -143,4 +143,21 @@ describe("loadFailureText for a missing required peer", () => {
       "load failure: runner-failed audit toolchain-unavailable typescript found not installed, supported >=4.8.4 <7.0.0: typescript is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall\n",
     );
   });
+
+  it.each([
+    { state: "out of range", found: "7.0.0" },
+    { state: "unloadable", found: "unloadable: Cannot find module './lib/typescript.js'" },
+  ])("prints a required peer that is installed but $state with the plain repair, not as an incomplete install", ({ found }) => {
+    expect(
+      loadFailureText({
+        failure: {
+          kind: "runner-failed",
+          mechanism: WALKER,
+          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found },
+        },
+      }),
+    ).toBe(
+      `load failure: runner-failed audit toolchain-unavailable typescript found ${found}, supported >=4.8.4 <7.0.0: add a supported version to the devDependencies of the repository root\n`,
+    );
+  });
 });
