@@ -73,6 +73,7 @@ jobs:
     name: Publish the released tarball to npm
     needs: release
     if: vars.NPM_PUBLISH == 'enabled'
+    environment: npm
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
