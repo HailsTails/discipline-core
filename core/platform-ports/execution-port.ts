@@ -51,11 +51,11 @@ export type ExecutionSpawn = (request: {
   readonly maximumOutputBytes: number;
 }) => Result<ExecutionExit, ExecutionFailure>;
 
-export type ExecutionSpawnProvider = (
-  command: string,
-  commandArguments: readonly string[],
-  options: SpawnSyncOptionsWithStringEncoding,
-) => SpawnSyncReturns<string>;
+export type ExecutionSpawnProvider = (request: {
+  readonly command: string;
+  readonly commandArguments: readonly string[];
+  readonly options: SpawnSyncOptionsWithStringEncoding;
+}) => SpawnSyncReturns<string>;
 
 const executionEnvironmentSchema = z.record(z.string(), z.string().optional()).readonly();
 const positiveSafeIntegerSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
@@ -121,15 +121,21 @@ export const createExecutionSpawn = (options: {
   readonly spawnProvider: ExecutionSpawnProvider;
 }): ExecutionSpawn => (request) => {
   try {
-    return nativeOutcome({ spawned: options.spawnProvider(request.executable, [...request.arguments], {
-      encoding: "utf8",
-      ...(request.cwd === undefined ? {} : { cwd: request.cwd }),
-      env: request.environment,
-      windowsHide: true,
-      timeout: request.timeoutMilliseconds,
-      killSignal: "SIGKILL",
-      maxBuffer: request.maximumOutputBytes,
-    }) });
+    return nativeOutcome({
+      spawned: options.spawnProvider({
+        command: request.executable,
+        commandArguments: request.arguments,
+        options: {
+          encoding: "utf8",
+          ...(request.cwd === undefined ? {} : { cwd: request.cwd }),
+          env: request.environment,
+          windowsHide: true,
+          timeout: request.timeoutMilliseconds,
+          killSignal: "SIGKILL",
+          maxBuffer: request.maximumOutputBytes,
+        },
+      }),
+    });
   } catch (thrown) {
     const parsedDiagnostics = hostDiagnosticsSchema.safeParse(thrown);
     const diagnostics = parsedDiagnostics.success ? parsedDiagnostics.data : EMPTY_DIAGNOSTICS;
@@ -187,7 +193,9 @@ export const createExecutionPort = (options: {
 export const createDefaultExecutionPort = (options: {
   readonly policy: ExecutionPolicy;
 }): ExecutionPort => createExecutionPort({
-  spawn: createExecutionSpawn({ spawnProvider: spawnSync }),
+  spawn: createExecutionSpawn({
+    spawnProvider: (request) => spawnSync(request.command, [...request.commandArguments], request.options),
+  }),
   policy: options.policy,
   ambientEnvironment: { ...process.env },
 });
