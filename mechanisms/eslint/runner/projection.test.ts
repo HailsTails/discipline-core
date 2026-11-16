@@ -100,38 +100,38 @@ import piece1 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14
 
 export default [
   {
-    name: "honed/piece/custom-lint",
+    name: "hone-core/piece/custom-lint",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "custom-lint": piece0 },
     rules: { "custom-lint/no-tmp-files": "error" },
   },
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece1 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/file-carve-out/CD-14#class-syntax/src/a.ts",
+    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
     files: ["src/a.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
   {
-    name: "honed/authorised-location/CD-14#class-syntax/src/b.ts",
+    name: "hone-core/authorised-location/CD-14#class-syntax/src/b.ts",
     files: ["src/b.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
   {
-    name: "honed/authorised-location/probe/PD-1#no-tmp-files/route/[id].ts",
+    name: "hone-core/authorised-location/probe/PD-1#no-tmp-files/route/[id].ts",
     files: ["route/\\\\[id\\\\].ts"],
     rules: { "custom-lint/no-tmp-files": "off" },
   },
   {
-    name: "honed/clause-wide-carve-out/CD-14#class-syntax",
+    name: "hone-core/clause-wide-carve-out/CD-14#class-syntax",
     rules: { "hone/no-class-authoring": "off" },
   },
   {
-    name: "honed/clause-wide-carve-out/probe/PD-1#no-tmp-files",
+    name: "hone-core/clause-wide-carve-out/probe/PD-1#no-tmp-files",
     rules: { "custom-lint/no-tmp-files": "off" },
   },
 ];
@@ -141,7 +141,7 @@ const enablingOnlyProjection = `import piece0 from "./node_modules/@hailstails/h
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
@@ -153,7 +153,7 @@ const enablingWithOptionsProjection = `import piece0 from "./node_modules/@hails
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": ["error",{"max":2}] },
@@ -165,13 +165,13 @@ const carveOutOnlyProjection = `import piece0 from "./node_modules/@hailstails/h
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/file-carve-out/CD-14#class-syntax/src/a.ts",
+    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
     files: ["src/a.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
@@ -182,13 +182,13 @@ const authorisedInBOnlyProjection = `import piece0 from "./node_modules/@hailsta
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/authorised-location/CD-14#class-syntax/src/b.ts",
+    name: "hone-core/authorised-location/CD-14#class-syntax/src/b.ts",
     files: ["src/b.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
@@ -277,18 +277,18 @@ describe("projectionText", () => {
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/authorised-location/CD-14#class-syntax/src/B.ts",
+    name: "hone-core/authorised-location/CD-14#class-syntax/src/B.ts",
     files: ["src/B.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
   {
-    name: "honed/file-carve-out/CD-14#class-syntax/src/a.ts",
+    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
     files: ["src/a.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
@@ -425,11 +425,11 @@ describe("pluginImportOf", () => {
       pluginImportOf({
         path: posixPath,
         repoRoot,
-        install: { form: "package", root: "/repo/node_modules/.pnpm/node_modules/@team/honed", name: "@team/honed" },
-        pieceRoot: "/repo/node_modules/.pnpm/node_modules/@team/honed/mechanisms/eslint/CD-1",
+        install: { form: "package", root: "/repo/node_modules/.pnpm/node_modules/@team/hone", name: "@team/hone" },
+        pieceRoot: "/repo/node_modules/.pnpm/node_modules/@team/hone/mechanisms/eslint/CD-1",
         pluginModule: "cd1/cd1.eslint-plugin.js",
       }),
-    ).toEqual({ placement: "importable", specifier: "@team/honed/mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.js" });
+    ).toEqual({ placement: "importable", specifier: "@team/hone/mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.js" });
   });
 
   it("imports a shipped piece of a packaged install on Windows by the package name in forward slashes", () => {
@@ -437,8 +437,20 @@ describe("pluginImportOf", () => {
       pluginImportOf({
         path: windowsPath,
         repoRoot: windowsRepoRoot,
-        install: { form: "package", root: "C:\\repo\\node_modules\\honed", name: "@hailstails/hone" },
-        pieceRoot: "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14",
+        install: { form: "package", root: "C:\\repo\\node_modules\\team-hone", name: "team-hone" },
+        pieceRoot: "C:\\repo\\node_modules\\team-hone\\mechanisms\\eslint\\CD-14",
+        pluginModule: "cd14/cd14.eslint-plugin.js",
+      }),
+    ).toEqual({ placement: "importable", specifier: "team-hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });
+  });
+
+  it("imports a shipped piece of a scoped package installed on Windows under a two-segment root by the package name in forward slashes", () => {
+    expect(
+      pluginImportOf({
+        path: windowsPath,
+        repoRoot: windowsRepoRoot,
+        install: { form: "package", root: "C:\\repo\\node_modules\\@hailstails\\hone", name: "@hailstails/hone" },
+        pieceRoot: "C:\\repo\\node_modules\\@hailstails\\hone\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
       }),
     ).toEqual({ placement: "importable", specifier: "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" });

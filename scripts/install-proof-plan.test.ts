@@ -145,7 +145,7 @@ const PROJECTION = `import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error", "hone/no-extraneous-class": ["error",{"allowConstructorOnly":true,"allowEmpty":true,"allowStaticOnly":false,"allowWithDecorator":true}] },

@@ -19,7 +19,7 @@ const windowsPathPortIn = (request: { readonly directory: string }) =>
     workingDirectory: workingDirectoryAt({ directory: request.directory }),
   });
 
-const WINDOWS_ENTRY_URL = "file:///C:/repo/packages/honed/core/check/tool-command.ts";
+const WINDOWS_ENTRY_URL = "file:///C:/repo/packages/hone/core/check/tool-command.ts";
 
 describe("createDefaultPathPort", () => {
   it("joins and splits paths with the host platform's path flavour", () => {
@@ -134,7 +134,7 @@ describe("createPathPort with the win32 flavour", () => {
   it("converts a drive-rooted file URL to its backslashed drive path", () => {
     expect(windowsPathPortIn({ directory: "C:\\work" }).fromFileUrl({ url: WINDOWS_ENTRY_URL })).toEqual({
       outcome: "ok",
-      value: "C:\\repo\\packages\\honed\\core\\check\\tool-command.ts",
+      value: "C:\\repo\\packages\\hone\\core\\check\\tool-command.ts",
     });
   });
 
@@ -145,11 +145,11 @@ describe("createPathPort with the win32 flavour", () => {
       directoryOf({
         path: directoryOf({
           path: directoryOf({
-            path: "C:\\repo\\packages\\honed\\core\\check\\tool-command.ts",
+            path: "C:\\repo\\packages\\hone\\core\\check\\tool-command.ts",
           }),
         }),
       }),
-    ).toBe("C:\\repo\\packages\\honed");
+    ).toBe("C:\\repo\\packages\\hone");
   });
 
   it("resolves a relative path against a drive-rooted working directory", () => {

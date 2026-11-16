@@ -129,7 +129,7 @@ const ENABLING_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
@@ -141,7 +141,7 @@ const PACKAGED_ENABLING_PROJECTION = `import piece0 from "@hailstails/hone/mecha
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
@@ -149,19 +149,19 @@ export default [
 ];
 `;
 
-const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "honed/piece/hone",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "hone": piece0 },\r\n    rules: { "hone/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
+const ENABLING_PROJECTION_CRLF = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";\r\n\r\nexport default [\r\n  {\r\n    name: "hone-core/piece/hone",\r\n    files: ["**/*.{ts,tsx,mts,cts}"],\r\n    plugins: { "hone": piece0 },\r\n    rules: { "hone/no-class-authoring": "error" },\r\n  },\r\n];\r\n`;
 
 const FACTORY_LOCATION_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/authorised-location/CD-14#class-syntax/src/factory.ts",
+    name: "hone-core/authorised-location/CD-14#class-syntax/src/factory.ts",
     files: ["src/factory.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
@@ -172,13 +172,13 @@ const GONE_LOCATION_PROJECTION = `import piece0 from "./node_modules/@hailstails
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/authorised-location/CD-14#class-syntax/src/gone.ts",
+    name: "hone-core/authorised-location/CD-14#class-syntax/src/gone.ts",
     files: ["src/gone.ts"],
     rules: { "hone/no-class-authoring": "off" },
   },
@@ -189,13 +189,13 @@ const CLAUSE_WIDE_PROJECTION = `import piece0 from "./node_modules/@hailstails/h
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "honed/clause-wide-carve-out/CD-14#class-syntax",
+    name: "hone-core/clause-wide-carve-out/CD-14#class-syntax",
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
@@ -374,7 +374,7 @@ const SHARED_MODULE_PROJECTION = `import piece0 from "./node_modules/@hailstails
 
 export default [
   {
-    name: "honed/piece/hone",
+    name: "hone-core/piece/hone",
     files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error", "hone/no-for-of": "error" },
@@ -400,7 +400,7 @@ const inlineMessageInA = (request: {
     outcome: "ok",
     value: linted({
       messagesInA: [
-        { ruleId: "honed/inline-config", messageId: request.messageId, line: 2, column: 1, message: request.text },
+        { ruleId: "hone-core/inline-config", messageId: request.messageId, line: 2, column: 1, message: request.text },
       ],
     }),
   });
@@ -866,7 +866,7 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "honed/inline-config",
+                  ruleId: "hone-core/inline-config",
                   messageId: "inline-disable",
                   line: 4,
                   column: 1,
@@ -904,7 +904,7 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "honed/inline-config",
+                  ruleId: "hone-core/inline-config",
                   messageId: "inline-rule-config",
                   line: 1,
                   column: 1,
@@ -942,7 +942,7 @@ describe("the governance run, step 5: messages", () => {
             value: linted({
               messagesInA: [
                 {
-                  ruleId: "honed/inline-config",
+                  ruleId: "hone-core/inline-config",
                   messageId: "inline-config-unreadable",
                   line: 1,
                   column: 1,
@@ -1638,10 +1638,10 @@ describe("the governance run with nothing to lint", () => {
 });
 
 const WINDOWS_REPO_ROOT = absolutePathSchema.parse("C:\\repo");
-const WINDOWS_INSTALL_ROOT = absolutePathSchema.parse("C:\\repo\\node_modules\\honed");
-const WINDOWS_PIECE_ROOT = "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14";
+const WINDOWS_INSTALL_ROOT = absolutePathSchema.parse("C:\\repo\\node_modules\\@hailstails\\hone");
+const WINDOWS_PIECE_ROOT = "C:\\repo\\node_modules\\@hailstails\\hone\\mechanisms\\eslint\\CD-14";
 const WINDOWS_PLUGIN_MODULE_PATH =
-  "C:\\repo\\node_modules\\honed\\mechanisms\\eslint\\CD-14\\cd14\\cd14.eslint-plugin.ts";
+  "C:\\repo\\node_modules\\@hailstails\\hone\\mechanisms\\eslint\\CD-14\\cd14\\cd14.eslint-plugin.ts";
 const OTHER_DRIVE_PIECE_ROOT = "D:\\dc\\mechanisms\\eslint\\CD-14";
 
 const WINDOWS_PATH = createPathPort({ flavour: "windows", workingDirectory: () => "C:\\repo" });

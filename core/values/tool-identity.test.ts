@@ -10,8 +10,8 @@ describe("TOOL_IDENTITY", () => {
     });
   });
 
-  it("keeps the ESLint namespace honed reserved in its own field, so renaming the package to @hailstails/hone left ESLint rule ids and projection block names alone", () => {
-    expect(TOOL_IDENTITY.reservedEslintNamespace).toBe("honed");
+  it("reserves the ESLint namespace hone-core for its own projection blocks and governance rule, apart from every discipline's hone and hone-cd<N> namespaces", () => {
+    expect(TOOL_IDENTITY.reservedEslintNamespace).toBe("hone-core");
   });
 
   it("names the GitHub repository the package is published from, and the npm name that belongs to an unrelated package", () => {
@@ -23,7 +23,7 @@ describe("TOOL_IDENTITY", () => {
 
   it.each([
     ["@hailstails/hone", "hailstails-hone"],
-    ["honed", "honed"],
+    ["team-hone", "team-hone"],
   ] as const)("files the package %s under the stem %s, the way npm pack names its tarball", (packageName, stem) => {
     expect(packageFileStemOf({ packageName })).toBe(stem);
   });

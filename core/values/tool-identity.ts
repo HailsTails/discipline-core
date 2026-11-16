@@ -12,7 +12,7 @@ export const TOOL_IDENTITY: ToolIdentity = {
   name: "Hone",
   packageName: "@hailstails/hone",
   command: "hone",
-  reservedEslintNamespace: "honed",
+  reservedEslintNamespace: "hone-core",
   description: "Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.",
   repository: "https://github.com/HailsTails/hone",
   unrelatedNpmPackage: "hone",
