@@ -20,7 +20,7 @@ import { parseInlineConfigComment } from "./inline-config-parser.ts";
 
 export type { AST, Rule, SourceCode } from "eslint";
 
-export const reservedNamespace = TOOL_IDENTITY.packageName;
+export const reservedNamespace = TOOL_IDENTITY.reservedEslintNamespace;
 
 const INLINE_CONFIG_RULE = "inline-config";
 

@@ -194,13 +194,13 @@ describe("the proof cases", () => {
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {
-    expect(packagedScriptsOf({ identity: { packageName: "core-package", command: "core", description: "Core." } })).toEqual({
+    expect(packagedScriptsOf({ identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core." } })).toEqual({
       check: "core:check",
       project: "core:project",
     });
   });
   it("give a packaged consumer scripts calling the command's two subcommands on the repository root", () => {
-    expect(packagedConsumerManifest({ identity: { packageName: "core-package", command: "core", description: "Core." } })).toBe(
+    expect(packagedConsumerManifest({ identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core." } })).toBe(
       `${JSON.stringify(
         { private: true, type: "commonjs", scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." } },
         null,
