@@ -28,22 +28,23 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { ForfeitureAssessment } from "../values/assessment.ts";
+import type { Assessment, ForfeitureAssessment, WaivedClausesAssessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
-import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import type { CheckReport, NotRunClause, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
+import { bindingsToLoad, bindingsToRun, notRunClauses, waivedClausesAssessmentOf } from "./waived-clauses.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
   readonly baseRevision: string | undefined;
-  readonly forfeiture: ForfeitureAssessment;
+  readonly assessment: Assessment;
   readonly fileText: FileTextPort;
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
@@ -54,14 +55,16 @@ export type ExceptionBaselineReader = (request: {
   readonly entries: readonly StructuralExceptionEntry[];
 }) => ExceptionBaseline;
 
-export type LoadRequest = Omit<CheckRequest, "baseRevision" | "forfeiture" | "git"> & {
+export type LoadRequest = Omit<CheckRequest, "baseRevision" | "assessment" | "git"> & {
   readonly exceptionBaselineOf: ExceptionBaselineReader;
+  readonly waivedClauses: WaivedClausesAssessment;
 };
 
 export type LoadedMechanism = {
   readonly mechanism: MechanismId;
   readonly runner: LoadedRunner;
   readonly clauses: readonly RunnerClause[];
+  readonly projectedClauses: readonly RunnerClause[];
 };
 
 export type LoadedInputs = {
@@ -71,6 +74,7 @@ export type LoadedInputs = {
   readonly mechanisms: readonly LoadedMechanism[];
   readonly excluded: readonly RepoPath[];
   readonly exceptionBaseline: ExceptionBaseline;
+  readonly notRun: readonly NotRunClause[];
 };
 
 const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
@@ -139,28 +143,40 @@ const loadedMechanism = (request: {
   readonly bindings: readonly ClauseBinding[];
   readonly mechanism: MechanismId;
   readonly runner: Result<LoadedRunner, LoadFailure>;
+  readonly waivedClauses: WaivedClausesAssessment;
+  readonly records: readonly ExceptionRecord[];
 }): Result<LoadedMechanism, LoadFailure> => {
   if (request.runner.outcome === "failed") {
     return request.runner;
   }
   return {
     outcome: "ok",
-    value: { mechanism: request.mechanism, runner: request.runner.value, clauses: clausesOf(request) },
+    value: {
+      mechanism: request.mechanism,
+      runner: request.runner.value,
+      clauses: clausesOf({ bindings: bindingsToRun(request), mechanism: request.mechanism }),
+      projectedClauses: clausesOf(request),
+    },
   };
 };
 
 const loadMechanisms = async (
-  request: LoadRequest & { readonly bindings: readonly ClauseBinding[] },
-): Promise<Result<readonly LoadedMechanism[], LoadFailure>> =>
-  allOk({
+  request: LoadRequest & { readonly bindings: readonly ClauseBinding[]; readonly records: readonly ExceptionRecord[] },
+): Promise<Result<readonly LoadedMechanism[], LoadFailure>> => {
+  const bindings = bindingsToLoad(request);
+  return allOk({
     results: await Promise.all(
-      distinctMechanisms(request).map((mechanism) =>
+      distinctMechanisms({ bindings }).map((mechanism) =>
         loadRunner({ ...request, mechanism }).then((runner) =>
-          loadedMechanism({ bindings: request.bindings, mechanism, runner }),
+          loadedMechanism({ ...request, bindings, mechanism, runner }),
         ),
       ),
     ),
   });
+};
+
+const ranBindings = (request: { readonly mechanisms: readonly LoadedMechanism[] }): readonly ClauseBinding[] =>
+  request.mechanisms.flatMap((loaded) => loaded.clauses.map((clause) => ({ mechanism: loaded.mechanism, clause })));
 
 export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInputs, LoadFailure>> => {
   const reading = readSelection(request);
@@ -171,10 +187,6 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
   if (entries.outcome === "failed") {
     return entries;
   }
-  const mechanisms = await loadMechanisms({ ...request, bindings: reading.value.bindings });
-  if (mechanisms.outcome === "failed") {
-    return mechanisms;
-  }
   const exceptionBaseline = request.exceptionBaselineOf({ entries: entries.value });
   const parsed = parseExceptionEntries({
     entries: entries.value,
@@ -182,6 +194,10 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
     baseline: exceptionBaseline,
     fileExceptionWhyChains: reading.value.fileExceptionWhyChains,
   });
+  const mechanisms = await loadMechanisms({ ...request, bindings: reading.value.bindings, records: parsed.records });
+  if (mechanisms.outcome === "failed") {
+    return mechanisms;
+  }
   return {
     outcome: "ok",
     value: {
@@ -191,6 +207,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
       mechanisms: mechanisms.value,
       excluded: reading.value.excluded,
       exceptionBaseline,
+      notRun: notRunClauses({ bindings: reading.value.bindings, ran: ranBindings({ mechanisms: mechanisms.value }) }),
     },
   };
 };
@@ -216,19 +233,31 @@ const touchedSetFor = (request: {
   readonly check: CheckRequest;
   readonly records: readonly ExceptionRecord[];
 }): TouchedSet => {
-  if (request.check.forfeiture === "elsewhere") {
+  if (request.check.assessment.forfeiture === "elsewhere") {
     return { measured: "elsewhere" };
   }
   return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
 };
 
-const partialAssessmentsOf = (request: {
+const forfeitureAssessmentOf = (request: {
   readonly forfeiture: ForfeitureAssessment;
   readonly records: readonly ExceptionRecord[];
 }): readonly PartialAssessment[] =>
   request.forfeiture === "elsewhere"
     ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request) }]
     : [];
+
+const partialAssessmentsOf = (request: {
+  readonly assessment: Assessment;
+  readonly inputs: LoadedInputs;
+}): readonly PartialAssessment[] => [
+  ...forfeitureAssessmentOf({ forfeiture: request.assessment.forfeiture, records: request.inputs.records }),
+  ...waivedClausesAssessmentOf({
+    waivedClauses: request.assessment.waivedClauses,
+    records: request.inputs.records,
+    notRun: request.inputs.notRun,
+  }),
+];
 
 const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
   request.records.some((record) => recordImportOf({ record }).imported === "yes")
@@ -379,6 +408,7 @@ const mechanismRunOf = (request: {
     runner: request.loaded.runner,
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),
+    projectedClauses: request.loaded.projectedClauses,
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 
@@ -399,7 +429,7 @@ const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readon
   request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
 
 const checkReportOf = (request: {
-  readonly forfeiture: ForfeitureAssessment;
+  readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
   readonly touched: TouchedSet;
@@ -408,6 +438,7 @@ const checkReportOf = (request: {
     findings: findingsOf(request),
     records: request.inputs.records,
     touched: request.touched,
+    notRun: request.inputs.notRun.map((entry) => entry.clause),
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
@@ -423,7 +454,7 @@ const checkReportOf = (request: {
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
     projectionProblems: projections.flatMap((projection) => projection.problems),
-    assessment: partialAssessmentsOf({ forfeiture: request.forfeiture, records: request.inputs.records }),
+    assessment: partialAssessmentsOf(request),
   };
 };
 
@@ -431,6 +462,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   const inputs = await loadInputs({
     ...request,
     exceptionBaselineOf: ({ entries }) => exceptionBaselineOf({ check: request, entries }),
+    waivedClauses: request.assessment.waivedClauses,
   });
   if (inputs.outcome === "failed") {
     return inputs;
@@ -446,7 +478,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   return {
     outcome: "ok",
     value: checkReportOf({
-      forfeiture: request.forfeiture,
+      assessment: request.assessment,
       inputs: inputs.value,
       runs: runs.value,
       touched: touchedSetFor({ check: request, records: inputs.value.records }),

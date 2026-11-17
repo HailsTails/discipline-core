@@ -163,8 +163,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/factory.ts",
-    files: ["src/factory.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/factory.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
@@ -180,8 +182,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/gone.ts",
-    files: ["src/gone.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/gone.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
@@ -340,6 +344,7 @@ const runRequest = (request: {
   files: FILES,
   trackedPaths: FILES,
   clauses: request.clauses,
+  projectedClauses: request.clauses,
   records: request.records,
 });
 
@@ -756,6 +761,7 @@ describe("the governance run, step 4: the governance instance", () => {
             }),
           },
           rules: [{ ruleId: RULE_ID, options: [] }],
+          watchedRuleIds: [RULE_ID],
         },
       ],
     ]);
@@ -1741,6 +1747,7 @@ const windowsRun = (request: { readonly pieceRoot: string }) => ({
   files: FILES,
   trackedPaths: [],
   clauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
+  projectedClauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
   records: [],
 });
 
@@ -1885,5 +1892,123 @@ describe("plugin namespace ownership", () => {
 
   it("still accepts Hone's own namespaces for the shared rule set", async () => {
     await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({ outcome: "ok" });
+  });
+});
+
+const LOOPS_WAIVER: ExceptionRecord = { ...CLAUSE_WIDE, clause: FOR_OF };
+
+const LOOPS_WAIVED_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+import piece1 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
+
+export default [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/piece/loops",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "loops": piece1 },
+    rules: { "loops/no-for-of": "error" },
+  },
+  {
+    name: "hone-core/clause-wide-carve-out/CD-15#for-of",
+    rules: { "loops/no-for-of": "off" },
+  },
+];
+`;
+
+const LOOPS_WAIVED_QUERY = queryOver({
+  ignored: CHECKED,
+  states: {
+    [`src/a.ts ${RULE_ID}`]: ERROR,
+    [`src/factory.ts ${RULE_ID}`]: ERROR,
+    [`src/a.ts ${LOOPS_RULE_ID}`]: OFF,
+    [`src/factory.ts ${LOOPS_RULE_ID}`]: OFF,
+  },
+});
+
+const LOOPS_NOT_RUN = {
+  ...runRequest({ clauses: [CLASS_CLAUSE], records: [LOOPS_WAIVER] }),
+  projectedClauses: [CLASS_CLAUSE, LOOPS_CLAUSE],
+};
+
+const loopsWaivedRunner = (request: { readonly eslint: EslintPort }) =>
+  runnerOver({ fileText: projectionHolding({ text: LOOPS_WAIVED_PROJECTION }), eslint: request.eslint });
+
+const LOOPS_OVERRIDES = [
+  { kind: "config-override", clause: FOR_OF_OBJECT, file: "src/a.ts" },
+  { kind: "config-override", clause: FOR_OF_OBJECT, file: "src/factory.ts" },
+];
+
+const LOOP_MESSAGE: LintedMessage = { ruleId: LOOPS_RULE_ID, line: 3, column: 3, message: "for-of loop" };
+
+describe("the governance run, a projected clause it does not run", () => {
+  it("registers and watches every projected rule but switches on only the rules it runs", async () => {
+    const eslint = eslintOver({ query: LOOPS_WAIVED_QUERY });
+    await loopsWaivedRunner({ eslint }).run(LOOPS_NOT_RUN);
+    expect(vi.mocked(eslint.createGovernanceInstance).mock.calls).toEqual([
+      [
+        {
+          repoRoot: "/repo",
+          plugins: { "hone": expect.objectContaining({ rules: expect.anything() }), "loops": expect.objectContaining({ rules: expect.anything() }) },
+          rules: [{ ruleId: RULE_ID, options: [] }],
+          watchedRuleIds: [RULE_ID, LOOPS_RULE_ID],
+        },
+      ],
+    ]);
+  });
+
+  it("is current when the projection holds every projected clause and the waiver's off block", async () => {
+    await expect(loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY }) }).run(LOOPS_NOT_RUN)).resolves.toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: LOOPS_OVERRIDES, projection: "current" },
+    });
+  });
+
+  it("is out-of-date when the projection lacks the clause it does not run", async () => {
+    await expect(
+      runnerOver({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY }) }).run(LOOPS_NOT_RUN),
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "out-of-date" } });
+  });
+
+  it("is not-included when the configuration turns the clause it does not run back on", async () => {
+    await expect(loopsWaivedRunner({ eslint: eslintOver({}) }).run(LOOPS_NOT_RUN)).resolves.toEqual(NOT_INCLUDED);
+  });
+
+});
+
+describe("the governance run, messages of a projected clause it does not run", () => {
+  it("reports no hit for a message of the clause it does not run", async () => {
+    const lintFiles = lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE, LOOP_MESSAGE] }) });
+    await expect(
+      loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY, lintFiles }) }).run(LOOPS_NOT_RUN),
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: LOOPS_OVERRIDES, projection: "current" } });
+  });
+
+  it("attributes an inline rule config that switches the clause it does not run back on, reporting none of its hits", async () => {
+    const inline: LintedMessage = {
+      ruleId: "hone-core/inline-config",
+      messageId: "inline-rule-config",
+      line: 2,
+      column: 1,
+      message: '/* eslint loops/no-for-of: "error" */',
+    };
+    const lintFiles = lintResolving({ outcome: "ok", value: linted({ messagesInA: [inline, LOOP_MESSAGE] }) });
+    await expect(
+      loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY, lintFiles }) }).run(LOOPS_NOT_RUN),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        hits: [],
+        nativeExceptions: [
+          ...LOOPS_OVERRIDES,
+          { kind: "inline-rule-config", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: '/* eslint loops/no-for-of: "error" */' },
+        ],
+        projection: "current",
+      },
+    });
   });
 });

@@ -12,7 +12,7 @@ import {
   governanceConfig,
   type LintedFile,
 } from "./eslint-instance.ts";
-import { eslintPluginModuleSchema } from "./eslint-plugin-schema.ts";
+import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 
 type ReportingContext = {
   readonly report: (descriptor: { readonly node: unknown; readonly messageId: string }) => void;
@@ -122,6 +122,7 @@ const lintsGovernanceText = (request: { readonly code: string; readonly line: Es
       overrideConfig: governanceConfig({
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class"],
         parser: TOOLCHAINS[request.line].typescriptParser,
       }),
     },
@@ -130,7 +131,12 @@ const lintsGovernanceText = (request: { readonly code: string; readonly line: Es
 describe("governanceConfig", () => {
   it("builds one block for TypeScript files", () => {
     expect(
-      governanceConfig({ plugins: { cd: classAndFunctionPlugin }, rules: [{ ruleId: "cd/no-class", options: [] }], parser: PARSER }),
+      governanceConfig({
+        plugins: { cd: classAndFunctionPlugin },
+        rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class"],
+        parser: PARSER,
+      }),
     ).toMatchObject({ files: ["**/*.{ts,tsx,mts,cts}"] });
   });
 
@@ -139,6 +145,7 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin, pd: tmpFilePlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }, { ruleId: "pd/no-tmp", options: [] }],
+        watchedRuleIds: ["cd/no-class", "pd/no-tmp"],
         parser: PARSER,
       }).rules,
     ).toEqual({
@@ -153,6 +160,7 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [{ max: 2 }] }],
+        watchedRuleIds: ["cd/no-class"],
         parser: PARSER,
       }).rules,
     ).toEqual({
@@ -166,6 +174,7 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin, pd: tmpFilePlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }, { ruleId: "pd/no-tmp", options: [] }],
+        watchedRuleIds: ["cd/no-class", "pd/no-tmp"],
         parser: PARSER,
       }).plugins,
     ).toEqual({
@@ -319,6 +328,54 @@ describe.each(ESLINT_LINES)("the hone-core/inline-config rule over real %s", (es
   });
 });
 
+const unrunRuleSpy = () => {
+  const create = vi.fn<(context: unknown) => Readonly<Record<string, never>>>().mockReturnValue({});
+  const plugin = eslintPluginModuleSchema.parse({
+    default: { rules: { ...classAndFunctionPlugin.rules, "unrun": { meta: { type: "problem" }, create } } },
+  }).default;
+  return { create, plugin };
+};
+
+const lintsBesideUnrunRule = (request: {
+  readonly code: string;
+  readonly line: EslintLine;
+  readonly plugin: LoadedEslintPlugin;
+}) =>
+  TOOLCHAINS[request.line].createEslint({
+    options: {
+      cwd: inlineConfigCwd,
+      overrideConfigFile: true,
+      ignore: false,
+      allowInlineConfig: false,
+      overrideConfig: governanceConfig({
+        plugins: { cd: request.plugin },
+        rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class", "cd/unrun"],
+        parser: TOOLCHAINS[request.line].typescriptParser,
+      }),
+    },
+  }).lintText({ code: request.code, filePath: "src/a.ts" });
+
+describe.each(ESLINT_LINES)("a registered rule the governance configuration leaves off, over real %s", (eslintLine) => {
+  it("is never created while the rule switched on still reports", async () => {
+    const spy = unrunRuleSpy();
+    const linted = await lintsBesideUnrunRule({ code: "class A {}\n", line: eslintLine, plugin: spy.plugin });
+    expect({ linted, creates: spy.create.mock.calls.length }).toMatchObject({
+      linted: [{ messages: [{ ruleId: "cd/no-class", line: 1 }] }],
+      creates: 0,
+    });
+  });
+
+  it("is never created when a rule-config comment switches it on, the comment reported as inline-rule-config", async () => {
+    const spy = unrunRuleSpy();
+    const linted = await lintsBesideUnrunRule({ code: '/* eslint cd/unrun: "error" */\n', line: eslintLine, plugin: spy.plugin });
+    expect({ linted, creates: spy.create.mock.calls.length }).toMatchObject({
+      linted: [{ messages: [{ ruleId: "hone-core/inline-config", messageId: "inline-rule-config", line: 1 }] }],
+      creates: 0,
+    });
+  });
+});
+
 describe("createQueryInstance", () => {
   it("builds ESLint on the team's own configuration, with the repository root as its only option", async () => {
     const createEslint = vi.fn<CreateEslint>().mockReturnValue(idleSurface);
@@ -468,6 +525,7 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA] });
 
@@ -495,6 +553,7 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA, fileB] });
 
@@ -517,6 +576,7 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
+        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA] });
 

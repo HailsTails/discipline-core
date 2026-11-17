@@ -8,8 +8,10 @@ export default [
     rules: { "hone-cd1/implicit-any-let": "error", "hone-cd1/no-explicit-any": "error" },
   },
   {
-    name: "hone-core/file-carve-out/CD-1#explicit-any/src/legacy.ts",
-    files: ["src/legacy.ts"],
+    name: "hone-core/file-records/CD-1#explicit-any",
+    files: [
+      "src/legacy.ts",
+    ],
     rules: { "hone-cd1/no-explicit-any": "off" },
   },
 ];

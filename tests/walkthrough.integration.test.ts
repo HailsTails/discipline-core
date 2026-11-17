@@ -8,6 +8,7 @@ import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loa
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import expectedReports from "./test-fixtures/walkthrough/expected-reports.json" with { type: "json" };
 
@@ -56,7 +57,7 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText: createDefaultFileTextPort({}),
     modules: createDefaultModuleLoaderPort({}),
     path,

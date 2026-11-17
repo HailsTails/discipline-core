@@ -13,7 +13,7 @@ import {
   runnerFailed,
 } from "./run-check.ts";
 
-export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "forfeiture">;
+export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment">;
 
 const projectionRequestOf = (request: {
   readonly project: ProjectRequest;
@@ -22,7 +22,7 @@ const projectionRequestOf = (request: {
 }): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
-  clauses: request.loaded.clauses,
+  clauses: request.loaded.projectedClauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
 
@@ -38,7 +38,11 @@ const projectionWritesOf = (request: {
 export const runProject = async (
   request: ProjectRequest,
 ): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
-  const inputs = await loadInputs({ ...request, exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE });
+  const inputs = await loadInputs({
+    ...request,
+    exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE,
+    waivedClauses: "run",
+  });
   if (inputs.outcome === "failed") {
     return inputs;
   }

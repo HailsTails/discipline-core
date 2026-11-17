@@ -27,7 +27,7 @@ Adding a discipline or a mechanism, and the full list of ESLint native channels,
 The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
 
 ```text
-hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>]
+hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>] [--waived-clauses <run|not-run>]
 hone project --repo <dir>
 ```
 
@@ -68,11 +68,17 @@ verdict: pass (partial assessment)
 
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
 
+`--waived-clauses not-run` makes a run skip every selected clause a valid `clause-wide-carve-out` covers, overriding `assessment.waivedClauses` in `disciplines.json`; `--waived-clauses run`, the default, runs them as before. A mechanism left with nothing to run is not loaded at all, so a repository that waives every `eslint` clause needs no ESLint installed. A mechanism that still has another clause to run skips just the waived ones: ESLint never switches a waived rule on, while its projection is still judged against every selected clause, the waived clause and its `"off"` block included. When every ESLint clause is waived, ESLint is not loaded, so the projection's freshness is not checked in that run. Only the waived clauses' execution and the staleness of the records on them are skipped: `stale` is not judged for those records, while invalid records, forfeiture, doubly-held records and `uncovered` are reported as before, and `hone project` still writes the waived rules and their `"off"` blocks. The `assessment` section names each clause not run:
+
+```text
+waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming-convention eslint
+```
+
 `hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
 ## Adopting the ESLint mechanism
 
-With any clause selected for `eslint`, run `hone project`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per exception record turning the rule `"off"` for that record's file, or everywhere for a clause-wide carve-out. Commit it, and spread its default export last in the repository's flat config:
+With any clause selected for `eslint`, run `hone project`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per set of clauses that files are excepted from, listing those files and turning the rules `"off"` for them, and one block per clause-wide carve-out turning its rules `"off"` everywhere. Commit it, and spread its default export last in the repository's flat config:
 
 ```js
 import disciplines from "./disciplines.eslint.mjs";
@@ -114,7 +120,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
 - `clauseSettings`, optional, maps a selected clause address to an object of that clause's settings, for a clause whose rules page lists settings. Each key must be one the clause's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `disciplines.json` malformed, naming the clause, the key and what is accepted: settings for a clause the file does not select or names twice, for a clause that takes none, under an undeclared key, or of the wrong kind or choice.
-- `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
+- `assessment`, optional, says which run assesses each concern. `forfeiture` is `"this-run"` (the default) or `"elsewhere"`, and `--forfeiture` overrides it for one run. `waivedClauses` is `"run"` (the default) or `"not-run"`, and `--waived-clauses` overrides it for one run. See [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
 - `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 
 ## discipline-exceptions.json
