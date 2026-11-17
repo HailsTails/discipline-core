@@ -38,6 +38,7 @@ import {
 } from "./eslint-instance.ts";
 import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
+import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 import { teamConfigLookup } from "./config-lookup.ts";
 import { type PackageJsonScan, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
@@ -154,6 +155,13 @@ const configuredClause = (request: {
   const settings = eslintPieceSettingsSchema.safeParse(request.clause.settings);
   if (!settings.success) {
     return pieceInvalid({ pieceRoot: request.clause.pieceRoot, detail: z.prettifyError(settings.error) });
+  }
+  const refusal = namespaceOwnershipRefusal({
+    address: request.clause.address,
+    pluginNamespace: settings.data.pluginNamespace,
+  });
+  if (refusal !== undefined) {
+    return pieceInvalid({ pieceRoot: request.clause.pieceRoot, detail: refusal });
   }
   if (settings.data.pluginNamespace === reservedNamespace) {
     return pieceInvalid({
