@@ -220,20 +220,20 @@ describe("createCommandRunPort run", () => {
     expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: "/opt/node/bin/node", launch: "direct" }));
   });
 
-  it("runs npm directly off Windows", () => {
+  it.each(["npm", "pnpm"] as const)("runs %s directly off Windows", (command) => {
     const spawn = vi.fn<CommandSpawn>().mockReturnValue(EXITED_CLEAN);
 
-    commandsOver({ spawn, platform: "linux" }).run({ command: "npm", arguments: ["install"], directory: "/root" });
+    commandsOver({ spawn, platform: "linux" }).run({ command, arguments: ["install"], directory: "/root" });
 
-    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: "npm", launch: "direct" }));
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: command, launch: "direct" }));
   });
 
-  it("runs npm through a shell on Windows", () => {
+  it.each(["npm", "pnpm"] as const)("runs %s through a shell on Windows", (command) => {
     const spawn = vi.fn<CommandSpawn>().mockReturnValue(EXITED_CLEAN);
 
-    commandsOver({ spawn, platform: "win32" }).run({ command: "npm", arguments: ["install"], directory: "C:\\root" });
+    commandsOver({ spawn, platform: "win32" }).run({ command, arguments: ["install"], directory: "C:\\root" });
 
-    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: "npm", launch: "shell" }));
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: command, launch: "shell" }));
   });
 
   it("runs git directly on Windows", () => {

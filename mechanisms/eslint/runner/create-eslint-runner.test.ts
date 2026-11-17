@@ -336,6 +336,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
   return {
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(parts.query),
     ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
+    ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>(),
     createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>().mockReturnValue({
       lintFiles: parts.lintFiles,
     }),
@@ -457,8 +458,8 @@ const CLASS_VERDICTS: Result<readonly CaseVerdict[], RunnerFailure> = {
 };
 
 describe("createEslintRunner", () => {
-  it("declares config-override as the only kind its projection writes", () => {
-    expect(runnerOver({}).projectedKinds).toEqual(["config-override"]);
+  it("declares config-override and inline-disable as the kinds its projection carries, since a file record turns the rule off for that file", () => {
+    expect(runnerOver({}).projectedKinds).toEqual(["config-override", "inline-disable"]);
   });
 });
 
@@ -1174,6 +1175,7 @@ describe("the governance run, step 5: messages", () => {
             file: "src/a.ts",
             line: 4,
             text: "// eslint-disable-next-line hone/no-class-authoring",
+            reach: "one-clause",
           },
         ],
         projection: "current",
@@ -1619,6 +1621,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
             location: "package.json",
             script: "lint",
             option: "--rule hone/no-class-authoring: off",
+            cause: { kind: "weakens-run" },
           },
         ],
         projection: "current",
@@ -1730,6 +1733,95 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
   });
 });
 
+const ESLINT_IGNORING_NOTHING: EslintPort = {
+  ...eslintOver({}),
+  ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>().mockResolvedValue({ outcome: "ok", value: ["checked", "checked"] }),
+};
+
+describe("native exceptions: lint-script options whose effect the script's own folder does not settle", () => {
+  it.each([
+    { location: "package.json", script: "cd src && eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
+    { location: "package.json", script: 'eslint --ignore-pattern "$LEGACY" .', option: "--ignore-pattern $LEGACY" },
+    { location: "tools/package.json", script: "cd .. && eslint --ignore-pattern 'src/legacy/**' .", option: "--ignore-pattern src/legacy/**" },
+    { location: "tools/package.json", script: "eslint -c weak.config.mjs ..", option: "-c weak.config.mjs" },
+    { location: "package.json", script: "(cd src && eslint --ignore-pattern 'legacy/**' .)", option: "--ignore-pattern legacy/**" },
+    { location: "package.json", script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
+  ])("reports $option in $location's script $script as weakening the run", async ({ location, script, option }) => {
+    await expect(
+      runnerOver({
+        eslint: ESLINT_IGNORING_NOTHING,
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { [`/repo/${location}`]: presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+        }),
+      }).run(trackedRun({ tracked: location })),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { nativeExceptions: [{ kind: "command-line-option", clause: CLASS_SYNTAX_OBJECT, location, script: "lint", option }] },
+    });
+  });
+});
+
+describe("native exceptions: why a lint-script option is reported", () => {
+  it.each([
+    {
+      script: "tsc && TIMING=1 eslint -c eslint.config.mjs .",
+      option: "-c eslint.config.mjs",
+      cause: { kind: "after-another-command", command: "eslint", invocation: "TIMING=1 eslint -c eslint.config.mjs ." },
+    },
+    {
+      script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .",
+      option: "--ignore-pattern legacy/**",
+      cause: { kind: "wrapped", command: "eslint", wrapper: "env" },
+    },
+    {
+      script: "tsc && eslint --rule 'hone/no-class-authoring: off' .",
+      option: "--rule hone/no-class-authoring: off",
+      cause: { kind: "weakens-run" },
+    },
+    {
+      script: 'eslint --ignore-pattern "$LEGACY" .',
+      option: "--ignore-pattern $LEGACY",
+      cause: { kind: "weakens-run" },
+    },
+  ])("reports $option in $script with the cause the report names", async ({ script, option, cause }) => {
+    await expect(
+      runnerOver({
+        eslint: ESLINT_IGNORING_NOTHING,
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+        }),
+      }).run(trackedRun({ tracked: "package.json" })),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { nativeExceptions: [{ kind: "command-line-option", location: "package.json", script: "lint", option, cause }] },
+    });
+  });
+});
+
+describe("native exceptions: lint-script options a plain invocation settles", () => {
+  it.each([
+    "eslint --ignore-pattern dist --cache .",
+    "pnpm exec eslint --ignore-pattern dist --cache .",
+    "npx eslint --ignore-pattern dist --cache .",
+    "cross-env NODE_OPTIONS=--max-old-space-size=4096 eslint --ignore-pattern dist --cache .",
+  ])(
+    "reports nothing for %s when the pattern ignores no checked file",
+    async (script) => {
+      await expect(
+        runnerOver({
+          eslint: ESLINT_IGNORING_NOTHING,
+          fileText: repoHolding({
+            projection: ENABLING_PROJECTION,
+            files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+          }),
+        }).run(trackedRun({ tracked: "package.json" })),
+      ).resolves.toMatchObject({ outcome: "ok", value: { nativeExceptions: [] } });
+    },
+  );
+});
+
 describe("native exceptions: inline directives with several selected clauses", () => {
   it("reports a disable naming one selected rule for that rule's clause only", async () => {
     await expect(
@@ -1754,6 +1846,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "// eslint-disable-next-line hone/no-class-authoring",
+            reach: "one-clause",
           },
         ],
         projection: "out-of-date",
@@ -1785,6 +1878,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
+            reach: "one-clause",
           },
           {
             kind: "inline-disable",
@@ -1792,6 +1886,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
+            reach: "one-clause",
           },
         ],
         projection: "out-of-date",
@@ -1814,8 +1909,8 @@ describe("native exceptions: inline directives with several selected clauses", (
       value: {
         hits: [],
         nativeExceptions: [
-          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
-          { kind: "inline-disable", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
+          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
+          { kind: "inline-disable", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
         ],
         projection: "out-of-date",
         slices: [],
@@ -1885,7 +1980,7 @@ describe("the governance run, settled message handling", () => {
         nativeExceptions: [
           { kind: "ignore", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" },
           { kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" },
-          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
+          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
           { kind: "suppression-entry", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", location: "eslint-suppressions.json" },
           {
             kind: "command-line-option",
@@ -1893,6 +1988,7 @@ describe("the governance run, settled message handling", () => {
             location: "package.json",
             script: "lint",
             option: "--rule hone/no-class-authoring: off",
+            cause: { kind: "weakens-run" },
           },
         ],
         projection: "current",
@@ -1936,6 +2032,7 @@ describe("the governance run with nothing to lint", () => {
               location: "package.json",
               script: "lint",
               option: "--rule hone/no-class-authoring: off",
+              cause: { kind: "weakens-run" },
             },
           ],
           projection: "current",

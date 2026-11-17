@@ -219,7 +219,7 @@ describe.each(ESLINT_LINES)("eslint-suppressions.json files and package.json lin
     });
   });
 
-  it("reports each weakening command-line option in a lint script and not a rule id that merely extends the selected one", async () => {
+  it("reports each command-line option that weakens the run, and neither one that changes nothing ESLint already does nor a rule id that merely extends the selected one", async () => {
     await expect(
       checkOf({
         line,
@@ -244,14 +244,6 @@ describe.each(ESLINT_LINES)("eslint-suppressions.json files and package.json lin
             clause: CLASS_SYNTAX,
             location: "package.json",
             script: "lint",
-            option: "--ignore-pattern dormant/**",
-            mechanism: "eslint",
-          },
-          {
-            kind: "command-line-option",
-            clause: CLASS_SYNTAX,
-            location: "package.json",
-            script: "lint",
             option: "-c alt.config.mjs",
             mechanism: "eslint",
           },
@@ -269,6 +261,14 @@ describe.each(ESLINT_LINES)("eslint-suppressions.json files and package.json lin
             location: "package.json",
             script: "lint:suppress",
             option: "--suppress-rule hone/no-class-authoring",
+            mechanism: "eslint",
+          },
+          {
+            kind: "command-line-option",
+            clause: CLASS_SYNTAX,
+            location: "package.json",
+            script: "lint:hidden",
+            option: "--ignore-pattern src/**",
             mechanism: "eslint",
           },
         ],
@@ -470,7 +470,7 @@ describe.each(ESLINT_LINES)("FR-3 over real files: the ESLint runner on real %s 
     const walkerRun = await walkerRunner.run({ ...SHARED_CASES_RUN, clauses: [WALKER_CLAUSE] });
     expect({ eslint: eslintRun, audit: walkerRun }).toEqual({
       eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current", slices: [] } },
-      audit: { outcome: "ok", value: EXPECTED_SHARED_HITS },
+      audit: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [] } },
     });
   });
 });

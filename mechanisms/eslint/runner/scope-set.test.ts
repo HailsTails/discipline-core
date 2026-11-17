@@ -71,6 +71,7 @@ const COMMAND_LINE_OPTION: NativeException = {
   location: repoPathSchema.parse("package.json"),
   script: "lint",
   option: "--rule hone/no-class-authoring: off",
+  cause: { kind: "weakens-run" },
 };
 
 const teamWithEntry = (request: { readonly entry: readonly [0 | 1 | 2, ...unknown[]] }): ResolvedConfig => ({

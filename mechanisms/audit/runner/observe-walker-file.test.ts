@@ -160,11 +160,11 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, skipped], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, skipped], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "ok",
-      value: { hits: [{ ...FIRST_HIT, file: FILE }], applicable: [FIRST_CLAUSE.address] },
+      value: { hits: [{ ...FIRST_HIT, file: FILE }], nativeExceptions: [], applicable: [FIRST_CLAUSE.address] },
     });
     expect(readText).not.toHaveBeenCalled();
     expect(parse.parse).not.toHaveBeenCalled();
@@ -189,7 +189,7 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, second], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, second], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -229,7 +229,7 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, skipped, third], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, skipped, third], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "ok",
@@ -239,6 +239,7 @@ describe("observeWalkerFile", () => {
           { ...SECOND_HIT, file: FILE },
           { ...THIRD_HIT, file: FILE },
         ],
+        nativeExceptions: [],
         applicable: [FIRST_CLAUSE.address, SECOND_CLAUSE.address, THIRD_CLAUSE.address],
       },
     });
@@ -291,7 +292,7 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, complete, third], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, complete, third], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "ok",
@@ -301,6 +302,7 @@ describe("observeWalkerFile", () => {
           { ...SECOND_HIT, file: FILE },
           { ...THIRD_HIT, file: FILE },
         ],
+        nativeExceptions: [],
         applicable: [FIRST_CLAUSE.address, SECOND_CLAUSE.address, THIRD_CLAUSE.address],
       },
     });
@@ -351,7 +353,7 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -386,7 +388,7 @@ describe("observeWalkerFile", () => {
     const first = preparedPiece({ modulePath: "first.ts", clauses: [FIRST_CLAUSE], prepareFile });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture(), escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -405,7 +407,7 @@ describe("observeWalkerFile", () => {
     });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture(), escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -430,7 +432,7 @@ describe("observeWalkerFile", () => {
     });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture(), escapes: [] });
 
     expect(entered).toHaveBeenCalledWith({ node: expect.objectContaining({ pos: 0 }) });
     expect(observed.outcome).toBe("ok");
@@ -454,7 +456,7 @@ describe("observeWalkerFile", () => {
     });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture(), escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -476,7 +478,7 @@ describe("observeWalkerFile", () => {
       parse: () => assert.fail("parser failed"),
     };
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -503,7 +505,7 @@ describe("observeWalkerFile", () => {
     });
     const parse = parseFixture();
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse, escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -526,7 +528,7 @@ describe("observeWalkerFile", () => {
     });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, second], parse: parseFixture() });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first, second], parse: parseFixture(), escapes: [] });
 
     expect(observed).toEqual({
       outcome: "failed",
@@ -559,9 +561,9 @@ describe("observeWalkerFile", () => {
     });
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: fixture.source });
 
-    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: fixture.parse });
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: fixture.parse, escapes: [] });
 
-    expect(observed).toEqual({ outcome: "ok", value: { hits: [], applicable: [FIRST_CLAUSE.address] } });
+    expect(observed).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], applicable: [FIRST_CLAUSE.address] } });
     expect(recordAnchor.mock.calls).toEqual([[{ line: 2, column: 6 }]]);
     expect(enter.mock.calls).toEqual([
       [{ node: fixture.tree }],

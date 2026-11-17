@@ -87,6 +87,7 @@ export type EslintSurfaceOptions = {
   readonly allowInlineConfig?: false;
   readonly overrideConfig?: GovernanceBlock;
   readonly matchedFiles?: readonly string[];
+  readonly ignorePatterns?: readonly string[];
 };
 
 export type LintedMessage = {
@@ -172,6 +173,11 @@ export type EslintPort = {
     readonly cwd: AbsolutePath;
     readonly path: string;
   }) => Promise<Result<IgnoredState, RunnerFailure>>;
+  readonly ignoredByPatterns: (request: {
+    readonly cwd: AbsolutePath;
+    readonly patterns: readonly string[];
+    readonly paths: readonly string[];
+  }) => Promise<Result<readonly IgnoredState[], RunnerFailure>>;
   readonly lintSourceCases: (request: {
     readonly cwd: AbsolutePath;
     readonly plugin: LoadedEslintPlugin;
@@ -538,6 +544,15 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
       act: (eslint) => ignoredStateOf({ eslint, file: request.path }),
       onRejected: queryFailed,
     }),
+  ignoredByPatterns: (request) =>
+    onSurface({
+      surface: builtSurface({
+        createEslint: options.toolchain.createEslint,
+        options: { cwd: request.cwd, overrideConfigFile: true, ignorePatterns: request.patterns, matchedFiles: request.paths },
+      }),
+      act: (eslint) => Promise.all(request.paths.map((file) => ignoredStateOf({ eslint, file }))),
+      onRejected: toolFailed,
+    }),
   lintSourceCases: (request) => sourceCaseVerdicts({ ...request, toolchain: options.toolchain }),
 });
 
@@ -595,10 +610,11 @@ export const eslintOptionsOf = (request: {
   readonly version: string;
   readonly options: EslintSurfaceOptions;
 }): ESLint.Options => {
-  const { overrideConfig, matchedFiles, ...sharedOptions } = request.options;
+  const { overrideConfig, matchedFiles, ignorePatterns, ...sharedOptions } = request.options;
   return {
     ...sharedOptions,
     ...lookupOptionsOf(request),
+    ...(ignorePatterns === undefined ? {} : { ignorePatterns: [...ignorePatterns] }),
     ...(overrideConfig === undefined ? {} : { overrideConfig: overrideConfigOf({ overrideConfig }) }),
     ...(matchedFiles === undefined ? {} : { overrideConfig: { files: [...matchedFiles] } }),
   };

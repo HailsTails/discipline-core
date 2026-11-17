@@ -9,7 +9,8 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { applyGovernance, type Finding } from "./governance.ts";
+import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
+import { applyGovernance, type Finding, type GovernanceRequest } from "./governance.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
 const noForOf = clauseAddressSchema.parse("CD-15#no-for-of");
@@ -81,11 +82,46 @@ const carvedProbeNoClassInA: ExceptionRecord = {
   whyChain: CAUSAL_WHY_CHAIN,
 };
 
+const scriptRuleOff = {
+  kind: "command-line-option",
+  clause: noClass,
+  location: packageJson,
+  script: "lint",
+  option: "--rule no-class:off",
+  cause: { kind: "weakens-run" },
+} as const;
+
+const expectationInA = {
+  kind: "inline-disable",
+  clause: noClass,
+  file: fileA,
+  line: 4,
+  text: "// @ts-expect-error legacy",
+  reach: "one-clause",
+} as const;
+
+const bareDisableInA = {
+  kind: "inline-disable",
+  clause: noClass,
+  file: fileA,
+  line: 1,
+  text: "/* eslint-disable */",
+  reach: "every-selected-clause",
+} as const;
+
+const inlineRun = (request: {
+  readonly nativeExceptions: readonly NativeException[];
+}): GovernanceRequest["runs"][number] => ({
+  mechanism: audit,
+  nativeExceptions: request.nativeExceptions,
+  coverableKinds: ["inline-disable"],
+});
+
 const nothingTouched: TouchedSet = { measured: "yes", paths: new Set() };
 const fileATouched: TouchedSet = { measured: "yes", paths: new Set([fileA]) };
 const unmeasured: TouchedSet = { measured: "no", base: { state: "not-given" } };
 
-const quietWalker = { mechanism: audit, nativeExceptions: [], projectedKinds: [] };
+const quietWalker = { mechanism: audit, nativeExceptions: [], coverableKinds: [] };
 
 const nothingGoverned = {
   findings: [],
@@ -397,6 +433,41 @@ describe("applyGovernance rule 4, stale", () => {
   });
 });
 
+describe("applyGovernance rule 4, records credited by a native exception they hold", () => {
+  it("does not list a file record as stale when it holds an inline disable and no finding", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassInA],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }).stale,
+    ).toEqual([]);
+  });
+
+  it("does not list a record as stale when it holds a coverable native exception and no finding", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [{ ...locatedNoClassInA, mechanism: eslint }],
+        touched: nothingTouched,
+        runs: [{ mechanism: eslint, nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }], coverableKinds: ["config-override"] }],
+      }).stale,
+    ).toEqual([]);
+  });
+
+  it("lists a record as stale when the native exception it matches is of a kind its run does not make coverable", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassInA],
+        touched: nothingTouched,
+        runs: [{ mechanism: audit, nativeExceptions: [expectationInA], coverableKinds: [] }],
+      }).stale,
+    ).toEqual([carvedNoClassInA]);
+  });
+});
+
 describe("applyGovernance rule 5, unrecorded", () => {
   it("lists nothing when no run reports a native exception", () => {
     expect(
@@ -404,12 +475,12 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [],
         touched: nothingTouched,
-        runs: [quietWalker, { mechanism: eslint, nativeExceptions: [], projectedKinds: [] }],
+        runs: [quietWalker, { mechanism: eslint, nativeExceptions: [], coverableKinds: [] }],
       }).unrecorded,
     ).toEqual([]);
   });
 
-  it("records a native exception of a projected kind that an authorised location naming its clause and file matches", () => {
+  it("records a native exception of a coverable kind that an authorised location naming its clause and file matches", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -419,14 +490,14 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
     ).toEqual([]);
   });
 
-  it("lists, attributed to its mechanism, a native exception of a kind its run does not project", () => {
+  it("lists, attributed to its mechanism, a native exception of a kind its run does not make coverable", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -442,9 +513,10 @@ describe("applyGovernance rule 5, unrecorded", () => {
                 file: fileA,
                 line: 7,
                 text: "// eslint-disable-line no-class",
+                reach: "one-clause",
               },
             ],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
@@ -455,12 +527,13 @@ describe("applyGovernance rule 5, unrecorded", () => {
         file: fileA,
         line: 7,
         text: "// eslint-disable-line no-class",
+        reach: "one-clause",
         mechanism: eslint,
       },
     ]);
   });
 
-  it("lists a native exception of a projected kind that no record matches", () => {
+  it("lists a native exception of a coverable kind that no record matches", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -470,7 +543,7 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
@@ -487,14 +560,14 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileB }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
     ).toEqual([{ kind: "config-override", clause: noClass, file: fileB, mechanism: eslint }]);
   });
 
-  it("lists a native exception whose kind only another run projects", () => {
+  it("lists a native exception whose kind only another run makes coverable", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -504,19 +577,19 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
           {
             mechanism: audit,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: [],
+            coverableKinds: [],
           },
         ],
       }).unrecorded,
     ).toEqual([{ kind: "config-override", clause: noClass, file: fileA, mechanism: audit }]);
   });
 
-  it("records a native exception that a forfeited file carve-out matches", () => {
+  it("lists a native exception that only a forfeited file carve-out matches, since the forfeited record no longer holds it", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -526,11 +599,11 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
-    ).toEqual([]);
+    ).toEqual([{ kind: "config-override", clause: noClass, file: fileA, mechanism: eslint }]);
   });
 
   it("records a native exception in any file that a clause-wide carve-out matches", () => {
@@ -550,14 +623,14 @@ describe("applyGovernance rule 5, unrecorded", () => {
                 location: suppressions,
               },
             ],
-            projectedKinds: ["suppression-entry"],
+            coverableKinds: ["suppression-entry"],
           },
         ],
       }).unrecorded,
     ).toEqual([]);
   });
 
-  it("lists a projected command-line option that only a file carve-out on its location matches", () => {
+  it("lists a command-line option that a file carve-out on its location matches, even where its run makes the kind coverable", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -566,32 +639,15 @@ describe("applyGovernance rule 5, unrecorded", () => {
         runs: [
           {
             mechanism: eslint,
-            nativeExceptions: [
-              {
-                kind: "command-line-option",
-                clause: noClass,
-                location: packageJson,
-                script: "lint",
-                option: "--rule no-class:off",
-              },
-            ],
-            projectedKinds: ["command-line-option"],
+            nativeExceptions: [scriptRuleOff],
+            coverableKinds: ["command-line-option"],
           },
         ],
       }).unrecorded,
-    ).toEqual([
-      {
-        kind: "command-line-option",
-        clause: noClass,
-        location: packageJson,
-        script: "lint",
-        option: "--rule no-class:off",
-        mechanism: eslint,
-      },
-    ]);
+    ).toEqual([{ ...scriptRuleOff, mechanism: eslint }]);
   });
 
-  it("records a projected command-line option that a clause-wide carve-out matches", () => {
+  it("lists a command-line option that a clause-wide carve-out matches, even where its run makes the kind coverable", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -600,20 +656,12 @@ describe("applyGovernance rule 5, unrecorded", () => {
         runs: [
           {
             mechanism: eslint,
-            nativeExceptions: [
-              {
-                kind: "command-line-option",
-                clause: noClass,
-                location: packageJson,
-                script: "lint",
-                option: "--rule no-class:off",
-              },
-            ],
-            projectedKinds: ["command-line-option"],
+            nativeExceptions: [scriptRuleOff],
+            coverableKinds: ["command-line-option"],
           },
         ],
       }).unrecorded,
-    ).toEqual([]);
+    ).toEqual([{ ...scriptRuleOff, mechanism: eslint }]);
   });
 
   it("lists a native exception that hides no finding", () => {
@@ -626,11 +674,128 @@ describe("applyGovernance rule 5, unrecorded", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "ignore", clause: noClass, file: fileA }],
-            projectedKinds: [],
+            coverableKinds: [],
           },
         ],
       }).unrecorded,
     ).toEqual([{ kind: "ignore", clause: noClass, file: fileA, mechanism: eslint }]);
+  });
+});
+
+describe("applyGovernance rule 5, inline disables a file record holds", () => {
+  it("records an inline disable that a file carve-out on its clause and file holds", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassInA],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }),
+    ).toEqual(nothingGoverned);
+  });
+
+  it("records an inline disable that an authorised location on its clause and file holds", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [locatedNoClassInA],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }),
+    ).toEqual(nothingGoverned);
+  });
+
+  it("records an inline disable naming no rule once a file record holds it for each clause it escapes", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassInA, { ...carvedNoClassInA, clause: noForOf }],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [bareDisableInA, { ...bareDisableInA, clause: noForOf }] })],
+      }).unrecorded,
+    ).toEqual([]);
+  });
+
+  it("lists an inline disable naming no rule for each clause it escapes that no file record holds", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassInA],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [bareDisableInA, { ...bareDisableInA, clause: noForOf }] })],
+      }).unrecorded,
+    ).toEqual([{ ...bareDisableInA, clause: noForOf, mechanism: audit }]);
+  });
+});
+
+describe("applyGovernance rule 5, inline disables no file record holds", () => {
+  it("lists an inline disable that only a clause-wide carve-out matches, and lists that carve-out as stale", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [carvedNoClassEverywhere],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }),
+    ).toEqual({
+      ...nothingGoverned,
+      stale: [carvedNoClassEverywhere],
+      unrecorded: [{ ...expectationInA, mechanism: audit }],
+    });
+  });
+
+  it("lists an inline disable whose file record names another file", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [{ ...carvedNoClassInA, file: fileB }],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }).unrecorded,
+    ).toEqual([{ ...expectationInA, mechanism: audit }]);
+  });
+
+  it("lists an inline disable whose file record names another clause", () => {
+    expect(
+      applyGovernance({
+        findings: [],
+        records: [{ ...carvedNoClassInA, clause: noForOf }],
+        touched: nothingTouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }).unrecorded,
+    ).toEqual([{ ...expectationInA, mechanism: audit }]);
+  });
+});
+
+describe("applyGovernance rule 5, an inline disable added after adoption", () => {
+  it("fails the run as unrecorded when the file has no record", () => {
+    expect(
+      applyGovernance({
+        findings: [noClassInA],
+        records: [],
+        touched: fileATouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+      }),
+    ).toEqual({ ...nothingGoverned, findings: [noClassInA], unrecorded: [{ ...expectationInA, mechanism: audit }] });
+  });
+
+  it("fails the run as forfeited when the file is carved out, and lists every directive the forfeited carve-out held", () => {
+    expect(
+      applyGovernance({
+        findings: [noClassInA],
+        records: [carvedNoClassInA],
+        touched: fileATouched,
+        runs: [inlineRun({ nativeExceptions: [expectationInA, { ...expectationInA, line: 9 }] })],
+      }),
+    ).toEqual({
+      ...nothingGoverned,
+      findings: [noClassInA],
+      forfeited: [carvedNoClassInA],
+      unrecorded: [
+        { ...expectationInA, mechanism: audit },
+        { ...expectationInA, line: 9, mechanism: audit },
+      ],
+    });
   });
 });
 
@@ -648,7 +813,7 @@ describe("applyGovernance rule 5, doubly held", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }),
@@ -670,7 +835,7 @@ describe("applyGovernance rule 5, mechanism", () => {
           {
             mechanism: eslint,
             nativeExceptions: [{ kind: "config-override", clause: noClass, file: fileA }],
-            projectedKinds: ["config-override"],
+            coverableKinds: ["config-override"],
           },
         ],
       }).unrecorded,
@@ -736,12 +901,12 @@ describe("applyGovernance order", () => {
               { kind: "ignore", clause: noClass, file: fileB },
               { kind: "ignore", clause: noClass, file: fileA },
             ],
-            projectedKinds: [],
+            coverableKinds: [],
           },
           {
             mechanism: audit,
             nativeExceptions: [{ kind: "ignore", clause: noForOf, file: fileA }],
-            projectedKinds: [],
+            coverableKinds: [],
           },
         ],
       }).unrecorded,

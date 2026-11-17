@@ -7,8 +7,10 @@ import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-po
 import type {
   CaseVerdict,
   Hit,
+  InlineReach,
   NativeException,
   ProjectionWrite,
+  ScriptOptionCause,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
@@ -43,7 +45,8 @@ import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } fr
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 import { CONFIG_FILE_NAMES, type ConfigLookup, configLookupOf, teamConfigLookup } from "./config-lookup.ts";
-import { type PackageJsonScan, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
+import { type PackageJsonScan, type ScriptOption, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
+import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
 import { type CurrentProjection, currentProjection, PROJECTION_PATH, pluginImportOf, projectionState } from "./projection.ts";
 import {
   type ConfigRoot,
@@ -701,22 +704,48 @@ const commentValueOf = (request: { readonly text: string }): string => {
     : request.text;
 };
 
-const inlineClauses = (request: {
+type InlineReading = { readonly clauses: readonly SelectedClause[]; readonly reach: InlineReach };
+
+const namedClauses = (request: {
+  readonly ruleIds: readonly string[];
+  readonly selected: readonly SelectedClause[];
+}): InlineReading => ({
+  clauses: request.selected.filter((entry) => request.ruleIds.includes(entry.ruleId)),
+  reach: "one-clause",
+});
+
+const inlineReadingOf = (request: {
   readonly text: string;
   readonly selected: readonly SelectedClause[];
-}): readonly SelectedClause[] => {
+}): InlineReading => {
   const parsed = parseInlineConfigComment({ text: commentValueOf({ text: request.text }) });
   switch (parsed.kind) {
     case "disable":
       return parsed.ruleIds.length === 0
-        ? request.selected
-        : request.selected.filter((entry) => parsed.ruleIds.includes(entry.ruleId));
+        ? { clauses: request.selected, reach: "every-selected-clause" }
+        : namedClauses({ ruleIds: parsed.ruleIds, selected: request.selected });
     case "rule-config":
-      return request.selected.filter((entry) => parsed.ruleIds.includes(entry.ruleId));
+      return namedClauses({ ruleIds: parsed.ruleIds, selected: request.selected });
     case "unparseable-rule-config":
-      return request.selected;
+      return { clauses: request.selected, reach: "every-selected-clause" };
     case "not-an-exception":
-      return [];
+      return { clauses: [], reach: "one-clause" };
+  }
+};
+
+const inlineNativeException = (request: {
+  readonly kind: typeof INLINE_DISABLE | typeof INLINE_RULE_CONFIG;
+  readonly reach: InlineReach;
+  readonly clause: SelectedClause;
+  readonly file: RepoPath;
+  readonly message: LintedMessage;
+}): NativeException => {
+  const located = { clause: request.clause.clause.address, file: request.file, line: request.message.line, text: request.message.message };
+  switch (request.kind) {
+    case INLINE_DISABLE:
+      return { kind: request.kind, ...located, reach: request.reach };
+    case INLINE_RULE_CONFIG:
+      return { kind: request.kind, ...located };
   }
 };
 
@@ -740,16 +769,11 @@ const inlineException = (request: {
       error: { kind: "tool-failed", detail: `${request.file}: ${message.message}` },
     };
   }
+  const reading = inlineReadingOf({ text: message.message, selected: request.selected });
   return {
     outcome: "ok",
-    value: inlineClauses({ text: message.message, selected: request.selected }).map(
-      (entry): NativeException => ({
-        kind,
-        clause: entry.clause.address,
-        file: request.file,
-        line: message.line,
-        text: message.message,
-      }),
+    value: reading.clauses.map((clause) =>
+      inlineNativeException({ kind, reach: reading.reach, clause, file: request.file, message }),
     ),
   };
 };
@@ -960,6 +984,40 @@ const suppressionsFileExceptions = (request: {
   });
 };
 
+const causeOf = (request: { readonly verdict: OptionVerdict; readonly option: ScriptOption }): ScriptOptionCause | undefined => {
+  switch (request.verdict.kind) {
+    case "weakens":
+      return { kind: "weakens-run" };
+    case "not-plain":
+      return { ...request.verdict.reason, command: request.option.command };
+    case "weakens-nothing":
+      return undefined;
+  }
+};
+
+const weakeningExceptions = (request: {
+  readonly option: ScriptOption;
+  readonly judge: ScriptOptionJudge;
+}): Promise<Outcome<readonly NativeException[]>> =>
+  request.judge({ option: request.option }).then((verdict) => {
+    if (verdict.outcome === "failed") {
+      return verdict;
+    }
+    const cause = causeOf({ verdict: verdict.value, option: request.option });
+    return {
+      outcome: "ok",
+      value: cause === undefined ? [] : request.option.exceptions.map((exception): NativeException => ({ ...exception, cause })),
+    };
+  });
+
+const judgedScriptExceptions = (request: {
+  readonly scan: PackageJsonScan;
+  readonly judge: ScriptOptionJudge;
+}): Promise<Outcome<readonly NativeException[]>> =>
+  Promise.all(request.scan.scriptOptions.map((option) => weakeningExceptions({ option, judge: request.judge }))).then(
+    (outcomes) => gatheredOutcomes({ outcomes }),
+  );
+
 const scannedPackageExceptions = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
@@ -967,22 +1025,25 @@ const scannedPackageExceptions = (request: {
   readonly packagePath: RepoPath;
   readonly scan: PackageJsonScan;
   readonly selectedRules: readonly SelectedRule[];
-}): Outcome<readonly NativeException[]> =>
-  gatheredOutcomes({
-    outcomes: [
-      { outcome: "ok", value: request.scan.nativeExceptions },
-      ...request.scan.suppressionsLocations.map((scripted) =>
+  readonly judge: ScriptOptionJudge;
+}): Promise<Outcome<readonly NativeException[]>> =>
+  judgedScriptExceptions(request).then((scriptExceptions) =>
+    gatheredOutcomes({
+      outcomes: [
+        scriptExceptions,
+        ...request.scan.suppressionsLocations.map((scripted) =>
         scriptSuppressionEntries({
           fileText: request.fileText,
           path: request.path,
           repoRoot: request.repoRoot,
           location: scripted.location,
-          keysRelativeTo: directoryOf({ path: request.packagePath }),
-          selectedRules: request.selectedRules,
-        }),
-      ),
-    ],
-  });
+            keysRelativeTo: directoryOf({ path: request.packagePath }),
+            selectedRules: request.selectedRules,
+          }),
+        ),
+      ],
+    }),
+  );
 
 const packageJsonExceptions = (request: {
   readonly fileText: FileTextPort;
@@ -990,7 +1051,8 @@ const packageJsonExceptions = (request: {
   readonly repoRoot: AbsolutePath;
   readonly packagePath: RepoPath;
   readonly selectedRules: readonly SelectedRule[];
-}): Outcome<readonly NativeException[]> => {
+  readonly judge: ScriptOptionJudge;
+}): Promise<Outcome<readonly NativeException[]>> => {
   const text = trackedText({
     fileText: request.fileText,
     path: request.path,
@@ -998,7 +1060,7 @@ const packageJsonExceptions = (request: {
     repoPath: request.packagePath,
   });
   if (text.outcome === "failed") {
-    return text;
+    return Promise.resolve(text);
   }
   const scan = scanPackageJson({
     path: request.packagePath,
@@ -1006,7 +1068,7 @@ const packageJsonExceptions = (request: {
     selectedRules: request.selectedRules,
   });
   if (scan.outcome === "failed") {
-    return scan;
+    return Promise.resolve(scan);
   }
   return scannedPackageExceptions({ ...request, scan: scan.value });
 };
@@ -1017,17 +1079,16 @@ const trackedExceptions = (request: {
   readonly repoRoot: AbsolutePath;
   readonly trackedPaths: readonly RepoPath[];
   readonly selectedRules: readonly SelectedRule[];
-}): Outcome<readonly NativeException[]> =>
-  gatheredOutcomes({
-    outcomes: [
-      ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
-        suppressionsFileExceptions({ ...request, location }),
-      ),
-      ...filesNamed({ trackedPaths: request.trackedPaths, name: PACKAGE_JSON_NAME }).map((packagePath) =>
-        packageJsonExceptions({ ...request, packagePath }),
-      ),
-    ],
-  });
+  readonly judge: ScriptOptionJudge;
+}): Promise<Outcome<readonly NativeException[]>> =>
+  Promise.all([
+    ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
+      Promise.resolve(suppressionsFileExceptions({ ...request, location })),
+    ),
+    ...filesNamed({ trackedPaths: request.trackedPaths, name: PACKAGE_JSON_NAME }).map((packagePath) =>
+      packageJsonExceptions({ ...request, packagePath }),
+    ),
+  ]).then((outcomes) => gatheredOutcomes({ outcomes }));
 
 const reportWith = (request: {
   readonly projection: EmbeddedRunReport["projection"];
@@ -1086,40 +1147,49 @@ const governedReport = (request: {
   readonly selected: readonly SelectedClause[];
   readonly status: ProjectionStatus;
   readonly ports: EslintRunnerPorts;
+  readonly query: QueryInstance;
   readonly queried: QueriedFiles;
   readonly lintedFiles: readonly LintedFile[];
-}): Outcome<EmbeddedRunReport> => {
+}): Promise<Outcome<EmbeddedRunReport>> => {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
       lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
     ),
   });
   if (findings.outcome === "failed") {
-    return findings;
+    return Promise.resolve(findings);
   }
-  const tracked = trackedExceptions({
+  return trackedExceptions({
     fileText: request.ports.fileText,
     path: request.ports.path,
     repoRoot: request.run.repoRoot,
     trackedPaths: request.run.trackedPaths,
     selectedRules: selectedRulesOf({ selected: request.selected }),
+    judge: scriptOptionJudge({
+      query: request.query,
+      eslint: request.ports.eslint,
+      path: request.ports.path,
+      repoRoot: request.run.repoRoot,
+      checked: request.queried.checked.map((checked) => checked.file),
+    }),
+  }).then((tracked) => {
+    if (tracked.outcome === "failed") {
+      return tracked;
+    }
+    return {
+      outcome: "ok",
+      value: {
+        hits: findings.value.flatMap((found) => found.hits),
+        nativeExceptions: [
+          ...queryExceptions({ selected: request.selected, queried: request.queried }),
+          ...findings.value.flatMap((found) => found.nativeExceptions),
+          ...tracked.value,
+        ],
+        projection: request.status.projection,
+        slices: request.status.slices,
+      },
+    };
   });
-  if (tracked.outcome === "failed") {
-    return tracked;
-  }
-  return {
-    outcome: "ok",
-    value: {
-      hits: findings.value.flatMap((found) => found.hits),
-      nativeExceptions: [
-        ...queryExceptions({ selected: request.selected, queried: request.queried }),
-        ...findings.value.flatMap((found) => found.nativeExceptions),
-        ...tracked.value,
-      ],
-      projection: request.status.projection,
-      slices: request.status.slices,
-    },
-  };
 };
 
 const lintedReport = (request: {
@@ -1127,6 +1197,7 @@ const lintedReport = (request: {
   readonly selected: readonly SelectedClause[];
   readonly status: ProjectionStatus;
   readonly ports: EslintRunnerPorts;
+  readonly query: QueryInstance;
   readonly queried: QueriedFiles;
 }): Promise<Outcome<EmbeddedRunReport>> =>
   governedLint({ run: request.run, selected: request.selected, eslint: request.ports.eslint }).then(
@@ -1200,6 +1271,7 @@ const queriedReport = (request: {
   readonly attributedRoots: readonly ConfigRoot[];
   readonly nestedFolders: readonly RepoPath[];
   readonly ports: EslintRunnerPorts;
+  readonly query: QueryInstance;
   readonly queried: Outcome<QueriedFiles>;
 }): Promise<Outcome<EmbeddedRunReport>> => {
   if (request.queried.outcome === "failed") {
@@ -1234,12 +1306,13 @@ const governedRun = (request: {
   readonly ports: EslintRunnerPorts;
 }): Promise<Outcome<EmbeddedRunReport>> => {
   const lookup = request.lookup;
+  const query = request.ports.eslint.createQueryInstance(
+    lookup.kind === "repository-root"
+      ? { repoRoot: request.run.repoRoot, configFile: lookup.configFile }
+      : { repoRoot: request.run.repoRoot },
+  );
   return queriedFiles({
-    query: request.ports.eslint.createQueryInstance(
-      lookup.kind === "repository-root"
-        ? { repoRoot: request.run.repoRoot, configFile: lookup.configFile }
-        : { repoRoot: request.run.repoRoot },
-    ),
+    query,
     files: request.run.files,
     ruleIds: ruleIdsOf({ selected: request.selected }),
     location: {
@@ -1255,6 +1328,7 @@ const governedRun = (request: {
         lookup.kind === "repository-root"
           ? []
           : nestedConfigurationFoldersOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }),
+      query,
       queried,
     }),
   );
@@ -1452,7 +1526,7 @@ const ranClauses = (request: {
   );
 };
 
-export const ESLINT_PROJECTED_KINDS: readonly NativeException["kind"][] = ["config-override"];
+export const ESLINT_PROJECTED_KINDS: readonly NativeException["kind"][] = ["config-override", "inline-disable"];
 
 export const createEslintRunner = (ports: EslintRunnerPorts): EmbeddedRunner => ({
   exceptionPath: "embedded",

@@ -121,14 +121,17 @@ describe("CD-14 class-syntax audit check over TypeScript's own parse", () => {
       }),
     ).toEqual({
       outcome: "ok",
-      value: [
-        {
-          clause: ADDRESS,
-          file: "src/alpha.ts",
-          anchor: { line: 3, column: 2 },
-          snippet: "class Alpha {}",
-        },
-      ],
+      value: {
+        hits: [
+          {
+            clause: ADDRESS,
+            file: "src/alpha.ts",
+            anchor: { line: 3, column: 2 },
+            snippet: "class Alpha {}",
+          },
+        ],
+        nativeExceptions: [],
+      },
     });
   });
 });

@@ -12,25 +12,25 @@ import { type InstallProofRequest, runInstallProof } from "./run-install-proof.t
 const ENTRY_URL = "file:///package/scripts/install-proof.ts";
 
 const PACKAGE_MANIFEST =
-  '{ "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
-
-const TOOLCHAIN_MANIFEST = '{\n  "private": true,\n  "devDependencies": {\n    "typescript": "4.8.4"\n  }\n}\n';
+  '{ "packageManager": "pnpm@10.34.9", "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
 
 const CONSUMER_MANIFEST = `${JSON.stringify(
   {
     private: true,
     type: "commonjs",
+    packageManager: "pnpm@10.34.9",
     scripts: {
       "hone:check": "hone check --repo .",
       "hone:project": "hone project --repo .",
     },
-    devDependencies: { typescript: "4.8.4" },
+    devDependencies: { typescript: "4.8.4", "@hailstails/hone": "file:../package-tarball/hailstails-hone-0.0.0.tgz" },
   },
   null,
   2,
 )}\n`;
 
-const CONSUMER = "/scratch/typescript-floor/audit";
+const CONSUMER = "/scratch/audit";
+
 
 const TARBALL = "/scratch/package-tarball/hailstails-hone-0.0.0.tgz";
 
@@ -38,9 +38,8 @@ const PROJECTION = 'import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14
 
 const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
+  "/package/pnpm-workspace.yaml": "minimumReleaseAge: 4320\n",
   [`${CONSUMER}/disciplines.eslint.mjs`]: PROJECTION,
-  [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "4.8.4" }',
-  "/scratch/typescript-floor/second/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }',
 };
 
 const EXPECTING_PASS: ProofCase = {
@@ -95,7 +94,7 @@ const INSTALLED_PACKAGE_WITH_SOURCE: readonly ListedEntry[] = [
 
 const EXITED_PASSING: StepRun = { outcome: "exited", exitCode: 0, output: "verdict: pass\n" };
 
-const EXITED_NPM_ERROR: StepRun = { outcome: "exited", exitCode: 1, output: "npm ERR! network" };
+const EXITED_INSTALL_ERROR: StepRun = { outcome: "exited", exitCode: 1, output: "ERR_PNPM_FETCH_404" };
 
 const SCRATCH_FAILURE: { readonly outcome: "failed"; readonly error: EffectFailure } = {
   outcome: "failed",
@@ -115,6 +114,16 @@ const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTex
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
+const LINKED_PACKAGE = "/node_modules/@hailstails/hone";
+
+const STORED_PACKAGE = "/node_modules/.pnpm/hone/node_modules/@hailstails/hone";
+
+const realPathsOf = (request: { readonly consumer: string; readonly installed: string }): ScratchFilesPort["realPathOf"] =>
+  vi
+    .fn<ScratchFilesPort["realPathOf"]>()
+    .mockReturnValueOnce({ outcome: "ok", value: request.consumer })
+    .mockReturnValue({ outcome: "ok", value: request.installed });
+
 const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => ({
   createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>().mockReturnValue({ outcome: "ok", value: "/scratch" }),
   removeTree: vi.fn<ScratchFilesPort["removeTree"]>().mockReturnValue({ outcome: "ok", value: null }),
@@ -122,7 +131,7 @@ const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => 
   copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue({ outcome: "ok", value: null }),
   listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE }),
   digestOf: vi.fn<ScratchFilesPort["digestOf"]>().mockReturnValue({ outcome: "ok", value: "digest" }),
-  realPathOf: vi.fn<ScratchFilesPort["realPathOf"]>().mockReturnValue({ outcome: "ok", value: "/real" }),
+  realPathOf: realPathsOf({ consumer: CONSUMER, installed: `${CONSUMER}${STORED_PACKAGE}` }),
   ...overrides,
 });
 
@@ -151,6 +160,44 @@ const reportOf = (request: { readonly process: ProcessPort }) => ({
   exits: vi.mocked(request.process.exitWith).mock.calls,
 });
 
+describe("runInstallProof, finding where pnpm put the package", () => {
+  it("measures the package's real path from the consumer's own real path, so a temporary root spelled two ways names one place", async () => {
+    const proofProcess = processPort();
+    const realPathOf = realPathsOf({ consumer: "/long-scratch/audit", installed: `/long-scratch/audit${STORED_PACKAGE}` });
+
+    await runInstallProof(proofRequest({ process: proofProcess, scratch: scratchPort({ realPathOf }) }));
+
+    expect({ asked: vi.mocked(realPathOf).mock.calls, located: reportOf({ process: proofProcess }).writes[1] }).toEqual({
+      asked: [[{ path: CONSUMER }], [{ path: `${CONSUMER}${LINKED_PACKAGE}` }]],
+      located: [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
+    });
+  });
+
+  it("exits 1 naming both real paths when the package lands outside its consumer, running nothing after it", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning(EXITED_PASSING);
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        scratch: scratchPort({ realPathOf: realPathsOf({ consumer: CONSUMER, installed: "/scratch/store/hone" }) }),
+      }),
+    );
+
+    expect({ report: reportOf({ process: proofProcess }), runs: vi.mocked(commands.run).mock.calls.length }).toEqual({
+      report: {
+        writes: [
+          [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+          [{ text: "FAIL: audit runs the package from where pnpm put it: /scratch/store/hone lies outside /scratch/audit\n" }],
+        ],
+        exits: [[{ code: 1 }]],
+      },
+      runs: 1,
+    });
+  });
+});
+
 describe("runInstallProof", () => {
   it("exits 0 printing that the installed package holds no TypeScript source, each command's ok line, the projection's package import and the pass line", async () => {
     const proofProcess = processPort();
@@ -160,28 +207,13 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
+        [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
         [{ text: "ok: audit check -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit project -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit disciplines.eslint.mjs reads exactly as expected\n" }],
         [{ text: "install proof: pass\n" }],
       ],
       exits: [[{ code: 0 }]],
-    });
-  });
-
-  it("exits 1 naming the version found when a required peer does not resolve at its pinned version", async () => {
-    const proofProcess = processPort();
-    const fileText = fileTextPort({ [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "6.0.3" }' });
-
-    await runInstallProof(proofRequest({ process: proofProcess, fileText }));
-
-    expect(reportOf({ process: proofProcess })).toEqual({
-      writes: [
-        [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "FAIL: audit resolves the required peer typescript at its pinned version 4.8.4: found 6.0.3\n" }],
-      ],
-      exits: [[{ code: 1 }]],
     });
   });
 
@@ -193,72 +225,67 @@ describe("runInstallProof", () => {
     expect(vi.mocked(packer.pack).mock.calls).toEqual([[{ packageRoot: "/package", workRoot: "/scratch" }]]);
   });
 
-  it("writes the toolchain root's manifest at the peers' floors, then the consumer's manifest with scripts calling the installed bins, its ignore file and npm config running scripts without type stripping", async () => {
+  it("writes the consumer's manifest pinning this package's pnpm, every peer of its toolchain and the packed tarball, its ignore file, and pnpm settings waiting this repository's release age with type stripping off", async () => {
     const fileText = fileTextPort();
 
     await runInstallProof(proofRequest({ fileText }));
 
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
-      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
       [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
       [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
-      [{ path: `${CONSUMER}/.npmrc`, text: "node-options=--no-experimental-strip-types\n" }],
+      [{ path: `${CONSUMER}/.npmrc`, text: "minimum-release-age=4320\nnode-options=--no-experimental-strip-types\n" }],
     ]);
   });
 
-  it("writes no npm config for a consumer that runs its own TypeScript through Node's type stripping", async () => {
+  it("leaves type stripping on for a consumer that runs its own TypeScript through it", async () => {
     const fileText = fileTextPort();
 
     await runInstallProof(proofRequest({ fileText, proofCases: [{ ...EXPECTING_PASS, typeStripping: "enabled" }] }));
 
-    expect(vi.mocked(fileText.write).mock.calls).toEqual([
-      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
-      [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
-      [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
-    ]);
+    expect(vi.mocked(fileText.write).mock.calls[2]).toEqual([{ path: `${CONSUMER}/.npmrc`, text: "minimum-release-age=4320\n" }]);
   });
 
-  it("makes the toolchain root before writing its manifest", async () => {
-    const scratch = scratchPort({});
-
-    await runInstallProof(proofRequest({ scratch }));
-
-    expect(vi.mocked(scratch.makeDirectory).mock.calls).toEqual([[{ path: "/scratch/typescript-floor" }]]);
-  });
-
-  it("installs the toolchain in its root, then installs the packed tarball offline and runs git and both commands through npm scripts in the consumer", async () => {
+  it("installs the consumer with pnpm, then runs git and both commands through its pnpm scripts", async () => {
     const commands = commandsReturning(EXITED_PASSING);
 
     await runInstallProof(proofRequest({ commands }));
 
     expect(vi.mocked(commands.run).mock.calls).toEqual([
-      [{ command: "npm", arguments: ["install", "--no-audit", "--no-fund", "--ignore-scripts"], directory: "/scratch/typescript-floor" }],
-      [
-        {
-          command: "npm",
-          arguments: ["install", "--offline", "--no-audit", "--no-fund", "--ignore-scripts", "--save-dev", TARBALL],
-          directory: CONSUMER,
-        },
-      ],
+      [{ command: "pnpm", arguments: ["install", "--ignore-scripts", "--prefer-offline", "--no-frozen-lockfile"], directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["init", "-q"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["add", "-A"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["commit", "-q", "-m", "consumer"]), directory: CONSUMER }],
-      [{ command: "npm", arguments: ["run", "--silent", "hone:check", "--", "--base-revision", "HEAD"], directory: CONSUMER }],
-      [{ command: "npm", arguments: ["run", "--silent", "hone:project"], directory: CONSUMER }],
+      [{ command: "pnpm", arguments: ["run", "--silent", "hone:check", "--base-revision", "HEAD"], directory: CONSUMER }],
+      [{ command: "pnpm", arguments: ["run", "--silent", "hone:project"], directory: CONSUMER }],
     ]);
   });
 
-  it("shares one toolchain install between consumers on the same toolchain", async () => {
+  it("installs each consumer by itself, in its own folder under the temporary root", async () => {
     const commands = commandsReturning(EXITED_PASSING);
 
     await runInstallProof(proofRequest({ commands, proofCases: [EXPECTING_PASS, SECOND_CONSUMER] }));
 
-    expect(commands.run).toHaveBeenNthCalledWith(1, {
-      command: "npm",
-      arguments: ["install", "--no-audit", "--no-fund", "--ignore-scripts"],
-      directory: "/scratch/typescript-floor",
+    expect(commands.run).toHaveBeenNthCalledWith(7, {
+      command: "pnpm",
+      arguments: ["install", "--ignore-scripts", "--prefer-offline", "--no-frozen-lockfile"],
+      directory: "/scratch/second",
     });
-    expect(commands.run).toHaveBeenCalledTimes(11);
+  });
+
+  it("expects the package's own pages where pnpm put the package", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands: commandsReturning({ outcome: "exited", exitCode: 0, output: "read node_modules/.pnpm/hone/node_modules/@hailstails/hone/ADOPTING.md\n" }),
+        proofCases: [
+          { ...EXPECTING_PASS, actions: [{ kind: "check", expectation: { exitCode: 0, output: "read node_modules/@hailstails/hone/ADOPTING.md\n" } }] },
+        ],
+      }),
+    );
+
+    expect(reportOf({ process: proofProcess }).exits).toEqual([[{ code: 0 }]]);
   });
 
   it("copies only the consumer fixture: the package manager installs core", async () => {
@@ -310,7 +337,6 @@ describe("runInstallProof", () => {
       proofRequest({
         process: proofProcess,
         commands,
-        fileText: fileTextPort({ "/scratch/typescript-floor/typed/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }' }),
         proofCases: [EXPECTING_TYPES],
       }),
     );
@@ -318,7 +344,7 @@ describe("runInstallProof", () => {
     expect(commands.run).toHaveBeenLastCalledWith({
       command: "node",
       arguments: ["node_modules/typescript/bin/tsc", "--noEmit", "-p", "tsconfig.nodenext.json"],
-      directory: "/scratch/typescript-floor/typed",
+      directory: "/scratch/typed",
     });
     expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.nodenext.json -> exit 0, output exactly as expected\n" }]);
   });
@@ -343,7 +369,7 @@ describe("runInstallProof", () => {
     );
 
     expect(commands.run).toHaveBeenLastCalledWith({
-      command: "npm",
+      command: "pnpm",
       arguments: ["run", "--silent", "lint"],
       directory: `${CONSUMER}/packages/web`,
     });
@@ -358,7 +384,6 @@ describe("runInstallProof", () => {
       proofRequest({
         process: proofProcess,
         commands: commandsReturning({ outcome: "exited", exitCode: 0, output: "src/team.mts: reported\r\n  detail\r\n" }),
-        fileText: fileTextPort({ "/scratch/typescript-floor/typed/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }' }),
         proofCases: [
           {
             ...EXPECTING_TYPES,
@@ -425,7 +450,6 @@ describe("runInstallProof", () => {
             .mockReturnValueOnce(EXITED_PASSING)
             .mockReturnValueOnce(EXITED_PASSING)
             .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValueOnce(EXITED_PASSING)
             .mockReturnValue({ outcome: "exited", exitCode: 1, output: altered }),
         },
         proofCases: [EXPECTING_FINDINGS],
@@ -435,7 +459,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
+        [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
         [
           {
             text: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(REPORT_OF_FINDINGS)}, got exit 1 and output ${JSON.stringify(altered)}\n`,
@@ -454,7 +478,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
+        [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
         [{ text: 'FAIL: audit check: expected exit 1 and output "verdict: fail\\n", got exit 0 and output "verdict: pass\\n"\n' }],
       ],
       exits: [[{ code: 1 }]],
@@ -469,15 +493,15 @@ describe("runInstallProof", () => {
     expect(vi.mocked(scratch.removeTree).mock.calls).toEqual([[{ path: "/scratch" }]]);
   });
 
-  it("exits 1 with the npm output when the toolchain install fails, running nothing after it", async () => {
+  it("exits 1 with pnpm's output when the consumer install fails, running nothing after it", async () => {
     const proofProcess = processPort();
-    const commands = commandsReturning(EXITED_NPM_ERROR);
+    const commands = commandsReturning(EXITED_INSTALL_ERROR);
 
     await runInstallProof(proofRequest({ process: proofProcess, commands }));
 
     expect({ report: reportOf({ process: proofProcess }), runs: vi.mocked(commands.run).mock.calls.length }).toEqual({
       report: {
-        writes: [[{ text: "FAIL: npm install the typescript-floor toolchain: exit 1\nnpm ERR! network\n" }]],
+        writes: [[{ text: "FAIL: pnpm install the packed tarball into audit: exit 1\nERR_PNPM_FETCH_404\n" }]],
         exits: [[{ code: 1 }]],
       },
       runs: 1,

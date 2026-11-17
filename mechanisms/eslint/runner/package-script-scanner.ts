@@ -18,9 +18,48 @@ export type EslintInvocation = {
   readonly options: readonly string[];
 };
 
+export type NotPlainReason =
+  | { readonly kind: "after-another-command"; readonly invocation: string }
+  | { readonly kind: "wrapped"; readonly wrapper: string };
+
+export type Settlement =
+  | { readonly kind: "settled" }
+  | { readonly kind: "unresolved" }
+  | { readonly kind: "not-plain"; readonly reason: NotPlainReason };
+
+type SettledInvocation = EslintInvocation & {
+  readonly settlement: Settlement;
+  readonly command: string;
+};
+
+export type ScriptOptionException = Omit<Extract<NativeException, { readonly kind: "command-line-option" }>, "cause">;
+
+type Expansion = "literal" | "shell-expanded";
+
+type ShellToken = {
+  readonly text: string;
+  readonly expansion: Expansion;
+};
+
+type ShellCommand = readonly ShellToken[];
+
+export type OptionEffect =
+  | { readonly kind: "weakens" }
+  | { readonly kind: "names-config"; readonly config: string }
+  | { readonly kind: "ignores-pattern"; readonly pattern: string };
+
 export type WeakeningOption = {
   readonly option: string;
   readonly ruleIds: readonly string[];
+  readonly effect: OptionEffect;
+};
+
+export type ScriptOption = {
+  readonly location: RepoPath;
+  readonly effect: OptionEffect;
+  readonly settlement: Settlement;
+  readonly command: string;
+  readonly exceptions: readonly ScriptOptionException[];
 };
 
 export type ScriptSuppressionsLocation = {
@@ -29,26 +68,26 @@ export type ScriptSuppressionsLocation = {
 };
 
 export type PackageJsonScan = {
-  readonly nativeExceptions: readonly NativeException[];
+  readonly scriptOptions: readonly ScriptOption[];
   readonly suppressionsLocations: readonly ScriptSuppressionsLocation[];
 };
 
 type ScriptPiece =
-  | { readonly kind: "quoted"; readonly text: string }
-  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "quoted"; readonly token: ShellToken }
+  | { readonly kind: "text"; readonly token: ShellToken }
   | { readonly kind: "operator" }
   | { readonly kind: "space" }
   | { readonly kind: "stray-quote" };
 
 type TokenInProgress =
   | { readonly presence: "none" }
-  | { readonly presence: "started"; readonly text: string };
+  | { readonly presence: "started"; readonly token: ShellToken };
 
 type TokenizerState =
   | {
       readonly status: "reading";
-      readonly commands: readonly ScriptCommand[];
-      readonly tokens: readonly string[];
+      readonly commands: readonly ShellCommand[];
+      readonly tokens: readonly ShellToken[];
       readonly token: TokenInProgress;
     }
   | { readonly status: "unterminated" };
@@ -57,10 +96,13 @@ type OptionArity = "takes-value" | "flag";
 
 type OptionReach = "named-rules" | "every-clause";
 
+type OptionJudgement = "weakens" | "by-config" | "by-ignore-pattern";
+
 type WeakeningSpec = {
   readonly name: string;
   readonly arity: OptionArity;
   readonly reach: OptionReach;
+  readonly judgement: OptionJudgement;
 };
 
 type OptionOccurrence = {
@@ -85,6 +127,18 @@ const ESLINT_PATH_SUFFIXES: readonly string[] = ["/eslint", "/eslint.js"];
 
 const FORWARDED_OPTIONS_SEPARATOR = "--";
 
+const SHELL_EXPANDED_UNQUOTED = /[*?[\]{}~$`]/;
+
+const SHELL_EXPANDED_DOUBLE_QUOTED = /[$`]/;
+
+const UNSETTLED_TEXT = /\.\.|[$`]|^[/~]|^[A-Za-z]:[\\/]/;
+
+const PLAIN_RUNNER_TOKENS: readonly string[] = ["npx", "pnpm", "yarn", "npm", "bunx", "exec", "--"];
+
+const ENVIRONMENT_SETTER = "cross-env";
+
+const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
 const SUPPRESSIONS_LOCATION_OPTION = "--suppressions-location";
 
 const RULE_VALUE_SEPARATORS = /[,:]/;
@@ -92,25 +146,40 @@ const RULE_VALUE_SEPARATORS = /[,:]/;
 const SURROUNDING_QUOTES = /^(["'])(?<inner>.*)\1$/;
 
 const WEAKENING_OPTIONS: readonly WeakeningSpec[] = [
-  { name: "--rule", arity: "takes-value", reach: "named-rules" },
-  { name: "--suppress-rule", arity: "takes-value", reach: "named-rules" },
-  { name: "--suppress-all", arity: "flag", reach: "every-clause" },
-  { name: "--ignore-pattern", arity: "takes-value", reach: "every-clause" },
-  { name: "-c", arity: "takes-value", reach: "every-clause" },
-  { name: "--config", arity: "takes-value", reach: "every-clause" },
-  { name: "--no-config-lookup", arity: "flag", reach: "every-clause" },
-  { name: "--parser", arity: "takes-value", reach: "every-clause" },
-  { name: "--parser-options", arity: "takes-value", reach: "every-clause" },
-  { name: "--plugin", arity: "takes-value", reach: "every-clause" },
+  { name: "--rule", arity: "takes-value", reach: "named-rules", judgement: "weakens" },
+  { name: "--suppress-rule", arity: "takes-value", reach: "named-rules", judgement: "weakens" },
+  { name: "--suppress-all", arity: "flag", reach: "every-clause", judgement: "weakens" },
+  { name: "--ignore-pattern", arity: "takes-value", reach: "every-clause", judgement: "by-ignore-pattern" },
+  { name: "-c", arity: "takes-value", reach: "every-clause", judgement: "by-config" },
+  { name: "--config", arity: "takes-value", reach: "every-clause", judgement: "by-config" },
+  { name: "--no-config-lookup", arity: "flag", reach: "every-clause", judgement: "weakens" },
+  { name: "--parser", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
+  { name: "--parser-options", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
+  { name: "--plugin", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
 ];
+
+const effectOf = (request: { readonly judgement: OptionJudgement; readonly optionValue: string }): OptionEffect => {
+  switch (request.judgement) {
+    case "weakens":
+      return { kind: "weakens" };
+    case "by-config":
+      return { kind: "names-config", config: request.optionValue };
+    case "by-ignore-pattern":
+      return { kind: "ignores-pattern", pattern: request.optionValue };
+  }
+};
+
+const expansionOf = (request: { readonly text: string; readonly expanding: RegExp }): Expansion =>
+  request.expanding.test(request.text) ? "shell-expanded" : "literal";
 
 const scriptPieceOf = (request: { readonly match: RegExpMatchArray }): ScriptPiece => {
   const groups = request.match.groups ?? {};
   if (groups.single !== undefined) {
-    return { kind: "quoted", text: groups.single.slice(1, -1) };
+    return { kind: "quoted", token: { text: groups.single.slice(1, -1), expansion: "literal" } };
   }
   if (groups.double !== undefined) {
-    return { kind: "quoted", text: groups.double.slice(1, -1) };
+    const text = groups.double.slice(1, -1);
+    return { kind: "quoted", token: { text, expansion: expansionOf({ text, expanding: SHELL_EXPANDED_DOUBLE_QUOTED }) } };
   }
   if (groups.operator !== undefined) {
     return { kind: "operator" };
@@ -119,23 +188,32 @@ const scriptPieceOf = (request: { readonly match: RegExpMatchArray }): ScriptPie
     return { kind: "space" };
   }
   if (groups.text !== undefined) {
-    return { kind: "text", text: groups.text };
+    return { kind: "text", token: { text: groups.text, expansion: expansionOf({ text: groups.text, expanding: SHELL_EXPANDED_UNQUOTED }) } };
   }
   return { kind: "stray-quote" };
 };
 
 const tokensWithCurrent = (request: {
-  readonly tokens: readonly string[];
+  readonly tokens: readonly ShellToken[];
   readonly token: TokenInProgress;
-}): readonly string[] =>
-  request.token.presence === "started" ? [...request.tokens, request.token.text] : request.tokens;
+}): readonly ShellToken[] =>
+  request.token.presence === "started" ? [...request.tokens, request.token.token] : request.tokens;
+
+const joinedExpansion = (request: { readonly left: Expansion; readonly right: Expansion }): Expansion =>
+  request.left === "literal" && request.right === "literal" ? "literal" : "shell-expanded";
 
 const extendedToken = (request: {
   readonly token: TokenInProgress;
-  readonly text: string;
+  readonly piece: ShellToken;
 }): TokenInProgress => ({
   presence: "started",
-  text: request.token.presence === "started" ? `${request.token.text}${request.text}` : request.text,
+  token:
+    request.token.presence === "started"
+      ? {
+          text: `${request.token.token.text}${request.piece.text}`,
+          expansion: joinedExpansion({ left: request.token.token.expansion, right: request.piece.expansion }),
+        }
+      : request.piece,
 });
 
 const nextTokenizerState = (request: {
@@ -151,7 +229,7 @@ const nextTokenizerState = (request: {
       return { status: "unterminated" };
     case "quoted":
     case "text":
-      return { ...state, token: extendedToken({ token: state.token, text: request.piece.text }) };
+      return { ...state, token: extendedToken({ token: state.token, piece: request.piece.token }) };
     case "space":
       return {
         ...state,
@@ -168,9 +246,9 @@ const nextTokenizerState = (request: {
   }
 };
 
-export const scriptCommandsOf = (request: {
+const shellCommandsOf = (request: {
   readonly script: string;
-}): Result<readonly ScriptCommand[], { readonly kind: "unterminated-quote" }> => {
+}): Result<readonly ShellCommand[], { readonly kind: "unterminated-quote" }> => {
   const finalState = [...request.script.matchAll(SCRIPT_PIECES)]
     .map((match) => scriptPieceOf({ match }))
     .reduce<TokenizerState>((state, piece) => nextTokenizerState({ state, piece }), {
@@ -189,6 +267,18 @@ export const scriptCommandsOf = (request: {
       tokensWithCurrent({ tokens: finalState.tokens, token: finalState.token }),
     ].filter((command) => command.length > 0),
   };
+};
+
+const textsOf = (request: { readonly command: ShellCommand }): ScriptCommand => request.command.map((token) => token.text);
+
+export const scriptCommandsOf = (request: {
+  readonly script: string;
+}): Result<readonly ScriptCommand[], { readonly kind: "unterminated-quote" }> => {
+  const commands = shellCommandsOf(request);
+  if (commands.outcome === "failed") {
+    return commands;
+  }
+  return { outcome: "ok", value: commands.value.map((command) => textsOf({ command })) };
 };
 
 const eslintNamingOf = (request: { readonly token: string }): EslintNaming =>
@@ -215,6 +305,73 @@ const invocationOf = (request: { readonly command: ScriptCommand }): readonly Es
 export const eslintInvocationsOf = (request: {
   readonly commands: readonly ScriptCommand[];
 }): readonly EslintInvocation[] => request.commands.flatMap((command) => invocationOf({ command }));
+
+const SETTLED: Settlement = { kind: "settled" };
+
+const UNRESOLVED: Settlement = { kind: "unresolved" };
+
+type PrefixRole = "runner" | "setting" | "wrapper";
+
+const prefixRoleOf = (request: { readonly token: ShellToken; readonly following: readonly ShellToken[] }): PrefixRole => {
+  if (PLAIN_RUNNER_TOKENS.includes(request.token.text)) return "runner";
+  if (request.token.expansion === "literal" && ENVIRONMENT_ASSIGNMENT.test(request.token.text)) return "setting";
+  const settingsOnlyFollow = request.following.every((token) => ENVIRONMENT_ASSIGNMENT.test(token.text));
+  return request.token.text === ENVIRONMENT_SETTER && settingsOnlyFollow ? "setting" : "wrapper";
+};
+
+const reachSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
+  request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? UNRESOLVED : SETTLED;
+
+const SHELL_PLAIN_TOKEN = /^[\w./:=@+,-]+$/;
+
+const shellWritten = (request: { readonly token: ShellToken }): string =>
+  SHELL_PLAIN_TOKEN.test(request.token.text) ? request.token.text : `'${request.token.text}'`;
+
+const prefixSettlementOf = (request: { readonly prefix: readonly ShellToken[] }): Settlement => {
+  const wrapper = request.prefix.find(
+    (token, index) => prefixRoleOf({ token, following: request.prefix.slice(index + 1) }) === "wrapper",
+  );
+  return wrapper === undefined ? SETTLED : { kind: "not-plain", reason: { kind: "wrapped", wrapper: wrapper.text } };
+};
+
+const orderSettlementOf = (request: { readonly index: number; readonly command: ShellCommand }): Settlement =>
+  request.index === 0
+    ? SETTLED
+    : {
+        kind: "not-plain",
+        reason: {
+          kind: "after-another-command",
+          invocation: request.command.map((token) => shellWritten({ token })).join(" "),
+        },
+      };
+
+const settlementOf = (request: {
+  readonly index: number;
+  readonly command: ShellCommand;
+  readonly eslintIndex: number;
+}): Settlement => {
+  const settlements: readonly Settlement[] = [
+    ...request.command.slice(request.eslintIndex + 1).map((token) => reachSettlementOf({ token })),
+    prefixSettlementOf({ prefix: request.command.slice(0, request.eslintIndex) }),
+    orderSettlementOf(request),
+  ];
+  return settlements.find((settlement) => settlement.kind !== "settled") ?? SETTLED;
+};
+
+const settledInvocationOf = (request: {
+  readonly index: number;
+  readonly command: ShellCommand;
+}): readonly SettledInvocation[] => {
+  const eslintIndex = request.command.findIndex((token) => eslintNamingOf({ token: token.text }) === "names-eslint");
+  return invocationOf({ command: textsOf({ command: request.command }) }).map((invocation) => ({
+    ...invocation,
+    settlement: settlementOf({ index: request.index, command: request.command, eslintIndex }),
+    command: request.command[eslintIndex]?.text ?? "",
+  }));
+};
+
+const settledInvocationsOf = (request: { readonly commands: readonly ShellCommand[] }): readonly SettledInvocation[] =>
+  request.commands.flatMap((command, index) => settledInvocationOf({ index, command }));
 
 const occurrenceFormOf = (request: {
   readonly token: string;
@@ -287,6 +444,7 @@ const specWeakenings = (request: {
       optionValue: occurrence.optionValue,
       selectedRuleIds: request.selectedRuleIds,
     }),
+    effect: effectOf({ judgement: request.spec.judgement, optionValue: occurrence.optionValue }),
   }));
 
 const tokenWeakenings = (request: {
@@ -369,34 +527,42 @@ export const repoPathResolved = (request: {
   return { outcome: "ok", value: parsed.data };
 };
 
-const weakeningExceptions = (request: {
+const scriptOptionOf = (request: {
   readonly weakening: WeakeningOption;
+  readonly invocation: SettledInvocation;
   readonly path: RepoPath;
   readonly script: string;
   readonly selectedRules: readonly SelectedRule[];
-}): readonly NativeException[] =>
-  request.selectedRules
+}): ScriptOption => ({
+  location: request.path,
+  effect: request.weakening.effect,
+  settlement: request.invocation.settlement,
+  command: request.invocation.command,
+  exceptions: request.selectedRules
     .filter((rule) => request.weakening.ruleIds.includes(rule.ruleId))
     .map(
-      (rule): NativeException => ({
+      (rule): ScriptOptionException => ({
         kind: "command-line-option",
         clause: rule.clause,
         location: request.path,
         script: request.script,
         option: request.weakening.option,
       }),
-    );
+    ),
+});
 
-const commandLineExceptions = (request: {
-  readonly invocations: readonly EslintInvocation[];
+const scriptOptionsOf = (request: {
+  readonly invocations: readonly SettledInvocation[];
   readonly path: RepoPath;
   readonly script: string;
   readonly selectedRules: readonly SelectedRule[];
-}): readonly NativeException[] => {
+}): readonly ScriptOption[] => {
   const selectedRuleIds = request.selectedRules.map((rule) => rule.ruleId);
-  return request.invocations
-    .flatMap((invocation) => commandLineOptionsOf({ invocation, selectedRuleIds }))
-    .flatMap((weakening) => weakeningExceptions({ ...request, weakening }));
+  return request.invocations.flatMap((invocation) =>
+    commandLineOptionsOf({ invocation, selectedRuleIds }).map((weakening) =>
+      scriptOptionOf({ ...request, weakening, invocation }),
+    ),
+  );
 };
 
 const locatedScan = (request: {
@@ -422,7 +588,7 @@ const locatedScan = (request: {
   return {
     outcome: "ok",
     value: {
-      nativeExceptions: request.scan.value.nativeExceptions,
+      scriptOptions: request.scan.value.scriptOptions,
       suppressionsLocations: [
         ...request.scan.value.suppressionsLocations,
         { location: location.value, script: request.script },
@@ -437,7 +603,7 @@ const scriptScan = (request: {
   readonly scriptText: string;
   readonly selectedRules: readonly SelectedRule[];
 }): Result<PackageJsonScan, RunnerFailure> => {
-  const commands = scriptCommandsOf({ script: request.scriptText });
+  const commands = shellCommandsOf({ script: request.scriptText });
   if (commands.outcome === "failed") {
     return {
       outcome: "failed",
@@ -447,7 +613,7 @@ const scriptScan = (request: {
       },
     };
   }
-  const invocations = eslintInvocationsOf({ commands: commands.value });
+  const invocations = settledInvocationsOf({ commands: commands.value });
   const baseSegments = request.path.split("/").slice(0, -1);
   return invocations
     .flatMap((invocation) => suppressionsLocationValuesOf({ invocation }))
@@ -457,7 +623,7 @@ const scriptScan = (request: {
       {
         outcome: "ok",
         value: {
-          nativeExceptions: commandLineExceptions({ ...request, invocations }),
+          scriptOptions: scriptOptionsOf({ ...request, invocations }),
           suppressionsLocations: [],
         },
       },
@@ -486,7 +652,7 @@ const mergedScriptScan = (request: {
   return {
     outcome: "ok",
     value: {
-      nativeExceptions: [...request.scan.value.nativeExceptions, ...scanned.value.nativeExceptions],
+      scriptOptions: [...request.scan.value.scriptOptions, ...scanned.value.scriptOptions],
       suppressionsLocations: [
         ...request.scan.value.suppressionsLocations,
         ...scanned.value.suppressionsLocations,
@@ -514,6 +680,6 @@ export const scanPackageJson = (request: {
   return Object.entries(packageJson.data.scripts ?? {}).reduce<Result<PackageJsonScan, RunnerFailure>>(
     (scan, [script, scriptText]) =>
       mergedScriptScan({ scan, script, scriptText, path: request.path, selectedRules: request.selectedRules }),
-    { outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } },
+    { outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } },
   );
 };

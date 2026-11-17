@@ -26,7 +26,13 @@ The main route is the npm registry. Pre-releases are published under the dist-ta
 npm install --save-dev @hailstails/hone@next
 ```
 
-npm records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With pnpm or Yarn, add `@hailstails/hone@next` with their own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
+With pnpm, add it as a development dependency, using `-Dw` in place of `-D` at the root of a pnpm workspace:
+
+```bash
+pnpm add -D @hailstails/hone@next
+```
+
+The package manager records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@next` with its own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
 The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
@@ -46,7 +52,13 @@ Install it as a development dependency of the repository root, beside the toolch
 npm install --save-dev <hone-tarball>
 ```
 
-npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
+With pnpm, using `-Dw` in place of `-D` at the root of a pnpm workspace:
+
+```bash
+pnpm add -D <hone-tarball>
+```
+
+The package manager records it in `package.json` and the lockfile. With Yarn, add the same tarball with its own `add -D` command at the workspace root.
 
 Add the two commands to the root `package.json` scripts:
 
@@ -305,6 +317,7 @@ CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 | `notRun` | the clauses `disciplines.json` lists as `"not-run"`, each as `<clause> adopted, mechanism not run: enforced by review`; informational, they were neither run nor projected, and the rule is still owed through review |
 | `findings` | violations: fix the code, or record an exception (step 7) |
 | `exempted` | findings an exception covers; informational |
+| `unrecorded` | a native exception no record holds, as `<clause> <mechanism> <kind> <detail>`: remove it, or record it where step 7 allows. An inline disable, `<clause> eslint inline-disable <file>:<line> <comment>`, and a TypeScript directive, `CD-2#cast-expressions audit inline-disable <file>:<line> <comment>`, are held only by an `authorised-location` or `file-carve-out` on that clause and file. An `eslint-disable` naming no rule escapes every selected clause, needs a record for each, and its lines end ` names no rule and escapes every selected clause: naming the rule is the cheap fix`. A lint-script option, `<clause> eslint command-line-option <package.json> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script`, cannot be recorded. Where another command comes before `eslint` in its script, as in `tsc && eslint -c eslint.config.mjs .`, the line instead reads `<clause> eslint command-line-option <package.json> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as "<invocation>"`: move that command to a script of its own. Where something before `eslint` in its own command is neither a package runner nor a `NAME=value` setting, as `env` in `env --chdir=src eslint --ignore-pattern dist .` or `-y` in `npx -y eslint --ignore-pattern dist .`, it reads `<clause> eslint command-line-option <package.json> <script> <option>: "<wrapper>" comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>`. `cross-env` followed only by `NAME=value` settings counts as a setting |
 | `uncovered` | a mechanical clause of an adopted discipline is not listed: add it to `disciplines.json` with a mechanism, `"not-run"` or `"not-adopted"` |
 | `stale` | an exception that no longer exempts anything: delete it |
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
@@ -322,7 +335,7 @@ To print less, set `"reportOutput"` in `disciplines.json` for the repository, or
 Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section and the clause's section in `disciplines.assessment.md` (step 5a), then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
-- `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`.
+- `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`. An `eslint-disable` comment or a `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` directive already in a file is debt of this kind on the clause it escapes; a new one in a file with no record is `unrecorded`.
 - `clause-wide-carve-out`: debt across the whole clause. The rule binds and its check is sound, and the codebase cannot address the debt right now. Its why-chain records why, and the debt has an owner who will pay it down. The check still runs, and a clause-wide carve-out that exempts no finding is `stale`, so record one only while the clause still has findings. Leaving the clause out of `clauses` is not an alternative: it leaves the clause `uncovered`. If the check is not a true measure of the rule here, or cannot work here, list the clause as `"not-run"` instead; if the rule does not apply, list it as `"not-adopted"` (step 4).
 
 Every entry needs a `reason`. By default every entry also needs a `whyChain` shaped like this, with exactly five steps in `whys`:

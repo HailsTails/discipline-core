@@ -47,6 +47,7 @@ const portOver = (ignoredByConfig: EslintPort["ignoredByConfig"]): EslintPort =>
   createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>(),
   lintSourceCases: vi.fn<EslintPort["lintSourceCases"]>(),
   ignoredByConfig,
+  ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>(),
 });
 
 const lookupOver = (request: { readonly query: QueryInstance; readonly governingIgnoreOf: GoverningIgnores }): GoverningLookup => ({
