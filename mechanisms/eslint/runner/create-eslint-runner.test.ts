@@ -1621,6 +1621,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
             location: "package.json",
             script: "lint",
             option: "--rule hone/no-class-authoring: off",
+            cause: { kind: "weakens-run" },
           },
         ],
         projection: "current",
@@ -1757,6 +1758,44 @@ describe("native exceptions: lint-script options whose effect the script's own f
     ).resolves.toMatchObject({
       outcome: "ok",
       value: { nativeExceptions: [{ kind: "command-line-option", clause: CLASS_SYNTAX_OBJECT, location, script: "lint", option }] },
+    });
+  });
+});
+
+describe("native exceptions: why a lint-script option is reported", () => {
+  it.each([
+    {
+      script: "tsc && eslint -c eslint.config.mjs .",
+      option: "-c eslint.config.mjs",
+      cause: { kind: "not-plain", command: "eslint", invocation: "eslint -c eslint.config.mjs ." },
+    },
+    {
+      script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .",
+      option: "--ignore-pattern legacy/**",
+      cause: { kind: "not-plain", command: "eslint", invocation: "eslint --ignore-pattern 'legacy/**' ." },
+    },
+    {
+      script: "tsc && eslint --rule 'hone/no-class-authoring: off' .",
+      option: "--rule hone/no-class-authoring: off",
+      cause: { kind: "weakens-run" },
+    },
+    {
+      script: 'eslint --ignore-pattern "$LEGACY" .',
+      option: "--ignore-pattern $LEGACY",
+      cause: { kind: "weakens-run" },
+    },
+  ])("reports $option in $script with the cause the report names", async ({ script, option, cause }) => {
+    await expect(
+      runnerOver({
+        eslint: ESLINT_IGNORING_NOTHING,
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+        }),
+      }).run(trackedRun({ tracked: "package.json" })),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { nativeExceptions: [{ kind: "command-line-option", location: "package.json", script: "lint", option, cause }] },
     });
   });
 });
@@ -1944,6 +1983,7 @@ describe("the governance run, settled message handling", () => {
             location: "package.json",
             script: "lint",
             option: "--rule hone/no-class-authoring: off",
+            cause: { kind: "weakens-run" },
           },
         ],
         projection: "current",
@@ -1987,6 +2027,7 @@ describe("the governance run with nothing to lint", () => {
               location: "package.json",
               script: "lint",
               option: "--rule hone/no-class-authoring: off",
+              cause: { kind: "weakens-run" },
             },
           ],
           projection: "current",

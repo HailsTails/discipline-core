@@ -88,6 +88,7 @@ const scriptRuleOff = {
   location: packageJson,
   script: "lint",
   option: "--rule no-class:off",
+  cause: { kind: "weakens-run" },
 } as const;
 
 const expectationInA = {

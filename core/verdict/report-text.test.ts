@@ -242,6 +242,7 @@ CD-14#no-class-syntax eslint inline-disable src/a.ts:7 /* eslint-disable\nno-cla
               location: packageJson,
               script: "lint\r\nfix",
               option: "--rule\nno-class:off",
+              cause: { kind: "weakens-run" },
               mechanism: eslint,
             },
           ],
@@ -356,12 +357,38 @@ exceptions[4] why-chain-refused why 2\nis empty\r
               location: packageJson,
               script: "lint",
               option: "--rule no-class:off",
+              cause: { kind: "weakens-run" },
               mechanism: eslint,
             },
           ],
         },
       }),
     ).toContain("\nCD-14#no-class-syntax eslint command-line-option package.json lint --rule no-class:off weakens the script's whole run, so no record can cover it: remove it from the script\n");
+  });
+
+  it("renders an option in a script where eslint is not the only command with the script's own eslint invocation as the way out", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          unrecorded: [
+            {
+              kind: "command-line-option",
+              clause: noClass,
+              location: packageJson,
+              script: "lint",
+              option: "-c eslint.config.mjs",
+              cause: { kind: "not-plain", command: "eslint", invocation: "eslint -c eslint.config.mjs ." },
+              mechanism: eslint,
+            },
+          ],
+        },
+      }),
+    ).toContain(
+      '\nCD-14#no-class-syntax eslint command-line-option package.json lint -c eslint.config.mjs: eslint is not the only command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as "eslint -c eslint.config.mjs ."\n',
+    );
   });
 
   it("renders an invalid record that carries a detail as its index, problem kind and detail", () => {

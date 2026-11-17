@@ -18,11 +18,15 @@ export type EslintInvocation = {
   readonly options: readonly string[];
 };
 
-export type Settlement = "settled" | "unsettled";
+export type Settlement = "settled" | "not-plain" | "unresolved";
 
 type SettledInvocation = EslintInvocation & {
   readonly settlement: Settlement;
+  readonly command: string;
+  readonly invocation: string;
 };
+
+export type ScriptOptionException = Omit<Extract<NativeException, { readonly kind: "command-line-option" }>, "cause">;
 
 type Expansion = "literal" | "shell-expanded";
 
@@ -48,7 +52,9 @@ export type ScriptOption = {
   readonly location: RepoPath;
   readonly effect: OptionEffect;
   readonly settlement: Settlement;
-  readonly exceptions: readonly NativeException[];
+  readonly command: string;
+  readonly invocation: string;
+  readonly exceptions: readonly ScriptOptionException[];
 };
 
 export type ScriptSuppressionsLocation = {
@@ -297,10 +303,10 @@ const prefixSettlementOf = (request: { readonly token: ShellToken }): Settlement
   PLAIN_RUNNER_TOKENS.includes(request.token.text) ||
   (request.token.expansion === "literal" && ENVIRONMENT_ASSIGNMENT.test(request.token.text))
     ? "settled"
-    : "unsettled";
+    : "not-plain";
 
 const reachSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
-  request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? "unsettled" : "settled";
+  request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? "unresolved" : "settled";
 
 const settlementOf = (request: {
   readonly index: number;
@@ -308,12 +314,17 @@ const settlementOf = (request: {
   readonly eslintIndex: number;
 }): Settlement => {
   const settlements: readonly Settlement[] = [
-    request.index === 0 ? "settled" : "unsettled",
-    ...request.command.slice(0, request.eslintIndex).map((token) => prefixSettlementOf({ token })),
     ...request.command.slice(request.eslintIndex + 1).map((token) => reachSettlementOf({ token })),
+    request.index === 0 ? "settled" : "not-plain",
+    ...request.command.slice(0, request.eslintIndex).map((token) => prefixSettlementOf({ token })),
   ];
-  return settlements.includes("unsettled") ? "unsettled" : "settled";
+  return settlements.find((settlement) => settlement !== "settled") ?? "settled";
 };
+
+const SHELL_PLAIN_TOKEN = /^[\w./:=@+,-]+$/;
+
+const shellWritten = (request: { readonly token: ShellToken }): string =>
+  SHELL_PLAIN_TOKEN.test(request.token.text) ? request.token.text : `'${request.token.text}'`;
 
 const settledInvocationOf = (request: {
   readonly index: number;
@@ -323,6 +334,11 @@ const settledInvocationOf = (request: {
   return invocationOf({ command: textsOf({ command: request.command }) }).map((invocation) => ({
     ...invocation,
     settlement: settlementOf({ index: request.index, command: request.command, eslintIndex }),
+    command: request.command[eslintIndex]?.text ?? "",
+    invocation: request.command
+      .slice(eslintIndex)
+      .map((token) => shellWritten({ token }))
+      .join(" "),
   }));
 };
 
@@ -485,18 +501,20 @@ export const repoPathResolved = (request: {
 
 const scriptOptionOf = (request: {
   readonly weakening: WeakeningOption;
-  readonly settlement: Settlement;
+  readonly invocation: SettledInvocation;
   readonly path: RepoPath;
   readonly script: string;
   readonly selectedRules: readonly SelectedRule[];
 }): ScriptOption => ({
   location: request.path,
   effect: request.weakening.effect,
-  settlement: request.settlement,
+  settlement: request.invocation.settlement,
+  command: request.invocation.command,
+  invocation: request.invocation.invocation,
   exceptions: request.selectedRules
     .filter((rule) => request.weakening.ruleIds.includes(rule.ruleId))
     .map(
-      (rule): NativeException => ({
+      (rule): ScriptOptionException => ({
         kind: "command-line-option",
         clause: rule.clause,
         location: request.path,
@@ -515,7 +533,7 @@ const scriptOptionsOf = (request: {
   const selectedRuleIds = request.selectedRules.map((rule) => rule.ruleId);
   return request.invocations.flatMap((invocation) =>
     commandLineOptionsOf({ invocation, selectedRuleIds }).map((weakening) =>
-      scriptOptionOf({ ...request, weakening, settlement: invocation.settlement }),
+      scriptOptionOf({ ...request, weakening, invocation }),
     ),
   );
 };

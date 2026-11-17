@@ -40,6 +40,7 @@ const EVERY_NATIVE_KIND = [
     location: "package.json",
     script: "lint",
     option: "--suppress-all",
+    cause: { kind: "weakens-run" },
   },
 ];
 

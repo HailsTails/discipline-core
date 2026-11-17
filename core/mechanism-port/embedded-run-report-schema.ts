@@ -2,7 +2,7 @@ import { z } from "zod";
 import { clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Equal } from "../values/type-equality.ts";
-import { hitSchema, type InlineReach, type ProjectionState } from "./runner-result-schema.ts";
+import { hitSchema, type InlineReach, type ProjectionState, type ScriptOptionCause } from "./runner-result-schema.ts";
 
 const inlineLineSchema = z.number().int().min(1);
 
@@ -16,6 +16,11 @@ export const inlineDisableSchema = z
     reach: z.enum(["one-clause", "every-selected-clause"]),
   })
   .readonly();
+
+const scriptOptionCauseSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("weakens-run") }).readonly(),
+  z.object({ kind: z.literal("not-plain"), command: z.string(), invocation: z.string() }).readonly(),
+]);
 
 export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
@@ -53,6 +58,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
       location: repoPathSchema,
       script: z.string(),
       option: z.string(),
+      cause: scriptOptionCauseSchema,
     })
     .readonly(),
 ]);
@@ -78,6 +84,8 @@ export const embeddedRunReportSchema = z
 export type EmbeddedRunReport = z.infer<typeof embeddedRunReportSchema>;
 
 export const isInlineReachEqual: Equal<z.infer<typeof inlineDisableSchema>["reach"], InlineReach> = true;
+
+export const isScriptOptionCauseEqual: Equal<z.infer<typeof scriptOptionCauseSchema>, ScriptOptionCause> = true;
 
 export const isProjectionStateEqual: Equal<EmbeddedRunReport["projection"], ProjectionState> =
   true;

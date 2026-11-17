@@ -1,6 +1,6 @@
 import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
-import type { InlineReach } from "../mechanism-port/runner-result-schema.ts";
+import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -55,7 +55,14 @@ const INLINE_REACH_NOTE: Readonly<Record<InlineReach, string>> = {
   "every-selected-clause": " names no rule and escapes every selected clause: naming the rule is the cheap fix",
 };
 
-const SCRIPT_OPTION_NOTE = " weakens the script's whole run, so no record can cover it: remove it from the script";
+const scriptOptionNote = (request: { readonly cause: ScriptOptionCause }): string => {
+  switch (request.cause.kind) {
+    case "weakens-run":
+      return " weakens the script's whole run, so no record can cover it: remove it from the script";
+    case "not-plain":
+      return `: ${request.cause.command} is not the only command of its script, so Hone cannot tell what the option does to the files under check; give ${request.cause.command} a script of its own, such as ${quoted({ text: request.cause.invocation })}`;
+  }
+};
 
 const inlineDetail = (request: {
   readonly exception: { readonly file: string; readonly line: number; readonly text: string };
@@ -73,7 +80,7 @@ const unrecordedDetail = (request: { readonly exception: AttributedNativeExcepti
     case "inline-rule-config":
       return inlineDetail({ exception: request.exception });
     case "command-line-option":
-      return `${request.exception.location} ${escapedLineBreaks({ text: request.exception.script })} ${escapedLineBreaks({ text: request.exception.option })}${SCRIPT_OPTION_NOTE}`;
+      return `${request.exception.location} ${escapedLineBreaks({ text: request.exception.script })} ${escapedLineBreaks({ text: request.exception.option })}${scriptOptionNote({ cause: request.exception.cause })}`;
   }
 };
 

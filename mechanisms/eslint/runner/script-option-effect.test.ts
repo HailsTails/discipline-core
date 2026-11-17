@@ -16,6 +16,8 @@ const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 const optionAt = (request: { readonly location: typeof ROOT_PACKAGE; readonly effect: OptionEffect }): ScriptOption => ({
   ...request,
   settlement: "settled",
+  command: "eslint",
+  invocation: "eslint .",
   exceptions: [],
 });
 
@@ -60,13 +62,31 @@ describe("scriptOptionJudge, what is not positively settled", () => {
   it.each<OptionEffect>([
     { kind: "names-config", config: "eslint.config.mjs" },
     { kind: "ignores-pattern", pattern: "legacy/**" },
-  ])("weakens $kind when the script's own folder does not settle it, without asking ESLint anything", async (effect) => {
+  ])("weakens $kind when a value or target is not resolved, without asking ESLint anything", async (effect) => {
     const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
     await expect(
-      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "unsettled" } }),
+      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "unresolved" } }),
     ).resolves.toEqual({ outcome: "ok", value: "weakens" });
     expect({ configs: vi.mocked(query.configFileOf).mock.calls, ignores: ignoredByPatterns.mock.calls }).toEqual({ configs: [], ignores: [] });
+  });
+
+  it.each<OptionEffect>([
+    { kind: "names-config", config: "eslint.config.mjs" },
+    { kind: "ignores-pattern", pattern: "legacy/**" },
+  ])("reports $kind as not judged when eslint is not run plainly, without asking ESLint anything", async (effect) => {
+    const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
+    const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
+    await expect(
+      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "not-plain" } }),
+    ).resolves.toEqual({ outcome: "ok", value: "not-plain" });
+    expect({ configs: vi.mocked(query.configFileOf).mock.calls, ignores: ignoredByPatterns.mock.calls }).toEqual({ configs: [], ignores: [] });
+  });
+
+  it("weakens an option that always weakens even when eslint is not run plainly", async () => {
+    await expect(
+      judgeOver({})({ option: { ...optionAt({ location: ROOT_PACKAGE, effect: { kind: "weakens" } }), settlement: "not-plain" } }),
+    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
   });
 
   it.each<OptionEffect>([

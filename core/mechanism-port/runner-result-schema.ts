@@ -20,6 +20,10 @@ export const nativeExceptionKindSchema = z.enum([
 
 export type InlineReach = "one-clause" | "every-selected-clause";
 
+export type ScriptOptionCause =
+  | { readonly kind: "weakens-run" }
+  | { readonly kind: "not-plain"; readonly command: string; readonly invocation: string };
+
 export type NativeException =
   | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }
   | { readonly kind: "config-override"; readonly clause: ClauseAddress; readonly file: RepoPath }
@@ -50,6 +54,7 @@ export type NativeException =
       readonly location: RepoPath;
       readonly script: string;
       readonly option: string;
+      readonly cause: ScriptOptionCause;
     };
 
 export type InlineDisable = Extract<NativeException, { readonly kind: "inline-disable" }>;

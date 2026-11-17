@@ -10,6 +10,7 @@ import type {
   InlineReach,
   NativeException,
   ProjectionWrite,
+  ScriptOptionCause,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
@@ -45,7 +46,7 @@ import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 import { CONFIG_FILE_NAMES, type ConfigLookup, configLookupOf, teamConfigLookup } from "./config-lookup.ts";
 import { type PackageJsonScan, type ScriptOption, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
-import { type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
+import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
 import { type CurrentProjection, currentProjection, PROJECTION_PATH, pluginImportOf, projectionState } from "./projection.ts";
 import {
   type ConfigRoot,
@@ -983,6 +984,17 @@ const suppressionsFileExceptions = (request: {
   });
 };
 
+const causeOf = (request: { readonly verdict: OptionVerdict; readonly option: ScriptOption }): ScriptOptionCause | undefined => {
+  switch (request.verdict) {
+    case "weakens":
+      return { kind: "weakens-run" };
+    case "not-plain":
+      return { kind: "not-plain", command: request.option.command, invocation: request.option.invocation };
+    case "weakens-nothing":
+      return undefined;
+  }
+};
+
 const weakeningExceptions = (request: {
   readonly option: ScriptOption;
   readonly judge: ScriptOptionJudge;
@@ -991,7 +1003,11 @@ const weakeningExceptions = (request: {
     if (verdict.outcome === "failed") {
       return verdict;
     }
-    return { outcome: "ok", value: verdict.value === "weakens" ? request.option.exceptions : [] };
+    const cause = causeOf({ verdict: verdict.value, option: request.option });
+    return {
+      outcome: "ok",
+      value: cause === undefined ? [] : request.option.exceptions.map((exception): NativeException => ({ ...exception, cause })),
+    };
   });
 
 const judgedScriptExceptions = (request: {

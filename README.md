@@ -50,7 +50,10 @@ An `unrecorded` line is `<clause> <mechanism> <kind> <detail>`. Two kinds end wi
 | Kind | Line |
 | --- | --- |
 | `inline-disable` naming no rule | `<clause> eslint inline-disable <file>:<line> <comment> names no rule and escapes every selected clause: naming the rule is the cheap fix` |
-| `command-line-option` | `<clause> eslint command-line-option <package.json> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script` |
+| `command-line-option` that weakens the run | `<clause> eslint command-line-option <package.json> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script` |
+| `command-line-option` Hone cannot judge, because `eslint` shares its script with another command or runs behind a wrapper | `<clause> eslint command-line-option <package.json> <script> <option>: <command> is not the only command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as "<invocation>"` |
+
+`<command>` is the `eslint` call as the script writes it, and `<invocation>` is that call with its options, from the same script. Moving it to a script of its own lets Hone judge the option: `-c` naming the config ESLint already finds, and `--ignore-pattern` that ignores no checked file, are then not reported.
 
 `readFirst` comes last, just before the verdict, so a reader who looks only at the end of a failing report lands on it. It has one line per clause with findings, not one per finding, in the order the findings first name the clauses. Each line points at the Spirit section of the clause's rule page, `rules/<ID>/README.md` in the clause's rule set, and, where the repository has written one, at the clause's own section in `disciplines.assessment.md` at the repository root first. That file is where a repository records its own causes, forward goal and steps for a clause; [ADOPTING step 5a](ADOPTING.md#5a-write-the-assessment) says how to write it. Paths are printed with forward slashes, relative to the `--repo` folder; a page on another drive is printed as its absolute path.
 
