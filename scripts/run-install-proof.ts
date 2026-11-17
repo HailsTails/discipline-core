@@ -381,11 +381,20 @@ const packageShipsNoSource = (request: {
   return SUCCEEDED;
 };
 
-const insideConsumer = (request: { readonly context: ProofContext; readonly repo: string; readonly path: string }): Result<string, string> => {
+const pathFrom = (request: { readonly context: ProofContext; readonly repo: string; readonly path: string }): Result<string, string> => {
   const placed = request.context.path.relative({ from: request.repo, to: request.path });
   return placed.relation === "within-root"
     ? { outcome: "ok", value: placed.path }
     : { outcome: "failed", error: `${request.path} shares no root with ${request.repo}` };
+};
+
+const PARENT_FOLDER = "..";
+
+const containedPathOf = (request: { readonly context: ProofContext; readonly repo: string; readonly path: string }): Result<string, string> => {
+  const placed = pathFrom(request);
+  return placed.outcome === "ok" && placed.value !== PARENT_FOLDER && !placed.value.startsWith(`${PARENT_FOLDER}/`)
+    ? placed
+    : { outcome: "failed", error: `${request.path} lies outside ${request.repo}` };
 };
 
 const consumerDependenciesOf = (request: CaseRequest & { readonly repo: string }): Result<Readonly<Record<string, string>>, string> => {
@@ -393,7 +402,7 @@ const consumerDependenciesOf = (request: CaseRequest & { readonly repo: string }
   if (pins.outcome === "failed") {
     return { outcome: "failed", error: `FAIL: package.json: ${pins.error.detail}` };
   }
-  const tarball = insideConsumer({ context: request.context, repo: request.repo, path: request.tarball });
+  const tarball = pathFrom({ context: request.context, repo: request.repo, path: request.tarball });
   return tarball.outcome === "failed"
     ? { outcome: "failed", error: `FAIL: locate the packed tarball from ${request.proofCase.consumer}: ${tarball.error}` }
     : { outcome: "ok", value: { ...pins.value, [TOOL_IDENTITY.packageName]: `file:${tarball.value}` } };
@@ -401,11 +410,15 @@ const consumerDependenciesOf = (request: CaseRequest & { readonly repo: string }
 
 const installedLocationOf = (request: { readonly context: ProofContext; readonly repo: string; readonly consumer: string }): Result<string, string> => {
   const label = `${request.consumer} runs the package from where pnpm put it`;
+  const realRepo = labelled({ label, result: request.context.scratch.realPathOf({ path: request.repo }) });
+  if (realRepo.outcome === "failed") {
+    return realRepo;
+  }
   const real = labelled({ label, result: request.context.scratch.realPathOf({ path: request.context.path.join({ segments: [request.repo, LINKED_INSTALL] }) }) });
   if (real.outcome === "failed") {
     return real;
   }
-  const installed = insideConsumer({ context: request.context, repo: request.repo, path: real.value });
+  const installed = containedPathOf({ context: request.context, repo: realRepo.value, path: real.value });
   if (installed.outcome === "failed") {
     return { outcome: "failed", error: `FAIL: ${label}: ${installed.error}` };
   }

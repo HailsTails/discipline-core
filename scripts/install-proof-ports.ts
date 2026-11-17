@@ -166,7 +166,7 @@ export const defaultScratchFilesSurface: ScratchFilesSurface = {
       entryKind: entry.isDirectory() ? "folder" : "file",
     })),
   digestOf: (request) => createHash("sha256").update(readFileSync(request.path)).digest("hex"),
-  realPathOf: (request) => realpathSync(request.path),
+  realPathOf: (request) => realpathSync.native(request.path),
 };
 
 const spawnedRun = (request: CommandSpawnRequest): StepRun => {

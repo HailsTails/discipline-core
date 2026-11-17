@@ -31,7 +31,6 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
 
 const CONSUMER = "/scratch/audit";
 
-const INSTALLED_AT = `${CONSUMER}/node_modules/.pnpm/hone/node_modules/@hailstails/hone`;
 
 const TARBALL = "/scratch/package-tarball/hailstails-hone-0.0.0.tgz";
 
@@ -115,6 +114,16 @@ const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTex
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
+const LINKED_PACKAGE = "/node_modules/@hailstails/hone";
+
+const STORED_PACKAGE = "/node_modules/.pnpm/hone/node_modules/@hailstails/hone";
+
+const realPathsOf = (request: { readonly consumer: string; readonly installed: string }): ScratchFilesPort["realPathOf"] =>
+  vi
+    .fn<ScratchFilesPort["realPathOf"]>()
+    .mockReturnValueOnce({ outcome: "ok", value: request.consumer })
+    .mockReturnValue({ outcome: "ok", value: request.installed });
+
 const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => ({
   createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>().mockReturnValue({ outcome: "ok", value: "/scratch" }),
   removeTree: vi.fn<ScratchFilesPort["removeTree"]>().mockReturnValue({ outcome: "ok", value: null }),
@@ -122,7 +131,7 @@ const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => 
   copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue({ outcome: "ok", value: null }),
   listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE }),
   digestOf: vi.fn<ScratchFilesPort["digestOf"]>().mockReturnValue({ outcome: "ok", value: "digest" }),
-  realPathOf: vi.fn<ScratchFilesPort["realPathOf"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_AT }),
+  realPathOf: realPathsOf({ consumer: CONSUMER, installed: `${CONSUMER}${STORED_PACKAGE}` }),
   ...overrides,
 });
 
@@ -149,6 +158,44 @@ const proofRequest = (overrides: Partial<InstallProofRequest>): InstallProofRequ
 const reportOf = (request: { readonly process: ProcessPort }) => ({
   writes: vi.mocked(request.process.writeOut).mock.calls,
   exits: vi.mocked(request.process.exitWith).mock.calls,
+});
+
+describe("runInstallProof, finding where pnpm put the package", () => {
+  it("measures the package's real path from the consumer's own real path, so a temporary root spelled two ways names one place", async () => {
+    const proofProcess = processPort();
+    const realPathOf = realPathsOf({ consumer: "/long-scratch/audit", installed: `/long-scratch/audit${STORED_PACKAGE}` });
+
+    await runInstallProof(proofRequest({ process: proofProcess, scratch: scratchPort({ realPathOf }) }));
+
+    expect({ asked: vi.mocked(realPathOf).mock.calls, located: reportOf({ process: proofProcess }).writes[1] }).toEqual({
+      asked: [[{ path: CONSUMER }], [{ path: `${CONSUMER}${LINKED_PACKAGE}` }]],
+      located: [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
+    });
+  });
+
+  it("exits 1 naming both real paths when the package lands outside its consumer, running nothing after it", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning(EXITED_PASSING);
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        scratch: scratchPort({ realPathOf: realPathsOf({ consumer: CONSUMER, installed: "/scratch/store/hone" }) }),
+      }),
+    );
+
+    expect({ report: reportOf({ process: proofProcess }), runs: vi.mocked(commands.run).mock.calls.length }).toEqual({
+      report: {
+        writes: [
+          [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
+          [{ text: "FAIL: audit runs the package from where pnpm put it: /scratch/store/hone lies outside /scratch/audit\n" }],
+        ],
+        exits: [[{ code: 1 }]],
+      },
+      runs: 1,
+    });
+  });
 });
 
 describe("runInstallProof", () => {
