@@ -10,6 +10,10 @@ describe("TOOL_IDENTITY", () => {
     });
   });
 
+  it("names the rule set the tool ships hone, a name of its own apart from the command", () => {
+    expect(TOOL_IDENTITY.ownRuleSet).toBe("hone");
+  });
+
   it("reserves the ESLint namespace hone-core for its own projection blocks and governance rule, apart from every discipline's hone and hone-cd<N> namespaces", () => {
     expect(TOOL_IDENTITY.reservedEslintNamespace).toBe("hone-core");
   });

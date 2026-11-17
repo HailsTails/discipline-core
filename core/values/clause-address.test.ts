@@ -54,6 +54,7 @@ describe("clauseAddressSchema", () => {
     "Probe/CD-14#no-class-syntax",
     "probe/team/CD-14#no-class-syntax",
     "probe//CD-14#no-class-syntax",
+    "Hone/CD-14#no-class-syntax",
   ])("refuses %j", (text) => {
     expect(clauseAddressSchema.safeParse(text).success).toBe(false);
   });

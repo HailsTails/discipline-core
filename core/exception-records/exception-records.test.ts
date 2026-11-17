@@ -294,6 +294,18 @@ describe("parseExceptionEntries invalid records", () => {
     });
   });
 
+  it("is a duplicate of an earlier bare entry when written with the hone prefix", () => {
+    expect(
+      parseExceptionEntries({ entries: [LOCATION, { ...LOCATION, clause: "hone/CD-14#class-syntax" }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }).invalid,
+    ).toEqual([{ index: 1, problem: { kind: "duplicate", ofIndex: 0 } }]);
+  });
+
+  it("is a record for the bare clause when written with the hone prefix", () => {
+    expect(
+      parseExceptionEntries({ entries: [{ ...LOCATION, clause: "hone/CD-14#class-syntax" }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }).records,
+    ).toMatchObject([{ clause: CLASS_SYNTAX }]);
+  });
+
   it("is a duplicate of an earlier clause-wide carve-out for the same clause", () => {
     expect(
       parseExceptionEntries({ entries: [CLAUSE_WIDE, CLAUSE_WIDE], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }).invalid,
