@@ -1,9 +1,9 @@
 # Hone
 
-[![npm version on the next dist-tag](https://img.shields.io/npm/v/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
+[![npm version on the latest dist-tag](https://img.shields.io/npm/v/%40hailstails%2Fhone/latest)](https://www.npmjs.com/package/@hailstails/hone)
 [![CI on main](https://github.com/HailsTails/hone/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HailsTails/hone/actions/workflows/ci.yml?query=branch%3Amain)
-[![Unpacked size on the next dist-tag](https://img.shields.io/npm/unpacked-size/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
-[![Supported Node versions on the next dist-tag](https://img.shields.io/node/v/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
+[![Unpacked size on the latest dist-tag](https://img.shields.io/npm/unpacked-size/%40hailstails%2Fhone/latest)](https://www.npmjs.com/package/@hailstails/hone)
+[![Supported Node versions on the latest dist-tag](https://img.shields.io/node/v/%40hailstails%2Fhone/latest)](https://www.npmjs.com/package/@hailstails/hone)
 [![Licence](https://img.shields.io/npm/l/%40hailstails%2Fhone)](LICENSE)
 
 Hone checks a repository against the disciplines it has chosen to adopt. It is a tool, not a framework: it reads what the repository selected, hands each selected clause to the mechanism that checks it, applies the repository's recorded exceptions, and prints one verdict. Its core enforces nothing and names no discipline and no mechanism. A discipline (for example CD-14, no authored classes) is data under `rules/`, and a mechanism is a runner under `mechanisms/`; the core reaches both only through files and one module contract.
@@ -15,7 +15,7 @@ npm view @hailstails/hone dist-tags
 npm install --save-dev --save-exact @hailstails/hone@<version>
 ```
 
-With pnpm the second command is `pnpm add -D --save-exact @hailstails/hone@<version>`. Releases are pre-releases, published to npm under the dist-tag `next`, until a stable release is published under `latest`; the badge above shows the version `next` installs. Pin the exact version the dist-tag you want names, rather than installing by tag: a pre-release can change commands, flags and files, and an install by tag can record a range. The alternative is the tarball attached to each [GitHub release](https://github.com/HailsTails/hone/releases), installed with `npm install --save-dev <path-to-tarball>`. A repository on the package's old name, `honed`, moves with [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone). [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps, and the alternative of building the tarball from a pinned commit.
+With pnpm the second command is `pnpm add -D --save-exact @hailstails/hone@<version>`. Stable releases are published to npm under the dist-tag `latest` and pre-releases under `next`; the badge above shows the version `latest` installs. Pin the exact version rather than installing by tag: a release can change commands, flags and files, and an install by tag can record a range. The alternative is the tarball attached to each [GitHub release](https://github.com/HailsTails/hone/releases), installed with `npm install --save-dev <path-to-tarball>`. A repository on the package's old name, `honed`, moves with [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone). [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps, and the alternative of building the tarball from a pinned commit.
 
 Two mechanisms ship: `audit`, a standalone TypeScript syntax walker, and `eslint`, which runs the clause as an ESLint rule inside the team's own ESLint setup. [rules/README.md](rules/README.md) lists every shared discipline with its clauses: the audit mechanism checks 20 disciplines, and ESLint pieces check clauses of CD-1, CD-6, CD-7, CD-10, CD-14, CD-27, CD-40, CD-41, CD-42 and CD-44. The rest are judgement rules, applied in review with the review methods in [methods/](methods/README.md).
 

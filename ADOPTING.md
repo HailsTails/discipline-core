@@ -20,7 +20,7 @@ Hone ships as one npm package tarball of built JavaScript, so it needs no TypeSc
 
 Releases are pre-releases until a stable release is published: until then, commands, flags and files may still change between releases.
 
-The main route is the npm registry. Pre-releases are published under the dist-tag `next`, which names the newest pre-release approved on npm; `npm view @hailstails/hone dist-tags.next` prints its version. Install that version exactly, with `<version>` in place:
+The main route is the npm registry. Stable releases are published under the dist-tag `latest`, which names the newest stable release approved on npm; `npm view @hailstails/hone dist-tags.latest` prints its version. Pre-releases are published under `next`. Install that version exactly, with `<version>` in place:
 
 ```bash
 npm install --save-dev --save-exact @hailstails/hone@<version>
@@ -32,7 +32,7 @@ With pnpm, add it as a development dependency, using `-Dw` in place of `-D` at t
 pnpm add -D --save-exact @hailstails/hone@<version>
 ```
 
-Pin the exact version. Commands, flags and files may change between pre-releases, and an install by tag can record a range in `package.json`, such as `^` and the version, which a later install without the lockfile, or an update, moves to a newer pre-release that nobody chose. With an exact pin, the version changes only when you change it (step 10). Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@<version>` exactly with its own `add -D` command at the workspace root. `next` can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
+Pin the exact version. Commands, flags and files may change between releases, and an install by tag can record a range in `package.json`, such as `^` and the version, which a later install without the lockfile, or an update, moves to a newer release that nobody chose. With an exact pin, the version changes only when you change it (step 10). Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@<version>` exactly with its own `add -D` command at the workspace root. `latest` can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
 The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same Hone without the registry. Its three dependencies still come from the registry, or the mirror your package manager uses, at releases inside the ranges the tarball's `package.json` declares, and the repository's lockfile records which. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
