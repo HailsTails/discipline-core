@@ -32,7 +32,7 @@ describe("loadParsePort when typescript is missing, unsupported or shadowed", ()
       loadParsePort({ peers: { location: locatedAt({ location: "/repo/node_modules/typescript/lib/typescript.js" }), modules: typescriptAt({ version }) } }),
     ).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: version },
+      error: { kind: "toolchain-unavailable", peers: [{ packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: version }] },
     });
   });
 

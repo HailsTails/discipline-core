@@ -77,7 +77,7 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 2,
       output:
-        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0; @typescript-eslint/parser found not installed, supported ^8.56.0; @typescript-eslint/eslint-plugin found not installed, supported ^8.56.0: add a supported version of each to the devDependencies of the repository root\n",
     },
   },
 ];

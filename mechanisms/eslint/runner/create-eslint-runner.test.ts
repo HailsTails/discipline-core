@@ -18,6 +18,7 @@ import type { Result } from "../../../core/values/result.ts";
 import { createEslintRunner, type EslintRunnerPorts } from "./create-eslint-runner.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type {
+  ConfigFileSearch,
   EslintPort,
   GovernanceInstance,
   IgnoredState,
@@ -271,12 +272,23 @@ const queryOver = (request: {
 }): QueryInstance => ({
   ignoredState: ({ file }) => Promise.resolve({ outcome: "ok", value: request.ignored[file] }),
   ruleState: ({ file, ruleId }) => Promise.resolve({ outcome: "ok", value: request.states[`${file} ${ruleId}`] }),
+  configFileOf: () => Promise.resolve(CONFIG_UNKNOWN),
 });
 
 const failingQuery = (failure: RunnerFailure): QueryInstance => ({
   ignoredState: () => Promise.resolve({ outcome: "failed", error: failure }),
   ruleState: () => Promise.resolve({ outcome: "failed", error: failure }),
+  configFileOf: () => Promise.resolve(CONFIG_UNKNOWN),
 });
+
+const CONFIG_UNKNOWN: ConfigFileSearch = { kind: "unknown" };
+
+const configFailingQuery = (request: { readonly search: ConfigFileSearch; readonly detail: string }): QueryInstance => ({
+  ...failingQuery({ kind: "team-config-unloadable", detail: request.detail }),
+  configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(request.search),
+});
+
+const UNEXPECTED_TOKEN = "Unexpected token ';'";
 
 const CHECKED: Readonly<Record<string, IgnoredState>> = { "src/a.ts": "checked", "src/factory.ts": "checked" };
 
@@ -299,6 +311,10 @@ const lintResolving = (outcome: Result<readonly LintedFile[], RunnerFailure>) =>
   vi.fn<GovernanceInstance["lintFiles"]>().mockResolvedValue(outcome);
 
 const CLASS_MESSAGE: LintedMessage = { ruleId: RULE_ID, line: 3, column: 3, message: "class authored" };
+
+const FORTY_BUNDLED = "var a=1;var b=2;var c=3;var d=4;var e=5;";
+
+const LIMIT_LONG_LINE = `${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}`;
 
 const CLEAN_LINT = lintResolving({ outcome: "ok", value: linted({ messagesInA: [] }) });
 
@@ -599,14 +615,66 @@ describe("the governance run, step 3: the projection in effect", () => {
     expect(vi.mocked(eslint.createQueryInstance).mock.calls).toEqual([[{ repoRoot: "/repo" }]]);
   });
 
-  it("passes team-config-unloadable through from the query instance", async () => {
+  it("names the file whose ESLint config failed to load when ESLint cannot say which config it was", async () => {
     await expect(
-      runnerOver({
-        eslint: eslintOver({ query: failingQuery({ kind: "team-config-unloadable", detail: "eslint.config.mjs threw" }) }),
-      }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "eslint.config.mjs threw" } });
+      runnerOver({ eslint: eslintOver({ query: configFailingQuery({ search: CONFIG_UNKNOWN, detail: UNEXPECTED_TOKEN }) }) }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "the ESLint config for src/a.ts failed to load: Unexpected token ';'. Fix that config." },
+    });
   });
 
+  it("leads with fixing a nested ESLint config that failed to load, and offers exclude only for a folder holding nothing Hone should check", async () => {
+    const query = configFailingQuery({ search: { kind: "found", path: "/repo/fixtures/broken/eslint.config.mjs" }, detail: UNEXPECTED_TOKEN });
+    await expect(runnerOver({ eslint: eslintOver({ query }) }).run(CLASS_RUN)).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "fixtures/broken/eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config: Hone loads the nearest config of every tracked file, including in a folder the repository's own ESLint skips through a global ignores entry. Only if fixtures/broken holds nothing Hone should check, add it to exclude in disciplines.json instead.",
+      },
+    });
+    expect(query.configFileOf).toHaveBeenCalledWith({ file: "src/a.ts" });
+  });
+
+  it("asks only for a fix when the config that failed to load is the repository root's", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({ query: configFailingQuery({ search: { kind: "found", path: "/repo/eslint.config.mjs" }, detail: UNEXPECTED_TOKEN }) }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config." },
+    });
+  });
+
+  it("does not repeat the full stop of an ESLint message that ends in one", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({
+          query: configFailingQuery({ search: { kind: "found", path: "/repo/eslint.config.mjs" }, detail: "Config file is not an array." }),
+        }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Config file is not an array. Fix that config." },
+    });
+  });
+
+  it("asks for a config that spreads the projection when no ESLint config applies to the file at all", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({ query: configFailingQuery({ search: { kind: "none" }, detail: "Could not find config file." }) }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "no eslint.config.* applies to src/a.ts. Create one at the repository root that spreads disciplines.eslint.mjs last, as ADOPTING.md step 4a shows.",
+      },
+    });
+  });
   it("passes plugin-conflict through from the query instance", async () => {
     await expect(
       runnerOver({
@@ -899,6 +967,27 @@ describe("the governance run, step 5: messages", () => {
           { ...HIT_IN_A, anchor: { line: 2, column: 2 }, snippet: "second;" },
           { ...HIT_IN_A, anchor: { line: 3, column: 2 }, snippet: "third;" },
         ],
+        nativeExceptions: [],
+        projection: "current",
+      },
+    });
+  });
+
+  it("starts the snippet of a line longer than the snippet limit at the finding's column, so a bundled line shows the flagged code, marked as cut at its start", async () => {
+    const { fileText } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: `  ${LIMIT_LONG_LINE}class Flagged {}\n`,
+    });
+    const report = await runnerOver({
+      fileText,
+      eslint: eslintOver({
+        lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [{ ...CLASS_MESSAGE, line: 1, column: 203 }] }) }),
+      }),
+    }).run(CLASS_RUN);
+    expect(report).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [{ ...HIT_IN_A, anchor: { line: 1, column: 202 }, snippet: "…class Flagged {}" }],
         nativeExceptions: [],
         projection: "current",
       },

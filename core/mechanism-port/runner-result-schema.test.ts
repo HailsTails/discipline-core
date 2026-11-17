@@ -24,6 +24,10 @@ const hit = {
   snippet: "class A {}",
 };
 
+const FORTY = "class A {} class B {} class C {} class D";
+
+const LIMIT_LONG_SNIPPET = `${FORTY}${FORTY}${FORTY}${FORTY}${FORTY}`;
+
 const write = { path: "eslint.config.js", effect: "written" };
 
 const projectionWriteResultSchema = runnerResultSchema({ value: projectionWriteSchema });
@@ -44,6 +48,10 @@ describe("hitSchema", () => {
         snippet: "tmp",
       }).success,
     ).toBe(true);
+  });
+
+  it("cuts a snippet longer than the snippet limit, so one long line cannot flood the report", () => {
+    expect(hitSchema.parse({ ...hit, snippet: `${LIMIT_LONG_SNIPPET}tail` })).toEqual({ ...hit, snippet: `${LIMIT_LONG_SNIPPET}…` });
   });
 
   it("refuses a hit whose file is not a repository path", () => {
