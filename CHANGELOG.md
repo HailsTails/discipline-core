@@ -2,6 +2,16 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 0.1.0-pre.8
+
+### Fixes
+
+- accept a leading --, print short package paths under pnpm and ship the changelog (#122)
+
+### Other changes
+
+- guide migrations through old-route settings, pnpm commands and exact pins (#121)
+
 ## 0.1.0-pre.7
 
 ### Features
