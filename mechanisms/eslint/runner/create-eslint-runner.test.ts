@@ -67,6 +67,7 @@ const CLASS_CLAUSE: RunnerClause = {
   address: CLASS_SYNTAX,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: PIECE_ROOT,
+  clauseSettings: {},
   settings: CLASS_SETTINGS,
 };
 
@@ -74,6 +75,7 @@ const LOOPS_CLAUSE: RunnerClause = {
   address: FOR_OF,
   anchor: { kind: "keyword", keyword: "for" },
   pieceRoot: LOOPS_PIECE_ROOT,
+  clauseSettings: {},
   settings: { pluginNamespace: "loops", pluginModule: "loops/loops.eslint-plugin.ts", rule: "no-for-of" },
 };
 
@@ -370,6 +372,7 @@ const SHARED_MODULE_FOR_OF_CLAUSE: RunnerClause = {
   address: FOR_OF,
   anchor: { kind: "keyword", keyword: "for" },
   pieceRoot: PIECE_ROOT,
+  clauseSettings: {},
   settings: { ...CLASS_SETTINGS, rule: "no-for-of" },
 };
 

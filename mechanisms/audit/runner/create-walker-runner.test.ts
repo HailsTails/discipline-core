@@ -20,6 +20,7 @@ const clauseFor = (request: { readonly address: typeof FIRST; readonly module: s
   address: request.address,
   anchor: { kind: "file" },
   pieceRoot: PIECE_ROOT,
+  clauseSettings: {},
   settings: { module: request.module },
 });
 

@@ -15,6 +15,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-25",
+  clauseSettings: {},
   settings: { module: "dependency-isolation.ts" },
 };
 

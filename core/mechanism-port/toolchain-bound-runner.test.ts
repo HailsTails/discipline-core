@@ -23,6 +23,7 @@ const CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("CD-14#class-syntax"),
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/eslint/CD-14",
+  clauseSettings: {},
   settings: {},
 };
 

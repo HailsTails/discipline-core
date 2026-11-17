@@ -84,13 +84,17 @@ const forfeitedRecords = (request: {
   readonly records: readonly ExceptionRecord[];
   readonly touched: TouchedSet;
 }): readonly ExceptionRecord[] => {
-  if (request.touched.measured === "no") {
-    return [];
+  switch (request.touched.measured) {
+    case "no":
+    case "elsewhere":
+      return [];
+    case "yes": {
+      const touchedPaths = request.touched.paths;
+      return request.records.filter(
+        (record) => record.kind === "file-carve-out" && touchedPaths.has(record.file),
+      );
+    }
   }
-  const touchedPaths = request.touched.paths;
-  return request.records.filter(
-    (record) => record.kind === "file-carve-out" && touchedPaths.has(record.file),
-  );
 };
 
 const doublyHeldPairs = (request: {

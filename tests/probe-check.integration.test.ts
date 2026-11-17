@@ -104,6 +104,7 @@ const probeCheck = () => {
     installRoot: absolutePathSchema.parse("/install"),
     moduleExtension: ".ts",
     baseRevision: undefined,
+    forfeiture: "this-run",
     fileText,
     modules: {
       load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: runnerModule }),
@@ -145,6 +146,7 @@ describe("a check selecting the probe rule set's PD-1 beside CD-23 through the a
         invalidRecords: [],
         unmeasured: [],
         projectionProblems: [],
+        assessment: [],
       },
     });
   });

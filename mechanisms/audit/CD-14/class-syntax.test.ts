@@ -49,6 +49,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
+  clauseSettings: {},
   settings: { module: "class-syntax.ts" },
 };
 

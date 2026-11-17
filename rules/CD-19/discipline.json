@@ -15,14 +15,6 @@
       "cases": {
         "flag": [
           {
-            "name": "banned library import",
-            "fileName": "imports-winston.ts",
-            "source": "import winston from \"winston\";\n\nexport const useWinston = (): unknown => winston;\n",
-            "expectedLines": [
-              1
-            ]
-          },
-          {
             "name": "node: import",
             "fileName": "reads-file.ts",
             "source": "import { readFileSync } from \"node:fs\";\n\nexport const read = readFileSync;\n",
@@ -40,6 +32,12 @@
           }
         ],
         "allow": [
+          {
+            "name": "library import while no specifier is confined",
+            "fileName": "imports-winston.ts",
+            "source": "import winston from \"winston\";\n\nexport const useWinston = (): unknown => winston;\n",
+            "expectedLines": []
+          },
           {
             "name": "project-owned import",
             "fileName": "own.ts",

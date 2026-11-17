@@ -71,6 +71,7 @@ const checkWith = (request: { readonly fixture: string; readonly runner: unknown
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
+    forfeiture: "this-run",
     fileText,
     modules: modulesServingRunner({ runnerSuffix: "/runner/runner.ts", runner: request.runner, base: createDefaultModuleLoaderPort({}) }),
     path,
