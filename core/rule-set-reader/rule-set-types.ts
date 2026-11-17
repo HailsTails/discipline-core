@@ -1,4 +1,5 @@
 import type { AnchorKind } from "../values/anchor.ts";
+import type { ClauseExceptions } from "./authored-rule-set-types.ts";
 import type { ClauseId, DisciplineId, MechanismId } from "../values/identifier-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 
@@ -9,7 +10,7 @@ export type SourceCase = {
   readonly expectedLines: readonly number[];
 };
 
-export type ClauseExceptions = "allowed" | "refused";
+export type { ClauseExceptions } from "./authored-rule-set-types.ts";
 
 export type ClauseDefinition =
   | {

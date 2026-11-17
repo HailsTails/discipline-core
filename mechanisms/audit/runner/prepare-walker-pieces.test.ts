@@ -1,5 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
-import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
+import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -188,7 +188,7 @@ describe("prepareWalkerPieces", () => {
   });
 
   it("propagates a failed preparation Result without replacing its affected-input failure", async () => {
-    const failedPreparation: Result<PreparedWalkerCheck, RunnerFailure> = {
+    const failedPreparation: Result<PreparedWalkerCheck, PieceFailure> = {
       outcome: "failed",
       error: {
         kind: "file-unreadable",

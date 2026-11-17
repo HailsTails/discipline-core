@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-types.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import {
   type Hit,
@@ -97,7 +98,7 @@ const collect = <Value>(request: {
   );
 
 const cachedFile = (request: { readonly file: WalkerFile }): FileTextCache => {
-  let text: Outcome<string> | undefined;
+  let text: Result<string, PieceFailure> | undefined;
   return {
     file: {
       file: request.file.file,

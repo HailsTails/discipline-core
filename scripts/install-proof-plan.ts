@@ -91,25 +91,26 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
 
 const COMPILES: StepExpectation = { exitCode: 0, output: "" };
 
-const WRONG_FIELD_TYPE_REJECTED: ProofAction = {
+const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
   kind: "typecheck",
   project: "tsconfig.wrong.json",
   expectation: {
     exitCode: 2,
     output:
-      "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\n",
+      "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n",
   },
 };
 
 const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
-  WRONG_FIELD_TYPE_REJECTED,
+  WRONG_FIELD_TYPES_REJECTED,
 ];
 
 const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
   { kind: "typecheck", project: "tsconfig.bundler.json", expectation: COMPILES },
-  WRONG_FIELD_TYPE_REJECTED,
+  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: COMPILES },
+  WRONG_FIELD_TYPES_REJECTED,
 ];
 
 export const PROOF_CASES: readonly ProofCase[] = [

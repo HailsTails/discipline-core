@@ -16,6 +16,8 @@ type Diagnostic = ReturnType<SyntaxApi["getPreEmitDiagnostics"]>[number];
 
 type Statement = ReturnType<SyntaxApi["createSourceFile"]>["statements"][number];
 
+type ExportDeclaration = ReturnType<SyntaxApi["factory"]["createExportDeclaration"]>;
+
 type ParsePortLoader = (request: { readonly installRoot: string }) => Promise<Result<TypeScriptParsePort, RunnerFailure>>;
 
 type Emitted = Result<DeclarationEmit, DeclarationFailure>;
@@ -39,18 +41,93 @@ const repositoryPathOf = (request: { readonly root: string; readonly fileName: s
 
 const publishedSpecifier = (request: { readonly specifier: string }): string => request.specifier.replace(SOURCE_SPECIFIER, "$1.js");
 
-const declaresExportedValue = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "value" | "type-or-private" => {
+type StatementPublication =
+  | { readonly kind: "kept"; readonly statement: Statement }
+  | { readonly kind: "dropped" }
+  | { readonly kind: "refused"; readonly detail: string };
+
+type PublicationRequest = { readonly syntaxApi: SyntaxApi; readonly statement: Statement; readonly valueNames: ReadonlySet<string> };
+
+const visibilityOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "exported" | "local" =>
+  request.syntaxApi.canHaveModifiers(request.statement) &&
+  (request.syntaxApi.getModifiers(request.statement) ?? []).some((modifier) => modifier.kind === request.syntaxApi.SyntaxKind.ExportKeyword)
+    ? "exported"
+    : "local";
+
+const declaredValueNames = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): readonly string[] => {
   const syntaxApi = request.syntaxApi;
   const statement = request.statement;
-  const valueKind =
-    syntaxApi.isVariableStatement(statement) ||
-    syntaxApi.isFunctionDeclaration(statement) ||
-    syntaxApi.isClassDeclaration(statement) ||
-    syntaxApi.isEnumDeclaration(statement);
-  const exported =
-    syntaxApi.canHaveModifiers(statement) && (syntaxApi.getModifiers(statement) ?? []).some((modifier) => modifier.kind === syntaxApi.SyntaxKind.ExportKeyword);
-  return (valueKind && exported) || syntaxApi.isExportAssignment(statement) ? "value" : "type-or-private";
+  if (syntaxApi.isVariableStatement(statement)) {
+    return statement.declarationList.declarations.flatMap((declaration) => (syntaxApi.isIdentifier(declaration.name) ? [declaration.name.text] : []));
+  }
+  if (syntaxApi.isFunctionDeclaration(statement) || syntaxApi.isClassDeclaration(statement) || syntaxApi.isEnumDeclaration(statement)) {
+    return statement.name === undefined ? [] : [statement.name.text];
+  }
+  return [];
 };
+
+const natureOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "value" | "other" =>
+  request.syntaxApi.isVariableStatement(request.statement) ||
+  request.syntaxApi.isFunctionDeclaration(request.statement) ||
+  request.syntaxApi.isClassDeclaration(request.statement) ||
+  request.syntaxApi.isEnumDeclaration(request.statement)
+    ? "value"
+    : "other";
+
+const localExportPublication = (request: PublicationRequest & { readonly exported: ExportDeclaration }): StatementPublication => {
+  const syntaxApi = request.syntaxApi;
+  const clause = request.exported.exportClause;
+  if (clause === undefined || !syntaxApi.isNamedExports(clause)) {
+    return { kind: "kept", statement: request.statement };
+  }
+  const typeElements = clause.elements.filter((element) => element.isTypeOnly || !request.valueNames.has((element.propertyName ?? element.name).text));
+  if (typeElements.length === clause.elements.length) {
+    return { kind: "kept", statement: request.statement };
+  }
+  return typeElements.length === 0
+    ? { kind: "dropped" }
+    : {
+        kind: "kept",
+        statement: syntaxApi.factory.updateExportDeclaration(
+          request.exported,
+          request.exported.modifiers,
+          false,
+          syntaxApi.factory.updateNamedExports(clause, typeElements),
+          undefined,
+          request.exported.attributes,
+        ),
+      };
+};
+
+const exportDeclarationPublication = (request: PublicationRequest & { readonly exported: ExportDeclaration }): StatementPublication => {
+  if (request.exported.isTypeOnly) {
+    return { kind: "kept", statement: request.statement };
+  }
+  const specifier = request.exported.moduleSpecifier;
+  if (specifier !== undefined) {
+    const named = request.syntaxApi.isStringLiteral(specifier) ? specifier.text : "another module";
+    return { kind: "refused", detail: `a value re-export from ${named}; re-export the types by name with "export type { … } from"` };
+  }
+  return localExportPublication(request);
+};
+
+const statementPublication = (request: PublicationRequest): StatementPublication => {
+  const syntaxApi = request.syntaxApi;
+  const statement = request.statement;
+  if (syntaxApi.isExportDeclaration(statement)) {
+    return exportDeclarationPublication({ ...request, exported: statement });
+  }
+  if (syntaxApi.isExportAssignment(statement) || (natureOf(request) === "value" && visibilityOf(request) === "exported")) {
+    return { kind: "dropped" };
+  }
+  if (syntaxApi.isModuleDeclaration(statement) && visibilityOf(request) === "exported") {
+    return { kind: "refused", detail: `the namespace "${statement.name.text}" may hold values; publish its types as plain exports` };
+  }
+  return { kind: "kept", statement };
+};
+
+const valueNamesIn = (request: { readonly syntaxApi: SyntaxApi; readonly statements: readonly Statement[] }): ReadonlySet<string> =>
+  new Set(request.statements.flatMap((statement) => declaredValueNames({ syntaxApi: request.syntaxApi, statement })));
 
 const publishedLiteral = (request: { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode }): SyntaxNode =>
   request.syntaxApi.isStringLiteral(request.node) && SOURCE_SPECIFIER.test(request.node.text)
@@ -64,7 +141,43 @@ const publishedImportType = (request: { readonly syntaxApi: SyntaxApi; readonly 
       )
     : request.node;
 
-const publicationTransformer =
+const moduleSyntaxOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "module-syntax" | "other" =>
+  request.syntaxApi.isImportDeclaration(request.statement) ||
+  request.syntaxApi.isExportDeclaration(request.statement) ||
+  request.syntaxApi.isExportAssignment(request.statement) ||
+  visibilityOf(request) === "exported"
+    ? "module-syntax"
+    : "other";
+
+const moduleMarkerFor = (request: {
+  readonly syntaxApi: SyntaxApi;
+  readonly original: readonly Statement[];
+  readonly kept: readonly Statement[];
+}): readonly Statement[] => {
+  const marks = (statements: readonly Statement[]): "module" | "script" =>
+    statements.some((statement) => moduleSyntaxOf({ syntaxApi: request.syntaxApi, statement }) === "module-syntax") ? "module" : "script";
+  return marks(request.original) === "module" && marks(request.kept) === "script"
+    ? [request.syntaxApi.factory.createExportDeclaration(undefined, false, request.syntaxApi.factory.createNamedExports([]))]
+    : [];
+};
+
+export type PublishedDeclarationText = { readonly text: string; readonly refusals: readonly string[] };
+
+export const publishedDeclarationText = (request: { readonly syntaxApi: SyntaxApi; readonly path: string; readonly text: string }): PublishedDeclarationText => {
+  const syntaxApi = request.syntaxApi;
+  const sourceFile = syntaxApi.createSourceFile(request.path, request.text, syntaxApi.ScriptTarget.Latest, true);
+  const valueNames = valueNamesIn({ syntaxApi, statements: sourceFile.statements });
+  const publications = sourceFile.statements.map((statement) => statementPublication({ syntaxApi, statement, valueNames }));
+  const kept = publications.flatMap((publication) => (publication.kind === "kept" ? [publication.statement] : []));
+  return {
+    text: syntaxApi.createPrinter({ newLine: syntaxApi.NewLineKind.LineFeed }).printFile(
+      syntaxApi.factory.updateSourceFile(sourceFile, [...kept, ...moduleMarkerFor({ syntaxApi, original: sourceFile.statements, kept })]),
+    ),
+    refusals: publications.flatMap((publication) => (publication.kind === "refused" ? [`${request.path}: ${publication.detail}`] : [])),
+  };
+};
+
+const specifierTransformer =
   (request: { readonly syntaxApi: SyntaxApi }): DeclarationTransformerFactory =>
   (context) => {
     const syntaxApi = request.syntaxApi;
@@ -81,17 +194,7 @@ const publicationTransformer =
       }
       return syntaxApi.visitEachChild(node, visit, context);
     };
-    return (root) =>
-      syntaxApi.isSourceFile(root)
-        ? syntaxApi.factory.updateSourceFile(
-            root,
-            syntaxApi.visitNodes(
-              syntaxApi.factory.createNodeArray(root.statements.filter((statement) => declaresExportedValue({ syntaxApi, statement }) === "type-or-private")),
-              visit,
-              syntaxApi.isStatement,
-            ),
-          )
-        : root;
+    return (root) => syntaxApi.visitEachChild(root, visit, context);
   };
 
 const diagnosticText = (request: { readonly syntaxApi: SyntaxApi; readonly root: string; readonly diagnostic: Diagnostic }): string => {
@@ -135,19 +238,19 @@ const emittedWith = (request: {
       },
     },
   });
-  const emitted = program.emit(undefined, undefined, undefined, true, { afterDeclarations: [publicationTransformer({ syntaxApi })] });
-  const declarations: readonly EmittedDeclaration[] = [...written]
+  const emitted = program.emit(undefined, undefined, undefined, true, { afterDeclarations: [specifierTransformer({ syntaxApi })] });
+  const published = [...written]
     .filter(([path]) => DECLARATION_FILE.test(path))
     .sort(([left], [right]) => (left < right ? -1 : 1))
-    .map(([path, text]) => ({ path, text, specifiers: specifiersIn({ syntaxApi, text }) }));
+    .map(([path, text]) => ({ path, publication: publishedDeclarationText({ syntaxApi, path, text }) }));
   return {
-    declarations,
-    diagnostics: [...syntaxApi.getPreEmitDiagnostics(program), ...emitted.diagnostics].map((diagnostic) =>
-      diagnosticText({ syntaxApi, root: request.root, diagnostic }),
-    ),
+    declarations: published.map(({ path, publication }): EmittedDeclaration => ({ path, text: publication.text, specifiers: specifiersIn({ syntaxApi, text: publication.text }) })),
+    diagnostics: [
+      ...[...syntaxApi.getPreEmitDiagnostics(program), ...emitted.diagnostics].map((diagnostic) => diagnosticText({ syntaxApi, root: request.root, diagnostic })),
+      ...published.flatMap(({ publication }) => publication.refusals),
+    ],
   };
 };
-
 const emittedBy = (request: { readonly syntaxApi: SyntaxApi; readonly sourceRoot: string; readonly entryPoints: readonly string[] }): Emitted => {
   const root = repositoryRootOf(request);
   const options = projectOptionsOf({ syntaxApi: request.syntaxApi, root });

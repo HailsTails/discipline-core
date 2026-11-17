@@ -159,10 +159,10 @@ The package has two public entries for TypeScript. Each holds types only, so imp
 
 | Entry | Status | What it is for |
 | --- | --- | --- |
-| `@hailstails/hone/rule-set` | Stable | The shapes of `discipline.json`, `piece.json` and an ESLint piece's `settings`, for a team writing its own rule set. |
-| `@hailstails/hone/audit` | Experimental | The types for writing an audit walker piece, `WalkerPiece` and what it needs. It may change in a minor release. |
+| `@hailstails/hone/rule-set` | Stable | The shapes of `discipline.json`, `piece.json` and an ESLint piece's `settings`, for a team writing its own rule set. Identifiers and paths are plain strings: Hone checks them when it reads the files. |
+| `@hailstails/hone/audit` | Experimental | The types for writing an audit walker piece, `WalkerPiece` and what it needs, including `PieceFailure`, the failures a piece may return. Clause addresses and file paths reach a piece from Hone, already checked, and a piece passes them back unchanged. It may change in a minor release. |
 
-Both resolve with `moduleResolution` `"nodenext"` or `"bundler"`, and `install-proof` type-checks a team piece against them on TypeScript 4.8.4 (`"nodenext"`, since 4.8 has no `"bundler"`) and 6.0.3 (both). `@hailstails/hone/audit` names TypeScript's own syntax types, so it needs the `typescript` the repository already installs as a peer. No other path in the package is a public TypeScript entry.
+Both resolve with `moduleResolution` `"nodenext"` or `"bundler"`. `install-proof` type-checks a team piece and rule set against them, and checks that a wrongly typed field fails: on TypeScript 4.8.4 from an ES module with `"nodenext"` (4.8 has no `"bundler"`), and on 6.0.3 from an ES module with both and from a CommonJS file. A CommonJS file (`.cts`, or `.ts` in a package that is not `"type": "module"`) can import these types only on TypeScript 5.8 or later, checked on 5.8.2. TypeScript 5.3 to 5.7 accept it with `with { "resolution-mode": "import" }` on the import, checked on 5.3.3. Older versions reject it. `@hailstails/hone/audit` names TypeScript's own syntax types, so it needs the `typescript` the repository already installs as a peer. No other path in the package is a public TypeScript entry.
 
 ## Runtime
 
