@@ -7,6 +7,7 @@ import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
 import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
+import { installedPackageFolderOf, type LockedPackage, productionClosureOf } from "./pnpm-lock.ts";
 import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
@@ -58,7 +59,7 @@ const ROOT_FILES: readonly string[] = ["README.md", "ADOPTING.md", "MIGRATING.md
 
 const MANIFEST = "package.json";
 
-const INSTALL_LOCK: readonly string[] = ["bun.lock"];
+const INSTALL_LOCK: readonly string[] = ["pnpm-lock.yaml"];
 
 const NODE_MODULES = "node_modules";
 
@@ -184,7 +185,25 @@ const stagedFile = (request: { readonly context: BuildContext; readonly sourceRo
   return written.outcome === "failed" ? failedWith({ label: `stage ${request.name}`, detail: written.error.detail }) : { outcome: "ok", value: null };
 };
 
-const stagedSource = (request: { readonly context: BuildContext; readonly sourceRoot: string }): Built<readonly null[]> =>
+const stagedPackage = (request: {
+  readonly context: BuildContext;
+  readonly sourceRoot: string;
+  readonly locked: LockedPackage;
+}): Built<null> =>
+  stagedTree({
+    context: request.context,
+    from: request.context.path.join({
+      segments: installedPackageFolderOf({ dependencies: request.context.dependencies, locked: request.locked }),
+    }),
+    to: request.context.path.join({ segments: [request.sourceRoot, NODE_MODULES, ...request.locked.name.split("/")] }),
+    disposition: () => "kept",
+  });
+
+const stagedSource = (request: {
+  readonly context: BuildContext;
+  readonly sourceRoot: string;
+  readonly closure: readonly LockedPackage[];
+}): Built<readonly null[]> =>
   allOk({
     results: [
       ...BUNDLED_SOURCE_FOLDERS.map((folder) =>
@@ -196,12 +215,7 @@ const stagedSource = (request: { readonly context: BuildContext; readonly source
         }),
       ),
       ...BUNDLED_SOURCE_FILES.map((name) => stagedFile({ context: request.context, sourceRoot: request.sourceRoot, name })),
-      stagedTree({
-        context: request.context,
-        from: request.context.dependencies,
-        to: request.context.path.join({ segments: [request.sourceRoot, NODE_MODULES] }),
-        disposition: () => "kept",
-      }),
+      ...request.closure.map((locked) => stagedPackage({ context: request.context, sourceRoot: request.sourceRoot, locked })),
     ],
   });
 
@@ -301,23 +315,26 @@ const bundledPackageOf = (request: {
       };
 };
 
-const lockedPackagesOf = (request: {
+const lockedClosureOf = (request: {
   readonly context: BuildContext;
-  readonly packages: readonly BundledPackageAt[];
   readonly dependencies: readonly string[];
-}): Built<readonly BundledPackageAt[]> => {
+}): Built<readonly LockedPackage[]> => {
   const lockPath = sourceFile({ context: request.context, path: INSTALL_LOCK.join("/") });
   const lockText = readText({ context: request.context, path: lockPath });
   if (lockText.outcome === "failed") {
     return lockText;
   }
-  const unlocked = unlockedPackagesOf({ bundled: request.packages, lockText: lockText.value, dependencies: request.dependencies });
-  if (unlocked.outcome === "failed") {
-    return failedWith({ label: `read ${lockPath}`, detail: unlocked.error });
-  }
+  const closure = productionClosureOf({ lockText: lockText.value, dependencies: request.dependencies });
+  return closure.outcome === "failed" ? failedWith({ label: `read ${lockPath}`, detail: closure.error }) : closure;
+};
+
+const lockedPackagesOf = (request: {
+  readonly packages: readonly BundledPackageAt[];
+  readonly closure: readonly LockedPackage[];
+}): Built<readonly BundledPackageAt[]> => {
   const checked = failedOnProblems({
     label: `bundle: a bundled package is not the one ${INSTALL_LOCK.join("/")} locks`,
-    problems: unlocked.value,
+    problems: unlockedPackagesOf({ bundled: request.packages, closure: request.closure }),
   });
   return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.packages };
 };
@@ -329,7 +346,11 @@ const bundledInStage = async (request: {
   readonly dependencies: readonly string[];
   readonly sourceRoot: string;
 }): Promise<Built<StagedBundle>> => {
-  const staged = stagedSource(request);
+  const closure = lockedClosureOf({ context: request.context, dependencies: request.dependencies });
+  if (closure.outcome === "failed") {
+    return closure;
+  }
+  const staged = stagedSource({ ...request, closure: closure.value });
   if (staged.outcome === "failed") {
     return staged;
   }
@@ -343,7 +364,7 @@ const bundledInStage = async (request: {
   if (packages.outcome === "failed") {
     return packages;
   }
-  const locked = lockedPackagesOf({ context: request.context, packages: packages.value, dependencies: request.dependencies });
+  const locked = lockedPackagesOf({ packages: packages.value, closure: closure.value });
   return locked.outcome === "failed" ? locked : { outcome: "ok", value: { bundle: bundle.value, packages: locked.value } };
 };
 

@@ -30,12 +30,12 @@ npm records it in `package.json`, and the exact version it installed in the lock
 
 The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
-To build the tarball yourself, install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
+To build the tarball yourself, use Node.js 22.18 or later with [corepack](https://nodejs.org/api/corepack.html) available, which provides the pnpm version `package.json` pins, and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
 ```bash
 git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/hone-source
 git -C /tmp/hone-source checkout <pinned-sha>
-cd /tmp/hone-source && bun install --frozen-lockfile && bun run pack-package && cd -
+cd /tmp/hone-source && corepack enable && pnpm install --frozen-lockfile && pnpm run pack-package && cd -
 ```
 
 The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-<version>.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA. The commands in this guide are POSIX shell; on Windows run them in Git Bash.

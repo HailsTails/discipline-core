@@ -23,16 +23,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with:
-          bun-version: '1.4.2'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.18.0
+      - name: Enable corepack
+        run: corepack enable
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Check
-        run: bun run check
+        run: pnpm run check
       - name: Run Hone's disciplines on Hone
         shell: bash
         env:
@@ -40,13 +39,13 @@ jobs:
         run: |
           base="$BASE_REVISION"
           case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
-          bun run self-check -- --base-revision "$base"
+          pnpm run self-check --base-revision "$base"
       - name: Build the package
-        run: bun run build-package
+        run: pnpm run build-package
       - name: Check the package builds deterministically
-        run: bun run package-determinism
+        run: pnpm run package-determinism
       - name: Prove a package install
-        run: bun run install-proof
+        run: pnpm run install-proof
 
   linux:
     name: Discipline core on Linux
@@ -56,16 +55,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with:
-          bun-version: '1.4.2'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.18.0
+      - name: Enable corepack
+        run: corepack enable
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Check
-        run: bun run check
+        run: pnpm run check
       - name: Run Hone's disciplines on Hone
         shell: bash
         env:
@@ -73,13 +71,13 @@ jobs:
         run: |
           base="$BASE_REVISION"
           case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
-          bun run self-check -- --base-revision "$base"
+          pnpm run self-check --base-revision "$base"
       - name: Build the package
-        run: bun run build-package
+        run: pnpm run build-package
       - name: Check the package builds deterministically
-        run: bun run package-determinism
+        run: pnpm run package-determinism
       - name: Prove a package install
-        run: bun run install-proof
+        run: pnpm run install-proof
 
   supported-node:
     name: Package on Node ${{ matrix.node-version }} on ${{ matrix.platform }}
@@ -98,18 +96,17 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with:
-          bun-version: '1.4.2'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: ${{ matrix.node-version }}
+      - name: Enable corepack
+        run: corepack enable
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build the package
-        run: bun run build-package
+        run: pnpm run build-package
       - name: Prove a package install
-        run: bun run install-proof
+        run: pnpm run install-proof
       - name: Run the tests
         if: ${{ matrix.run-tests }}
-        run: bun run test
+        run: pnpm run test

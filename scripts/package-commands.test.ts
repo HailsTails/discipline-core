@@ -34,7 +34,7 @@ const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
   "/package/mechanisms/audit/runner/runner.ts": "await project();\n",
 };
 
-const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_LOCK, "/package/bun.lock": '{ "lockfileVersion": 1, "packages": {}, }' };
+const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_LOCK, "/package/pnpm-lock.yaml": "lockfileVersion: '9.0'\n" };
 
 const entryOutput = (request: { readonly source: string; readonly path: string; readonly text: string }): BundledOutput => ({
   path: request.path,
@@ -160,7 +160,7 @@ describe("runBuildPackage", () => {
     await runBuildPackage(request);
 
     expect({ report: reportOf(request), built: files.pathsUnder({ folder: "/package/dist" }) }).toEqual({
-      report: { writes: [[{ text: expect.stringContaining("/package/bun.lock") }]], exits: [[{ code: 1 }]] },
+      report: { writes: [[{ text: expect.stringContaining("/package/pnpm-lock.yaml") }]], exits: [[{ code: 1 }]] },
       built: [],
     });
   });
