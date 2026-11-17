@@ -19,7 +19,9 @@ const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
   "/package/package.json": JSON.stringify({
     version: "0.0.0",
     description: "Runs disciplines.",
+    keywords: ["disciplines"],
     license: "MIT-0",
+    author: "Example Author",
     private: true,
     type: "module",
     engines: { node: ">=22.18.0" },
