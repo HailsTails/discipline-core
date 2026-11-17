@@ -1,3 +1,4 @@
+import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
@@ -110,6 +111,7 @@ const consumerSelectionFileSchema = z.strictObject({
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
   reportOutput: reportOutputSchema.default("full"),
+  assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
 });
 
 type ConsumerSelectionFile = z.infer<typeof consumerSelectionFileSchema>;
@@ -450,16 +452,21 @@ const selectionReadingOf = (request: {
 const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
 
-export const readReportOutput = (request: {
+export type RunSettings = {
+  readonly reportOutput: ReportOutput;
+  readonly assessment: Assessment;
+};
+
+export const readRunSettings = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-}): Result<ReportOutput, LoadFailure> => {
+}): Result<RunSettings, LoadFailure> => {
   const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
   if (file.outcome === "failed") {
     return file;
   }
-  return { outcome: "ok", value: file.value.reportOutput };
+  return { outcome: "ok", value: { reportOutput: file.value.reportOutput, assessment: file.value.assessment } };
 };
 
 export const readSelection = (request: {
