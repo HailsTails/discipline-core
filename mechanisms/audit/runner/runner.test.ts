@@ -19,6 +19,7 @@ describe("runner", () => {
           address: clauseAddressSchema.parse("XX-1#first-check"),
           anchor: { kind: "file" },
           pieceRoot: "/install/mechanisms/audit/XX-1",
+          clauseSettings: {},
           settings: { module: "../x.ts" },
         },
         cases: [

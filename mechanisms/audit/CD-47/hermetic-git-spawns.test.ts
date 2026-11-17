@@ -17,6 +17,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-47",
+  clauseSettings: {},
   settings: { module: "hermetic-git-spawns.ts" },
 };
 

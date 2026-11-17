@@ -12,6 +12,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-7",
+  clauseSettings: {},
   settings: { module: "categorical-paths.ts" },
 };
 

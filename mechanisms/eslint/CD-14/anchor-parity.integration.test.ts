@@ -56,6 +56,7 @@ const WALKER_CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("CD-14#class-syntax"),
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
+  clauseSettings: {},
   settings: { module: "class-syntax.ts" },
 };
 

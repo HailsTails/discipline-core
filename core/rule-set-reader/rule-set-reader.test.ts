@@ -301,16 +301,57 @@ describe("readDisciplineFile", () => {
 
 describe("readPieceFile", () => {
   it("reads <ruleSetRoot>/mechanisms/<mechanism>/<discipline>/piece.json into a piece file", () => {
-    expect(readPiece(PIECE)).toEqual({ outcome: "ok", value: PIECE });
+    expect(readPiece(PIECE)).toEqual({
+      outcome: "ok",
+      value: { ...PIECE, clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {} }] },
+    });
   });
 
   it("keeps each entry's settings uninterpreted", () => {
-    const piece = {
-      ...PIECE,
-      clauses: [{ clause: "class-syntax", settings: { anything: [1, "two"] } }],
-    };
+    const clause = { clause: "class-syntax", settings: { anything: [1, "two"] } };
 
-    expect(readPiece(piece)).toEqual({ outcome: "ok", value: piece });
+    expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({
+      outcome: "ok",
+      value: { ...PIECE, clauses: [{ ...clause, clauseSettings: {} }] },
+    });
+  });
+
+  it("reads each declared clause setting beside the mechanism settings", () => {
+    const clauseSettings = {
+      convention: { default: "camelCase", choices: ["camelCase", "snake_case"] },
+      confinedPackages: { default: [] },
+    };
+    const clause = { clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings };
+
+    expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({ outcome: "ok", value: { ...PIECE, clauses: [clause] } });
+  });
+
+  it.each([
+    { name: "a declaration with no default", clauseSettings: { convention: { choices: ["camelCase"] } }, kind: "file-malformed" },
+    { name: "a declaration with an unknown field", clauseSettings: { convention: { default: "camelCase", values: [] } }, kind: "file-malformed" },
+    { name: "empty choices", clauseSettings: { convention: { default: "camelCase", choices: [] } }, kind: "file-malformed" },
+    { name: "an empty key", clauseSettings: { "": { default: [] } }, kind: "file-malformed" },
+    { name: "a choice of another JSON kind", clauseSettings: { convention: { default: "camelCase", choices: ["camelCase", 1] } }, kind: "rule-set-invalid" },
+    { name: "a default outside its choices", clauseSettings: { convention: { default: "camelCase", choices: ["snake_case"] } }, kind: "rule-set-invalid" },
+  ])("refuses $name as $kind", ({ clauseSettings, kind }) => {
+    expect(
+      readPiece({ ...PIECE, clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings }] }),
+    ).toMatchObject({ outcome: "failed", error: { kind } });
+  });
+
+  it("names a choice's required kind with its article", () => {
+    expect(
+      readPiece({
+        ...PIECE,
+        clauses: [
+          {
+            clause: "class-syntax",
+            settings: { module: "class-syntax.ts" },
+            clauseSettings: { allowed: { default: [], choices: [[], "none"] } },
+          },
+        ],
+      }),
+    ).toMatchObject({ outcome: "failed", error: { detail: expect.stringContaining("every choice must be an array, as the default is") } });
   });
 
   it("reads the joined piece path", () => {

@@ -14,6 +14,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-23",
+  clauseSettings: {},
   settings: { module: "export-test-sibling.ts" },
 };
 

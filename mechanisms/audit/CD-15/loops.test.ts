@@ -20,6 +20,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-15",
+  clauseSettings: {},
   settings: { module: "loops.ts" },
 };
 

@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, type Mock, vi } from "vitest";
+import type { ClauseSettingValues } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -16,12 +17,24 @@ const IMPORT = "im" + "port";
 const REQUIRE = "req" + "uire";
 const LINE_COMMENT = "/" + "/";
 const TEMPLATE_SUBSTITUTION = "$" + "{name}";
-const CLAUSE: RunnerClause = {
+const CONFIGURED_PACKAGES: readonly string[] = [
+  "eslint", "winston", "winston-transport", "better-sqlite3", "pino", "hono", "@hono/node-server", "jose",
+  "@modelcontextprotocol/sdk", "zod-to-json-schema", "uuid",
+];
+
+const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
+  clauseSettings: {},
   settings: { module: "import-boundaries.ts" },
 };
+const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): RunnerClause => ({
+  ...CLAUSE_WITH_NO_SETTINGS,
+  clauseSettings: request.clauseSettings,
+});
+const CLAUSE = clauseWith({ clauseSettings: { confinedPackages: CONFIGURED_PACKAGES } });
+const NEUTRAL_CLAUSE = clauseWith({ clauseSettings: { confinedPackages: [] } });
 
 const bannedHit = (request: { readonly line: number; readonly specifier: string }) => ({
   clause: ADDRESS,
@@ -37,14 +50,14 @@ type ObservationFixture = {
   readonly finish: PreparedWalkerCheck["finish"];
 };
 
-const preparedFor = (request: { readonly file: WalkerFile["file"] }): PreparedWalkerCheck => {
-  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+const preparedFor = (request: { readonly file: WalkerFile["file"]; readonly clause?: RunnerClause }): PreparedWalkerCheck => {
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   return prepared.value;
 };
 
-const sourceObservations = (request: { readonly source: string }): ObservationFixture => {
-  const prepared = preparedFor({ file: FILE });
+const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): ObservationFixture => {
+  const prepared = preparedFor({ file: FILE, clause: request.clause ?? CLAUSE });
   const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file: FILE, detail: "piece must use supplied source" } });
   const file = prepared.prepareFile({ file: FILE, readText });
   assert(file.outcome === "ok");
@@ -63,6 +76,7 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
       { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary" },
       { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: hono — use its recorded wrapping boundary" },
       { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "banned third-party import: uuid — use its recorded wrapping boundary" },
+      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "banned third-party import: hono/client — use its recorded wrapping boundary" },
     ]);
     expect(observed.readText).not.toHaveBeenCalled();
     expect(observed.anchorAt).not.toHaveBeenCalled();
@@ -218,3 +232,99 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
   });
 });
 
+describe("CD-19 confined packages come from the clause settings", () => {
+  it("confines no third-party package by default while still flagging node: imports", () => {
+    const observed = sourceObservations({
+      clause: NEUTRAL_CLAUSE,
+      source: `${IMPORT} a ${FROM} "eslint";\n${IMPORT} b ${FROM} "winston";\n${IMPORT} fs ${FROM} "node:fs";\n`,
+    });
+    const nodeImport = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree);
+    observed.anchorAt.mockReturnValueOnce({ line: 3, column: 15 });
+
+    observed.observers.enter?.({ node: nodeImport });
+
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
+    ]);
+  });
+
+  it("flags only the packages a repository confines", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: ["@acme/payments"] } }),
+      source: `${IMPORT} a ${FROM} "@acme/payments";\n${IMPORT} b ${FROM} "winston";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "@acme/payments" })]);
+  });
+
+});
+
+describe("CD-19 package matching", () => {
+  it.each([
+    { name: "the package itself", packageName: "hono", specifier: "hono" },
+    { name: "a subpath of the package", packageName: "hono", specifier: "hono/cors" },
+    { name: "a nested subpath of the package", packageName: "hono", specifier: "hono/utils/http-status" },
+    { name: "a scoped package", packageName: "@acme/payments", specifier: "@acme/payments" },
+    { name: "a subpath of a scoped package", packageName: "@acme/payments", specifier: "@acme/payments/client" },
+  ])("flags $name, reporting the imported specifier", ({ packageName, specifier }) => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: [packageName] } }),
+      source: `${IMPORT} a ${FROM} "${specifier}";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier })]);
+  });
+
+  it.each([
+    { name: "a package whose name extends the confined one", packageName: "hono", specifier: "honox" },
+    { name: "a package joined by a hyphen", packageName: "hono", specifier: "hono-extra/cors" },
+    { name: "a scope whose name extends the confined scope", packageName: "@acme/payments", specifier: "@acmex/payments" },
+    { name: "a scoped package whose name extends the confined one", packageName: "@acme/payments", specifier: "@acme/payments-client" },
+    { name: "another package in the same scope", packageName: "@acme/payments", specifier: "@acme/ledger" },
+    { name: "the scope alone", packageName: "@acme/payments", specifier: "@acme" },
+  ])("does not flag $name", ({ packageName, specifier }) => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: [packageName] } }),
+      source: `${IMPORT} a ${FROM} "${specifier}";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+});
+
+describe("CD-19 confined package settings", () => {
+  it("matches a confined package holding regular expression characters literally", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: ["lib(x)+"] } }),
+      source: `${IMPORT} a ${FROM} "lib(x)+";\n${IMPORT} b ${FROM} "libxx";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "lib(x)+" })]);
+  });
+
+  it.each<{ readonly name: string; readonly clause: RunnerClause }>([
+    { name: "no confined list", clause: CLAUSE_WITH_NO_SETTINGS },
+    { name: "a package list that is not an array", clause: clauseWith({ clauseSettings: { confinedPackages: "eslint" } }) },
+    { name: "an empty package name", clause: clauseWith({ clauseSettings: { confinedPackages: [""] } }) },
+    {
+      name: "an unknown setting",
+      clause: clauseWith({ clauseSettings: { confinedPackages: [], confinedSpecifiers: ["eslint"] } }),
+    },
+  ])("refuses to prepare with $name, naming the clause", ({ clause }) => {
+    const prepared = check.prepare({
+      clauses: [clause],
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      syntaxApi: SYNTAX_API,
+    });
+
+    expect(prepared).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "piece-invalid",
+        pieceRoot: "/install/mechanisms/audit/CD-19",
+        detail: expect.stringContaining("the clauseSettings of CD-19#import-boundaries are malformed"),
+      },
+    });
+  });
+});
