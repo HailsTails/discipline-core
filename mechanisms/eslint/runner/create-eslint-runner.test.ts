@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
@@ -227,6 +227,16 @@ const SOURCE_FILES: Readonly<Record<string, FakeFile>> = {
   "/repo/src/factory.ts": presentFile({
     text: "const b = 1;\nconst c = 2;\nconst d = 3;\nconst e = 4;\n  xs.forEach(visit);\n",
   }),
+};
+
+const sourceReadsOver = (request: { readonly fileText: FileTextPort; readonly sourceText: string }) => {
+  const sourceRead = vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.sourceText });
+  const readers: Readonly<Record<string, FileTextPort["read"]>> = { "/repo/src/a.ts": sourceRead };
+  const fileText: FileTextPort = {
+    ...request.fileText,
+    read: (call) => (readers[call.path] ?? request.fileText.read)(call),
+  };
+  return { sourceRead, fileText };
 };
 
 const projectionHolding = (request: { readonly text: string }): FileTextPort =>
@@ -854,6 +864,76 @@ describe("the governance run, step 5: messages", () => {
     ).resolves.toEqual({
       outcome: "failed",
       error: { kind: "file-unparseable", file: "src/a.ts", detail: expect.stringContaining("Parsing error") },
+    });
+  });
+
+  it("reads a source file once however many hits it has, cutting each snippet from the same lines", async () => {
+    const { fileText, sourceRead } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: "first;\n  second;\n    third;\n",
+    });
+    const report = await runnerOver({
+      fileText,
+      eslint: eslintOver({
+        lintFiles: lintResolving({
+          outcome: "ok",
+          value: linted({ messagesInA: [{ ...CLASS_MESSAGE, line: 1 }, { ...CLASS_MESSAGE, line: 2 }, { ...CLASS_MESSAGE, line: 3 }] }),
+        }),
+      }),
+    }).run(CLASS_RUN);
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(report).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [
+          { ...HIT_IN_A, anchor: { line: 1, column: 2 }, snippet: "first;" },
+          { ...HIT_IN_A, anchor: { line: 2, column: 2 }, snippet: "second;" },
+          { ...HIT_IN_A, anchor: { line: 3, column: 2 }, snippet: "third;" },
+        ],
+        nativeExceptions: [],
+        projection: "current",
+      },
+    });
+  });
+
+  it("keeps reads at one per file for many hits in one file", async () => {
+    const { fileText, sourceRead } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: "first;\n",
+    });
+    const report = await runnerOver({
+      fileText,
+      eslint: eslintOver({
+        lintFiles: lintResolving({
+          outcome: "ok",
+          value: linted({ messagesInA: Array.from({ length: 2000 }, (_, index): LintedMessage => ({ ...CLASS_MESSAGE, line: index + 1 })) }),
+        }),
+      }),
+    }).run(CLASS_RUN);
+    assert(report.outcome === "ok");
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(report.value.hits).toHaveLength(2000);
+  });
+
+  it("is file-unreadable at a linted source file with a hit that cannot be read", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: {
+            "/repo/src/a.ts": {
+              read: { outcome: "failed", error: { kind: "unreadable", path: "/repo/src/a.ts", detail: "EACCES" } },
+              presence: "present",
+            },
+          },
+        }),
+        eslint: eslintOver({
+          lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE, CLASS_MESSAGE] }) }),
+        }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "file-unreadable", file: "src/a.ts", detail: "EACCES" },
     });
   });
 

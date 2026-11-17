@@ -33,8 +33,16 @@ export type ObserveWalkerFileResult = Result<WalkerFileObservations, RunnerFailu
 type Outcome<Value> = Result<Value, RunnerFailure>;
 
 const pieceHitsSchema = z.array(hitSchema.unwrap().omit({ file: true }).readonly());
+type PieceCall = (argument: unknown) => unknown;
+type PieceFinish = () => unknown;
+
 const callSchema = z.function({ input: [z.unknown()], output: z.unknown() });
-const finishSchema = z.function({ input: [], output: z.unknown() });
+const functionSchema = <Callable extends (...observedArguments: never[]) => unknown>() =>
+  z.custom<Callable>().superRefine((candidate, refinement) => {
+    if (typeof candidate !== "function") {
+      refinement.addIssue({ code: "invalid_type", expected: "function", input: candidate });
+    }
+  });
 const fileCheckSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("skipped") }),
   z.object({ kind: z.literal("complete"), hits: pieceHitsSchema }),
@@ -42,10 +50,10 @@ const fileCheckSchema = z.discriminatedUnion("kind", [
 ]);
 const filePreparationSchema = runnerResultSchema({ value: fileCheckSchema });
 const sourceObserversSchema = z.object({
-  enter: callSchema.optional(),
-  leave: callSchema.optional(),
-  comment: callSchema.optional(),
-  finish: finishSchema,
+  enter: functionSchema<PieceCall>().optional(),
+  leave: functionSchema<PieceCall>().optional(),
+  comment: functionSchema<PieceCall>().optional(),
+  finish: functionSchema<PieceFinish>(),
 });
 
 type LoadedFileCheck = z.infer<typeof fileCheckSchema>;
