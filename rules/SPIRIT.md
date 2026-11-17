@@ -26,15 +26,16 @@ On first adoption of an existing codebase, a high count is debt made visible. It
 
 Some code has to touch the outside: a library, the runtime, raw input. Those places are boundaries. A clean boundary is the cheap, authorised place for what the rules forbid elsewhere: one file, recorded once, small enough to read whole. The rest of the code then needs no escape. If an exception keeps wanting to spread, the boundary is in the wrong place or does not exist yet.
 
-## Not adopted, waived, escaped
+## Not adopted, not run, carved out, escaped
 
-Three different things. Only the third is a hole.
+A clause can be in one of three declared states. A fourth thing is the hole.
 
-1. **Not adopted.** The codebase is not held to the rule, or to one of its clauses, at all. That is a tech lead's declared choice, made in the open: the clause is listed as `"not-adopted"` in `disciplines.json`.
-2. **A waived clause.** The rule still binds. What is set aside is one mechanical check: in this codebase it is not a true measure of the rule's intent, or it cannot work here for a technical reason. The waiver is about the mechanism and is recorded with that reason, as a clause-wide carve-out with its why-chain. The intent is still owed, through review now and a better check later.
-3. **An escape at a site.** The rule is adopted, its check is sound, and one place steps around it. That keeps the rule's name and loses its effect. It is the hole that justifies not thinking the design through.
+1. **Not adopted.** The rule does not apply to this codebase. A tech lead declares that, in the open.
+2. **Adopted, mechanism not run.** The rule binds, but its mechanical check is not a true measure of the rule's intent in this codebase, or cannot work here for a technical reason. The check is set aside; the intent is not. It is still owed, through review.
+3. **Clause-wide carve-out.** The rule binds and its check is sound. There is debt the codebase cannot address right now, recorded with its why-chain and an owner who will pay it down.
+4. **An escape at a site.** The rule is adopted, its check is sound, and one place steps around it. That keeps the rule's name and loses its effect. It is the hole that justifies not thinking the design through.
 
-Choose 1 or 2 deliberately, with reasons. Do not do 3.
+Choose 1, 2 or 3 deliberately, with reasons. Do not do 4.
 
 ## Tests are code
 
