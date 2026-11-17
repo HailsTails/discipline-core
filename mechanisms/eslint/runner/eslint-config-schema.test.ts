@@ -4,6 +4,19 @@ import { resolvedConfigSchema, ruleStateOf } from "./eslint-config-schema.ts";
 const enabledFile = { rules: { "p/r": [2], "no-console": [1, {}] } };
 const carvedFile = { rules: { "p/r": [0], "no-console": [1, {}] } };
 
+const PARSER = { parseForESLint: () => ({}) };
+
+const LANGUAGE = { fileType: "text" };
+
+const PLUGIN = { rules: {} };
+
+const RESOLVED_WITH_OBJECTS = {
+  languageOptions: { parser: PARSER, ecmaVersion: 2026 },
+  language: LANGUAGE,
+  processor: "p/markdown",
+  plugins: { p: PLUGIN },
+};
+
 describe("resolvedConfigSchema", () => {
   it("accepts a file's configuration whose rules are severity-first tuples", () => {
     expect(resolvedConfigSchema.safeParse(enabledFile)).toEqual({
@@ -45,29 +58,57 @@ describe("resolvedConfigSchema", () => {
     expect(resolvedConfigSchema.safeParse({ rules: { "p/r": entry } }).success).toBe(false);
   });
 
+  it("accepts the parser, language, processor and plugins ESLint resolved for a file", () => {
+    expect(resolvedConfigSchema.safeParse(RESOLVED_WITH_OBJECTS)).toEqual({ success: true, data: RESOLVED_WITH_OBJECTS });
+  });
+
+  it("keeps the very parser object ESLint resolved", () => {
+    expect(resolvedConfigSchema.parse(RESOLVED_WITH_OBJECTS)?.languageOptions?.parser).toBe(PARSER);
+  });
+
+  it("keeps the very language object ESLint resolved", () => {
+    expect(resolvedConfigSchema.parse(RESOLVED_WITH_OBJECTS)?.language).toBe(LANGUAGE);
+  });
+
+  it("keeps the very plugin object ESLint resolved for each namespace", () => {
+    expect(resolvedConfigSchema.parse(RESOLVED_WITH_OBJECTS)?.plugins?.p).toBe(PLUGIN);
+  });
+
+  it("refuses plugins that are not keyed by namespace", () => {
+    expect(resolvedConfigSchema.safeParse({ plugins: ["p"] }).success).toBe(false);
+  });
+
   it("refuses a null configuration", () => {
     expect(resolvedConfigSchema.safeParse(null).success).toBe(false);
   });
 });
 
 describe("ruleStateOf", () => {
-  it("reads a rule configured at error as configured at severity 2", () => {
+  it("reads a rule configured at error as configured at severity 2 with no options", () => {
     expect(ruleStateOf({ resolved: { rules: { "p/r": [2], "no-console": [1, {}] } }, ruleId: "p/r" })).toEqual({
       state: "configured",
       severity: 2,
+      options: [],
     });
   });
 
-  it("reads a rule configured at warn with options as configured at severity 1", () => {
+  it("reads a rule configured at warn with options as configured at severity 1, keeping its options", () => {
     expect(
       ruleStateOf({ resolved: { rules: { "p/r": [2], "no-console": [1, {}] } }, ruleId: "no-console" }),
-    ).toEqual({ state: "configured", severity: 1 });
+    ).toEqual({ state: "configured", severity: 1, options: [{}] });
+  });
+
+  it("keeps every option after the severity in order", () => {
+    expect(
+      ruleStateOf({ resolved: { rules: { "p/r": [2, "always", { max: 2 }] } }, ruleId: "p/r" }),
+    ).toEqual({ state: "configured", severity: 2, options: ["always", { max: 2 }] });
   });
 
   it("reads a rule turned off for the file as configured at severity 0", () => {
     expect(ruleStateOf({ resolved: { rules: { "p/r": [0], "no-console": [1, {}] } }, ruleId: "p/r" })).toEqual({
       state: "configured",
       severity: 0,
+      options: [],
     });
   });
 

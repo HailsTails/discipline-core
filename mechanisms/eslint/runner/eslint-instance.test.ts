@@ -378,7 +378,7 @@ describe("createQueryInstance", () => {
       .ruleState({ file: fileB, ruleId: "cd/no-class" });
 
     expect([ruleState, calculateConfigForFile.mock.calls]).toEqual([
-      { outcome: "ok", value: { state: "configured", severity: 2 } },
+      { outcome: "ok", value: { state: "configured", severity: 2, options: [] } },
       [[{ filePath: "src/b.ts" }]],
     ]);
   });
