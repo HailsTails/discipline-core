@@ -31,6 +31,7 @@ const sourcesOutsideMechanisms = import.meta.glob(
     "!./rules/**/*.test.*",
     "!./tests/**/*.test.*",
     "!./scripts/**/*.test.*",
+    "!./api/**/*.test.*",
     "!./tests/test-fixtures/**",
     "!./tests/required-entry.ts",
     "!./tests/confinement.ts",

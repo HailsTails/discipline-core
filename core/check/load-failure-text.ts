@@ -100,7 +100,8 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
   }
 };
 
+export const loadFailureDetail = (request: { readonly failure: LoadFailure }): string =>
+  [request.failure.kind, ...loadFailureFields(request)].map((text) => escapedLineBreaks({ text })).join(" ");
+
 export const loadFailureText = (request: { readonly failure: LoadFailure }): string =>
-  `${["load failure:", request.failure.kind, ...loadFailureFields(request)]
-    .map((text) => escapedLineBreaks({ text }))
-    .join(" ")}\n`;
+  `load failure: ${loadFailureDetail(request)}\n`;

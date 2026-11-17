@@ -93,7 +93,7 @@ verdict: fail
 - `id` matches the folder name. IDs are two to four capital letters, a dash and a number, with an optional lower-case letter after it.
 - Each clause lists the mechanisms that can check it. Selecting one clause adopts the whole discipline, so its other mechanical clauses must be selected too.
 - `anchor` is `{ "kind": "keyword", "keyword": "..." }` or `{ "kind": "file" }`.
-- `cases` say what the clause must flag and what it must leave alone. They are the clause's contract. `hone check` does not run them against a team's pieces today, and will: see [What is stable](#what-is-stable).
+- `cases` say what the clause must flag and what it must leave alone. They are the clause's contract. `hone check` does not run them against a team's pieces; the team runs them in its own tests: see [Test a piece](#test-a-piece).
 - A clause with `"kind": "judgement"`, a `summary` and `"enforcedBy": "review"` is applied in review and cannot be selected.
 - `"exceptions": "refused"` on a clause stops any exception record from exempting it.
 
@@ -266,7 +266,7 @@ Hone loads piece modules with Node, which strips the types from a `.ts` file as 
 
 ## Type-check the rule set
 
-`@hailstails/hone/rule-set` and `@hailstails/hone/audit` hold types only. Import them with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
+`@hailstails/hone/rule-set` holds types only. `@hailstails/hone/audit` holds the walker piece types and one value, `folderScope`. Import types with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
 
 ```json
 {
@@ -306,7 +306,17 @@ A wrong field then fails the type check, for example `Type 'number' is not assig
 
 Test an ESLint rule with ESLint's own `RuleTester`, importing the rule the plugin exports, such as `noConsoleCalls`, and giving it the clause's `flag` cases as `invalid` and its `allow` cases as `valid`. Run on its own with `node`, `RuleTester` prints nothing when the cases hold and throws on the first that does not; under a test runner that defines `describe` and `it`, it reports each case as a test.
 
-Test an audit piece end to end: commit a file that breaks the rule, run `hone check` and expect its finding, then remove the file and expect a pass. A unit test of `check` itself is harder today: clause addresses and file paths are types that only Hone creates, so a test cannot build them without a cast, and CD-2 flags that cast in a test file as anywhere else.
+Test an audit piece with `@hailstails/hone/testing`. `clauseConformanceOf` loads the installed audit runner, binds the clause from the rule set as `hone check` binds it, and runs every `flag` and `allow` case through the piece:
+
+```ts
+import { clauseConformanceOf } from "@hailstails/hone/testing";
+
+const conformance = await clauseConformanceOf({ ruleSetRoot: "tools/disciplines/acme", clause: "acme/ACME-2#scratch-files" });
+```
+
+A relative `ruleSetRoot` is read from the working directory. `{ outcome: "ok", value: [] }` means the piece met every case. Each entry in a longer list names a case, the lines it expects and the lines the piece flagged. `{ outcome: "failed", error: { kind, detail } }` means the cases could not run, for example `rule-set-unloadable` for a clause the audit mechanism may not check.
+
+Checks of your own call the piece directly. `clauseUnderTestOf` returns the same bound clause and each case's `name`, `file` and `source`, ready for `check.prepare` and `prepareFile`; `repoPathOf` makes the `RepoPath` for any other file, such as one whose `readText` fails with `file-unreadable`. `folderScope` from `@hailstails/hone/audit` tells a piece whether a file sits in a generated folder. Hone does not run these tests; the team runs them with its own test runner.
 
 ## Exceptions
 
@@ -325,22 +335,22 @@ Without that setting the entry also needs a `whyChain`, and without one it is re
 
 ## What is stable
 
-Three requirements are decided and not yet built. Each will make some rule sets that pass today fail:
+Two requirements are decided and not yet built. Each will make some rule sets that pass today fail:
 
-- **Cases are enforced.** `hone check` will run each selected team clause's `cases` against its piece, and fail the run as `nonconforming` when the piece misses a `flag` case or flags an `allow` case.
 - **A rule page is required.** A selected team discipline without `rules/<ID>/README.md` will fail to load.
-- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder.
+- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder and `folderScope` from `@hailstails/hone/audit`. The rule is about a piece's run-time code: a piece's own tests may also import `@hailstails/hone/testing`.
 
-To be ready now: give every mechanical clause cases that its piece meets, write each discipline's `README.md`, and import nothing from Hone but its two public type entries.
+To be ready now: write each discipline's `README.md`, and import nothing from Hone in a piece but types from `@hailstails/hone/rule-set` and `@hailstails/hone/audit` and `folderScope`.
 
 | Part | Status |
 | --- | --- |
 | `ruleSets`, the address `[<ruleSet>/]<ID>#<clause>`, `hone` reserved | Stable |
 | The folder layout `rules/<ID>/` and `mechanisms/<mechanism>/<ID>/` | Stable, with `rules/<ID>/README.md` becoming required |
-| `discipline.json` and `piece.json` version 1, and the ESLint piece `settings` with the namespace rule | Stable file formats; `cases` becoming enforced |
+| `discipline.json` and `piece.json` version 1, and the ESLint piece `settings` with the namespace rule | Stable file formats |
 | `@hailstails/hone/rule-set` | Stable |
 | Exception records for team clauses | Stable |
 | `@hailstails/hone/audit` and the walker piece contract | Experimental: may change in a minor release |
+| `@hailstails/hone/testing` | Experimental: may change in a minor release |
 | A rule set named by a package name, such as `"acme": "@acme/disciplines"` | Not supported: name its repository path instead, as under [TypeScript pieces under Node](#typescript-pieces-under-node) |
 | A new mechanism from outside Hone | Not supported |
 

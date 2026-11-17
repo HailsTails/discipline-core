@@ -1,8 +1,15 @@
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import { installRootAboveEntry } from "../values/install-layout.ts";
+import { type InstallEntry, installRootAboveEntry } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
 import type { LoadFailure } from "./load-failure.ts";
+
+type ModuleEntry = Exclude<InstallEntry, "runner">;
+
+const DIRECTORIES_ABOVE_ENTRY: Readonly<Record<ModuleEntry, string>> = {
+  api: "two directories",
+  command: "three directories",
+};
 
 const installRootUnresolvable = (request: {
   readonly url: string;
@@ -12,27 +19,37 @@ const installRootUnresolvable = (request: {
   error: { kind: "install-root-unresolvable", url: request.url, detail: request.detail },
 });
 
-const installRootAboveCommand = (request: { readonly path: PathPort; readonly entry: string }): string =>
-  installRootAboveEntry({
-    entryFile: request.entry,
-    entry: "command",
-    directoryOf: (path) => request.path.directoryOf({ path }),
-  });
-
-export const installRootOf = (request: {
+const installRootAbove = (request: {
   readonly path: PathPort;
   readonly moduleUrl: string;
+  readonly entry: ModuleEntry;
 }): Result<AbsolutePath, LoadFailure> => {
   const entry = request.path.fromFileUrl({ url: request.moduleUrl });
   if (entry.outcome === "failed") {
     return installRootUnresolvable({ url: entry.error.url, detail: entry.error.detail });
   }
-  const resolved = request.path.resolve({ path: installRootAboveCommand({ path: request.path, entry: entry.value }) });
+  const resolved = request.path.resolve({
+    path: installRootAboveEntry({
+      entryFile: entry.value,
+      entry: request.entry,
+      directoryOf: (path) => request.path.directoryOf({ path }),
+    }),
+  });
   if (resolved.outcome === "failed") {
     return installRootUnresolvable({
       url: request.moduleUrl,
-      detail: "the install root three directories above the entry file is not an absolute path",
+      detail: `the install root ${DIRECTORIES_ABOVE_ENTRY[request.entry]} above the entry file is not an absolute path`,
     });
   }
   return resolved;
 };
+
+export const installRootOf = (request: {
+  readonly path: PathPort;
+  readonly moduleUrl: string;
+}): Result<AbsolutePath, LoadFailure> => installRootAbove({ ...request, entry: "command" });
+
+export const installRootOfApiEntry = (request: {
+  readonly path: PathPort;
+  readonly moduleUrl: string;
+}): Result<AbsolutePath, LoadFailure> => installRootAbove({ ...request, entry: "api" });

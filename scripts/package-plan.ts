@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
+import { PUBLIC_TYPE_ENTRIES } from "./package-declarations.ts";
 
 export type PlanFailure = { readonly kind: "piece-invalid"; readonly path: string; readonly detail: string };
 
@@ -187,7 +188,7 @@ export const packagePlanOf = (request: {
   return {
     outcome: "ok",
     value: {
-      entryPoints: [...new Set([COMMAND_SOURCE, ...runners, ...pieceModules])],
+      entryPoints: [...new Set([COMMAND_SOURCE, ...PUBLIC_TYPE_ENTRIES.map((entry) => entry.source), ...runners, ...pieceModules])],
       command: builtModulePath({ path: COMMAND_SOURCE }),
       copied: copiedPathsIn(request),
       pieces: pieces.value.map(({ piece, document }) => ({ path: piece.path, text: builtPieceText({ document }) })),

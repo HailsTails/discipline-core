@@ -71,12 +71,15 @@ describe("piecePathsIn", () => {
 describe("packagePlanOf", () => {
   const plan = packagePlanOf({ sourcePaths: SOURCE_PATHS, pieces: [AUDIT_PIECE, ESLINT_PIECE] });
 
-  it("builds the one command, each runner and each piece module a shipped piece names, once each", () => {
+  it("builds the one command, each public entry, each runner and each piece module a shipped piece names, once each", () => {
     expect(plan).toMatchObject({
       outcome: "ok",
       value: {
         entryPoints: [
           "core/check/tool-command.ts",
+          "api/audit.ts",
+          "api/rule-set.ts",
+          "api/testing.ts",
           "mechanisms/audit/runner/runner.ts",
           "mechanisms/eslint/runner/runner.ts",
           "mechanisms/audit/CD-23/export-test-sibling.ts",

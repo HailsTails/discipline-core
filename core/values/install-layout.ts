@@ -1,6 +1,7 @@
-export type InstallEntry = "command" | "runner";
+export type InstallEntry = "api" | "command" | "runner";
 
 const FOLDERS_BETWEEN_INSTALL_ROOT_AND_ENTRY: Readonly<Record<InstallEntry, number>> = {
+  api: 1,
   command: 2,
   runner: 3,
 };

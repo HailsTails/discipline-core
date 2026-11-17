@@ -50,7 +50,7 @@ type StagedBundle = { readonly bundle: Bundle; readonly packages: readonly Bundl
 
 const SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms", "rules", "methods", "docs"];
 
-const BUNDLED_SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms"];
+const BUNDLED_SOURCE_FOLDERS: readonly string[] = ["api", "core", "mechanisms"];
 
 const BUNDLED_SOURCE_FILES: readonly string[] = ["package.json", "tsconfig.json", "tsconfig.base.json"];
 

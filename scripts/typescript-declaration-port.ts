@@ -25,6 +25,10 @@ const SOURCE_SPECIFIER = /^(\.\.?\/.*)\.ts$/;
 
 const DECLARATION_FILE = /\.d\.ts$/;
 
+const SOURCE_FILE = /\.ts$/;
+
+const DECLARATION_SUFFIX = ".d.ts";
+
 const declarationsFailed = (request: { readonly detail: string }): Emitted => ({
   outcome: "failed",
   error: { kind: "declarations-failed", detail: request.detail },
@@ -45,9 +49,11 @@ type StatementPublication =
 
 type FileBindings = { readonly types: ReadonlySet<string>; readonly privateValues: ReadonlySet<string> };
 
+export type DeclarationRole = "entry" | "internal";
+
 type StatementRequest = { readonly syntaxApi: SyntaxApi; readonly statement: Statement };
 
-type PublicationRequest = StatementRequest & { readonly bindings: FileBindings };
+type PublicationRequest = StatementRequest & { readonly bindings: FileBindings; readonly role: DeclarationRole };
 
 const ONLY_TYPES = "a shipped declaration may hold only type declarations, type-only imports and type-only exports";
 
@@ -187,7 +193,7 @@ const statementPublication = (request: PublicationRequest): StatementPublication
     return { kind: "kept", statement };
   }
   if (natureOf(request) === "value") {
-    return visibilityOf(request) === "exported" ? { kind: "dropped" } : { kind: "kept", statement };
+    return visibilityOf(request) === "exported" && request.role === "internal" ? { kind: "dropped" } : { kind: "kept", statement };
   }
   if (syntaxApi.isExportAssignment(statement)) {
     return { kind: "dropped" };
@@ -228,11 +234,16 @@ const moduleMarkerFor = (request: {
 
 export type PublishedDeclarationText = { readonly text: string; readonly refusals: readonly string[] };
 
-export const publishedDeclarationText = (request: { readonly syntaxApi: SyntaxApi; readonly path: string; readonly text: string }): PublishedDeclarationText => {
+export const publishedDeclarationText = (request: {
+  readonly syntaxApi: SyntaxApi;
+  readonly path: string;
+  readonly text: string;
+  readonly role: DeclarationRole;
+}): PublishedDeclarationText => {
   const syntaxApi = request.syntaxApi;
   const sourceFile = syntaxApi.createSourceFile(request.path, request.text, syntaxApi.ScriptTarget.Latest, true);
   const bindings = bindingsIn({ syntaxApi, statements: sourceFile.statements });
-  const publications = sourceFile.statements.map((statement) => statementPublication({ syntaxApi, statement, bindings }));
+  const publications = sourceFile.statements.map((statement) => statementPublication({ syntaxApi, statement, bindings, role: request.role }));
   const kept = publications.flatMap((publication) => (publication.kind === "kept" ? [publication.statement] : []));
   return {
     text: syntaxApi.createPrinter({ newLine: syntaxApi.NewLineKind.LineFeed }).printFile(
@@ -304,16 +315,26 @@ const emittedWith = (request: {
     },
   });
   const emitted = program.emit(undefined, undefined, undefined, true, { afterDeclarations: [specifierTransformer({ syntaxApi })] });
+  const entryDeclarations = new Set(request.entryPoints.map((entryPoint) => entryPoint.replace(SOURCE_FILE, DECLARATION_SUFFIX)));
   const published = [...written]
     .filter(([path]) => DECLARATION_FILE.test(path))
     .sort(([left], [right]) => (left < right ? -1 : 1))
-    .map(([path, text]) => ({ path, publication: publishedDeclarationText({ syntaxApi, path, text }) }));
+    .map(([path, text]) => ({
+      path,
+      publication: publishedDeclarationText({ syntaxApi, path, text, role: entryDeclarations.has(path) ? "entry" : "internal" }),
+    }));
   return {
-    declarations: published.map(({ path, publication }): EmittedDeclaration => ({ path, text: publication.text, specifiers: specifiersIn({ syntaxApi, text: publication.text }) })),
-    diagnostics: [
-      ...[...syntaxApi.getPreEmitDiagnostics(program), ...emitted.diagnostics].map((diagnostic) => diagnosticText({ syntaxApi, root: request.root, diagnostic })),
-      ...published.flatMap(({ publication }) => publication.refusals),
-    ],
+    declarations: published.map(
+      ({ path, publication }): EmittedDeclaration => ({
+        path,
+        text: publication.text,
+        specifiers: specifiersIn({ syntaxApi, text: publication.text }),
+        refusals: publication.refusals,
+      }),
+    ),
+    diagnostics: [...syntaxApi.getPreEmitDiagnostics(program), ...emitted.diagnostics].map((diagnostic) =>
+      diagnosticText({ syntaxApi, root: request.root, diagnostic }),
+    ),
   };
 };
 

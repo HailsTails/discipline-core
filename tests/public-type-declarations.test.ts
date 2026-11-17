@@ -4,7 +4,7 @@ import { createDefaultTypeScriptDeclarationPort } from "../scripts/typescript-de
 import { publicTypeReachOf } from "./public-type-reach.ts";
 import { defaultParsePort } from "./typescript-parse-port.ts";
 
-const ENTRY_SOURCES = ["api/audit.ts", "api/rule-set.ts"];
+const ENTRY_SOURCES = ["api/audit.ts", "api/rule-set.ts", "api/testing.ts"];
 
 const reach = publicTypeReachOf({
   syntaxApi: defaultParsePort.syntaxApi,
@@ -14,12 +14,12 @@ const reach = publicTypeReachOf({
 });
 
 describe("the declarations the public type entries ship, emitted in memory by the package build's own port (CD-47: nothing is spawned or written)", () => {
-  it("emit both entries with no diagnostic and publish every declaration they reach", () => {
+  it("emit every entry with no diagnostic and publish every declaration they reach", () => {
     expect(reach.problems).toEqual([]);
   });
 
-  it("import no package but typescript from the audit entry, and none at all from the rule-set entry", () => {
-    expect(reach.entries).toMatchObject({ audit: { packageImports: ["typescript"] }, "rule-set": { packageImports: [] } });
+  it("import no package but typescript from the audit entry, and none at all from the rule-set and testing entries", () => {
+    expect(reach.entries).toMatchObject({ audit: { packageImports: ["typescript"] }, "rule-set": { packageImports: [] }, testing: { packageImports: [] } });
   });
 
   it("reach no internal port, toolchain or tool identity from the audit entry", () => {
@@ -34,8 +34,12 @@ describe("the declarations the public type entries ship, emitted in memory by th
     });
   });
 
-  it("ship no declaration that claims an exported value", () => {
+  it("ship no declaration but an entry's own that claims an exported value", () => {
     expect(reach.valueDeclaring).toEqual([]);
+  });
+
+  it("declare folderScope from the audit entry, the three testing functions from the testing entry, and no value from the rule-set entry", () => {
+    expect(reach.entryValues).toEqual({ audit: ["folderScope"], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
   });
 
   it("ship no declaration that mentions zod", () => {

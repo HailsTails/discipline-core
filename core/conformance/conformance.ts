@@ -11,15 +11,10 @@ import {
   runnerResultSchema,
 } from "../mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../rule-set-reader/rule-set-reader.ts";
-import type { ClauseAddress } from "../values/clause-address.ts";
 import type { Result } from "../values/result.ts";
+import type { ConformanceFailure } from "./conformance-types.ts";
 
-export type ConformanceFailure = {
-  readonly clause: ClauseAddress;
-  readonly caseName: string;
-  readonly expectedLines: readonly number[];
-  readonly flaggedLines: readonly number[];
-};
+export type { ConformanceFailure } from "./conformance-types.ts";
 
 const caseVerdictsResultSchema = runnerResultSchema({
   value: z.array(caseVerdictSchema).readonly(),

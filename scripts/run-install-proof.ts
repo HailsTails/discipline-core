@@ -205,6 +205,26 @@ const packageLint = (request: {
   return SUCCEEDED;
 };
 
+const consumerScript = (request: {
+  readonly context: ProofContext;
+  readonly repo: string;
+  readonly consumer: string;
+  readonly action: Extract<ProofAction, { readonly kind: "run" }>;
+}): Result<null, string> => {
+  const judged = judgedStep({
+    label: `${request.consumer} node ${request.action.script}`,
+    expectation: request.action.expectation,
+    run: withLineFeeds({
+      run: request.context.commands.run({ command: "node", arguments: [request.action.script], directory: request.repo }),
+    }),
+  });
+  if (judged.outcome === "failed") {
+    return judged;
+  }
+  request.context.process.writeOut({ text: `${judged.value}\n` });
+  return SUCCEEDED;
+};
+
 const readExactly = (request: {
   readonly context: ProofContext;
   readonly label: string;
@@ -237,6 +257,7 @@ const actionAt = (request: { readonly action: ProofAction; readonly installed: s
     case "project":
     case "typecheck":
     case "lint":
+    case "run":
       return { ...action, expectation: expectationAt({ expectation: action.expectation, installed: request.installed }) };
     case "commit":
     case "read":
@@ -275,6 +296,8 @@ const performedAction = (request: {
       return typeCheckedProject({ context: request.context, repo: request.repo, consumer: request.consumer, action });
     case "lint":
       return packageLint({ context: request.context, repo: request.repo, consumer: request.consumer, action });
+    case "run":
+      return consumerScript({ context: request.context, repo: request.repo, consumer: request.consumer, action });
   }
 };
 

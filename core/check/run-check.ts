@@ -116,9 +116,11 @@ export const runnerFailed = <Value>(request: {
     ? failed({ kind: "runner-failed", mechanism: request.mechanism, failure: request.runnerResult.error })
     : request.runnerResult;
 
-const loadRunner = async (
-  request: LoadRequest & { readonly mechanism: MechanismId },
-): Promise<Result<LoadedRunner, LoadFailure>> => {
+export type RunnerLocation = Pick<LoadRequest, "installRoot" | "moduleExtension" | "modules" | "path"> & {
+  readonly mechanism: MechanismId;
+};
+
+export const loadRunner = async (request: RunnerLocation): Promise<Result<LoadedRunner, LoadFailure>> => {
   const loaded = await request.modules.load({
     path: request.path.join({
       segments: runnerModuleSegmentsOf({ installRoot: request.installRoot, mechanism: request.mechanism, moduleExtension: request.moduleExtension }),

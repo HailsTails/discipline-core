@@ -194,6 +194,7 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.bundler.json", expectation: SILENT },
   { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT },
   WRONG_FIELDS_REJECTED,
+  { kind: "run", script: "tools/disciplines/acme/proof/testing-proof.ts", expectation: SILENT },
   { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
   {
     kind: "check",
@@ -243,7 +244,7 @@ const WORKSPACE_ACTIONS: readonly ProofAction[] = [
 ];
 
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set and its own piece proof on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
       { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
       { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
