@@ -16,3 +16,5 @@ These are review methods for applying the rule pages' judgement clauses, and for
 | [defended-on-intent](lenses/defended-on-intent.md) | This lens defends **intent over letter**: a PASS is only a PASS when the artefact satisfies both the literal text of the cited rule *and* the principle that rule exists to encode. |
 
 The defended-on-intent lens runs last, over the other lenses' findings.
+
+[assessment-template.md](assessment-template.md) is the template for a repository's `disciplines.assessment.md`: what each high-count clause's findings mean in that codebase and where the code is going. [ADOPTING step 5a](../ADOPTING.md#5a-write-the-assessment) says how to write it.
