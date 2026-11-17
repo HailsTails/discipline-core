@@ -40,55 +40,29 @@ jobs:
           base="$BASE_REVISION"
           case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
           pnpm run self-check --base-revision "$base"
-      - name: Build the package
-        run: pnpm run build-package
       - name: Check the package builds deterministically
         run: pnpm run package-determinism
-      - name: Prove a package install
-        run: pnpm run install-proof
+      - name: Pack the package
+        run: pnpm run pack-package
+      - name: Prove the packed tarball installs and runs in real consumers
+        shell: bash
+        run: |
+          tarballs=(artefacts/*.tgz)
+          test "${#tarballs[@]}" -eq 1
+          pnpm run install-proof --tarball "${tarballs[0]}"
+      - name: Keep the packed tarball for the other platform
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: package-tarball
+          path: artefacts/*.tgz
+          if-no-files-found: error
+          retention-days: 7
 
   linux:
     name: Discipline core on Linux
+    needs: windows
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22.18.0
-      - name: Enable corepack
-        run: corepack enable
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Check
-        run: pnpm run check
-      - name: Run Hone's disciplines on Hone
-        shell: bash
-        env:
-          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          base="$BASE_REVISION"
-          case "$base" in *[!0]*) ;; *) base=origin/main ;; esac
-          pnpm run self-check --base-revision "$base"
-      - name: Build the package
-        run: pnpm run build-package
-      - name: Check the package builds deterministically
-        run: pnpm run package-determinism
-      - name: Prove a package install
-        run: pnpm run install-proof
-
-  supported-node:
-    name: Package on Node ${{ matrix.node-label }} on ${{ matrix.platform }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { platform: macOS, runner: macos-26, node-label: 22.18.0, node-version: 22.18.0, run-tests: false }
-          - { platform: Linux, runner: ubuntu-24.04, node-label: 24, node-version: 24.22.2, run-tests: true }
     defaults:
       run:
         shell: bash
@@ -98,15 +72,20 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24.22.2
       - name: Enable corepack
         run: corepack enable
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build the package
-        run: pnpm run build-package
-      - name: Prove a package install
-        run: pnpm run install-proof
-      - name: Run the tests
-        if: ${{ matrix.run-tests }}
+      - name: Run the tests on Node 24
         run: pnpm run test
+      - name: Fetch the tarball packed on Windows
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: package-tarball
+          path: artefacts
+      - name: Prove the Windows-packed tarball installs and runs in real consumers on Node 24
+        run: |
+          tarballs=(artefacts/*.tgz)
+          test "${#tarballs[@]}" -eq 1
+          pnpm run install-proof --tarball "${tarballs[0]}"
