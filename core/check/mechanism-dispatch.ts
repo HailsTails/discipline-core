@@ -9,6 +9,7 @@ import {
 import type {
   LoadedRunner,
   ProjectionRequest,
+  RunnerClause,
   RunRequest,
 } from "../mechanism-port/runner-module-schema.ts";
 import {
@@ -38,6 +39,7 @@ export type MechanismRequest = {
   readonly runner: LoadedRunner;
   readonly mechanism: MechanismId;
   readonly run: RunRequest;
+  readonly projectedClauses: readonly RunnerClause[];
   readonly records: readonly ExceptionRecord[];
 };
 
@@ -98,11 +100,11 @@ const projectionWriteResultSchema = runnerResultSchema({ value: z.array(projecti
 
 const unrequestedNativeException = (request: {
   readonly nativeExceptions: readonly NativeException[];
-  readonly run: RunRequest;
+  readonly projectedClauses: readonly RunnerClause[];
 }): NativeException | undefined =>
   request.nativeExceptions.find(
     (nativeException) =>
-      !request.run.clauses.some(
+      !request.projectedClauses.some(
         (clause) =>
           sameClauseAddress({ left: clause.address, right: nativeException.clause }) === "same",
       ),
@@ -113,6 +115,7 @@ const embeddedRun = (request: {
   readonly mechanism: MechanismId;
   readonly projectedKinds: readonly NativeException["kind"][];
   readonly run: RunRequest;
+  readonly projectedClauses: readonly RunnerClause[];
 }): Result<MechanismRun, RunnerFailure> => {
   const parsed = reportResultSchema.safeParse(request.returned);
   if (!parsed.success) {
@@ -130,7 +133,7 @@ const embeddedRun = (request: {
   }
   const unrequestedNative = unrequestedNativeException({
     nativeExceptions: report.nativeExceptions,
-    run: request.run,
+    projectedClauses: request.projectedClauses,
   });
   if (unrequestedNative !== undefined) {
     return runnerInvalidOutput({
@@ -179,7 +182,9 @@ export const runMechanism = (
     case "embedded": {
       const runner = request.runner;
       return Promise.resolve()
-        .then(() => runner.run({ ...request.run, records: request.records }))
+        .then(() =>
+          runner.run({ ...request.run, projectedClauses: request.projectedClauses, records: request.records }),
+        )
         .then(
           (returned) =>
             embeddedRun({
@@ -187,6 +192,7 @@ export const runMechanism = (
               mechanism: request.mechanism,
               projectedKinds: runner.projectedKinds,
               run: request.run,
+              projectedClauses: request.projectedClauses,
             }),
           (thrown: unknown) => rejectedCall({ thrown }),
         );

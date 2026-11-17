@@ -6,6 +6,7 @@ export type SectionRole = "failing" | "informational";
 
 const SECTION_ROLES: Readonly<Record<SectionName, SectionRole>> = {
   excluded: "informational",
+  notAdopted: "informational",
   findings: "failing",
   exempted: "informational",
   uncovered: "failing",

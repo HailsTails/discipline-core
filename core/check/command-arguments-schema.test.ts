@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCheckArguments, parseProjectArguments, parseSubcommand } from "./command-arguments-schema.ts";
 
 const USAGE =
-  "usage: hone check --repo <path> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>] | hone project --repo <path>";
+  "usage: hone check --repo <path> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>] [--waived-clauses <run|not-run>] | hone project --repo <path>";
 
 describe("parseSubcommand", () => {
   it("reads check and hands on the arguments after it", () => {
@@ -128,7 +128,7 @@ describe("parseCheckArguments", () => {
   it.each(["this-run", "elsewhere"])("reads --forfeiture %s", (forfeiture) => {
     expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--forfeiture", forfeiture] })).toEqual({
       outcome: "ok",
-      value: { repo: "/work/repo", baseRevision: undefined, reportOutput: undefined, forfeiture },
+      value: { repo: "/work/repo", baseRevision: undefined, reportOutput: undefined, forfeiture, waivedClauses: undefined },
     });
   });
 
@@ -148,10 +148,27 @@ describe("parseCheckArguments", () => {
     ).toMatchObject({ outcome: "failed", error: { kind: "arguments-invalid" } });
   });
 
-  it.each(["--eslint-evidence", "--waived-clauses"])("is arguments-invalid for %s, which this release does not assess", (option) => {
-    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", option, "run"] })).toMatchObject({
+  it("is arguments-invalid for --eslint-evidence, which this release does not assess", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--eslint-evidence", "hone"] })).toMatchObject({
       outcome: "failed",
       error: { kind: "arguments-invalid" },
+    });
+  });
+
+  it.each(["run", "not-run"])("reads --waived-clauses %s", (waivedClauses) => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--waived-clauses", waivedClauses] })).toEqual({
+      outcome: "ok",
+      value: { repo: "/work/repo", baseRevision: undefined, reportOutput: undefined, forfeiture: undefined, waivedClauses },
+    });
+  });
+
+  it("names --waived-clauses and its accepted values when its value is not one of them", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--waived-clauses", "skip"] })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "arguments-invalid",
+        detail: '✖ Invalid option: expected one of "run"|"not-run"\n  → at ["--waived-clauses"]',
+      },
     });
   });
 

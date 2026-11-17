@@ -15,7 +15,7 @@ import {
 } from "./run-check.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 
-export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "forfeiture">;
+export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment">;
 
 type ProjectionInputs = {
   readonly project: ProjectRequest;
@@ -28,7 +28,7 @@ const projectionRequestOf = (request: ProjectionInputs): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
   trackedPaths: request.tracked,
-  clauses: request.loaded.clauses,
+  clauses: request.loaded.projectedClauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
 
@@ -40,7 +40,11 @@ const projectionWritesOf = (request: ProjectionInputs): Promise<Result<readonly 
 export const runProject = async (
   request: ProjectRequest,
 ): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
-  const inputs = await loadInputs({ ...request, exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE });
+  const inputs = await loadInputs({
+    ...request,
+    exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE,
+    waivedClauses: "run",
+  });
   if (inputs.outcome === "failed") {
     return inputs;
   }

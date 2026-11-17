@@ -7,6 +7,7 @@ import type { BaseFileText, GitFailure, GitPort } from "../platform-ports/git-po
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
+import { type Assessment, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { type CheckRequest, runCheck } from "./run-check.ts";
@@ -306,6 +307,10 @@ const TRACKED_PATHS: readonly RepoPath[] = [
 
 const CHANGED_PATHS: readonly RepoPath[] = [repoPathSchema.parse("src/a.ts")];
 
+const FORFEITURE_ELSEWHERE: Assessment = { ...DEFAULT_ASSESSMENT, forfeiture: "elsewhere" };
+
+const WAIVED_NOT_RUN: Assessment = { ...DEFAULT_ASSESSMENT, waivedClauses: "not-run" };
+
 const HIT_IN_A = {
   clause: CLASS_SYNTAX_OBJECT,
   file: "src/a.ts",
@@ -315,6 +320,7 @@ const HIT_IN_A = {
 
 const EMPTY_REPORT = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -366,7 +372,7 @@ const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
   installRoot: INSTALL_ROOT,
   moduleExtension: ".ts",
   baseRevision: "main",
-  forfeiture: "this-run",
+  assessment: DEFAULT_ASSESSMENT,
   fileText: fileTextOver(INSTALL),
   modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) }),
   path: TABLE_PATH,
@@ -652,7 +658,7 @@ describe("runCheck forfeiture assessed elsewhere", () => {
 
   const withFileCarveOut = (overrides: Partial<CheckRequest>): CheckRequest =>
     checkRequest({
-      forfeiture: "elsewhere",
+      assessment: FORFEITURE_ELSEWHERE,
       fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
       ...overrides,
     });
@@ -687,7 +693,7 @@ describe("runCheck forfeiture assessed elsewhere", () => {
   });
 
   it("reports forfeiture elsewhere with no file carve-outs when none exists", async () => {
-    await expect(runCheck(checkRequest({ forfeiture: "elsewhere", baseRevision: undefined }))).resolves.toEqual({
+    await expect(runCheck(checkRequest({ assessment: FORFEITURE_ELSEWHERE, baseRevision: undefined }))).resolves.toEqual({
       outcome: "ok",
       value: { ...EMPTY_REPORT, assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 0 }] },
     });
@@ -714,7 +720,7 @@ describe("runCheck forfeiture elsewhere with a base revision", () => {
 
   const importedAndCarved = (overrides: Partial<CheckRequest>): CheckRequest =>
     checkRequest({
-      forfeiture: "elsewhere",
+      assessment: FORFEITURE_ELSEWHERE,
       fileText: fileTextOver({
         ...INSTALL,
         [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT }),
@@ -768,7 +774,7 @@ describe("runCheck forfeiture elsewhere with a base revision", () => {
 describe("runCheck forfeiture elsewhere with legacy chains", () => {
   const legacyChain = (overrides: Partial<CheckRequest>): CheckRequest =>
     checkRequest({
-      forfeiture: "elsewhere",
+      assessment: FORFEITURE_ELSEWHERE,
       fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }) }),
       ...overrides,
     });
@@ -1510,6 +1516,245 @@ describe("runCheck with an embedded runner", () => {
     expect({ outcome: report.outcome, runCalls: runner.run.mock.calls }).toEqual({
       outcome: "ok",
       runCalls: [[expect.objectContaining({ records: [WALKER_RECORD] })]],
+    });
+  });
+});
+
+const CLASS_SYNTAX_WAIVER = {
+  kind: "clause-wide-carve-out",
+  clause: "CD-14#class-syntax",
+  reason: "class syntax is not adopted yet",
+  whyChain: CAUSAL_WHY_CHAIN,
+} as const;
+
+const EXCEPTIONS_WAIVING_CLASS_SYNTAX = JSON.stringify({ version: 1, exceptions: [CLASS_SYNTAX_WAIVER] });
+
+const WAIVER_RECORD = {
+  kind: "clause-wide-carve-out",
+  clause: CLASS_SYNTAX_OBJECT,
+  mechanism: "audit",
+  reason: "class syntax is not adopted yet",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const TWO_CLAUSE_INSTALL: Readonly<Record<string, FakeFile>> = {
+  ...INSTALL,
+  [SELECTION_PATH]: presentFile({ text: SELECTION_OF_TWO_CLAUSES }),
+  [DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE_WITH_TWO_CLAUSES }),
+  [PIECE_PATH]: presentFile({ text: PIECE_WITH_TWO_CLAUSES }),
+  [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
+};
+
+const CLASS_SYNTAX_CLAUSE = expect.objectContaining({ address: CLASS_SYNTAX_OBJECT });
+
+const ABSTRACT_SYNTAX_CLAUSE = expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT });
+
+const waivedClassSyntax = (request: { readonly recordsNotJudgedStale: number }) => ({
+  concern: "waivedClauses",
+  assessedBy: "not-run",
+  clausesNotRun: [{ clause: CLASS_SYNTAX_OBJECT, mechanism: "audit" }],
+  recordsNotJudgedStale: request.recordsNotJudgedStale,
+});
+
+describe("runCheck waived clauses not run", () => {
+  it("loads no mechanism whose every clause is waived, and reports the clause and its waiver as not judged", async () => {
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const report = await runCheck(
+      checkRequest({
+        assessment: WAIVED_NOT_RUN,
+        modules,
+        fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }),
+      }),
+    );
+    expect({ report, loads: vi.mocked(modules.load).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
+      loads: [],
+    });
+  });
+
+  it("runs the waived clause and judges its waiver stale by default, as before", async () => {
+    await expect(
+      runCheck(
+        checkRequest({ fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }) }),
+      ),
+    ).resolves.toEqual({ outcome: "ok", value: { ...EMPTY_REPORT, stale: [WAIVER_RECORD] } });
+  });
+
+  it("hands a standalone runner only the clauses that are not waived", async () => {
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const report = await runCheck(
+      checkRequest({ assessment: WAIVED_NOT_RUN, modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }),
+    );
+    expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
+      runCalls: [[expect.objectContaining({ clauses: [expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT })] })]],
+    });
+  });
+
+  it("reports an invalid waiver as today and runs its clause", async () => {
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const report = await runCheck(
+      checkRequest({
+        assessment: WAIVED_NOT_RUN,
+        modules: modulesLoading({ runner }),
+        fileText: fileTextOver({
+          ...INSTALL,
+          [EXCEPTIONS_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, exceptions: [{ ...CLASS_SYNTAX_WAIVER, whyChain: "because" }] }),
+          }),
+        }),
+      }),
+    );
+    expect({ report, runs: vi.mocked(runner.run).mock.calls.length }).toMatchObject({
+      report: {
+        outcome: "ok",
+        value: {
+          invalidRecords: [{ index: 0, problem: { kind: "why-chain-refused" } }],
+          assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
+        },
+      },
+      runs: 1,
+    });
+  });
+});
+
+describe("runCheck waived clauses not run within an embedded mechanism", () => {
+  it("runs only the in-force clause of an embedded mechanism, still projecting both, and does not judge the waiver stale", async () => {
+    const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
+    const report = await runCheck(
+      checkRequest({ assessment: WAIVED_NOT_RUN, modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }),
+    );
+    expect({ report, runCalls: runner.run.mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
+      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE], projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE] })]],
+    });
+  });
+
+  it("hands an embedded runner the same clauses to run and to project when waived clauses run", async () => {
+    const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
+    await runCheck(checkRequest({ modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }));
+    expect(runner.run.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          clauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+          projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+        }),
+      ],
+    ]);
+  });
+
+});
+
+describe("runCheck waived clauses not run across mechanisms", () => {
+  it("never loads a second mechanism whose only clause is waived", async () => {
+    const report = await runCheck(
+      checkRequest({
+        assessment: WAIVED_NOT_RUN,
+        modules: modulesByPath({ [RUNNER_PATH]: { runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) } }),
+        fileText: fileTextOver({
+          ...TWO_MECHANISM_INSTALL,
+          [EXCEPTIONS_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, exceptions: [{ ...CLASS_SYNTAX_WAIVER, clause: "CD-14#abstract-syntax" }] }),
+          }),
+        }),
+      }),
+    );
+    expect(report).toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        assessment: [
+          {
+            concern: "waivedClauses",
+            assessedBy: "not-run",
+            clausesNotRun: [{ clause: ABSTRACT_SYNTAX_OBJECT, mechanism: "lint" }],
+            recordsNotJudgedStale: 1,
+          },
+        ],
+      },
+    });
+  });
+
+  it("reports forfeiture before waived clauses when both are partial, and still forfeits nothing", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" },
+          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        assessment: [
+          { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 0 },
+          waivedClassSyntax({ recordsNotJudgedStale: 1 }),
+        ],
+      },
+    });
+  });
+});
+
+const NOT_ADOPTING_CLASS_SYNTAX = JSON.stringify({
+  version: 1,
+  ruleSets: {},
+  clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
+});
+
+const notAdoptingInstall = (request: { readonly selection: string; readonly exceptions: FakeFile }) =>
+  fileTextOver({ ...TWO_CLAUSE_INSTALL, [SELECTION_PATH]: presentFile({ text: request.selection }), [EXCEPTIONS_PATH]: request.exceptions });
+
+describe("runCheck clauses not adopted", () => {
+  it("loads no mechanism when no listed clause is adopted, lists the clauses, and passes as a whole assessment", async () => {
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const report = await runCheck(
+      checkRequest({
+        modules,
+        fileText: notAdoptingInstall({
+          selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" } }),
+          exceptions: ABSENT_FILE,
+        }),
+      }),
+    );
+    expect({ report, loads: vi.mocked(modules.load).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, notAdopted: [CLASS_SYNTAX_OBJECT, ABSTRACT_SYNTAX_OBJECT] } },
+      loads: [],
+    });
+  });
+
+  it("hands the runner only the adopted clause and lists the other as not adopted", async () => {
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const report = await runCheck(
+      checkRequest({
+        modules: modulesLoading({ runner }),
+        fileText: notAdoptingInstall({ selection: NOT_ADOPTING_CLASS_SYNTAX, exceptions: ABSENT_FILE }),
+      }),
+    );
+    expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, notAdopted: [CLASS_SYNTAX_OBJECT] } },
+      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE] })]],
+    });
+  });
+
+  it("fails a record on a not-adopted clause as clause-not-adopted, whatever waived clauses do", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          assessment: WAIVED_NOT_RUN,
+          fileText: notAdoptingInstall({
+            selection: NOT_ADOPTING_CLASS_SYNTAX,
+            exceptions: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        invalidRecords: [{ index: 0, problem: { kind: "clause-not-adopted", clause: CLASS_SYNTAX_OBJECT } }],
+        notAdopted: [CLASS_SYNTAX_OBJECT],
+        assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
+      },
     });
   });
 });

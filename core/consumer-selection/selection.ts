@@ -14,6 +14,7 @@ export type SelectedClause = {
 export type Selection = {
   readonly selected: readonly SelectedClause[];
   readonly uncovered: readonly ClauseAddress[];
+  readonly notAdopted: readonly ClauseAddress[];
 };
 
 export type ClauseBinding = {

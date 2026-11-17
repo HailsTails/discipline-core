@@ -7,6 +7,7 @@ import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { createEslintRunner } from "../mechanisms/eslint/runner/create-eslint-runner.ts";
 import { defaultEslintPort } from "./eslint-toolchains.ts";
@@ -107,7 +108,7 @@ const checkOf = (request: {
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText: request.ports.fileText,
     modules: request.ports.runnerModules,
     path,
@@ -171,6 +172,7 @@ const CLASS_FINDING = {
 
 const CLEAN_REPORT = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],

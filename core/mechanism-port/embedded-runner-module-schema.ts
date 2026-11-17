@@ -7,17 +7,21 @@ import type { RunnerFailure } from "./runner-failure.ts";
 import type {
   embeddedRunnerModuleSchema,
   ProjectionRequest,
+  RunnerClause,
   RunRequest,
   StandaloneRunner,
 } from "./runner-module-schema.ts";
 import type { NativeException, ProjectionWrite } from "./runner-result-schema.ts";
 
+export type EmbeddedRunRequest = RunRequest & {
+  readonly projectedClauses: readonly RunnerClause[];
+  readonly records: readonly ExceptionRecord[];
+};
+
 export type EmbeddedRunner = {
   readonly exceptionPath: "embedded";
   readonly projectedKinds: readonly NativeException["kind"][];
-  readonly run: (
-    request: RunRequest & { readonly records: readonly ExceptionRecord[] },
-  ) => Promise<Result<EmbeddedRunReport, RunnerFailure>>;
+  readonly run: (request: EmbeddedRunRequest) => Promise<Result<EmbeddedRunReport, RunnerFailure>>;
   readonly conform: StandaloneRunner["conform"];
   readonly project: (
     request: ProjectionRequest,

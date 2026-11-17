@@ -95,7 +95,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
     expect({
       exceptionPath: bound.exceptionPath,
       projectedKinds: bound.projectedKinds,
-      run: await bound.run({ ...RUN, records: [] }),
+      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,
@@ -117,7 +117,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
       runnerOf,
     });
     expect({
-      run: await bound.run({ ...RUN, records: [] }),
+      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,

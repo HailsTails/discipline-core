@@ -2,7 +2,7 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
+import type { CheckReport, NotRunClause, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -62,6 +62,7 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
     case "import-unverified":
       return escapedLineBreaks({ text: request.problem.detail });
     case "clause-not-selected":
+    case "clause-not-adopted":
     case "non-exemptible-clause":
       return clauseAddressText({ address: request.problem.clause });
     case "file-not-repo-path":
@@ -82,13 +83,20 @@ const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string =>
   }
 };
 
-const fileCarveOutCount = (request: { readonly count: number }): string =>
-  request.count === 1 ? "1 file carve-out" : `${request.count} file carve-outs`;
+const counted = (request: { readonly count: number; readonly noun: string }): string =>
+  request.count === 1 ? `1 ${request.noun}` : `${request.count} ${request.noun}s`;
+
+const notRunList = (request: { readonly clausesNotRun: readonly NotRunClause[] }): string =>
+  request.clausesNotRun.length === 0
+    ? ""
+    : `: ${request.clausesNotRun.map((entry) => `${clauseAddressText({ address: entry.clause })} ${entry.mechanism}`).join(", ")}`;
 
 const assessmentLine = (request: { readonly partial: PartialAssessment }): string => {
   switch (request.partial.concern) {
     case "forfeiture":
-      return `${request.partial.concern} ${request.partial.assessedBy}: ${fileCarveOutCount({ count: request.partial.fileCarveOuts })} not checked for decay in this run`;
+      return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.fileCarveOuts, noun: "file carve-out" })} not checked for decay in this run`;
+    case "waivedClauses":
+      return `waived-clauses ${request.partial.assessedBy}: ${counted({ count: request.partial.clausesNotRun.length, noun: "clause" })} not run, ${counted({ count: request.partial.recordsNotJudgedStale, noun: "record" })} not judged stale${notRunList(request.partial)}`;
   }
 };
 
@@ -101,6 +109,7 @@ type ReportLines = (request: { readonly report: CheckReport }) => readonly strin
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
+  notAdopted: (request) => request.report.notAdopted.map((address) => clauseAddressText({ address })),
   findings: (request) => request.report.findings.map((finding) => findingLine({ finding })),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),

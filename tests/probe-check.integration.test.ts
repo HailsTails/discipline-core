@@ -5,6 +5,7 @@ import type { GitPort } from "../core/platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
 import * as exportTestSibling from "../mechanisms/audit/CD-23/export-test-sibling.ts";
 import cd23Piece from "../mechanisms/audit/CD-23/piece.json" with { type: "json" };
@@ -104,7 +105,7 @@ const probeCheck = () => {
     installRoot: absolutePathSchema.parse("/install"),
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText,
     modules: {
       load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: runnerModule }),
@@ -121,6 +122,7 @@ describe("a check selecting the probe rule set's PD-1 beside CD-23 through the a
       outcome: "ok",
       value: {
         excluded: [],
+        notAdopted: [],
         findings: [
           {
             clause: PROBE_ADDRESS,

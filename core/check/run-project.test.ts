@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { requiredEntry } from "../../tests/required-entry.ts";
-import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
@@ -44,6 +44,7 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
+  '["/repo","packages/a/eslint.config.mjs"]': "/repo/packages/a/eslint.config.mjs",
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
@@ -351,5 +352,124 @@ describe("runProject with an embedded runner", () => {
         [expect.objectContaining({ records: [{ ...legacyLocation, clause: WALKER_RECORD.clause, mechanism: "audit" }] })],
       ],
     });
+  });
+});
+
+describe("runProject for a repository that does not run its waived clauses", () => {
+  it("still projects the waived clause and its clause-wide carve-out, so the committed projection keeps the rule off", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi
+        .fn<(request: unknown) => Promise<unknown>>()
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "unchanged" }] }),
+    };
+    const waiver = { kind: "clause-wide-carve-out", clause: "CD-14#class-syntax", reason: "not adopted yet", whyChain: CAUSAL_WHY_CHAIN };
+    const writes = await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({
+              version: 1,
+              ruleSets: {},
+              clauses: { "CD-14#class-syntax": "audit" },
+              assessment: { waivedClauses: "not-run" },
+            }),
+          }),
+          [EXCEPTIONS_PATH]: presentFile({ text: JSON.stringify({ version: 1, exceptions: [waiver] }) }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect({ writes, projectCalls: runner.project.mock.calls }).toEqual({
+      writes: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "unchanged" }] },
+      projectCalls: [
+        [
+          expect.objectContaining({
+            clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })],
+            records: [{ ...waiver, clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit" }],
+          }),
+        ],
+      ],
+    });
+  });
+});
+
+describe("runProject for a repository that does not adopt a clause", () => {
+  it("projects only the adopted clause and never loads the mechanism of the clause not adopted", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi
+        .fn<(request: unknown) => Promise<unknown>>()
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
+    };
+    const load = vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } });
+    const writes = await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...TWO_MECHANISM_INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-adopted" } }),
+          }),
+          [EXCEPTIONS_PATH]: ABSENT_FILE,
+        }),
+        modules: { load },
+      }),
+    );
+    expect({ writes, loads: load.mock.calls, projectCalls: runner.project.mock.calls }).toEqual({
+      writes: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
+      loads: [[{ path: RUNNER_PATH }]],
+      projectCalls: [
+        [expect.objectContaining({ clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })], records: [] })],
+      ],
+    });
+  });
+});
+
+const PACKAGE_CONFIG_GIT: GitPort = {
+  ...GIT,
+  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({
+    outcome: "ok",
+    value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("packages/a/eslint.config.mjs")],
+  }),
+};
+
+describe("runProject for a repository with a package config and a clause it does not adopt", () => {
+  it("hands the runner the tracked package config and only the adopted clause, so no slice holds the clause not adopted", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    await runProject(
+      projectRequest({
+        git: PACKAGE_CONFIG_GIT,
+        fileText: fileTextOver({
+          ...TWO_MECHANISM_INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-adopted" } }),
+          }),
+          [EXCEPTIONS_PATH]: ABSENT_FILE,
+          "/repo/packages/a/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect(runner.project.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          trackedPaths: ["src/a.ts", "packages/a/eslint.config.mjs"],
+          clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })],
+        }),
+      ],
+    ]);
   });
 });

@@ -4,8 +4,13 @@ export const forfeitureAssessmentSchema = z.enum(["this-run", "elsewhere"]);
 
 export type ForfeitureAssessment = z.infer<typeof forfeitureAssessmentSchema>;
 
+export const waivedClausesAssessmentSchema = z.enum(["run", "not-run"]);
+
+export type WaivedClausesAssessment = z.infer<typeof waivedClausesAssessmentSchema>;
+
 const ASSESSMENT_CONCERNS = {
   forfeiture: forfeitureAssessmentSchema.default("this-run"),
+  waivedClauses: waivedClausesAssessmentSchema.default("run"),
 };
 
 const quotedKeys = (request: { readonly keys: readonly string[] }): string =>
@@ -31,4 +36,5 @@ export const assessmentInEffect = (request: {
   readonly configured: Assessment;
 }): Assessment => ({
   forfeiture: request.requested.forfeiture ?? request.configured.forfeiture,
+  waivedClauses: request.requested.waivedClauses ?? request.configured.waivedClauses,
 });
