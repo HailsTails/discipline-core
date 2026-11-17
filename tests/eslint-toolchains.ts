@@ -137,6 +137,9 @@ export const loadedEslintToolchain = async (request: { readonly line: EslintLine
   return loaded.value;
 };
 
+export const eslintClassOn = (request: { readonly line: EslintLine }): Promise<EslintClass> =>
+  LINES[request.line].modules.eslint().then((eslintModule) => eslintModule.ESLint);
+
 export const eslintPortOn = async (request: { readonly line: EslintLine }): Promise<EslintPort> =>
   createEslintPort({ toolchain: await loadedEslintToolchain(request) });
 
