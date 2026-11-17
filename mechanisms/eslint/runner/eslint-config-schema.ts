@@ -9,6 +9,10 @@ export const resolvedConfigSchema = z.union([
         z.tuple([z.union([z.literal(0), z.literal(1), z.literal(2)])], z.unknown()),
       )
       .optional(),
+    plugins: z.record(z.string(), z.unknown()).optional(),
+    language: z.unknown().optional(),
+    processor: z.unknown().optional(),
+    languageOptions: z.looseObject({ parser: z.unknown().optional() }).optional(),
   }),
 ]);
 
@@ -17,7 +21,7 @@ export type ResolvedConfig = z.output<typeof resolvedConfigSchema>;
 export type RuleState =
   | { readonly state: "file-ignored" }
   | { readonly state: "rule-absent" }
-  | { readonly state: "configured"; readonly severity: 0 | 1 | 2 };
+  | { readonly state: "configured"; readonly severity: 0 | 1 | 2; readonly options: readonly unknown[] };
 
 export const ruleStateOf = (request: {
   readonly resolved: ResolvedConfig;
@@ -30,5 +34,6 @@ export const ruleStateOf = (request: {
   if (entry === undefined) {
     return { state: "rule-absent" };
   }
-  return { state: "configured", severity: entry[0] };
+  const [severity, ...options] = entry;
+  return { state: "configured", severity, options };
 };

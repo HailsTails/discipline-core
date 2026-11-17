@@ -280,8 +280,8 @@ const failingQuery = (failure: RunnerFailure): QueryInstance => ({
 
 const CHECKED: Readonly<Record<string, IgnoredState>> = { "src/a.ts": "checked", "src/factory.ts": "checked" };
 
-const ERROR: RuleState = { state: "configured", severity: 2 };
-const OFF: RuleState = { state: "configured", severity: 0 };
+const ERROR: RuleState = { state: "configured", severity: 2, options: [] };
+const OFF: RuleState = { state: "configured", severity: 0, options: [] };
 const ABSENT: RuleState = { state: "rule-absent" };
 const IGNORED: RuleState = { state: "file-ignored" };
 
@@ -1278,7 +1278,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
         eslint: eslintOver({
           query: queryOver({
             ignored: CHECKED,
-            states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: { state: "configured", severity: 1 } },
+            states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: { state: "configured", severity: 1, options: [] } },
           }),
         }),
       }).run(CLASS_RUN),
@@ -1648,7 +1648,7 @@ describe("the governance run, settled message handling", () => {
         eslint: eslintOver({
           query: queryOver({
             ignored: { "src/a.ts": "checked", "src/factory.ts": "ignored" },
-            states: { [`src/a.ts ${RULE_ID}`]: { state: "configured", severity: 1 }, [`src/factory.ts ${RULE_ID}`]: IGNORED },
+            states: { [`src/a.ts ${RULE_ID}`]: { state: "configured", severity: 1, options: [] }, [`src/factory.ts ${RULE_ID}`]: IGNORED },
           }),
           lintFiles: inlineMessageInA({ messageId: "inline-disable", text: "/* eslint-disable */" }),
         }),
