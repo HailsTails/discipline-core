@@ -33,6 +33,17 @@ export type GitPort = {
   readonly textInBase: (request: GitContentQuery) => Result<BaseFileText, GitFailure>;
 };
 
+export type GitHistoryPort = {
+  readonly mergedTags: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly pattern: string;
+  }) => Result<readonly string[], GitFailure>;
+  readonly subjectsAfter: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly revision: string;
+  }) => Result<readonly string[], GitFailure>;
+};
+
 export type GitEnvironment = Readonly<Record<string, string | undefined>>;
 
 export type GitRun =
@@ -277,21 +288,61 @@ export const createGitPort = (options: {
   };
 };
 
-export const createDefaultGitPort = (_options: Record<string, never>): GitPort => {
-  const execution = createDefaultExecutionPort({ policy: GIT_EXECUTION_POLICY });
-  return createGitPort({
-    spawn: (request) => {
-      const executed = execution.run({ arguments: request.arguments });
-      if (executed.outcome === "failed") {
-        return {
-          outcome: "errored",
-          detail: executed.error.kind === "terminated"
-            ? `git was ended by signal ${executed.error.signal}`
-            : executed.error.detail,
-        };
-      }
-      return { outcome: "exited", ...executed.value };
-    },
-    ambientEnvironment: {},
-  });
+const gitListing = (
+  request: GitContext & { readonly gitArguments: readonly string[]; readonly separator: string },
+): Result<readonly string[], GitFailure> => {
+  const output = gitOutput(request);
+  if (output.outcome === "failed") {
+    return output;
+  }
+  return { outcome: "ok", value: output.value.stdout.split(request.separator).filter((line) => line.length > 0) };
 };
+
+export const createGitHistoryPort = (options: {
+  readonly spawn: GitSpawn;
+  readonly ambientEnvironment: GitEnvironment;
+}): GitHistoryPort => {
+  const environment = environmentWithoutRepositoryLocation({
+    ambientEnvironment: options.ambientEnvironment,
+  });
+  return {
+    mergedTags: (request) =>
+      gitListing({
+        spawn: options.spawn,
+        environment,
+        repoRoot: request.repoRoot,
+        gitArguments: ["tag", "--list", "--merged", "HEAD", request.pattern],
+        separator: "\n",
+      }),
+    subjectsAfter: (request) =>
+      gitListing({
+        spawn: options.spawn,
+        environment,
+        repoRoot: request.repoRoot,
+        gitArguments: ["log", "--first-parent", "--reverse", "-z", "--format=%s", "--end-of-options", `${request.revision}..HEAD`],
+        separator: "\0",
+      }),
+  };
+};
+
+const defaultGitSpawn = (_options: Record<string, never>): GitSpawn => {
+  const execution = createDefaultExecutionPort({ policy: GIT_EXECUTION_POLICY });
+  return (request) => {
+    const executed = execution.run({ arguments: request.arguments });
+    if (executed.outcome === "failed") {
+      return {
+        outcome: "errored",
+        detail: executed.error.kind === "terminated"
+          ? `git was ended by signal ${executed.error.signal}`
+          : executed.error.detail,
+      };
+    }
+    return { outcome: "exited", ...executed.value };
+  };
+};
+
+export const createDefaultGitPort = (_options: Record<string, never>): GitPort =>
+  createGitPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });
+
+export const createDefaultGitHistoryPort = (_options: Record<string, never>): GitHistoryPort =>
+  createGitHistoryPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });

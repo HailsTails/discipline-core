@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { createGitPort, type GitRun, type GitSpawn } from "./git-port.ts";
+import { createGitHistoryPort, createGitPort, type GitRun, type GitSpawn } from "./git-port.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
@@ -336,6 +336,76 @@ describe("createGitPort textInBase", () => {
     expect(reading).toEqual({
       outcome: "failed",
       error: { kind: "git-failed", command: "git -C /repo ls-tree -z --name-only --end-of-options missing-base src/example.ts", detail: "fatal: not a valid object name missing-base" },
+    });
+  });
+});
+
+describe("createGitHistoryPort mergedTags", () => {
+  it("lists the tags matching the pattern that are merged into HEAD, one per line", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "v0.1.0-pre.1\nv0.1.0-pre.2\n" });
+
+    const tags = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).mergedTags({ repoRoot: REPO_ROOT, pattern: "v*" });
+
+    expect(tags).toEqual({ outcome: "ok", value: ["v0.1.0-pre.1", "v0.1.0-pre.2"] });
+    expect(spawn.mock.calls).toEqual([
+      [{ file: "git", arguments: ["-C", "/repo", "tag", "--list", "--merged", "HEAD", "v*"], maxBuffer: 268435456, environment: { PATH: "/usr/bin", HOME: "/home/someone" } }],
+    ]);
+  });
+
+  it("returns git-failed carrying stderr when git exits non-zero", () => {
+    const tags = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_NOT_A_REPOSITORY), ambientEnvironment: AMBIENT_ENVIRONMENT }).mergedTags({
+      repoRoot: REPO_ROOT,
+      pattern: "v*",
+    });
+
+    expect(tags).toEqual({
+      outcome: "failed",
+      error: { kind: "git-failed", command: "git -C /repo tag --list --merged HEAD v*", detail: "fatal: not a git repository" },
+    });
+  });
+});
+
+describe("createGitHistoryPort subjectsAfter", () => {
+  it("lists the first-parent subjects after the revision up to HEAD, oldest first", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "fix: one (#1)\0feat: two (#2)\0" });
+
+    const subjects = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).subjectsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
+
+    expect(subjects).toEqual({ outcome: "ok", value: ["fix: one (#1)", "feat: two (#2)"] });
+    expect(spawn.mock.calls).toEqual([
+      [
+        {
+          file: "git",
+          arguments: ["-C", "/repo", "log", "--first-parent", "--reverse", "-z", "--format=%s", "--end-of-options", "v0.1.0-pre.3..HEAD"],
+          maxBuffer: 268435456,
+          environment: { PATH: "/usr/bin", HOME: "/home/someone" },
+        },
+      ],
+    ]);
+  });
+
+  it("lists no subjects for empty output", () => {
+    const subjects = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY), ambientEnvironment: AMBIENT_ENVIRONMENT }).subjectsAfter({
+      repoRoot: REPO_ROOT,
+      revision: "v0.1.0-pre.3",
+    });
+
+    expect(subjects).toEqual({ outcome: "ok", value: [] });
+  });
+
+  it("returns git-failed with the spawn's detail when git cannot run", () => {
+    const subjects = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(ERRORED_ON_BUFFER), ambientEnvironment: AMBIENT_ENVIRONMENT }).subjectsAfter({
+      repoRoot: REPO_ROOT,
+      revision: "v0.1.0-pre.3",
+    });
+
+    expect(subjects).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo log --first-parent --reverse -z --format=%s --end-of-options v0.1.0-pre.3..HEAD",
+        detail: "spawnSync git ENOBUFS",
+      },
     });
   });
 });
