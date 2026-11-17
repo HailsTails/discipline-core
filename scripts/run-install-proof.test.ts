@@ -12,7 +12,7 @@ import { type InstallProofRequest, runInstallProof } from "./run-install-proof.t
 const ENTRY_URL = "file:///package/scripts/install-proof.ts";
 
 const PACKAGE_MANIFEST =
-  '{ "packageManager": "pnpm@10.34.9", "dependencies": { "zod": "4.4.3" }, "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
+  '{ "packageManager": "pnpm@10.34.9", "dependencies": { "zod": "^4.4.3" }, "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
 
 const CONSUMER_MANIFEST = `${JSON.stringify(
   {
@@ -224,7 +224,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
-        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, within each published range, where pnpm installed it\n" }],
         [{ text: "ok: audit check -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit project -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit disciplines.eslint.mjs reads exactly as expected\n" }],
@@ -234,7 +234,20 @@ describe("runInstallProof", () => {
     });
   });
 
-  it("exits 1 naming a dependency pnpm installed beside the package at another version than the package pins, running nothing after the install", async () => {
+  it("accepts a dependency pnpm installed beside the package at a newer release inside the published range", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({ process: proofProcess, fileText: fileTextPort({ [`${INSTALLED_ZOD}/package.json`]: installedZodManifest({ version: "4.9.1" }) }) }),
+    );
+
+    expect(reportOf({ process: proofProcess })).toMatchObject({
+      writes: expect.arrayContaining([[{ text: "ok: audit resolves zod 4.9.1 beside the package, within each published range, where pnpm installed it\n" }]]),
+      exits: [[{ code: 0 }]],
+    });
+  });
+
+  it("exits 1 naming a dependency pnpm installed beside the package outside the published range, running nothing after the install", async () => {
     const proofProcess = processPort();
     const commands = commandsReturning(EXITED_PASSING);
 
@@ -242,12 +255,12 @@ describe("runInstallProof", () => {
       proofRequest({
         process: proofProcess,
         commands,
-        fileText: fileTextPort({ [`${INSTALLED_ZOD}/package.json`]: installedZodManifest({ version: "4.4.2" }) }),
+        fileText: fileTextPort({ [`${INSTALLED_ZOD}/package.json`]: installedZodManifest({ version: "5.0.0" }) }),
       }),
     );
 
     expect(proofProcess.writeOut).toHaveBeenLastCalledWith({
-      text: `FAIL: audit resolves each dependency beside the package: zod is 4.4.2 at ${INSTALLED_ZOD}, not the pinned 4.4.3\n`,
+      text: `FAIL: audit resolves each dependency beside the package: zod is 5.0.0 at ${INSTALLED_ZOD}, outside the published ^4.4.3\n`,
     });
     expect(commands.run).toHaveBeenCalledTimes(1);
   });
@@ -547,7 +560,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
-        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, within each published range, where pnpm installed it\n" }],
         [
           {
             text: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(REPORT_OF_FINDINGS)}, got exit 1 and output ${JSON.stringify(altered)}\n`,
@@ -567,7 +580,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
-        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, within each published range, where pnpm installed it\n" }],
         [{ text: 'FAIL: audit check: expected exit 1 and output "verdict: fail\\n", got exit 0 and output "verdict: pass\\n"\n' }],
       ],
       exits: [[{ code: 1 }]],

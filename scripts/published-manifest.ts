@@ -98,11 +98,11 @@ export const peerKindsOf = (request: {
       };
 };
 
-export type DependencyPins = Readonly<Record<string, string>>;
+export type DependencyRanges = Readonly<Record<string, string>>;
 
-export const dependencyPinsOf = (request: {
+export const dependencyRangesOf = (request: {
   readonly developmentManifest: string;
-}): Result<DependencyPins, ManifestFailure> => {
+}): Result<DependencyRanges, ManifestFailure> => {
   const sections = sectionsOf({ developmentManifest: request.developmentManifest, schema: dependencySectionsSchema });
   return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.dependencies };
 };

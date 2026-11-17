@@ -1,7 +1,8 @@
 import type { BundledOutput } from "./esbuild-bundler-port.ts";
 import { builtModulePath } from "./package-plan.ts";
 import type { LockedPackage } from "./pnpm-lock.ts";
-import type { DependencyPins } from "./published-manifest.ts";
+import { caretRangeOf } from "./caret-range.ts";
+import type { DependencyRanges } from "./published-manifest.ts";
 
 export type ShippedText = { readonly path: string; readonly text: string };
 
@@ -59,16 +60,21 @@ export const misplacedEntriesOf = (request: {
     .filter((entryPoint) => entryPlacementOf({ entryPoint, outputs: request.outputs }) === "misplaced")
     .map((entryPoint) => `${entryPoint} is not emitted with its own code at ${builtModulePath({ path: entryPoint })}`);
 
-const pinProblemOf = (request: { readonly name: string; readonly pin: string; readonly locked: readonly LockedPackage[] }): readonly string[] => {
+const rangeProblemOf = (request: { readonly name: string; readonly range: string; readonly locked: readonly LockedPackage[] }): readonly string[] => {
+  const published = `${request.name} is published as ${request.range}`;
+  const caret = caretRangeOf({ range: request.range });
+  if (caret.outcome === "failed") {
+    return [`${published}, which is not a caret range of one release`];
+  }
   const held = request.locked.find((locked) => locked.name === request.name);
   if (held === undefined) {
-    return [`${request.name} is pinned at ${request.pin}, but the lock holds no version of it`];
+    return [`${published}, but the lock's root importer holds no version of it`];
   }
-  return held.version === request.pin ? [] : [`${request.name} is pinned at ${request.pin}, but the lock holds ${held.version}`];
+  return held.version === caret.value.floor ? [] : [`${published}, whose floor is not the locked ${held.version}`];
 };
 
-export const unlockedPinsOf = (request: { readonly pins: DependencyPins; readonly locked: readonly LockedPackage[] }): readonly string[] =>
-  Object.entries(request.pins).flatMap(([name, pin]) => pinProblemOf({ name, pin, locked: request.locked }));
+export const unlockedRangesOf = (request: { readonly ranges: DependencyRanges; readonly locked: readonly LockedPackage[] }): readonly string[] =>
+  Object.entries(request.ranges).flatMap(([name, range]) => rangeProblemOf({ name, range, locked: request.locked }));
 
 const resolvedLink = (request: { readonly page: string; readonly link: string }): string => {
   const pathname = decodeURIComponent(new URL(request.link.split("#")[0], `${PACKAGE_BASE}${request.page}`).pathname);

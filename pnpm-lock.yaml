@@ -9,13 +9,13 @@ importers:
   .:
     dependencies:
       '@eslint/plugin-kit':
-        specifier: 0.7.3
+        specifier: ^0.7.3
         version: 0.7.3
       jsonc-parser:
-        specifier: 3.3.1
+        specifier: ^3.3.1
         version: 3.3.1
       zod:
-        specifier: 4.6.6
+        specifier: ^4.6.6
         version: 4.6.6
     devDependencies:
       '@biomejs/biome':

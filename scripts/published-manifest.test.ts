@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dependencyPinsOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { dependencyRangesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 
 const DEVELOPMENT_MANIFEST = {
   version: "0.0.0",
@@ -11,7 +11,7 @@ const DEVELOPMENT_MANIFEST = {
   license: "MIT-0",
   engines: { node: ">=22.18.0" },
   scripts: { test: "vitest run" },
-  dependencies: { zod: "4.4.3" },
+  dependencies: { zod: "^4.4.3" },
   peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
   peerDependenciesMeta: { eslint: { optional: true } },
   devDependencies: { vitest: "4.1.11" },
@@ -41,7 +41,7 @@ const published = (developmentManifest: string) =>
   });
 
 describe("publishManifestOf", () => {
-  it("names, describes, tags and credits the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest, each typed entry with its declaration under the types condition and its module as the default, and the modules a projection imports by bare path, carries the optional peers, and declares its dependencies at the exact versions the development manifest pins", () => {
+  it("names, describes, tags and credits the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest, each typed entry with its declaration under the types condition and its module as the default, and the modules a projection imports by bare path, carries the optional peers, and declares its dependencies at the ranges the development manifest declares", () => {
     expect(published(JSON.stringify(DEVELOPMENT_MANIFEST))).toEqual({
       outcome: "ok",
       value: `${JSON.stringify(
@@ -66,7 +66,7 @@ describe("publishManifestOf", () => {
           },
           files: ["LICENSE", "chunks", "core", "mechanisms"],
           engines: { node: "^22.18.0 || >=24" },
-          dependencies: { zod: "4.4.3" },
+          dependencies: { zod: "^4.4.3" },
           peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
           peerDependenciesMeta: { eslint: { optional: true } },
         },
@@ -128,13 +128,13 @@ describe("peerKindsOf", () => {
   });
 });
 
-describe("dependencyPinsOf", () => {
-  it("reads each runtime dependency at the version the development manifest pins, leaving out development ones", () => {
-    expect(dependencyPinsOf({ developmentManifest: JSON.stringify(DEVELOPMENT_MANIFEST) })).toEqual({ outcome: "ok", value: { zod: "4.4.3" } });
+describe("dependencyRangesOf", () => {
+  it("reads each runtime dependency at the range the development manifest declares, leaving out development ones", () => {
+    expect(dependencyRangesOf({ developmentManifest: JSON.stringify(DEVELOPMENT_MANIFEST) })).toEqual({ outcome: "ok", value: { zod: "^4.4.3" } });
   });
 
   it("names the development manifest invalid when it declares no dependencies", () => {
-    expect(dependencyPinsOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
+    expect(dependencyRangesOf({ developmentManifest: "{}" })).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
   });
 });
 

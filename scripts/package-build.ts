@@ -11,11 +11,11 @@ import {
   deadLinksOf,
   misplacedEntriesOf,
   undeclaredImportsOf,
-  unlockedPinsOf,
+  unlockedRangesOf,
   versionMentionsOf,
 } from "./package-guards.ts";
 import { lockedDependenciesOf } from "./pnpm-lock.ts";
-import { type DependencyPins, dependencyPinsOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { type DependencyRanges, dependencyRangesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
   documentAuthorOf,
@@ -200,9 +200,9 @@ const failedOnProblems = (request: { readonly label: string; readonly problems: 
     ? { outcome: "ok", value: null }
     : failedWith({ label: request.label, detail: request.problems.join("; ") });
 
-type Declared = { readonly peers: readonly string[]; readonly pins: DependencyPins };
+type Declared = { readonly peers: readonly string[]; readonly ranges: DependencyRanges };
 
-const declaredPackagesOf = (request: Declared): readonly string[] => [...request.peers, ...Object.keys(request.pins)];
+const declaredPackagesOf = (request: Declared): readonly string[] => [...request.peers, ...Object.keys(request.ranges)];
 
 const checkedBundle = (request: { readonly plan: PackagePlan; readonly declared: readonly string[]; readonly bundle: Bundle }): Built<Bundle> => {
   const undeclared = failedOnProblems({
@@ -245,21 +245,21 @@ const bundleOf = (request: {
         : checkedBundle({ plan: request.plan, declared: request.declared, bundle: bundle.value }),
     );
 
-const lockedPinsOf = (request: { readonly context: BuildContext; readonly pins: DependencyPins }): Built<DependencyPins> => {
+const lockedRangesOf = (request: { readonly context: BuildContext; readonly ranges: DependencyRanges }): Built<DependencyRanges> => {
   const lockPath = sourceFile({ context: request.context, path: INSTALL_LOCK.join("/") });
   const lockText = readText({ context: request.context, path: lockPath });
   if (lockText.outcome === "failed") {
     return lockText;
   }
-  const locked = lockedDependenciesOf({ lockText: lockText.value, dependencies: Object.keys(request.pins) });
+  const locked = lockedDependenciesOf({ lockText: lockText.value, dependencies: Object.keys(request.ranges) });
   if (locked.outcome === "failed") {
     return failedWith({ label: `read ${lockPath}`, detail: locked.error });
   }
   const checked = failedOnProblems({
-    label: `the published dependencies are not the versions ${INSTALL_LOCK.join("/")} locks`,
-    problems: unlockedPinsOf({ pins: request.pins, locked: locked.value }),
+    label: `the published dependency ranges do not start at the versions ${INSTALL_LOCK.join("/")} locks`,
+    problems: unlockedRangesOf({ ranges: request.ranges, locked: locked.value }),
   });
-  return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.pins };
+  return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.ranges };
 };
 
 const bundledInStage = (request: {
@@ -407,11 +407,11 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   if (peers.outcome === "failed") {
     return failedWith({ label: MANIFEST, detail: peers.error.detail });
   }
-  const pins = dependencyPinsOf({ developmentManifest: developmentManifest.value });
-  if (pins.outcome === "failed") {
-    return failedWith({ label: MANIFEST, detail: pins.error.detail });
+  const ranges = dependencyRangesOf({ developmentManifest: developmentManifest.value });
+  if (ranges.outcome === "failed") {
+    return failedWith({ label: MANIFEST, detail: ranges.error.detail });
   }
-  const locked = lockedPinsOf({ context: request.context, pins: pins.value });
+  const locked = lockedRangesOf({ context: request.context, ranges: ranges.value });
   if (locked.outcome === "failed") {
     return locked;
   }
@@ -422,7 +422,7 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   const bundle = await stagedBundleOf({
     context: request.context,
     plan: plan.value,
-    declared: declaredPackagesOf({ peers: peers.value, pins: locked.value }),
+    declared: declaredPackagesOf({ peers: peers.value, ranges: locked.value }),
   });
   if (bundle.outcome === "failed") {
     return bundle;

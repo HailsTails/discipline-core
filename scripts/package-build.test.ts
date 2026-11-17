@@ -11,7 +11,7 @@ const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/"
 
 const STAGE_SOURCE = "/tmp/hailstails-hone-package-stage-1/source";
 
-const developmentManifestPinning = (request: { readonly dependencies: Readonly<Record<string, string>> }): string =>
+const developmentManifestDeclaring = (request: { readonly dependencies: Readonly<Record<string, string>> }): string =>
   JSON.stringify({
     version: "0.0.0",
     private: true,
@@ -27,14 +27,17 @@ const developmentManifestPinning = (request: { readonly dependencies: Readonly<R
     devDependencies: { esbuild: "0.25.12" },
   });
 
-const DEVELOPMENT_MANIFEST = developmentManifestPinning({ dependencies: { zod: "4.4.3" } });
+const DEVELOPMENT_MANIFEST = developmentManifestDeclaring({ dependencies: { zod: "^4.4.3" } });
 
 const LOCK = `lockfileVersion: '9.0'
 importers:
   .:
     dependencies:
+      levn:
+        specifier: ^0.4.1
+        version: 0.4.1
       zod:
-        specifier: 4.4.3
+        specifier: ^4.4.3
         version: 4.4.3
 snapshots:
   zod@4.4.3: {}
@@ -209,13 +212,13 @@ describe("buildPackage", () => {
     });
   });
 
-  it("writes the published manifest naming every top-level entry and each dependency at its pinned version, and the built piece naming its .js module", async () => {
+  it("writes the published manifest naming every top-level entry and each dependency at its declared caret range, and the built piece naming its .js module", async () => {
     const { files, built } = builtWith({ source: SOURCE, bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }) });
 
     await built;
 
     expect(files.texts()).toMatchObject({
-      "/out/package.json": expect.stringContaining('"dependencies": {\n    "zod": "4.4.3"\n  },'),
+      "/out/package.json": expect.stringContaining('"dependencies": {\n    "zod": "^4.4.3"\n  },'),
     });
     expect(files.texts()).toMatchObject({
       "/out/package.json": expect.stringContaining(
@@ -272,17 +275,17 @@ describe("buildPackage", () => {
     });
   });
 
-  it("fails naming a dependency pinned at another version or at a range than the one core's lock holds, before bundling, writing nothing", async () => {
+  it("fails naming a dependency published as a range wider than a caret, or from another floor than the version core's lock holds, before bundling, writing nothing", async () => {
     const bundler = bundlerReturning({ outcome: "ok", value: BUNDLE });
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/package.json": developmentManifestPinning({ dependencies: { zod: "^4.4.3" } }) },
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: ">=4.4.3", levn: "^0.4.0" } }) },
       bundler,
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }), bundled: vi.mocked(bundler.bundle).mock.calls }).toEqual({
       result: {
         outcome: "failed",
-        error: "FAIL: the published dependencies are not the versions pnpm-lock.yaml locks: zod is pinned at ^4.4.3, but the lock holds 4.4.3",
+        error: "FAIL: the published dependency ranges do not start at the versions pnpm-lock.yaml locks: zod is published as >=4.4.3, which is not a caret range of one release; levn is published as ^0.4.0, whose floor is not the locked 0.4.1",
       },
       written: NOTHING_WRITTEN,
       bundled: [],
@@ -291,12 +294,12 @@ describe("buildPackage", () => {
 
   it("fails naming a dependency of core the lock does not hold, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/package.json": developmentManifestPinning({ dependencies: { zod: "4.4.3", levn: "0.4.1" } }) },
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: "^4.4.3", other: "^1.0.0" } }) },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
-      result: { outcome: "failed", error: "FAIL: read /package/pnpm-lock.yaml: core depends on levn, which the lock does not hold" },
+      result: { outcome: "failed", error: "FAIL: read /package/pnpm-lock.yaml: core depends on other, which the lock does not hold" },
       written: NOTHING_WRITTEN,
     });
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bundledPackageCodeOf, deadLinksOf, misplacedEntriesOf, undeclaredImportsOf, unlockedPinsOf, versionMentionsOf } from "./package-guards.ts";
+import { bundledPackageCodeOf, deadLinksOf, misplacedEntriesOf, undeclaredImportsOf, unlockedRangesOf, versionMentionsOf } from "./package-guards.ts";
 import type { LockedPackage } from "./pnpm-lock.ts";
 
 const output = (request: {
@@ -89,20 +89,34 @@ const LOCKED: readonly LockedPackage[] = [
   { name: "@eslint/plugin-kit", version: "0.7.3" },
 ];
 
-describe("unlockedPinsOf", () => {
-  it("accepts dependencies pinned at exactly the versions the lock holds", () => {
-    expect(unlockedPinsOf({ pins: { zod: "4.4.3", "@eslint/plugin-kit": "0.7.3" }, locked: LOCKED })).toEqual([]);
+describe("unlockedRangesOf", () => {
+  it("accepts dependencies published as caret ranges whose floor is the version the lock holds", () => {
+    expect(unlockedRangesOf({ ranges: { zod: "^4.4.3", "@eslint/plugin-kit": "^0.7.3" }, locked: LOCKED })).toEqual([]);
   });
 
-  it("names a dependency pinned at another version, or at a range, than the one the lock holds", () => {
-    expect(unlockedPinsOf({ pins: { zod: "4.4.2", "@eslint/plugin-kit": "^0.7.3" }, locked: LOCKED })).toEqual([
-      "zod is pinned at 4.4.2, but the lock holds 4.4.3",
-      "@eslint/plugin-kit is pinned at ^0.7.3, but the lock holds 0.7.3",
+  it("names a dependency whose caret range starts below or above the version the lock holds", () => {
+    expect(unlockedRangesOf({ ranges: { zod: "^4.4.2", "@eslint/plugin-kit": "^0.7.4" }, locked: LOCKED })).toEqual([
+      "zod is published as ^4.4.2, whose floor is not the locked 4.4.3",
+      "@eslint/plugin-kit is published as ^0.7.4, whose floor is not the locked 0.7.3",
     ]);
   });
 
-  it("names a dependency the lock holds no version of", () => {
-    expect(unlockedPinsOf({ pins: { levn: "0.4.1" }, locked: LOCKED })).toEqual(["levn is pinned at 0.4.1, but the lock holds no version of it"]);
+  it("names a dependency published as an exact version or as anything wider than a caret range", () => {
+    expect(
+      unlockedRangesOf({
+        ranges: { zod: "4.4.3", "@eslint/plugin-kit": ">=0.7.3" },
+        locked: LOCKED,
+      }),
+    ).toEqual([
+      "zod is published as 4.4.3, which is not a caret range of one release",
+      "@eslint/plugin-kit is published as >=0.7.3, which is not a caret range of one release",
+    ]);
+  });
+
+  it("names a dependency the lock's root importer holds no version of", () => {
+    expect(unlockedRangesOf({ ranges: { levn: "^0.4.1" }, locked: LOCKED })).toEqual([
+      "levn is published as ^0.4.1, but the lock's root importer holds no version of it",
+    ]);
   });
 });
 
