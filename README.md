@@ -165,12 +165,11 @@ A repository can hold one `eslint.config.*` at its root or one per package. Hone
 
 ## Compatibility
 
-Hone's version numbers follow semantic versioning, read for a checking tool: a release is breaking when it can make a repository that passed fail, or makes its configuration or scripts stop working.
+Hone's version numbers follow semantic versioning under these rules:
 
-- A patch release fixes behaviour without asking anything new of a repository.
-- A new check, or a tightened one, ships off by default in a minor release, so a repository takes it on only by opting in. It becomes a default only in a major release.
-- A change to the ESLint projection that `hone project` generates, which a repository must regenerate, ships in a minor release. Its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
-- A change to a clause address, a key in `disciplines.json` or `discipline-exceptions.json`, or a command-line flag ships only in a major release.
+- A new or tightened check ships off by default in a minor release and becomes a default only in a major release.
+- A change to the ESLint config that `hone project` generates, which an adopter must regenerate, is a minor release, with a clear message telling the adopter to regenerate: its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
+- A change to a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag is a major release.
 - Before the first stable release, a change that would need a major release ships in a minor release instead.
 - A pre-release previews the release it is numbered towards and is published under the `next` dist-tag. A change of any size can land between two pre-releases of the same release, and the changelog lists it.
 
@@ -225,15 +224,15 @@ Continuous integration runs `check`, `build-package`, `package-determinism` and 
 
 ### Versions and releases
 
-Pull requests are squash-merged, so a pull request's title becomes its commit's subject on `main`, and the title must be a Conventional Commits subject: `type(scope)!: description`, where the scope is optional and lowercase, `!` marks a breaking change as [Compatibility](#compatibility) defines it, and the type is one of `feat`, `fix`, `perf`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` or `style`. A title that changes the ESLint projection says that adopters must run `hone project`, since the title becomes the changelog entry.
+Pull requests are squash-merged, and the pull request's title becomes the commit's subject on `main`. The `pull-request-title` check requires that title to be a Conventional Commits subject: `type(scope)!: description`, where the scope is optional and lowercase, `!` marks a breaking change as [Compatibility](#compatibility) defines it, and the type is one of `feat`, `fix`, `perf`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` or `style`. Reverting behaviour that has been released is breaking, so its title is `revert!:`; `revert:` without `!` is for undoing a change that has not been released, and counts as a patch. A title that changes the ESLint projection says that adopters must run `hone project`, since the title becomes the changelog entry. Dependabot's security pull requests are titled `build(deps):` or `build(deps-dev):` by `.github/dependabot.yml`, which leaves routine version updates off.
 
-To prepare a release, run `bun run release-pull-request` on an up-to-date branch from `main`. It finds the highest release tag `v<version>` merged into `HEAD`, reads the subjects of the commits after it on `main`'s first-parent line, and works out the next version:
+To prepare a release, run `bun run release-pull-request` on an up-to-date branch from `main`. It finds the highest release tag `v<version>` merged into `HEAD`, reads the full messages of the commits after it on `main`'s first-parent line, and works out the next version:
 
-- A subject with `!` is a major change, `feat` a minor change, and every other subject a patch. While the major version is 0, a major change counts as a minor one.
+- A subject with `!`, or a message with a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer line, is a major change, `feat` a minor change, and every other subject a patch. While the major version is 0, a major change counts as a minor one, so the script never picks the first stable release: the owner prepares that release by hand, setting the version in `package.json` and writing its changelog section, and only on her word.
 - On a pre-release, a change no larger than the one the pre-release is numbered towards moves to the next pre-release number; a larger one starts the next version's first pre-release. On a stable release, the change increments the version.
 - The release stays on the latest tag's channel. Pass `stable` to finish a pre-release as its stable version, or `pre-release` to start a pre-release line from a stable one.
 
-It then writes a section for that version at the top of `CHANGELOG.md`, grouping the subjects under Breaking changes, Features, Fixes and Other changes, and sets `version` in `package.json`. It refuses, changing nothing, when no subject follows the tag, when `package.json` is not at the tag's version, or when the changelog already has the new version. A subject that is not a Conventional Commits subject is listed under Other changes, counted as a patch and named on standard error, so check its place before opening the pull request. The script only edits those two files: it never commits, tags, pushes or publishes. Open the release pull request with the title `chore(release): <version>`.
+It then writes a section for that version at the top of `CHANGELOG.md`, grouping the subjects under Breaking changes, Features, Fixes and Other changes, and sets `version` in `package.json`. It refuses, changing nothing, when no subject follows the tag, when `package.json` is not at the tag's version, or when the changelog already has the new version. A subject that is not a Conventional Commits subject, such as a merge commit's, is named on standard error and counted as a patch under Other changes, or as a major under Breaking changes when its message has a breaking footer, so check its place before opening the pull request. If writing the second file fails, it restores the first. The script only edits those two files: it never commits, tags, pushes or publishes. Open the release pull request with the title `chore(release): <version>`.
 
 `CHANGELOG.md` names versions, so it stays in the repository and out of the package; the shipped pages link to it on GitHub.
 

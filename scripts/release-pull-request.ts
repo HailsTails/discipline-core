@@ -5,10 +5,11 @@ import type { PathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
 import type { Result } from "../core/values/result.ts";
-import { CHANGELOG_FILE, changelogSectionOf, changelogWithSection } from "./changelog.ts";
+import { CHANGELOG_FILE, changelogGroupOf, changelogSectionOf, changelogWithSection } from "./changelog.ts";
 import { type ChangeEntry, changeEntryOf } from "./conventional-subject.ts";
 import { packageVersionOf } from "./published-manifest.ts";
 import {
+  changeSizeOf,
   channelOf,
   latestReleaseOf,
   nextVersionOf,
@@ -47,7 +48,11 @@ type NextRelease = {
   readonly entries: readonly ChangeEntry[];
 };
 
-type PreparedRelease = NextRelease & { readonly files: readonly PreparedFile[] };
+type FileUpdate = { readonly path: string; readonly original: string; readonly updated: string };
+
+type PreparedRelease = NextRelease & { readonly updates: readonly FileUpdate[] };
+
+type WriteFailure = { readonly detail: string; readonly written: readonly FileUpdate[] };
 
 const COMMAND = "release-pull-request";
 
@@ -93,10 +98,10 @@ const mergedHistoryOf = (request: { readonly history: GitHistoryPort; readonly r
   if (release.outcome === "failed") {
     return release;
   }
-  const subjects = request.history.subjectsAfter({ repoRoot: request.repoRoot, revision: release.value.tag });
-  return subjects.outcome === "failed"
-    ? { outcome: "failed", error: gitFailureText({ failure: subjects.error }) }
-    : { outcome: "ok", value: { release: release.value, entries: subjects.value.map((subject) => changeEntryOf({ subject })) } };
+  const messages = request.history.messagesAfter({ repoRoot: request.repoRoot, revision: release.value.tag });
+  return messages.outcome === "failed"
+    ? { outcome: "failed", error: gitFailureText({ failure: messages.error }) }
+    : { outcome: "ok", value: { release: release.value, entries: messages.value.map((message) => changeEntryOf({ message })) } };
 };
 
 const nextReleaseOf = (request: { readonly history: MergedHistory; readonly requestedChannel: ReleaseChannel | undefined }): Prepared<NextRelease> => {
@@ -132,7 +137,7 @@ const manifestWithVersion = (request: { readonly manifest: string; readonly from
     : { outcome: "failed", error: `${MANIFEST_FILE} does not hold ${field} exactly once` };
 };
 
-const updatedFilesOf = (request: { readonly next: NextRelease; readonly files: RepositoryFiles }): Prepared<readonly PreparedFile[]> => {
+const fileUpdatesOf = (request: { readonly next: NextRelease; readonly files: RepositoryFiles }): Prepared<readonly FileUpdate[]> => {
   const releasedVersion = releasedManifestVersionOf({ manifest: request.files.manifest.text, release: request.next.from });
   if (releasedVersion.outcome === "failed") {
     return releasedVersion;
@@ -151,8 +156,8 @@ const updatedFilesOf = (request: { readonly next: NextRelease; readonly files: R
     : {
         outcome: "ok",
         value: [
-          { path: request.files.changelog.path, text: changelog.value },
-          { path: request.files.manifest.path, text: manifest.value },
+          { path: request.files.changelog.path, original: request.files.changelog.text, updated: changelog.value },
+          { path: request.files.manifest.path, original: request.files.manifest.text, updated: manifest.value },
         ],
       };
 };
@@ -174,29 +179,51 @@ const preparedRelease = (request: ReleasePullRequestPorts & { readonly requested
   if (files.outcome === "failed") {
     return files;
   }
-  const updated = updatedFilesOf({ next: next.value, files: files.value });
-  return updated.outcome === "failed" ? updated : { outcome: "ok", value: { ...next.value, files: updated.value } };
+  const updates = fileUpdatesOf({ next: next.value, files: files.value });
+  return updates.outcome === "failed" ? updates : { outcome: "ok", value: { ...next.value, updates: updates.value } };
 };
 
-const writtenFiles = (request: { readonly fileText: FileTextPort; readonly files: readonly PreparedFile[] }): Prepared<null> =>
-  request.files.reduce<Prepared<null>>((soFar, file) => {
+const updatesWritten = (request: { readonly fileText: FileTextPort; readonly updates: readonly FileUpdate[] }): Result<readonly FileUpdate[], WriteFailure> =>
+  request.updates.reduce<Result<readonly FileUpdate[], WriteFailure>>((soFar, update) => {
     if (soFar.outcome === "failed") {
       return soFar;
     }
-    const written = request.fileText.write(file);
-    return written.outcome === "failed" ? { outcome: "failed", error: `cannot write ${written.error.path}: ${written.error.detail}` } : soFar;
-  }, { outcome: "ok", value: null });
+    const written = request.fileText.write({ path: update.path, text: update.updated });
+    return written.outcome === "failed"
+      ? { outcome: "failed", error: { detail: `cannot write ${written.error.path}: ${written.error.detail}`, written: soFar.value } }
+      : { outcome: "ok", value: [...soFar.value, update] };
+  }, { outcome: "ok", value: [] });
+
+const restorationText = (request: { readonly fileText: FileTextPort; readonly written: readonly FileUpdate[] }): string => {
+  if (request.written.length === 0) {
+    return "nothing was changed";
+  }
+  const unrestored = request.written.flatMap((update) =>
+    request.fileText.write({ path: update.path, text: update.original }).outcome === "failed" ? [update.path] : [],
+  );
+  return unrestored.length === 0 ? "the files it had written are restored" : `restore ${unrestored.join(" and ")} by hand`;
+};
+
+const writtenUpdates = (request: { readonly fileText: FileTextPort; readonly updates: readonly FileUpdate[] }): Prepared<null> => {
+  const written = updatesWritten(request);
+  return written.outcome === "ok"
+    ? { outcome: "ok", value: null }
+    : { outcome: "failed", error: `${written.error.detail}; ${restorationText({ fileText: request.fileText, written: written.error.written })}` };
+};
 
 const subjectCountText = (request: { readonly count: number }): string => `${request.count} ${request.count === 1 ? "subject" : "subjects"}`;
 
 const summaryOf = (request: { readonly prepared: PreparedRelease }): string =>
   `${COMMAND}: ${versionText({ version: request.prepared.from.version })} to ${request.prepared.version}, a ${request.prepared.size} change on the ${request.prepared.channel} channel, from ${subjectCountText({ count: request.prepared.entries.length })} since ${request.prepared.from.tag}. ${CHANGELOG_FILE} and ${MANIFEST_FILE} are updated in the working tree; no tag was made and nothing was published.\n`;
 
-const unclassifiedSubjectsOf = (request: { readonly entries: readonly ChangeEntry[] }): readonly string[] =>
-  request.entries.flatMap((entry) => (entry.kind === "unclassified" ? [entry.subject] : []));
-
-const unclassifiedWarningOf = (request: { readonly subject: string }): string =>
-  `${COMMAND}: ${JSON.stringify(request.subject)} is not a conventional subject; it is listed under Other changes and counted as a patch.\n`;
+const unclassifiedWarningsOf = (request: { readonly entries: readonly ChangeEntry[] }): readonly string[] =>
+  request.entries.flatMap((entry) =>
+    entry.kind === "unclassified"
+      ? [
+          `${COMMAND}: ${JSON.stringify(entry.subject)} is not a conventional subject; it is listed under ${changelogGroupOf({ entry })} and counted as a ${changeSizeOf({ entry })}.\n`,
+        ]
+      : [],
+  );
 
 const refused = (request: { readonly process: ProcessPort; readonly reason: string }): void => {
   request.process.writeError({ text: `${COMMAND}: ${request.reason}\n` });
@@ -216,13 +243,13 @@ export const runReleasePullRequest = (request: ReleasePullRequestPorts): void =>
     refused({ process: request.process, reason: prepared.error });
     return;
   }
-  const written = writtenFiles({ fileText: request.fileText, files: prepared.value.files });
+  const written = writtenUpdates({ fileText: request.fileText, updates: prepared.value.updates });
   if (written.outcome === "failed") {
     refused({ process: request.process, reason: written.error });
     return;
   }
-  unclassifiedSubjectsOf({ entries: prepared.value.entries }).forEach((subject) => {
-    request.process.writeError({ text: unclassifiedWarningOf({ subject }) });
+  unclassifiedWarningsOf({ entries: prepared.value.entries }).forEach((warning) => {
+    request.process.writeError({ text: warning });
   });
   request.process.writeOut({ text: summaryOf({ prepared: prepared.value }) });
   request.process.exitWith({ code: 0 });

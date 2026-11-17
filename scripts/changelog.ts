@@ -3,7 +3,7 @@ import type { ChangeEntry, ChangeType } from "./conventional-subject.ts";
 
 export const CHANGELOG_FILE = "CHANGELOG.md";
 
-type ChangeGroup = "Breaking changes" | "Features" | "Fixes" | "Other changes";
+export type ChangeGroup = "Breaking changes" | "Features" | "Fixes" | "Other changes";
 
 const GROUPS_IN_ORDER: readonly ChangeGroup[] = ["Breaking changes", "Features", "Fixes", "Other changes"];
 
@@ -23,9 +23,9 @@ const GROUP_OF_TYPE: Readonly<Record<ChangeType, ChangeGroup>> = {
 
 const SECTION_HEADING_PREFIX = "## ";
 
-const groupOf = (request: { readonly entry: ChangeEntry }): ChangeGroup => {
+export const changelogGroupOf = (request: { readonly entry: ChangeEntry }): ChangeGroup => {
   if (request.entry.kind === "unclassified") {
-    return "Other changes";
+    return request.entry.compatibility === "breaking" ? "Breaking changes" : "Other changes";
   }
   return request.entry.subject.compatibility === "breaking" ? "Breaking changes" : GROUP_OF_TYPE[request.entry.subject.type];
 };
@@ -39,7 +39,7 @@ const lineOf = (request: { readonly entry: ChangeEntry }): string => {
 };
 
 const groupBlock = (request: { readonly group: ChangeGroup; readonly entries: readonly ChangeEntry[] }): readonly string[] => {
-  const lines = request.entries.filter((entry) => groupOf({ entry }) === request.group).map((entry) => lineOf({ entry }));
+  const lines = request.entries.filter((entry) => changelogGroupOf({ entry }) === request.group).map((entry) => lineOf({ entry }));
   return lines.length === 0 ? [] : [`### ${request.group}`, "", ...lines, ""];
 };
 

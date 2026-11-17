@@ -17,7 +17,7 @@ export type SubjectRejection = { readonly kind: "unshaped" } | { readonly kind: 
 
 export type ChangeEntry =
   | { readonly kind: "conventional"; readonly subject: ConventionalSubject }
-  | { readonly kind: "unclassified"; readonly subject: string };
+  | { readonly kind: "unclassified"; readonly subject: string; readonly compatibility: Compatibility };
 
 const SUBJECT_SHAPE = /^(?<type>[a-z]+)(?:\((?<scope>[a-z0-9][a-z0-9._/-]*)\))?(?<breaking>!)?: (?<description>\S.*)$/;
 
@@ -43,9 +43,24 @@ export const conventionalSubjectOf = (request: { readonly subject: string }): Re
   };
 };
 
-export const changeEntryOf = (request: { readonly subject: string }): ChangeEntry => {
-  const conventional = conventionalSubjectOf(request);
+const BREAKING_FOOTER = /^BREAKING[ -]CHANGE: /;
+
+const LINE_BREAK = "\n";
+
+const footerCompatibilityOf = (request: { readonly bodyLines: readonly string[] }): Compatibility =>
+  request.bodyLines.some((line) => BREAKING_FOOTER.test(line)) ? "breaking" : "compatible";
+
+const combinedCompatibility = (request: { readonly subject: Compatibility; readonly footer: Compatibility }): Compatibility =>
+  request.subject === "breaking" || request.footer === "breaking" ? "breaking" : "compatible";
+
+export const changeEntryOf = (request: { readonly message: string }): ChangeEntry => {
+  const [subject, ...bodyLines] = request.message.split(LINE_BREAK);
+  const footer = footerCompatibilityOf({ bodyLines });
+  const conventional = conventionalSubjectOf({ subject });
   return conventional.outcome === "ok"
-    ? { kind: "conventional", subject: conventional.value }
-    : { kind: "unclassified", subject: request.subject };
+    ? {
+        kind: "conventional",
+        subject: { ...conventional.value, compatibility: combinedCompatibility({ subject: conventional.value.compatibility, footer }) },
+      }
+    : { kind: "unclassified", subject, compatibility: footer };
 };

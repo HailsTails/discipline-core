@@ -41,17 +41,40 @@ describe("conventionalSubjectOf", () => {
 });
 
 describe("changeEntryOf", () => {
-  it("keeps a conventional subject's parts", () => {
-    expect(changeEntryOf({ subject: "docs: explain the policy" })).toEqual({
+  it("reads a conventional subject from the message's first line", () => {
+    expect(changeEntryOf({ message: "docs: explain the policy\n\nThe body says more." })).toEqual({
       kind: "conventional",
       subject: { type: "docs", scope: undefined, compatibility: "compatible", description: "explain the policy" },
     });
   });
 
+  it.each(["BREAKING CHANGE: the flag is gone", "BREAKING-CHANGE: the flag is gone"])("reads a %j footer as breaking", (footer) => {
+    expect(changeEntryOf({ message: `fix(cli): drop a flag (#40)\n\nWhy.\n\n${footer}` })).toEqual({
+      kind: "conventional",
+      subject: { type: "fix", scope: "cli", compatibility: "breaking", description: "drop a flag (#40)" },
+    });
+  });
+
+  it("does not read the words in the subject or in running text as a footer", () => {
+    expect(changeEntryOf({ message: "fix: explain BREAKING CHANGE: footers\n\nA line about a BREAKING CHANGE: here." })).toEqual({
+      kind: "conventional",
+      subject: { type: "fix", scope: undefined, compatibility: "compatible", description: "explain BREAKING CHANGE: footers" },
+    });
+  });
+
   it("keeps any other subject whole, as unclassified", () => {
-    expect(changeEntryOf({ subject: "Keep versions out of the docs (#20)" })).toEqual({
+    expect(changeEntryOf({ message: "Keep versions out of the docs (#20)\n\nBody." })).toEqual({
       kind: "unclassified",
       subject: "Keep versions out of the docs (#20)",
+      compatibility: "compatible",
+    });
+  });
+
+  it("marks an unclassified subject with a breaking footer as breaking", () => {
+    expect(changeEntryOf({ message: "Merge pull request #7 from a/branch\n\nBREAKING CHANGE: renamed a key" })).toEqual({
+      kind: "unclassified",
+      subject: "Merge pull request #7 from a/branch",
+      compatibility: "breaking",
     });
   });
 });

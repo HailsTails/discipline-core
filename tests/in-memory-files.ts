@@ -51,7 +51,10 @@ const listedUnder = (request: { readonly files: ReadonlyMap<string, string>; rea
       entryKind: "file",
     }));
 
-export const inMemoryFiles = (request: { readonly initial: Readonly<Record<string, string>> }): InMemoryFiles => {
+export const inMemoryFiles = (request: {
+  readonly initial: Readonly<Record<string, string>>;
+  readonly unwritablePaths?: readonly string[];
+}): InMemoryFiles => {
   const files = new Map(Object.entries(request.initial));
   const temporaryRoots = { created: 0 };
   return {
@@ -67,6 +70,9 @@ export const inMemoryFiles = (request: { readonly initial: Readonly<Record<strin
       },
       exists: ({ path }) => (files.has(path) ? "present" : "absent"),
       write: ({ path, text }) => {
+        if (request.unwritablePaths?.includes(path) === true) {
+          return { outcome: "failed", error: { kind: "unwritable", path, detail: "EACCES" } };
+        }
         files.set(path, text);
         return { outcome: "ok", value: undefined };
       },

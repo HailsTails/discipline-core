@@ -73,6 +73,20 @@ describe("latestReleaseOf", () => {
     });
   });
 
+  it("ranks pre-release identifiers in ASCII order, as semver does, so an uppercase identifier ranks below a lowercase one", () => {
+    expect(latestReleaseOf({ tags: ["v1.0.0-alpha.1", "v1.0.0-Beta.1"] })).toEqual({
+      outcome: "ok",
+      value: { tag: "v1.0.0-alpha.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "alpha", number: 1 } } },
+    });
+  });
+
+  it("ranks an identifier above its own prefix, whatever the numbers", () => {
+    expect(latestReleaseOf({ tags: ["v1.0.0-pre-a.1", "v1.0.0-pre.2"] })).toEqual({
+      outcome: "ok",
+      value: { tag: "v1.0.0-pre-a.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "pre-a", number: 1 } } },
+    });
+  });
+
   it("fails when no tag is a release tag", () => {
     expect(latestReleaseOf({ tags: ["backup-pre1-before-rewrite", "vnext"] })).toEqual({
       outcome: "failed",
@@ -85,19 +99,30 @@ describe("releaseSizeOf", () => {
   it("is a major for any breaking subject", () => {
     expect(
       releaseSizeOf({
-        entries: [changeEntryOf({ subject: "fix: one" }), changeEntryOf({ subject: "docs!: rename an address" }), changeEntryOf({ subject: "feat: two" })],
+        entries: [changeEntryOf({ message: "fix: one" }), changeEntryOf({ message: "docs!: rename an address" }), changeEntryOf({ message: "feat: two" })],
       }),
     ).toBe("major");
   });
 
   it("is a minor for a feature without a breaking subject", () => {
-    expect(releaseSizeOf({ entries: [changeEntryOf({ subject: "fix: one" }), changeEntryOf({ subject: "feat: two" })] })).toBe("minor");
+    expect(releaseSizeOf({ entries: [changeEntryOf({ message: "fix: one" }), changeEntryOf({ message: "feat: two" })] })).toBe("minor");
   });
 
   it("is a patch for any other conventional or unclassified subject", () => {
     expect(
-      releaseSizeOf({ entries: [changeEntryOf({ subject: "chore: one" }), changeEntryOf({ subject: "Keep versions out of the docs (#20)" })] }),
+      releaseSizeOf({ entries: [changeEntryOf({ message: "chore: one" }), changeEntryOf({ message: "Keep versions out of the docs (#20)" })] }),
     ).toBe("patch");
+  });
+
+  it("is a major for a breaking footer, even under a subject that is not conventional", () => {
+    expect(releaseSizeOf({ entries: [changeEntryOf({ message: "Merge pull request #7\n\nBREAKING-CHANGE: renamed a key" })] })).toBe("major");
+  });
+
+  it("is a patch for a revert and a major for a revert marked breaking", () => {
+    expect([
+      releaseSizeOf({ entries: [changeEntryOf({ message: "revert: undo an unreleased change" })] }),
+      releaseSizeOf({ entries: [changeEntryOf({ message: "revert!: withdraw a released flag" })] }),
+    ]).toEqual(["patch", "major"]);
   });
 
   it("is nothing for no subjects", () => {

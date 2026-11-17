@@ -58,13 +58,20 @@ export const versionText = (request: { readonly version: Version }): string => {
 export const channelOf = (request: { readonly version: Version }): ReleaseChannel =>
   request.version.preRelease === undefined ? "stable" : "pre-release";
 
+const asciiOrder = (request: { readonly left: string; readonly right: string }): number => {
+  if (request.left === request.right) {
+    return 0;
+  }
+  return request.left < request.right ? -1 : 1;
+};
+
 const preReleasePrecedence = (request: { readonly left: PreRelease | undefined; readonly right: PreRelease | undefined }): number => {
   if (request.left === undefined || request.right === undefined) {
     return Number(request.left === undefined) - Number(request.right === undefined);
   }
   return request.left.identifier === request.right.identifier
     ? request.left.number - request.right.number
-    : request.left.identifier.localeCompare(request.right.identifier, "en");
+    : asciiOrder({ left: request.left.identifier, right: request.right.identifier });
 };
 
 const precedence = (request: { readonly left: Version; readonly right: Version }): number =>
@@ -90,9 +97,9 @@ export const latestReleaseOf = (request: { readonly tags: readonly string[] }): 
     : { outcome: "ok", value: latest };
 };
 
-const sizeOfEntry = (request: { readonly entry: ChangeEntry }): ReleaseSize => {
+export const changeSizeOf = (request: { readonly entry: ChangeEntry }): ReleaseSize => {
   if (request.entry.kind === "unclassified") {
-    return "patch";
+    return request.entry.compatibility === "breaking" ? "major" : "patch";
   }
   if (request.entry.subject.compatibility === "breaking") {
     return "major";
@@ -101,7 +108,7 @@ const sizeOfEntry = (request: { readonly entry: ChangeEntry }): ReleaseSize => {
 };
 
 export const releaseSizeOf = (request: { readonly entries: readonly ChangeEntry[] }): ReleaseSize | "nothing" => {
-  const sizes = new Set(request.entries.map((entry) => sizeOfEntry({ entry })));
+  const sizes = new Set(request.entries.map((entry) => changeSizeOf({ entry })));
   return SIZES_LARGEST_FIRST.find((size) => sizes.has(size)) ?? "nothing";
 };
 

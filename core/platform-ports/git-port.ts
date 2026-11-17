@@ -38,7 +38,7 @@ export type GitHistoryPort = {
     readonly repoRoot: AbsolutePath;
     readonly pattern: string;
   }) => Result<readonly string[], GitFailure>;
-  readonly subjectsAfter: (request: {
+  readonly messagesAfter: (request: {
     readonly repoRoot: AbsolutePath;
     readonly revision: string;
   }) => Result<readonly string[], GitFailure>;
@@ -288,6 +288,8 @@ export const createGitPort = (options: {
   };
 };
 
+const TRAILING_LINE_BREAKS = /\n+$/;
+
 const gitListing = (
   request: GitContext & { readonly gitArguments: readonly string[]; readonly separator: string },
 ): Result<readonly string[], GitFailure> => {
@@ -295,7 +297,13 @@ const gitListing = (
   if (output.outcome === "failed") {
     return output;
   }
-  return { outcome: "ok", value: output.value.stdout.split(request.separator).filter((line) => line.length > 0) };
+  return {
+    outcome: "ok",
+    value: output.value.stdout
+      .split(request.separator)
+      .map((entry) => entry.replace(TRAILING_LINE_BREAKS, ""))
+      .filter((entry) => entry.length > 0),
+  };
 };
 
 export const createGitHistoryPort = (options: {
@@ -314,12 +322,12 @@ export const createGitHistoryPort = (options: {
         gitArguments: ["tag", "--list", "--merged", "HEAD", request.pattern],
         separator: "\n",
       }),
-    subjectsAfter: (request) =>
+    messagesAfter: (request) =>
       gitListing({
         spawn: options.spawn,
         environment,
         repoRoot: request.repoRoot,
-        gitArguments: ["log", "--first-parent", "--reverse", "-z", "--format=%s", "--end-of-options", `${request.revision}..HEAD`],
+        gitArguments: ["log", "--first-parent", "--reverse", "-z", "--format=%B", "--end-of-options", `${request.revision}..HEAD`],
         separator: "\0",
       }),
   };

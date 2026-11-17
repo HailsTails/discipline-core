@@ -3,16 +3,18 @@ name: Pull request title
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize, ready_for_review]
+  merge_group:
 
 permissions: {}
 
 concurrency:
-  group: pull-request-title-${{ github.event.pull_request.number }}
+  group: pull-request-title-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   title:
     name: Conventional pull request title
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

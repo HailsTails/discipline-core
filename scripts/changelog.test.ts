@@ -8,12 +8,12 @@ describe("changelogSectionOf", () => {
       changelogSectionOf({
         version: "0.2.0",
         entries: [
-          changeEntryOf({ subject: "chore: tidy the scripts (#30)" }),
-          changeEntryOf({ subject: "fix(audit): read CRLF files (#31)" }),
-          changeEntryOf({ subject: "feat(eslint)!: rename the plugin namespace (#32)" }),
-          changeEntryOf({ subject: "feat: add a report output (#33)" }),
-          changeEntryOf({ subject: "perf: cache the projection (#34)" }),
-          changeEntryOf({ subject: "Keep versions out of the docs (#20)" }),
+          changeEntryOf({ message: "chore: tidy the scripts (#30)" }),
+          changeEntryOf({ message: "fix(audit): read CRLF files (#31)" }),
+          changeEntryOf({ message: "feat(eslint)!: rename the plugin namespace (#32)" }),
+          changeEntryOf({ message: "feat: add a report output (#33)" }),
+          changeEntryOf({ message: "perf: cache the projection (#34)" }),
+          changeEntryOf({ message: "Keep versions out of the docs (#20)" }),
         ],
       }),
     ).toBe(
@@ -21,8 +21,14 @@ describe("changelogSectionOf", () => {
     );
   });
 
+  it("lists a subject that is not conventional but carries a breaking footer under breaking changes", () => {
+    expect(changelogSectionOf({ version: "2.0.0", entries: [changeEntryOf({ message: "Merge pull request #7\n\nBREAKING CHANGE: renamed a key" })] })).toBe(
+      "## 2.0.0\n\n### Breaking changes\n\n- Merge pull request #7\n",
+    );
+  });
+
   it("leaves out headings with no changes", () => {
-    expect(changelogSectionOf({ version: "1.0.1", entries: [changeEntryOf({ subject: "fix: one" })] })).toBe("## 1.0.1\n\n### Fixes\n\n- one\n");
+    expect(changelogSectionOf({ version: "1.0.1", entries: [changeEntryOf({ message: "fix: one" })] })).toBe("## 1.0.1\n\n### Fixes\n\n- one\n");
   });
 });
 

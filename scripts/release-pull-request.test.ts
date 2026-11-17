@@ -13,7 +13,7 @@ const MANIFEST = '{\n  "version": "0.1.0-pre.3",\n  "private": true\n}\n';
 
 const TAGS = ["v0.1.0-pre.1", "v0.1.0-pre.3", "v0.1.0-pre.2", "backup-pre1-before-rewrite"];
 
-const SUBJECTS = ["feat(release): prepare release pull requests (#33)", "Keep versions out of the docs (#20)"];
+const MESSAGES = ["feat(release): prepare release pull requests (#33)\n\nBody.", "Keep versions out of the docs (#20)"];
 
 const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
   arguments: request.arguments,
@@ -24,23 +24,27 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
 
 const historyWith = (request: {
   readonly tags: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly subjects: ReturnType<GitHistoryPort["subjectsAfter"]>;
+  readonly messages: ReturnType<GitHistoryPort["messagesAfter"]>;
 }): GitHistoryPort => ({
   mergedTags: vi.fn<GitHistoryPort["mergedTags"]>().mockReturnValue(request.tags),
-  subjectsAfter: vi.fn<GitHistoryPort["subjectsAfter"]>().mockReturnValue(request.subjects),
+  messagesAfter: vi.fn<GitHistoryPort["messagesAfter"]>().mockReturnValue(request.messages),
 });
 
 const runWith = (request: {
   readonly arguments?: readonly string[];
   readonly files?: Readonly<Record<string, string>>;
   readonly tags?: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly subjects?: ReturnType<GitHistoryPort["subjectsAfter"]>;
+  readonly messages?: ReturnType<GitHistoryPort["messagesAfter"]>;
+  readonly unwritablePaths?: readonly string[];
 }) => {
   const processPort = processWith({ arguments: request.arguments ?? [] });
-  const files = inMemoryFiles({ initial: request.files ?? { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": MANIFEST } });
+  const files = inMemoryFiles({
+    initial: request.files ?? { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": MANIFEST },
+    unwritablePaths: request.unwritablePaths,
+  });
   const history = historyWith({
     tags: request.tags ?? { outcome: "ok", value: TAGS },
-    subjects: request.subjects ?? { outcome: "ok", value: SUBJECTS },
+    messages: request.messages ?? { outcome: "ok", value: MESSAGES },
   });
   runReleasePullRequest({
     process: processPort,
@@ -65,7 +69,7 @@ describe("runReleasePullRequest preparing a release", () => {
     const run = runWith({});
 
     expect(vi.mocked(run.history.mergedTags).mock.calls).toEqual([[{ repoRoot: "/repo", pattern: "v*" }]]);
-    expect(vi.mocked(run.history.subjectsAfter).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }]]);
+    expect(vi.mocked(run.history.messagesAfter).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }]]);
   });
 
   it("writes the next pre-release's section into the changelog and its version into package.json, and says it made no tag", () => {
@@ -92,8 +96,17 @@ describe("runReleasePullRequest preparing a release", () => {
     ]);
   });
 
+  it("warns that a subject that is not conventional but carries a breaking footer counts as a major", () => {
+    const run = runWith({ messages: { outcome: "ok", value: ["Merge pull request #7\n\nBREAKING CHANGE: renamed a key"] } });
+
+    expect(run.errors).toEqual([
+      [{ text: 'release-pull-request: "Merge pull request #7" is not a conventional subject; it is listed under Breaking changes and counted as a major.\n' }],
+    ]);
+    expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "0.1.0-pre.4",\n  "private": true\n}\n');
+  });
+
   it("counts a single subject in the singular", () => {
-    expect(runWith({ subjects: { outcome: "ok", value: ["fix: one"] } }).writes).toEqual([
+    expect(runWith({ messages: { outcome: "ok", value: ["fix: one"] } }).writes).toEqual([
       [
         {
           text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a patch change on the pre-release channel, from 1 subject since v0.1.0-pre.3. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
@@ -112,7 +125,7 @@ describe("runReleasePullRequest preparing a release", () => {
 
 describe("runReleasePullRequest refusing on the repository's state", () => {
   it("refuses to prepare a release with no subjects since the tag", () => {
-    const run = runWith({ subjects: { outcome: "ok", value: [] } });
+    const run = runWith({ messages: { outcome: "ok", value: [] } });
 
     expect(run).toMatchObject({
       texts: UNCHANGED,
@@ -163,7 +176,7 @@ describe("runReleasePullRequest refusing on the repository's state", () => {
 describe("runReleasePullRequest refusing on failures and usage", () => {
   it("refuses when git fails", () => {
     const run = runWith({
-      subjects: { outcome: "failed", error: { kind: "git-failed", command: "git log", detail: "fatal: bad revision" } },
+      messages: { outcome: "failed", error: { kind: "git-failed", command: "git log", detail: "fatal: bad revision" } },
     });
 
     expect(run).toMatchObject({
@@ -178,6 +191,28 @@ describe("runReleasePullRequest refusing on failures and usage", () => {
 
     expect(run).toMatchObject({
       errors: [[{ text: expect.stringMatching(/^release-pull-request: package\.json has no readable version: .*version/s) }]],
+      exits: [[{ code: 1 }]],
+    });
+  });
+
+  it("restores every file it wrote when a later write fails", () => {
+    const run = runWith({ unwritablePaths: ["/repo/package.json"] });
+
+    expect(run).toMatchObject({
+      texts: UNCHANGED,
+      writes: [],
+      errors: [[{ text: "release-pull-request: cannot write /repo/package.json: EACCES; the files it had written are restored\n" }]],
+      exits: [[{ code: 1 }]],
+    });
+  });
+
+  it("refuses a package.json that holds the version field more than once", () => {
+    const manifest = '{\n  "version": "0.1.0-pre.3",\n  "config": { "version": "0.1.0-pre.3" }\n}\n';
+    const run = runWith({ files: { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": manifest } });
+
+    expect(run).toMatchObject({
+      texts: { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": manifest },
+      errors: [[{ text: 'release-pull-request: package.json does not hold "version": "0.1.0-pre.3" exactly once\n' }]],
       exits: [[{ code: 1 }]],
     });
   });
