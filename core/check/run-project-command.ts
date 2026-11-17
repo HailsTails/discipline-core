@@ -10,15 +10,14 @@ import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from ".
 import { runProject } from "./run-project.ts";
 
 const projectionsIn = (
-  request: CommandRequest & { readonly repoRoot: AbsolutePath },
+  request: CommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: Result<AbsolutePath, LoadFailure> },
 ): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
-  const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
-  if (installRoot.outcome === "failed") {
-    return Promise.resolve(installRoot);
+  if (request.installRoot.outcome === "failed") {
+    return Promise.resolve(request.installRoot);
   }
   return runProject({
     repoRoot: request.repoRoot,
-    installRoot: installRoot.value,
+    installRoot: request.installRoot.value,
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     fileText: request.fileText,
     modules: request.modules,
@@ -36,8 +35,9 @@ const projectResult = (request: CommandRequest): Promise<Result<readonly Project
   if (repoRoot.outcome === "failed") {
     return Promise.resolve(repoRoot);
   }
-  return projectionsIn({ ...request, repoRoot: repoRoot.value }).then((run) =>
-    withShownPaths({ path: request.path, repoRoot: repoRoot.value, run }),
+  const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
+  return projectionsIn({ ...request, repoRoot: repoRoot.value, installRoot }).then((run) =>
+    withShownPaths({ path: request.path, fileText: request.fileText, repoRoot: repoRoot.value, installRoot, run }),
   );
 };
 

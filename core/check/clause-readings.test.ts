@@ -211,3 +211,44 @@ describe("clauseReadingsOf pointing at the rule page", () => {
     ]);
   });
 });
+
+describe("clauseReadingsOf when pnpm runs the package from its store", () => {
+  const storeRoot = absolutePathSchema.parse("/repo/node_modules/.pnpm/@hailstails+hone@1.0.0/node_modules/@hailstails/hone");
+  const manifest = presentFile({ text: '{"name":"@hailstails/hone","version":"1.0.0"}' });
+  const storedPages: Readonly<Record<string, FakeFile>> = {
+    [`${storeRoot}/rules/CD-15/README.md`]: presentFile({ text: "# CD-15\n" }),
+    [`${storeRoot}/package.json`]: manifest,
+  };
+  const storedReadings = (request: { readonly files: Readonly<Record<string, FakeFile>> }) =>
+    clauseReadingsOf({
+      findings: ONE_LOOPS_FINDING,
+      clauseRoots: [{ clause: LOOPS, ruleSetRoot: storeRoot }],
+      repoRoot: REPO_ROOT,
+      installRoot: storeRoot,
+      fileText: filesOver(request.files),
+      path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
+    });
+
+  it("names the page and the guide through the repository's node_modules link when it holds the running package", () => {
+    expect(storedReadings({ files: { ...storedPages, "/repo/node_modules/@hailstails/hone/package.json": manifest } })).toEqual([
+      { kind: "assessment-file", state: "not-written", guide: GUIDE_TEXT },
+      loopsReading({ assessmentSection: "unread" }),
+    ]);
+  });
+
+  it("names the page and the guide where pnpm put them when the repository has no link to the running package", () => {
+    expect(storedReadings({ files: storedPages })).toEqual([
+      {
+        kind: "assessment-file",
+        state: "not-written",
+        guide: "node_modules/.pnpm/@hailstails+hone@1.0.0/node_modules/@hailstails/hone/ADOPTING.md",
+      },
+      {
+        kind: "clause",
+        clause: LOOPS,
+        assessmentSection: "unread",
+        rulePage: { path: "node_modules/.pnpm/@hailstails+hone@1.0.0/node_modules/@hailstails/hone/rules/CD-15/README.md", presence: "present" },
+      },
+    ]);
+  });
+});

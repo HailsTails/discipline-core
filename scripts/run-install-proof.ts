@@ -12,7 +12,6 @@ import {
   packagedConsumerManifest,
   type ProofAction,
   type ProofCase,
-  type StepExpectation,
   type StepRun,
   toolchainPinsOf,
 } from "./install-proof-plan.ts";
@@ -58,6 +57,7 @@ const TYPECHECK_ONLY = ["--noEmit", "-p"];
 const PLATFORM_LINE_END = "\r\n";
 const PNPM_SETTINGS = ".npmrc";
 const LINT_SCRIPT = "lint";
+const END_OF_OPTIONS = "--";
 const inOrder = (request: { readonly steps: readonly Step[] }): Result<null, string> =>
   request.steps.reduce<Result<null, string>>((sofar, step) => (sofar.outcome === "failed" ? sofar : step()), SUCCEEDED);
 
@@ -245,26 +245,6 @@ const readExactly = (request: {
   return SUCCEEDED;
 };
 
-const expectationAt = (request: { readonly expectation: StepExpectation; readonly installed: string }): StepExpectation => ({
-  exitCode: request.expectation.exitCode,
-  output: request.expectation.output.replaceAll(`${LINKED_INSTALL}/`, `${request.installed}/`),
-});
-
-const actionAt = (request: { readonly action: ProofAction; readonly installed: string }): ProofAction => {
-  const action = request.action;
-  switch (action.kind) {
-    case "check":
-    case "project":
-    case "typecheck":
-    case "lint":
-    case "run":
-      return { ...action, expectation: expectationAt({ expectation: action.expectation, installed: request.installed }) };
-    case "commit":
-    case "read":
-      return action;
-  }
-};
-
 const performedAction = (request: {
   readonly context: ProofContext;
   readonly repo: string;
@@ -278,7 +258,7 @@ const performedAction = (request: {
         ...request,
         label: `${request.consumer} check`,
         script: "check",
-        arguments: ["--base-revision", "HEAD"],
+        arguments: [END_OF_OPTIONS, "--base-revision", "HEAD"],
         action,
       });
     case "project":
@@ -497,7 +477,7 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
       ...request.proofCase.actions.map(
         (action): Step =>
           () =>
-            performedAction({ context, repo, consumer, action: actionAt({ action, installed: location.value }) }),
+            performedAction({ context, repo, consumer, action }),
       ),
     ],
   });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
+import { CHANGELOG_FILE } from "./changelog.ts";
 import { PUBLIC_TYPE_ENTRIES } from "./package-declarations.ts";
 
 export type PlanFailure = { readonly kind: "piece-invalid"; readonly path: string; readonly detail: string };
@@ -51,6 +52,13 @@ const SHIPPED_DOCUMENTS = new Set([
   "docs/extending.md",
   "docs/output-contract.md",
 ]);
+
+const RELEASE_WRITTEN_DOCUMENTS: ReadonlySet<string> = new Set([CHANGELOG_FILE]);
+
+export type DocumentAuthor = "release" | "maintainer";
+
+export const documentAuthorOf = (request: { readonly path: string }): DocumentAuthor =>
+  RELEASE_WRITTEN_DOCUMENTS.has(request.path) ? "release" : "maintainer";
 
 const SHIPPED_DATA = [/^rules\/[^/]+\/discipline\.json$/, /^rules\/.+\.md$/, /^methods\/.+\.md$/, /^mechanisms\/.+\.md$/];
 
@@ -173,7 +181,10 @@ const parsedPieces = (request: { readonly pieces: readonly PieceText[] }): Resul
   }, { outcome: "ok", value: [] });
 
 const copiedPathsIn = (request: { readonly sourcePaths: readonly string[] }): readonly string[] =>
-  shippedPaths(request).filter((path) => SHIPPED_DOCUMENTS.has(path) || SHIPPED_DATA.some((pattern) => pattern.test(path)));
+  shippedPaths(request).filter(
+    (path) =>
+      SHIPPED_DOCUMENTS.has(path) || documentAuthorOf({ path }) === "release" || SHIPPED_DATA.some((pattern) => pattern.test(path)),
+  );
 
 export const packagePlanOf = (request: {
   readonly sourcePaths: readonly string[];

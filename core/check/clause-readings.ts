@@ -5,6 +5,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
+import { type PackageLink, packageLinkOf } from "./package-link.ts";
 import { shownPathOf } from "./shown-path.ts";
 import type { AssessmentFileNote, AssessmentSection, ClauseReading, ReadFirstEntry } from "../verdict/check-report.ts";
 
@@ -73,11 +74,13 @@ const assessmentSectionOf = (request: {
   return request.headings.headings.has(assessmentSectionHeading(request)) ? "present" : "not-assessed";
 };
 
-const shownPageOf = (request: ReadingRequest & { readonly page: string }): string =>
-  shownPathOf({ path: request.path, repoRoot: request.repoRoot, target: request.page });
+type ShownPageRequest = ReadingRequest & { readonly link: PackageLink };
+
+const shownPageOf = (request: ShownPageRequest & { readonly page: string }): string =>
+  shownPathOf({ path: request.path, repoRoot: request.repoRoot, link: request.link, target: request.page });
 
 const clauseReadingOf = (
-  request: ReadingRequest & { readonly headings: AssessmentHeadings; readonly clause: ClauseAddress; readonly page: string },
+  request: ShownPageRequest & { readonly headings: AssessmentHeadings; readonly clause: ClauseAddress; readonly page: string },
 ): ClauseReading => ({
   kind: "clause",
   clause: request.clause,
@@ -89,7 +92,7 @@ const rulePageOf = (request: { readonly root: ClauseRoot; readonly path: PathPor
   request.path.join({ segments: [request.root.ruleSetRoot, "rules", request.root.clause.discipline, "README.md"] });
 
 const assessmentFileNotes = (
-  request: ReadingRequest & { readonly headings: AssessmentHeadings; readonly installRoot: AbsolutePath },
+  request: ShownPageRequest & { readonly headings: AssessmentHeadings; readonly installRoot: AbsolutePath },
 ): readonly AssessmentFileNote[] =>
   request.headings.file === "read"
     ? []
@@ -113,12 +116,13 @@ export const clauseReadingsOf = (
     return [];
   }
   const headings = assessmentHeadingsOf(request);
+  const link = packageLinkOf(request);
   return [
-    ...assessmentFileNotes({ ...request, headings }),
+    ...assessmentFileNotes({ ...request, headings, link }),
     ...clauses.flatMap((clause) =>
       request.clauseRoots
         .filter((root) => clauseAddressText({ address: root.clause }) === clauseAddressText({ address: clause }))
-        .map((root) => clauseReadingOf({ ...request, headings, clause, page: rulePageOf({ root, path: request.path }) })),
+        .map((root) => clauseReadingOf({ ...request, headings, link, clause, page: rulePageOf({ root, path: request.path }) })),
     ),
   ];
 };

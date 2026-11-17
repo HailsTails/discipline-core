@@ -3,6 +3,7 @@ import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
+import { CHANGELOG_FILE } from "./changelog.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
@@ -14,6 +15,7 @@ import { dependencyNamesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishM
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
   type BundledPackage,
+  documentAuthorOf,
   externalPeersOf,
   type PackagePlan,
   type PieceText,
@@ -58,7 +60,7 @@ const LEFT_OUT_FOLDERS: ReadonlySet<string> = new Set(["tests", "test-fixtures",
 
 const LEFT_OUT_FILE_SUFFIX = ".test.ts";
 
-const ROOT_FILES: readonly string[] = ["README.md", "ADOPTING.md", "MIGRATING.md", "LICENSE"];
+const ROOT_FILES: readonly string[] = ["README.md", "ADOPTING.md", "MIGRATING.md", CHANGELOG_FILE, "LICENSE"];
 
 const MANIFEST = "package.json";
 
@@ -459,7 +461,11 @@ const linkedFiles = (request: { readonly files: readonly OutputFile[]; readonly 
   }
   const versioned = failedOnProblems({
     label: "a shipped page names a Hone version, which goes stale on the next release",
-    problems: versionMentionsOf({ files: request.files, tarballStem: PACKAGE_FILE_STEM, version: request.version }),
+    problems: versionMentionsOf({
+      files: request.files.filter((file) => documentAuthorOf(file) === "maintainer"),
+      tarballStem: PACKAGE_FILE_STEM,
+      version: request.version,
+    }),
   });
   return versioned.outcome === "failed" ? versioned : { outcome: "ok", value: request.files };
 };
