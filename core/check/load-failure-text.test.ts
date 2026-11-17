@@ -66,11 +66,11 @@ describe("loadFailureText", () => {
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
         },
       }),
     ).toBe(
-      "load failure: runner-failed audit toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+      "load failure: runner-failed audit toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
     );
   });
 

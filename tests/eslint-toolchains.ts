@@ -99,7 +99,7 @@ const LINES: Readonly<Record<EslintLine, LineDefinition>> = {
       })),
   },
   "eslint-9-floor": {
-    eslintVersion: /^9\.12\.0$/,
+    eslintVersion: /^9\.28\.0$/,
     modules: { eslint: () => import("eslint-9-floor").then((eslint) => floorEslintSchema.parse(eslint)), ...floorTypescriptEslintModules },
     nativeRuleSources: () =>
       Promise.all([import("eslint-9-floor/use-at-your-own-risk"), floorTypescriptEslintRules()]).then(

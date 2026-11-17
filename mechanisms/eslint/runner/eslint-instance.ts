@@ -514,7 +514,7 @@ export type EslintModule = { readonly ESLint: EslintClass };
 type ConfigLookup = { readonly releases: ReleaseRange; readonly flags: readonly string[] };
 
 const NEAREST_CONFIG_LOOKUPS: readonly ConfigLookup[] = [
-  { releases: { packageName: "eslint", lines: [{ floor: "9.12.0", below: "9.30.0" }] }, flags: ["unstable_config_lookup_from_file"] },
+  { releases: { packageName: "eslint", lines: [{ floor: "9.28.0", below: "9.30.0" }] }, flags: ["unstable_config_lookup_from_file"] },
   { releases: { packageName: "eslint", lines: [{ floor: "9.30.0", below: "10.0.0" }] }, flags: ["v10_config_lookup_from_file"] },
 ];
 

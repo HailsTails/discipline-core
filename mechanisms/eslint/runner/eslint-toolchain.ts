@@ -22,7 +22,7 @@ export const ESLINT_REQUIREMENT: ToolchainRequirement = {
   packageName: "eslint",
   peer: "optional",
   lines: [
-    { floor: "9.12.0", below: "10.0.0" },
+    { floor: "9.28.0", below: "10.0.0" },
     { floor: "10.0.0", below: "11.0.0" },
   ],
 };
