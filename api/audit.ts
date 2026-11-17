@@ -1,5 +1,6 @@
 export type { PieceFailure } from "../core/mechanism-port/piece-failure-types.ts";
-export type { RunnerClause } from "../core/mechanism-port/runner-module-types.ts";
+export type { ClauseSettingValues, RunnerClause } from "../core/mechanism-port/runner-module-types.ts";
+export type { ReadonlyJsonValue } from "../core/values/json-value.ts";
 export type { Hit } from "../core/mechanism-port/runner-result-types.ts";
 export type { Anchor, AnchorKind } from "../core/values/anchor.ts";
 export type { ClauseAddress, ToolRuleSet } from "../core/values/clause-address-types.ts";

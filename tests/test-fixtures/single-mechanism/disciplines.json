@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "ruleSets": {},
-  "clauses": { "CD-6#identifier-names": "audit", "CD-6#naming-convention": "eslint" },
-  "assessment": { "waivedClauses": "not-run" }
-}

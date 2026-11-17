@@ -18,6 +18,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-8",
+  clauseSettings: {},
   settings: { module: "switch-defaults.ts" },
 };
 

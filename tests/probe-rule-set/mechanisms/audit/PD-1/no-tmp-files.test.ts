@@ -10,6 +10,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/probe/mechanisms/audit/PD-1",
+  clauseSettings: {},
   settings: { module: "no-tmp-files.ts" },
 };
 

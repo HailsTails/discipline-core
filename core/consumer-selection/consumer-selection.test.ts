@@ -13,6 +13,7 @@ import {
   readSelection,
   ruleSetRootOf,
 } from "./consumer-selection.ts";
+import ESLINT_CD_6_PIECE from "../../mechanisms/eslint/CD-6/piece.json" with { type: "json" };
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const INSTALL_ROOT = absolutePathSchema.parse("/install");
@@ -63,6 +64,13 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo/team-rules","rules","CD-14","discipline.json"]': "/repo/team-rules/rules/CD-14/discipline.json",
   '["/repo/team-rules","mechanisms","audit","CD-14","piece.json"]': "/repo/team-rules/mechanisms/audit/CD-14/piece.json",
   '["/repo/team-rules","mechanisms","audit","CD-14"]': "/repo/team-rules/mechanisms/audit/CD-14",
+  '["/install","rules","CD-6","discipline.json"]': "/install/rules/CD-6/discipline.json",
+  '["/install","mechanisms","eslint","runner","runner.ts"]': "/install/mechanisms/eslint/runner/runner.ts",
+  '["/install","mechanisms","eslint","CD-6","piece.json"]': "/install/mechanisms/eslint/CD-6/piece.json",
+  '["/install","mechanisms","eslint","CD-6"]': "/install/mechanisms/eslint/CD-6",
+  '["/repo/team-rules","rules","TD-1","discipline.json"]': "/repo/team-rules/rules/TD-1/discipline.json",
+  '["/repo/team-rules","mechanisms","audit","TD-1","piece.json"]': "/repo/team-rules/mechanisms/audit/TD-1/piece.json",
+  '["/repo/team-rules","mechanisms","audit","TD-1"]': "/repo/team-rules/mechanisms/audit/TD-1",
 };
 
 const TABLE_PATH: PathPort = {
@@ -224,6 +232,7 @@ describe("createSelectionRepository", () => {
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
+              clauseSettings: {},
             },
           },
           {
@@ -233,6 +242,7 @@ describe("createSelectionRepository", () => {
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/repo/team-rules/mechanisms/audit/TM-1",
               settings: { module: "no-tmp-files.ts" },
+              clauseSettings: {},
             },
           },
         ],
@@ -561,6 +571,7 @@ describe("readSelection", () => {
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
+              clauseSettings: {},
             },
           },
           {
@@ -570,6 +581,7 @@ describe("readSelection", () => {
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "abstract-syntax.ts" },
+              clauseSettings: {},
             },
           },
         ],
@@ -603,6 +615,7 @@ describe("readSelection", () => {
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/repo/team-rules/mechanisms/audit/TM-1",
               settings: { module: "no-tmp-files.ts" },
+              clauseSettings: {},
             },
           },
         ],
@@ -751,6 +764,7 @@ describe("readSelection", () => {
               address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
               anchor: { kind: "keyword", keyword: "class" },
               settings: { module: "class-syntax.ts" },
+              clauseSettings: {},
             },
           },
           {
@@ -760,6 +774,7 @@ describe("readSelection", () => {
               anchor: { kind: "keyword", keyword: "enum" },
               pieceRoot: "/repo/team-rules/mechanisms/audit/CD-14",
               settings: { module: "team-class-syntax.ts" },
+              clauseSettings: {},
             },
           },
         ],
@@ -1142,6 +1157,206 @@ describe("ruleSetRootOf", () => {
         path: "/repo/rules/team",
         detail: "the directory of rule set team resolves to no absolute path",
       },
+    });
+  });
+});
+
+const CD_14_SETTABLE_PIECE = JSON.stringify({
+  version: 1,
+  discipline: "CD-14",
+  mechanism: "audit",
+  clauses: [
+    {
+      clause: "class-syntax",
+      settings: { module: "class-syntax.ts" },
+      clauseSettings: { allowedNames: { default: [] }, style: { default: "plain", choices: ["plain", "strict"] } },
+    },
+    { clause: "abstract-syntax", settings: { module: "abstract-syntax.ts" } },
+  ],
+});
+
+const CD_6 = JSON.stringify({
+  version: 1,
+  id: "CD-6",
+  clauses: [{ ...mechanical("naming-convention"), mechanisms: ["eslint"] }],
+});
+
+const TD_1 = JSON.stringify({ version: 1, id: "TD-1", clauses: [mechanical("x")] });
+
+const TD_1_PIECE = JSON.stringify({
+  version: 1,
+  discipline: "TD-1",
+  mechanism: "audit",
+  clauses: [{ clause: "x", settings: { module: "x.ts" }, clauseSettings: { limit: { default: 3 } } }],
+});
+
+const SETTABLE_INSTALL: Readonly<Record<string, FakeFile>> = {
+  ...INSTALL,
+  "/install/mechanisms/audit/CD-14/piece.json": presentFile({ text: CD_14_SETTABLE_PIECE }),
+  "/install/rules/CD-6/discipline.json": presentFile({ text: CD_6 }),
+  "/install/mechanisms/eslint/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
+  "/install/mechanisms/eslint/CD-6/piece.json": presentFile({ text: JSON.stringify(ESLINT_CD_6_PIECE) }),
+  "/repo/team-rules/rules/TD-1/discipline.json": presentFile({ text: TD_1 }),
+  "/repo/team-rules/mechanisms/audit/TD-1/piece.json": presentFile({ text: TD_1_PIECE }),
+};
+
+const selectingSettable = (selection: unknown) =>
+  select({ ...SETTABLE_INSTALL, [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }) });
+
+const BOTH_CD_14_CLAUSES = { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "audit" };
+
+const ABSTRACT_SYNTAX_BINDING = { clause: { settings: { module: "abstract-syntax.ts" }, clauseSettings: {} } };
+
+type BoundSettings = { readonly outcome: "ok"; readonly value: { readonly bindings: readonly unknown[] } };
+
+const boundWith = (request: { readonly clauseSettings: unknown }): BoundSettings => ({
+  outcome: "ok",
+  value: {
+    bindings: [
+      { clause: { settings: { module: "class-syntax.ts" }, clauseSettings: request.clauseSettings } },
+      ABSTRACT_SYNTAX_BINDING,
+    ],
+  },
+});
+
+type Malformed = {
+  readonly outcome: "failed";
+  readonly error: { readonly kind: "file-malformed"; readonly path: string; readonly detail: string };
+};
+
+const malformedWith = (request: { readonly detail: string }): Malformed => ({
+  outcome: "failed",
+  error: { kind: "file-malformed", path: SELECTION_PATH, detail: request.detail },
+});
+
+describe("readSelection with clauseSettings", () => {
+  it("delivers the piece's declared defaults beside its untouched mechanism settings when disciplines.json sets none", () => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES })).toMatchObject(
+      boundWith({ clauseSettings: { allowedNames: [], style: "plain" } }),
+    );
+  });
+
+  it("replaces only the declared keys disciplines.json gives", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#class-syntax": { allowedNames: ["Widget"], style: "strict" } },
+      }),
+    ).toMatchObject(boundWith({ clauseSettings: { allowedNames: ["Widget"], style: "strict" } }));
+  });
+
+  it("matches a hone-prefixed clauseSettings key to the bare selected clause", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "hone/CD-14#class-syntax": { style: "strict" } },
+      }),
+    ).toMatchObject(boundWith({ clauseSettings: { allowedNames: [], style: "strict" } }));
+  });
+
+  it("settles a team rule set's clause from its own piece's declarations", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: { team: "team-rules" },
+        clauses: { "team/TD-1#x": "audit" },
+        clauseSettings: { "team/TD-1#x": { limit: 5 } },
+      }),
+    ).toMatchObject({ outcome: "ok", value: { bindings: [{ clause: { settings: { module: "x.ts" }, clauseSettings: { limit: 5 } } }] } });
+  });
+
+});
+
+describe("readSelection refusing a clauseSettings value its piece does not accept", () => {
+  it.each([
+    {
+      name: "a key the piece does not declare",
+      clauseSettings: { "CD-14#class-syntax": { module: "elsewhere.ts" } },
+      detail: "clauseSettings for CD-14#class-syntax: its piece takes no module; it takes allowedNames, style",
+    },
+    {
+      name: "a value of another JSON kind than the default",
+      clauseSettings: { "CD-14#class-syntax": { allowedNames: "Widget" } },
+      detail: "clauseSettings for CD-14#class-syntax: allowedNames must be an array, as its default is",
+    },
+    {
+      name: "a value outside the declared choices",
+      clauseSettings: { "CD-14#class-syntax": { style: "loose" } },
+      detail: "clauseSettings for CD-14#class-syntax: style must be one of \"plain\", \"strict\"",
+    },
+    {
+      name: "settings for a clause whose piece declares none",
+      clauseSettings: { "CD-14#abstract-syntax": { limit: 1 } },
+      detail: "clauseSettings for CD-14#abstract-syntax: its piece takes no settings",
+    },
+  ])("is file-malformed for $name, naming the clause, the key and what is accepted", ({ clauseSettings, detail }) => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, clauseSettings })).toEqual(
+      malformedWith({ detail }),
+    );
+  });
+
+});
+
+describe("readSelection refusing clauseSettings for the wrong clause", () => {
+  it("refuses settings for Hone's ESLint naming clause, whose piece declares no keys, as file-malformed", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-6#naming-convention": "eslint" },
+        clauseSettings: { "CD-6#naming-convention": { convention: "snake_case" } },
+      }),
+    ).toEqual(malformedWith({ detail: "clauseSettings for CD-6#naming-convention: its piece takes no settings" }));
+  });
+
+  it("refuses one clause given settings twice, bare and hone-prefixed, naming both", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#class-syntax": { style: "plain" }, "hone/CD-14#class-syntax": { style: "strict" } },
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "file-malformed",
+        path: SELECTION_PATH,
+        detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: given twice, also as hone/CD-14#class-syntax"),
+      },
+    });
+  });
+
+  it.each([
+    {
+      name: "a key that is not a clause address",
+      clauseSettings: { "CD-14 class-syntax": { limit: 1 } },
+      message: "clauseSettings for CD-14 class-syntax: not a clause address",
+    },
+    {
+      name: "a clause the file does not select",
+      clauseSettings: { "CD-14#decorator-syntax": { limit: 1 } },
+      message: "clauseSettings for CD-14#decorator-syntax: clauses does not select it",
+    },
+  ])("names the key text when clauseSettings holds $name", ({ clauseSettings, message }) => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, clauseSettings })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH, detail: expect.stringContaining(message) },
+    });
+  });
+
+  it.each([
+    { name: "a clause the file does not select", clauseSettings: { "CD-14#decorator-syntax": { limit: 1 } } },
+    { name: "a key that is not a clause address", clauseSettings: { "CD-14 class-syntax": { limit: 1 } } },
+    { name: "settings that are not an object", clauseSettings: { "CD-14#class-syntax": ["Widget"] } },
+  ])("is file-malformed for clauseSettings naming $name", ({ clauseSettings }) => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, clauseSettings })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH },
     });
   });
 });

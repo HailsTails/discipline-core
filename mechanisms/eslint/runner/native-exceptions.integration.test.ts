@@ -39,6 +39,7 @@ const ESLINT_CLAUSE: RunnerClause = {
   address: CLAUSE,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: `${INSTALL_ROOT}/mechanisms/eslint/CD-14`,
+  clauseSettings: {},
   settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
 };
 
@@ -46,6 +47,7 @@ const WALKER_CLAUSE: RunnerClause = {
   address: CLAUSE,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: `${INSTALL_ROOT}/mechanisms/audit/CD-14`,
+  clauseSettings: {},
   settings: { module: "class-syntax.ts" },
 };
 
