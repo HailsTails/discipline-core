@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { GitHistoryPort } from "../core/platform-ports/git-port.ts";
+import type { CommitRecord, GitHistoryPort } from "../core/platform-ports/git-port.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import { inMemoryFiles } from "../tests/in-memory-files.ts";
@@ -25,19 +25,23 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
+type CommitsAfter = ReturnType<GitHistoryPort["commitsAfter"]>;
+
 const historyWith = (request: {
   readonly tags: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly commits: ReturnType<GitHistoryPort["commitsAfter"]>;
+  readonly commits: CommitsAfter;
+  readonly lineCommits: CommitsAfter;
 }): GitHistoryPort => ({
   mergedTags: vi.fn<GitHistoryPort["mergedTags"]>().mockReturnValue(request.tags),
-  commitsAfter: vi.fn<GitHistoryPort["commitsAfter"]>().mockReturnValue(request.commits),
+  commitsAfter: vi.fn<GitHistoryPort["commitsAfter"]>().mockReturnValueOnce(request.commits).mockReturnValue(request.lineCommits),
 });
 
 const runWith = (request: {
   readonly arguments?: readonly string[];
   readonly files?: Readonly<Record<string, string>>;
   readonly tags?: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly commits?: ReturnType<GitHistoryPort["commitsAfter"]>;
+  readonly commits?: CommitsAfter;
+  readonly lineCommits?: CommitsAfter;
   readonly unwritablePaths?: readonly string[];
 }) => {
   const processPort = processWith({ arguments: request.arguments ?? [] });
@@ -45,9 +49,11 @@ const runWith = (request: {
     initial: request.files ?? { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": MANIFEST },
     unwritablePaths: request.unwritablePaths,
   });
+  const commits = request.commits ?? { outcome: "ok", value: COMMITS };
   const history = historyWith({
     tags: request.tags ?? { outcome: "ok", value: TAGS },
-    commits: request.commits ?? { outcome: "ok", value: COMMITS },
+    commits,
+    lineCommits: request.lineCommits ?? commits,
   });
   runReleasePullRequest({
     process: processPort,
@@ -68,11 +74,14 @@ const runWith = (request: {
 const UNCHANGED = { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": MANIFEST };
 
 describe("runReleasePullRequest preparing a release", () => {
-  it("reads the subjects merged since the latest release tag at the repository root", () => {
+  it("reads the subjects merged since the latest release tag, and since the release its line is sized from, at the repository root", () => {
     const run = runWith({});
 
     expect(vi.mocked(run.history.mergedTags).mock.calls).toEqual([[{ repoRoot: "/repo", pattern: "v*" }]]);
-    expect(vi.mocked(run.history.commitsAfter).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }]]);
+    expect(vi.mocked(run.history.commitsAfter).mock.calls).toEqual([
+      [{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }],
+      [{ repoRoot: "/repo", revision: "v0.1.0-pre.1" }],
+    ]);
   });
 
   it("writes the next pre-release's section into the changelog and its version into package.json, and says it made no tag", () => {
@@ -86,7 +95,7 @@ describe("runReleasePullRequest preparing a release", () => {
     expect(run.writes).toEqual([
       [
         {
-          text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a minor change on the pre-release channel, from 2 subjects since v0.1.0-pre.3. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
+          text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a minor change on the pre-release channel, sized from 2 subjects since v0.1.0-pre.1, with 2 subjects since v0.1.0-pre.3 in its section. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
         },
       ],
     ]);
@@ -105,14 +114,14 @@ describe("runReleasePullRequest preparing a release", () => {
     expect(run.errors).toEqual([
       [{ text: 'release-pull-request: "Squashed without a conventional title" is not a conventional subject; it is listed under Breaking changes and counted as a major.\n' }],
     ]);
-    expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "0.1.0-pre.4",\n  "private": true\n}\n');
+    expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "1.0.0-pre.1",\n  "private": true\n}\n');
   });
 
   it("counts a single subject in the singular", () => {
     expect(runWith({ commits: { outcome: "ok", value: [{ parentCount: 1, message: "fix: one" }] } }).writes).toEqual([
       [
         {
-          text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a patch change on the pre-release channel, from 1 subject since v0.1.0-pre.3. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
+          text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a patch change on the pre-release channel, sized from 1 subject since v0.1.0-pre.1, with 1 subject since v0.1.0-pre.3 in its section. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
         },
       ],
     ]);
@@ -123,6 +132,127 @@ describe("runReleasePullRequest preparing a release", () => {
 
     expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "0.1.0",\n  "private": true\n}\n');
     expect(run.texts["/repo/CHANGELOG.md"]).toContain("## 0.1.0\n");
+  });
+});
+
+const squashed = (message: string): CommitRecord => ({ parentCount: 1, message });
+
+const COMMITS_SINCE_PRE_5 = [
+  squashed("fix: reserve not-adopted from mechanism ids and make its refusals say what to do (#85)"),
+  squashed("fix: name every missing ESLint peer, the broken ESLint config and its fix, and cap report snippets (#83)"),
+  squashed("build(deps): bump zod from 4.4.3 to 4.6.6 in the npm_and_yarn group across 1 directory (#54)"),
+  squashed("docs: give every rule a spirit page and move check mechanics to CHECKS.md (#87)"),
+  squashed("docs: an assessment of what each high-count clause means, written at adoption (#90)"),
+  squashed("feat!: let a clause be adopted with its mechanism not run, and remove assessment.waivedClauses and --waived-clauses (#92)"),
+  squashed("fix(eslint): treat files under a broken nested ESLint config that a governing config ignores as ignored, as the team's ESLint does (#91)"),
+  squashed("feat: point each failing clause at its assessment section and its rule's Spirit at the end of a red check (#93)"),
+  squashed("feat(eslint)!: write a projection slice per config root, with core-validated eslintConfigRoots (#86)"),
+  squashed("fix: say why a check could not measure and what to run next (#94)"),
+  squashed("feat(cli)!: add --help and --version, word argument errors for the person typing, and document every printed line in a tested output contract (#96)"),
+  squashed("docs: state how config files and clause mechanisms change across versions (#108)"),
+  squashed("test: install every install-proof consumer with pnpm (#105)"),
+  squashed("feat!: let file records hold inline disables and TypeScript directives, and judge lint-script options by effect (#97)"),
+  squashed("feat(eslint)!: add CD-2#non-null-assertions for non-null and definite assignment assertions (#109)"),
+  squashed("chore: release 0.1.0-pre.6 (#111)"),
+  squashed("ci(release): release on merge of the release pull request instead of a hand-pushed tag (#116)"),
+  squashed("feat: export folderScope and an experimental testing entry so a team can test its audit pieces from the package (#117)"),
+  squashed("chore: release 0.1.0-pre.7 (#119)"),
+];
+
+const SIZING_CHANGE = squashed("ci(release): size every release by plain semver (#120)");
+
+const manifestAt = (request: { readonly version: string }): string => `{\n  "version": "${request.version}",\n  "private": true\n}\n`;
+
+const filesAt = (request: { readonly version: string }): Readonly<Record<string, string>> => ({
+  "/repo/CHANGELOG.md": `# Changelog\n\n## ${request.version}\n\n### Fixes\n\n- an earlier fix\n`,
+  "/repo/package.json": manifestAt(request),
+});
+
+describe("runReleasePullRequest finishing the 0.1.0 pre-release line", () => {
+  const runFromPre7 = (request: { readonly arguments: readonly string[] }) =>
+    runWith({
+      arguments: request.arguments,
+      files: filesAt({ version: "0.1.0-pre.7" }),
+      tags: { outcome: "ok", value: ["v0.1.0-pre.5", "v0.1.0-pre.6", "v0.1.0-pre.7"] },
+      commits: { outcome: "ok", value: [SIZING_CHANGE] },
+      lineCommits: { outcome: "ok", value: [...COMMITS_SINCE_PRE_5, SIZING_CHANGE] },
+    });
+
+  it("releases 1.0.0 when asked for the stable release, since the line holds breaking changes", () => {
+    const run = runFromPre7({ arguments: ["stable"] });
+
+    expect(run).toMatchObject({
+      texts: {
+        "/repo/CHANGELOG.md": "# Changelog\n\n## 1.0.0\n\n### Other changes\n\n- release: size every release by plain semver (#120)\n\n## 0.1.0-pre.7\n\n### Fixes\n\n- an earlier fix\n",
+        "/repo/package.json": manifestAt({ version: "1.0.0" }),
+      },
+      writes: [
+        [
+          {
+            text: "release-pull-request: 0.1.0-pre.7 to 1.0.0, a major change on the stable channel, sized from 20 subjects since v0.1.0-pre.5, with 1 subject since v0.1.0-pre.7 in its section. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
+          },
+        ],
+      ],
+      exits: [[{ code: 0 }]],
+    });
+    expect(vi.mocked(run.history.commitsAfter).mock.calls).toEqual([
+      [{ repoRoot: "/repo", revision: "v0.1.0-pre.7" }],
+      [{ repoRoot: "/repo", revision: "v0.1.0-pre.5" }],
+    ]);
+  });
+
+  it("starts 1.0.0's pre-release line when no channel is asked for, staying on the latest tag's channel", () => {
+    expect(runFromPre7({ arguments: [] }).texts["/repo/package.json"]).toBe(manifestAt({ version: "1.0.0-pre.1" }));
+  });
+});
+
+describe("runReleasePullRequest from the stable 1.0.0", () => {
+  const runFrom100 = (request: { readonly arguments?: readonly string[]; readonly commits: readonly CommitRecord[] }) =>
+    runWith({
+      arguments: request.arguments,
+      files: filesAt({ version: "1.0.0" }),
+      tags: { outcome: "ok", value: ["v0.1.0-pre.7", "v1.0.0"] },
+      commits: { outcome: "ok", value: request.commits },
+    });
+
+  it.each([
+    { commits: [squashed("fix: one (#1)"), squashed("docs: two (#2)")], next: "1.0.1" },
+    { commits: [squashed("fix: one (#1)"), squashed("feat: two (#2)")], next: "1.1.0" },
+    { commits: [squashed("feat: one (#1)"), squashed("fix!: two (#2)")], next: "2.0.0" },
+    { commits: [squashed("fix: one (#1)\n\nBREAKING CHANGE: renamed a key")], next: "2.0.0" },
+  ])("releases $next on the stable channel by default", ({ commits, next }) => {
+    expect(runFrom100({ commits }).texts["/repo/package.json"]).toBe(manifestAt({ version: next }));
+  });
+
+  it.each([
+    { commits: [squashed("fix: one (#1)")], next: "1.0.1-pre.1" },
+    { commits: [squashed("feat: one (#1)")], next: "1.1.0-pre.1" },
+    { commits: [squashed("feat!: one (#1)")], next: "2.0.0-pre.1" },
+  ])("starts a pre-release line at $next when asked", ({ commits, next }) => {
+    expect(runFrom100({ arguments: ["pre-release"], commits }).texts["/repo/package.json"]).toBe(manifestAt({ version: next }));
+  });
+});
+
+describe("runReleasePullRequest on a pre-release line after 1.0.0", () => {
+  const runOn110Pre1 = (request: { readonly arguments?: readonly string[]; readonly latest: CommitRecord }) =>
+    runWith({
+      arguments: request.arguments,
+      files: filesAt({ version: "1.1.0-pre.1" }),
+      tags: { outcome: "ok", value: ["v1.0.0", "v1.1.0-pre.1"] },
+      commits: { outcome: "ok", value: [request.latest] },
+      lineCommits: { outcome: "ok", value: [squashed("feat: one (#1)"), request.latest] },
+    });
+
+  it("moves to the next pre-release number while the line's changes since 1.0.0 fit the minor it is numbered towards", () => {
+    expect(runOn110Pre1({ latest: squashed("fix: two (#2)") }).texts["/repo/package.json"]).toBe(manifestAt({ version: "1.1.0-pre.2" }));
+  });
+
+  it("finishes the line as 1.1.0 when asked for the stable release", () => {
+    expect(runOn110Pre1({ arguments: ["stable"], latest: squashed("fix: two (#2)") }).texts["/repo/package.json"]).toBe(manifestAt({ version: "1.1.0" }));
+  });
+
+  it("starts 2.0.0's line when a breaking change lands", () => {
+    expect(runOn110Pre1({ latest: squashed("fix!: two (#2)") }).texts["/repo/package.json"]).toBe(manifestAt({ version: "2.0.0-pre.1" }));
   });
 });
 
