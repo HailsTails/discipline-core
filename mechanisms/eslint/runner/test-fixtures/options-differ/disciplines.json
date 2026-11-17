@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "ruleSets": {},
-  "clauses": {
-    "CD-40#parameter-count": "eslint"
-  }
-}

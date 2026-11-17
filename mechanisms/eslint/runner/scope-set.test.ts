@@ -81,6 +81,9 @@ const teamWithEntry = (request: { readonly entry: readonly [0 | 1 | 2, ...unknow
 const DIFFERING_RULE_ENTRIES: readonly { readonly label: string; readonly team: ResolvedConfig }[] = [
   { label: "turns the rule off", team: teamWithEntry({ entry: [0, { allowStatic: false, allowEmpty: true }] }) },
   { label: "sets the rule to warn", team: teamWithEntry({ entry: [1, { allowStatic: false, allowEmpty: true }] }) },
+];
+
+const DIFFERING_OPTIONS: readonly { readonly label: string; readonly team: ResolvedConfig }[] = [
   { label: "gives the rule other options", team: teamWithEntry({ entry: [2, { allowStatic: true, allowEmpty: true }] }) },
   { label: "leaves out an option key", team: teamWithEntry({ entry: [2, { allowStatic: false }] }) },
   { label: "gives the rule fewer options", team: teamWithEntry({ entry: [2] }) },
@@ -109,6 +112,16 @@ describe("scopeSetPartition over the rule entries of the team's configuration", 
     });
   });
 
+  it.each(DIFFERING_OPTIONS)(
+    "puts a file in the scope set when the team's configuration $label, option comparison pinned here only and not proven by report comparison",
+    ({ team }) => {
+      expect(partitionOf({ files: [fileConfigs({ team })] })).toEqual({
+        scopeSet: [{ file: FILE, reasons: ["rule-differs"] }],
+        rest: [],
+      });
+    },
+  );
+
   it("puts a file in the scope set when the team's configuration leaves the rule out", () => {
     expect(partitionOf({ files: [fileConfigs({ team: { ...MATCHING_TEAM, rules: {} } })] })).toEqual({
       scopeSet: [{ file: FILE, reasons: ["rule-differs"] }],
@@ -116,7 +129,7 @@ describe("scopeSetPartition over the rule entries of the team's configuration", 
     });
   });
 
-  it("matches the same options written in another key order", () => {
+  it("matches the same options written in another key order, option comparison pinned here only and not proven by report comparison", () => {
     expect(
       partitionOf({
         files: [

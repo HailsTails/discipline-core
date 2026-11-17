@@ -249,6 +249,7 @@ const checkedText = (request: RecordedSetUp): Promise<string> =>
     installRoot: request.set.subject.installRoot,
     moduleExtension: ".ts",
     baseRevision: undefined,
+    forfeiture: "this-run",
     fileText: request.set.subject.fileText,
     modules: modulesServingRunner({
       runnerSuffix: ESLINT_RUNNER_SUFFIX,

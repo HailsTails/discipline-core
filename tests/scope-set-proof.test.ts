@@ -53,11 +53,6 @@ const IDENTITY_FIXTURES = [
     partition: { scopeSet: [{ file: "gen/g.ts", reasons: ["ignored"] }], rest: ["src/clean.ts"] },
   },
   {
-    fixture: "options-differ",
-    tracked: ["narrow.ts", "wide.ts"],
-    partition: { scopeSet: [{ file: "wide.ts", reasons: ["rule-differs"] }], rest: ["narrow.ts"] },
-  },
-  {
     fixture: "route-brackets",
     tracked: ["route/[id].ts", "route/i.ts"],
     partition: { scopeSet: [{ file: "route/[id].ts", reasons: ["rule-differs"] }], rest: ["route/i.ts"] },
@@ -202,7 +197,6 @@ const AS_CONFIGURED_FIXTURES = [
   { fixture: "override-after", tracked: ["x.ts"], partition: EVERY_FILE_IN_SCOPE },
   { fixture: "global-ignore", tracked: ["gen/g.ts", "src/clean.ts"], partition: EVERY_FILE_IN_SCOPE },
   { fixture: "severity-zero", tracked: ["x.ts"], partition: EVERY_FILE_IN_SCOPE },
-  { fixture: "options-differ", tracked: ["narrow.ts", "wide.ts"], partition: EVERY_FILE_IN_SCOPE },
   { fixture: "re-enabled-record", tracked: ["src/owned.ts"], partition: NO_GOVERNANCE_LINT },
   { fixture: "suppression-default", tracked: ["supp/a.ts", "eslint-suppressions.json"], partition: EVERY_FILE_IN_SCOPE },
   {
