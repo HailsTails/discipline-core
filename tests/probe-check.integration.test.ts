@@ -55,6 +55,9 @@ const FILES: Readonly<Record<string, FakeFile>> = {
   "/repo/src/plain.ts": presentFile({ text: PLAIN_SOURCE }),
   "/repo/src/plain.test.ts": presentFile({ text: PLAIN_TEST_SOURCE }),
   "/repo/README.md": presentFile({ text: "# probe\n" }),
+  "/repo/disciplines.assessment.md": presentFile({ text: "# Disciplines assessment\n\n## probe/PD-1#no-tmp-files\n\n- **Cause here:** scratch files\n" }),
+  "/repo/probe/rules/PD-1/README.md": ABSENT_FILE,
+  "/install/rules/CD-23/README.md": presentFile({ text: "# CD-23\n" }),
 };
 
 const fileText: FileTextPort = {
@@ -150,6 +153,18 @@ describe("a check selecting the probe rule set's PD-1 beside CD-23 through the a
         unmeasured: [],
         projectionProblems: [],
         assessment: [],
+        readFirst: [
+          {
+            clause: PROBE_ADDRESS,
+            assessmentSection: "present",
+            rulePage: { path: "probe/rules/PD-1/README.md", presence: "absent" },
+          },
+          {
+            clause: EXPORT_TEST_SIBLING_ADDRESS,
+            assessmentSection: "missing",
+            rulePage: { path: "../install/rules/CD-23/README.md", presence: "present" },
+          },
+        ],
       },
     });
   });

@@ -2,7 +2,8 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, PartialAssessment, Unmeasured } from "./check-report.ts";
+import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
+import type { CheckReport, ClauseReading, PartialAssessment, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -94,6 +95,28 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
   }
 };
 
+const assessmentDirection = (request: { readonly reading: ClauseReading }): string => {
+  const heading = JSON.stringify(assessmentSectionHeading(request.reading));
+  switch (request.reading.assessmentSection) {
+    case "present":
+      return `read the ${heading} section of ${ASSESSMENT_FILE_NAME}`;
+    case "missing":
+      return `${ASSESSMENT_FILE_NAME} has no ${heading} section`;
+    case "no-file":
+      return `no ${ASSESSMENT_FILE_NAME}`;
+    case "unreadable":
+      return `${ASSESSMENT_FILE_NAME} could not be read`;
+  }
+};
+
+const rulePageDirection = (request: { readonly reading: ClauseReading }): string =>
+  request.reading.rulePage.presence === "present"
+    ? `read ${request.reading.rulePage.path}#spirit`
+    : `no rule page at ${request.reading.rulePage.path}`;
+
+const readFirstLine = (request: { readonly reading: ClauseReading }): string =>
+  `${clauseAddressText({ address: request.reading.clause })}: ${assessmentDirection(request)}; ${rulePageDirection(request)}`;
+
 type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
@@ -119,6 +142,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   projectionProblems: (request) =>
     request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
+  readFirst: (request) => request.report.readFirst.map((reading) => readFirstLine({ reading })),
 };
 
 const reportSections = (request: { readonly report: CheckReport }): readonly ReportSection[] =>

@@ -8,6 +8,7 @@ import type {
   ExemptedFinding,
   Finding,
 } from "../governance/governance.ts";
+import type { FilePresence } from "../platform-ports/file-text-port.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -33,6 +34,14 @@ export type ProjectionProblem = {
   readonly state: "out-of-date";
 };
 
+export type AssessmentSection = "present" | "missing" | "no-file" | "unreadable";
+
+export type ClauseReading = {
+  readonly clause: ClauseAddress;
+  readonly assessmentSection: AssessmentSection;
+  readonly rulePage: { readonly path: string; readonly presence: FilePresence };
+};
+
 export type CheckReport = {
   readonly excluded: readonly RepoPath[];
   readonly notAdopted: readonly ClauseAddress[];
@@ -48,4 +57,5 @@ export type CheckReport = {
   readonly unmeasured: readonly Unmeasured[];
   readonly projectionProblems: readonly ProjectionProblem[];
   readonly assessment: readonly PartialAssessment[];
+  readonly readFirst: readonly ClauseReading[];
 };

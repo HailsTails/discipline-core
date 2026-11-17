@@ -57,7 +57,7 @@ const ESLINT_CONSUMER_ACTIONS: readonly ProofAction[] = [
   { kind: "commit", message: "project" },
   {
     kind: "check",
-    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
+    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nreadFirst (1)\nCD-14#class-syntax: no disciplines.assessment.md; read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
   },
 ];
 
@@ -66,7 +66,7 @@ const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: {
       exitCode: 1,
-      output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (1)\nCD-23#export-test-sibling: no disciplines.assessment.md; read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n",
     },
   },
 ];
@@ -99,6 +99,9 @@ const TEAM_RULE_SET = "tools/disciplines/acme";
 const TEAM_FINDINGS_REPORT = `findings (2)
 acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
 acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
+readFirst (2)
+acme/ACME-1#console-calls: no disciplines.assessment.md; no rule page at tools/disciplines/acme/rules/ACME-1/README.md
+acme/ACME-2#scratch-files: no disciplines.assessment.md; no rule page at tools/disciplines/acme/rules/ACME-2/README.md
 verdict: fail
 `;
 
