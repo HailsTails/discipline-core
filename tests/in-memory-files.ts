@@ -54,6 +54,7 @@ const listedUnder = (request: { readonly files: ReadonlyMap<string, string>; rea
 export const inMemoryFiles = (request: {
   readonly initial: Readonly<Record<string, string>>;
   readonly unwritablePaths?: readonly string[];
+  readonly links?: Readonly<Record<string, string>>;
 }): InMemoryFiles => {
   const files = new Map(Object.entries(request.initial));
   const temporaryRoots = { created: 0 };
@@ -107,6 +108,15 @@ export const inMemoryFiles = (request: {
         return text === undefined
           ? { outcome: "failed", error: { kind: "effect-failed", detail: `ENOENT ${path}` } }
           : { outcome: "ok", value: `digest of ${text}` };
+      },
+      realPathOf: ({ path }) => {
+        const linked = request.links?.[path];
+        if (linked !== undefined) {
+          return { outcome: "ok", value: linked };
+        }
+        return [...files.keys()].some((candidate) => placementOf({ path: candidate, folder: path }) === "inside")
+          ? { outcome: "ok", value: path }
+          : { outcome: "failed", error: { kind: "effect-failed", detail: `ENOENT ${path}` } };
       },
     },
   };

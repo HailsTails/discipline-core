@@ -23,15 +23,41 @@ const DEVELOPMENT_MANIFEST = JSON.stringify({
   devDependencies: { esbuild: "0.25.12" },
 });
 
-const LOCK = '{ "lockfileVersion": 1, "packages": { "zod": ["zod@4.4.3", "", {}, "sha512-a"], }, }';
+const LOCK = `lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+snapshots:
+  zod@4.4.3: {}
+`;
 
-const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
+const LOCK_HOLDING_ZOD_TWICE = `lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+snapshots:
+  zod@4.4.3:
+    dependencies:
+      other: 1.0.0
+  other@1.0.0:
+    dependencies:
+      zod: 4.4.2
+  zod@4.4.2: {}
+`;
+
+const SOURCE_WITHOUT_INSTALLED_ZOD: Readonly<Record<string, string>> = {
   "/package/package.json": DEVELOPMENT_MANIFEST,
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
   "/package/README.md": "# Hone\n\n[Rules](rules/CD-15/README.md)\n",
   "/package/LICENSE": "MIT No Attribution\n",
-  "/package/bun.lock": LOCK,
+  "/package/pnpm-lock.yaml": LOCK,
   "/package/core/check/tool-command.ts": "await run();\n",
   "/package/core/check/run-check.test.ts": "test\n",
   "/package/core/tests/helper.ts": "export const helper = 1;\n",
@@ -41,6 +67,10 @@ const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
   "/package/rules/CD-15/discipline.json": '{ "version": 1 }\n',
   "/package/rules/CD-15/README.md": "# CD-15\n",
   "/package/docs/why-chain-contract.md": "# Why-chain contract\n",
+};
+
+const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
+  ...SOURCE_WITHOUT_INSTALLED_ZOD,
   "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.3", "license": "MIT" }',
 };
 
@@ -231,7 +261,7 @@ describe("buildPackage", () => {
     });
   });
 
-  it("fails naming a bundled package whose version is not the one core's bun lock holds, writing nothing", async () => {
+  it("fails naming a bundled package whose version is not the one core's lock holds, writing nothing", async () => {
     const { files, built } = builtWith({
       source: { ...SOURCE, "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.2", "license": "MIT" }' },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
@@ -240,29 +270,26 @@ describe("buildPackage", () => {
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
-        error: "FAIL: bundle: a bundled package is not the one bun.lock locks: zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3",
+        error: "FAIL: bundle: a bundled package is not the one pnpm-lock.yaml locks: zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3",
       },
       written: NOTHING_WRITTEN,
     });
   });
 
-  it("fails naming a bundled package the lock holds only for development, outside the closure of core's dependencies, writing nothing", async () => {
+  it("fails naming a dependency of core the lock holds at two versions, which a flat stage cannot place, writing nothing", async () => {
     const { files, built } = builtWith({
       source: {
         ...SOURCE,
-        "/package/bun.lock":
-          '{ "lockfileVersion": 1, "packages": { "is-glob": ["is-glob@4.0.3", "", {}, "sha512-b"], "zod": ["zod@4.4.3", "", {}, "sha512-a"], }, }',
-        "/deps/is-glob/package.json": '{ "name": "is-glob", "version": "4.0.3", "license": "MIT" }',
-        "/deps/is-glob/LICENSE": "MIT License\n",
+        "/package/pnpm-lock.yaml": LOCK_HOLDING_ZOD_TWICE,
       },
-      bundler: bundlerReturning({ outcome: "ok", value: { ...BUNDLE, packageRoots: ["node_modules/zod", "node_modules/is-glob"] } }),
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
         error:
-          "FAIL: bundle: a bundled package is not the one bun.lock locks: is-glob 4.0.3 at node_modules/is-glob, which is not in the closure of core's dependencies in the lock",
+          "FAIL: read /package/pnpm-lock.yaml: core's dependencies in the lock hold zod at more than one version, which a flat stage cannot place",
       },
       written: NOTHING_WRITTEN,
     });
@@ -306,6 +333,18 @@ describe("buildPackage", () => {
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: { outcome: "failed", error: "FAIL: bundle zod: it ships no licence file to reproduce" },
+      written: NOTHING_WRITTEN,
+    });
+  });
+
+  it("fails naming a dependency of core that is not installed, writing nothing", async () => {
+    const { files, built } = builtWith({
+      source: SOURCE_WITHOUT_INSTALLED_ZOD,
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
+      result: { outcome: "failed", error: "FAIL: locate the installed packages: zod is not installed at /deps/zod: ENOENT /deps/zod" },
       written: NOTHING_WRITTEN,
     });
   });

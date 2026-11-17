@@ -108,6 +108,7 @@ const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => 
   copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue({ outcome: "ok", value: null }),
   listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE }),
   digestOf: vi.fn<ScratchFilesPort["digestOf"]>().mockReturnValue({ outcome: "ok", value: "digest" }),
+  realPathOf: vi.fn<ScratchFilesPort["realPathOf"]>().mockReturnValue({ outcome: "ok", value: "/real" }),
   ...overrides,
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
+import type { LockedPackage } from "./pnpm-lock.ts";
 
 const output = (request: {
   readonly path: string;
@@ -83,91 +84,75 @@ describe("misplacedEntriesOf", () => {
   });
 });
 
-const LOCK = `{
-  "lockfileVersion": 1,
-  "workspaces": {
-    "": { "dependencies": { "zod": "4.4.3" } },
-  },
-  "packages": {
-    "@eslint/core": ["@eslint/core@0.9.0", "", {}, "sha512-e"],
-    "@eslint/plugin-kit": ["@eslint/plugin-kit@0.7.3", "", { "dependencies": { "@eslint/core": "^1.2.1", "levn": "^0.4.1" } }, "sha512-a"],
-    "@eslint/plugin-kit/@eslint/core": ["@eslint/core@1.2.1", "", {}, "sha512-b"],
-    "is-glob": ["is-glob@4.0.3", "", { "optionalDependencies": { "is-extglob": "^2.1.1" } }, "sha512-f"],
-    "is-extglob": ["is-extglob@2.1.1", "", {}, "sha512-g"],
-    "levn": ["levn@0.4.1", "", { "optionalDependencies": { "type-check": "~0.4.0" } }, "sha512-c"],
-    "type-check": ["type-check@0.4.0", "", {}, "sha512-h"],
-    "zod": ["zod@4.4.3", "", {}, "sha512-d"],
-  }
-}
-`;
+const CLOSURE: readonly LockedPackage[] = [
+  { name: "zod", version: "4.4.3" },
+  { name: "@eslint/plugin-kit", version: "0.7.3" },
+  { name: "@eslint/core", version: "1.2.1" },
+  { name: "levn", version: "0.4.1" },
+  { name: "type-check", version: "0.4.0" },
+];
 
 describe("unlockedPackagesOf", () => {
-  it("accepts packages bundled from core's own install, nested ones included, at the versions its bun lock holds", () => {
+  it("accepts packages bundled at the versions the lock holds in the closure of core's dependencies", () => {
     expect(
       unlockedPackagesOf({
         bundled: [
           { root: "node_modules/zod", name: "zod", version: "4.4.3" },
           { root: "node_modules/levn", name: "levn", version: "0.4.1" },
-          { root: "node_modules/@eslint/plugin-kit/node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
+          { root: "node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
           { root: "node_modules/type-check", name: "type-check", version: "0.4.0" },
         ],
-        lockText: LOCK,
-        dependencies: ["zod", "@eslint/plugin-kit"],
+        closure: CLOSURE,
       }),
-    ).toEqual({ outcome: "ok", value: [] });
+    ).toEqual([]);
   });
 
-  it("names a bundled package the lock holds only for development, outside the closure of core's dependencies", () => {
+  it("names a bundled package at another version than the one the lock holds", () => {
+    expect(
+      unlockedPackagesOf({ bundled: [{ root: "node_modules/zod", name: "zod", version: "4.4.2" }], closure: CLOSURE }),
+    ).toEqual(["zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3"]);
+  });
+
+  it("names a bundled package outside the closure of core's dependencies in the lock", () => {
     expect(
       unlockedPackagesOf({
         bundled: [
           { root: "node_modules/is-glob", name: "is-glob", version: "4.0.3" },
-          { root: "node_modules/is-extglob", name: "is-extglob", version: "2.1.1" },
-          { root: "node_modules/@eslint/core", name: "@eslint/core", version: "0.9.0" },
+          { root: "node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" },
         ],
-        lockText: LOCK,
-        dependencies: ["zod", "@eslint/plugin-kit"],
+        closure: CLOSURE,
       }),
-    ).toEqual({
-      outcome: "ok",
-      value: [
-        "is-glob 4.0.3 at node_modules/is-glob, which is not in the closure of core's dependencies in the lock",
-        "is-extglob 2.1.1 at node_modules/is-extglob, which is not in the closure of core's dependencies in the lock",
-        "@eslint/core 0.9.0 at node_modules/@eslint/core, which is not in the closure of core's dependencies in the lock",
-      ],
-    });
+    ).toEqual([
+      "is-glob 4.0.3 at node_modules/is-glob, which is not in the closure of core's dependencies in the lock",
+      "prelude-ls 1.2.1 at node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
+    ]);
   });
 
-  it("names a package bundled at another version, one the lock does not hold, and one from outside core's own install", () => {
+  it("names a bundled package that did not come from its own staged folder, one from outside core's install and a nested one", () => {
     expect(
       unlockedPackagesOf({
         bundled: [
-          { root: "node_modules/zod", name: "zod", version: "4.4.2" },
-          { root: "node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" },
           { root: "../../node_modules/levn", name: "levn", version: "0.4.1" },
+          { root: "node_modules/@eslint/plugin-kit/node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
         ],
-        lockText: LOCK,
-        dependencies: ["zod", "@eslint/plugin-kit"],
+        closure: CLOSURE,
       }),
-    ).toEqual({
-      outcome: "ok",
-      value: [
-        "zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3",
-        "prelude-ls 1.2.1 at node_modules/prelude-ls, which the lock does not hold",
-        "levn 0.4.1 at ../../node_modules/levn, which the lock does not hold",
-      ],
-    });
+    ).toEqual([
+      "levn 0.4.1 at ../../node_modules/levn, which is not the staged node_modules/levn",
+      "@eslint/core 1.2.1 at node_modules/@eslint/plugin-kit/node_modules/@eslint/core, which is not the staged node_modules/@eslint/core",
+    ]);
   });
 
-  it("fails naming a dependency of core the lock does not hold", () => {
-    expect(unlockedPackagesOf({ bundled: [], lockText: LOCK, dependencies: ["zod", "esbuild"] })).toEqual({
-      outcome: "failed",
-      error: "core depends on esbuild, which the lock does not hold",
-    });
-  });
-
-  it("fails when the lock is not a bun lock", () => {
-    expect(unlockedPackagesOf({ bundled: [], lockText: "{}", dependencies: [] })).toMatchObject({ outcome: "failed" });
+  it("names both problems of a package that is outside the closure and not at its staged folder", () => {
+    expect(
+      unlockedPackagesOf({
+        bundled: [{ root: "../../node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" }],
+        closure: CLOSURE,
+      }),
+    ).toEqual([
+      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not the staged node_modules/prelude-ls",
+      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
+    ]);
   });
 });
 
