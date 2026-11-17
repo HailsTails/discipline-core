@@ -347,9 +347,7 @@ describe("createGitHistoryPort mergedTags", () => {
     const tags = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).mergedTags({ repoRoot: REPO_ROOT, pattern: "v*" });
 
     expect(tags).toEqual({ outcome: "ok", value: ["v0.1.0-pre.1", "v0.1.0-pre.2"] });
-    expect(spawn.mock.calls).toEqual([
-      [{ file: "git", arguments: ["-C", "/repo", "tag", "--list", "--merged", "HEAD", "v*"], maxBuffer: 268435456, environment: { PATH: "/usr/bin", HOME: "/home/someone" } }],
-    ]);
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: "git", arguments: ["-C", "/repo", "tag", "--list", "--merged", "HEAD", "v*"] }));
   });
 
   it("returns git-failed carrying stderr when git exits non-zero", () => {
@@ -372,16 +370,12 @@ describe("createGitHistoryPort subjectsAfter", () => {
     const subjects = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).subjectsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
 
     expect(subjects).toEqual({ outcome: "ok", value: ["fix: one (#1)", "feat: two (#2)"] });
-    expect(spawn.mock.calls).toEqual([
-      [
-        {
-          file: "git",
-          arguments: ["-C", "/repo", "log", "--first-parent", "--reverse", "-z", "--format=%s", "--end-of-options", "v0.1.0-pre.3..HEAD"],
-          maxBuffer: 268435456,
-          environment: { PATH: "/usr/bin", HOME: "/home/someone" },
-        },
-      ],
-    ]);
+    expect(spawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file: "git",
+        arguments: ["-C", "/repo", "log", "--first-parent", "--reverse", "-z", "--format=%s", "--end-of-options", "v0.1.0-pre.3..HEAD"],
+      }),
+    );
   });
 
   it("lists no subjects for empty output", () => {

@@ -60,7 +60,7 @@ const runWith = (request: {
 
 const UNCHANGED = { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": MANIFEST };
 
-describe("runReleasePullRequest", () => {
+describe("runReleasePullRequest preparing a release", () => {
   it("reads the subjects merged since the latest release tag at the repository root", () => {
     const run = runWith({});
 
@@ -108,7 +108,9 @@ describe("runReleasePullRequest", () => {
     expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "0.1.0",\n  "private": true\n}\n');
     expect(run.texts["/repo/CHANGELOG.md"]).toContain("## 0.1.0\n");
   });
+});
 
+describe("runReleasePullRequest refusing on the repository's state", () => {
   it("refuses to prepare a release with no subjects since the tag", () => {
     const run = runWith({ subjects: { outcome: "ok", value: [] } });
 
@@ -156,7 +158,9 @@ describe("runReleasePullRequest", () => {
       exits: [[{ code: 1 }]],
     });
   });
+});
 
+describe("runReleasePullRequest refusing on failures and usage", () => {
   it("refuses when git fails", () => {
     const run = runWith({
       subjects: { outcome: "failed", error: { kind: "git-failed", command: "git log", detail: "fatal: bad revision" } },

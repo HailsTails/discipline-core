@@ -12,24 +12,24 @@ import {
   versionText,
 } from "./release-version.ts";
 
-const parsed = (request: { readonly text: string }): Version => {
-  const version = versionOf(request);
-  if (version.outcome === "failed") {
-    throw new Error(version.error);
-  }
-  return version.value;
-};
+type VersionCore = { readonly major: number; readonly minor: number; readonly patch: number };
+
+const stable = (request: VersionCore): Version => ({ ...request, preRelease: undefined });
+
+const pre = (request: VersionCore & { readonly number: number }): Version => ({
+  major: request.major,
+  minor: request.minor,
+  patch: request.patch,
+  preRelease: { identifier: "pre", number: request.number },
+});
 
 describe("versionOf", () => {
   it("reads a stable version", () => {
-    expect(versionOf({ text: "1.2.3" })).toEqual({ outcome: "ok", value: { major: 1, minor: 2, patch: 3, preRelease: undefined } });
+    expect(versionOf({ text: "1.2.3" })).toEqual({ outcome: "ok", value: stable({ major: 1, minor: 2, patch: 3 }) });
   });
 
   it("reads a numbered pre-release", () => {
-    expect(versionOf({ text: "0.1.0-pre.3" })).toEqual({
-      outcome: "ok",
-      value: { major: 0, minor: 1, patch: 0, preRelease: { identifier: "pre", number: 3 } },
-    });
+    expect(versionOf({ text: "0.1.0-pre.3" })).toEqual({ outcome: "ok", value: pre({ major: 0, minor: 1, patch: 0, number: 3 }) });
   });
 
   it.each(["1.2", "v1.2.3", "01.2.3", "1.2.3-pre", "1.2.3-pre.01", "1.2.3+build.1", "1.2.3-pre.1.2"])("refuses %s", (text) => {
@@ -38,18 +38,23 @@ describe("versionOf", () => {
       error: `${text} is not a version this script prepares: major.minor.patch, optionally followed by -<identifier>.<number>`,
     });
   });
+});
 
-  it.each(["1.2.3", "0.1.0-pre.3"])("writes %s back as it was read", (text) => {
-    expect(versionText({ version: parsed({ text }) })).toBe(text);
+describe("versionText", () => {
+  it.each([
+    { version: stable({ major: 1, minor: 2, patch: 3 }), text: "1.2.3" },
+    { version: pre({ major: 0, minor: 1, patch: 0, number: 3 }), text: "0.1.0-pre.3" },
+  ])("writes $text", ({ version, text }) => {
+    expect(versionText({ version })).toBe(text);
   });
 });
 
 describe("channelOf", () => {
   it.each([
-    ["0.1.0-pre.3", "pre-release"],
-    ["1.2.3", "stable"],
-  ] as const)("puts %s on the %s channel", (text, channel) => {
-    expect(channelOf({ version: parsed({ text }) })).toBe(channel);
+    { version: pre({ major: 0, minor: 1, patch: 0, number: 3 }), channel: "pre-release" },
+    { version: stable({ major: 1, minor: 2, patch: 3 }), channel: "stable" },
+  ] satisfies ReadonlyArray<{ readonly version: Version; readonly channel: ReleaseChannel }>)("puts a version on the $channel channel", ({ version, channel }) => {
+    expect(channelOf({ version })).toBe(channel);
   });
 });
 
@@ -57,14 +62,14 @@ describe("latestReleaseOf", () => {
   it("picks the highest release tag, ranking a stable release above its pre-releases", () => {
     expect(latestReleaseOf({ tags: ["v0.1.0-pre.1", "v0.1.0", "v0.1.0-pre.3", "v0.1.0-pre.2", "backup-pre1-before-rewrite"] })).toEqual({
       outcome: "ok",
-      value: { tag: "v0.1.0", version: parsed({ text: "0.1.0" }) },
+      value: { tag: "v0.1.0", version: stable({ major: 0, minor: 1, patch: 0 }) },
     });
   });
 
   it("ranks pre-releases by number, not as text", () => {
     expect(latestReleaseOf({ tags: ["v0.1.0-pre.9", "v0.1.0-pre.10", "v0.0.9"] })).toEqual({
       outcome: "ok",
-      value: { tag: "v0.1.0-pre.10", version: parsed({ text: "0.1.0-pre.10" }) },
+      value: { tag: "v0.1.0-pre.10", version: pre({ major: 0, minor: 1, patch: 0, number: 10 }) },
     });
   });
 
@@ -77,46 +82,50 @@ describe("latestReleaseOf", () => {
 });
 
 describe("releaseSizeOf", () => {
-  const sizeOf = (subjects: readonly string[]) => releaseSizeOf({ entries: subjects.map((subject) => changeEntryOf({ subject })) });
-
   it("is a major for any breaking subject", () => {
-    expect(sizeOf(["fix: one", "docs!: rename an address", "feat: two"])).toBe("major");
+    expect(
+      releaseSizeOf({
+        entries: [changeEntryOf({ subject: "fix: one" }), changeEntryOf({ subject: "docs!: rename an address" }), changeEntryOf({ subject: "feat: two" })],
+      }),
+    ).toBe("major");
   });
 
   it("is a minor for a feature without a breaking subject", () => {
-    expect(sizeOf(["fix: one", "feat: two"])).toBe("minor");
+    expect(releaseSizeOf({ entries: [changeEntryOf({ subject: "fix: one" }), changeEntryOf({ subject: "feat: two" })] })).toBe("minor");
   });
 
   it("is a patch for any other conventional or unclassified subject", () => {
-    expect(sizeOf(["chore: one", "Keep versions out of the docs (#20)"])).toBe("patch");
+    expect(
+      releaseSizeOf({ entries: [changeEntryOf({ subject: "chore: one" }), changeEntryOf({ subject: "Keep versions out of the docs (#20)" })] }),
+    ).toBe("patch");
   });
 
   it("is nothing for no subjects", () => {
-    expect(sizeOf([])).toBe("nothing");
+    expect(releaseSizeOf({ entries: [] })).toBe("nothing");
   });
 });
 
 describe("nextVersionOf", () => {
   it.each([
-    ["0.1.0-pre.3", "patch", "pre-release", "0.1.0-pre.4"],
-    ["0.1.0-pre.3", "minor", "pre-release", "0.1.0-pre.4"],
-    ["0.1.0-pre.3", "major", "pre-release", "0.1.0-pre.4"],
-    ["0.1.0-pre.3", "patch", "stable", "0.1.0"],
-    ["0.1.1-pre.2", "minor", "pre-release", "0.2.0-pre.1"],
-    ["1.0.0-pre.2", "major", "pre-release", "1.0.0-pre.3"],
-    ["1.1.0-pre.2", "major", "stable", "2.0.0"],
-    ["1.1.0-pre.2", "minor", "stable", "1.1.0"],
-    ["1.2.3", "patch", "stable", "1.2.4"],
-    ["1.2.3", "minor", "stable", "1.3.0"],
-    ["1.2.3", "major", "stable", "2.0.0"],
-    ["1.2.3", "major", "pre-release", "2.0.0-pre.1"],
-    ["0.3.4", "major", "stable", "0.4.0"],
-    ["0.3.4", "minor", "stable", "0.4.0"],
-    ["0.3.4", "patch", "stable", "0.3.5"],
-  ] satisfies ReadonlyArray<readonly [string, ReleaseSize, ReleaseChannel, string]>)(
-    "takes %s with a %s change on the %s channel to %s",
-    (current, size, channel, next) => {
-      expect(versionText({ version: nextVersionOf({ current: parsed({ text: current }), size, channel }) })).toBe(next);
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "patch", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "minor", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "major", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "patch", channel: "stable", next: stable({ major: 0, minor: 1, patch: 0 }) },
+    { current: pre({ major: 0, minor: 1, patch: 1, number: 2 }), size: "minor", channel: "pre-release", next: pre({ major: 0, minor: 2, patch: 0, number: 1 }) },
+    { current: pre({ major: 1, minor: 0, patch: 0, number: 2 }), size: "major", channel: "pre-release", next: pre({ major: 1, minor: 0, patch: 0, number: 3 }) },
+    { current: pre({ major: 1, minor: 1, patch: 0, number: 2 }), size: "major", channel: "stable", next: stable({ major: 2, minor: 0, patch: 0 }) },
+    { current: pre({ major: 1, minor: 1, patch: 0, number: 2 }), size: "minor", channel: "stable", next: stable({ major: 1, minor: 1, patch: 0 }) },
+    { current: stable({ major: 1, minor: 2, patch: 3 }), size: "patch", channel: "stable", next: stable({ major: 1, minor: 2, patch: 4 }) },
+    { current: stable({ major: 1, minor: 2, patch: 3 }), size: "minor", channel: "stable", next: stable({ major: 1, minor: 3, patch: 0 }) },
+    { current: stable({ major: 1, minor: 2, patch: 3 }), size: "major", channel: "stable", next: stable({ major: 2, minor: 0, patch: 0 }) },
+    { current: stable({ major: 1, minor: 2, patch: 3 }), size: "major", channel: "pre-release", next: pre({ major: 2, minor: 0, patch: 0, number: 1 }) },
+    { current: stable({ major: 0, minor: 3, patch: 4 }), size: "major", channel: "stable", next: stable({ major: 0, minor: 4, patch: 0 }) },
+    { current: stable({ major: 0, minor: 3, patch: 4 }), size: "minor", channel: "stable", next: stable({ major: 0, minor: 4, patch: 0 }) },
+    { current: stable({ major: 0, minor: 3, patch: 4 }), size: "patch", channel: "stable", next: stable({ major: 0, minor: 3, patch: 5 }) },
+  ] satisfies ReadonlyArray<{ readonly current: Version; readonly size: ReleaseSize; readonly channel: ReleaseChannel; readonly next: Version }>)(
+    "case $#: a $size change on the $channel channel",
+    ({ current, size, channel, next }) => {
+      expect(nextVersionOf({ current, size, channel })).toEqual(next);
     },
   );
 });

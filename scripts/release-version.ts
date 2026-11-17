@@ -115,8 +115,10 @@ const sizeTargetedBy = (request: { readonly version: Version }): ReleaseSize => 
   return request.version.minor !== 0 ? "minor" : "major";
 };
 
-const fitsTarget = (request: { readonly size: ReleaseSize; readonly target: ReleaseSize }): boolean =>
-  SIZES_LARGEST_FIRST.indexOf(request.size) >= SIZES_LARGEST_FIRST.indexOf(request.target);
+type TargetFit = "within-target" | "beyond-target";
+
+const targetFitOf = (request: { readonly size: ReleaseSize; readonly target: ReleaseSize }): TargetFit =>
+  SIZES_LARGEST_FIRST.indexOf(request.size) >= SIZES_LARGEST_FIRST.indexOf(request.target) ? "within-target" : "beyond-target";
 
 const incremented = (request: { readonly version: Version; readonly size: ReleaseSize }): Version => {
   switch (request.size) {
@@ -135,7 +137,7 @@ const onChannel = (request: { readonly version: Version; readonly channel: Relea
 export const nextVersionOf = (request: { readonly current: Version; readonly size: ReleaseSize; readonly channel: ReleaseChannel }): Version => {
   const size = sizeWithinInitialDevelopment({ current: request.current, size: request.size });
   const currentPreRelease = request.current.preRelease;
-  if (currentPreRelease !== undefined && fitsTarget({ size, target: sizeTargetedBy({ version: request.current }) })) {
+  if (currentPreRelease !== undefined && targetFitOf({ size, target: sizeTargetedBy({ version: request.current }) }) === "within-target") {
     return onChannel({
       version: request.current,
       channel: request.channel,

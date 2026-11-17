@@ -18,8 +18,8 @@ const readingText = (request: { readonly subject: ConventionalSubject }): string
   `pull request title: ${request.subject.type}, ${request.subject.scope === undefined ? "no scope" : `${request.subject.scope} scope`}, ${request.subject.compatibility}`;
 
 export const runPullRequestTitleCheck = (request: { readonly process: ProcessPort }): void => {
-  const [title, ...extra] = request.process.arguments;
-  if (title === undefined || extra.length > 0) {
+  const [title, ...unexpectedArguments] = request.process.arguments;
+  if (title === undefined || unexpectedArguments.length > 0) {
     request.process.writeError({ text: USAGE });
     request.process.exitWith({ code: 2 });
     return;

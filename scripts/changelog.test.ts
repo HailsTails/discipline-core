@@ -2,50 +2,27 @@ import { describe, expect, it } from "vitest";
 import { changelogSectionOf, changelogWithSection } from "./changelog.ts";
 import { changeEntryOf } from "./conventional-subject.ts";
 
-const entriesOf = (subjects: readonly string[]) => subjects.map((subject) => changeEntryOf({ subject }));
-
 describe("changelogSectionOf", () => {
-  it("groups the changes under fixed headings in a fixed order, oldest first within each", () => {
+  it("groups the changes under fixed headings in a fixed order, keeping their order within each", () => {
     expect(
       changelogSectionOf({
         version: "0.2.0",
-        entries: entriesOf([
-          "chore: tidy the scripts (#30)",
-          "fix(audit): read CRLF files (#31)",
-          "feat(eslint)!: rename the plugin namespace (#32)",
-          "feat: add a report output (#33)",
-          "perf: cache the projection (#34)",
-          "Keep versions out of the docs (#20)",
-        ]),
+        entries: [
+          changeEntryOf({ subject: "chore: tidy the scripts (#30)" }),
+          changeEntryOf({ subject: "fix(audit): read CRLF files (#31)" }),
+          changeEntryOf({ subject: "feat(eslint)!: rename the plugin namespace (#32)" }),
+          changeEntryOf({ subject: "feat: add a report output (#33)" }),
+          changeEntryOf({ subject: "perf: cache the projection (#34)" }),
+          changeEntryOf({ subject: "Keep versions out of the docs (#20)" }),
+        ],
       }),
     ).toBe(
-      [
-        "## 0.2.0",
-        "",
-        "### Breaking changes",
-        "",
-        "- eslint: rename the plugin namespace (#32)",
-        "",
-        "### Features",
-        "",
-        "- add a report output (#33)",
-        "",
-        "### Fixes",
-        "",
-        "- audit: read CRLF files (#31)",
-        "- cache the projection (#34)",
-        "",
-        "### Other changes",
-        "",
-        "- tidy the scripts (#30)",
-        "- Keep versions out of the docs (#20)",
-        "",
-      ].join("\n"),
+      "## 0.2.0\n\n### Breaking changes\n\n- eslint: rename the plugin namespace (#32)\n\n### Features\n\n- add a report output (#33)\n\n### Fixes\n\n- audit: read CRLF files (#31)\n- cache the projection (#34)\n\n### Other changes\n\n- tidy the scripts (#30)\n- Keep versions out of the docs (#20)\n",
     );
   });
 
   it("leaves out headings with no changes", () => {
-    expect(changelogSectionOf({ version: "1.0.1", entries: entriesOf(["fix: one"]) })).toBe("## 1.0.1\n\n### Fixes\n\n- one\n");
+    expect(changelogSectionOf({ version: "1.0.1", entries: [changeEntryOf({ subject: "fix: one" })] })).toBe("## 1.0.1\n\n### Fixes\n\n- one\n");
   });
 });
 
