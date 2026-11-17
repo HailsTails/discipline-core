@@ -130,14 +130,14 @@ CD-3#no-implicit-override  CD-3#no-fallthrough-cases-in-switch
 CD-3#no-property-access-from-index-signature  CD-3#use-unknown-in-catch-variables
 
 eslint:
-CD-1#explicit-any        CD-1#implicit-any-let      CD-6#naming-convention
-CD-7#filename-case       CD-10#throw-only-error     CD-14#class-syntax
-CD-14#static-only-class  CD-27#focused-tests        CD-27#skipped-tests
-CD-40#parameter-count    CD-41#cognitive-complexity CD-41#function-length
-CD-42#useless-else       CD-44#parameter-reassignment
+CD-1#explicit-any        CD-1#implicit-any-let      CD-2#non-null-assertions
+CD-6#naming-convention   CD-7#filename-case         CD-10#throw-only-error
+CD-14#class-syntax       CD-14#static-only-class    CD-27#focused-tests
+CD-27#skipped-tests      CD-40#parameter-count      CD-41#cognitive-complexity
+CD-41#function-length    CD-42#useless-else         CD-44#parameter-reassignment
 ```
 
-CD-1, CD-6, CD-7, CD-10, CD-14, CD-27 and CD-44 have clauses under both mechanisms, and CD-40, CD-41 and CD-42 only under `eslint`, so adopting any of them needs the ESLint mechanism.
+CD-1, CD-2, CD-6, CD-7, CD-10, CD-14, CD-27 and CD-44 have clauses under both mechanisms, and CD-40, CD-41 and CD-42 only under `eslint`, so adopting any of them needs the ESLint mechanism.
 
 Starting with a few disciplines and adding more once the run passes is easier than fixing everything at once.
 
@@ -388,13 +388,15 @@ To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts,
 
 ## Worked example
 
-In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly, apart from where the rule pages are (see below).
+In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with CD-2's ESLint-only `non-null-assertions` clause listed as `"not-run"`, because the repository has no ESLint, and a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly, apart from where the rule pages are (see below).
 
 Before, `npm run --silent hone:check` prints, and exits `1`:
 
 ```text
 excluded (1)
 generated
+notRun (1)
+CD-2#non-null-assertions adopted, mechanism not run: enforced by review
 findings (5)
 CD-17#clock-sources audit src/basket.ts:7:0 private openedAt = Date.now();
 CD-2#cast-expressions audit src/basket.ts:10:20 entry as Line);   }    total(): string {     let pence = 0;     for (const line …
@@ -417,6 +419,8 @@ The fix replaces the `Basket` class with functions over a readonly `Basket` valu
 ```text
 excluded (1)
 generated
+notRun (1)
+CD-2#non-null-assertions adopted, mechanism not run: enforced by review
 exempted (1)
 CD-17#clock-sources audit src/clock.ts:3:0 export const createSystemClock = (): Clock => ({ now: () => Date.now() }); exempted by authorised-location
 verdict: pass

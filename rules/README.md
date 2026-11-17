@@ -7,7 +7,7 @@ Adopters select clauses in `disciplines.json`. Selecting one clause adopts its d
 | ID | Title | Clauses | Files checked | Review lens |
 | --- | --- | --- | --- | --- |
 | [CD-1](CD-1/README.md) | No any, ever | `CD-1#any-cast`, `CD-1#explicit-any`, `CD-1#implicit-any-let` | `.ts`, `.tsx` | [type-soundness](../methods/lenses/type-soundness.md) |
-| [CD-2](CD-2/README.md) | Closed enumerated list of permitted cast sites | `CD-2#cast-expressions` | `.ts`, `.tsx` | [type-soundness](../methods/lenses/type-soundness.md) |
+| [CD-2](CD-2/README.md) | Closed enumerated list of permitted cast sites | `CD-2#cast-expressions`, `CD-2#non-null-assertions` | `.ts`, `.tsx` | [type-soundness](../methods/lenses/type-soundness.md) |
 | [CD-3](CD-3/README.md) | Strict mode flags inherited, never overridden | `CD-3#strict`, `#no-unchecked-indexed-access`, `#exact-optional-property-types`, `#no-implicit-override`, `#no-fallthrough-cases-in-switch`, `#no-property-access-from-index-signature`, `#use-unknown-in-catch-variables` | `tsconfig.json` | [type-soundness](../methods/lenses/type-soundness.md) |
 | [CD-4](CD-4/README.md) | Zod at every external boundary | `CD-4#boundary-validation` (review) | — | [zod-boundary](../methods/lenses/zod-boundary.md) |
 | [CD-5](CD-5/README.md) | No comments, no JSDoc | `CD-5#comments-directives` | `.ts`, `.tsx` | [naming](../methods/lenses/naming.md) |

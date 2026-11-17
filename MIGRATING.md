@@ -259,3 +259,19 @@ Earlier releases wrote one `disciplines.eslint.mjs` at the repository root, and 
 4. **List generated configs.** A package whose `eslint.config.*` a tool generates and git ignores gets no slice until its folder is listed under `eslintConfigRoots` in `disciplines.json`. Each listed folder must be one git tracks files under, outside every `exclude` path, or the check stops with `config-root-untracked`.
 5. **Repositories that move to the repository-root lookup after adopting slices.** A repository that was on the repository-root lookup from the start never had package slices, and can skip this step. One ESLint 9 run applies the root config to every file, so no package folder is a config root. `hone project` removes each package slice it wrote whose bytes it would still write, and reports any other as `left-in-place`. If anyone lints from a package folder, a package config that imports its slice then fails with `Cannot find module`: list that package under `eslintConfigRoots` to keep its slice, or stop importing it there.
 6. **Folders holding their own `disciplines.json`** get no slice: their ESLint configuration is not managed from this repository, as nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)). When such a folder's own config leaves a carve-out recorded there out of effect, the `mechanism-not-run eslint not-included` line adds it. Governing the folder from this repository works today: remove its `disciplines.json`, keep its records here, and `hone project` writes its slice.
+
+## 14. Adopting `CD-2#non-null-assertions`
+
+CD-2 gained a clause, `CD-2#non-null-assertions`, checked through `eslint` only. It flags non-null assertions, `x!`, and definite assignment assertions, `let x!: T` and `field!: T`; see [rules/CD-2/CHECKS.md](rules/CD-2/CHECKS.md). A repository that selects any CD-2 clause has adopted CD-2, so after refreshing Hone its check fails with this line under `uncovered` until `disciplines.json` lists the new clause:
+
+```text
+CD-2#non-null-assertions
+```
+
+Choose one state for it, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out:
+
+1. **The repository runs the ESLint mechanism.** Add `"CD-2#non-null-assertions": "eslint"` to `clauses`, then run `npm run --silent hone:project` and commit `disciplines.eslint.mjs`, and each package slice it writes. Run the check. Each existing `!` is a finding; fix it, or hold it as debt with a `file-carve-out` per file, or a `clause-wide-carve-out` with an owner, after the human approves, and re-run `hone:project` so the projection carries the records.
+2. **The repository has no ESLint, or the rule binds but its check is not a true measure here.** Add `"CD-2#non-null-assertions": "not-run"`. The report lists it under `notRun`, and review owes the rule. Nothing is projected and ESLint is not loaded for it.
+3. **The rule does not apply to this codebase.** A tech lead says so in the open, and the clause is listed as `"not-adopted"`. The report lists it under `notAdopted`.
+
+Neither `"not-run"` nor `"not-adopted"` takes an exception record. Stop and ask the human before choosing `"not-adopted"`, or before recording carve-outs for existing `!` sites.
