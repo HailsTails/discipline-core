@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, type MockInstance, vi } from "vitest";
+import { afterAll, assert, describe, expect, it, type MockInstance, vi } from "vitest";
 import { runCheck } from "../core/check/run-check.ts";
 import { runProject } from "../core/check/run-project.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -13,6 +13,7 @@ import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-run
 import { defaultParsePort } from "./typescript-parse-port.ts";
 import { type PathCallsOutside, pathCallsOutside } from "./confinement.ts";
 import { fullReportExitCode } from "./full-report-exit-code.ts";
+import { materialisedConsumerFixture, removedMaterialisedConsumers } from "./materialised-consumer.ts";
 
 const path = createDefaultPathPort({});
 
@@ -24,9 +25,21 @@ const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
 
 const INSTALL_ROOT = resolvedPath({ path: `${import.meta.dirname}/..` });
 
-const WALKER_CONSUMER = resolvedPath({ path: `${import.meta.dirname}/test-fixtures/consumer-proof/audit` });
+const MATERIALISED_OWNER = "consumer-proof";
 
-const ESLINT_CONSUMER = resolvedPath({ path: `${import.meta.dirname}/test-fixtures/consumer-proof/eslint` });
+const materialisedConsumerAt = (request: { readonly fixture: string }): AbsolutePath => {
+  const materialised = materialisedConsumerFixture({ owner: MATERIALISED_OWNER, fixture: request.fixture });
+  assert(materialised.outcome === "ok", `the ${request.fixture} consumer fixture materialises`);
+  return materialised.value;
+};
+
+const WALKER_CONSUMER = materialisedConsumerAt({ fixture: "audit" });
+
+const ESLINT_CONSUMER = materialisedConsumerAt({ fixture: "eslint" });
+
+afterAll(() => {
+  expect(removedMaterialisedConsumers({ owner: MATERIALISED_OWNER })).toEqual({ outcome: "ok", value: null });
+});
 
 const INSTALLED_SOURCE = String.raw`(?!(?:[^/]*\/)*tests\/)(?!.*\.test\.ts$).*`;
 
@@ -38,9 +51,9 @@ const WALKER_INSTALL_LIST = new RegExp(`^${WALKER_INSTALLED}$`);
 
 const ESLINT_INSTALL_LIST = new RegExp(`^${ESLINT_INSTALLED}$`);
 
-const WALKER_READABLE = new RegExp(String.raw`^(?:${WALKER_INSTALLED}|tests\/test-fixtures\/consumer-proof\/audit\/.*)$`);
+const WALKER_READABLE = new RegExp(String.raw`^(?:${WALKER_INSTALLED}|tests\/test-fixtures\/materialised-consumer-proof\/audit\/.*)$`);
 
-const ESLINT_READABLE = new RegExp(String.raw`^(?:${ESLINT_INSTALLED}|tests\/test-fixtures\/consumer-proof\/eslint\/.*)$`);
+const ESLINT_READABLE = new RegExp(String.raw`^(?:${ESLINT_INSTALLED}|tests\/test-fixtures\/materialised-consumer-proof\/eslint\/.*)$`);
 
 const NO_HARNESS_SEGMENT = /^(?!(?:.*\/)?\.(?:claude|kiro|codex|cursor|aidlc|opencode|github|copilot)(?:\/|$)).*$/;
 

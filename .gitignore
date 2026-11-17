@@ -1,3 +1,4 @@
 dist/
 artefacts/
 node_modules/
+tests/test-fixtures/materialised-*/

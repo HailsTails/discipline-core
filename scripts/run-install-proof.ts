@@ -19,6 +19,7 @@ import {
   type TypeStripping,
   toolchainManifest,
 } from "./install-proof-plan.ts";
+import { materialisedConsumer } from "./consumer-fixture.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
@@ -304,11 +305,16 @@ const preparedConsumer = (request: {
   const label = `prepare the consumer ${request.repo}`;
   return inOrder({
     steps: [
-      () =>
-        labelled({
-          label,
-          result: request.context.scratch.copyTree({ from: request.fixture, to: request.repo, disposition: () => "kept" }),
-        }),
+      () => {
+        const materialised = materialisedConsumer({
+          scratch: request.context.scratch,
+          fileText: request.context.fileText,
+          path: request.context.path,
+          from: request.fixture,
+          to: request.repo,
+        });
+        return materialised.outcome === "failed" ? { outcome: "failed", error: `FAIL: ${label}: ${materialised.error}` } : materialised;
+      },
       ...request.files.map(
         (file): Step =>
           () =>

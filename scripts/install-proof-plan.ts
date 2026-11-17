@@ -95,9 +95,7 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
   },
 ];
 
-const COMPILES: StepExpectation = { exitCode: 0, output: "" };
-
-const PASSES_QUIETLY: StepExpectation = { exitCode: 0, output: "" };
+const SILENT_SUCCESS: StepExpectation = { exitCode: 0, output: "" };
 
 const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
   kind: "typecheck",
@@ -110,14 +108,14 @@ const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
 };
 
 const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT_SUCCESS },
   WRONG_FIELD_TYPES_REJECTED,
 ];
 
 const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
-  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: COMPILES },
-  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: COMPILES },
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT_SUCCESS },
+  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT_SUCCESS },
+  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: SILENT_SUCCESS },
   WRONG_FIELD_TYPES_REJECTED,
 ];
 
@@ -158,8 +156,8 @@ const reportOf = (request: { readonly sections: readonly (readonly [string, read
 
 const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
   { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
-  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.pieces.json`, expectation: COMPILES },
-  { kind: "execute", path: `${TEAM_RULE_SET}/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts`, expectation: PASSES_QUIETLY },
+  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.pieces.json`, expectation: SILENT_SUCCESS },
+  { kind: "execute", path: `${TEAM_RULE_SET}/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts`, expectation: SILENT_SUCCESS },
   { kind: "check", expectation: { exitCode: 1, output: reportOf({ sections: [["findings", TEAM_FINDINGS]], verdict: "fail" }) } },
   { kind: "write", path: WEB_CONFIG, text: WEB_CONFIG_WITHOUT_PROJECTION },
   {

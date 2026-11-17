@@ -9,8 +9,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"],
-    "paths": { "@hailstails/hone/*": ["./api/*.ts"] }
+    "types": ["node"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]

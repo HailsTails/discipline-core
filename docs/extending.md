@@ -1,8 +1,8 @@
 # Extending Hone with your own rule set
 
-A team can add its own disciplines beside the ones Hone ships, without forking Hone. They live in the team's repository as a **rule set**: a folder of discipline files and the pieces that check them. `hone check` runs them, reports them and applies exceptions to them exactly as it does for Hone's own.
+A team can add its own disciplines beside the ones Hone ships, without forking Hone. They live in the team's repository as a **rule set**: a folder of discipline files and the pieces that check them. `hone check` loads them from the repository, runs them, reports them and applies exceptions to them the same way as Hone's own; the differences are listed under [What is stable](#what-is-stable).
 
-This guide follows one tested example. `install-proof` installs the packed package into a small monorepo, `tests/test-fixtures/consumer-proof/team-monorepo/` in Hone's source repository, and runs the steps below against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism.
+This guide follows one tested example. `install-proof` installs the packed package into a small monorepo, stored in Hone's source repository under `tests/test-fixtures/consumer-proof/team-monorepo/` with a `.fixture` suffix on every file, and runs the steps below against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism.
 
 Read [ADOPTING.md](../ADOPTING.md) first: this guide assumes Hone is installed and `disciplines.json` exists.
 
@@ -98,11 +98,11 @@ verdict: fail
 - `id` matches the folder name. IDs are two to four capital letters, a dash and a number, with an optional lower-case letter after it.
 - Each clause lists the mechanisms that can check it. Selecting one clause adopts the whole discipline, so its other mechanical clauses must be selected too.
 - `anchor` is `{ "kind": "keyword", "keyword": "..." }` or `{ "kind": "file" }`.
-- `cases` say what the clause must flag and what it must leave alone. Keep them accurate: they are the clause's contract. `hone check` does not run them against a team's pieces today.
+- `cases` say what the clause must flag and what it must leave alone. They are the clause's contract. `hone check` does not run them against a team's pieces today, and will: see [What is stable](#what-is-stable).
 - A clause with `"kind": "judgement"`, a `summary` and `"enforcedBy": "review"` is applied in review and cannot be selected.
 - `"exceptions": "refused"` on a clause stops any exception record from exempting it.
 
-`rules/ACME-1/README.md` is the rule's page: why the rule exists, one example that honours it and one that breaks it. Write it for the people and agents who apply the rule, not about how the check matches.
+`rules/ACME-1/README.md` is the rule's page: why the rule exists, one example that honours it and one that breaks it. Write it for the people and agents who apply the rule, not about how the check matches. It is optional today and will be required.
 
 ## An ESLint piece
 
@@ -223,7 +223,12 @@ export const check: WalkerPiece = {
 Hone loads piece modules with Node, which strips the types from a `.ts` file as it loads it. Node 22.18 or later does this without flags.
 
 - A piece module ends in `.ts` or `.js`. `.mts` and `.mjs` are refused.
-- Node reads a `.ts` file as an ES module only when the nearest `package.json` says `"type": "module"`. In a CommonJS repository, give the rule set its own `package.json`:
+- Node decides whether a `.ts` file is an ES module from the nearest `package.json`:
+  - `"type": "module"`: it loads, silently.
+  - No `"type"` field: it still loads, because Node sees the `export` syntax, but every run prints a `[MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///… is not specified` block per piece module before the report.
+  - `"type": "commonjs"`: it fails to load, with the `Failed to load the ES module` warning and load failure shown under [Common refusals](#common-refusals).
+
+  The example repository says `"type": "commonjs"` at its root, the hard case, so its rule set has its own `package.json`:
 
   ```json
   {
@@ -232,9 +237,9 @@ Hone loads piece modules with Node, which strips the types from a `.ts` file as 
   }
   ```
 
-  Without it, the piece fails to load with `Unexpected token 'export'`.
+  These three behaviours were checked by hand on Node 22.22.2; `install-proof` checks the first on every Node it runs.
 - Use only syntax Node can erase, spell the `.ts` extension in relative imports, and use `import type` for types. [ADOPTING.md](../ADOPTING.md#1-check-the-prerequisites) step 1 lists the limits.
-- A rule set installed as a package under `node_modules` must ship `.js`, because Node does not strip types there.
+- Node does not strip types under `node_modules`. A rule set kept in an installed package is named by its repository path, for example `"acme": "node_modules/@acme/disciplines"`, and must ship `.js` piece modules; a `.ts` one fails with `Stripping types is currently unsupported for files under node_modules`.
 
 ## Type-check the rule set
 
@@ -309,15 +314,23 @@ Without that setting the entry also needs a `whyChain`, and without one it is re
 
 ## What is stable
 
+Three requirements are decided and not yet built. Each will make some rule sets that pass today fail:
+
+- **Cases are enforced.** `hone check` will run each selected team clause's `cases` against its piece, and fail the run as `nonconforming` when the piece misses a `flag` case or flags an `allow` case.
+- **A rule page is required.** A selected team discipline without `rules/<ID>/README.md` will fail to load.
+- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder.
+
+To be ready now: give every mechanical clause cases that its piece meets, write each discipline's `README.md`, and import nothing from Hone but its two public type entries.
+
 | Part | Status |
 | --- | --- |
 | `ruleSets`, the address `[<ruleSet>/]<ID>#<clause>`, `hone` reserved | Stable |
-| The folder layout `rules/<ID>/` and `mechanisms/<mechanism>/<ID>/` | Stable |
-| `discipline.json` and `piece.json` version 1, and the ESLint piece `settings` with the namespace rule | Stable |
+| The folder layout `rules/<ID>/` and `mechanisms/<mechanism>/<ID>/` | Stable, with `rules/<ID>/README.md` becoming required |
+| `discipline.json` and `piece.json` version 1, and the ESLint piece `settings` with the namespace rule | Stable file formats; `cases` becoming enforced |
 | `@hailstails/hone/rule-set` | Stable |
 | Exception records for team clauses | Stable |
 | `@hailstails/hone/audit` and the walker piece contract | Experimental: may change in a minor release |
-| A rule set named by a package instead of a repository path | Not supported |
+| A rule set named by a package name, such as `"acme": "@acme/disciplines"` | Not supported: name its repository path instead, as under [TypeScript pieces under Node](#typescript-pieces-under-node) |
 | A new mechanism from outside Hone | Not supported |
 
 ## Common refusals
@@ -328,6 +341,7 @@ Without that setting the entry also needs a `whyChain`, and without one it is re
 | `load failure: unknown-rule-set beta` | A clause names a rule set that `ruleSets` does not declare. |
 | `load failure: runner-failed eslint piece-invalid <piece folder> the plugin namespace hone belongs to Hone; the rule set acme must use acme or acme-<name>` | The ESLint piece uses one of Hone's namespaces. |
 | `load failure: runner-failed eslint piece-invalid <piece folder> the plugin namespace lint is not owned by the rule set acme; use acme or acme-<name>` | The namespace does not start with the rule set's name. |
-| `load failure: runner-failed eslint piece-invalid <piece folder> ✖ not a path inside the piece folder ending in .ts, or .js in a built install` | `pluginModule` is outside the piece folder or has another extension. The audit piece's `module` is refused the same way. |
-| `load failure: runner-failed eslint piece-invalid <piece folder> Unexpected token 'export'` | Node read the `.ts` module as CommonJS: give the rule set a `package.json` with `"type": "module"`. |
+| `load failure: runner-failed eslint piece-invalid <piece folder> ✖ not a path inside the piece folder ending in .ts, or .js in a built install\n  → at pluginModule` | The ESLint piece's `pluginModule` is outside the piece folder or ends in neither `.ts` nor `.js`. The `\n` is printed as written, not as a line break. |
+| `load failure: runner-failed audit piece-invalid <piece folder> [\n  {\n    "code": "custom",\n    "path": [\n      "module"\n    ],\n    "message": "the module is not a path inside the piece folder ending .ts, or .js in a built install"\n  }\n]` | The audit piece's `module` is outside the piece folder or ends in neither `.ts` nor `.js`. The whole message is one line, each `\n` printed as written. |
+| `(node:<pid>) Warning: Failed to load the ES module: <piece module>. Make sure to set "type": "module" in the nearest package.json file or use the .mjs extension.` and ``(Use `node --trace-warnings ...` to show where the warning was created)``, then `load failure: runner-failed eslint piece-invalid <piece folder> Unexpected token 'export'` | The nearest `package.json` says `"type": "commonjs"`, so Node read the `.ts` piece as CommonJS. Node prints its warning for each `.ts` piece module it tried; the load failure names one mechanism whose piece failed. Give the rule set a `package.json` with `"type": "module"`. |
 | `<clause> eslint config-override <file>` under `unrecorded` | An `eslint.config.*` that applies to the file does not spread the projection. |
