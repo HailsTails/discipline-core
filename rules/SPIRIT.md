@@ -30,15 +30,15 @@ Some code has to touch the outside: a library, the runtime, raw input. Those pla
 
 Three different things. Only the third is a hole.
 
-1. **Not adopted.** The codebase is not held to the rule at all. That is a tech lead's declared choice for the whole codebase, made in the open.
-2. **A waived clause.** The rule still binds. What is set aside is one mechanical check: in this codebase it is not a true measure of the rule's intent, or it cannot work here for a technical reason. The waiver is about the mechanism and is recorded with that reason. The intent is still owed, through review now and a better check later.
+1. **Not adopted.** The codebase is not held to the rule, or to one of its clauses, at all. That is a tech lead's declared choice, made in the open: the clause is listed as `"not-adopted"` in `disciplines.json`.
+2. **A waived clause.** The rule still binds. What is set aside is one mechanical check: in this codebase it is not a true measure of the rule's intent, or it cannot work here for a technical reason. The waiver is about the mechanism and is recorded with that reason, as a clause-wide carve-out with its why-chain. The intent is still owed, through review now and a better check later.
 3. **An escape at a site.** The rule is adopted, its check is sound, and one place steps around it. That keeps the rule's name and loses its effect. It is the hole that justifies not thinking the design through.
 
 Choose 1 or 2 deliberately, with reasons. Do not do 3.
 
 ## Tests are code
 
-Tests are not exempt. A test that needs a cast, a fake with logic, a module intercept or a branch is reporting on the unit's seams. The test is the unit's first consumer. The fix usually belongs in the unit's design, not in the test.
+Tests are not exempt. A test that needs a cast, a test double with logic, a module intercept or a branch is reporting on the unit's seams. The test is the unit's first consumer. The fix usually belongs in the unit's design, not in the test.
 
 ## Older than these rules
 

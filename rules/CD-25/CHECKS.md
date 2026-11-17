@@ -23,14 +23,14 @@ const clock = { now: vi.fn(() => 1) };
 ```ts
 const clock = { now: vi.fn().mockReturnValue(1) };
 ```
-Return a fixed value. If the fake needs logic, the seam is probably too wide.
+Return a canned value: that double is a stub. If the double needs logic, the seam is probably too wide, or the double is a fake that belongs in a shared in-memory implementation of the port with its own tests.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs a fake with an implementation. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. A double that legitimately needs behaviour is a fake: write it once as an in-memory implementation of the port, in its own module with its own tests, and pass it in. That is the home for the behaviour, not an exception for a test file. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-25#dependency-isolation", "file": "src/testing/fake-port.test.ts", "reason": "..." }
+  { "kind": "file-carve-out", "clause": "CD-25#dependency-isolation", "file": "src/legacy/billing.test.ts", "reason": "..." }
 ] }
 ```
 

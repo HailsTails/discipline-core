@@ -20,7 +20,7 @@ recur across codebases under different names:
   threshold.
 - **Zero-everything tests.** A test body is a straight line: arrange → act →
   assert. No control flow, no loops, no branches, no mutated capture, no
-  unpredictability. N cases means N tests. Uniform cases, such as the rows of a table, are one parameterised test over the rows (the framework's `each`), never a loop inside a test body, and never one hand-written test per row. Variability is supplied by injected fakes, never computed inside the test.
+  unpredictability. N cases means N tests. Uniform cases, such as the rows of a table, are one parameterised test over the rows (the framework's `each`), never a loop inside a test body, and never one hand-written test per row. Variability is supplied by injected test doubles (stubs with canned answers, or a fake clock that the test advances), never computed inside the test.
 - **Assert only the unit's own responsibility.** A test inspects what its unit
   produces and how it calls its collaborators — never the internal logic of a
   delegate reached transitively.
@@ -42,7 +42,7 @@ they override any default intuition.
 
 1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `test-discipline`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
-3. Read each kept page in full, including its `## Exceptions` section, any in-body exception clause, and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names exact allowed constructs, idioms, or excluded file kinds, those are the only ones permitted.
+3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md`, any in-body exception clause, and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names exact allowed constructs, idioms, or excluded file kinds, those are the only ones permitted.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no test-discipline rules and produce an empty finding set — do not invent rules.
 
 ## Inspection procedure
@@ -73,7 +73,9 @@ finding citing the construct. Know the rule's *allowed* patterns so you do not
 false-positive: an inline narrowing assertion that the rule blesses is not a
 branch; full-envelope matchers replace try/catch around thrown errors; `const`
 destructuring with defaults is not a branch; data fixtures living outside the
-test-file source are out of scope. The fix for a banned construct is almost
+test-file source are out of scope for this zero-logic scan only; they remain
+integration test tools, used at a bare minimum, and a unit test that reads one
+is doing real I/O. The fix for a banned construct is almost
 always "split into N linear tests" or "use the matcher the framework already
 provides" — name that in the finding.
 
@@ -87,7 +89,7 @@ falsy/defined/not-null check over an envelope, object, array, or tuple accepts
 malformed shapes the unit should never produce — that is a finding; replace with
 a full-envelope equality or structural match against the exact expected value. A
 bare call-occurrence assertion where the call *arguments* carry the unit's
-correctness is the same defect on a fake — replace with an exact-argument match.
+correctness is the same defect on a spy — replace with an exact-argument match.
 If the honest answer to "what would it accept that it shouldn't?" is "nothing
 meaningful" (e.g. a boolean-returning predicate asserted with a boolean literal),
 the matcher is not vague. The lens is not "always demand the strictest matcher";
@@ -97,21 +99,21 @@ it is "do not accept assertions that lose shape on values that have shape".
 
 A test must assert the unit's own output and the *call shape* it makes on its
 collaborators — never the internal result of a delegate. Flag assertions that
-reach into a fake's configured return value (asserting on what arrange already
+reach into a stub's configured return value (asserting on what arrange already
 set), that drill into a delegate's nested return shape, that exercise a partial
-fake which itself runs real delegate logic, or that assert a value the unit
-merely passed through from a fake. The wanted shape is an exact-argument call
-assertion on the fake plus an equality on the unit's *own* computed output.
+double which itself runs real delegate logic, or that assert a value the unit
+merely passed through from a stub. The wanted shape is an exact-argument call
+assertion on the spy plus an equality on the unit's *own* computed output.
 
 ### Pyramid mis-scope
 
 Check each test sits at the right layer. **Mis-scoped down:** an integration-
-suffixed test built entirely from fakes (a unit test wearing the wrong suffix),
+suffixed test built entirely from test doubles (a unit test wearing the wrong suffix),
 or one that spins up a real backing the unit never touches (decorative
 ceremony) — move it to the unit layer. **Mis-scoped up:** a unit-suffixed test
-that wires several units together with no fakes between them and asserts on the
+that wires several units together with no test doubles between them and asserts on the
 cross-unit output — that belongs at the integration layer; the unit layer should
-fake each cross-boundary collaborator. **Missing-unit signal:** an integration
+replace each cross-boundary collaborator with a test double. **Missing-unit signal:** an integration
 test failing on a bug localisable to one unit's body — the bug should have failed
 a unit test first; the finding is the missing unit test, not the integration
 test.

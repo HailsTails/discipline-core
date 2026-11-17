@@ -11,10 +11,11 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 | `CD-14#library-construction` | review | library classes are built only in wrapping factories and never re-exported |
 
 ## What the check flags
-- TypeScript source files; declaration files (`.d.ts`) are skipped. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped by the audit mechanism; any other folder can be left out with `exclude` in disciplines.json. The ESLint piece lints whatever files the team's ESLint run includes.
+- TypeScript source files; declaration files (`.d.ts`) are skipped. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped by the audit mechanism. The ESLint piece lints whatever files the team's ESLint run includes.
 - Any class declaration, class expression, `abstract class`, nested class, or class inside a runtime `namespace`, reported at the `class` keyword.
 - Allowed: `declare class`, classes inside `declare module`, `declare global` or `declare namespace`, and `new Client()` on a class imported from a library.
 - `library-construction` is a judgement clause. It cannot be selected and is enforced by review.
+- Other generated code can be left out of the audit mechanism's scope with `exclude` in disciplines.json. Hand-written classes are not out of scope.
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-14/README.md).

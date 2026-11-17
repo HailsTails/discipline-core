@@ -9,9 +9,10 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 | `CD-17#clock-sources` | audit | `Date.now()` and `new Date` |
 
 ## What the check flags
-- `.ts` and `.tsx` files, including tests. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped; any other folder or file can be left out with `exclude` in disciplines.json.
+- `.ts` and `.tsx` files, including tests. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped.
 - Any line containing `Date.now()` or `new Date`, one finding per line. Comments and strings are matched too.
 - Other time sources (`performance.now`, timers) are not checked; they are left to review.
+- Other generated code can be left out of the check's scope with `exclude` in disciplines.json. Hand-written code that reads the time is not out of scope; it needs the clock port.
 
 ## Example violation
 ```ts

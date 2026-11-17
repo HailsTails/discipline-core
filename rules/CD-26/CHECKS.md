@@ -20,9 +20,9 @@ vi.mock("./store.ts");
 
 ## How to fix
 ```ts
-const subject = createSubject({ store: fakeStore });
+const subject = createSubject({ store: storeStub });
 ```
-Pass the collaborator in as a dependency and hand the test a fake.
+Pass the collaborator in as a dependency and hand the test a stub.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs to intercept a module. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

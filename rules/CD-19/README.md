@@ -2,13 +2,13 @@
 
 ## Rule
 
-Every dependency on code the project does not own — a third-party library or the runtime's own standard library alike — is confined to a single wrapping port at the boundary; the rest of the codebase depends on that port, never the vendor or platform surface, runtime or type-only. A dependency swap then touches one file, the vendor's types never leak inward, and each confined capability is nameable and fakeable in tests. There is no inline carve-out: a stdlib call in the middle of business logic is as much a violation as a scattered library import. Opening a new wrapping site for a new dependency is a deliberate, recorded decision.
+Every dependency on code the project does not own — a third-party library or the runtime's own standard library alike — is confined to a single wrapping port at the boundary; the rest of the codebase depends on that port, never the vendor or platform surface, runtime or type-only. A dependency swap then touches one file, the vendor's types never leak inward, and each confined capability is nameable and replaceable with a test double. There is no inline carve-out: a stdlib call in the middle of business logic is as much a violation as a scattered library import. Opening a new wrapping site for a new dependency is a deliberate, recorded decision.
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** Depending on code you do not own hands that code a say in the shape of yours. The friction makes depending on your own port the easy path, so a swap touches one file, vendor types stay out, and every capability has a name and a fake.
+**What the friction is for.** Depending on code you do not own hands that code a say in the shape of yours. The friction makes depending on your own port the easy path, so a swap touches one file, vendor types stay out, and every capability has a name and a test double.
 
 **What a finding points at.** Match the sites against these causes.
 - *A capability with no name.* Many files import the same library or runtime module. Name the capability, wrap it once, inject it.
@@ -19,7 +19,7 @@ Review lens: [function-first](../../methods/lenses/function-first.md). The lens 
 **Where to go.** Each external capability has one wrapping file, recorded as its authorised location. Everything else imports your port. Opening a new wrapper is a recorded decision, not an inline one.
 
 **Reactions to distrust.**
-- "It's only the standard library." The same reasons apply: it cannot be faked and it ties logic to a platform. The rule makes no stdlib carve-out.
+- "It's only the standard library." The same reasons apply: it cannot be replaced in a test and it ties logic to a platform. The rule makes no stdlib carve-out.
 - "Wrapping is boilerplate." One small file per capability, against the whole codebase knowing a vendor's surface.
 - "Exclude that folder." An excluded folder is a boundary nobody designed. Design it, then authorise the one file.
 

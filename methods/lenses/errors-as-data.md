@@ -29,7 +29,7 @@ intuition.
 
 1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `errors-as-data`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
-3. Read each kept page in full, including its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names exact permitted sites (files, factory names, class names), those are the only permitted sites.
+3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names exact permitted sites (files, factory names, class names), those are the only permitted sites.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no errors-as-data discipline and produce an empty finding set — do not invent rules.
 
 ## Inspection procedure

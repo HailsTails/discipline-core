@@ -40,7 +40,7 @@ Map each chosen discipline to its clauses with this table. A discipline is adopt
 | CD-46 | nothing to select: it applies to every file carve-out once the check runs with `--base-revision` |
 | CD-16, CD-20, CD-24 | select their owners, CD-15, CD-19 and CD-23 |
 | CD-35, CD-36, CD-37, CD-38 | not in Hone; keep their current handling |
-| any other CD | every mechanical clause in `node_modules/@hailstails/hone/rules/<ID>/README.md`'s Clauses table, with a mechanism that table lists |
+| any other CD | every mechanical clause in `node_modules/@hailstails/hone/rules/<ID>/CHECKS.md`'s Clauses table, with a mechanism that table lists |
 
 Clauses whose mechanism is `review` are judgement clauses: do not put them in `disciplines.json`; list them in the agent instructions instead (step 6).
 

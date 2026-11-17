@@ -12,7 +12,7 @@ Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). T
 
 **What a finding points at.** Match the sites against these causes.
 - *Configuration mixed with code.* Credentials sit in source because config has no other home. Read them from the environment or a secrets manager.
-- *Test credentials that are real.* Tests use live keys. Use fakes or generated test values.
+- *Test credentials that are real.* Tests use live keys. Use dummy or generated test values.
 
 **Where to go.** Source holds no secrets. Secrets arrive at runtime from the environment or a secrets manager.
 

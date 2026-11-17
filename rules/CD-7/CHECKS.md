@@ -39,7 +39,7 @@ Add an entry to `discipline-exceptions.json` at the repository root. Use `author
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-7#categorical-paths", "file": "src/shared/index.ts", "reason": "..." }
+  { "kind": "authorised-location", "clause": "CD-7#categorical-paths", "file": "utils/format-price.ts", "reason": "Nuxt auto-imports from the utils directory, so the folder name is fixed by the framework" }
 ] }
 ```
 

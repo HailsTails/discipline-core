@@ -11,8 +11,8 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 **What the friction is for.** A test that checks what a collaborator does breaks when that collaborator changes, even if this unit did not. The friction keeps each test on its own unit, so a failure means this unit broke.
 
 **What a finding points at.** Match the tests against these causes.
-- *Assertions reaching through fakes.* The test checks what a fake returned, not what the unit did with it. Assert the unit's output and the calls it made.
-- *A real collaborator in the test.* The test asserts results produced by code it does not own. Fake it.
+- *Assertions reaching through stubs.* The test checks what a stub returned, not what the unit did with it. Assert the unit's output and the calls it made.
+- *A real collaborator in the test.* The test asserts results produced by code it does not own. Replace it with a stub.
 - *A unit that passes values through.* The only thing to check is a delegate's output. The unit may have no responsibility of its own; question it.
 
 **Where to go.** Each test asserts the unit's own output and the exact calls it makes. Collaborators have their own tests.

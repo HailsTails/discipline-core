@@ -97,7 +97,7 @@ verdict: fail
 - A clause with `"kind": "judgement"`, a `summary` and `"enforcedBy": "review"` is applied in review and cannot be selected.
 - `"exceptions": "refused"` on a clause stops any exception record from exempting it.
 
-`rules/ACME-1/README.md` is the rule's page: why the rule exists, one example that honours it and one that breaks it. Write it for the people and agents who apply the rule, not about how the check matches. It is optional today and will be required.
+`rules/ACME-1/README.md` is the rule's page: why the rule exists, one example that honours it and one that breaks it. Write it for the people and agents who apply the rule, not about how the check matches. It is optional today and will be required. Hone's own rule pages follow a fixed shape, a Rule and its Spirit on `README.md` with the mechanics in a sibling `CHECKS.md`; [adding a discipline](adding-a-discipline-or-mechanism.md#1a-the-rule-pages) describes it.
 
 ## An ESLint piece
 

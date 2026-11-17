@@ -45,7 +45,7 @@ This lens applies **no lens filter to the rule pages**. Instead:
    look up the literal text of the cited clause** — never to find new clauses to
    test. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`. Every rule page in scope is loaded, not filtered by lens. If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved — an unloadable ruleset is never a codebase without discipline. Each PASS
    cites a rule by the discipline id and clause address on the rule page (for example `CD-9#result-failures`), and that rule page is where the literal
-   text and its governing principle live, together with its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline.
+   text and its governing principle live, together with the `## Exceptions` section of its sibling `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline.
 3. If the bundle carries zero PASS claims with cited artefacts, produce an empty
    gap set — do not invent claims to test.
 
@@ -125,15 +125,15 @@ intent sentence as a test. Three outcomes:
 This lens *is* the letter-vs-intent test, so its own catch-rate is the test's
 fidelity. The canonical pattern: a rule's letter enumerates a specific mechanism
 ("module mocks are forbidden — these named mechanisms"), an artefact uses a
-*different* mechanism not enumerated (a global stub, a monkey-patch, a
+*different* mechanism not enumerated (an overwritten global, a monkey-patch, a
 module-system reach-around) and the PASS reads "that mechanism is not on the
 list, so the rule does not apply". The intent of the rule — derived from its
-principle (e.g. "every dependency outside the unit boundary is faked through
-dependency injection, never reached around") — is "no faking outside DI". The
-unlisted mechanism *is* faking outside DI; it passes the letter and fails the
+principle (e.g. "every dependency outside the unit boundary is replaced by a test double through
+dependency injection, never reached around") — is "no substitution outside DI". The
+unlisted mechanism *is* substitution outside DI; it passes the letter and fails the
 intent. The structural reframing: the unit consumes the dependency as an
 injected port through its argument seam, production wires the real
-implementation in the wrapping-factory file, the test injects a fake directly;
+implementation in the wrapping-factory file, the test injects a test double directly;
 the PASS retracts and becomes a DI/testing VIOLATION on the owning lens.
 
 The three properties that make a finding sound — and that an author can

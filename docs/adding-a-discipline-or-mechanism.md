@@ -31,6 +31,20 @@ Each clause is either mechanical or judgement:
 
 Clause ids are lower-case words joined by hyphens, and are unique within the discipline.
 
+### 1a. The rule pages
+
+Each discipline has two pages beside its `discipline.json`, so a reader meets the rule's intent before any detail of how it is checked.
+
+`rules/<DisciplineId>/README.md` holds the rule and its spirit, and ends on the spirit:
+
+- `# <ID>: <title>`, then `## Rule` with the rule text.
+- One line that starts `Review lens:` and links the lens (the lenses find their pages by this line), then links `CHECKS.md` and [the spirit of the rules](../rules/SPIRIT.md).
+- `## Spirit`, in five fixed parts, each a bold lead: **What the friction is for**; **What a finding points at**, a short list of usual causes, each with the direction it points; **Where to go**, the forward goal; **Reactions to distrust**, each common reaction with what it usually hides; **Principles behind it**, established principles named with one line each on how they apply, attributed only where the attribution is certain.
+
+The Spirit section does not talk about syntax, detectors or linting. [rules/SPIRIT.md](../rules/SPIRIT.md) gives the approach for the whole set.
+
+`rules/<DisciplineId>/CHECKS.md` holds the mechanics. It opens by pointing back to the rule page, then gives the Clauses table, what each check flags and misses, any settings, a violation and its fix, and how to record an exception.
+
 ### 2. The shared cases
 
 A mechanical clause's `cases` hold `flag` and `allow` lists. Each case is `{ "name", "fileName", "source", "expectedLines" }`: a flag case lists the lines that must be flagged (at least one), and an allow case lists none. `fileName` is a repository path and may be a declaration file such as `x.d.ts`. There must be at least one of each.

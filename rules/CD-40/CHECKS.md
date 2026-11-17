@@ -13,7 +13,7 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 - The ESLint piece lints whatever files the team's ESLint run includes. It needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-40/README.md).
 - Rule `hone-cd40/max-params`, which is typescript-eslint's `max-params` with `{ "max": 2, "countVoidThis": true }`.
 - A function declaration, function expression, arrow function, method or constructor with more than two parameters. A `this` parameter counts.
-- Allowed: functions with two or fewer parameters.
+- Not flagged by the check: functions with two or fewer parameters. The rule asks for one named object; a function with two parameters is left to the `named-object-argument` review clause.
 - `named-object-argument` is a judgement clause. It cannot be selected and is enforced by review.
 
 ## Example violation

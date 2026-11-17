@@ -76,9 +76,9 @@ Commit `package.json`, the lockfile and the tarball if it is a file in the repos
 
 ## 3. Read what each discipline means
 
-[rules/README.md](rules/README.md) lists every discipline. Each `rules/<ID>/README.md` quotes the rule, says exactly what its check flags, shows a violation and its fix, and says how to record an exception. A discipline's clause addresses are in its README's Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the page names (step 9).
+[rules/README.md](rules/README.md) lists every discipline. Each discipline has two pages. `rules/<ID>/README.md` quotes the rule, names its review lens, and gives its spirit: what the friction is for, what a finding usually points at, the direction to go, and the principles behind it. `rules/<ID>/CHECKS.md` holds the mechanics: the Clauses table, exactly what each check flags, a violation and its fix, and how to record an exception. Read the rule page first; [the spirit of the rules](rules/SPIRIT.md) explains the approach for the whole set. A discipline's clause addresses are in its CHECKS.md Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the rule page names (step 9).
 
-A check covers only what its page says it flags. Read the whole rule, not only the Clauses table: where a rule asks for more than its check can see, the page says which part is left to review, and the page's review lens covers that part.
+A check covers only what its CHECKS.md says it flags. Read the whole rule, not only the Clauses table: where a rule asks for more than its check can see, CHECKS.md says which part is left to review, and the rule's review lens covers that part.
 
 Where to start: for an API, boundary validation (CD-4, CD-45), result-shaped failures (CD-9, CD-10, CD-11) and inward dependency direction (CD-12, CD-13) are useful next selections, most of them judgement rules. For React, first select the type and test disciplines that apply to component code; do not apply server ports or process-lifecycle rules to browser code.
 
@@ -98,13 +98,13 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 }
 ```
 
-- `clauses` keys are clause addresses from the rules pages; the value is a mechanism the clause's rules page lists, `audit` or `eslint`, or `"not-adopted"`.
+- `clauses` keys are clause addresses from the rules' CHECKS.md pages; the value is a mechanism the clause's CHECKS.md lists, `audit` or `eslint`, or `"not-adopted"`.
 - Selecting one clause of a discipline adopts the whole discipline: any of its other mechanical clauses you leave out are reported as `uncovered` and fail the run. CD-3 has seven clauses; select all seven or none.
 - A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). To leave such a clause out, list it as `"not-adopted"`; to defer it as tracked debt, list it with its mechanism and record a `clause-wide-carve-out` for it (step 7).
 - To adopt a discipline through one mechanism only, for example CD-6's `identifier-names` through `audit` without its ESLint-only `naming-convention`, list the clause you do not adopt as `"not-adopted"`: `"CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-adopted"`. That clause is never run and never projected, not even as `"off"`, so this adopter needs no ESLint installed; the report lists it under `notAdopted` and the run stays a whole assessment. No exception record is needed, and one on that clause is invalid as `clause-not-adopted`.
 - To keep a clause adopted but defer it as tracked debt with an owner, select it, record a `clause-wide-carve-out` with its why-chain, and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`. The waived clause is then never run, and a mechanism left with nothing to run is not loaded, so this adopter needs no ESLint installed. `hone project` still writes the waived clause's `"off"` block to the projection, and whenever ESLint runs for another clause the projection is still checked against every selected clause. The trade: in those runs the waiver is not judged `stale`, so it stays in force until you remove it, and every report says so in its `assessment` section.
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
-- `clauseSettings` gives a clause the settings its rules page lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; CD-5's `trackerPatterns` narrows tracked references to your tracker's format. See [README.md](README.md#disciplinesjson).
+- `clauseSettings` gives a clause the settings its CHECKS.md lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; CD-5's `trackerPatterns` narrows tracked references to your tracker's format. See [README.md](README.md#disciplinesjson).
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/extending.md](docs/extending.md).
 
 Every clause address Hone ships:
@@ -236,7 +236,7 @@ To print less, set `"reportOutput"` in `disciplines.json` for the repository, or
 
 ## 7. Record exceptions
 
-Fix findings where you can. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
+Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section, then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
 - `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`.
@@ -334,6 +334,6 @@ verdict: pass
 ## Known gaps
 
 - The worked example uses only the audit mechanism. The ESLint consumer in `tests/test-fixtures/consumer-proof/eslint/` is the tested ESLint setup.
-- Each check flags exactly what its rules page says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
+- Each check flags exactly what its CHECKS.md says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
 - A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above.
 - The disciplines' IDs and rule text come from one team's code-discipline set. Selecting a subset is supported; editing a shipped rule is not. Write your own rule set for different rules, following [docs/extending.md](docs/extending.md).
