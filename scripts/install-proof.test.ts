@@ -24,6 +24,7 @@ import { PROOF_CASES } from "./install-proof-plan.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "./install-proof-ports.ts";
 import { createTarballPacker } from "./package-commands.ts";
 import { runInstallProof } from "./run-install-proof.ts";
+import { createDefaultTypeScriptDeclarationPort } from "./typescript-declaration-port.ts";
 
 await runInstallProof({
   process: createDefaultProcessPort({}),
@@ -37,6 +38,7 @@ await runInstallProof({
       fileText: createDefaultFileTextPort({}),
       scratch: createDefaultScratchFilesPort({}),
       bundler: createEsbuildBundlerPort({ path: createDefaultPathPort({}) }),
+      declarations: createDefaultTypeScriptDeclarationPort({}),
     },
     commands: createDefaultCommandRunPort({}),
   }),

@@ -6,6 +6,10 @@ import type { ToolIdentity } from "../core/values/tool-identity.ts";
 
 export type ManifestFailure = { readonly kind: "manifest-invalid"; readonly detail: string };
 
+export type TypedExport = { readonly subpath: string; readonly declaration: string; readonly module: string };
+
+type TypedExportConditions = { readonly types: string; readonly default: string };
+
 const versionsSchema = z.record(z.string(), z.string());
 
 const publishedSectionsSchema = z.object({
@@ -29,6 +33,13 @@ const versionSectionSchema = publishedSectionsSchema.pick({ version: true });
 const MANIFEST_EXPORT = "./package.json";
 
 const exportPathOf = (path: string): string => `./${path}`;
+
+const typedExportEntry = (request: { readonly typed: TypedExport }): readonly [string, TypedExportConditions] => [
+  exportPathOf(request.typed.subpath),
+  { types: exportPathOf(request.typed.declaration), default: exportPathOf(request.typed.module) },
+];
+
+const bareExportEntry = (request: { readonly path: string }): readonly [string, string] => [request.path, request.path];
 
 type RepositoryLinks = {
   readonly repository: { readonly type: "git"; readonly url: string };
@@ -102,6 +113,7 @@ export const publishManifestOf = (request: {
   readonly command: string;
   readonly files: readonly string[];
   readonly exported: readonly string[];
+  readonly typed: readonly TypedExport[];
   readonly nodeRange: string;
 }): Result<string, ManifestFailure> => {
   const published = sectionsOf({ developmentManifest: request.developmentManifest, schema: publishedSectionsSchema });
@@ -120,7 +132,11 @@ export const publishManifestOf = (request: {
         publishConfig: PUBLIC_ACCESS,
         type: "module",
         bin: { [request.identity.command]: request.command },
-        exports: Object.fromEntries([MANIFEST_EXPORT, ...request.exported.map(exportPathOf)].map((path) => [path, path])),
+        exports: Object.fromEntries([
+          bareExportEntry({ path: MANIFEST_EXPORT }),
+          ...request.typed.map((typed) => typedExportEntry({ typed })),
+          ...request.exported.map((path) => bareExportEntry({ path: exportPathOf(path) })),
+        ]),
         files: request.files,
         engines: { node: request.nodeRange },
         peerDependencies: published.value.peerDependencies,

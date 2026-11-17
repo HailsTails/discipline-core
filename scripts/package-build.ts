@@ -6,8 +6,9 @@ import type { Result } from "../core/values/result.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
+import { type DeclarationPort, declarationFilesOf, PUBLIC_TYPE_ENTRIES, typedExportOf } from "./package-declarations.ts";
 import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
-import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import { dependencyNamesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
   type BundledPackage,
@@ -26,6 +27,7 @@ export type PackageBuildPorts = {
   readonly fileText: FileTextPort;
   readonly scratch: ScratchFilesPort;
   readonly bundler: BundlerPort;
+  readonly declarations: DeclarationPort;
 };
 
 export type BuiltPackage = { readonly outputRoot: string; readonly files: readonly string[] };
@@ -409,6 +411,7 @@ const withManifest = (request: {
     command: request.plan.command,
     files: topLevelNames({ files: request.files }),
     exported: request.plan.exported,
+    typed: PUBLIC_TYPE_ENTRIES.map((entry) => typedExportOf({ entry })),
     nodeRange: SHIPPED_NODE_RANGE,
   });
   return manifest.outcome === "failed"
@@ -454,6 +457,18 @@ const writtenPackage = (request: { readonly context: BuildContext; readonly file
     : { outcome: "ok", value: { outputRoot: request.context.outputRoot, files: [...written.value].sort() } };
 };
 
+const publishedDeclarationsIn = (request: { readonly context: BuildContext; readonly developmentManifest: string }): Promise<Built<readonly OutputFile[]>> => {
+  const peers = peerKindsOf({ developmentManifest: request.developmentManifest });
+  return peers.outcome === "failed"
+    ? Promise.resolve(failedWith({ label: MANIFEST, detail: peers.error.detail }))
+    : declarationFilesOf({
+        port: request.context.declarations,
+        sourceRoot: request.context.packageRoot,
+        entries: PUBLIC_TYPE_ENTRIES,
+        requiredPeers: Object.keys(peers.value).filter((peer) => peers.value[peer] === "required"),
+      });
+};
+
 const packageFilesOf = async (request: { readonly context: BuildContext }): Promise<Built<readonly OutputFile[]>> => {
   const plan = planOf(request);
   if (plan.outcome === "failed") {
@@ -483,7 +498,11 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   if (files.outcome === "failed") {
     return files;
   }
-  const manifested = withManifest({ plan: plan.value, developmentManifest: developmentManifest.value, files: files.value });
+  const declarations = await publishedDeclarationsIn({ context: request.context, developmentManifest: developmentManifest.value });
+  if (declarations.outcome === "failed") {
+    return declarations;
+  }
+  const manifested = withManifest({ plan: plan.value, developmentManifest: developmentManifest.value, files: [...files.value, ...declarations.value] });
   return manifested.outcome === "failed" ? manifested : linkedFiles({ files: manifested.value, version: version.value });
 };
 

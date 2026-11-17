@@ -14,22 +14,23 @@ export type StepRun =
   | { readonly outcome: "exited"; readonly exitCode: number; readonly output: string }
   | { readonly outcome: "not-exited"; readonly detail: string };
 
-export type Mechanism = "audit" | "eslint";
+export type ConsumerFixture = "audit" | "eslint" | "typed-team-piece";
 
 export type ProofAction =
   | { readonly kind: "check"; readonly expectation: StepExpectation }
   | { readonly kind: "project"; readonly expectation: StepExpectation }
   | { readonly kind: "remove"; readonly path: string }
   | { readonly kind: "commit"; readonly message: string }
-  | { readonly kind: "read"; readonly path: string; readonly text: string };
+  | { readonly kind: "read"; readonly path: string; readonly text: string }
+  | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation };
 
-export type ProofToolchain = "typescript-floor" | "eslint-9-floor" | "eslint-10-floor";
+export type ProofToolchain = "typescript-floor" | "typescript-current" | "eslint-9-floor" | "eslint-10-floor";
 
 export type CommandScript = "check" | "project";
 
 export type ProofCase = {
   readonly consumer: string;
-  readonly mechanism: Mechanism;
+  readonly fixture: ConsumerFixture;
   readonly toolchain: ProofToolchain;
   readonly actions: readonly ProofAction[];
 };
@@ -87,11 +88,37 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     },
   },
 ];
+
+const COMPILES: StepExpectation = { exitCode: 0, output: "" };
+
+const WRONG_FIELD_TYPE_REJECTED: ProofAction = {
+  kind: "typecheck",
+  project: "tsconfig.wrong.json",
+  expectation: {
+    exitCode: 2,
+    output:
+      "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\n",
+  },
+};
+
+const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
+  WRONG_FIELD_TYPE_REJECTED,
+];
+
+const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
+  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: COMPILES },
+  WRONG_FIELD_TYPE_REJECTED,
+];
+
 export const PROOF_CASES: readonly ProofCase[] = [
-  { consumer: "audit", mechanism: "audit", toolchain: "typescript-floor", actions: AUDIT_CONSUMER_ACTIONS },
-  { consumer: "eslint-10", mechanism: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-9", mechanism: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-missing", mechanism: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
+  { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_CONSUMER_ACTIONS },
+  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
+  { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
+  { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({
@@ -146,6 +173,8 @@ type FloorPins = Readonly<Record<string, string>>;
 
 const TYPESCRIPT_FLOOR: FloorPins = { typescript: "typescript-floor" };
 
+const TYPESCRIPT_CURRENT: FloorPins = { typescript: "typescript" };
+
 const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
   ...TYPESCRIPT_FLOOR,
   "@typescript-eslint/parser": "typescript-eslint-parser-floor",
@@ -154,6 +183,7 @@ const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
 
 const FLOOR_PINS: Readonly<Record<ProofToolchain, FloorPins>> = {
   "typescript-floor": TYPESCRIPT_FLOOR,
+  "typescript-current": TYPESCRIPT_CURRENT,
   "eslint-9-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-9-floor" },
   "eslint-10-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-10-floor" },
 };
@@ -173,11 +203,12 @@ const floorVersion = (request: {
     return manifestInvalid({ detail: `no development pin ${request.pinName} for the peer ${request.peer}` });
   }
   const aliasPrefix = `npm:${request.peer}@`;
-  if (!pin.startsWith(aliasPrefix)) {
+  const aliasedPin = request.pinName === request.peer ? `${aliasPrefix}${pin}` : pin;
+  if (!aliasedPin.startsWith(aliasPrefix)) {
     return manifestInvalid({ detail: `the development pin ${request.pinName} is ${pin}, not an alias of ${request.peer}` });
   }
   return request.peer in request.manifest.peerDependencies
-    ? { outcome: "ok", value: pin.slice(aliasPrefix.length) }
+    ? { outcome: "ok", value: aliasedPin.slice(aliasPrefix.length) }
     : manifestInvalid({ detail: `${request.peer} is not a declared peer` });
 };
 

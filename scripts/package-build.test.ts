@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import type { Result } from "../core/values/result.ts";
+import { ENTRY_DECLARATIONS, emittingDeclarations } from "../tests/emitting-declarations.ts";
 import { inMemoryFiles } from "../tests/in-memory-files.ts";
 import { recordingBundler } from "../tests/recording-bundler.ts";
 import type { Bundle, BundledOutput, BundleFailure, BundlerPort } from "./esbuild-bundler-port.ts";
@@ -89,7 +90,13 @@ const builtWith = (request: { readonly source: Readonly<Record<string, string>>;
   return {
     files,
     built: buildPackage({
-      ports: { path: posixPath, fileText: files.fileText, scratch: files.scratch, bundler: request.bundler },
+      ports: {
+        path: posixPath,
+        fileText: files.fileText,
+        scratch: files.scratch,
+        bundler: request.bundler,
+        declarations: emittingDeclarations({ declarations: ENTRY_DECLARATIONS }),
+      },
       packageRoot: "/package",
       outputRoot: "/out",
       dependencies: "/deps",
@@ -105,7 +112,13 @@ describe("buildPackage", () => {
     const recording = recordingBundler({ files, stage: STAGE_SOURCE, bundle: { outcome: "ok", value: BUNDLE } });
 
     await buildPackage({
-      ports: { path: posixPath, fileText: files.fileText, scratch: files.scratch, bundler: recording.bundler },
+      ports: {
+        path: posixPath,
+        fileText: files.fileText,
+        scratch: files.scratch,
+        bundler: recording.bundler,
+        declarations: emittingDeclarations({ declarations: ENTRY_DECLARATIONS }),
+      },
       packageRoot: "/package",
       outputRoot: "/out",
       dependencies: "/deps",
@@ -157,8 +170,13 @@ describe("buildPackage", () => {
             "LICENSE",
             "README.md",
             "THIRD-PARTY-NOTICES.md",
+            "api/audit.d.ts",
+            "api/audit.js",
+            "api/rule-set.d.ts",
+            "api/rule-set.js",
             "chunks/chunk-A.js",
             "core/check/tool-command.js",
+            "core/values/result.d.ts",
             "docs/why-chain-contract.md",
             "mechanisms/audit/CD-15/loops.js",
             "mechanisms/audit/CD-15/piece.json",
@@ -173,8 +191,13 @@ describe("buildPackage", () => {
         "LICENSE",
         "README.md",
         "THIRD-PARTY-NOTICES.md",
+        "api/audit.d.ts",
+        "api/audit.js",
+        "api/rule-set.d.ts",
+        "api/rule-set.js",
         "chunks/chunk-A.js",
         "core/check/tool-command.js",
+        "core/values/result.d.ts",
         "docs/why-chain-contract.md",
         "mechanisms/audit/CD-15/loops.js",
         "mechanisms/audit/CD-15/piece.json",
@@ -193,10 +216,26 @@ describe("buildPackage", () => {
 
     expect(files.texts()).toMatchObject({
       "/out/package.json": expect.stringContaining(
-        '"files": [\n    "LICENSE",\n    "README.md",\n    "THIRD-PARTY-NOTICES.md",\n    "chunks",\n    "core",\n    "docs",\n    "mechanisms",\n    "rules"\n  ]',
+        '"files": [\n    "LICENSE",\n    "README.md",\n    "THIRD-PARTY-NOTICES.md",\n    "api",\n    "chunks",\n    "core",\n    "docs",\n    "mechanisms",\n    "rules"\n  ]',
       ),
       "/out/mechanisms/audit/CD-15/piece.json": expect.stringContaining('"module": "loops.js"'),
       "/out/THIRD-PARTY-NOTICES.md": expect.stringContaining("## zod 4.4.3\n\nLicense: MIT\n\n```text\nMIT License\n```"),
+    });
+  });
+
+  it("ships the declarations the typed entries reach with an empty module per entry, and exports each entry under the types and default conditions", async () => {
+    const { files, built } = builtWith({ source: SOURCE, bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }) });
+
+    await built;
+
+    expect(files.texts()).toMatchObject({
+      "/out/api/audit.d.ts": 'export type { Result } from "../core/values/result.js";\n',
+      "/out/api/audit.js": "export {};\n",
+      "/out/api/rule-set.js": "export {};\n",
+      "/out/core/values/result.d.ts": "export type Result = 1;\n",
+      "/out/package.json": expect.stringContaining(
+        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.js"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.js"\n    }',
+      ),
     });
   });
 

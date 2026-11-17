@@ -3,7 +3,7 @@ import { loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../..
 import { createDefaultPackageLocationPort } from "../../../core/platform-ports/package-location-port.ts";
 import type { InstallForm } from "../../../core/values/install-layout.ts";
 import type { Result } from "../../../core/values/result.ts";
-import { createParsePort, defaultTypeScriptModules, type TypeScriptModules, type TypeScriptParsePort } from "./typescript-parse.ts";
+import { defaultTypeScriptModules, type SyntaxApi, type SyntaxNode, type TypeScriptModules, type TypeScriptParsePort } from "./typescript-parse.ts";
 
 export type TypeScriptPeers = PeerToolchain<TypeScriptModules>;
 
@@ -16,6 +16,20 @@ export const TYPESCRIPT_REQUIREMENT: ToolchainRequirement = {
 export const defaultTypeScriptPeers = (options: { readonly installRoot: string; readonly installForm: InstallForm }): TypeScriptPeers => ({
   location: createDefaultPackageLocationPort(options),
   modules: defaultTypeScriptModules,
+});
+
+const directChildren = (request: { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode }): readonly SyntaxNode[] => {
+  const collected: SyntaxNode[] = [];
+  request.syntaxApi.forEachChild(request.node, (child) => {
+    collected.push(child);
+  });
+  return collected;
+};
+
+export const createParsePort = (options: { readonly syntaxApi: SyntaxApi }): TypeScriptParsePort => ({
+  syntaxApi: options.syntaxApi,
+  parse: (request) => options.syntaxApi.createSourceFile(request.fileName, request.source, options.syntaxApi.ScriptTarget.Latest, true),
+  children: (request) => directChildren({ syntaxApi: options.syntaxApi, node: request.node }),
 });
 
 export const loadParsePort = (request: { readonly peers: TypeScriptPeers }): Promise<Result<TypeScriptParsePort, RunnerFailure>> =>

@@ -15,27 +15,31 @@ const DEVELOPMENT_MANIFEST = {
   devDependencies: { vitest: "4.1.11" },
 };
 
-describe("publishManifestOf", () => {
-  const published = (developmentManifest: string) =>
-    publishManifestOf({
-      developmentManifest,
-      identity: {
-        name: "Provisional",
-        packageName: "provisional-core",
-        reservedEslintNamespace: "provisional-core",
-        command: "provisional",
-        ownRuleSet: "provisional",
-        description: "Checks a repository against its disciplines.",
-        repository: "https://github.com/example/provisional",
-        unrelatedNpmPackage: "provisional",
-      },
-      command: "core/check/tool-command.js",
-      files: ["LICENSE", "chunks", "core", "mechanisms"],
-      exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
-      nodeRange: "^22.18.0 || >=24",
-    });
+const published = (developmentManifest: string) =>
+  publishManifestOf({
+    developmentManifest,
+    identity: {
+      name: "Provisional",
+      packageName: "provisional-core",
+      reservedEslintNamespace: "provisional-core",
+      command: "provisional",
+      ownRuleSet: "provisional",
+      description: "Checks a repository against its disciplines.",
+      repository: "https://github.com/example/provisional",
+      unrelatedNpmPackage: "provisional",
+    },
+    command: "core/check/tool-command.js",
+    files: ["LICENSE", "chunks", "core", "mechanisms"],
+    exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
+    typed: [
+      { subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.js" },
+      { subpath: "rule-set", declaration: "api/rule-set.d.ts", module: "api/rule-set.js" },
+    ],
+    nodeRange: "^22.18.0 || >=24",
+  });
 
-  it("names and describes the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
+describe("publishManifestOf", () => {
+  it("names and describes the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest, each typed entry with its declaration under the types condition and its module as the default, and the modules a projection imports by bare path, and carries the optional peers but no dependencies", () => {
     expect(published(JSON.stringify(DEVELOPMENT_MANIFEST))).toEqual({
       outcome: "ok",
       value: `${JSON.stringify(
@@ -52,6 +56,8 @@ describe("publishManifestOf", () => {
           bin: { provisional: "core/check/tool-command.js" },
           exports: {
             "./package.json": "./package.json",
+            "./audit": { types: "./api/audit.d.ts", default: "./api/audit.js" },
+            "./rule-set": { types: "./api/rule-set.d.ts", default: "./api/rule-set.js" },
             "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js": "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",
           },
           files: ["LICENSE", "chunks", "core", "mechanisms"],

@@ -100,6 +100,13 @@ describe("requiredPeerPinsOf", () => {
     },
   );
 
+  it("pins typescript at the development version this package is built with for a typescript-current consumer", () => {
+    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+      outcome: "ok",
+      value: { typescript: "6.0.3" },
+    });
+  });
+
   it("pins nothing when every peer is optional", () => {
     expect(
       requiredPeerPinsOf({
@@ -116,6 +123,13 @@ describe("toolchainManifest, over this package's own package.json read as a buil
     expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-floor" })).toEqual({
       outcome: "ok",
       value: manifestText({ devDependencies: { typescript: "4.8.4" } }),
+    });
+  });
+
+  it("gives the current TypeScript root only typescript, at the development version installed under its own name", () => {
+    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+      outcome: "ok",
+      value: manifestText({ devDependencies: { typescript: "6.0.3" } }),
     });
   });
 
@@ -207,13 +221,30 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     },
   },
 ];
+
+const WRONG_FIELD_REPORT =
+  "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\n";
+
+const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
+  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
+];
+
+const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
+  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT },
+  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
+];
+
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor and one missing eslint, over three shared toolchains, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint and a typed team piece on the TypeScript floor and current version, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
-      { consumer: "audit", mechanism: "audit", toolchain: "typescript-floor", actions: AUDIT_ACTIONS },
-      { consumer: "eslint-10", mechanism: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-9", mechanism: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-missing", mechanism: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
+      { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_ACTIONS },
+      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
+      { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
+      { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

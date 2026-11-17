@@ -145,9 +145,20 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 
 ## Installing
 
-Hone installs as one npm package, `@hailstails/hone`, installed as `@hailstails/hone@next` from npm, downloaded as the tarball `hailstails-hone-<version>.tgz` attached to a GitHub release, or built by `bun run pack-package` into `artefacts/hailstails-hone-<version>.tgz`, the file name `npm pack` gives the scoped package, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as `peerDependencies`, `typescript` required and the ESLint packages optional, and exposes one command, `hone`, whose subcommands `hone check` and `hone project` are described under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source.
+Hone installs as one npm package, `@hailstails/hone`, installed as `@hailstails/hone@next` from npm, downloaded as the tarball `hailstails-hone-<version>.tgz` attached to a GitHub release, or built by `bun run pack-package` into `artefacts/hailstails-hone-<version>.tgz`, the file name `npm pack` gives the scoped package, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps. The package is plain JavaScript with `zod`, `jsonc-parser` and `@eslint/plugin-kit` bundled in, so it has no `dependencies`; its licences are reproduced in `THIRD-PARTY-NOTICES.md` inside it. It declares the toolchain as `peerDependencies`, `typescript` required and the ESLint packages optional, and exposes one command, `hone`, whose subcommands `hone check` and `hone project` are described under Commands. It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source, only the declaration files of the public type entries below.
 
 With the ESLint mechanism selected, a packaged install's projection imports each piece by package name, `@hailstails/hone/mechanisms/eslint/<DisciplineId>/...`, so the repository's ESLint must resolve the package from the repository root. Hone compares the committed projection `disciplines.eslint.mjs` byte for byte with what `hone project` would write now.
+
+## Public type entries
+
+The package has two public entries for TypeScript. Each holds types only, so importing one adds no code to a build; import them with `import type`.
+
+| Entry | Status | What it is for |
+| --- | --- | --- |
+| `@hailstails/hone/rule-set` | Stable | The shapes of `discipline.json`, `piece.json` and an ESLint piece's `settings`, for a team writing its own rule set. |
+| `@hailstails/hone/audit` | Experimental | The types for writing an audit walker piece, `WalkerPiece` and what it needs. It may change in a minor release. |
+
+Both resolve with `moduleResolution` `"nodenext"` or `"bundler"`, and `install-proof` type-checks a team piece against them on TypeScript 4.8.4 (`"nodenext"`, since 4.8 has no `"bundler"`) and 6.0.3 (both). `@hailstails/hone/audit` names TypeScript's own syntax types, so it needs the `typescript` the repository already installs as a peer. No other path in the package is a public TypeScript entry.
 
 ## Runtime
 
@@ -170,6 +181,7 @@ Hone's version numbers follow semantic versioning under these rules:
 - A new or tightened check ships off by default in a minor release and becomes a default only in a major release.
 - A change to the ESLint config that `hone project` generates, which an adopter must regenerate, is a minor release, with a clear message telling the adopter to regenerate: its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
 - A change to a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag is a major release.
+- A breaking change to a type in `@hailstails/hone/rule-set` is a major release. `@hailstails/hone/audit` is experimental: its types may change in a minor release until it is marked stable.
 - Before the first stable release, a change that would need a major release ships in a minor release instead.
 - A pre-release previews the release it is numbered towards and is published under the `next` dist-tag. A change of any size can land between two pre-releases of the same release, and the changelog lists it.
 
