@@ -85,8 +85,8 @@ describe("verdictOf", () => {
         invalidRecords: [{ index: 0, problem: { kind: "duplicate", ofIndex: 1 } }],
       },
     ],
-    ["unmeasured", { ...emptyReport, unmeasured: [{ kind: "forfeiture-unmeasured" }] }],
-    ["legacy-chain unmeasured", { ...emptyReport, unmeasured: [{ kind: "legacy-chain-unmeasured" }] }],
+    ["unmeasured", { ...emptyReport, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }],
+    ["legacy-chain unmeasured", { ...emptyReport, unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "not-given" } }] }],
     [
       "projectionProblems",
       { ...emptyReport, projectionProblems: [{ mechanism: eslint, state: "out-of-date" }] },

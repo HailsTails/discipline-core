@@ -35,7 +35,13 @@ import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
-import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import type {
+  BaseRevisionAvailability,
+  CheckReport,
+  PartialAssessment,
+  ProjectionProblem,
+  Unmeasured,
+} from "../verdict/check-report.ts";
 import { clauseReadingsOf } from "./clause-readings.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
@@ -205,12 +211,20 @@ export const recordsOf = (request: {
 }): readonly ExceptionRecord[] =>
   request.records.filter((record) => record.mechanism === request.mechanism);
 
+const baseRevisionAvailabilityOf = (request: {
+  readonly baseRevision: string | undefined;
+}): BaseRevisionAvailability =>
+  request.baseRevision === undefined
+    ? { state: "not-given" }
+    : { state: "unreachable", revision: request.baseRevision };
+
 const forfeitureUnmeasured = (request: {
   readonly touched: TouchedSet;
   readonly records: readonly ExceptionRecord[];
+  readonly base: BaseRevisionAvailability;
 }): readonly Unmeasured[] =>
   request.touched.measured === "no" && request.records.some((record) => record.kind === "file-carve-out")
-    ? [{ kind: "forfeiture-unmeasured" }]
+    ? [{ kind: "forfeiture-unmeasured", base: request.base }]
     : [];
 
 const fileCarveOutsIn = (request: { readonly records: readonly ExceptionRecord[] }): number =>
@@ -247,17 +261,19 @@ const legacyChainRecords = (request: { readonly records: readonly ExceptionRecor
 const legacyChainUnmeasured = (request: {
   readonly exceptionBaseline: ExceptionBaseline;
   readonly records: readonly ExceptionRecord[];
+  readonly base: BaseRevisionAvailability;
 }): readonly Unmeasured[] =>
   request.exceptionBaseline.measured === "no" && legacyChainRecords({ records: request.records }) === "present"
-    ? [{ kind: "legacy-chain-unmeasured" }]
+    ? [{ kind: "legacy-chain-unmeasured", base: request.base }]
     : [];
 
 const importUnmeasured = (request: {
   readonly exceptionBaseline: ExceptionBaseline;
   readonly records: readonly ExceptionRecord[];
+  readonly base: BaseRevisionAvailability;
 }): readonly Unmeasured[] =>
   request.exceptionBaseline.measured === "no" && importedRecords({ records: request.records }) === "present"
-    ? [{ kind: "import-unmeasured" }]
+    ? [{ kind: "import-unmeasured", base: request.base }]
     : [];
 
 const textsInBase = (request: {
@@ -408,6 +424,7 @@ const checkReportOf = (request: {
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
   readonly touched: TouchedSet;
+  readonly base: BaseRevisionAvailability;
 }): CheckReport => {
   const governed = applyGovernance({
     findings: findingsOf(request),
@@ -424,9 +441,9 @@ const checkReportOf = (request: {
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
     unmeasured: [
-      ...forfeitureUnmeasured({ touched: request.touched, records: request.inputs.records }),
-      ...importUnmeasured({ exceptionBaseline: request.inputs.exceptionBaseline, records: request.inputs.records }),
-      ...legacyChainUnmeasured({ exceptionBaseline: request.inputs.exceptionBaseline, records: request.inputs.records }),
+      ...forfeitureUnmeasured({ touched: request.touched, records: request.inputs.records, base: request.base }),
+      ...importUnmeasured({ ...request.inputs, base: request.base }),
+      ...legacyChainUnmeasured({ ...request.inputs, base: request.base }),
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
     projectionProblems: projections.flatMap((projection) => projection.problems),
@@ -459,6 +476,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
       inputs: inputs.value,
       runs: runs.value,
       touched: touchedSetFor({ check: request, records: inputs.value.records }),
+      base: baseRevisionAvailabilityOf(request),
     }),
   };
 };

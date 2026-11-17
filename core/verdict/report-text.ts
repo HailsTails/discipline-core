@@ -3,7 +3,16 @@ import type { AttributedNativeException, ExemptedFinding, Finding } from "../gov
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
-import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ReadFirstEntry, Unmeasured } from "./check-report.ts";
+import type {
+  AssessmentFileNote,
+  BaseRevisionAvailability,
+  CheckReport,
+  ClauseReading,
+  PartialAssessment,
+  ProjectionProblem,
+  ReadFirstEntry,
+  Unmeasured,
+} from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -74,16 +83,64 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
   }
 };
 
+type BaseDependentUnmeasured = Extract<Unmeasured, { readonly base: BaseRevisionAvailability }>;
+
+type MechanismNotRun = Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
+
+const REFRESH_PROJECTION = "run hone project --repo . at the repository root and commit the files it writes";
+
+const MEASURED_WITH_A_BASE: Readonly<Record<BaseDependentUnmeasured["kind"], string>> = {
+  "forfeiture-unmeasured": "file carve-outs can be checked for decay",
+  "import-unmeasured": "imported records can be checked against it",
+  "legacy-chain-unmeasured": "legacy-chain records can be checked against it",
+};
+
+const historyToFetch = (request: { readonly revision: string }): string =>
+  `git could not list the files changed since ${request.revision}; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists`;
+
+const commitToFetch = (request: { readonly revision: string }): string =>
+  `git could not read ${request.revision}; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists`;
+
+const FETCH_THE_BASE: Readonly<
+  Record<BaseDependentUnmeasured["kind"], (request: { readonly revision: string }) => string>
+> = {
+  "forfeiture-unmeasured": historyToFetch,
+  "import-unmeasured": commitToFetch,
+  "legacy-chain-unmeasured": commitToFetch,
+};
+
+const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasured }): string => {
+  const { kind, base } = request.unmeasured;
+  switch (base.state) {
+    case "not-given":
+      return `${kind} no-base-revision: pass --base-revision with the branch's base, such as origin/main, so ${MEASURED_WITH_A_BASE[kind]}`;
+    case "unreachable":
+      return `${kind} base-unreachable ${base.revision}: ${FETCH_THE_BASE[kind](base)}`;
+  }
+};
+
+const mechanismNotRunStep = (request: { readonly unmeasured: MechanismNotRun }): string => {
+  switch (request.unmeasured.projection) {
+    case "missing":
+      return REFRESH_PROJECTION;
+    case "not-included":
+      return `the ${request.unmeasured.mechanism} configuration does not apply the projection; load the file hone project writes last in that configuration, so no other block overrides it`;
+  }
+};
+
 const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string => {
   switch (request.unmeasured.kind) {
     case "forfeiture-unmeasured":
     case "import-unmeasured":
     case "legacy-chain-unmeasured":
-      return request.unmeasured.kind;
+      return baseDependentLine({ unmeasured: request.unmeasured });
     case "mechanism-not-run":
-      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}`;
+      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}: ${mechanismNotRunStep({ unmeasured: request.unmeasured })}`;
   }
 };
+
+const projectionProblemLine = (request: { readonly problem: ProjectionProblem }): string =>
+  `${request.problem.mechanism} ${request.problem.state}: ${REFRESH_PROJECTION}`;
 
 const counted = (request: { readonly count: number; readonly noun: string }): string =>
   request.count === 1 ? `1 ${request.noun}` : `${request.count} ${request.noun}s`;
@@ -152,7 +209,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     ),
   unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ unmeasured })),
   projectionProblems: (request) =>
-    request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
+    request.report.projectionProblems.map((problem) => projectionProblemLine({ problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
 };

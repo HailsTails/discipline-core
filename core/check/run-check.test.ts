@@ -496,7 +496,7 @@ describe("runCheck forfeiture measurement", () => {
           fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "forfeiture-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] } });
   });
 
   it("reports forfeiture-unmeasured when git cannot measure the change set and a file carve-out exists", async () => {
@@ -513,7 +513,7 @@ describe("runCheck forfeiture measurement", () => {
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "forfeiture-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "unreachable", revision: "main" } }] } });
   });
 
   it("reports nothing unmeasured when no base revision is given and no file carve-out exists", async () => {
@@ -531,7 +531,7 @@ describe("runCheck forfeiture measurement", () => {
           fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_AUTHORISED_LOCATION }) }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "import-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }] } });
   });
 
   it("refuses an imported authorised location the base revision does not hold", async () => {
@@ -555,7 +555,7 @@ describe("runCheck forfeiture measurement", () => {
           fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }) }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], unmeasured: [{ kind: "legacy-chain-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "not-given" } }] } });
   });
 
   it("reports legacy-chain-unmeasured when git cannot read the base revision and an entry holds a legacy chain", async () => {
@@ -570,7 +570,25 @@ describe("runCheck forfeiture measurement", () => {
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "legacy-chain-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "unreachable", revision: "main" } }] } });
+  });
+
+  it("reports import-unmeasured with the unreachable base when git cannot read it and an imported authorised location exists", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_AUTHORISED_LOCATION }) }),
+          git: gitReporting({
+            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+            changedSince: { outcome: "ok", value: [] },
+            textInBase: { outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad revision 'main'" } },
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "unreachable", revision: "main" } }] },
+    });
   });
 
   it("accepts a legacy chain the base revision holds unchanged and reports nothing unmeasured", async () => {
@@ -779,7 +797,7 @@ describe("runCheck forfeiture elsewhere with a base revision", () => {
     await expect(runCheck(importedAndCarved({ baseRevision: undefined }))).resolves.toMatchObject({
       outcome: "ok",
       value: {
-        unmeasured: [{ kind: "import-unmeasured" }],
+        unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
         forfeited: [],
         assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 }],
       },
@@ -812,7 +830,7 @@ describe("runCheck forfeiture elsewhere with legacy chains", () => {
   it("reports legacy-chain-unmeasured as today when no base revision is given", async () => {
     await expect(runCheck(legacyChain({ baseRevision: undefined }))).resolves.toMatchObject({
       outcome: "ok",
-      value: { unmeasured: [{ kind: "legacy-chain-unmeasured" }] },
+      value: { unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "not-given" } }] },
     });
   });
 });
@@ -866,7 +884,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], unmeasured: [{ kind: "forfeiture-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] } });
   });
 
   it("reports nothing unmeasured for a reason-only authorised location when no base revision is given", async () => {
@@ -938,7 +956,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "import-unmeasured" }] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }] } });
   });
 
   it("refuses the same reason-only records as evidence-refused when disciplines.json leaves why-chains required", async () => {

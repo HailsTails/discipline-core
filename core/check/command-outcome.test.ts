@@ -55,10 +55,13 @@ describe("checkCommandOutcome", () => {
       checkCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured" }] }, output: "full" },
+          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full" },
         },
       }),
-    ).toEqual({ code: 1, text: "unmeasured (1)\nforfeiture-unmeasured\nverdict: fail\n" });
+    ).toEqual({
+      code: 1,
+      text: "unmeasured (1)\nforfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay\nverdict: fail\n",
+    });
   });
 
   it.each(reportOutputSchema.options)("exits 1 for a failing report whatever the %s output prints", (output) => {

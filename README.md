@@ -82,7 +82,21 @@ Hone matches the heading only; it never reads the section's text. A missing file
 
 The output changes only what is printed: the verdict and exit code always come from the whole report. An unknown `--report-output` value is a load failure `arguments-invalid`; an unknown `reportOutput` value makes `disciplines.json` `file-malformed`, even when `--report-output` is given. Load failures print the same in every output.
 
-Without `--base-revision`, Hone cannot tell which files were touched, so a file carve-out cannot be forfeited; if any file carve-out exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot tell whether an entry with an earlier-contract why-chain is unchanged; if one exists the report lists `legacy-chain-unmeasured` and the run fails.
+Without `--base-revision`, Hone cannot tell which files were touched, so a file carve-out cannot be forfeited; if any file carve-out exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot tell whether an entry with an earlier-contract why-chain is unchanged; if one exists the report lists `legacy-chain-unmeasured` and the run fails. Each line says why and what to do:
+
+```text
+forfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay
+import-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so imported records can be checked against it
+legacy-chain-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so legacy-chain records can be checked against it
+```
+
+A `--base-revision` that git cannot use gives the same kinds, naming the revision. Forfeiture needs the history from the base to `HEAD`, so a shallow checkout, as `actions/checkout` makes by default, cannot measure it; imported and legacy-chain records need only the base commit itself:
+
+```text
+forfeiture-unmeasured base-unreachable origin/main: git could not list the files changed since origin/main; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists
+import-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists
+legacy-chain-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists
+```
 
 `--forfeiture elsewhere` makes a run leave carve-out decay to another run, such as a pre-push hook given a base revision, overriding `assessment.forfeiture` in `disciplines.json`; `--forfeiture this-run`, the default, assesses it in this run. A run with forfeiture elsewhere asks git for no change set, forfeits no file carve-out and never reports `forfeiture-unmeasured`, with or without `--base-revision`. It ends its report with an `assessment` section, printed whenever the run assesses less than the default, and marks its verdict line in every output:
 
@@ -109,7 +123,15 @@ export default [
 ];
 ```
 
-This is the only supported way to adopt the rules. On every check, Hone reads the team's resolved configuration for each checked file and fails the run if the projection is missing (`mechanism-not-run eslint missing`), not in effect (`mechanism-not-run eslint not-included`), or differs from what `hone project` would write now (`eslint out-of-date`). Re-run `hone project` after changing the selection or the exceptions.
+This is the only supported way to adopt the rules. On every check, Hone reads the team's resolved configuration for each checked file and fails the run if the projection is missing, not in effect, or differs from what `hone project` would write now, with the line that says what to do:
+
+```text
+mechanism-not-run eslint missing: run hone project --repo . at the repository root and commit the files it writes
+mechanism-not-run eslint not-included: the eslint configuration does not apply the projection; load the file hone project writes last in that configuration, so no other block overrides it
+eslint out-of-date: run hone project --repo . at the repository root and commit the files it writes
+```
+
+Re-run `hone project` after changing the selection or the exceptions.
 
 A file carve-out stays in the projection after it is forfeited, so the team's own ESLint run keeps ignoring that file; Hone's check is what fails it, as `forfeited`.
 
@@ -207,7 +229,7 @@ Both resolve with `moduleResolution` `"nodenext"` or `"bundler"`. `install-proof
 
 - Windows, Linux, macOS or WSL. Hone keeps absolute paths in the platform's own form and repository paths in POSIX form, as git reports them.
 - The package: Node `^22.18.0 || >=24` (its `engines.node`). It is plain JavaScript, so Node never strips types from it, and from 22.18.0 Node strips types from a rule set's `.ts` piece modules, within the limits [ADOPTING.md](ADOPTING.md#1-check-the-prerequisites) lists.
-- git 2.24 or later. Older git rejects `--end-of-options`, so the changed-file query fails and forfeiture is reported unmeasured.
+- git 2.24 or later. Older git rejects `--end-of-options`, so the changed-file query fails and forfeiture is reported unmeasured as `forfeiture-unmeasured base-unreachable <rev>` even when the base is fetched; update git.
 - Hone's own packages, `zod`, `jsonc-parser` and `@eslint/plugin-kit`, exact-pinned in `dependencies` and locked by `pnpm-lock.yaml`: bundled into the package. They are implementation details: nothing of theirs crosses into the repository's code or configuration.
 - The repository's own toolchain, declared as `peerDependencies`: `typescript` `>=4.8.4 <7.0.0`, a required peer because every audit clause needs it, and for the ESLint mechanism the optional peers `eslint` `^9.28.0 || ^10.0.0`, `@typescript-eslint/parser` `^8.56.0` and `@typescript-eslint/eslint-plugin` `^8.56.0`. npm 7 and later install a missing required peer on their own, so declare `typescript` at the root at the version the repository uses. Each floor is the oldest release Hone is tested on: TypeScript 4.8 is the oldest whose syntax API the audit uses (`getModifiers`), ESLint 9.28.0 the first 9.x with every bulk-suppressions option a carve-out kept in `eslint-suppressions.json` relies on (`--pass-on-unpruned-suppressions` came last), and typescript-eslint 8.56.0 the first whose peer range accepts ESLint 10. TypeScript stops below 7 because TypeScript 7's compiler API is a different one. Yarn Plug'n'Play is not supported.
 

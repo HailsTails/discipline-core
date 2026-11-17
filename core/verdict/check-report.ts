@@ -13,10 +13,15 @@ import type { ClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 
+export type BaseRevisionAvailability =
+  | { readonly state: "not-given" }
+  | { readonly state: "unreachable"; readonly revision: string };
+
 export type Unmeasured =
-  | { readonly kind: "forfeiture-unmeasured" }
-  | { readonly kind: "import-unmeasured" }
-  | { readonly kind: "legacy-chain-unmeasured" }
+  | {
+      readonly kind: "forfeiture-unmeasured" | "import-unmeasured" | "legacy-chain-unmeasured";
+      readonly base: BaseRevisionAvailability;
+    }
   | {
       readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;

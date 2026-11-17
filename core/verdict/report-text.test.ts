@@ -6,7 +6,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
-import type { CheckReport, ClauseReading, PartialAssessment } from "./check-report.ts";
+import type { CheckReport, ClauseReading, PartialAssessment, Unmeasured } from "./check-report.ts";
 import { renderReportText } from "./report-text.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
@@ -396,37 +396,46 @@ exceptions[4] why-chain-refused why 2\nis empty\r
     ).toContain("\nexceptions[3] duplicate of 1\n");
   });
 
-  it("renders a forfeiture-unmeasured entry as its kind", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: { ...emptyReport, unmeasured: [{ kind: "forfeiture-unmeasured" }] },
-      }),
-    ).toContain("\nforfeiture-unmeasured\n");
+  it.each<readonly [Unmeasured, string]>([
+    [
+      { kind: "forfeiture-unmeasured", base: { state: "not-given" } },
+      "forfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay",
+    ],
+    [
+      { kind: "forfeiture-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
+      "forfeiture-unmeasured base-unreachable origin/main: git could not list the files changed since origin/main; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists",
+    ],
+    [
+      { kind: "import-unmeasured", base: { state: "not-given" } },
+      "import-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so imported records can be checked against it",
+    ],
+    [
+      { kind: "import-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
+      "import-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists",
+    ],
+    [
+      { kind: "legacy-chain-unmeasured", base: { state: "not-given" } },
+      "legacy-chain-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so legacy-chain records can be checked against it",
+    ],
+    [
+      { kind: "legacy-chain-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
+      "legacy-chain-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists",
+    ],
+    [
+      { kind: "mechanism-not-run", mechanism: eslint, projection: "missing" },
+      "mechanism-not-run eslint missing: run hone project --repo . at the repository root and commit the files it writes",
+    ],
+    [
+      { kind: "mechanism-not-run", mechanism: eslint, projection: "not-included" },
+      "mechanism-not-run eslint not-included: the eslint configuration does not apply the projection; load the file hone project writes last in that configuration, so no other block overrides it",
+    ],
+  ])("renders the unmeasured entry %o as the line with its reason and next step", (unmeasured, line) => {
+    expect(renderReportText({ output: "full", report: { ...emptyReport, unmeasured: [unmeasured] } })).toContain(
+      `\n${line}\n`,
+    );
   });
 
-  it("renders a legacy-chain-unmeasured entry as its kind", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: { ...emptyReport, unmeasured: [{ kind: "legacy-chain-unmeasured" }] },
-      }),
-    ).toContain("\nlegacy-chain-unmeasured\n");
-  });
-
-  it("renders a mechanism-not-run entry as its kind, mechanism and projection", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: {
-          ...emptyReport,
-          unmeasured: [{ kind: "mechanism-not-run", mechanism: eslint, projection: "missing" }],
-        },
-      }),
-    ).toContain("\nmechanism-not-run eslint missing\n");
-  });
-
-  it("renders a projection problem as its mechanism and out-of-date", () => {
+  it("renders a projection problem as its mechanism, out-of-date and the command that refreshes it", () => {
     expect(
       renderReportText({
         output: "full",
@@ -435,7 +444,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
           projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
         },
       }),
-    ).toContain("\neslint out-of-date\n");
+    ).toContain("\neslint out-of-date: run hone project --repo . at the repository root and commit the files it writes\n");
   });
 });
 

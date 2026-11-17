@@ -65,7 +65,7 @@ describe("selfCheckOutcomeOf", () => {
               ...EMPTY_REPORT,
               findings: [CLASS_IN_A],
               uncovered: [clauseAddressSchema.parse("CD-15#loops")],
-              unmeasured: [{ kind: "import-unmeasured" }],
+              unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
             },
             output: "counts",
           },

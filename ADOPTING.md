@@ -193,6 +193,12 @@ In CI, pass the branch's base so that debt recorded per file is forfeited once t
 npm run --silent hone:check -- --base-revision origin/main
 ```
 
+CI must fetch the history from that base to the checked commit, so git can find where the branch left it. `actions/checkout` fetches one commit by default; set `fetch-depth: 0` on it, or fetch the base branch with enough depth to reach the branch point. Without that history the report says so and the run fails:
+
+```text
+forfeiture-unmeasured base-unreachable origin/main: git could not list the files changed since origin/main; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists
+```
+
 Add the command to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
 
 To assess decay at push only, for example so that a hotfix in a carved file is not blocked in CI, set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI and the pre-push hook then run different commands. The pre-push hook assesses decay for its run:
@@ -207,7 +213,7 @@ CI leaves decay to the hook. A repository with no imported records and no legacy
 npm run --silent hone:check
 ```
 
-A repository with imported records (`provenance`) or legacy-chain records still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` or `legacy-chain-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and nothing is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history:
+A repository with imported records (`provenance`) or legacy-chain records still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` or `legacy-chain-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and nothing is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history; a base that is not fetched is listed as `import-unmeasured base-unreachable <base-commit>` or `legacy-chain-unmeasured base-unreachable <base-commit>`:
 
 ```bash
 npm run --silent hone:check -- --base-revision <base-commit>
@@ -287,7 +293,8 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
 | `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-run` or `clause-not-adopted` for an entry on a clause listed as `"not-run"` or `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
-| `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
+| `unmeasured` | something could not be measured; each line says why and what to do, for example `forfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay` |
+| `projectionProblems` | a projection that differs from what `hone project` writes now, for example `eslint out-of-date: run hone project --repo . at the repository root and commit the files it writes` |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 | `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; a clause the file does not assess reads `CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause`; before the file is written, one line first says so and names step 5a, and each clause line names its rule page only, as in the walkthrough below; the README lists every line exactly; paths are relative to the `--repo` folder; guidance, it never fails the run |
 
