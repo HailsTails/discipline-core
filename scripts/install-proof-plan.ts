@@ -58,7 +58,7 @@ const ESLINT_CONSUMER_ACTIONS: readonly ProofAction[] = [
   { kind: "commit", message: "project" },
   {
     kind: "check",
-    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
+    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
   },
 ];
 
@@ -67,7 +67,7 @@ const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: {
       exitCode: 1,
-      output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n",
     },
   },
 ];
@@ -108,6 +108,9 @@ exempted (1)
 CD-14#class-syntax eslint packages/web/src/legacy.ts:1:7 export class Legacy {} exempted by file-carve-out
 uncovered (1)
 CD-14#static-only-class
+readFirst (2)
+Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
+CD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit
 verdict: fail
 `;
 
@@ -145,6 +148,10 @@ const TEAM_RULE_SET = "tools/disciplines/acme";
 const TEAM_FINDINGS_REPORT = `findings (2)
 acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
 acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
+readFirst (3)
+Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
+acme/ACME-1#console-calls: its rule set has no rule page at tools/disciplines/acme/rules/ACME-1/README.md
+acme/ACME-2#scratch-files: its rule set has no rule page at tools/disciplines/acme/rules/ACME-2/README.md
 verdict: fail
 `;
 

@@ -6,7 +6,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
-import type { CheckReport, PartialAssessment } from "./check-report.ts";
+import type { CheckReport, ClauseReading, PartialAssessment } from "./check-report.ts";
 import { renderReportText } from "./report-text.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
@@ -66,6 +66,7 @@ const emptyReport: CheckReport = {
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
+  readFirst: [],
 };
 
 describe("renderReportText entry lines", () => {
@@ -762,5 +763,110 @@ describe("renderReportText clauses adopted but not run", () => {
         report: { ...emptyReport, invalidRecords: [{ index: 1, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
       }),
     ).toContain("\nexceptions[1] clause-not-run probe/PD-1#no-tmp-files\n");
+  });
+});
+
+const loops = clauseAddressSchema.parse("CD-15#loops");
+
+const loopsFinding: Finding = { ...finding, clause: loops, snippet: "const total = 0;" };
+
+const readingOf = (request: {
+  readonly clause: ClauseReading["clause"];
+  readonly assessmentSection: ClauseReading["assessmentSection"];
+  readonly presence: ClauseReading["rulePage"]["presence"];
+}): ClauseReading => ({
+  kind: "clause",
+  clause: request.clause,
+  assessmentSection: request.assessmentSection,
+  rulePage: { path: `rules/${request.clause.discipline}/README.md`, presence: request.presence },
+});
+
+const pointedReport: CheckReport = {
+  ...emptyReport,
+  findings: [finding, loopsFinding],
+  readFirst: [
+    readingOf({ clause: noClass, assessmentSection: "present", presence: "present" }),
+    readingOf({ clause: loops, assessmentSection: "not-assessed", presence: "present" }),
+  ],
+};
+
+const unwrittenReport: CheckReport = {
+  ...emptyReport,
+  findings: [finding, loopsFinding],
+  readFirst: [
+    { kind: "assessment-file", state: "not-written", guide: "node_modules/@hailstails/hone/ADOPTING.md" },
+    readingOf({ clause: noClass, assessmentSection: "unread", presence: "present" }),
+    readingOf({ clause: loops, assessmentSection: "unread", presence: "present" }),
+  ],
+};
+
+describe("renderReportText readFirst", () => {
+  it("prints readFirst last, after the failures, so the report ends on where to read and then the verdict", () => {
+    expect(renderReportText({ output: "full", report: pointedReport })).toBe(
+      'findings (2)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nCD-15#loops audit src/a.ts:3:5 const total = 0;\nreadFirst (2)\nCD-14#no-class-syntax: read the "## CD-14#no-class-syntax" section of disciplines.assessment.md, then rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause\nverdict: fail\n',
+    );
+  });
+
+  it("says once, first, that the assessment file is not written and where its guide is, then gives each clause its rule page", () => {
+    expect(renderReportText({ output: "full", report: unwrittenReport })).toContain(
+      "\nreadFirst (3)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#no-class-syntax: read rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit\nverdict: fail\n",
+    );
+  });
+
+  it("says once, first, that the assessment file could not be read", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          findings: [loopsFinding],
+          readFirst: [
+            { kind: "assessment-file", state: "unreadable", guide: "ADOPTING.md" },
+            readingOf({ clause: loops, assessmentSection: "unread", presence: "present" }),
+          ],
+        },
+      }),
+    ).toContain(
+      "\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md could not be read.\nCD-15#loops: read rules/CD-15/README.md#spirit\nverdict: fail\n",
+    );
+  });
+});
+
+describe("renderReportText readFirst without a rule page", () => {
+  it.each([
+    {
+      section: "present",
+      line: 'CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md; its rule set has no rule page at rules/CD-15/README.md',
+    },
+    {
+      section: "not-assessed",
+      line: "CD-15#loops: its rule set has no rule page at rules/CD-15/README.md; disciplines.assessment.md does not assess this clause",
+    },
+    { section: "unread", line: "CD-15#loops: its rule set has no rule page at rules/CD-15/README.md" },
+  ] as const)("says the rule set has no page when the section is $section", ({ section, line }) => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          findings: [loopsFinding],
+          readFirst: [readingOf({ clause: loops, assessmentSection: section, presence: "absent" })],
+        },
+      }),
+    ).toContain(`\nreadFirst (1)\n${line}\nverdict: fail\n`);
+  });
+});
+
+describe("renderReportText readFirst by output", () => {
+  it("keeps readFirst in the failures-only output, after the findings", () => {
+    expect(renderReportText({ output: "failures-only", report: pointedReport })).toMatch(/^findings \(2\)\n(?:.*\n){2}readFirst \(2\)\n(?:.*\n){2}verdict: fail\n$/);
+  });
+
+  it("counts readFirst as guidance in the counts output, its note included", () => {
+    expect(renderReportText({ output: "counts", report: unwrittenReport })).toBe("findings (2)\nreadFirst (3) guidance\nverdict: fail\n");
+  });
+
+  it("prints only the verdict for the verdict-only output", () => {
+    expect(renderReportText({ output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
   });
 });

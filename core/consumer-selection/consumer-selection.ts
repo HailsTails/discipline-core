@@ -591,6 +591,7 @@ const selectionReadingOf = (request: {
     notRun: addressesIn({ unrun: request.unrun, state: "not-run" }),
   },
   bindings: request.resolved.map(({ binding }) => binding),
+  clauseRoots: request.resolved.map((resolved) => ({ clause: addressOf({ resolved }), ruleSetRoot: resolved.ruleSetRoot })),
   excluded: request.file.exclude,
   eslintConfigRoots: request.file.eslintConfigRoots,
   fileExceptionWhyChains: request.file.fileExceptionWhyChains,

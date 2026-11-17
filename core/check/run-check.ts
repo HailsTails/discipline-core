@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type ClauseBinding, readSelection, type Selection } from "../consumer-selection/consumer-selection.ts";
+import type { ClauseRoot } from "../consumer-selection/selection.ts";
 import {
   type ExceptionRecord,
   exceptionEntriesOfText,
@@ -35,6 +36,7 @@ import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
 import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import { clauseReadingsOf } from "./clause-readings.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
 
@@ -66,6 +68,7 @@ export type LoadedMechanism = {
 
 export type LoadedInputs = {
   readonly selection: Selection;
+  readonly clauseRoots: readonly ClauseRoot[];
   readonly records: readonly ExceptionRecord[];
   readonly invalidRecords: readonly InvalidRecord[];
   readonly mechanisms: readonly LoadedMechanism[];
@@ -187,6 +190,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
     outcome: "ok",
     value: {
       selection: reading.value.selection,
+      clauseRoots: reading.value.clauseRoots,
       records: parsed.records,
       invalidRecords: parsed.invalid,
       mechanisms: mechanisms.value,
@@ -453,6 +457,7 @@ const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readon
   request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
 
 const checkReportOf = (request: {
+  readonly check: CheckRequest;
   readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
@@ -483,6 +488,7 @@ const checkReportOf = (request: {
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
     ],
     assessment: partialAssessmentsOf(request),
+    readFirst: clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
   };
 };
 
@@ -505,6 +511,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   return {
     outcome: "ok",
     value: checkReportOf({
+      check: request,
       assessment: request.assessment,
       inputs: inputs.value,
       runs: runs.value,

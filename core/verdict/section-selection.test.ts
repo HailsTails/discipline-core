@@ -20,6 +20,11 @@ const exempted: ReportSection = {
   lines: ["CD-23#export-test-sibling audit src/clock.ts:1:0 missing co-located test sibling exempted by authorised-location"],
 };
 
+const readFirst: ReportSection = {
+  name: "readFirst",
+  lines: ['CD-14#class-syntax: no disciplines.assessment.md; read rules/CD-14/README.md#spirit'],
+};
+
 describe("printedSectionLines", () => {
   it("prints a section's heading and every entry for the full output", () => {
     expect(printedSectionLines({ output: "full", section: findings })).toEqual(["findings (2)", ...findings.lines]);
@@ -53,7 +58,15 @@ describe("printedSectionLines", () => {
     },
   );
 
-  it.each([findings, excluded, exempted])("prints nothing of the $name section for the verdict-only output", (section) => {
+  it("prints the guidance readFirst section's heading and every entry for the failures-only output", () => {
+    expect(printedSectionLines({ output: "failures-only", section: readFirst })).toEqual(["readFirst (1)", ...readFirst.lines]);
+  });
+
+  it("prints the guidance readFirst section's heading with its count, marked guidance, for the counts output", () => {
+    expect(printedSectionLines({ output: "counts", section: readFirst })).toEqual(["readFirst (1) guidance"]);
+  });
+
+  it.each([findings, excluded, exempted, readFirst])("prints nothing of the $name section for the verdict-only output", (section) => {
     expect(printedSectionLines({ output: "verdict-only", section })).toEqual([]);
   });
 });

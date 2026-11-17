@@ -2,7 +2,7 @@ import type { CheckReport } from "./check-report.ts";
 
 export type SectionName = keyof CheckReport;
 
-export type SectionRole = "failing" | "informational";
+export type SectionRole = "failing" | "informational" | "guidance";
 
 const SECTION_ROLES: Readonly<Record<SectionName, SectionRole>> = {
   excluded: "informational",
@@ -19,6 +19,7 @@ const SECTION_ROLES: Readonly<Record<SectionName, SectionRole>> = {
   unmeasured: "failing",
   projectionProblems: "failing",
   assessment: "informational",
+  readFirst: "guidance",
 };
 
 const isSectionName = (key: string): key is SectionName => Object.hasOwn(SECTION_ROLES, key);

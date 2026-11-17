@@ -1,3 +1,4 @@
+import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { RunnerClause } from "../mechanism-port/runner-module-schema.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
 import type { FileExceptionWhyChains } from "../values/file-exception-why-chains.ts";
@@ -18,6 +19,11 @@ export type Selection = {
   readonly notRun: readonly ClauseAddress[];
 };
 
+export type ClauseRoot = {
+  readonly clause: ClauseAddress;
+  readonly ruleSetRoot: AbsolutePath;
+};
+
 export type ClauseBinding = {
   readonly mechanism: MechanismId;
   readonly clause: RunnerClause;
@@ -26,6 +32,7 @@ export type ClauseBinding = {
 export type SelectionReading = {
   readonly selection: Selection;
   readonly bindings: readonly ClauseBinding[];
+  readonly clauseRoots: readonly ClauseRoot[];
   readonly excluded: readonly RepoPath[];
   readonly eslintConfigRoots: readonly RepoPath[];
   readonly fileExceptionWhyChains: FileExceptionWhyChains;
