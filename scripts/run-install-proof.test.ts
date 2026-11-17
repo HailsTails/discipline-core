@@ -47,6 +47,7 @@ const EXPECTING_PASS: ProofCase = {
   consumer: "audit",
   fixture: "audit",
   toolchain: "typescript-floor",
+  typeStripping: "disabled",
   actions: [
     { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
     { kind: "project", expectation: { exitCode: 0, output: "verdict: pass\n" } },
@@ -83,6 +84,7 @@ const EXPECTING_TYPES: ProofCase = {
   consumer: "typed",
   fixture: "typed-team-piece",
   toolchain: "typescript-floor",
+  typeStripping: "disabled",
   actions: [{ kind: "typecheck", project: "tsconfig.nodenext.json", expectation: { exitCode: 0, output: "" } }],
 };
 
@@ -328,6 +330,89 @@ describe("runInstallProof", () => {
     );
 
     expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.wrong.json -> exit 0, output exactly as expected\n" }]);
+  });
+
+  it("writes no npm config for a consumer that runs its own TypeScript through Node's type stripping", async () => {
+    const fileText = fileTextPort();
+
+    await runInstallProof(proofRequest({ fileText, proofCases: [{ ...EXPECTING_PASS, typeStripping: "enabled" }] }));
+
+    expect(vi.mocked(fileText.write).mock.calls).toEqual([
+      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
+      [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
+      [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
+    ]);
+  });
+
+  it("writes a consumer file at its path inside the consumer, then restores it from the consumer's last commit", async () => {
+    const fileText = fileTextPort();
+    const commands = commandsReturning(EXITED_PASSING);
+
+    await runInstallProof(
+      proofRequest({
+        fileText,
+        commands,
+        proofCases: [
+          {
+            ...EXPECTING_PASS,
+            actions: [
+              { kind: "write", path: "packages/web/eslint.config.mjs", text: "export default [];\n" },
+              { kind: "restore", path: "packages/web/eslint.config.mjs" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(fileText.write).toHaveBeenLastCalledWith({ path: `${CONSUMER}/packages/web/eslint.config.mjs`, text: "export default [];\n" });
+    expect(commands.run).toHaveBeenLastCalledWith({
+      command: "git",
+      arguments: expect.arrayContaining(["checkout", "-q", "--", "packages/web/eslint.config.mjs"]),
+      directory: CONSUMER,
+    });
+  });
+
+  it("executes a consumer script with node from the consumer, judging its exit and output like a command", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning({ outcome: "exited", exitCode: 0, output: "" });
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        proofCases: [{ ...EXPECTING_PASS, actions: [{ kind: "execute", path: "rules/plugin.test.ts", expectation: { exitCode: 0, output: "" } }] }],
+      }),
+    );
+
+    expect(commands.run).toHaveBeenLastCalledWith({ command: "node", arguments: ["rules/plugin.test.ts"], directory: CONSUMER });
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([
+      { text: "ok: audit node rules/plugin.test.ts -> exit 0, output exactly as expected\n" },
+    ]);
+  });
+
+  it("exits 1 naming the script when an executed consumer script fails", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands: {
+          run: vi
+            .fn<CommandRunPort["run"]>()
+            .mockReturnValueOnce(EXITED_PASSING)
+            .mockReturnValueOnce(EXITED_PASSING)
+            .mockReturnValueOnce(EXITED_PASSING)
+            .mockReturnValueOnce(EXITED_PASSING)
+            .mockReturnValueOnce(EXITED_PASSING)
+            .mockReturnValue({ outcome: "exited", exitCode: 1, output: "AssertionError\n" }),
+        },
+        proofCases: [{ ...EXPECTING_PASS, actions: [{ kind: "execute", path: "rules/plugin.test.ts", expectation: { exitCode: 0, output: "" } }] }],
+      }),
+    );
+
+    expect(proofProcess.writeOut).toHaveBeenLastCalledWith({
+      text: 'FAIL: audit node rules/plugin.test.ts: expected exit 0 and output "", got exit 1 and output "AssertionError\\n"\n',
+    });
   });
 
   it("exits 1 naming the count when the installed package holds a .ts file", async () => {

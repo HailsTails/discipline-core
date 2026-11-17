@@ -14,7 +14,7 @@ export type StepRun =
   | { readonly outcome: "exited"; readonly exitCode: number; readonly output: string }
   | { readonly outcome: "not-exited"; readonly detail: string };
 
-export type ConsumerFixture = "audit" | "eslint" | "typed-team-piece";
+export type ConsumerFixture = "audit" | "eslint" | "typed-team-piece" | "team-monorepo";
 
 export type ProofAction =
   | { readonly kind: "check"; readonly expectation: StepExpectation }
@@ -22,9 +22,14 @@ export type ProofAction =
   | { readonly kind: "remove"; readonly path: string }
   | { readonly kind: "commit"; readonly message: string }
   | { readonly kind: "read"; readonly path: string; readonly text: string }
+  | { readonly kind: "write"; readonly path: string; readonly text: string }
+  | { readonly kind: "restore"; readonly path: string }
+  | { readonly kind: "execute"; readonly path: string; readonly expectation: StepExpectation }
   | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation };
 
-export type ProofToolchain = "typescript-floor" | "typescript-current" | "eslint-9-floor" | "eslint-10-floor";
+export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
+
+export type TypeStripping = "disabled" | "enabled";
 
 export type CommandScript = "check" | "project";
 
@@ -32,6 +37,7 @@ export type ProofCase = {
   readonly consumer: string;
   readonly fixture: ConsumerFixture;
   readonly toolchain: ProofToolchain;
+  readonly typeStripping: TypeStripping;
   readonly actions: readonly ProofAction[];
 };
 
@@ -91,6 +97,8 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
 
 const COMPILES: StepExpectation = { exitCode: 0, output: "" };
 
+const PASSES_QUIETLY: StepExpectation = { exitCode: 0, output: "" };
+
 const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
   kind: "typecheck",
   project: "tsconfig.wrong.json",
@@ -113,13 +121,71 @@ const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
   WRONG_FIELD_TYPES_REJECTED,
 ];
 
+const TEAM_RULE_SET = "tools/disciplines/acme";
+
+const TEAM_FINDINGS = [
+  'acme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");',
+  'acme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");',
+  "acme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md",
+  "acme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts",
+];
+
+const TEAM_VIOLATIONS = ["packages/api/src/request-trace.ts", "packages/web/src/start-banner.ts", "packages/api/notes.scratch.md", "packages/web/src/layout.scratch.ts"];
+
+const WEB_CONFIG = "packages/web/eslint.config.mjs";
+
+const WEB_CONFIG_WITHOUT_PROJECTION = 'export default [\n  { files: ["src/**/*.ts"] },\n];\n';
+
+const WEB_CONFIG_OVERRIDES = ["layout.scratch.ts", "start-banner.ts"].map(
+  (file) => `acme/ACME-1#console-calls eslint config-override packages/web/src/${file}`,
+);
+
+const SELECTION = "disciplines.json";
+
+const SELECTION_CLAIMING_HONE = `{
+  "version": 1,
+  "ruleSets": { "hone": "${TEAM_RULE_SET}" },
+  "clauses": {
+    "hone/ACME-1#console-calls": "eslint",
+    "hone/ACME-2#scratch-files": "audit",
+    "hone/CD-15#loops": "audit"
+  }
+}
+`;
+
+const reportOf = (request: { readonly sections: readonly (readonly [string, readonly string[]])[]; readonly verdict: "pass" | "fail" }): string =>
+  `${request.sections.map(([name, lines]) => `${name} (${lines.length})\n${lines.map((line) => `${line}\n`).join("")}`).join("")}verdict: ${request.verdict}\n`;
+
+const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.pieces.json`, expectation: COMPILES },
+  { kind: "execute", path: `${TEAM_RULE_SET}/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts`, expectation: PASSES_QUIETLY },
+  { kind: "check", expectation: { exitCode: 1, output: reportOf({ sections: [["findings", TEAM_FINDINGS]], verdict: "fail" }) } },
+  { kind: "write", path: WEB_CONFIG, text: WEB_CONFIG_WITHOUT_PROJECTION },
+  {
+    kind: "check",
+    expectation: {
+      exitCode: 1,
+      output: reportOf({ sections: [["findings", TEAM_FINDINGS], ["unrecorded", WEB_CONFIG_OVERRIDES]], verdict: "fail" }),
+    },
+  },
+  { kind: "restore", path: WEB_CONFIG },
+  { kind: "write", path: SELECTION, text: SELECTION_CLAIMING_HONE },
+  { kind: "check", expectation: { exitCode: 2, output: `load failure: reserved-rule-set-name ${TOOL_IDENTITY.ownRuleSet}\n` } },
+  { kind: "restore", path: SELECTION },
+  ...TEAM_VIOLATIONS.map((path): ProofAction => ({ kind: "remove", path })),
+  { kind: "commit", message: "clean" },
+  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
+];
+
 export const PROOF_CASES: readonly ProofCase[] = [
-  { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_CONSUMER_ACTIONS },
-  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
-  { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
-  { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
+  { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_CONSUMER_ACTIONS },
+  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
+  { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", typeStripping: "disabled", actions: TYPED_FLOOR_ACTIONS },
+  { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "current", typeStripping: "disabled", actions: TYPED_CURRENT_ACTIONS },
+  { consumer: "team-monorepo", fixture: "team-monorepo", toolchain: "current", typeStripping: "enabled", actions: TEAM_MONOREPO_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({
@@ -174,7 +240,12 @@ type FloorPins = Readonly<Record<string, string>>;
 
 const TYPESCRIPT_FLOOR: FloorPins = { typescript: "typescript-floor" };
 
-const TYPESCRIPT_CURRENT: FloorPins = { typescript: "typescript" };
+const CURRENT: FloorPins = {
+  typescript: "typescript",
+  eslint: "eslint",
+  "@typescript-eslint/parser": "@typescript-eslint/parser",
+  "@typescript-eslint/eslint-plugin": "@typescript-eslint/eslint-plugin",
+};
 
 const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
   ...TYPESCRIPT_FLOOR,
@@ -184,7 +255,7 @@ const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
 
 const FLOOR_PINS: Readonly<Record<ProofToolchain, FloorPins>> = {
   "typescript-floor": TYPESCRIPT_FLOOR,
-  "typescript-current": TYPESCRIPT_CURRENT,
+  current: CURRENT,
   "eslint-9-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-9-floor" },
   "eslint-10-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-10-floor" },
 };

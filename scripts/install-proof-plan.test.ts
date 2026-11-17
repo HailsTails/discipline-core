@@ -100,8 +100,8 @@ describe("requiredPeerPinsOf", () => {
     },
   );
 
-  it("pins typescript at the development version this package is built with for a typescript-current consumer", () => {
-    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+  it("pins only the required peer typescript at the development version this package is built with for a current consumer", () => {
+    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
       value: { typescript: "6.0.3" },
     });
@@ -126,10 +126,12 @@ describe("toolchainManifest, over this package's own package.json read as a buil
     });
   });
 
-  it("gives the current TypeScript root only typescript, at the development version installed under its own name", () => {
-    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+  it("gives the current root every peer at the development version this package is built with, installed under its own name", () => {
+    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
-      value: manifestText({ devDependencies: { typescript: "6.0.3" } }),
+      value: manifestText({
+        devDependencies: { typescript: "6.0.3", eslint: "10.11.0", "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
+      }),
     });
   });
 
@@ -237,15 +239,44 @@ const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
 ];
 
+const TEAM_FINDINGS_REPORT =
+  'findings (4)\nacme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");\nacme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md\nacme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts\n';
+
+const TEAM_OVERRIDES_REPORT =
+  "unrecorded (2)\nacme/ACME-1#console-calls eslint config-override packages/web/src/layout.scratch.ts\nacme/ACME-1#console-calls eslint config-override packages/web/src/start-banner.ts\n";
+
+const SELECTION_CLAIMING_HONE =
+  '{\n  "version": 1,\n  "ruleSets": { "hone": "tools/disciplines/acme" },\n  "clauses": {\n    "hone/ACME-1#console-calls": "eslint",\n    "hone/ACME-2#scratch-files": "audit",\n    "hone/CD-15#loops": "audit"\n  }\n}\n';
+
+const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+  { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.pieces.json", expectation: SILENT },
+  { kind: "execute", path: "tools/disciplines/acme/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts", expectation: SILENT },
+  { kind: "check", expectation: { exitCode: 1, output: `${TEAM_FINDINGS_REPORT}verdict: fail\n` } },
+  { kind: "write", path: "packages/web/eslint.config.mjs", text: 'export default [\n  { files: ["src/**/*.ts"] },\n];\n' },
+  { kind: "check", expectation: { exitCode: 1, output: `${TEAM_FINDINGS_REPORT}${TEAM_OVERRIDES_REPORT}verdict: fail\n` } },
+  { kind: "restore", path: "packages/web/eslint.config.mjs" },
+  { kind: "write", path: "disciplines.json", text: SELECTION_CLAIMING_HONE },
+  { kind: "check", expectation: { exitCode: 2, output: "load failure: reserved-rule-set-name hone\n" } },
+  { kind: "restore", path: "disciplines.json" },
+  { kind: "remove", path: "packages/api/src/request-trace.ts" },
+  { kind: "remove", path: "packages/web/src/start-banner.ts" },
+  { kind: "remove", path: "packages/api/notes.scratch.md" },
+  { kind: "remove", path: "packages/web/src/layout.scratch.ts" },
+  { kind: "commit", message: "clean" },
+  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
+];
+
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint and a typed team piece on the TypeScript floor and current version, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a typed team piece on the TypeScript floor and current version, and a team monorepo running its own rule set, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
-      { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_ACTIONS },
-      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
-      { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
-      { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
+      { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
+      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
+      { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", typeStripping: "disabled", actions: TYPED_FLOOR_ACTIONS },
+      { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "current", typeStripping: "disabled", actions: TYPED_CURRENT_ACTIONS },
+      { consumer: "team-monorepo", fixture: "team-monorepo", toolchain: "current", typeStripping: "enabled", actions: TEAM_MONOREPO_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

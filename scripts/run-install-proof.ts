@@ -14,7 +14,9 @@ import {
   type ProofCase,
   type ProofToolchain,
   requiredPeerPinsOf,
+  type StepExpectation,
   type StepRun,
+  type TypeStripping,
   toolchainManifest,
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
@@ -157,21 +159,18 @@ const withLineFeeds = (request: { readonly run: StepRun }): StepRun =>
     ? { ...request.run, output: request.run.output.replaceAll(PLATFORM_LINE_END, "\n") }
     : request.run;
 
-const typeCheckedProject = (request: {
+const judgedNodeRun = (request: {
   readonly context: ProofContext;
   readonly repo: string;
-  readonly consumer: string;
-  readonly action: Extract<ProofAction, { readonly kind: "typecheck" }>;
+  readonly label: string;
+  readonly arguments: readonly string[];
+  readonly expectation: StepExpectation;
 }): Result<null, string> => {
   const judged = judgedStep({
-    label: `${request.consumer} tsc -p ${request.action.project}`,
-    expectation: request.action.expectation,
+    label: request.label,
+    expectation: request.expectation,
     run: withLineFeeds({
-      run: request.context.commands.run({
-        command: "node",
-        arguments: [INSTALLED_TYPESCRIPT_COMPILER, ...TYPECHECK_ONLY, request.action.project],
-        directory: request.repo,
-      }),
+      run: request.context.commands.run({ command: "node", arguments: request.arguments, directory: request.repo }),
     }),
   });
   if (judged.outcome === "failed") {
@@ -241,8 +240,31 @@ const performedAction = (request: {
         path: request.context.path.join({ segments: [request.repo, action.path] }),
         text: action.text,
       });
+    case "write":
+      return writtenFile({
+        context: request.context,
+        label: `write ${action.path} in ${request.consumer}`,
+        path: request.context.path.join({ segments: [request.repo, action.path] }),
+        text: action.text,
+      });
+    case "restore":
+      return git({ context: request.context, repo: request.repo, consumer: request.consumer, arguments: ["checkout", "-q", "--", action.path] });
+    case "execute":
+      return judgedNodeRun({
+        context: request.context,
+        repo: request.repo,
+        label: `${request.consumer} node ${action.path}`,
+        arguments: [action.path],
+        expectation: action.expectation,
+      });
     case "typecheck":
-      return typeCheckedProject({ context: request.context, repo: request.repo, consumer: request.consumer, action });
+      return judgedNodeRun({
+        context: request.context,
+        repo: request.repo,
+        label: `${request.consumer} tsc -p ${action.project}`,
+        arguments: [INSTALLED_TYPESCRIPT_COMPILER, ...TYPECHECK_ONLY, action.project],
+        expectation: action.expectation,
+      });
   }
 };
 
@@ -258,10 +280,18 @@ const writtenFile = (request: {
 
 type ConsumerFile = { readonly name: string; readonly text: string };
 
-const consumerFiles = (request: { readonly requiredPeers: Readonly<Record<string, string>> }): readonly ConsumerFile[] => [
+const NPM_CONFIG_FILES: Readonly<Record<TypeStripping, readonly ConsumerFile[]>> = {
+  disabled: [{ name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC }],
+  enabled: [],
+};
+
+const consumerFiles = (request: {
+  readonly requiredPeers: Readonly<Record<string, string>>;
+  readonly typeStripping: TypeStripping;
+}): readonly ConsumerFile[] => [
   { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY, requiredPeers: request.requiredPeers }) },
   { name: ".gitignore", text: IGNORED_INSTALLS },
-  { name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC },
+  ...NPM_CONFIG_FILES[request.typeStripping],
 ];
 
 const installedVersionSchema = z.object({ version: z.string() });
@@ -406,7 +436,13 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
   const repo = consumerRepo(request);
   return inOrder({
     steps: [
-      () => preparedConsumer({ context, fixture: consumerFixture(request), repo, files: consumerFiles({ requiredPeers: pins.value }) }),
+      () =>
+        preparedConsumer({
+          context,
+          fixture: consumerFixture(request),
+          repo,
+          files: consumerFiles({ requiredPeers: pins.value, typeStripping: request.proofCase.typeStripping }),
+        }),
       () =>
         ranCommand({
           context,
