@@ -15,6 +15,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-1",
+  clauseSettings: {},
   settings: { module: "any-cast.ts" },
 };
 

@@ -17,6 +17,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-17",
+  clauseSettings: {},
   settings: { module: "clock-sources.ts" },
 };
 

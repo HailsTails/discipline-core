@@ -53,6 +53,7 @@ describe("conformanceRows", () => {
           anchor: { kind: "file" },
           pieceRoot: "/install/mechanisms/audit/XX-1",
           settings: { module: "first.ts" },
+          clauseSettings: {},
         },
         cases: [
           { name: "flagged", fileName: "a.ts", source: "x\n", expectedLines: [1] },

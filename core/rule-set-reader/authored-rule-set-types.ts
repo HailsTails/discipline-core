@@ -1,4 +1,5 @@
 import type { AnchorKind } from "../values/anchor.ts";
+import type { ReadonlyJsonValue } from "../values/json-value.ts";
 
 export type ClauseExceptions = "allowed" | "refused";
 
@@ -35,6 +36,13 @@ export type AuthoredDisciplineFile = {
   readonly clauses: readonly AuthoredClauseDefinition[];
 };
 
+export type ClauseSettingDeclaration = {
+  readonly default: ReadonlyJsonValue;
+  readonly choices?: readonly ReadonlyJsonValue[];
+};
+
+export type ClauseSettingDeclarations = { readonly [key: string]: ClauseSettingDeclaration };
+
 export type AuthoredPieceFile = {
   readonly version: 1;
   readonly discipline: string;
@@ -42,5 +50,6 @@ export type AuthoredPieceFile = {
   readonly clauses: readonly {
     readonly clause: string;
     readonly settings: unknown;
+    readonly clauseSettings?: ClauseSettingDeclarations;
   }[];
 };

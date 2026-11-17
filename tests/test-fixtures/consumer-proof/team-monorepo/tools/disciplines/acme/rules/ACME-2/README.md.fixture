@@ -5,3 +5,13 @@ A file named `*.scratch.*` is a draft or a note to self. It belongs on the autho
 Honours the rule: the note is kept outside the repository, or written up as a real document such as `docs/health-route.md`.
 
 Breaks the rule: `packages/api/notes.scratch.md` is committed.
+
+## Settings
+
+`marker`, default `".scratch."`, is the part of a file name that marks a scratch file. A repository that marks only scratch notes sets:
+
+```json
+"clauseSettings": {
+  "acme/ACME-2#scratch-files": { "marker": ".scratch.md" }
+}
+```

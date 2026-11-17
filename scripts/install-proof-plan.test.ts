@@ -245,6 +245,9 @@ const TEAM_FINDINGS_REPORT =
 const TEAM_OVERRIDES_REPORT =
   "unrecorded (2)\nacme/ACME-1#console-calls eslint config-override packages/web/src/layout.scratch.ts\nacme/ACME-1#console-calls eslint config-override packages/web/src/start-banner.ts\n";
 
+const SELECTION_MARKING_NOTES_ONLY =
+  '{\n  "version": 1,\n  "ruleSets": { "acme": "tools/disciplines/acme" },\n  "clauses": {\n    "acme/ACME-1#console-calls": "eslint",\n    "acme/ACME-2#scratch-files": "audit",\n    "hone/CD-15#loops": "audit"\n  },\n  "clauseSettings": {\n    "acme/ACME-2#scratch-files": { "marker": ".scratch.md" }\n  }\n}\n';
+
 const SELECTION_CLAIMING_HONE =
   '{\n  "version": 1,\n  "ruleSets": { "hone": "tools/disciplines/acme" },\n  "clauses": {\n    "hone/ACME-1#console-calls": "eslint",\n    "hone/ACME-2#scratch-files": "audit",\n    "hone/CD-15#loops": "audit"\n  }\n}\n';
 
@@ -256,6 +259,15 @@ const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
   { kind: "write", path: "packages/web/eslint.config.mjs", text: 'export default [\n  { files: ["src/**/*.ts"] },\n];\n' },
   { kind: "check", expectation: { exitCode: 1, output: `${TEAM_FINDINGS_REPORT}${TEAM_OVERRIDES_REPORT}verdict: fail\n` } },
   { kind: "restore", path: "packages/web/eslint.config.mjs" },
+  { kind: "write", path: "disciplines.json", text: SELECTION_MARKING_NOTES_ONLY },
+  {
+    kind: "check",
+    expectation: {
+      exitCode: 1,
+      output:
+        'findings (3)\nacme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");\nacme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md\nverdict: fail\n',
+    },
+  },
   { kind: "write", path: "disciplines.json", text: SELECTION_CLAIMING_HONE },
   { kind: "check", expectation: { exitCode: 2, output: "load failure: reserved-rule-set-name hone\n" } },
   { kind: "restore", path: "disciplines.json" },

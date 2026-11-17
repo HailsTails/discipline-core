@@ -102,6 +102,7 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 - Selecting one clause of a discipline adopts the whole discipline: any of its other mechanical clauses you leave out are reported as `uncovered` and fail the run. CD-3 has seven clauses; select all seven or none.
 - A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). To defer such a clause, still list it with its mechanism and record a `clause-wide-carve-out` for it (step 7).
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
+- `clauseSettings` gives a clause the settings its rules page lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; see [README.md](README.md#disciplinesjson).
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/extending.md](docs/extending.md).
 
 Every clause address Hone ships:

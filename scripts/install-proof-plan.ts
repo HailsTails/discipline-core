@@ -121,12 +121,16 @@ const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
 
 const TEAM_RULE_SET = "tools/disciplines/acme";
 
-const TEAM_FINDINGS = [
+const CONSOLE_FINDINGS = [
   'acme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");',
   'acme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");',
-  "acme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md",
-  "acme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts",
 ];
+
+const SCRATCH_NOTE_FINDING = "acme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md";
+
+const SCRATCH_SOURCE_FINDING = "acme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts";
+
+const TEAM_FINDINGS = [...CONSOLE_FINDINGS, SCRATCH_NOTE_FINDING, SCRATCH_SOURCE_FINDING];
 
 const TEAM_VIOLATIONS = ["packages/api/src/request-trace.ts", "packages/web/src/start-banner.ts", "packages/api/notes.scratch.md", "packages/web/src/layout.scratch.ts"];
 
@@ -151,6 +155,20 @@ const SELECTION_CLAIMING_HONE = `{
 }
 `;
 
+const SELECTION_MARKING_NOTES_ONLY = `{
+  "version": 1,
+  "ruleSets": { "acme": "${TEAM_RULE_SET}" },
+  "clauses": {
+    "acme/ACME-1#console-calls": "eslint",
+    "acme/ACME-2#scratch-files": "audit",
+    "hone/CD-15#loops": "audit"
+  },
+  "clauseSettings": {
+    "acme/ACME-2#scratch-files": { "marker": ".scratch.md" }
+  }
+}
+`;
+
 const reportOf = (request: { readonly sections: readonly (readonly [string, readonly string[]])[]; readonly verdict: "pass" | "fail" }): string =>
   `${request.sections.map(([name, lines]) => `${name} (${lines.length})\n${lines.map((line) => `${line}\n`).join("")}`).join("")}verdict: ${request.verdict}\n`;
 
@@ -168,6 +186,11 @@ const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
     },
   },
   { kind: "restore", path: WEB_CONFIG },
+  { kind: "write", path: SELECTION, text: SELECTION_MARKING_NOTES_ONLY },
+  {
+    kind: "check",
+    expectation: { exitCode: 1, output: reportOf({ sections: [["findings", [...CONSOLE_FINDINGS, SCRATCH_NOTE_FINDING]]], verdict: "fail" }) },
+  },
   { kind: "write", path: SELECTION, text: SELECTION_CLAIMING_HONE },
   { kind: "check", expectation: { exitCode: 2, output: `load failure: reserved-rule-set-name ${TOOL_IDENTITY.ownRuleSet}\n` } },
   { kind: "restore", path: SELECTION },
