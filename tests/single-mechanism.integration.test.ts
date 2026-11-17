@@ -195,3 +195,34 @@ describe("adopting CD-6 through the audit only, with the ESLint clause waived an
     });
   });
 });
+
+const NOT_ADOPTING_NAMING_CONVENTION = repositoryFiles({
+  selection: JSON.stringify({
+    version: 1,
+    ruleSets: {},
+    clauses: { "CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-adopted" },
+  }),
+  exceptions: JSON.stringify({ version: 1, exceptions: [] }),
+});
+
+describe("adopting CD-6 through the audit only by not adopting its ESLint clause, with no ESLint installed", () => {
+  it("passes as a whole assessment with no waiver and no ESLint peer, listing the clause not adopted", async () => {
+    expect(
+      await checkOf({
+        assessment: DEFAULT_ASSESSMENT,
+        modules: modulesServing({ eslintRunner: undefined, fileText: NOT_ADOPTING_NAMING_CONVENTION }),
+        fileText: NOT_ADOPTING_NAMING_CONVENTION,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: expect.objectContaining({
+        notAdopted: [{ ruleSet: "hone", discipline: "CD-6", clause: "naming-convention" }],
+        findings: [],
+        uncovered: [],
+        invalidRecords: [],
+        unmeasured: [],
+        assessment: [],
+      }),
+    });
+  });
+});

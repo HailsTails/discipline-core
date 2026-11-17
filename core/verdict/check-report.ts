@@ -47,6 +47,7 @@ export type ProjectionProblem = {
 
 export type CheckReport = {
   readonly excluded: readonly RepoPath[];
+  readonly notAdopted: readonly ClauseAddress[];
   readonly findings: readonly Finding[];
   readonly exempted: readonly ExemptedFinding[];
   readonly uncovered: readonly ClauseAddress[];

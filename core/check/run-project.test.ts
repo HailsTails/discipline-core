@@ -393,3 +393,37 @@ describe("runProject for a repository that does not run its waived clauses", () 
     });
   });
 });
+
+describe("runProject for a repository that does not adopt a clause", () => {
+  it("projects only the adopted clause and never loads the mechanism of the clause not adopted", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi
+        .fn<(request: unknown) => Promise<unknown>>()
+        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+    };
+    const load = vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } });
+    const writes = await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...TWO_MECHANISM_INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-adopted" } }),
+          }),
+          [EXCEPTIONS_PATH]: ABSENT_FILE,
+        }),
+        modules: { load },
+      }),
+    );
+    expect({ writes, loads: load.mock.calls, projectCalls: runner.project.mock.calls }).toEqual({
+      writes: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
+      loads: [[{ path: RUNNER_PATH }]],
+      projectCalls: [
+        [expect.objectContaining({ clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })], records: [] })],
+      ],
+    });
+  });
+});

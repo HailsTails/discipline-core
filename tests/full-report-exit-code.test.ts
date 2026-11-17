@@ -7,6 +7,7 @@ import { fullReportExitCode } from "./full-report-exit-code.ts";
 
 const EMPTY_REPORT: CheckReport = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],

@@ -5,6 +5,7 @@ describe("SECTION_NAMES", () => {
   it("names every report section once, in the order the report prints them", () => {
     expect(SECTION_NAMES).toEqual([
       "excluded",
+      "notAdopted",
       "findings",
       "exempted",
       "uncovered",
@@ -21,7 +22,7 @@ describe("SECTION_NAMES", () => {
 });
 
 describe("sectionRoleOf", () => {
-  it.each<SectionName>(["excluded", "exempted", "assessment"])("is informational for %s, which never fails the run", (section) => {
+  it.each<SectionName>(["excluded", "notAdopted", "exempted", "assessment"])("is informational for %s, which never fails the run", (section) => {
     expect(sectionRoleOf({ section })).toBe("informational");
   });
 
@@ -55,7 +56,7 @@ describe("sectionsWithRole", () => {
     ]);
   });
 
-  it("lists the three informational sections in print order", () => {
-    expect(sectionsWithRole({ role: "informational" })).toEqual(["excluded", "exempted", "assessment"]);
+  it("lists the four informational sections in print order", () => {
+    expect(sectionsWithRole({ role: "informational" })).toEqual(["excluded", "notAdopted", "exempted", "assessment"]);
   });
 });
