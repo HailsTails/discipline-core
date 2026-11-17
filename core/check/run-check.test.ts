@@ -305,6 +305,7 @@ const EMPTY_REPORT = {
   invalidRecords: [],
   unmeasured: [],
   projectionProblems: [],
+  assessment: [],
 };
 
 const standaloneRunner = (request: { readonly runReturns: unknown }): LoadedRunner => ({
@@ -345,6 +346,7 @@ const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
   installRoot: INSTALL_ROOT,
   moduleExtension: ".ts",
   baseRevision: "main",
+  forfeiture: "this-run",
   fileText: fileTextOver(INSTALL),
   modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) }),
   path: TABLE_PATH,
@@ -618,6 +620,67 @@ describe("runCheck forfeiture measurement", () => {
       outcome: "ok",
       value: { forfeited: [{ kind: "file-carve-out", file: "src/legacy.ts" }], stale: [] },
     });
+  });
+});
+
+describe("runCheck forfeiture assessed elsewhere", () => {
+  const carvedLegacyTouched = (): GitPort =>
+    gitReporting({
+      trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+      changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] },
+    });
+
+  const withFileCarveOut = (overrides: Partial<CheckRequest>): CheckRequest =>
+    checkRequest({
+      forfeiture: "elsewhere",
+      fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
+      ...overrides,
+    });
+
+  it("never asks git for the change set", async () => {
+    const git = carvedLegacyTouched();
+
+    await runCheck(withFileCarveOut({ git }));
+
+    expect(vi.mocked(git.changedSince)).not.toHaveBeenCalled();
+  });
+
+  it("does not forfeit a file carve-out whose file the change set touched", async () => {
+    await expect(runCheck(withFileCarveOut({ git: carvedLegacyTouched() }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { forfeited: [], stale: [{ kind: "file-carve-out", file: "src/legacy.ts" }] },
+    });
+  });
+
+  it("reports no forfeiture-unmeasured when no base revision is given", async () => {
+    await expect(runCheck(withFileCarveOut({ baseRevision: undefined }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { unmeasured: [] },
+    });
+  });
+
+  it("reports the file carve-outs it did not check for decay", async () => {
+    await expect(runCheck(withFileCarveOut({ baseRevision: undefined }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 }] },
+    });
+  });
+
+  it("reports forfeiture elsewhere with no file carve-outs when none exists", async () => {
+    await expect(runCheck(checkRequest({ forfeiture: "elsewhere", baseRevision: undefined }))).resolves.toEqual({
+      outcome: "ok",
+      value: { ...EMPTY_REPORT, assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 0 }] },
+    });
+  });
+
+  it("reports no assessment when forfeiture is assessed in this run", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { assessment: [] } });
   });
 });
 

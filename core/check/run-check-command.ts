@@ -1,14 +1,15 @@
-import { readReportOutput } from "../consumer-selection/consumer-selection.ts";
+import { readRunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import { type Assessment, type AssessmentRequest, assessmentInEffect } from "../values/assessment.ts";
 import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { parseCheckArguments } from "./command-arguments-schema.ts";
+import { BASE_REVISION_OPTION, FORFEITURE_OPTION, parseCheckArguments } from "./command-arguments-schema.ts";
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
@@ -54,6 +55,27 @@ const checkRunOf = (request: {
     ? request.report
     : { outcome: "ok", value: { report: request.report.value, output: request.output } };
 
+const forfeitureSourceOf = (request: { readonly requested: AssessmentRequest }): string =>
+  request.requested.forfeiture === undefined ? "assessment.forfeiture in disciplines.json" : FORFEITURE_OPTION;
+
+const assessmentForRun = (request: {
+  readonly requested: AssessmentRequest;
+  readonly configured: Assessment;
+  readonly baseRevision: string | undefined;
+}): Result<Assessment, LoadFailure> => {
+  const assessment = assessmentInEffect(request);
+  if (assessment.forfeiture === "elsewhere" && request.baseRevision !== undefined) {
+    return {
+      outcome: "failed",
+      error: {
+        kind: "arguments-invalid",
+        detail: `${BASE_REVISION_OPTION} measures carve-out decay, but ${forfeitureSourceOf(request)} is elsewhere; give ${FORFEITURE_OPTION} this-run to assess forfeiture in this run, or leave out ${BASE_REVISION_OPTION}`,
+      },
+    };
+  }
+  return { outcome: "ok", value: assessment };
+};
+
 export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
   const parsed = parseCheckArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
@@ -67,15 +89,24 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   if (installRoot.outcome === "failed") {
     return installRoot;
   }
-  const configured = readReportOutput({ fileText: request.fileText, path: request.path, repoRoot: repoRoot.value });
+  const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: repoRoot.value });
   if (configured.outcome === "failed") {
     return configured;
+  }
+  const assessment = assessmentForRun({
+    requested: { forfeiture: parsed.value.forfeiture },
+    configured: configured.value.assessment,
+    baseRevision: parsed.value.baseRevision,
+  });
+  if (assessment.outcome === "failed") {
+    return assessment;
   }
   const report = await runCheck({
     repoRoot: repoRoot.value,
     installRoot: installRoot.value,
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: parsed.value.baseRevision,
+    forfeiture: assessment.value.forfeiture,
     fileText: request.fileText,
     modules: request.modules,
     path: request.path,
@@ -83,7 +114,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   });
   return checkRunOf({
     report,
-    output: reportOutputInEffect({ requested: parsed.value.reportOutput, configured: configured.value }),
+    output: reportOutputInEffect({ requested: parsed.value.reportOutput, configured: configured.value.reportOutput }),
   });
 };
 

@@ -300,6 +300,22 @@ describe("applyGovernance rule 1, forfeit", () => {
   });
 });
 
+describe("applyGovernance rule 1, forfeiture assessed elsewhere", () => {
+  it("forfeits nothing when the touched set is measured elsewhere, so the file carve-out still exempts", () => {
+    expect(
+      applyGovernance({
+        findings: [noClassInA],
+        records: [carvedNoClassInA],
+        touched: { measured: "elsewhere" },
+        runs: [quietWalker],
+      }),
+    ).toEqual({
+      ...nothingGoverned,
+      exempted: [{ finding: noClassInA, by: [carvedNoClassInA] }],
+    });
+  });
+});
+
 describe("applyGovernance rule 2, doubly held", () => {
   it("lists a clause and file held by both an authorised location and a file carve-out, and neither exempts", () => {
     expect(

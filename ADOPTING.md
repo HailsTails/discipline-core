@@ -180,6 +180,14 @@ In CI, pass the branch's base so that debt recorded per file is forfeited once t
 npm run --silent hone:check -- --base-revision origin/main
 ```
 
+To assess decay at push only, for example when CI checks out a single revision, set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI then runs the check with no base revision, and the pre-push hook assesses decay for its run:
+
+```bash
+npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main
+```
+
+The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6).
+
 Add the command to the repository's existing validation script, and run that same script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run. With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
 Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
@@ -193,7 +201,7 @@ The report prints only the sections that have entries, each with its count, then
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 ```
 
-Lines are 1-based and columns 0-based. The run passes only when every section except `excluded` and `exempted` is empty. The sections are:
+Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `exempted` and `assessment` is empty. The sections are:
 
 | Section | Meaning and what to do |
 | --- | --- |
@@ -206,8 +214,9 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `invalidRecords` | an exception entry that cannot be accepted, with the reason: correct it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
 | `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
+| `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 
-To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded` and `exempted`; `counts` prints only each section's heading and count, adding `informational` after `excluded` and `exempted` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
+To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
 
 ## 7. Record exceptions
 

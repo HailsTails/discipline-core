@@ -41,6 +41,7 @@ const emptyReport: CheckReport = {
   invalidRecords: [],
   unmeasured: [],
   projectionProblems: [],
+  assessment: [],
 };
 
 describe("verdictOf", () => {

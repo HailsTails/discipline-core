@@ -9,7 +9,7 @@ import type { Result } from "../values/result.ts";
 import {
   createSelectionRepository,
   type RuleSetLocation,
-  readReportOutput,
+  readRunSettings,
   readSelection,
   ruleSetRootOf,
 } from "./consumer-selection.ts";
@@ -406,22 +406,25 @@ describe("createSelectionRepository", () => {
   });
 });
 
-describe("readReportOutput", () => {
-  const configuredOutput = (selection: unknown) =>
-    readReportOutput({
-      fileText: fileTextOver({ [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }) }),
-      path: TABLE_PATH,
-      repoRoot: REPO_ROOT,
-    });
+const configuredSettings = (selection: unknown) =>
+  readRunSettings({
+    fileText: fileTextOver({ [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }) }),
+    path: TABLE_PATH,
+    repoRoot: REPO_ROOT,
+  });
 
-  it("is the full report when disciplines.json sets no report output", () => {
-    expect(configuredOutput({ version: 1, ruleSets: {}, clauses: {} })).toEqual({ outcome: "ok", value: "full" });
+describe("readRunSettings", () => {
+  it("is the full report and the default assessment when disciplines.json sets neither", () => {
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {} })).toEqual({
+      outcome: "ok",
+      value: { reportOutput: "full", assessment: { forfeiture: "this-run" } },
+    });
   });
 
   it.each(["full", "failures-only", "counts", "verdict-only"])("reads the report output %s from disciplines.json", (reportOutput) => {
-    expect(configuredOutput({ version: 1, ruleSets: {}, clauses: {}, reportOutput })).toEqual({
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, reportOutput })).toMatchObject({
       outcome: "ok",
-      value: reportOutput,
+      value: { reportOutput },
     });
   });
 
@@ -431,15 +434,47 @@ describe("readReportOutput", () => {
     ["a number", 3],
     ["a list", ["full"]],
   ])("is file-malformed when disciplines.json gives the report output as %s", (_shape, reportOutput) => {
-    expect(configuredOutput({ version: 1, ruleSets: {}, clauses: {}, reportOutput })).toMatchObject({
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, reportOutput })).toMatchObject({
       outcome: "failed",
       error: { kind: "file-malformed", path: SELECTION_PATH },
     });
   });
 
+});
+
+describe("readRunSettings assessment", () => {
+  it.each(["this-run", "elsewhere"])("reads the forfeiture assessment %s from disciplines.json", (forfeiture) => {
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: { forfeiture } })).toMatchObject({
+      outcome: "ok",
+      value: { assessment: { forfeiture } },
+    });
+  });
+
+  it("is the default assessment for an empty assessment object", () => {
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: {} })).toMatchObject({
+      outcome: "ok",
+      value: { assessment: { forfeiture: "this-run" } },
+    });
+  });
+
+  it.each([
+    ["an eslint key, which is not built", { eslint: { evidence: "results-file", paths: ["reports/eslint.json"] } }],
+    ["a waivedClauses key, which is not built", { waivedClauses: "not-run" }],
+    ["a forfeiture that is not one of the two", { forfeiture: "reported" }],
+    ["a list", ["elsewhere"]],
+  ])("is file-malformed when disciplines.json gives the assessment %s", (_shape, assessment) => {
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH },
+    });
+  });
+
+});
+
+describe("readRunSettings reading", () => {
   it("is file-unreadable when disciplines.json cannot be read, so no default output is guessed", () => {
     expect(
-      readReportOutput({
+      readRunSettings({
         fileText: fileTextOver({
           [SELECTION_PATH]: {
             presence: "present",
@@ -452,18 +487,24 @@ describe("readReportOutput", () => {
     ).toEqual({ outcome: "failed", error: { kind: "file-unreadable", path: SELECTION_PATH, detail: "EACCES" } });
   });
 
-  it("reads the report output without resolving the selected clauses", () => {
+  it("reads the run settings without resolving the selected clauses", () => {
     expect(
-      readReportOutput({
+      readRunSettings({
         fileText: fileTextOver({
           [SELECTION_PATH]: presentFile({
-            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-99#missing": "audit" }, reportOutput: "counts" }),
+            text: JSON.stringify({
+              version: 1,
+              ruleSets: {},
+              clauses: { "CD-99#missing": "audit" },
+              reportOutput: "counts",
+              assessment: { forfeiture: "elsewhere" },
+            }),
           }),
         }),
         path: TABLE_PATH,
         repoRoot: REPO_ROOT,
       }),
-    ).toEqual({ outcome: "ok", value: "counts" });
+    ).toEqual({ outcome: "ok", value: { reportOutput: "counts", assessment: { forfeiture: "elsewhere" } } });
   });
 });
 

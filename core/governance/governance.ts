@@ -84,7 +84,7 @@ const forfeitedRecords = (request: {
   readonly records: readonly ExceptionRecord[];
   readonly touched: TouchedSet;
 }): readonly ExceptionRecord[] => {
-  if (request.touched.measured === "no") {
+  if (request.touched.measured !== "yes") {
     return [];
   }
   const touchedPaths = request.touched.paths;

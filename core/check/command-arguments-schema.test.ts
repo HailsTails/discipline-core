@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCheckArguments, parseProjectArguments, parseSubcommand } from "./command-arguments-schema.ts";
 
 const USAGE =
-  "usage: hone check --repo <path> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] | hone project --repo <path>";
+  "usage: hone check --repo <path> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>] | hone project --repo <path>";
 
 describe("parseSubcommand", () => {
   it("reads check and hands on the arguments after it", () => {
@@ -118,6 +118,43 @@ describe("parseCheckArguments", () => {
       error: { kind: "arguments-invalid" },
     });
   });
+  it("reads no forfeiture when --forfeiture is not given", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo"] })).toMatchObject({
+      outcome: "ok",
+      value: { forfeiture: undefined },
+    });
+  });
+
+  it.each(["this-run", "elsewhere"])("reads --forfeiture %s", (forfeiture) => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--forfeiture", forfeiture] })).toEqual({
+      outcome: "ok",
+      value: { repo: "/work/repo", baseRevision: undefined, reportOutput: undefined, forfeiture },
+    });
+  });
+
+  it("names --forfeiture and its accepted values when its value is not one of them", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--forfeiture", "reported"] })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "arguments-invalid",
+        detail: '✖ Invalid option: expected one of "this-run"|"elsewhere"\n  → at ["--forfeiture"]',
+      },
+    });
+  });
+
+  it("is arguments-invalid for --forfeiture given twice", () => {
+    expect(
+      parseCheckArguments({ arguments: ["--repo", "/work/repo", "--forfeiture", "elsewhere", "--forfeiture", "this-run"] }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "arguments-invalid" } });
+  });
+
+  it.each(["--eslint-evidence", "--waived-clauses"])("is arguments-invalid for %s, which this release does not assess", (option) => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", option, "run"] })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "arguments-invalid" },
+    });
+  });
+
   it("reads no report output when --report-output is not given", () => {
     expect(parseCheckArguments({ arguments: ["--repo", "/work/repo"] })).toMatchObject({
       outcome: "ok",

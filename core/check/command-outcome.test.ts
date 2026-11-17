@@ -21,6 +21,7 @@ const EMPTY_REPORT: CheckReport = {
   invalidRecords: [],
   unmeasured: [],
   projectionProblems: [],
+  assessment: [],
 };
 
 const CLASS_IN_A: Finding = {
