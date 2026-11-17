@@ -14,7 +14,7 @@ It must print `v22.18.0` or a later 22.x, or `v24.0.0` or later. A rule set of y
 
 ## 2. Install the Hone package
 
-Hone ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node.
+Hone ships as one npm package tarball of built JavaScript, so it needs no TypeScript support from Node. It has three dependencies of its own, `zod`, `jsonc-parser` and `@eslint/plugin-kit`, each declared as a caret range starting at the version Hone is tested on, which the package manager installs from the registry. Your repository's lockfile, and any override you set, decides which release inside each range is installed, so you can take a patched release of one of them without waiting for a new Hone.
 
 **The npm package is named `@hailstails/hone`.** The unscoped name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `@hailstails/hone` installs one command, `hone`. Its tarball is named `hailstails-hone-<version>.tgz`, the file name `npm pack` gives a scoped package. Its first pre-release was released under the old name `honed`; [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone) says how to move from it.
 
@@ -34,7 +34,7 @@ pnpm add -D --save-exact @hailstails/hone@<version>
 
 Pin the exact version. Commands, flags and files may change between pre-releases, and an install by tag can record a range in `package.json`, such as `^` and the version, which a later install without the lockfile, or an update, moves to a newer pre-release that nobody chose. With an exact pin, the version changes only when you change it (step 10). Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@<version>` exactly with its own `add -D` command at the workspace root. `next` can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
-The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
+The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same Hone without the registry. Its three dependencies still come from the registry, or the mirror your package manager uses, at releases inside the ranges the tarball's `package.json` declares, and the repository's lockfile records which. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
 To build the tarball yourself, use Node.js 22.18 or later with [corepack](https://nodejs.org/api/corepack.html) available, which provides the pnpm version `package.json` pins, and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 

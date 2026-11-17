@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
+import { bundledPackageCodeOf, deadLinksOf, misplacedEntriesOf, undeclaredImportsOf, unlockedRangesOf, versionMentionsOf } from "./package-guards.ts";
 import type { LockedPackage } from "./pnpm-lock.ts";
 
 const output = (request: {
@@ -15,34 +15,34 @@ const output = (request: {
   externalImports: request.externalImports ?? [],
 });
 
-describe("unbundledImportsOf", () => {
-  it("accepts imports of node: builtins, of each peer and of each peer's subpaths", () => {
+describe("undeclaredImportsOf", () => {
+  it("accepts imports of node: builtins, of each declared peer and dependency and of each one's subpaths", () => {
     expect(
-      unbundledImportsOf({
+      undeclaredImportsOf({
         outputs: [
           output({
             path: "chunks/chunk-A.js",
-            externalImports: ["node:fs", "eslint", "eslint/use-at-your-own-risk", "@typescript-eslint/eslint-plugin", "typescript"],
+            externalImports: ["node:fs", "eslint", "eslint/use-at-your-own-risk", "typescript", "zod", "zod/v4", "@eslint/plugin-kit"],
           }),
         ],
-        peers: ["eslint", "@typescript-eslint/eslint-plugin", "typescript"],
+        declared: ["eslint", "typescript", "zod", "@eslint/plugin-kit"],
       }),
     ).toEqual([]);
   });
 
-  it("names each output that imports a package it neither bundles nor declares as a peer, and a bare builtin", () => {
+  it("names each output that imports a package declared neither as a peer nor as a dependency, and a bare builtin", () => {
     expect(
-      unbundledImportsOf({
+      undeclaredImportsOf({
         outputs: [
-          output({ path: "chunks/chunk-A.js", externalImports: ["levn", "eslint"] }),
-          output({ path: "core/check/tool-command.js", externalImports: ["fs", "@eslint/plugin-kit", "eslint-plugin-x"] }),
+          output({ path: "chunks/chunk-A.js", externalImports: ["levn", "eslint", "zod"] }),
+          output({ path: "core/check/tool-command.js", externalImports: ["fs", "zod-extra", "eslint-plugin-x"] }),
         ],
-        peers: ["eslint"],
+        declared: ["eslint", "zod"],
       }),
     ).toEqual([
       "chunks/chunk-A.js imports levn",
       "core/check/tool-command.js imports fs",
-      "core/check/tool-command.js imports @eslint/plugin-kit",
+      "core/check/tool-command.js imports zod-extra",
       "core/check/tool-command.js imports eslint-plugin-x",
     ]);
   });
@@ -84,74 +84,51 @@ describe("misplacedEntriesOf", () => {
   });
 });
 
-const CLOSURE: readonly LockedPackage[] = [
+const LOCKED: readonly LockedPackage[] = [
   { name: "zod", version: "4.4.3" },
   { name: "@eslint/plugin-kit", version: "0.7.3" },
-  { name: "@eslint/core", version: "1.2.1" },
-  { name: "levn", version: "0.4.1" },
-  { name: "type-check", version: "0.4.0" },
 ];
 
-describe("unlockedPackagesOf", () => {
-  it("accepts packages bundled at the versions the lock holds in the closure of core's dependencies", () => {
-    expect(
-      unlockedPackagesOf({
-        bundled: [
-          { root: "node_modules/zod", name: "zod", version: "4.4.3" },
-          { root: "node_modules/levn", name: "levn", version: "0.4.1" },
-          { root: "node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
-          { root: "node_modules/type-check", name: "type-check", version: "0.4.0" },
-        ],
-        closure: CLOSURE,
-      }),
-    ).toEqual([]);
+describe("unlockedRangesOf", () => {
+  it("accepts dependencies published as caret ranges whose floor is the version the lock holds", () => {
+    expect(unlockedRangesOf({ ranges: { zod: "^4.4.3", "@eslint/plugin-kit": "^0.7.3" }, locked: LOCKED })).toEqual([]);
   });
 
-  it("names a bundled package at another version than the one the lock holds", () => {
-    expect(
-      unlockedPackagesOf({ bundled: [{ root: "node_modules/zod", name: "zod", version: "4.4.2" }], closure: CLOSURE }),
-    ).toEqual(["zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3"]);
-  });
-
-  it("names a bundled package outside the closure of core's dependencies in the lock", () => {
-    expect(
-      unlockedPackagesOf({
-        bundled: [
-          { root: "node_modules/is-glob", name: "is-glob", version: "4.0.3" },
-          { root: "node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" },
-        ],
-        closure: CLOSURE,
-      }),
-    ).toEqual([
-      "is-glob 4.0.3 at node_modules/is-glob, which is not in the closure of core's dependencies in the lock",
-      "prelude-ls 1.2.1 at node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
+  it("names a dependency whose caret range starts below or above the version the lock holds", () => {
+    expect(unlockedRangesOf({ ranges: { zod: "^4.4.2", "@eslint/plugin-kit": "^0.7.4" }, locked: LOCKED })).toEqual([
+      "zod is published as ^4.4.2, whose floor is not the locked 4.4.3",
+      "@eslint/plugin-kit is published as ^0.7.4, whose floor is not the locked 0.7.3",
     ]);
   });
 
-  it("names a bundled package that did not come from its own staged folder, one from outside core's install and a nested one", () => {
+  it("names a dependency published as an exact version or as anything wider than a caret range", () => {
     expect(
-      unlockedPackagesOf({
-        bundled: [
-          { root: "../../node_modules/levn", name: "levn", version: "0.4.1" },
-          { root: "node_modules/@eslint/plugin-kit/node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
-        ],
-        closure: CLOSURE,
+      unlockedRangesOf({
+        ranges: { zod: "4.4.3", "@eslint/plugin-kit": ">=0.7.3" },
+        locked: LOCKED,
       }),
     ).toEqual([
-      "levn 0.4.1 at ../../node_modules/levn, which is not the staged node_modules/levn",
-      "@eslint/core 1.2.1 at node_modules/@eslint/plugin-kit/node_modules/@eslint/core, which is not the staged node_modules/@eslint/core",
+      "zod is published as 4.4.3, which is not a caret range of one release",
+      "@eslint/plugin-kit is published as >=0.7.3, which is not a caret range of one release",
     ]);
   });
 
-  it("names both problems of a package that is outside the closure and not at its staged folder", () => {
-    expect(
-      unlockedPackagesOf({
-        bundled: [{ root: "../../node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" }],
-        closure: CLOSURE,
-      }),
-    ).toEqual([
-      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not the staged node_modules/prelude-ls",
-      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
+  it("names a dependency the lock's root importer holds no version of", () => {
+    expect(unlockedRangesOf({ ranges: { levn: "^0.4.1" }, locked: LOCKED })).toEqual([
+      "levn is published as ^0.4.1, but the lock's root importer holds no version of it",
+    ]);
+  });
+});
+
+describe("bundledPackageCodeOf", () => {
+  it("accepts a bundle that carries no installed package's code", () => {
+    expect(bundledPackageCodeOf({ packageRoots: [] })).toEqual([]);
+  });
+
+  it("names each installed package whose code the bundle carries", () => {
+    expect(bundledPackageCodeOf({ packageRoots: ["node_modules/zod", "../../node_modules/levn"] })).toEqual([
+      "node_modules/zod is bundled into the package",
+      "../../node_modules/levn is bundled into the package",
     ]);
   });
 });

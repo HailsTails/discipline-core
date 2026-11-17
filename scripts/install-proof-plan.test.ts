@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   consumerSettingsOf,
   environmentWithoutGit,
+  installedVersionOf,
   judgedStep,
   minimumReleaseAgeOf,
   PROOF_CASES,
@@ -315,6 +316,19 @@ describe("the pnpm a consumer installs with", () => {
       consumerSettingsOf({ minimumReleaseAge: 4320, typeStripping: "disabled" }),
       consumerSettingsOf({ minimumReleaseAge: 4320, typeStripping: "enabled" }),
     ]).toEqual(["minimum-release-age=4320\nnode-options=--no-experimental-strip-types\n", "minimum-release-age=4320\n"]);
+  });
+});
+
+describe("installedVersionOf", () => {
+  it("reads the version an installed package's manifest names", () => {
+    expect(installedVersionOf({ manifestText: '{ "name": "zod", "version": "4.4.3" }' })).toEqual({ outcome: "ok", value: "4.4.3" });
+  });
+
+  it("fails naming a manifest that names no version", () => {
+    expect([installedVersionOf({ manifestText: '{ "name": "zod" }' }), installedVersionOf({ manifestText: "{" })]).toEqual([
+      { outcome: "failed", error: { kind: "manifest-invalid", detail: "its package.json names no version" } },
+      { outcome: "failed", error: { kind: "manifest-invalid", detail: expect.any(String) } },
+    ]);
   });
 });
 

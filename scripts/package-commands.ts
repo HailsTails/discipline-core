@@ -26,8 +26,6 @@ const PACKED_TARBALL_FOLDER = "package-tarball";
 
 const DETERMINISM_PREFIX = `${packageFileStemOf({ packageName: TOOL_IDENTITY.packageName })}-package-determinism-`;
 
-const NODE_MODULES = "node_modules";
-
 const NPM_PACK = ["pack", "--ignore-scripts", "--pack-destination"];
 
 const FIRST_BUILD = "first";
@@ -50,9 +48,6 @@ const succeeded = (request: { readonly label: string; readonly run: ReturnType<C
   request.run.outcome === "not-exited" || request.run.exitCode !== 0
     ? { outcome: "failed", error: `FAIL: ${request.label}: ${JSON.stringify(request.run)}` }
     : { outcome: "ok", value: null };
-
-const installedDependenciesOf = (request: { readonly ports: PackageBuildPorts; readonly packageRoot: string }): string =>
-  request.ports.path.join({ segments: [request.packageRoot, NODE_MODULES] });
 
 const packedBuild = (request: CommandPorts & {
   readonly packageRoot: string;
@@ -86,7 +81,6 @@ export const packedTarball = async (request: CommandPorts & {
   readonly packageRoot: string;
   readonly outputRoot: string;
   readonly packDestination: string;
-  readonly dependencies: string;
 }): Promise<Done<string>> => {
   const built = await buildPackage(request);
   return built.outcome === "failed" ? built : packedBuild(request);
@@ -102,7 +96,6 @@ const buildOutcome = async (request: PackageCommandRequest): Promise<Done<string
     ports: request,
     packageRoot: packageRoot.value,
     outputRoot,
-    dependencies: installedDependenciesOf({ ports: request, packageRoot: packageRoot.value }),
   });
   return built.outcome === "failed"
     ? built
@@ -125,7 +118,6 @@ const packOutcome = async (request: PackageCommandRequest): Promise<Done<string>
     packageRoot: packageRoot.value,
     outputRoot: request.path.join({ segments: [packageRoot.value, BUILD_FOLDER] }),
     packDestination,
-    dependencies: installedDependenciesOf({ ports: request, packageRoot: packageRoot.value }),
   });
   return tarball.outcome === "failed" ? tarball : { outcome: "ok", value: `pack package: wrote ${tarball.value}` };
 };
@@ -134,7 +126,6 @@ type PackedBuild = { readonly built: BuiltPackage; readonly tarball: string };
 
 const packedBuildIn = async (request: CommandPorts & {
   readonly packageRoot: string;
-  readonly dependencies: string;
   readonly root: string;
 }): Promise<Done<PackedBuild>> => {
   const outputRoot = request.ports.path.join({ segments: [request.root, "package"] });
@@ -200,7 +191,6 @@ const comparedBuilds = (request: {
 const determinismIn = async (request: CommandPorts & {
   readonly packageRoot: string;
   readonly temporaryRoot: string;
-  readonly dependencies: string;
 }): Promise<Done<string>> => {
   const first = await packedBuildIn({ ...request, root: request.ports.path.join({ segments: [request.temporaryRoot, FIRST_BUILD] }) });
   if (first.outcome === "failed") {
@@ -224,7 +214,6 @@ const determinismOutcome = async (request: PackageCommandRequest): Promise<Done<
     commands: request.commands,
     packageRoot: packageRoot.value,
     temporaryRoot: temporaryRoot.value,
-    dependencies: installedDependenciesOf({ ports: request, packageRoot: packageRoot.value }),
   });
   const removed = request.scratch.removeTree({ path: temporaryRoot.value });
   return compared.outcome === "ok" && removed.outcome === "failed"
@@ -256,6 +245,5 @@ export const createTarballPacker = (options: CommandPorts): TarballPackerPort =>
       packageRoot: request.packageRoot,
       outputRoot: options.ports.path.join({ segments: [request.workRoot, PACKED_BUILD_FOLDER] }),
       packDestination: options.ports.path.join({ segments: [request.workRoot, PACKED_TARBALL_FOLDER] }),
-      dependencies: installedDependenciesOf({ ports: options.ports, packageRoot: request.packageRoot }),
     }),
 });

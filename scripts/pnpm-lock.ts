@@ -2,12 +2,6 @@ import type { Result } from "../core/values/result.ts";
 
 export type LockedPackage = { readonly name: string; readonly version: string };
 
-export type RequirementKind = "required" | "optional";
-
-export type LockedRequirement = { readonly name: string; readonly kind: RequirementKind };
-
-export type ClosureMember = LockedPackage & { readonly requires: readonly LockedRequirement[] };
-
 type Reading<Value> = Result<Value, string>;
 
 type LockLine = { readonly indent: number; readonly key: string; readonly value: string };
@@ -15,10 +9,6 @@ type LockLine = { readonly indent: number; readonly key: string; readonly value:
 type LockNode = { readonly value: string; readonly children: ReadonlyMap<string, LockNode> };
 
 type Siblings = { readonly entries: readonly (readonly [string, LockNode])[]; readonly next: number };
-
-type Dependency = { readonly name: string; readonly version: string; readonly kind: RequirementKind };
-
-type Member = { readonly name: string; readonly version: string; readonly requires: ReadonlyMap<string, RequirementKind> };
 
 const SUPPORTED_LOCKFILE_VERSION = "9.0";
 
@@ -45,13 +35,6 @@ const UNREADABLE_PREFIXES: readonly string[] = ["link:", "file:", "workspace:"];
 const FLOW_STARTS: readonly string[] = ["{", "["];
 
 const ROOT_IMPORTER = ".";
-
-const EMPTY_FLOW_MAPPING = "{}";
-
-const DEPENDENCY_SECTIONS: readonly (readonly [string, RequirementKind])[] = [
-  ["dependencies", "required"],
-  ["optionalDependencies", "optional"],
-];
 
 const failedReading = (request: { readonly error: string }): Reading<never> => ({ outcome: "failed", error: request.error });
 
@@ -146,106 +129,6 @@ const allRead = <Value>(request: { readonly results: readonly Reading<Value>[] }
     { outcome: "ok", value: [] },
   );
 
-const inlineValueOf = (request: { readonly node: LockNode | undefined }): string | undefined =>
-  request.node === undefined || request.node.value === "" || request.node.value === EMPTY_FLOW_MAPPING ? undefined : request.node.value;
-
-const sectionDependenciesOf = (request: {
-  readonly owner: string;
-  readonly section: string;
-  readonly kind: RequirementKind;
-  readonly node: LockNode | undefined;
-}): Reading<readonly Dependency[]> => {
-  const inline = inlineValueOf({ node: request.node });
-  if (inline !== undefined) {
-    return failedReading({ error: `${request.owner} holds an inline value for ${request.section}: ${inline}` });
-  }
-  return allRead({
-    results: [...(request.node?.children ?? [])].map(([name, node]): Reading<Dependency> => {
-      const version = versionOf({ owner: request.owner, name, value: node.value });
-      return version.outcome === "failed" ? version : { outcome: "ok", value: { name, version: version.value, kind: request.kind } };
-    }),
-  });
-};
-
-const dependenciesOf = (request: { readonly owner: string; readonly holder: LockNode | undefined }): Reading<readonly Dependency[]> => {
-  const sections = allRead({
-    results: DEPENDENCY_SECTIONS.map(([section, kind]) =>
-      sectionDependenciesOf({ owner: request.owner, section, kind, node: childOf({ node: request.holder, key: section }) }),
-    ),
-  });
-  return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.flat() };
-};
-
-const identityOf = (request: { readonly name: string; readonly version: string }): string =>
-  `${request.name}@${withoutPeerSuffix({ version: request.version })}`;
-
-const mergedRequirements = (request: {
-  readonly held: ReadonlyMap<string, RequirementKind>;
-  readonly found: readonly Dependency[];
-}): ReadonlyMap<string, RequirementKind> =>
-  new Map([
-    ...request.held,
-    ...request.found.map((dependency): readonly [string, RequirementKind] => [
-      dependency.name,
-      request.held.get(dependency.name) === "required" ? "required" : dependency.kind,
-    ]),
-  ]);
-
-const closureOf = (request: {
-  readonly pending: readonly Dependency[];
-  readonly expanded: ReadonlySet<string>;
-  readonly members: ReadonlyMap<string, Member>;
-  readonly snapshots: LockNode;
-}): Reading<ReadonlyMap<string, Member>> => {
-  const [next, ...rest] = request.pending;
-  if (next === undefined) {
-    return { outcome: "ok", value: request.members };
-  }
-  const key = `${next.name}@${next.version}`;
-  if (request.expanded.has(key)) {
-    return closureOf({ ...request, pending: rest });
-  }
-  const snapshot = childOf({ node: request.snapshots, key });
-  if (snapshot === undefined) {
-    return failedReading({ error: `the lock holds no snapshot for ${key}` });
-  }
-  const inlineSnapshot = inlineValueOf({ node: snapshot });
-  if (inlineSnapshot !== undefined) {
-    return failedReading({ error: `the lock holds an inline value for ${key}: ${inlineSnapshot}` });
-  }
-  const found = dependenciesOf({ owner: key, holder: snapshot });
-  if (found.outcome === "failed") {
-    return found;
-  }
-  const identity = identityOf(next);
-  const held = request.members.get(identity)?.requires ?? new Map<string, RequirementKind>();
-  return closureOf({
-    pending: [...rest, ...found.value],
-    expanded: new Set([...request.expanded, key]),
-    members: new Map([
-      ...request.members,
-      [
-        identity,
-        {
-          name: next.name,
-          version: withoutPeerSuffix({ version: next.version }),
-          requires: mergedRequirements({ held, found: found.value }),
-        },
-      ],
-    ]),
-    snapshots: request.snapshots,
-  });
-};
-
-const conflictOf = (request: { readonly members: readonly Member[] }): string | undefined =>
-  request.members.find((member) => request.members.some((other) => other.name === member.name && other.version !== member.version))?.name;
-
-const closureMemberOf = (request: { readonly member: Member }): ClosureMember => ({
-  name: request.member.name,
-  version: request.member.version,
-  requires: [...request.member.requires].map(([name, kind]) => ({ name, kind })),
-});
-
 const sectionOf = (request: {
   readonly tree: ReadonlyMap<string, LockNode>;
   readonly key: string;
@@ -257,7 +140,7 @@ const sectionOf = (request: {
 const rootDependenciesOf = (request: {
   readonly importers: LockNode;
   readonly dependencies: readonly string[];
-}): Reading<readonly Dependency[]> => {
+}): Reading<readonly LockedPackage[]> => {
   const importer = childOf({ node: request.importers, key: ROOT_IMPORTER });
   if (importer === undefined) {
     return failedReading({ error: "the lock holds no importer for the repository root" });
@@ -268,21 +151,21 @@ const rootDependenciesOf = (request: {
     return failedReading({ error: `core depends on ${unheld}, which the lock does not hold` });
   }
   return allRead({
-    results: request.dependencies.map((name): Reading<Dependency> => {
+    results: request.dependencies.map((name): Reading<LockedPackage> => {
       const version = versionOf({
         owner: "the root importer",
         name,
         value: childOf({ node: direct?.children.get(name), key: "version" })?.value ?? "",
       });
-      return version.outcome === "failed" ? version : { outcome: "ok", value: { name, version: version.value, kind: "required" } };
+      return version.outcome === "failed" ? version : { outcome: "ok", value: { name, version: withoutPeerSuffix({ version: version.value }) } };
     }),
   });
 };
 
-export const productionClosureOf = (request: {
+export const lockedDependenciesOf = (request: {
   readonly lockText: string;
   readonly dependencies: readonly string[];
-}): Reading<readonly ClosureMember[]> => {
+}): Reading<readonly LockedPackage[]> => {
   const tree = lockTreeOf({ lockText: request.lockText });
   if (tree.outcome === "failed") {
     return tree;
@@ -294,24 +177,5 @@ export const productionClosureOf = (request: {
     });
   }
   const importers = sectionOf({ tree: tree.value, key: "importers" });
-  if (importers.outcome === "failed") {
-    return importers;
-  }
-  const snapshots = sectionOf({ tree: tree.value, key: "snapshots" });
-  if (snapshots.outcome === "failed") {
-    return snapshots;
-  }
-  const direct = rootDependenciesOf({ importers: importers.value, dependencies: request.dependencies });
-  if (direct.outcome === "failed") {
-    return direct;
-  }
-  const closure = closureOf({ pending: direct.value, expanded: new Set(), members: new Map(), snapshots: snapshots.value });
-  if (closure.outcome === "failed") {
-    return closure;
-  }
-  const members = [...closure.value.values()];
-  const conflict = conflictOf({ members });
-  return conflict === undefined
-    ? { outcome: "ok", value: members.map((member) => closureMemberOf({ member })) }
-    : failedReading({ error: `core's dependencies in the lock hold ${conflict} at more than one version, which a flat stage cannot place` });
+  return importers.outcome === "failed" ? importers : rootDependenciesOf({ importers: importers.value, dependencies: request.dependencies });
 };

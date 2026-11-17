@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   builtModulePath,
   documentAuthorOf,
-  externalPeersOf,
+  externalPackagesOf,
   packagePlanOf,
   piecePathsIn,
-  thirdPartyNoticesOf,
 } from "./package-plan.ts";
 
 const SOURCE_PATHS = [
@@ -215,29 +214,16 @@ describe("builtModulePath", () => {
   });
 });
 
-describe("externalPeersOf", () => {
-  it("keeps each peer and every subpath of it outside the bundle", () => {
-    expect(externalPeersOf({ peers: ["eslint", "@typescript-eslint/parser"] })).toEqual([
+describe("externalPackagesOf", () => {
+  it("keeps each declared package and every subpath of it outside the bundle", () => {
+    expect(externalPackagesOf({ packages: ["eslint", "@typescript-eslint/parser", "zod"] })).toEqual([
       "eslint",
       "eslint/*",
       "@typescript-eslint/parser",
       "@typescript-eslint/parser/*",
+      "zod",
+      "zod/*",
     ]);
-  });
-});
-
-describe("thirdPartyNoticesOf", () => {
-  it("reproduces each bundled package's licence by name order, and its NOTICE where it has one", () => {
-    expect(
-      thirdPartyNoticesOf({
-        packages: [
-          { name: "zod", version: "4.4.3", license: "MIT", licenseText: "MIT text\n", noticeText: undefined },
-          { name: "@eslint/plugin-kit", version: "0.7.3", license: "Apache-2.0", licenseText: "Apache text\n", noticeText: "Notice text\n" },
-        ],
-      }),
-    ).toBe(
-      "# Third-party notices\n\nThis package bundles the following packages into its JavaScript: esbuild combined and re-emitted their code, without changing what it does. Each is redistributed under its own licence, reproduced below.\n\n## @eslint/plugin-kit 0.7.3\n\nLicense: Apache-2.0\n\n```text\nApache text\n```\n\nNOTICE:\n\n```text\nNotice text\n```\n\n## zod 4.4.3\n\nLicense: MIT\n\n```text\nMIT text\n```\n",
-    );
   });
 });
 

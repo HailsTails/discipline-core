@@ -17,14 +17,6 @@ export type PackagePlan = {
   readonly exported: readonly string[];
 };
 
-export type BundledPackage = {
-  readonly name: string;
-  readonly version: string;
-  readonly license: string;
-  readonly licenseText: string;
-  readonly noticeText: string | undefined;
-};
-
 export const SHIPPED_NODE_RANGE = "^22.18.0 || >=24";
 
 export const SHIPPED_NODE_TARGET = "node22.18";
@@ -208,34 +200,5 @@ export const packagePlanOf = (request: {
   };
 };
 
-export const externalPeersOf = (request: { readonly peers: readonly string[] }): readonly string[] =>
-  request.peers.flatMap((peer) => [peer, `${peer}/*`]);
-
-const nameOrder = (request: { readonly left: string; readonly right: string }): number => {
-  if (request.left === request.right) {
-    return 0;
-  }
-  return request.left < request.right ? -1 : 1;
-};
-
-const noticeSection = (request: { readonly bundled: BundledPackage }): string =>
-  [
-    `## ${request.bundled.name} ${request.bundled.version}`,
-    "",
-    `License: ${request.bundled.license}`,
-    "",
-    "```text",
-    request.bundled.licenseText.trimEnd(),
-    "```",
-    ...(request.bundled.noticeText === undefined ? [] : ["", "NOTICE:", "", "```text", request.bundled.noticeText.trimEnd(), "```"]),
-  ].join("\n");
-
-export const thirdPartyNoticesOf = (request: { readonly packages: readonly BundledPackage[] }): string =>
-  `${[
-    "# Third-party notices",
-    "",
-    "This package bundles the following packages into its JavaScript: esbuild combined and re-emitted their code, without changing what it does. Each is redistributed under its own licence, reproduced below.",
-    ...[...request.packages]
-      .sort((left, right) => nameOrder({ left: left.name, right: right.name }))
-      .flatMap((bundled) => ["", noticeSection({ bundled })]),
-  ].join("\n")}\n`;
+export const externalPackagesOf = (request: { readonly packages: readonly string[] }): readonly string[] =>
+  request.packages.flatMap((name) => [name, `${name}/*`]);
