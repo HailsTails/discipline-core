@@ -1,6 +1,7 @@
 import platformPath, { posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.ts";
+import { absolutePathSchema } from "../values/absolute-path.ts";
+import type { AbsolutePath } from "../values/absolute-path-types.ts";
 import type { Result } from "../values/result.ts";
 
 export type RelativeLocation =

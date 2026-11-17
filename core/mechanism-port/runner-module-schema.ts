@@ -2,8 +2,6 @@ import { z } from "zod";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import type { SourceCase } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { AnchorKind } from "../values/anchor.ts";
-import type { ClauseAddress } from "../values/clause-address.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { Equal } from "../values/type-equality.ts";
@@ -15,13 +13,9 @@ import type {
   nativeExceptionKindSchema,
 } from "./runner-result-schema.ts";
 import { nativeExceptionKindSchema as projectedKindSchema } from "./runner-result-schema.ts";
+import type { RunnerClause } from "./runner-module-types.ts";
 
-export type RunnerClause = {
-  readonly address: ClauseAddress;
-  readonly anchor: AnchorKind;
-  readonly pieceRoot: string;
-  readonly settings: unknown;
-};
+export type { RunnerClause } from "./runner-module-types.ts";
 
 export type RunRequest = {
   readonly repoRoot: AbsolutePath;

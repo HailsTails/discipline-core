@@ -1,23 +1,47 @@
 import { z } from "zod";
+import { brandedTextSchema } from "./branded-schema.ts";
+import {
+  CLAUSE_ID_PATTERN,
+  type ClauseId,
+  DISCIPLINE_ID_PATTERN,
+  type DisciplineId,
+  isClauseId,
+  isDisciplineId,
+  isMechanismId,
+  isRuleSetName,
+  MECHANISM_ID_PATTERN,
+  type MechanismId,
+  RULE_SET_NAME_PATTERN,
+  type RuleSetName,
+} from "./identifier-types.ts";
+import type { Equal } from "./type-equality.ts";
 
-export const ruleSetNameSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"RuleSetName">();
-export const disciplineIdSchema = z
-  .string()
-  .regex(/^[A-Z]{2,4}-[0-9]+[a-z]?$/)
-  .brand<"DisciplineId">();
-export const clauseIdSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"ClauseId">();
-export const mechanismIdSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"MechanismId">();
+export type { ClauseId, DisciplineId, MechanismId, RuleSetName } from "./identifier-types.ts";
 
-export type RuleSetName = z.infer<typeof ruleSetNameSchema>;
-export type DisciplineId = z.infer<typeof disciplineIdSchema>;
-export type ClauseId = z.infer<typeof clauseIdSchema>;
-export type MechanismId = z.infer<typeof mechanismIdSchema>;
+const NOT_AN_IDENTIFIER = "not an identifier of its kind";
+
+export const ruleSetNameSchema = brandedTextSchema({
+  text: z.string().regex(RULE_SET_NAME_PATTERN),
+  isBranded: isRuleSetName,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const disciplineIdSchema = brandedTextSchema({
+  text: z.string().regex(DISCIPLINE_ID_PATTERN),
+  isBranded: isDisciplineId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const clauseIdSchema = brandedTextSchema({
+  text: z.string().regex(CLAUSE_ID_PATTERN),
+  isBranded: isClauseId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const mechanismIdSchema = brandedTextSchema({
+  text: z.string().regex(MECHANISM_ID_PATTERN),
+  isBranded: isMechanismId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+
+export const isRuleSetNameSchemaEqual: Equal<z.output<typeof ruleSetNameSchema>, RuleSetName> = true;
+export const isDisciplineIdSchemaEqual: Equal<z.output<typeof disciplineIdSchema>, DisciplineId> = true;
+export const isClauseIdSchemaEqual: Equal<z.output<typeof clauseIdSchema>, ClauseId> = true;
+export const isMechanismIdSchemaEqual: Equal<z.output<typeof mechanismIdSchema>, MechanismId> = true;

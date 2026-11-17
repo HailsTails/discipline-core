@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { rejectedCall, runnerFailureSchema, runnerInvalidOutput } from "./runner-failure.ts";
+import { rejectedCall, runnerInvalidOutput } from "./runner-failure.ts";
+import { runnerFailureSchema } from "./runner-failure-schema.ts";
 
 describe("runnerFailureSchema", () => {
   it.each([

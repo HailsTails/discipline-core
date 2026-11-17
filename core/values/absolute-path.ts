@@ -1,10 +1,14 @@
 import { z } from "zod";
+import { type AbsolutePath, isAbsolutePath, POSIX_ROOT_DRIVE_ROOT_OR_SHARE_ROOT } from "./absolute-path-types.ts";
+import { brandedTextSchema } from "./branded-schema.ts";
+import type { Equal } from "./type-equality.ts";
 
-const POSIX_ROOT_DRIVE_ROOT_OR_SHARE_ROOT = /^(?:\/|[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+[\\/])/;
+export type { AbsolutePath } from "./absolute-path-types.ts";
 
-export const absolutePathSchema = z
-  .string()
-  .regex(POSIX_ROOT_DRIVE_ROOT_OR_SHARE_ROOT)
-  .brand<"AbsolutePath">();
+export const absolutePathSchema = brandedTextSchema({
+  text: z.string().regex(POSIX_ROOT_DRIVE_ROOT_OR_SHARE_ROOT),
+  isBranded: isAbsolutePath,
+  refusal: "not an absolute path",
+});
 
-export type AbsolutePath = z.infer<typeof absolutePathSchema>;
+export const isAbsolutePathSchemaEqual: Equal<z.output<typeof absolutePathSchema>, AbsolutePath> = true;

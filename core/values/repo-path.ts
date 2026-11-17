@@ -1,29 +1,20 @@
 import { z } from "zod";
+import { brandedTextSchema } from "./branded-schema.ts";
+import { isRepoPath, isRepoPathText, type RepoPath } from "./repo-path-types.ts";
+import type { Equal } from "./type-equality.ts";
 
-export type RepoPathVerdict = "repo-path" | "not-repo-path";
+export type { RepoPath } from "./repo-path-types.ts";
 
-const UNWALKABLE_SEGMENTS: readonly string[] = ["", ".", ".."];
+const NOT_A_REPO_PATH = "not a repo-relative path";
 
-const LEADING_DRIVE_LETTER = /^[A-Za-z]:/;
-
-const LINE_BREAK_OR_NUL = /[\n\r\0]/;
-
-export const isRepoPathText = (request: { readonly text: string }): RepoPathVerdict =>
-  !request.text.startsWith("/") &&
-  !LEADING_DRIVE_LETTER.test(request.text) &&
-  !request.text.includes("\\") &&
-  !LINE_BREAK_OR_NUL.test(request.text) &&
-  request.text.split("/").every((segment) => !UNWALKABLE_SEGMENTS.includes(segment))
-    ? "repo-path"
-    : "not-repo-path";
-
-export const repoPathSchema = z
-  .string()
-  .superRefine((text, context) => {
+export const repoPathSchema = brandedTextSchema({
+  text: z.string().superRefine((text, context) => {
     if (isRepoPathText({ text }) === "not-repo-path") {
-      context.addIssue({ code: "custom", message: "not a repo-relative path" });
+      context.addIssue({ code: "custom", message: NOT_A_REPO_PATH });
     }
-  })
-  .brand<"RepoPath">();
+  }),
+  isBranded: isRepoPath,
+  refusal: NOT_A_REPO_PATH,
+});
 
-export type RepoPath = z.infer<typeof repoPathSchema>;
+export const isRepoPathSchemaEqual: Equal<z.output<typeof repoPathSchema>, RepoPath> = true;

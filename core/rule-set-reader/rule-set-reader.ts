@@ -3,62 +3,19 @@ import type { LoadFailure } from "../check/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { AnchorKind } from "../values/anchor.ts";
 import {
-  type ClauseId,
   clauseIdSchema,
   type DisciplineId,
   disciplineIdSchema,
   type MechanismId,
   mechanismIdSchema,
 } from "../values/identifiers.ts";
-import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
+import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
+import type { EqualIgnoringReadonly } from "../values/type-equality.ts";
+import type { DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
 
-export type SourceCase = {
-  readonly name: string;
-  readonly fileName: RepoPath;
-  readonly source: string;
-  readonly expectedLines: readonly number[];
-};
-
-export type ClauseDefinition =
-  | {
-      readonly kind: "mechanical";
-      readonly id: ClauseId;
-      readonly summary: string;
-      readonly mechanisms: readonly MechanismId[];
-      readonly anchor: AnchorKind;
-      readonly exceptions: ClauseExceptions;
-      readonly cases: {
-        readonly flag: readonly SourceCase[];
-        readonly allow: readonly SourceCase[];
-      };
-    }
-  | {
-      readonly kind: "judgement";
-      readonly id: ClauseId;
-      readonly summary: string;
-      readonly enforcedBy: "review";
-    };
-
-export type ClauseExceptions = "allowed" | "refused";
-
-export type DisciplineFile = {
-  readonly version: 1;
-  readonly id: DisciplineId;
-  readonly clauses: readonly ClauseDefinition[];
-};
-
-export type PieceFile = {
-  readonly version: 1;
-  readonly discipline: DisciplineId;
-  readonly mechanism: MechanismId;
-  readonly clauses: readonly {
-    readonly clause: ClauseId;
-    readonly settings: unknown;
-  }[];
-};
+export type { ClauseDefinition, ClauseExceptions, DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
 
 const SUPPORTED_VERSION = 1;
 
@@ -184,6 +141,12 @@ const pieceFileSchema = z.object({
       error: "two entries name the same clause",
     }),
 });
+
+export const isSourceCaseSchemaEqual: EqualIgnoringReadonly<z.output<typeof sourceCaseSchema>, SourceCase> = true;
+
+export const isDisciplineFileSchemaEqual: EqualIgnoringReadonly<z.output<typeof disciplineFileSchema>, DisciplineFile> = true;
+
+export const isPieceFileSchemaEqual: EqualIgnoringReadonly<z.output<typeof pieceFileSchema>, PieceFile> = true;
 
 const isContentRefusal = (
   issue: z.core.$ZodIssue,

@@ -1,8 +1,12 @@
 import { z } from "zod";
-import { anchorSchema } from "../values/anchor.ts";
+import { anchorSchema } from "../values/anchor-schema.ts";
 import { type ClauseAddress, clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
-import { runnerFailureSchema } from "./runner-failure.ts";
+import type { EqualIgnoringReadonly } from "../values/type-equality.ts";
+import { runnerFailureSchema } from "./runner-failure-schema.ts";
+import type { Hit } from "./runner-result-types.ts";
+
+export type { Hit } from "./runner-result-types.ts";
 
 export const nativeExceptionKindSchema = z.enum([
   "ignore",
@@ -55,7 +59,7 @@ export const hitSchema = z
   })
   .readonly();
 
-export type Hit = z.infer<typeof hitSchema>;
+export const isHitSchemaEqual: EqualIgnoringReadonly<z.output<typeof hitSchema>, Hit> = true;
 
 export const caseVerdictSchema = z
   .object({
