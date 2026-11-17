@@ -762,3 +762,56 @@ describe("eslintOptionsOf for a question about one path", () => {
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", overrideConfig: { files: ["src/a.ts"] } });
   });
 });
+describe("ignoredByPatterns, whether ignore patterns given on a command line ignore each path", () => {
+  it("builds one ESLint from the script's folder with no config file and only those patterns, matching each asked path so an unconfigured path is not taken for an ignored one", async () => {
+    const isPathIgnored = vi
+      .fn<EslintSurface["isPathIgnored"]>()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const createEslint = vi.fn<CreateEslint>().mockReturnValue({ ...idleSurface, isPathIgnored });
+    const packageFolder = absolutePathSchema.parse("/repo/packages/a");
+    const ignored = await portWith({ createEslint }).ignoredByPatterns({
+      cwd: packageFolder,
+      patterns: ["dist/**"],
+      paths: ["src/a.ts", "dist/b.ts"],
+    });
+    expect({ ignored, built: createEslint.mock.calls, asked: isPathIgnored.mock.calls }).toEqual({
+      ignored: { outcome: "ok", value: ["checked", "ignored"] },
+      built: [
+        [
+          {
+            options: {
+              cwd: "/repo/packages/a",
+              overrideConfigFile: true,
+              ignorePatterns: ["dist/**"],
+              matchedFiles: ["src/a.ts", "dist/b.ts"],
+            },
+          },
+        ],
+      ],
+      asked: [[{ filePath: "src/a.ts" }], [{ filePath: "dist/b.ts" }]],
+    });
+  });
+
+  it("reports a pattern ESLint cannot use as tool-failed", async () => {
+    await expect(
+      portWith({
+        createEslint: vi.fn<CreateEslint>().mockReturnValue({
+          ...idleSurface,
+          isPathIgnored: vi.fn<EslintSurface["isPathIgnored"]>().mockRejectedValue(new Error("Invalid pattern")),
+        }),
+      }).ignoredByPatterns({ cwd: repoRoot, patterns: ["["], paths: ["src/a.ts"] }),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "tool-failed", detail: "Invalid pattern" } });
+  });
+});
+
+describe("eslintOptionsOf for ignore patterns", () => {
+  it.each(["9.28.0", "9.39.5", "10.11.0"])("passes the patterns to ESLint %s as its own ignorePatterns option", (version) => {
+    expect(
+      eslintOptionsOf({
+        version,
+        options: { cwd: OPTIONS_CWD, overrideConfigFile: true, ignorePatterns: ["dist/**"], matchedFiles: ["src/a.ts"] },
+      }),
+    ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: true, ignorePatterns: ["dist/**"], overrideConfig: { files: ["src/a.ts"] } });
+  });
+});

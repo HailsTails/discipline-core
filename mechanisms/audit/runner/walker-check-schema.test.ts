@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { walkerPieceSettingsSchema } from "./walker-check-schema.ts";
 
+const EXPECTATION = "@ts-expect-" + "error";
+const IGNORE = "@ts-" + "ignore";
+const NOCHECK = "@ts-" + "nocheck";
+
 describe("walkerPieceSettingsSchema", () => {
   it.each([
     "class-syntax.ts",
@@ -20,5 +24,16 @@ describe("walkerPieceSettingsSchema", () => {
     "x",
   ])("refuses the module %j", (module) => {
     expect(walkerPieceSettingsSchema.safeParse({ module }).success).toBe(false);
+  });
+
+  it("accepts and keeps the type directives a clause declares as escapes of itself", () => {
+    const settings = { module: "cast-expressions.ts", escapingDirectives: [EXPECTATION, IGNORE, NOCHECK] };
+    expect(walkerPieceSettingsSchema.safeParse(settings)).toEqual({ success: true, data: settings });
+  });
+
+  it("refuses a declared escape the compiler does not honour as one, at that entry", () => {
+    expect(
+      walkerPieceSettingsSchema.safeParse({ module: "cast-expressions.ts", escapingDirectives: ["@ts-check"] }),
+    ).toMatchObject({ success: false, error: { issues: [{ path: ["escapingDirectives", 0] }] } });
   });
 });

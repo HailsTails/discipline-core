@@ -33,7 +33,7 @@ const PROJECTION: ProjectionRequest = { repoRoot: REPO, installRoot: REPO, decla
 
 const standaloneOver = (): StandaloneRunner => ({
   exceptionPath: "standalone",
-  run: vi.fn<StandaloneRunner["run"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  run: vi.fn<StandaloneRunner["run"]>().mockResolvedValue({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }),
   conform: vi.fn<StandaloneRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
 });
 

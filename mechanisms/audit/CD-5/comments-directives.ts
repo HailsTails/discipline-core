@@ -5,7 +5,8 @@ import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { stringListClauseSettings } from "../runner/piece-clause-settings.ts";
-import type { CommentRange, SyntaxApi, SyntaxTree } from "../runner/typescript-parse.ts";
+import { typeDirectiveReaderFor } from "../runner/type-directives.ts";
+import type { SyntaxApi, SyntaxTree } from "../runner/typescript-parse.ts";
 import type { PieceHit, SourceObservers, WalkerPiece } from "../runner/walker-piece.ts";
 import { folderScope } from "../runner/source-scope.ts";
 
@@ -16,9 +17,6 @@ const sourceEligibility = (request: { readonly file: string }): "eligible" | "ex
 };
 
 const TODO_PATTERN = /\/\/\s*TODO\b/;
-const LINE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-(?:expect-error|ignore)/;
-const BLOCK_SUPPRESSION_PATTERN = /^\s*[/*]*\s*@ts-(?:expect-error|ignore)/;
-const FILE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-nocheck(?=[\s:]|$)/i;
 const LINTER_DIRECTIVE_PATTERN =
   /^(?:\/\/|\/\*)\s*((?:biome-ignore(?:-all|-start|-end)?|(?:eslint|oxlint)-(?:disable(?:-line|-next-line)?|enable)|eslint(?=\s)))\b/;
 const TRACKED_REFERENCE_PATTERN = /\([^()\s]*\d[^()\s]*\)/g;
@@ -85,21 +83,6 @@ const textAfter = (request: { readonly pattern: RegExp; readonly text: string })
   return marker === null ? undefined : request.text.slice(marker.index + marker[0].length);
 };
 
-type CommentPlacement = {
-  readonly form: "line" | "block";
-  readonly region: "file-header" | "body";
-};
-
-const typeDirectiveTail = (request: { readonly comment: string; readonly placement: CommentPlacement }): string | undefined => {
-  const { comment, placement } = request;
-  if (placement.form === "block") {
-    return textAfter({ pattern: BLOCK_SUPPRESSION_PATTERN, text: comment.slice(comment.lastIndexOf("\n") + 1) });
-  }
-  const suppression = textAfter({ pattern: LINE_SUPPRESSION_PATTERN, text: comment });
-  if (suppression !== undefined || placement.region === "body") return suppression;
-  return textAfter({ pattern: FILE_SUPPRESSION_PATTERN, text: comment });
-};
-
 const untrackedClauses = (request: {
   readonly trackedClauses: readonly TrackedClause[];
   readonly text: string;
@@ -142,20 +125,9 @@ const taskHits = (request: FileContext): readonly PieceHit[] => {
   });
 };
 
-const commentPlacementOf = (request: {
-  readonly range: CommentRange;
-  readonly fileHeaderPositions: ReadonlySet<number>;
-  readonly syntaxApi: SyntaxApi;
-}): CommentPlacement => ({
-  form: request.range.kind === request.syntaxApi.SyntaxKind.MultiLineCommentTrivia ? "block" : "line",
-  region: request.fileHeaderPositions.has(request.range.pos) ? "file-header" : "body",
-});
-
 const sourceObserversFor = (request: FileContext & { readonly syntaxApi: SyntaxApi }): SourceObservers => {
   const { sourceFile, anchorAt, trackedClauses, syntaxApi } = request;
-  const fileHeaderPositions = new Set(
-    (syntaxApi.getLeadingCommentRanges(sourceFile.text, 0) ?? []).map((headerRange) => headerRange.pos),
-  );
+  const typeDirectiveOf = typeDirectiveReaderFor({ sourceFile, syntaxApi });
   const todoHits = taskHits(request);
   const directiveHits: PieceHit[] = [];
   const typeDirectiveHits: PieceHit[] = [];
@@ -169,10 +141,9 @@ const sourceObserversFor = (request: FileContext & { readonly syntaxApi: SyntaxA
   return {
     comment: ({ range }) => {
       const whole = sourceFile.text.slice(range.pos, range.end);
-      const placement = commentPlacementOf({ range, fileHeaderPositions, syntaxApi });
-      const afterTypeDirective = typeDirectiveTail({ comment: whole, placement });
-      if (afterTypeDirective !== undefined) {
-        typeDirectiveHits.push(...commentHits({ text: afterTypeDirective, whole, position: range.pos }));
+      const typeDirective = typeDirectiveOf({ range });
+      if (typeDirective !== undefined) {
+        typeDirectiveHits.push(...commentHits({ text: typeDirective.tail, whole, position: range.pos }));
         return;
       }
       if (LINTER_DIRECTIVE_PATTERN.exec(whole)?.[1] === undefined) return;

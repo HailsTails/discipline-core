@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import type { Finding } from "../governance/governance.ts";
+import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -217,6 +218,7 @@ CD-14#no-class-syntax audit src/a.ts:3:5 class A {\n}\r\nclass B {}
               file: fileA,
               line: 7,
               text: "/* eslint-disable\nno-class */\r",
+              reach: "one-clause",
               mechanism: eslint,
             },
           ],
@@ -241,13 +243,14 @@ CD-14#no-class-syntax eslint inline-disable src/a.ts:7 /* eslint-disable\nno-cla
               location: packageJson,
               script: "lint\r\nfix",
               option: "--rule\nno-class:off",
+              cause: { kind: "weakens-run" },
               mechanism: eslint,
             },
           ],
         },
       }),
     ).toContain(String.raw`
-CD-14#no-class-syntax eslint command-line-option package.json lint\r\nfix --rule\nno-class:off
+CD-14#no-class-syntax eslint command-line-option package.json lint\r\nfix --rule\nno-class:off weakens the script's whole run, so no record can cover it: remove it from the script
 `);
   });
 
@@ -285,12 +288,38 @@ exceptions[4] why-chain-refused why 2\nis empty\r
               file: fileA,
               line: 7,
               text: "// eslint-disable-line no-class",
+              reach: "one-clause",
               mechanism: eslint,
             },
           ],
         },
       }),
     ).toContain("\nCD-14#no-class-syntax eslint inline-disable src/a.ts:7 // eslint-disable-line no-class\n");
+  });
+
+  it("renders an unrecorded inline disable that names no rule with the cheap fix after its text", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          unrecorded: [
+            {
+              kind: "inline-disable",
+              clause: noClass,
+              file: fileA,
+              line: 1,
+              text: "/* eslint-disable */",
+              reach: "every-selected-clause",
+              mechanism: eslint,
+            },
+          ],
+        },
+      }),
+    ).toContain(
+      "\nCD-14#no-class-syntax eslint inline-disable src/a.ts:1 /* eslint-disable */ names no rule and escapes every selected clause: naming the rule is the cheap fix\n",
+    );
   });
 
   it("renders an unrecorded inline rule config with its line and text", () => {
@@ -329,12 +358,41 @@ exceptions[4] why-chain-refused why 2\nis empty\r
               location: packageJson,
               script: "lint",
               option: "--rule no-class:off",
+              cause: { kind: "weakens-run" },
               mechanism: eslint,
             },
           ],
         },
       }),
-    ).toContain("\nCD-14#no-class-syntax eslint command-line-option package.json lint --rule no-class:off\n");
+    ).toContain("\nCD-14#no-class-syntax eslint command-line-option package.json lint --rule no-class:off weakens the script's whole run, so no record can cover it: remove it from the script\n");
+  });
+
+  it.each<{ readonly option: string; readonly cause: ScriptOptionCause; readonly note: string }>([
+    {
+      option: "-c eslint.config.mjs",
+      cause: { kind: "after-another-command", command: "eslint", invocation: "TIMING=1 eslint -c eslint.config.mjs ." },
+      note: ': eslint is not the first command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as "TIMING=1 eslint -c eslint.config.mjs ."',
+    },
+    {
+      option: "--ignore-pattern dist",
+      cause: { kind: "wrapped", command: "eslint", wrapper: "-y" },
+      note: ': "-y" comes before eslint and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before eslint',
+    },
+  ])("renders $option with the reason $cause.kind gives and its way out", ({ option, cause, note }) => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          unrecorded: [
+            { kind: "command-line-option", clause: noClass, location: packageJson, script: "lint", option, cause, mechanism: eslint },
+          ],
+        },
+      }),
+    ).toContain(`
+CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${note}
+`);
   });
 
   it("renders an invalid record that carries a detail as its index, problem kind and detail", () => {

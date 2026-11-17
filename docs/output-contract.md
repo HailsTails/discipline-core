@@ -208,8 +208,11 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `unrecorded` | `<clause> <mechanism> config-override <file>` |
 | `unrecorded` | `<clause> <mechanism> suppression-entry <file> <suppressions file>` |
 | `unrecorded` | `<clause> <mechanism> inline-disable <file>:<line> <comment>` |
+| `unrecorded` | `<clause> <mechanism> inline-disable <file>:<line> <comment> names no rule and escapes every selected clause: naming the rule is the cheap fix` |
 | `unrecorded` | `<clause> <mechanism> inline-rule-config <file>:<line> <comment>` |
-| `unrecorded` | `<clause> <mechanism> command-line-option <package file> <script> <option>` |
+| `unrecorded` | `<clause> <mechanism> command-line-option <package file> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script` |
+| `unrecorded` | `<clause> <mechanism> command-line-option <package file> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as <invocation>` |
+| `unrecorded` | `<clause> <mechanism> command-line-option <package file> <script> <option>: <wrapper> comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` |
 | `doublyHeld` | `<clause> <mechanism> doubly-held <file>` |
 | `invalidRecords` | `exceptions[<index>] clause-unparseable <detail>` |
 | `invalidRecords` | `exceptions[<index>] clause-not-selected <clause>` |

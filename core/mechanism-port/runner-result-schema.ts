@@ -18,6 +18,13 @@ export const nativeExceptionKindSchema = z.enum([
   "command-line-option",
 ]);
 
+export type InlineReach = "one-clause" | "every-selected-clause";
+
+export type ScriptOptionCause =
+  | { readonly kind: "weakens-run" }
+  | { readonly kind: "after-another-command"; readonly command: string; readonly invocation: string }
+  | { readonly kind: "wrapped"; readonly command: string; readonly wrapper: string };
+
 export type NativeException =
   | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }
   | { readonly kind: "config-override"; readonly clause: ClauseAddress; readonly file: RepoPath }
@@ -33,6 +40,7 @@ export type NativeException =
       readonly file: RepoPath;
       readonly line: number;
       readonly text: string;
+      readonly reach: InlineReach;
     }
   | {
       readonly kind: "inline-rule-config";
@@ -47,7 +55,10 @@ export type NativeException =
       readonly location: RepoPath;
       readonly script: string;
       readonly option: string;
+      readonly cause: ScriptOptionCause;
     };
+
+export type InlineDisable = Extract<NativeException, { readonly kind: "inline-disable" }>;
 
 export type ProjectionState = "current" | "out-of-date" | "missing" | "not-included";
 

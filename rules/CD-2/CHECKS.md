@@ -13,6 +13,7 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 - Every `x as T` and `<T>x` assertion except a const assertion, `as const` or `<const>x`. Assertions whose type contains `any` are CD-1's and are not repeated here.
 - `as unknown` and `<unknown>x` are flagged. Widening never needs an assertion: annotate instead, `const parsed: unknown = JSON.parse(text)`.
 - A cast through `unknown`, such as `raw as unknown as User`, `(<unknown>raw) as User` or one wrapped in `!` or `satisfies`, is flagged with its own message, and so is its `unknown` half. It is the escape hatch that turns any value into any type; check the value's shape at runtime at the boundary instead.
+- `@ts-expect-error`, `@ts-ignore` and `@ts-nocheck` in the `.ts` and `.tsx` files this clause checks are reported as `inline-disable` native exceptions of this clause, where the compiler honours them and whether or not they hide a cast. Directives in `.mts`, `.cts` and JavaScript files are not read. Each is debt on this clause in its file: an `authorised-location` or `file-carve-out` on the file covers it, a `clause-wide-carve-out` does not, and a tracked reference on the comment (CD-5) does not stand in for the record.
 - Test files, test helpers and scripts are checked like any other source; a test that needs a cast needs a typed stub or a narrower port.
 - There are no settings: a boundary that forces a cast is an exception record, as below.
 

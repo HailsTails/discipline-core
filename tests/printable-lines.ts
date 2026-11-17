@@ -102,25 +102,95 @@ const IMPORTED_RECORDS: Readonly<Record<(ExistingAuthorisationProvenance | Inher
   },
 };
 
-const NATIVE_EXCEPTIONS: { readonly [Kind in AttributedNativeException["kind"]]: Filled<Extract<AttributedNativeException, { readonly kind: Kind }>> } = {
-  ignore: { entry: { kind: "ignore", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} },
-  "config-override": { entry: { kind: "config-override", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} },
-  "suppression-entry": {
-    entry: { kind: "suppression-entry", clause: LOOPS, mechanism: MECHANISM, file: FILE, location: repoPathSchema.parse("eslint-suppressions.json") },
-    fills: { "suppressions file": "eslint-suppressions.json" },
-  },
-  "inline-disable": {
-    entry: { kind: "inline-disable", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 4, text: "// eslint-disable-next-line" },
+type AttributedInlineDisable = Extract<AttributedNativeException, { readonly kind: "inline-disable" }>;
+
+type AttributedScriptOption = Extract<AttributedNativeException, { readonly kind: "command-line-option" }>;
+
+const INLINE_DISABLES: Readonly<Record<AttributedInlineDisable["reach"], Filled<AttributedInlineDisable>>> = {
+  "one-clause": {
+    entry: { kind: "inline-disable", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 4, text: "// eslint-disable-next-line", reach: "one-clause" },
     fills: { line: "4", comment: "// eslint-disable-next-line" },
   },
-  "inline-rule-config": {
-    entry: { kind: "inline-rule-config", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 1, text: "/* eslint no-x: off */" },
-    fills: { line: "1", comment: "/* eslint no-x: off */" },
+  "every-selected-clause": {
+    entry: { kind: "inline-disable", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 1, text: "/* eslint-disable */", reach: "every-selected-clause" },
+    fills: { line: "1", comment: "/* eslint-disable */" },
   },
-  "command-line-option": {
-    entry: { kind: "command-line-option", clause: LOOPS, mechanism: MECHANISM, location: repoPathSchema.parse("package.json"), script: "lint", option: "--no-inline-config" },
+};
+
+const SCRIPT_OPTION_INVOCATION = "TIMING=1 eslint -c eslint.config.mjs .";
+
+const SCRIPT_OPTION_WRAPPER = "env";
+
+const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], Filled<AttributedScriptOption>>> = {
+  "weakens-run": {
+    entry: {
+      kind: "command-line-option",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      location: repoPathSchema.parse("package.json"),
+      script: "lint",
+      option: "--no-inline-config",
+      cause: { kind: "weakens-run" },
+    },
     fills: { "package file": "package.json", script: "lint", option: "--no-inline-config" },
   },
+  "after-another-command": {
+    entry: {
+      kind: "command-line-option",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      location: repoPathSchema.parse("package.json"),
+      script: "lint",
+      option: "-c eslint.config.mjs",
+      cause: { kind: "after-another-command", command: "eslint", invocation: SCRIPT_OPTION_INVOCATION },
+    },
+    fills: {
+      "package file": "package.json",
+      script: "lint",
+      option: "-c eslint.config.mjs",
+      command: "eslint",
+      invocation: JSON.stringify(SCRIPT_OPTION_INVOCATION),
+    },
+  },
+  wrapped: {
+    entry: {
+      kind: "command-line-option",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      location: repoPathSchema.parse("package.json"),
+      script: "lint",
+      option: "--ignore-pattern legacy/**",
+      cause: { kind: "wrapped", command: "eslint", wrapper: SCRIPT_OPTION_WRAPPER },
+    },
+    fills: {
+      "package file": "package.json",
+      script: "lint",
+      option: "--ignore-pattern legacy/**",
+      command: "eslint",
+      wrapper: JSON.stringify(SCRIPT_OPTION_WRAPPER),
+    },
+  },
+};
+
+const NATIVE_EXCEPTIONS: {
+  readonly [Kind in AttributedNativeException["kind"]]: readonly Filled<Extract<AttributedNativeException, { readonly kind: Kind }>>[];
+} = {
+  ignore: [{ entry: { kind: "ignore", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} }],
+  "config-override": [{ entry: { kind: "config-override", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} }],
+  "suppression-entry": [
+    {
+      entry: { kind: "suppression-entry", clause: LOOPS, mechanism: MECHANISM, file: FILE, location: repoPathSchema.parse("eslint-suppressions.json") },
+      fills: { "suppressions file": "eslint-suppressions.json" },
+    },
+  ],
+  "inline-disable": Object.values(INLINE_DISABLES),
+  "inline-rule-config": [
+    {
+      entry: { kind: "inline-rule-config", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 1, text: "/* eslint no-x: off */" },
+      fills: { line: "1", comment: "/* eslint no-x: off */" },
+    },
+  ],
+  "command-line-option": Object.values(SCRIPT_OPTIONS),
 };
 
 const RECORD_PROBLEMS: { readonly [Kind in InvalidRecord["problem"]["kind"]]: Filled<Extract<InvalidRecord["problem"], { readonly kind: Kind }>> } = {
@@ -245,7 +315,7 @@ const SECTION_SAMPLES: SectionSamples = {
   uncovered: unfilled([LOOPS]),
   stale: unfilled(Object.values(RECORDS)),
   forfeited: unfilled([RECORDS["file-carve-out"]]),
-  unrecorded: Object.values(NATIVE_EXCEPTIONS),
+  unrecorded: Object.values(NATIVE_EXCEPTIONS).flat(),
   doublyHeld: unfilled([{ clause: LOOPS, file: FILE, mechanism: MECHANISM }]),
   invalidRecords: Object.values(RECORD_PROBLEMS).map((problem, index) => ({
     entry: { index, problem: problem.entry },

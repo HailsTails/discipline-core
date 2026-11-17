@@ -206,7 +206,9 @@ const governanceSurface = (request: RecordedSetUp & { readonly options: EslintSu
 const recordingCreateEslint =
   (request: RecordedSetUp): CreateEslint =>
   (create) =>
-    create.options.overrideConfig === undefined
+    create.options.matchedFiles !== undefined
+      ? request.set.toolchain.createEslint(create)
+      : create.options.overrideConfig === undefined
       ? request.set.toolchain.createEslint({
           options: request.recorder.teamOptions(
             teamOptionsOf({

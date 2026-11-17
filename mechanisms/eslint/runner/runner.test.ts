@@ -5,10 +5,10 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { runner } from "./runner.ts";
 
 describe("runner", () => {
-  it("is an embedded runner module core accepts, projecting config overrides", () => {
+  it("is an embedded runner module core accepts, projecting config overrides and inline disables", () => {
     expect(runnerModuleSchema.safeParse(runner)).toMatchObject({
       success: true,
-      data: { exceptionPath: "embedded", projectedKinds: ["config-override"] },
+      data: { exceptionPath: "embedded", projectedKinds: ["config-override", "inline-disable"] },
     });
   });
 

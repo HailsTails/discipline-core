@@ -62,6 +62,7 @@ const JOINED_REPOSITORY_PATHS: Readonly<Record<string, string>> = {
   '["./mechanisms/audit/CD-5","../runner/source-scope.ts"]': "mechanisms/audit/runner/source-scope.ts",
   '["./mechanisms/audit/CD-5","../runner/piece-clause-settings.ts"]': "mechanisms/audit/runner/piece-clause-settings.ts",
   '["./mechanisms/audit/CD-5","../runner/typescript-parse.ts"]': "mechanisms/audit/runner/typescript-parse.ts",
+  '["./mechanisms/audit/CD-5","../runner/type-directives.ts"]': "mechanisms/audit/runner/type-directives.ts",
   '["./mechanisms/audit/CD-5","../../../core/values/anchor.ts"]': "core/values/anchor.ts",
   '["./mechanisms/audit/CD-5","../../../core/mechanism-port/piece-failure-types.ts"]': "core/mechanism-port/piece-failure-types.ts",
   '["./mechanisms/audit/CD-5","../../../core/mechanism-port/runner-module-types.ts"]': "core/mechanism-port/runner-module-types.ts",
