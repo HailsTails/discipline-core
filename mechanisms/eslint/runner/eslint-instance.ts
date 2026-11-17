@@ -149,6 +149,7 @@ export type EslintPort = {
     readonly repoRoot: AbsolutePath;
     readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
     readonly rules: readonly GovernedRule[];
+    readonly watchedRuleIds: readonly string[];
   }) => GovernanceInstance;
   readonly lintSourceCases: (request: {
     readonly cwd: AbsolutePath;
@@ -261,13 +262,14 @@ export const enabledRuleEntry = (request: { readonly options: RuleOptions }): En
 export const governanceConfig = (request: {
   readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
   readonly rules: readonly GovernedRule[];
+  readonly watchedRuleIds: readonly string[];
   readonly parser: TypescriptParser;
 }): GovernanceBlock => ({
   files: GOVERNED_FILES,
   languageOptions: { parser: request.parser },
   plugins: {
     ...request.plugins,
-    [reservedNamespace]: inlineConfigPlugin({ ruleIds: request.rules.map((governed) => governed.ruleId) }),
+    [reservedNamespace]: inlineConfigPlugin({ ruleIds: request.watchedRuleIds }),
   },
   rules: Object.fromEntries(
     [...request.rules, { ruleId: INLINE_CONFIG_RULE_ID, options: [] }].map(
@@ -280,13 +282,19 @@ const governanceOptions = (request: {
   readonly cwd: AbsolutePath;
   readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
   readonly rules: readonly GovernedRule[];
+  readonly watchedRuleIds: readonly string[];
   readonly parser: TypescriptParser;
 }): EslintSurfaceOptions => ({
   cwd: request.cwd,
   overrideConfigFile: true,
   ignore: false,
   allowInlineConfig: false,
-  overrideConfig: governanceConfig({ plugins: request.plugins, rules: request.rules, parser: request.parser }),
+  overrideConfig: governanceConfig({
+    plugins: request.plugins,
+    rules: request.rules,
+    watchedRuleIds: request.watchedRuleIds,
+    parser: request.parser,
+  }),
 });
 
 const thrownDetail = (thrown: unknown): string =>
@@ -468,6 +476,7 @@ const sourceCaseVerdicts = (request: {
         parser: request.toolchain.typescriptParser,
         plugins: { [request.pluginNamespace]: request.plugin },
         rules: [{ ruleId, options: request.options }],
+        watchedRuleIds: [ruleId],
       }),
     }),
     act: (eslint) => lintedCasesOf({ eslint, cases: request.cases }),
@@ -493,6 +502,7 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
         cwd: request.repoRoot,
         plugins: request.plugins,
         rules: request.rules,
+        watchedRuleIds: request.watchedRuleIds,
         parser: options.toolchain.typescriptParser,
       }),
     });

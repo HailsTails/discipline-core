@@ -32,6 +32,7 @@ export type GovernanceRequest = {
   readonly findings: readonly Finding[];
   readonly records: readonly ExceptionRecord[];
   readonly touched: TouchedSet;
+  readonly notRun: readonly ClauseAddress[];
   readonly runs: readonly GovernedRun[];
 };
 
@@ -171,15 +172,24 @@ const judgedFinding = (request: {
   };
 };
 
+const judgedForStaleness = (request: {
+  readonly exempting: readonly ExceptionRecord[];
+  readonly notRun: readonly ClauseAddress[];
+}): readonly ExceptionRecord[] => {
+  const notRunKeys = new Set(request.notRun.map((clause) => clauseKey({ clause })));
+  return request.exempting.filter((record) => !notRunKeys.has(clauseKey(record)));
+};
+
 const governedFindings = (request: {
   readonly judged: readonly ExemptedFinding[];
   readonly exempting: readonly ExceptionRecord[];
+  readonly notRun: readonly ClauseAddress[];
 }): Pick<GovernanceResult, "findings" | "exempted" | "stale"> => {
   const credited = new Set(request.judged.flatMap((entry) => entry.by));
   return {
     findings: request.judged.flatMap((entry) => (entry.by.length === 0 ? [entry.finding] : [])),
     exempted: request.judged.filter((entry) => entry.by.length > 0),
-    stale: request.exempting.filter((record) => !credited.has(record)),
+    stale: judgedForStaleness(request).filter((record) => !credited.has(record)),
   };
 };
 
@@ -190,7 +200,7 @@ export const applyGovernance = (request: GovernanceRequest): GovernanceResult =>
   const exempting = exemptingRecords({ inForce, doublyHeld });
   const judged = request.findings.map((finding) => judgedFinding({ finding, exempting }));
   return {
-    ...governedFindings({ judged, exempting }),
+    ...governedFindings({ judged, exempting, notRun: request.notRun }),
     forfeited,
     doublyHeld,
     unrecorded: unrecordedExceptions({ runs: request.runs, records: request.records }),

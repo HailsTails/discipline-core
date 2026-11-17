@@ -5,6 +5,7 @@ import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { fullReportExitCode } from "./full-report-exit-code.ts";
 
@@ -38,7 +39,7 @@ describe("the shipped CD-1 rule, read from rules/CD-1/discipline.json through a 
       installRoot: resolvedPath({ path: `${import.meta.dirname}/..` }),
       moduleExtension: ".ts",
       baseRevision: undefined,
-      forfeiture: "this-run",
+      assessment: DEFAULT_ASSESSMENT,
       fileText: createDefaultFileTextPort({}),
       modules: createDefaultModuleLoaderPort({}),
       path,
@@ -78,7 +79,7 @@ const cascadeCheck = (request: { readonly changed: readonly RepoPath[] }) => {
     installRoot: resolvedPath({ path: `${import.meta.dirname}/..` }),
     moduleExtension: ".ts",
     baseRevision: "origin/main",
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText: createDefaultFileTextPort({}),
     modules: createDefaultModuleLoaderPort({}),
     path,

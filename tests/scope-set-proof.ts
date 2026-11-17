@@ -1,17 +1,17 @@
 import { z } from "zod";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import type { ExceptionRecord } from "../core/exception-records/exception-records.ts";
 import type { EmbeddedRunReport } from "../core/mechanism-port/embedded-run-report-schema.ts";
-import type { EmbeddedRunner } from "../core/mechanism-port/embedded-runner-module-schema.ts";
+import type { EmbeddedRunner, EmbeddedRunRequest } from "../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
-import type { RunnerClause, RunRequest } from "../core/mechanism-port/runner-module-schema.ts";
+import type { RunnerClause } from "../core/mechanism-port/runner-module-schema.ts";
 import { toolchainBoundEmbeddedRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort, type PathPort } from "../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import type { RepoPath } from "../core/values/repo-path.ts";
 import type { Result } from "../core/values/result.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
@@ -80,10 +80,8 @@ type SubjectRequest = {
   readonly git: GitPort;
 };
 
-type RecordedRunRequest = RunRequest & { readonly records: readonly ExceptionRecord[] };
-
 type RecordedRun = {
-  readonly request: RecordedRunRequest;
+  readonly request: EmbeddedRunRequest;
   readonly report: Result<EmbeddedRunReport, RunnerFailure>;
 };
 
@@ -249,7 +247,7 @@ const checkedText = (request: RecordedSetUp): Promise<string> =>
     installRoot: request.set.subject.installRoot,
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText: request.set.subject.fileText,
     modules: modulesServingRunner({
       runnerSuffix: ESLINT_RUNNER_SUFFIX,
@@ -310,7 +308,7 @@ const governedRuleOf = async (request: {
 const governedRulesOf = (request: {
   readonly subject: ProofSubject;
   readonly pieceModules: ModuleLoaderPort;
-  readonly run: RecordedRunRequest;
+  readonly run: EmbeddedRunRequest;
 }): Promise<readonly GovernedPluginRule[]> =>
   Promise.all(request.run.clauses.map((clause) => governedRuleOf({ ...request, clause })));
 
@@ -357,7 +355,7 @@ const partitionOver = async (
   request: RecordedToolchain & {
     readonly pieceModules: ModuleLoaderPort;
     readonly governanceOptions: EslintSurfaceOptions;
-    readonly run: RecordedRunRequest;
+    readonly run: EmbeddedRunRequest;
     readonly report: EmbeddedRunReport;
   },
 ): Promise<ScopeSetPartition> => {
