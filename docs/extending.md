@@ -305,7 +305,7 @@ A wrong field then fails the type check, for example `Type 'number' is not assig
 
 Test an ESLint rule with ESLint's own `RuleTester`, importing the rule the plugin exports, such as `noConsoleCalls`, and giving it the clause's `flag` cases as `invalid` and its `allow` cases as `valid`. Run on its own with `node`, `RuleTester` prints nothing when the cases hold and throws on the first that does not; under a test runner that defines `describe` and `it`, it reports each case as a test.
 
-Test an audit piece end to end: commit a file that breaks the rule, run `hone check` and expect its finding, then remove the file and expect a pass. A unit test of `check` itself is harder today: clause addresses and file paths are types that only Hone creates, so a test cannot build them without a cast.
+Test an audit piece end to end: commit a file that breaks the rule, run `hone check` and expect its finding, then remove the file and expect a pass. A unit test of `check` itself is harder today: clause addresses and file paths are types that only Hone creates, so a test cannot build them without a cast, and CD-2 flags that cast in a test file as anywhere else.
 
 ## Exceptions
 

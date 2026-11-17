@@ -48,6 +48,9 @@ describe("CD-1 existing any-cast capability", () => {
     { name: "root-only excluded directory", fileName: "vendor/example.ts", kind: "skipped" },
     { name: "nested root-only directory", fileName: "src/vendor/example.ts", kind: "syntax" },
     { name: "TSX source", fileName: "src/example.tsx", kind: "syntax" },
+    { name: "test source", fileName: "src/example.test.ts", kind: "syntax" },
+    { name: "test helper source", fileName: "tests/test-support.ts", kind: "syntax" },
+    { name: "proof script source", fileName: "scripts/install-proof-plan.ts", kind: "syntax" },
     { name: "non-TypeScript union candidate", fileName: "src/example.test.js", kind: "skipped" },
   ])("preserves source-family eligibility for $name", ({ fileName, kind }) => {
     const file = repoPathSchema.parse(fileName);
@@ -90,7 +93,7 @@ describe("CD-1 existing any-cast capability", () => {
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 0 }], [{ position: 18 }]]);
   });
 
-  it("allows unknown narrowing and preserves the existing multi-argument generic-any classification gap", () => {
+  it("leaves an any-free unknown widening to CD-2 and flags an any nested in a multi-argument generic", () => {
     const observed = sourceObservations({ source: "candidate as unknown;\ncandidate as Map<string, any>;\n" });
     const unknownCast = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree);
     const genericCast = observed.tree.getChildAt(0, observed.tree).getChildAt(1, observed.tree).getChildAt(0, observed.tree);
@@ -98,8 +101,10 @@ describe("CD-1 existing any-cast capability", () => {
     observed.observers.enter?.({ node: unknownCast });
     observed.observers.enter?.({ node: genericCast });
 
-    expect(observed.observers.finish()).toEqual([]);
-    expect(observed.anchorAt).not.toHaveBeenCalled();
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet: "candidate as Map<string, any>; " },
+    ]);
+    expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 22 });
   });
 
   it("does not expand the cast-derived capability to a bare any keyword", () => {
@@ -113,14 +118,28 @@ describe("CD-1 existing any-cast capability", () => {
     expect(observed.anchorAt).not.toHaveBeenCalled();
   });
 
-  it("retains snippet-based attribution when a later any annotation follows a different cast", () => {
-    const observed = sourceObservations({ source: "candidate as Profile;\nconst value: any = candidate;\n" });
+  it("does not attribute a later any annotation to an earlier any-free cast", () => {
+    const observed = sourceObservations({ source: "candidate as Profile;\nconst value: any = candidate;\nMODES as const;\n" });
+    const profileCast = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree);
+    const constCast = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree).getChildAt(0, observed.tree);
+
+    observed.observers.enter?.({ node: profileCast });
+    observed.observers.enter?.({ node: constCast });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+  it.each([
+    { name: "an array of any over a property value", source: "rows.value as Array<any>;\n", snippet: "rows.value as Array<any>; " },
+    { name: "a record of any", source: "raw as Record<string, any>;\n", snippet: "raw as Record<string, any>; " },
+    { name: "a package type over any", source: "schema as ZodType<any>;\n", snippet: "schema as ZodType<any>; " },
+    { name: "an any nested in an object type", source: "raw as { readonly rows: ReadonlyArray<any> };\n", snippet: "raw as { readonly rows: ReadonlyArray<any> }; " },
+  ])("flags $name, whatever CD-2 permits", ({ source, snippet }) => {
+    const observed = sourceObservations({ source });
     const cast = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree);
 
     observed.observers.enter?.({ node: cast });
 
-    expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet: "candidate as Profile; const value: any = candidate; " },
-    ]);
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet }]);
   });
 });
