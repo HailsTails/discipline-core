@@ -42,6 +42,7 @@ const CLASS_SYNTAX_DEFINITION = {
 };
 
 const NOTHING_SELECTED: Readonly<Record<string, FakeFile>> = {
+  "/install/package.json": ABSENT_FILE,
   "/repo/disciplines.json": presentFile({ text: JSON.stringify({ version: 1, ruleSets: {}, clauses: {} }) }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
 };
@@ -51,6 +52,7 @@ const classSyntaxSelectedWith = (settings: Readonly<Record<string, unknown>>): R
     text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, ...settings }),
   }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
+  "/install/package.json": ABSENT_FILE,
   "/install/rules/CD-14/discipline.json": presentFile({
     text: JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] }),
   }),
@@ -81,6 +83,8 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
   '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
   '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
+  '["/install","package.json"]': "/install/package.json",
+  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
   '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",

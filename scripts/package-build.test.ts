@@ -345,6 +345,31 @@ describe("buildPackage", () => {
     });
   });
 
+  it("ships the changelog the release writes, though it names the version being built", async () => {
+    const changelog = "# Changelog\n\n## 0.0.0\n\n### Fixes\n\n- read the right line (#1)\n";
+    const { files, built } = builtWith({
+      source: { ...SOURCE, "/package/CHANGELOG.md": changelog },
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect({ result: (await built).outcome, shipped: files.textsUnder({ folder: "/out" })["/out/CHANGELOG.md"] }).toEqual({
+      result: "ok",
+      shipped: changelog,
+    });
+  });
+
+  it("still fails naming a guide page that names the version being built when the changelog ships beside it", async () => {
+    const { built } = builtWith({
+      source: { ...SOURCE, "/package/CHANGELOG.md": "# Changelog\n\n## 0.0.0\n", "/package/README.md": "# Hone\n\nVersion 0.0.0.\n" },
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect(await built).toEqual({
+      outcome: "failed",
+      error: "FAIL: a shipped page names a Hone version, which goes stale on the next release: README.md names 0.0.0",
+    });
+  });
+
   it("fails naming a shipped page that links to a file the package does not ship, writing nothing", async () => {
     const { files, built } = builtWith({
       source: { ...SOURCE, "/package/README.md": "# Hone\n\n[Proof](tests/test-fixtures/walkthrough/)\n" },

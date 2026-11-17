@@ -62,6 +62,8 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
   '["/repo","disciplines.assessment.md"]': ASSESSMENT_PATH,
   '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
+  '["/install","package.json"]': "/install/package.json",
+  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
   '["/install","rules","CD-14","README.md"]': RULE_PAGE_PATH,
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
@@ -277,6 +279,7 @@ const WORKING_TREE: Readonly<Record<string, FakeFile>> = {
   "/repo/src/factory.ts": presentFile({ text: "" }),
   "/repo/src/gone.ts": ABSENT_FILE,
   "/repo/vendored/kept.ts": presentFile({ text: "" }),
+  "/install/package.json": ABSENT_FILE,
 };
 
 const INSTALL: Readonly<Record<string, FakeFile>> = {

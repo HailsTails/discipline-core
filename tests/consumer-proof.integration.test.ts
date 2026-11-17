@@ -40,9 +40,11 @@ const WALKER_INSTALL_LIST = new RegExp(`^${WALKER_INSTALLED}$`);
 
 const ESLINT_INSTALL_LIST = new RegExp(`^${ESLINT_INSTALLED}$`);
 
-const WALKER_READABLE = new RegExp(String.raw`^(?:${WALKER_INSTALLED}|tests\/test-fixtures\/consumer-proof\/audit\/.*)$`);
+const INSTALLED_MANIFEST = String.raw`package\.json`;
 
-const ESLINT_READABLE = new RegExp(String.raw`^(?:${ESLINT_INSTALLED}|tests\/test-fixtures\/consumer-proof\/eslint\/.*)$`);
+const WALKER_READABLE = new RegExp(String.raw`^(?:${WALKER_INSTALLED}|${INSTALLED_MANIFEST}|tests\/test-fixtures\/consumer-proof\/audit\/.*)$`);
+
+const ESLINT_READABLE = new RegExp(String.raw`^(?:${ESLINT_INSTALLED}|${INSTALLED_MANIFEST}|tests\/test-fixtures\/consumer-proof\/eslint\/.*)$`);
 
 const NO_HARNESS_SEGMENT = /^(?!(?:.*\/)?\.(?:claude|kiro|codex|cursor|aidlc|opencode|github|copilot)(?:\/|$)).*$/;
 

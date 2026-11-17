@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   builtModulePath,
+  documentAuthorOf,
   externalPeersOf,
   packagePlanOf,
   piecePathsIn,
@@ -90,7 +91,7 @@ describe("packagePlanOf", () => {
     });
   });
 
-  it("copies the documents, mechanism and rule pages, rule data and review methods, and nothing the check never reads or a test owns", () => {
+  it("copies the documents, the changelog, mechanism and rule pages, rule data and review methods, and nothing the check never reads or a test owns", () => {
     expect(plan).toMatchObject({
       outcome: "ok",
       value: {
@@ -98,6 +99,7 @@ describe("packagePlanOf", () => {
           "README.md",
           "ADOPTING.md",
           "MIGRATING.md",
+          "CHANGELOG.md",
           "LICENSE",
           "docs/why-chain-contract.md",
           "docs/adding-a-discipline-or-mechanism.md",
@@ -236,5 +238,15 @@ describe("thirdPartyNoticesOf", () => {
     ).toBe(
       "# Third-party notices\n\nThis package bundles the following packages into its JavaScript: esbuild combined and re-emitted their code, without changing what it does. Each is redistributed under its own licence, reproduced below.\n\n## @eslint/plugin-kit 0.7.3\n\nLicense: Apache-2.0\n\n```text\nApache text\n```\n\nNOTICE:\n\n```text\nNotice text\n```\n\n## zod 4.4.3\n\nLicense: MIT\n\n```text\nMIT text\n```\n",
     );
+  });
+});
+
+describe("documentAuthorOf", () => {
+  it.each([
+    { path: "CHANGELOG.md", author: "release" },
+    { path: "README.md", author: "maintainer" },
+    { path: "rules/CHANGELOG.md", author: "maintainer" },
+  ])("says $path is written by the $author", ({ path, author }) => {
+    expect(documentAuthorOf({ path })).toBe(author);
   });
 });

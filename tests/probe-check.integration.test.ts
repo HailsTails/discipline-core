@@ -45,6 +45,7 @@ const FILES: Readonly<Record<string, FakeFile>> = {
     }),
   }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
+  "/install/package.json": ABSENT_FILE,
   "/install/rules/CD-23/discipline.json": presentFile({ text: JSON.stringify(cd23Discipline) }),
   "/install/mechanisms/audit/CD-23/piece.json": presentFile({ text: JSON.stringify(cd23Piece) }),
   "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),

@@ -5,6 +5,7 @@ import type { Result } from "../values/result.ts";
 import { parsedJson } from "../values/parsed-json.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { UNLINKED } from "./package-link.ts";
 import { shownFailureOf } from "./shown-path.ts";
 
 const PACKAGE_MANIFEST = "package.json";
@@ -50,6 +51,6 @@ export const installedVersionOf = (request: {
 }): Result<string, LoadFailure> => {
   const version = versionAt(request);
   return version.outcome === "failed"
-    ? { outcome: "failed", error: shownFailureOf({ failure: version.error, path: request.path, repoRoot: undefined }) }
+    ? { outcome: "failed", error: shownFailureOf({ failure: version.error, path: request.path, repoRoot: undefined, link: UNLINKED }) }
     : version;
 };

@@ -245,7 +245,7 @@ describe("runInstallProof", () => {
     expect(vi.mocked(fileText.write).mock.calls[2]).toEqual([{ path: `${CONSUMER}/.npmrc`, text: "minimum-release-age=4320\n" }]);
   });
 
-  it("installs the consumer with pnpm, then runs git and both commands through its pnpm scripts", async () => {
+  it("installs the consumer with pnpm, then runs git and both commands through its pnpm scripts, passing check's options after --", async () => {
     const commands = commandsReturning(EXITED_PASSING);
 
     await runInstallProof(proofRequest({ commands }));
@@ -255,7 +255,7 @@ describe("runInstallProof", () => {
       [{ command: "git", arguments: expect.arrayContaining(["init", "-q"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["add", "-A"]), directory: CONSUMER }],
       [{ command: "git", arguments: expect.arrayContaining(["commit", "-q", "-m", "consumer"]), directory: CONSUMER }],
-      [{ command: "pnpm", arguments: ["run", "--silent", "hone:check", "--base-revision", "HEAD"], directory: CONSUMER }],
+      [{ command: "pnpm", arguments: ["run", "--silent", "hone:check", "--", "--base-revision", "HEAD"], directory: CONSUMER }],
       [{ command: "pnpm", arguments: ["run", "--silent", "hone:project"], directory: CONSUMER }],
     ]);
   });
@@ -272,20 +272,23 @@ describe("runInstallProof", () => {
     });
   });
 
-  it("expects the package's own pages where pnpm put the package", async () => {
+  it.each([
+    { printed: "node_modules/@hailstails/hone/ADOPTING.md", exit: 0 },
+    { printed: "node_modules/.pnpm/hone/node_modules/@hailstails/hone/ADOPTING.md", exit: 1 },
+  ])("expects the package's own pages through the consumer's node_modules link, not where pnpm put the package, given $printed", async ({ printed, exit }) => {
     const proofProcess = processPort();
 
     await runInstallProof(
       proofRequest({
         process: proofProcess,
-        commands: commandsReturning({ outcome: "exited", exitCode: 0, output: "read node_modules/.pnpm/hone/node_modules/@hailstails/hone/ADOPTING.md\n" }),
+        commands: commandsReturning({ outcome: "exited", exitCode: 0, output: `read ${printed}\n` }),
         proofCases: [
           { ...EXPECTING_PASS, actions: [{ kind: "check", expectation: { exitCode: 0, output: "read node_modules/@hailstails/hone/ADOPTING.md\n" } }] },
         ],
       }),
     );
 
-    expect(reportOf({ process: proofProcess }).exits).toEqual([[{ code: 0 }]]);
+    expect(reportOf({ process: proofProcess }).exits).toEqual([[{ code: exit }]]);
   });
 
   it("copies only the consumer fixture: the package manager installs core", async () => {
