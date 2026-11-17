@@ -92,6 +92,16 @@ describe("runReleasePullRequest", () => {
     ]);
   });
 
+  it("counts a single subject in the singular", () => {
+    expect(runWith({ subjects: { outcome: "ok", value: ["fix: one"] } }).writes).toEqual([
+      [
+        {
+          text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a patch change on the pre-release channel, from 1 subject since v0.1.0-pre.3. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
+        },
+      ],
+    ]);
+  });
+
   it("finishes a pre-release on the stable channel when asked", () => {
     const run = runWith({ arguments: ["stable"] });
 

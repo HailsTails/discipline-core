@@ -187,8 +187,10 @@ const writtenFiles = (request: { readonly fileText: FileTextPort; readonly files
     return written.outcome === "failed" ? { outcome: "failed", error: `cannot write ${written.error.path}: ${written.error.detail}` } : soFar;
   }, { outcome: "ok", value: null });
 
+const subjectCountText = (request: { readonly count: number }): string => `${request.count} ${request.count === 1 ? "subject" : "subjects"}`;
+
 const summaryOf = (request: { readonly prepared: PreparedRelease }): string =>
-  `${COMMAND}: ${versionText({ version: request.prepared.from.version })} to ${request.prepared.version}, a ${request.prepared.size} change on the ${request.prepared.channel} channel, from ${request.prepared.entries.length} subjects since ${request.prepared.from.tag}. ${CHANGELOG_FILE} and ${MANIFEST_FILE} are updated in the working tree; no tag was made and nothing was published.\n`;
+  `${COMMAND}: ${versionText({ version: request.prepared.from.version })} to ${request.prepared.version}, a ${request.prepared.size} change on the ${request.prepared.channel} channel, from ${subjectCountText({ count: request.prepared.entries.length })} since ${request.prepared.from.tag}. ${CHANGELOG_FILE} and ${MANIFEST_FILE} are updated in the working tree; no tag was made and nothing was published.\n`;
 
 const unclassifiedSubjectsOf = (request: { readonly entries: readonly ChangeEntry[] }): readonly string[] =>
   request.entries.flatMap((entry) => (entry.kind === "unclassified" ? [entry.subject] : []));
