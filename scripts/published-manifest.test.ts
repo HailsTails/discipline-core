@@ -32,7 +32,7 @@ describe("publishManifestOf", () => {
       command: "core/check/tool-command.js",
       files: ["LICENSE", "chunks", "core", "mechanisms"],
       exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
-      nodeRange: "^22.13.0 || >=24",
+      nodeRange: "^22.18.0 || >=24",
     });
 
   it("names and describes the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
@@ -55,7 +55,7 @@ describe("publishManifestOf", () => {
             "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js": "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",
           },
           files: ["LICENSE", "chunks", "core", "mechanisms"],
-          engines: { node: "^22.13.0 || >=24" },
+          engines: { node: "^22.18.0 || >=24" },
           peerDependencies: { eslint: "^9.12.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
           peerDependenciesMeta: { eslint: { optional: true } },
         },
