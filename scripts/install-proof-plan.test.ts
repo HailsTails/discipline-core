@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  consumerSettingsOf,
   environmentWithoutGit,
   judgedStep,
+  minimumReleaseAgeOf,
   PROOF_CASES,
+  packageManagerPinOf,
   packagedConsumerManifest,
   packagedScriptsOf,
   type ProofAction,
-  requiredPeerPinsOf,
   type StepExpectation,
-  toolchainManifest,
+  toolchainPinsOf,
 } from "./install-proof-plan.ts";
 
 declare global {
@@ -20,7 +22,7 @@ declare global {
   }
 }
 
-const packageFiles = import.meta.glob(["../package.json"], {
+const packageFiles = import.meta.glob(["../package.json", "../pnpm-workspace.yaml"], {
   base: "./",
   query: "?raw",
   import: "default",
@@ -80,8 +82,6 @@ describe("judgedStep", () => {
     });
   });
 });
-const manifestText = (request: { readonly devDependencies: Readonly<Record<string, string>> }): string =>
-  `${JSON.stringify({ private: true, devDependencies: request.devDependencies }, null, 2)}\n`;
 
 const FLOOR_ESLINT_PEERS = {
   typescript: "4.8.4",
@@ -89,69 +89,38 @@ const FLOOR_ESLINT_PEERS = {
   "@typescript-eslint/eslint-plugin": "8.56.0",
 };
 
-describe("requiredPeerPinsOf", () => {
-  it.each([{ toolchain: "typescript-floor" }, { toolchain: "eslint-9-floor" }, { toolchain: "eslint-10-floor" }] as const)(
-    "pins only the required peer typescript at its floor for a $toolchain consumer, over this package's own package.json",
-    ({ toolchain }) => {
-      expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
-        outcome: "ok",
-        value: { typescript: "4.8.4" },
-      });
-    },
-  );
-
-  it("pins only the required peer typescript at the development version this package is built with for a current consumer", () => {
-    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
+describe("toolchainPinsOf, over this package's own package.json read as a build-time raw module", () => {
+  it("pins only typescript, at its floor, for a TypeScript floor consumer", () => {
+    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-floor" })).toEqual({
       outcome: "ok",
-      value: { typescript: "6.0.3" },
+      value: { typescript: "4.8.4" },
     });
   });
 
-  it("pins nothing when every peer is optional", () => {
-    expect(
-      requiredPeerPinsOf({
-        developmentManifest:
-          '{ "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "peerDependenciesMeta": { "typescript": { "optional": true } }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }',
-        toolchain: "typescript-floor",
-      }),
-    ).toEqual({ outcome: "ok", value: {} });
-  });
-});
-
-describe("toolchainManifest, over this package's own package.json read as a build-time raw module", () => {
-  it("gives the TypeScript floor root only typescript, at its floor pin installed under its own name", () => {
-    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-floor" })).toEqual({
+  it("pins every peer at the development version this package is built with for a current consumer", () => {
+    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
-      value: manifestText({ devDependencies: { typescript: "4.8.4" } }),
-    });
-  });
-
-  it("gives the current root every peer at the development version this package is built with, installed under its own name", () => {
-    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
-      outcome: "ok",
-      value: manifestText({
-        devDependencies: { typescript: "6.0.3", eslint: "10.11.0", "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
-      }),
+      value: { typescript: "6.0.3", eslint: "10.11.0", "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
     });
   });
 
   it.each([
     { toolchain: "eslint-9-floor", eslint: "9.28.0" },
     { toolchain: "eslint-10-floor", eslint: "10.0.0" },
-  ] as const)("gives the $toolchain root every peer at its floor pin, ESLint at $eslint", ({ toolchain, eslint }) => {
-    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
+  ] as const)("pins every peer at its floor for a $toolchain consumer, ESLint at $eslint", ({ toolchain, eslint }) => {
+    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
       outcome: "ok",
-      value: manifestText({ devDependencies: { ...FLOOR_ESLINT_PEERS, eslint } }),
+      value: { ...FLOOR_ESLINT_PEERS, eslint },
     });
   });
 
   it("fails on a manifest that is not JSON", () => {
-    expect(toolchainManifest({ developmentManifest: "{", toolchain: "typescript-floor" }).outcome).toBe("failed");
+    expect(toolchainPinsOf({ developmentManifest: "{", toolchain: "typescript-floor" }).outcome).toBe("failed");
   });
 
   it("fails naming a peer whose floor has no development pin", () => {
     expect(
-      toolchainManifest({
+      toolchainPinsOf({
         developmentManifest: '{ "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": {} }',
         toolchain: "typescript-floor",
       }),
@@ -160,7 +129,7 @@ describe("toolchainManifest, over this package's own package.json read as a buil
 
   it("fails when a floor pin aliases a different package than the peer it stands for", () => {
     expect(
-      toolchainManifest({
+      toolchainPinsOf({
         developmentManifest: '{ "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript-legacy@4.8.4" } }',
         toolchain: "typescript-floor",
       }),
@@ -172,7 +141,7 @@ describe("toolchainManifest, over this package's own package.json read as a buil
 
   it("fails when a pinned package is not a declared peer", () => {
     expect(
-      toolchainManifest({
+      toolchainPinsOf({
         developmentManifest: '{ "peerDependencies": {}, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }',
         toolchain: "typescript-floor",
       }),
@@ -291,17 +260,19 @@ describe("the proof cases", () => {
       project: "core:project",
     });
   });
-  it("give a packaged consumer scripts calling the command's two subcommands on the repository root, and its required peers as development dependencies at the given pins", () => {
+  it("give a packaged consumer the pnpm release it installs with, scripts calling the command's two subcommands on the repository root, and its development dependencies at the given pins", () => {
     expect(
       packagedConsumerManifest({
         identity: { name: "Core", packageName: "core-package", command: "core", ownRuleSet: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" },
-        requiredPeers: { typescript: "4.8.4" },
+        devDependencies: { typescript: "4.8.4" },
+        packageManager: "pnpm@10.34.9",
       }),
     ).toBe(
       `${JSON.stringify(
         {
           private: true,
           type: "commonjs",
+          packageManager: "pnpm@10.34.9",
           scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." },
           devDependencies: { typescript: "4.8.4" },
         },
@@ -309,6 +280,40 @@ describe("the proof cases", () => {
         2,
       )}\n`,
     );
+  });
+});
+
+describe("the pnpm a consumer installs with", () => {
+  it("is the exact pnpm release this package pins", () => {
+    expect(packageManagerPinOf({ developmentManifest: packageFiles["../package.json"] })).toEqual({
+      outcome: "ok",
+      value: JSON.parse(packageFiles["../package.json"]).packageManager,
+    });
+  });
+
+  it("fails naming a manifest that pins no package manager", () => {
+    expect(packageManagerPinOf({ developmentManifest: "{}" })).toEqual({
+      outcome: "failed",
+      error: { kind: "manifest-invalid", detail: "the package pins no packageManager for a consumer to install with" },
+    });
+  });
+
+  it("waits the release age this repository's own pnpm settings set", () => {
+    expect(minimumReleaseAgeOf({ workspaceSettings: packageFiles["../pnpm-workspace.yaml"] })).toEqual({ outcome: "ok", value: 4320 });
+  });
+
+  it("fails naming pnpm settings that set no release age", () => {
+    expect(minimumReleaseAgeOf({ workspaceSettings: "ignoredBuiltDependencies:\n  - esbuild\n" })).toEqual({
+      outcome: "failed",
+      error: { kind: "manifest-invalid", detail: "pnpm-workspace.yaml sets no minimumReleaseAge for a consumer to install under" },
+    });
+  });
+
+  it("gives a consumer the release age, and Node options turning type stripping off when its case runs without it", () => {
+    expect([
+      consumerSettingsOf({ minimumReleaseAge: 4320, typeStripping: "disabled" }),
+      consumerSettingsOf({ minimumReleaseAge: 4320, typeStripping: "enabled" }),
+    ]).toEqual(["minimum-release-age=4320\nnode-options=--no-experimental-strip-types\n", "minimum-release-age=4320\n"]);
   });
 });
 
