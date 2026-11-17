@@ -11,9 +11,11 @@ const pieceModulePathSchema = z.string().superRefine((text, context) => {
   }
 });
 
+const pluginNamespaceSchema = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
+
 export const eslintPieceSettingsSchema = z
   .strictObject({
-    pluginNamespace: z.string(),
+    pluginNamespace: pluginNamespaceSchema,
     pluginModule: pieceModulePathSchema,
     rule: z.string(),
     options: z.array(z.json()).readonly().optional(),

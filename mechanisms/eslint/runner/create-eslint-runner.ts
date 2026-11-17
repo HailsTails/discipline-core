@@ -156,18 +156,18 @@ const configuredClause = (request: {
   if (!settings.success) {
     return pieceInvalid({ pieceRoot: request.clause.pieceRoot, detail: z.prettifyError(settings.error) });
   }
-  if (settings.data.pluginNamespace === reservedNamespace) {
-    return pieceInvalid({
-      pieceRoot: request.clause.pieceRoot,
-      detail: `the plugin namespace ${reservedNamespace} is reserved for ${TOOL_IDENTITY.command}'s own rules`,
-    });
-  }
   const refusal = namespaceOwnershipRefusal({
     address: request.clause.address,
     pluginNamespace: settings.data.pluginNamespace,
   });
   if (refusal !== undefined) {
     return pieceInvalid({ pieceRoot: request.clause.pieceRoot, detail: refusal });
+  }
+  if (settings.data.pluginNamespace === reservedNamespace) {
+    return pieceInvalid({
+      pieceRoot: request.clause.pieceRoot,
+      detail: `the plugin namespace ${reservedNamespace} is reserved for ${TOOL_IDENTITY.command}'s own rules`,
+    });
   }
   return {
     outcome: "ok",
