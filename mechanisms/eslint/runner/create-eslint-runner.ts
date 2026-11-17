@@ -20,10 +20,12 @@ import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { CUT_MARK, SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import {
+  type ConfigFileSearch,
   type EslintPort,
   type GovernedRule,
   INLINE_CONFIG_RULE_ID,
@@ -397,14 +399,78 @@ const queriedFileOf = (request: {
   return checkedQueriedFile({ query: request.query, file: request.file, ruleIds: request.ruleIds });
 };
 
+type ConfigLocation = { readonly path: PathPort; readonly repoRoot: AbsolutePath };
+
+const FULL_STOP = ".";
+
+const sentenceOf = (request: { readonly text: string }): string =>
+  request.text.endsWith(FULL_STOP) ? request.text : `${request.text}${FULL_STOP}`;
+
+const configRepair = (request: { readonly configFile: string; readonly location: ConfigLocation }): string => {
+  const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
+  return folder === "." || folder === ""
+    ? "Fix that config."
+    : `Fix that config: Hone loads the nearest config of every tracked file, including in a folder the repository's own ESLint skips through a global ignores entry. Only if ${folder} holds nothing Hone should check, add it to exclude in disciplines.json instead.`;
+};
+
+const foundConfigDetail = (request: {
+  readonly file: RepoPath;
+  readonly message: string;
+  readonly configFile: string;
+  readonly location: ConfigLocation;
+}): string => {
+  const placed = request.location.path.relative({ from: request.location.repoRoot, to: request.configFile });
+  return placed.relation === "different-root"
+    ? `${request.configFile}, the ESLint config for ${request.file}, failed to load: ${request.message} Fix that config.`
+    : `${placed.path}, the ESLint config for ${request.file}, failed to load: ${request.message} ${configRepair({ configFile: placed.path, location: request.location })}`;
+};
+
+const unloadableConfigDetail = (request: {
+  readonly file: RepoPath;
+  readonly detail: string;
+  readonly search: ConfigFileSearch;
+  readonly location: ConfigLocation;
+}): string => {
+  const message = sentenceOf({ text: request.detail });
+  switch (request.search.kind) {
+    case "found":
+      return foundConfigDetail({ file: request.file, message, configFile: request.search.path, location: request.location });
+    case "none":
+      return `no eslint.config.* applies to ${request.file}. Create one at the repository root that spreads disciplines.eslint.mjs last, as ADOPTING.md step 4a shows.`;
+    case "unknown":
+      return `the ESLint config for ${request.file} failed to load: ${message} Fix that config.`;
+  }
+};
+const explainedQueryFailure = (request: {
+  readonly query: QueryInstance;
+  readonly file: RepoPath;
+  readonly location: ConfigLocation;
+  readonly queried: Outcome<readonly QueriedFile[]>;
+}): Promise<Outcome<readonly QueriedFile[]>> => {
+  const queried = request.queried;
+  if (queried.outcome === "ok" || queried.error.kind !== "team-config-unloadable") {
+    return Promise.resolve(queried);
+  }
+  const detail = queried.error.detail;
+  return request.query.configFileOf({ file: request.file }).then((search) => ({
+    outcome: "failed",
+    error: {
+      kind: "team-config-unloadable",
+      detail: unloadableConfigDetail({ file: request.file, detail, search, location: request.location }),
+    },
+  }));
+};
+
 const queriedFile = (request: {
   readonly query: QueryInstance;
   readonly file: RepoPath;
   readonly ruleIds: readonly string[];
+  readonly location: ConfigLocation;
 }): Promise<Outcome<readonly QueriedFile[]>> =>
   request.query
     .ignoredState({ file: request.file })
-    .then((ignoredState) => queriedFileOf({ ...request, ignoredState }));
+    .then((ignoredState) => queriedFileOf({ ...request, ignoredState }))
+    .then((queried) => explainedQueryFailure({ query: request.query, file: request.file, location: request.location, queried }));
 
 const checkedFileOf = (request: { readonly entry: QueriedFile }): readonly CheckedFile[] =>
   request.entry.ignored === "checked" ? [{ file: request.entry.file, states: request.entry.states }] : [];
@@ -418,9 +484,10 @@ const queriedFiles = (request: {
   readonly query: QueryInstance;
   readonly files: readonly RepoPath[];
   readonly ruleIds: readonly string[];
+  readonly location: ConfigLocation;
 }): Promise<Outcome<QueriedFiles>> =>
   Promise.all(
-    request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds })),
+    request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds, location: request.location })),
   ).then((outcomes) =>
     mappedOutcome({
       outcome: gatheredOutcomes({ outcomes }),
@@ -657,13 +724,19 @@ const linesOf = (request: {
   return { outcome: "ok", value: text.value.split(LINE_BREAK) };
 };
 
+const lineSnippet = (request: { readonly line: string; readonly column: number }): string => {
+  const trimmed = request.line.trim();
+  return trimmed.length > SNIPPET_LIMIT ? `${CUT_MARK}${request.line.slice(request.column - 1)}` : trimmed;
+};
+
 const sourceLineOf = (request: {
   readonly sourceLines: SourceLines;
   readonly line: number;
+  readonly column: number;
 }): Outcome<string> =>
   mappedOutcome({
     outcome: request.sourceLines(),
-    map: (lines) => (lines[request.line - 1] ?? "").trim(),
+    map: (lines) => lineSnippet({ line: lines[request.line - 1] ?? "", column: request.column }),
   });
 
 type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
@@ -715,7 +788,7 @@ const ruleFindings = (request: {
   readonly sourceLines: SourceLines;
 }): Outcome<readonly LintFindings[]> =>
   mappedOutcome({
-    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line }),
+    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line, column: request.message.column }),
     map: (snippet): readonly LintFindings[] => [
       {
         hits: [
@@ -1048,6 +1121,7 @@ const governedRun = (request: {
     ),
     files: request.run.files,
     ruleIds: ruleIdsOf({ selected: request.selected }),
+    location: { path: request.ports.path, repoRoot: request.run.repoRoot },
   }).then((queried) => queriedReport({ ...request, queried }));
 };
 

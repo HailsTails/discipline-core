@@ -93,7 +93,7 @@ describe("loadedPeer", () => {
   it("names the package as not installed when it does not resolve", async () => {
     await expect(loadedPeer({ ...peerAt({ version: "10.11.0" }), location: { installRoot: INSTALL_ROOT, installForm: "package", locate: vi.fn<PackageLocationPort["locate"]>().mockThrow(missingPackage({ packageName: "eslint" })) } })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
     });
   });
 
@@ -116,10 +116,7 @@ describe("loadedPeer", () => {
       outcome: "failed",
       error: {
         kind: "toolchain-unavailable",
-        packageName: "eslint",
-        peer: "optional",
-        supported: "^9.28.0 || ^10.0.0",
-        found: "unloadable: node:eslint (the text is not a file: URL)",
+        peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "unloadable: node:eslint (the text is not a file: URL)" }],
       },
     });
     expect(load).not.toHaveBeenCalled();
@@ -178,7 +175,7 @@ describe("loadedPeer", () => {
   it("names the installed version when it is outside the supported range", async () => {
     await expect(loadedPeer(peerAt({ version: "8.57.1" }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "8.57.1" },
+      error: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "8.57.1" }] },
     });
   });
 
@@ -187,13 +184,13 @@ describe("loadedPeer", () => {
       loadedPeer({ ...peerAt({ version: "10.11.0" }), load: () => Promise.reject(missingPackage({ packageName: "espree" })) }),
     ).resolves.toMatchObject({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", found: expect.stringMatching(/^unloadable: Cannot find package 'espree'/) },
+      error: { kind: "toolchain-unavailable", peers: [{ found: expect.stringMatching(/^unloadable: Cannot find package 'espree'/) }] },
     });
   });
 
   it("names the package unloadable when its version cannot be read", async () => {
     await expect(
       loadedPeer({ ...peerAt({ version: "10.11.0" }), versionOf: vi.fn<(peer: object) => string>().mockThrow(new Error("no version export")) }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { found: "unloadable: no version export" } });
+    ).resolves.toMatchObject({ outcome: "failed", error: { peers: [{ found: "unloadable: no version export" }] } });
   });
 });

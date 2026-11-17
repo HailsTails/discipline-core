@@ -5,6 +5,10 @@ import type { PeerKind, RunnerFailure } from "./runner-failure.ts";
 
 export const peerKindSchema = z.enum(["required", "optional"]);
 
+const unavailablePeerSchema = z
+  .object({ packageName: z.string(), peer: peerKindSchema, supported: z.string(), found: z.string() })
+  .readonly();
+
 export const runnerFailureSchema = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("piece-invalid"), pieceRoot: z.string(), detail: z.string() })
@@ -22,10 +26,7 @@ export const runnerFailureSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("toolchain-unavailable"),
-      packageName: z.string(),
-      peer: peerKindSchema,
-      supported: z.string(),
-      found: z.string(),
+      peers: z.tuple([unavailablePeerSchema], unavailablePeerSchema).readonly(),
     })
     .readonly(),
   z

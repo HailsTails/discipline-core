@@ -142,16 +142,19 @@ Skip this if every selected clause is `audit`. Otherwise, after writing `discipl
 npm run --silent hone:project
 ```
 
-It prints `disciplines.eslint.mjs written`. Spread its default export last in the repository's flat config. A repository with no ESLint config yet can start from this `eslint.config.mjs`:
+It prints `disciplines.eslint.mjs written`. Spread its default export last in the repository's flat config. The projection sets rules only, so the config must also parse TypeScript, with the `@typescript-eslint/parser` that step 2 installs; without it the repository's own `eslint` run fails on the first type annotation while Hone's check still passes. A repository with no ESLint config yet can start from this `eslint.config.mjs`:
 
 ```js
+import typescriptParser from "@typescript-eslint/parser";
 import projection from "./disciplines.eslint.mjs";
 
 export default [
-  { files: ["**/*.{ts,tsx,mts,cts}"] },
+  { files: ["**/*.{ts,tsx,mts,cts}"], languageOptions: { parser: typescriptParser } },
   ...projection,
 ];
 ```
+
+To confirm it, run the repository's own `eslint` on one TypeScript file with a type annotation, for example `node_modules/.bin/eslint src/index.ts` with a file of your own; it must report findings or nothing, never `Parsing error`.
 
 In a monorepo, every `eslint.config.*` that applies to checked files spreads the projection last. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
 
@@ -175,7 +178,7 @@ npm run --silent hone:check
 | `1` | `verdict: fail`: the report says why |
 | `2` | an input could not be loaded or a check crashed; the output is one line starting `load failure:` or names the failing piece |
 
-`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
+`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names every toolchain package that is missing from the repository root or outside its range; install a version of each in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
 
 In CI, pass the branch's base so that debt recorded per file is forfeited once that file changes:
 
@@ -335,5 +338,5 @@ verdict: pass
 
 - The worked example uses only the audit mechanism. The ESLint consumer in `tests/test-fixtures/consumer-proof/eslint/` is the tested ESLint setup.
 - Each check flags exactly what its CHECKS.md says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
-- A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above.
+- A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above. No snippet is longer than 200 characters: a longer one is cut and ends in `…`. An ESLint finding on a line longer than that, such as a bundled or minified file, shows the line from the finding's column.
 - The disciplines' IDs and rule text come from one team's code-discipline set. Selecting a subset is supported; editing a shipped rule is not. Write your own rule set for different rules, following [docs/extending.md](docs/extending.md).

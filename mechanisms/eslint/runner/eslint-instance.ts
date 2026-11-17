@@ -112,6 +112,7 @@ export type EslintSurface = {
     readonly code: string;
     readonly filePath: string;
   }) => Promise<readonly LintedFile[]>;
+  readonly findConfigFile: (request: { readonly filePath: string }) => Promise<string | undefined>;
 };
 
 export type CreateEslint = (request: { readonly options: EslintSurfaceOptions }) => EslintSurface;
@@ -124,6 +125,20 @@ export type EslintToolchain = {
 
 export type IgnoredState = "ignored" | "checked";
 
+export type ConfigFileSearch =
+  | { readonly kind: "found"; readonly path: string }
+  | { readonly kind: "none" }
+  | { readonly kind: "unknown" };
+
+const CONFIG_UNKNOWN: ConfigFileSearch = { kind: "unknown" };
+
+const searchedConfigFile = (request: { readonly found: Result<string | undefined, RunnerFailure> }): ConfigFileSearch => {
+  if (request.found.outcome === "failed") {
+    return CONFIG_UNKNOWN;
+  }
+  return request.found.value === undefined ? { kind: "none" } : { kind: "found", path: request.found.value };
+};
+
 export type QueryInstance = {
   readonly ignoredState: (request: {
     readonly file: RepoPath;
@@ -132,6 +147,7 @@ export type QueryInstance = {
     readonly file: RepoPath;
     readonly ruleId: string;
   }) => Promise<Result<RuleState, RunnerFailure>>;
+  readonly configFileOf: (request: { readonly file: RepoPath }) => Promise<ConfigFileSearch>;
 };
 
 export type GovernanceInstance = {
@@ -385,6 +401,12 @@ const queryInstanceOf = (request: {
       act: (eslint) => eslint.calculateConfigForFile({ filePath: query.file }),
       onRejected: queryFailed,
     }).then((resolved) => resolvedRuleState({ resolved, ruleId: query.ruleId })),
+  configFileOf: (query) =>
+    onSurface({
+      surface: request.surface,
+      act: (eslint) => eslint.findConfigFile({ filePath: query.file }),
+      onRejected: toolFailed,
+    }).then((found) => searchedConfigFile({ found })),
 });
 
 const lintedCaseOf = (request: {
@@ -514,7 +536,7 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
   lintSourceCases: (request) => sourceCaseVerdicts({ ...request, toolchain: options.toolchain }),
 });
 
-type EslintEngine = Pick<ESLint, "isPathIgnored" | "calculateConfigForFile" | "lintFiles" | "lintText">;
+type EslintEngine = Pick<ESLint, "isPathIgnored" | "calculateConfigForFile" | "lintFiles" | "lintText" | "findConfigFile">;
 
 export type EslintClass = Pick<typeof ESLint, "version"> &
   (new (...options: ConstructorParameters<typeof ESLint>) => EslintEngine);
@@ -581,6 +603,7 @@ export const createEslintOn = (request: { readonly eslintClass: EslintClass }): 
   return {
     isPathIgnored: (query) => eslint.isPathIgnored(query.filePath),
     calculateConfigForFile: (query) => eslint.calculateConfigForFile(query.filePath),
+    findConfigFile: (query) => eslint.findConfigFile(query.filePath),
     lintFiles: (lint) => eslint.lintFiles([...lint.filePaths]).then((results) => results.map(lintedFileOf)),
     lintText: (lint) =>
       eslint.lintText(lint.code, { filePath: lint.filePath }).then((results) => results.map(lintedFileOf)),

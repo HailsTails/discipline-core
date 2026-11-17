@@ -159,13 +159,14 @@ export default [
 ];
 ```
 
-Every `eslint.config.*` that applies to checked files spreads the projection last. The example's `eslint.config.mjs`:
+Every `eslint.config.*` that applies to checked files spreads the projection last. The projection sets rules only, so the config also sets the typescript-eslint parser, as [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) step 4a explains. The example's `eslint.config.mjs`:
 
 ```js
+import typescriptParser from "@typescript-eslint/parser";
 import projection from "./disciplines.eslint.mjs";
 
 export default [
-  { files: ["**/*.{ts,tsx,mts,cts}"] },
+  { files: ["**/*.{ts,tsx,mts,cts}"], languageOptions: { parser: typescriptParser } },
   ...projection,
 ];
 ```

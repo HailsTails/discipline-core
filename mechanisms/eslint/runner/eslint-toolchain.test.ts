@@ -17,6 +17,12 @@ const notInstalled = (request: { readonly packageName: string }): Error =>
     code: "ERR_MODULE_NOT_FOUND",
   });
 
+const ESLINT_NOT_INSTALLED = { packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" };
+
+const PARSER_NOT_INSTALLED = { packageName: "@typescript-eslint/parser", peer: "optional", supported: "^8.56.0", found: "not installed" };
+
+const PLUGIN_NOT_INSTALLED = { packageName: "@typescript-eslint/eslint-plugin", peer: "optional", supported: "^8.56.0", found: "not installed" };
+
 const withEslintVersion = (request: { readonly version: string }): EslintToolchainPeers => ({
   ...REAL_10,
   modules: {
@@ -55,18 +61,21 @@ describe("loadEslintToolchain over the development install", () => {
 });
 
 describe("loadEslintToolchain when a peer is missing, unsupported or shadowed", () => {
-  it("names eslint as not installed, with the supported range, when it does not resolve", async () => {
-    const locate = vi.fn<PackageLocationPort["locate"]>().mockThrow(notInstalled({ packageName: "eslint" }));
+  it("names eslint as not installed, with the supported range, when it alone does not resolve", async () => {
+    const locate = vi
+      .fn<PackageLocationPort["locate"]>()
+      .mockThrowOnce(notInstalled({ packageName: "eslint" }))
+      .mockReturnValue(REPOSITORY_LOCATION);
     await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", peers: [ESLINT_NOT_INSTALLED] },
     });
   });
 
   it.each(["8.57.1", "9.11.1", "11.0.0"])("names the installed eslint %s as outside the supported range", async (version) => {
     await expect(loadEslintToolchain({ peers: withEslintVersion({ version }) })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: version },
+      error: { kind: "toolchain-unavailable", peers: [{ ...ESLINT_NOT_INSTALLED, found: version }] },
     });
   });
 
@@ -74,10 +83,11 @@ describe("loadEslintToolchain when a peer is missing, unsupported or shadowed", 
     const locate = vi
       .fn<PackageLocationPort["locate"]>()
       .mockReturnValueOnce(REPOSITORY_LOCATION)
-      .mockThrow(notInstalled({ packageName: "@typescript-eslint/parser" }));
+      .mockThrowOnce(notInstalled({ packageName: "@typescript-eslint/parser" }))
+      .mockReturnValue(REPOSITORY_LOCATION);
     await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "@typescript-eslint/parser", peer: "optional", supported: "^8.56.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", peers: [PARSER_NOT_INSTALLED] },
     });
   });
 
@@ -89,13 +99,7 @@ describe("loadEslintToolchain when a peer is missing, unsupported or shadowed", 
       .mockThrow(notInstalled({ packageName: "@typescript-eslint/eslint-plugin" }));
     await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
       outcome: "failed",
-      error: {
-        kind: "toolchain-unavailable",
-        packageName: "@typescript-eslint/eslint-plugin",
-        peer: "optional",
-        supported: "^8.56.0",
-        found: "not installed",
-      },
+      error: { kind: "toolchain-unavailable", peers: [PLUGIN_NOT_INSTALLED] },
     });
   });
 
@@ -118,5 +122,62 @@ describe("loadEslintToolchain when a peer is missing, unsupported or shadowed", 
       },
     });
     expect(eslint).not.toHaveBeenCalled();
+  });
+});
+
+describe("loadEslintToolchain when more than one peer is unavailable", () => {
+  it("names every ESLint peer that does not resolve in one failure, so one install fixes them all", async () => {
+    const locate = vi
+      .fn<PackageLocationPort["locate"]>()
+      .mockReturnValueOnce(REPOSITORY_LOCATION)
+      .mockThrowOnce(notInstalled({ packageName: "@typescript-eslint/parser" }))
+      .mockThrowOnce(notInstalled({ packageName: "@typescript-eslint/eslint-plugin" }));
+    await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "toolchain-unavailable", peers: [PARSER_NOT_INSTALLED, PLUGIN_NOT_INSTALLED] },
+    });
+  });
+
+  it("names the shadowed peer rather than the missing ones when one resolves from inside the core install", async () => {
+    const locate = vi
+      .fn<PackageLocationPort["locate"]>()
+      .mockThrowOnce(notInstalled({ packageName: "eslint" }))
+      .mockReturnValueOnce({ outcome: "ok", value: `${INSTALL_ROOT}/node_modules/@typescript-eslint/parser/dist/index.js` })
+      .mockThrowOnce(notInstalled({ packageName: "@typescript-eslint/eslint-plugin" }));
+    await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "toolchain-shadowed",
+        packageName: "@typescript-eslint/parser",
+        location: `${INSTALL_ROOT}/node_modules/@typescript-eslint/parser/dist/index.js`,
+        installRoot: INSTALL_ROOT,
+      },
+    });
+  });
+
+  it("names only eslint, never importing the plugin, when eslint is missing and the installed plugin would fail on it", async () => {
+    const typescriptEslintPlugin = vi
+      .fn<EslintToolchainModules["typescriptEslintPlugin"]>()
+      .mockRejectedValue(new Error("Cannot find module 'eslint'\nRequire stack:\n- /repo/node_modules/@typescript-eslint/eslint-plugin/dist/index.js"));
+    const locate = vi
+      .fn<PackageLocationPort["locate"]>()
+      .mockThrowOnce(notInstalled({ packageName: "eslint" }))
+      .mockReturnValue(REPOSITORY_LOCATION);
+    await expect(
+      loadEslintToolchain({ peers: { ...locatedBy(locate), modules: { ...REAL_10.modules, typescriptEslintPlugin } } }),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "toolchain-unavailable", peers: [ESLINT_NOT_INSTALLED] } });
+    expect(typescriptEslintPlugin).not.toHaveBeenCalled();
+  });
+
+  it("still names a plugin that is not installed when eslint is missing too", async () => {
+    const locate = vi
+      .fn<PackageLocationPort["locate"]>()
+      .mockThrowOnce(notInstalled({ packageName: "eslint" }))
+      .mockReturnValueOnce(REPOSITORY_LOCATION)
+      .mockThrowOnce(notInstalled({ packageName: "@typescript-eslint/eslint-plugin" }));
+    await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "toolchain-unavailable", peers: [ESLINT_NOT_INSTALLED, PLUGIN_NOT_INSTALLED] },
+    });
   });
 });
