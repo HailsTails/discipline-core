@@ -20,19 +20,19 @@ Hone ships as one npm package tarball: built JavaScript with its own packages bu
 
 Releases are pre-releases until a stable release is published: until then, commands, flags and files may still change between releases.
 
-The main route is the npm registry. Pre-releases are published under the dist-tag `next`, so name it:
+The main route is the npm registry. Pre-releases are published under the dist-tag `next`, which names the newest pre-release approved on npm; `npm view @hailstails/hone dist-tags.next` prints its version. Install that version exactly, with `<version>` in place:
 
 ```bash
-npm install --save-dev @hailstails/hone@next
+npm install --save-dev --save-exact @hailstails/hone@<version>
 ```
 
 With pnpm, add it as a development dependency, using `-Dw` in place of `-D` at the root of a pnpm workspace:
 
 ```bash
-pnpm add -D @hailstails/hone@next
+pnpm add -D --save-exact @hailstails/hone@<version>
 ```
 
-The package manager records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@next` with its own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
+Pin the exact version. Commands, flags and files may change between pre-releases, and an install by tag can record a range in `package.json`, such as `^` and the version, which a later install without the lockfile, or an update, moves to a newer pre-release that nobody chose. With an exact pin, the version changes only when you change it (step 10). Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@<version>` exactly with its own `add -D` command at the workspace root. `next` can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
 The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
@@ -69,6 +69,8 @@ Add the two commands to the root `package.json` scripts:
 }
 ```
 
+Options for one run go after the script name. npm needs `--` before them, as in `npm run --silent hone:check -- --base-revision origin/main`. pnpm takes them straight after the script name, as in `pnpm run --silent hone:check --base-revision origin/main`. This guide shows both wherever a command takes options.
+
 `hone` is the package's one command, with two subcommands: `hone check` runs the check and `hone project` writes the ESLint projection. `hone` with no subcommand, or with any other, exits `2` with one `load failure: arguments-invalid` line that names the commands and points at `hone --help`, which prints the usage.
 
 Hone runs on the toolchain the repository already uses, which the package declares as peer dependencies: `typescript` is a required peer, because every `audit` clause needs it, and the ESLint packages are optional peers, needed only for `eslint` clauses. npm 7 and later install a missing required peer on their own, and some other package managers only warn about one, so declare `typescript` yourself at the repository root, at the version the repository already uses, rather than let the package manager choose or skip it. Keep the versions you have; Hone supports these ranges:
@@ -84,7 +86,7 @@ A repository that already has them in range needs nothing more. A package that i
 
 Hone finds these by Node's resolution upward from where the package is installed, so in a monorepo they must resolve from the repository root: declare them in the root `package.json` (with pnpm, `pnpm add -Dw` at the versions the packages already use), even where packages also declare their own. Yarn Plug'n'Play is not supported, because Hone resolves the toolchain through `node_modules`.
 
-Commit `package.json`, the lockfile and the tarball if it is a file in the repository. To update later, run `npm install --save-dev @hailstails/hone@next` again, or repeat this step with a newer tarball.
+Commit `package.json`, the lockfile and the tarball if it is a file in the repository. Step 10 says how to update.
 
 ## 3. Read what each discipline means
 
@@ -122,7 +124,7 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
   - Not adopted: the rule does not apply to this codebase; a tech lead declares that, in the open. Set the clause to `"not-adopted"`.
   - Adopted, mechanism not run: the rule binds, but its check is not a true measure of the rule's intent here, or cannot work here for a technical reason. The check is set aside; the intent is still owed, through review. Set the clause to `"not-run"`. CD-6's ESLint-only `naming-convention` in a repository without ESLint is the usual case: `"CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-run"`.
   - Clause-wide carve-out: the rule binds and its check is sound, but the codebase has debt it cannot address right now. Keep the clause's mechanism, so the clause still runs, and record the debt against it as a `clause-wide-carve-out` with its why-chain and an owner who will pay it down (step 7).
-- `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
+- `exclude` lists folders or exact files that no mechanism checks, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. It is the only way to narrow what Hone checks: there is no include list, and every tracked file outside `exclude` is checked, including any folder added later. Use it for generated or third-party code, and, to check only part of a repository, list every other folder. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
 - `clauseSettings` gives a clause the settings its CHECKS.md lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; CD-5's `trackerPatterns` narrows tracked references to your tracker's format. See [README.md](README.md#disciplinesjson).
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/extending.md](docs/extending.md).
 
@@ -234,6 +236,14 @@ A first adoption assesses decay at push only, so that a hotfix in a carved file 
 npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main
 ```
 
+With pnpm:
+
+```bash
+pnpm run --silent hone:check --forfeiture this-run --base-revision origin/main
+```
+
+A run that leaves decay to another run ends `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)`, not `verdict: pass` or `verdict: fail`. A hook or gate that matches `verdict: pass` or `verdict: fail` at the end of the line reads neither, and may report the run as unverified. Act on the exit code, or match all four verdict lines that [docs/output-contract.md](docs/output-contract.md#the-report) lists.
+
 CI leaves decay to the hook. A repository with no imported records and no legacy-chain records runs the check with no base revision:
 
 ```bash
@@ -246,7 +256,13 @@ A repository with imported records (`provenance`) or legacy-chain records still 
 npm run --silent hone:check -- --base-revision <base-commit>
 ```
 
-A team that assesses decay in CI leaves `assessment` unset and runs `npm run --silent hone:check -- --base-revision origin/main` there; the check then needs that revision and the history back to where the branch left it, for example `fetch-depth: 0` with `actions/checkout`.
+With pnpm:
+
+```bash
+pnpm run --silent hone:check --base-revision <base-commit>
+```
+
+A team that assesses decay in CI leaves `assessment` unset and runs `npm run --silent hone:check -- --base-revision origin/main` there, or `pnpm run --silent hone:check --base-revision origin/main`; the check then needs that revision and the history back to where the branch left it, for example `fetch-depth: 0` with `actions/checkout`.
 
 The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
@@ -319,7 +335,7 @@ CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 | `exempted` | findings an exception covers; informational |
 | `unrecorded` | a native exception no record holds, as `<clause> <mechanism> <kind> <detail>`: remove it, or record it where step 7 allows. An inline disable, `<clause> eslint inline-disable <file>:<line> <comment>`, and a TypeScript directive, `CD-2#cast-expressions audit inline-disable <file>:<line> <comment>`, are held only by an `authorised-location` or `file-carve-out` on that clause and file. An `eslint-disable` naming no rule escapes every selected clause, needs a record for each, and its lines end ` names no rule and escapes every selected clause: naming the rule is the cheap fix`. A lint-script option, `<clause> eslint command-line-option <package.json> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script`, cannot be recorded. Where another command comes before `eslint` in its script, as in `tsc && eslint -c eslint.config.mjs .`, the line instead reads `<clause> eslint command-line-option <package.json> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as "<invocation>"`: move that command to a script of its own. Where something before `eslint` in its own command is neither a package runner nor a `NAME=value` setting, as `env` in `env --chdir=src eslint --ignore-pattern dist .` or `-y` in `npx -y eslint --ignore-pattern dist .`, it reads `<clause> eslint command-line-option <package.json> <script> <option>: "<wrapper>" comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>`. `cross-env` followed only by `NAME=value` settings counts as a setting |
 | `uncovered` | a mechanical clause of an adopted discipline is not listed: add it to `disciplines.json` with a mechanism, `"not-run"` or `"not-adopted"` |
-| `stale` | an exception that no longer exempts anything: delete it |
+| `stale` | an exception that no longer exempts anything: delete it. Right after a move from an older route, first check that its settings were carried over ([MIGRATING.md](MIGRATING.md#2a-carry-over-the-old-routes-settings) step 2a) |
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
 | `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-run` or `clause-not-adopted` for an entry on a clause listed as `"not-run"` or `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
@@ -395,7 +411,7 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 ## 10. Update and remove
 
-To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
+To update, on a branch, read [the changelog](https://github.com/HailsTails/hone/blob/main/CHANGELOG.md) for each version since yours, then install the new version exactly as step 2 does, with `npm install --save-dev --save-exact @hailstails/hone@<version>` or `pnpm add -D --save-exact @hailstails/hone@<version>`. Compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit `package.json` and the lockfile with a message naming the new version. With a tarball, replace it with the newer one and install that instead. Rule text can change between versions, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
 To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json`, `disciplines.assessment.md` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 

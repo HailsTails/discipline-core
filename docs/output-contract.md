@@ -10,8 +10,8 @@ Hone prints everything to standard output: the report, the help, the version, `h
 
 The exit code is the signal a hook should act on:
 
-- `0`: `hone check` printed `verdict: pass`, `hone project` wrote or confirmed every projection, or help or the version was printed;
-- `1`: `hone check` printed `verdict: fail` as its last line. Exit `1` always comes with that line, and with nothing else;
+- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, or help or the version was printed;
+- `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line. Exit `1` always comes with one of those lines, and with nothing else;
 - `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, and an error Hone did not expect, which prints as `unexpected-error`.
 
 A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
