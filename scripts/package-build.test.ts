@@ -268,16 +268,16 @@ describe("buildPackage", () => {
     });
   });
 
-  it("fails naming a shipped page that names the tarball at another version than the package's, writing nothing", async () => {
+  it("fails naming a shipped page that names a Hone version or versioned tarball, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/README.md": "# Hone\n\nInstall `hailstails-hone-0.0.1.tgz`.\n" },
+      source: { ...SOURCE, "/package/README.md": "# Hone\n\nInstall `hailstails-hone-0.0.1.tgz`, version 0.0.0.\n" },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
-        error: "FAIL: a shipped page names the tarball at another version: README.md names hailstails-hone-0.0.1.tgz, not hailstails-hone-0.0.0.tgz",
+        error: "FAIL: a shipped page names a Hone version, which goes stale on the next release: README.md names hailstails-hone-0.0.1.tgz; README.md names 0.0.0",
       },
       written: NOTHING_WRITTEN,
     });

@@ -16,9 +16,9 @@ It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of y
 
 Hone ships as one npm package tarball: built JavaScript with its own packages bundled in, so it has no dependencies of its own and needs no TypeScript support from Node.
 
-**The npm package is named `@hailstails/hone`.** The unscoped name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `@hailstails/hone` installs one command, `hone`. Its tarball is named `hailstails-hone-<version>.tgz`, the file name `npm pack` gives a scoped package. Version `0.1.0-pre.1` was released under the old name `honed`; [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone) says how to move from it.
+**The npm package is named `@hailstails/hone`.** The unscoped name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `@hailstails/hone` installs one command, `hone`. Its tarball is named `hailstails-hone-<version>.tgz`, the file name `npm pack` gives a scoped package. Its first pre-release was released under the old name `honed`; [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone) says how to move from it.
 
-The current version, `0.1.0-pre.3`, is a pre-release: its commands, flags and files may still change before `0.1.0`.
+Releases are pre-releases until a stable release is published: until then, commands, flags and files may still change between releases.
 
 The main route is the npm registry. Pre-releases are published under the dist-tag `next`, so name it:
 
@@ -28,7 +28,7 @@ npm install --save-dev @hailstails/hone@next
 
 npm records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With pnpm or Yarn, add `@hailstails/hone@next` with their own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
-The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-0.1.0-pre.3.tgz`, or an `https://` URL your team serves it from. Download `hailstails-hone-0.1.0-pre.3.tgz` from the [`v0.1.0-pre.3` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.3), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.3` is pushed. Until that tag exists, use the [`v0.1.0-pre.2` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), or build the tarball from a pinned commit as below; the earlier [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the first pre-release under the old name `honed`.
+The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
 To build the tarball yourself, install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
@@ -38,7 +38,7 @@ git -C /tmp/hone-source checkout <pinned-sha>
 cd /tmp/hone-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-0.1.0-pre.3.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-<version>.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 

@@ -189,21 +189,21 @@ export const deadLinksOf = (request: { readonly files: readonly ShippedText[] })
 
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 
-const tarballPatternOf = (request: { readonly tarballStem: string }): RegExp =>
-  new RegExp(`${request.tarballStem.replace(REGEX_SPECIAL, "\\$&")}-(\\d[^\\s\`/]*?)\\.tgz`, "g");
+const escapedForPattern = (request: { readonly text: string }): string => request.text.replace(REGEX_SPECIAL, "\\$&");
 
-export const otherVersionTarballsOf = (request: {
+const versionedTarballPatternOf = (request: { readonly tarballStem: string }): RegExp =>
+  new RegExp(`${escapedForPattern({ text: request.tarballStem })}-\\d[^\\s\`/]*?\\.tgz`, "g");
+
+const versionTokenPatternOf = (request: { readonly version: string }): RegExp =>
+  new RegExp(`(?<![0-9A-Za-z.-])v?${escapedForPattern({ text: request.version })}(?![0-9A-Za-z+-]|\\.\\d)`, "g");
+
+export const versionMentionsOf = (request: {
   readonly files: readonly ShippedText[];
   readonly tarballStem: string;
   readonly version: string;
 }): readonly string[] => {
-  const pattern = tarballPatternOf({ tarballStem: request.tarballStem });
-  const expected = `${request.tarballStem}-${request.version}.tgz`;
+  const patterns = [versionedTarballPatternOf({ tarballStem: request.tarballStem }), versionTokenPatternOf({ version: request.version })];
   return request.files
     .filter((file) => file.path.endsWith(PAGE_SUFFIX))
-    .flatMap((file) =>
-      [...file.text.matchAll(pattern)]
-        .filter((match) => match[1] !== request.version)
-        .map((match) => `${file.path} names ${match[0]}, not ${expected}`),
-    );
+    .flatMap((file) => patterns.flatMap((pattern) => [...file.text.matchAll(pattern)].map((match) => `${file.path} names ${match[0]}`)));
 };
