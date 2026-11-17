@@ -23,9 +23,9 @@ export type BundledPackage = {
   readonly noticeText: string | undefined;
 };
 
-export const SHIPPED_NODE_RANGE = "^22.13.0 || >=24";
+export const SHIPPED_NODE_RANGE = "^22.18.0 || >=24";
 
-export const SHIPPED_NODE_TARGET = "node22.13";
+export const SHIPPED_NODE_TARGET = "node22.18";
 
 const SOURCE_MODULE_EXTENSION = ".ts";
 

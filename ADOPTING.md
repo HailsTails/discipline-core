@@ -10,7 +10,7 @@ Hone reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks
 node --version
 ```
 
-It must print `v22.13.0` or a later 22.x, or `v24.0.0` or later. A rule set of your own whose piece modules are `.ts` files needs Node 22.18.0 or later, because Hone loads those modules as they are. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
+It must print `v22.18.0` or a later 22.x, or `v24.0.0` or later. That also covers a rule set of your own whose piece modules are `.ts` files, which Hone loads as they are. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
 
 ## 2. Install the Hone package
 

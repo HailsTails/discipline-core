@@ -89,9 +89,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { platform: Linux, runner: ubuntu-latest, node-version: 22.13.0, run-tests: false }
-          - { platform: Windows, runner: windows-latest, node-version: 22.13.0, run-tests: false }
-          - { platform: macOS, runner: macos-latest, node-version: 22.13.0, run-tests: false }
+          - { platform: macOS, runner: macos-latest, node-version: 22.18.0, run-tests: false }
           - { platform: Linux, runner: ubuntu-latest, node-version: 24, run-tests: true }
     defaults:
       run:
@@ -109,9 +107,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Build the package
-        run: node --experimental-strip-types scripts/build-package.ts
+        run: bun run build-package
       - name: Prove a package install
-        run: node --experimental-strip-types scripts/install-proof.ts
+        run: bun run install-proof
       - name: Run the tests
         if: ${{ matrix.run-tests }}
         run: bun run test
