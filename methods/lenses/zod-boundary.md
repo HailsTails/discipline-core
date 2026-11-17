@@ -38,7 +38,7 @@ the library. Read them first; they override any default intuition.
 
 1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `zod-boundary`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
-3. Read each kept page in full, including its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names the exact closed list of boundary-only sites, those are the only places the validation library may run; if it names the inner layers where the library is forbidden, those are the only places a schema import is an automatic finding.
+3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. If a rule names the exact closed list of boundary-only sites, those are the only places the validation library may run; if it names the inner layers where the library is forbidden, those are the only places a schema import is an automatic finding.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no boundary-validation discipline and produce an empty finding set — do not invent rules.
 
 ## Inspection procedure
@@ -151,7 +151,7 @@ is mandatory and so are the counts it yields: crossings inspected / validated /
 typeless; library returns inspected / validated / accepted-at-face-value;
 internal validation-library imports; seam ambiguities. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`). For any missing-schema finding whose observable
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). For any missing-schema finding whose observable
 symptom is a cast, name the cast as the symptom and the missing schema as the
 defect (the cast itself belongs to the type-soundness lens). For any seam
 ambiguity, name the upstream architectural cause. State the code-discipline path

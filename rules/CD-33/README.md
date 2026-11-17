@@ -4,16 +4,21 @@
 
 A value whose type is branded sensitive redacts unconditionally wherever it surfaces — logs, errors, serialisation — with no opt-out. Branding sensitivity into the type means the redaction travels with the value by construction, rather than depending on every call site remembering to hide it.
 
-The sections below describe how the rule is checked.
+Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-33#sensitive-brands` | review | sensitive branded types redact everywhere, with no opt-out |
+**What the friction is for.** Remembering to hide a secret at every call site fails eventually. The friction puts the redaction in the type, so it travels with the value.
 
-Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *Sensitive values as plain strings.* Tokens or keys are typed as strings. Brand them, so redaction follows by construction.
+- *An escape to print the value.* A path exposes the raw value for convenience. Remove it; the rule has no opt-out.
 
-## How it is checked
+**Where to go.** Every sensitive value has a branded type that redacts wherever it surfaces.
 
-Every clause of this discipline is a judgement clause. It cannot be selected in `disciplines.json` and no mechanism checks it; a reviewer applies the rule above with its review lens, as [ADOPTING.md](../../ADOPTING.md#9-apply-the-judgement-rules) describes. Selecting no clause of this discipline leaves nothing uncovered.
+**Reactions to distrust.**
+- "We need to see it sometimes." Then that is a deliberate operation at a boundary that needs the value, not a log line.
+
+**Principles behind it.**
+- *Make illegal states unrepresentable* (Yaron Minsky). A branded type cannot be printed in the clear by mistake.
+- *Secure by default.* Redaction needs no action from the caller.

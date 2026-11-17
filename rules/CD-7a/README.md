@@ -4,41 +4,23 @@
 
 Every type the code produces is named and exported, and callers use that named type. Deriving a type from a factory's inferred return couples the type to the implementation, hides it from find-usages, and breaks the moment the factory's internals shift. The single carve-out is an external library symbol whose package exports no named return type.
 
-The sections below describe what the audit check covers.
+Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-7a#factory-return-types` | audit | a line containing `ReturnType<typeof` |
+**What the friction is for.** A type derived from what a function happens to return changes whenever the implementation does. The friction makes naming the type the easy path, so the contract is declared, findable, and stable.
 
-Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A contract nobody wrote down.* The factory's output was never named, so callers derive it. Name and export the type, and let the factory declare it returns that.
+- *Implementation details leaking out.* The derived type exposes everything the factory builds. Declare only what callers should rely on.
+- *A library with a named type you missed.* The package exports the type already. Use it.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- Any line matching `ReturnType<typeof`, one finding per line. This includes `Awaited<ReturnType<typeof ...>>` and matches inside strings.
-- Lines starting with `//`, `/*` or `*` are ignored. A `ReturnType<` and `typeof` split across lines are not seen.
-- The source rule's carve-out, an external library symbol with no exported return type, is not detected; record it as an exception.
+**Where to go.** Every type the code produces has a name, and callers use the name.
 
-## Example violation
-```ts
-type Client = ReturnType<typeof createClient>;
-```
+**Reactions to distrust.**
+- "Deriving keeps it in sync." It keeps it in sync with whatever the implementation does, including mistakes.
+- "Naming it is duplication." The name is the contract; the implementation is one way to meet it.
 
-## How to fix
-```ts
-export type Client = { readonly send: (message: string) => void };
-const createClient = (): Client => ({ send: () => undefined });
-```
-Declare and export the type, then annotate the factory with it.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when the type comes from a library whose package exports no named return type. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-7a#factory-return-types", "file": "src/adapters/vendor-client.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Program to an interface, not an implementation* (Gamma, Helm, Johnson and Vlissides, *Design Patterns*). Callers depend on a declared contract, not on the shape the implementation produces.
+- *Intention-revealing names* (Robert C. Martin, *Clean Code*). A named type says what the value is for.

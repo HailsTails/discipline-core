@@ -4,16 +4,20 @@
 
 Integration tests are the thin layer of the pyramid, not its bulk: many unit tests at the base, few component tests in the middle, a thin smoke layer on top. Inverting the pyramid — leaning on slow, broad integration tests to catch what unit tests should — is forbidden.
 
-The sections below describe how the rule is checked.
+Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-29#test-pyramid` | review | unit tests form the bulk and component or integration tests stay few |
+**What the friction is for.** Broad tests are slow and say little about where a fault is. The friction keeps most tests small and fast, so the suite runs often and failures point at one unit.
 
-Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the suite against these causes.
+- *Units that cannot be tested alone.* Integration tests carry the load because units take no injected dependencies. Inject them; unit tests follow.
+- *Logic tested through the system.* Business rules are checked end to end. Move each rule's cases to the unit that owns it.
 
-## How it is checked
+**Where to go.** Many unit tests, few component tests, a thin smoke layer.
 
-Every clause of this discipline is a judgement clause. It cannot be selected in `disciplines.json` and no mechanism checks it; a reviewer applies the rule above with its review lens, as [ADOPTING.md](../../ADOPTING.md#9-apply-the-judgement-rules) describes. Selecting no clause of this discipline leaves nothing uncovered.
+**Reactions to distrust.**
+- "Integration tests catch real bugs." They catch wiring bugs. Logic bugs belong to unit tests that run in milliseconds.
+
+**Principles behind it.**
+- *The test pyramid* (Mike Cohn). Many fast unit tests at the base, fewer broader tests above.

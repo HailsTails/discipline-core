@@ -1,6 +1,8 @@
 # Disciplines
 
-Adopters select clauses in `disciplines.json`. Selecting one clause adopts its discipline, so every mechanical clause of an adopted discipline must be selected, each through a mechanism its page lists; the check reports the rest as uncovered. Clauses marked (review) are judgement clauses: they cannot be selected and are applied in review with the discipline's review lens, as [ADOPTING.md](../ADOPTING.md#9-apply-the-judgement-rules) describes.
+Each discipline has two pages. Its `README.md` holds the rule and its spirit: what the friction is for, what a finding usually points at, the direction to go and the principles behind it. Its `CHECKS.md` holds the mechanics: the clauses, what each check flags, and how to record an exception. Read the rule first. [The spirit of the rules](SPIRIT.md) explains the approach for the whole set.
+
+Adopters select clauses in `disciplines.json`. Selecting one clause adopts its discipline, so every mechanical clause of an adopted discipline must be selected, each through a mechanism its CHECKS.md lists, or listed as `"not-adopted"`; the check reports the rest as uncovered. Clauses marked (review) are judgement clauses: they cannot be selected and are applied in review with the discipline's review lens, as [ADOPTING.md](../ADOPTING.md#9-apply-the-judgement-rules) describes.
 
 | ID | Title | Clauses | Files checked | Review lens |
 | --- | --- | --- | --- | --- |
@@ -29,7 +31,7 @@ Adopters select clauses in `disciplines.json`. Selecting one clause adopts its d
 | [CD-22](CD-22/README.md) | Middleware generic context constraint | `CD-22#middleware-context` (review) | — | [di-discipline](../methods/lenses/di-discipline.md) |
 | [CD-23](CD-23/README.md) | Every unit has a co-located test sibling | `CD-23#export-test-sibling` | production `.ts`, `.tsx` | [test-discipline](../methods/lenses/test-discipline.md) |
 | [CD-24](CD-24/README.md) | Every file is unit-tested | see CD-23 | — | [test-discipline](../methods/lenses/test-discipline.md) |
-| [CD-25](CD-25/README.md) | Unit tests fake everything outside the unit | `CD-25#dependency-isolation` | `*.test.ts`, `*.test.tsx` | [di-discipline](../methods/lenses/di-discipline.md), [test-discipline](../methods/lenses/test-discipline.md) |
+| [CD-25](CD-25/README.md) | Unit tests replace everything outside the unit with test doubles | `CD-25#dependency-isolation` | `*.test.ts`, `*.test.tsx` | [di-discipline](../methods/lenses/di-discipline.md), [test-discipline](../methods/lenses/test-discipline.md) |
 | [CD-26](CD-26/README.md) | No module-mocking — module-mock means DI is wrong | `CD-26#module-mocking` | `*.test.ts`, `*.test.tsx` | [di-discipline](../methods/lenses/di-discipline.md), [test-discipline](../methods/lenses/test-discipline.md) |
 | [CD-27](CD-27/README.md) | Tests are zero-everything — zero logic, zero branches, zero unpredictability | `CD-27#test-body-logic`, `CD-27#focused-tests`, `CD-27#skipped-tests` | `*.test.ts`, `*.test.tsx` | [test-discipline](../methods/lenses/test-discipline.md) |
 | [CD-28](CD-28/README.md) | Tests assert only what the unit is directly responsible for | `CD-28#unit-responsibility` (review) | — | [test-discipline](../methods/lenses/test-discipline.md) |
