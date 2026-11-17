@@ -80,6 +80,7 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
   '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
+  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
   '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
@@ -203,7 +204,7 @@ describe("runCheckCommand", () => {
     );
 
     expect(outputOf({ process: processPort })).toEqual({
-      writes: [[{ text: `findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (1)\nCD-14#class-syntax: no disciplines.assessment.md; read /install/rules/CD-14/README.md#spirit\nverdict: fail\n` }]],
+      writes: [[{ text: `findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n` }]],
       exits: [[{ code: 1 }]],
     });
   });
@@ -254,7 +255,7 @@ const checkedWith = async (request: {
   return outputOf({ process: processPort });
 };
 
-const FAILING_FULL_REPORT = "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (1)\nCD-14#class-syntax: no disciplines.assessment.md; read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
+const FAILING_FULL_REPORT = "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
 
 describe("runCheckCommand report output", () => {
   it("prints the full report when neither --report-output nor disciplines.json sets an output", async () => {
@@ -266,7 +267,7 @@ describe("runCheckCommand report output", () => {
 
   it("prints the output disciplines.json sets when --report-output is not given", async () => {
     expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: { reportOutput: "counts" } })).toEqual({
-      writes: [[{ text: "findings (1)\nreadFirst (1) guidance\nverdict: fail\n" }]],
+      writes: [[{ text: "findings (1)\nreadFirst (2) guidance\nverdict: fail\n" }]],
       exits: [[{ code: 1 }]],
     });
   });
@@ -368,7 +369,7 @@ const carvedRunWith = async (request: {
 };
 
 const FORFEITED_FULL_REPORT =
-  "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nforfeited (1)\nCD-14#class-syntax audit file-carve-out src/a.ts\nreadFirst (1)\nCD-14#class-syntax: no disciplines.assessment.md; read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
+  "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nforfeited (1)\nCD-14#class-syntax audit file-carve-out src/a.ts\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
 
 const ELSEWHERE_FULL_REPORT =
   "exempted (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} exempted by file-carve-out\nassessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n";

@@ -5,11 +5,11 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
-import type { AssessmentSection, ClauseReading } from "../verdict/check-report.ts";
+import type { AssessmentFileNote, AssessmentSection, ClauseReading, ReadFirstEntry } from "../verdict/check-report.ts";
 
 type AssessmentHeadings =
   | { readonly file: "read"; readonly headings: ReadonlySet<string> }
-  | { readonly file: "no-file" | "unreadable" };
+  | { readonly file: AssessmentFileNote["state"] };
 
 type ReadingRequest = {
   readonly repoRoot: AbsolutePath;
@@ -17,20 +17,49 @@ type ReadingRequest = {
   readonly path: PathPort;
 };
 
+type HeadingScan = { readonly fence: string | undefined; readonly headings: readonly string[] };
+
+const BYTE_ORDER_MARK = /^﻿/u;
+
+const FENCE_OPENING = /^ {0,3}(`{3,}|~{3,})/;
+
+const ADOPTING_GUIDE = "ADOPTING.md";
+
 const failingClauses = (request: { readonly findings: readonly Finding[] }): readonly ClauseAddress[] => [
   ...new Map(request.findings.map((finding) => [clauseAddressText({ address: finding.clause }), finding.clause])).values(),
 ];
 
+const closesFence = (request: { readonly fence: string; readonly line: string }): "closes" | "stays-open" =>
+  request.line.trim().startsWith(request.fence) && request.line.trim().replaceAll(request.fence.charAt(0), "") === ""
+    ? "closes"
+    : "stays-open";
+
+const scannedLine = (scan: HeadingScan, line: string): HeadingScan => {
+  if (scan.fence !== undefined) {
+    return closesFence({ fence: scan.fence, line }) === "closes" ? { ...scan, fence: undefined } : scan;
+  }
+  const opening = FENCE_OPENING.exec(line)?.[1];
+  return opening === undefined ? { ...scan, headings: [...scan.headings, line.trimEnd()] } : { ...scan, fence: opening };
+};
+
+const headingLinesOf = (request: { readonly text: string }): ReadonlySet<string> =>
+  new Set(
+    request.text
+      .replace(BYTE_ORDER_MARK, "")
+      .split("\n")
+      .reduce<HeadingScan>(scannedLine, { fence: undefined, headings: [] }).headings,
+  );
+
 const assessmentHeadingsOf = (request: ReadingRequest): AssessmentHeadings => {
   const assessmentPath = request.path.join({ segments: [request.repoRoot, ASSESSMENT_FILE_NAME] });
   if (request.fileText.exists({ path: assessmentPath }) === "absent") {
-    return { file: "no-file" };
+    return { file: "not-written" };
   }
   const text = request.fileText.read({ path: assessmentPath });
   if (text.outcome === "failed") {
     return { file: "unreadable" };
   }
-  return { file: "read", headings: new Set(text.value.split("\n").map((line) => line.trimEnd())) };
+  return { file: "read", headings: headingLinesOf({ text: text.value }) };
 };
 
 const assessmentSectionOf = (request: {
@@ -38,19 +67,20 @@ const assessmentSectionOf = (request: {
   readonly clause: ClauseAddress;
 }): AssessmentSection => {
   if (request.headings.file !== "read") {
-    return request.headings.file;
+    return "unread";
   }
-  return request.headings.headings.has(assessmentSectionHeading(request)) ? "present" : "missing";
+  return request.headings.headings.has(assessmentSectionHeading(request)) ? "present" : "not-assessed";
 };
 
 const shownPathOf = (request: ReadingRequest & { readonly page: string }): string => {
   const location = request.path.relative({ from: request.repoRoot, to: request.page });
-  return location.relation === "within-root" ? location.path : request.page;
+  return location.relation === "within-root" ? location.path : request.page.replaceAll("\\", "/");
 };
 
 const clauseReadingOf = (
   request: ReadingRequest & { readonly headings: AssessmentHeadings; readonly clause: ClauseAddress; readonly page: string },
 ): ClauseReading => ({
+  kind: "clause",
   clause: request.clause,
   assessmentSection: assessmentSectionOf(request),
   rulePage: { path: shownPathOf(request), presence: request.fileText.exists({ path: request.page }) },
@@ -59,17 +89,37 @@ const clauseReadingOf = (
 const rulePageOf = (request: { readonly root: ClauseRoot; readonly path: PathPort }): string =>
   request.path.join({ segments: [request.root.ruleSetRoot, "rules", request.root.clause.discipline, "README.md"] });
 
+const assessmentFileNotes = (
+  request: ReadingRequest & { readonly headings: AssessmentHeadings; readonly installRoot: AbsolutePath },
+): readonly AssessmentFileNote[] =>
+  request.headings.file === "read"
+    ? []
+    : [
+        {
+          kind: "assessment-file",
+          state: request.headings.file,
+          guide: shownPathOf({ ...request, page: request.path.join({ segments: [request.installRoot, ADOPTING_GUIDE] }) }),
+        },
+      ];
+
 export const clauseReadingsOf = (
-  request: ReadingRequest & { readonly findings: readonly Finding[]; readonly clauseRoots: readonly ClauseRoot[] },
-): readonly ClauseReading[] => {
+  request: ReadingRequest & {
+    readonly installRoot: AbsolutePath;
+    readonly findings: readonly Finding[];
+    readonly clauseRoots: readonly ClauseRoot[];
+  },
+): readonly ReadFirstEntry[] => {
   const clauses = failingClauses(request);
   if (clauses.length === 0) {
     return [];
   }
   const headings = assessmentHeadingsOf(request);
-  return clauses.flatMap((clause) =>
-    request.clauseRoots
-      .filter((root) => clauseAddressText({ address: root.clause }) === clauseAddressText({ address: clause }))
-      .map((root) => clauseReadingOf({ ...request, headings, clause, page: rulePageOf({ root, path: request.path }) })),
-  );
+  return [
+    ...assessmentFileNotes({ ...request, headings }),
+    ...clauses.flatMap((clause) =>
+      request.clauseRoots
+        .filter((root) => clauseAddressText({ address: root.clause }) === clauseAddressText({ address: clause }))
+        .map((root) => clauseReadingOf({ ...request, headings, clause, page: rulePageOf({ root, path: request.path }) })),
+    ),
+  ];
 };

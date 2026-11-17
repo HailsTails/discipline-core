@@ -61,6 +61,7 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
   '["/repo","disciplines.assessment.md"]': ASSESSMENT_PATH,
+  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
   '["/install","rules","CD-14","README.md"]': RULE_PAGE_PATH,
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
@@ -316,10 +317,13 @@ const CHANGED_PATHS: readonly RepoPath[] = [repoPathSchema.parse("src/a.ts")];
 const FORFEITURE_ELSEWHERE: Assessment = { ...DEFAULT_ASSESSMENT, forfeiture: "elsewhere" };
 
 const CLASS_SYNTAX_READING = {
+  kind: "clause",
   clause: CLASS_SYNTAX_OBJECT,
-  assessmentSection: "no-file",
+  assessmentSection: "unread",
   rulePage: { path: RULE_PAGE_PATH, presence: "present" },
 };
+
+const ASSESSMENT_NOT_WRITTEN = { kind: "assessment-file", state: "not-written", guide: "/install/ADOPTING.md" };
 
 const HIT_IN_A = {
   clause: CLASS_SYNTAX_OBJECT,
@@ -406,7 +410,7 @@ describe("runCheck reports", () => {
       ),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { ...EMPTY_REPORT, findings: [{ ...HIT_IN_A, mechanism: "audit" }], readFirst: [CLASS_SYNTAX_READING] },
+      value: { ...EMPTY_REPORT, findings: [{ ...HIT_IN_A, mechanism: "audit" }], readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING] },
     });
   });
 
@@ -1385,7 +1389,7 @@ describe("runCheck with an embedded runner", () => {
       value: {
         ...EMPTY_REPORT,
         findings: [{ ...HIT_IN_A, mechanism: "audit" }],
-        readFirst: [CLASS_SYNTAX_READING],
+        readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING],
         projectionProblems: [{ mechanism: "audit", state: "out-of-date" }],
       },
     });

@@ -45,16 +45,29 @@ A load failure prints one line, `load failure: <kind> <fields>`.
 
 The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems, any part of the assessment left to another run and, last, where to read first for each clause with findings, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, exempted findings, assessment and where to read first is empty.
 
-`readFirst` comes last, just before the verdict, so a reader who looks only at the end of a failing report lands on it. It has one line per clause with findings, not one per finding, in the order the findings first name the clauses. Each line points at that clause's section in `disciplines.assessment.md` at the repository root, a level-2 heading whose text is exactly the clause address as the report prints it (`## CD-15#loops`, `## team/TM-1#no-tmp-files`), and then at the Spirit section of the clause's rule page, `rules/<ID>/README.md` in the clause's rule set, named relative to the repository root:
+`readFirst` comes last, just before the verdict, so a reader who looks only at the end of a failing report lands on it. It has one line per clause with findings, not one per finding, in the order the findings first name the clauses. Each line points at the Spirit section of the clause's rule page, `rules/<ID>/README.md` in the clause's rule set, and, where the repository has written one, at the clause's own section in `disciplines.assessment.md` at the repository root first. That file is where a repository records its own causes, forward goal and steps for a clause; [ADOPTING step 5a](ADOPTING.md#5a-write-the-assessment) says how to write it. Paths are printed with forward slashes, relative to the `--repo` folder; a page on another drive is printed as its absolute path.
 
-| Assessment section | Line |
+When `disciplines.assessment.md` is not written yet, or cannot be read, one line comes first, and each clause line then names its rule page only:
+
+| `disciplines.assessment.md` | First line |
 | --- | --- |
-| present | `<clause>: read the "## <clause>" section of disciplines.assessment.md; read <rule page>#spirit` |
-| no such heading | `<clause>: disciplines.assessment.md has no "## <clause>" section; read <rule page>#spirit` |
-| no file | `<clause>: no disciplines.assessment.md; read <rule page>#spirit` |
-| file cannot be read | `<clause>: disciplines.assessment.md could not be read; read <rule page>#spirit` |
+| not written | `Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; <adoption guide>#5a-write-the-assessment says how to write it.` |
+| cannot be read | `Start from each rule's Spirit below. disciplines.assessment.md could not be read.` |
 
-When the clause's rule set has no rule page, the part after `;` reads `no rule page at <rule page>` instead.
+The adoption guide is `ADOPTING.md` in the installed package, for example `node_modules/@hailstails/hone/ADOPTING.md`. Each clause line is one of:
+
+| Clause's section | Rule page | Line |
+| --- | --- | --- |
+| present | present | `<clause>: read the "## <clause>" section of disciplines.assessment.md, then <rule page>#spirit` |
+| not in the file | present | `<clause>: read <rule page>#spirit; disciplines.assessment.md does not assess this clause` |
+| file not read | present | `<clause>: read <rule page>#spirit` |
+| present | absent | `<clause>: read the "## <clause>" section of disciplines.assessment.md; its rule set has no rule page at <rule page>` |
+| not in the file | absent | `<clause>: its rule set has no rule page at <rule page>; disciplines.assessment.md does not assess this clause` |
+| file not read | absent | `<clause>: its rule set has no rule page at <rule page>` |
+
+A file that does not assess a clause is normal: the assessment covers the clauses the repository chose to describe, and the rule page's Spirit is the read for the rest.
+
+A clause's section is a level-2 heading whose text is exactly the clause address as the report prints it (`## CD-15#loops`, `## team/TM-1#no-tmp-files`). Trailing spaces, a carriage return and a byte order mark at the start of the file are ignored. Nothing else is normalised: `## CD-15#loops ##`, `##  CD-15#loops`, `### CD-15#loops` and `## hone/CD-15#loops` are not that clause's section, and a heading inside a fenced code block (opened by three or more backticks or tildes, closed by at least as many of the same character) is not counted.
 
 Hone matches the heading only; it never reads the section's text. A missing file or section never fails the run. A run with no findings prints no `readFirst` section and reads neither file, so its report is unchanged; a run with findings reads `disciplines.assessment.md` once and checks that each failing clause's rule page exists.
 

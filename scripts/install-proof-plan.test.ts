@@ -27,7 +27,7 @@ const packageFiles = import.meta.glob(["../package.json"], {
   eager: true,
 });
 
-const FAILING_REPORT = "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (1)\nCD-23#export-test-sibling: no disciplines.assessment.md; read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n";
+const FAILING_REPORT = "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n";
 
 const FAILING: StepExpectation = { exitCode: 1, output: FAILING_REPORT };
 
@@ -198,7 +198,7 @@ const ESLINT_ACTIONS: readonly ProofAction[] = [
   { kind: "commit", message: "project" },
   {
     kind: "check",
-    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nreadFirst (1)\nCD-14#class-syntax: no disciplines.assessment.md; read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
+    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
   },
 ];
 
@@ -231,7 +231,7 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 1,
       output:
-        'findings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nreadFirst (2)\nacme/ACME-1#console-calls: no disciplines.assessment.md; no rule page at tools/disciplines/acme/rules/ACME-1/README.md\nacme/ACME-2#scratch-files: no disciplines.assessment.md; no rule page at tools/disciplines/acme/rules/ACME-2/README.md\nverdict: fail\n',
+        `findings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nreadFirst (3)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nacme/ACME-1#console-calls: its rule set has no rule page at tools/disciplines/acme/rules/ACME-1/README.md\nacme/ACME-2#scratch-files: its rule set has no rule page at tools/disciplines/acme/rules/ACME-2/README.md\nverdict: fail\n`,
     },
   },
 ];

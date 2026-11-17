@@ -3,7 +3,7 @@ import type { AttributedNativeException, ExemptedFinding, Finding } from "../gov
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
-import type { CheckReport, ClauseReading, PartialAssessment, Unmeasured } from "./check-report.ts";
+import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ReadFirstEntry, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -95,27 +95,39 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
   }
 };
 
-const assessmentDirection = (request: { readonly reading: ClauseReading }): string => {
-  const heading = JSON.stringify(assessmentSectionHeading(request.reading));
-  switch (request.reading.assessmentSection) {
-    case "present":
-      return `read the ${heading} section of ${ASSESSMENT_FILE_NAME}`;
-    case "missing":
-      return `${ASSESSMENT_FILE_NAME} has no ${heading} section`;
-    case "no-file":
-      return `no ${ASSESSMENT_FILE_NAME}`;
+const sectionRead = (request: { readonly reading: ClauseReading }): string =>
+  `read the ${JSON.stringify(assessmentSectionHeading(request.reading))} section of ${ASSESSMENT_FILE_NAME}`;
+
+const pointedReading = (request: { readonly reading: ClauseReading }): string => {
+  const page = request.reading.rulePage.path;
+  const sectioned = request.reading.assessmentSection === "present";
+  if (request.reading.rulePage.presence === "absent") {
+    const missingPage = `its rule set has no rule page at ${page}`;
+    return sectioned ? `${sectionRead(request)}; ${missingPage}` : missingPage;
+  }
+  return sectioned ? `${sectionRead(request)}, then ${page}#spirit` : `read ${page}#spirit`;
+};
+
+const assessmentContext = (request: { readonly reading: ClauseReading }): string =>
+  request.reading.assessmentSection === "not-assessed" ? `; ${ASSESSMENT_FILE_NAME} does not assess this clause` : "";
+
+const assessmentFileLine = (request: { readonly note: AssessmentFileNote }): string => {
+  switch (request.note.state) {
+    case "not-written":
+      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME}, where this repository records its own causes, forward goal and steps for a clause, is not written yet; ${request.note.guide}#5a-write-the-assessment says how to write it.`;
     case "unreadable":
-      return `${ASSESSMENT_FILE_NAME} could not be read`;
+      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME} could not be read.`;
   }
 };
 
-const rulePageDirection = (request: { readonly reading: ClauseReading }): string =>
-  request.reading.rulePage.presence === "present"
-    ? `read ${request.reading.rulePage.path}#spirit`
-    : `no rule page at ${request.reading.rulePage.path}`;
-
-const readFirstLine = (request: { readonly reading: ClauseReading }): string =>
-  `${clauseAddressText({ address: request.reading.clause })}: ${assessmentDirection(request)}; ${rulePageDirection(request)}`;
+const readFirstLine = (request: { readonly entry: ReadFirstEntry }): string => {
+  switch (request.entry.kind) {
+    case "assessment-file":
+      return assessmentFileLine({ note: request.entry });
+    case "clause":
+      return `${clauseAddressText({ address: request.entry.clause })}: ${pointedReading({ reading: request.entry })}${assessmentContext({ reading: request.entry })}`;
+  }
+};
 
 type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
 
@@ -142,7 +154,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   projectionProblems: (request) =>
     request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
-  readFirst: (request) => request.report.readFirst.map((reading) => readFirstLine({ reading })),
+  readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
 };
 
 const reportSections = (request: { readonly report: CheckReport }): readonly ReportSection[] =>

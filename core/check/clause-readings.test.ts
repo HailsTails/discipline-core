@@ -73,16 +73,30 @@ const SHIPPED_PAGES: Readonly<Record<string, FakeFile>> = {
   [CLASS_SYNTAX_PAGE]: presentFile({ text: "# CD-14\n" }),
 };
 
+const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/@hailstails/hone");
+
 const readingsOver = (request: { readonly files: FileTextPort; readonly findings: readonly Finding[] }) =>
   clauseReadingsOf({
     findings: request.findings,
     clauseRoots: CLAUSE_ROOTS,
     repoRoot: REPO_ROOT,
+    installRoot: INSTALL_ROOT,
     fileText: request.files,
     path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
   });
 
 const LOOPS_PAGE_TEXT = "node_modules/@hailstails/hone/rules/CD-15/README.md";
+
+const GUIDE_TEXT = "node_modules/@hailstails/hone/ADOPTING.md";
+
+const loopsReading = (request: { readonly assessmentSection: "present" | "not-assessed" | "unread" }) => ({
+  kind: "clause",
+  clause: LOOPS,
+  assessmentSection: request.assessmentSection,
+  rulePage: { path: LOOPS_PAGE_TEXT, presence: "present" },
+});
+
+const ONE_LOOPS_FINDING = [findingOn({ clause: LOOPS, file: "src/a.ts" })];
 
 describe("clauseReadingsOf", () => {
   it("reads nothing and points nowhere when there are no findings", () => {
@@ -110,10 +124,11 @@ describe("clauseReadingsOf", () => {
         ],
       }),
     ).toEqual([
-      { clause: LOOPS, assessmentSection: "present", rulePage: { path: LOOPS_PAGE_TEXT, presence: "present" } },
+      loopsReading({ assessmentSection: "present" }),
       {
+        kind: "clause",
         clause: CLASS_SYNTAX,
-        assessmentSection: "missing",
+        assessmentSection: "not-assessed",
         rulePage: { path: "node_modules/@hailstails/hone/rules/CD-14/README.md", presence: "present" },
       },
     ]);
@@ -131,46 +146,68 @@ describe("clauseReadingsOf", () => {
 describe("clauseReadingsOf matching a clause's section", () => {
   it.each([
     { shape: "a heading with trailing spaces and a carriage return", text: "## CD-15#loops  \r\n", expected: "present" },
-    { shape: "the address only inside the section's text", text: "## Loops\n\nCD-15#loops is high-count here.\n", expected: "missing" },
-    { shape: "a level-3 heading", text: "### CD-15#loops\n", expected: "missing" },
-    { shape: "a heading with more than the address", text: "## CD-15#loops in src/\n", expected: "missing" },
-    { shape: "a heading with the rule set named", text: "## hone/CD-15#loops\n", expected: "missing" },
-  ])("finds the section only by a level-2 heading that is exactly the clause address, given $shape", ({ text, expected }) => {
+    { shape: "a heading on the first line after a byte order mark", text: "\uFEFF## CD-15#loops\n", expected: "present" },
+    { shape: "a heading after a closed code fence", text: "```md\n## Loops\n```\n\n## CD-15#loops\n", expected: "present" },
+    { shape: "the address only inside the section's text", text: "## Loops\n\nCD-15#loops is high-count here.\n", expected: "not-assessed" },
+    { shape: "a level-3 heading", text: "### CD-15#loops\n", expected: "not-assessed" },
+    { shape: "a heading with more than the address", text: "## CD-15#loops in src/\n", expected: "not-assessed" },
+    { shape: "a heading with closing hashes", text: "## CD-15#loops ##\n", expected: "not-assessed" },
+    { shape: "a heading with two spaces after the hashes", text: "##  CD-15#loops\n", expected: "not-assessed" },
+    { shape: "a heading with the rule set named", text: "## hone/CD-15#loops\n", expected: "not-assessed" },
+    { shape: "a heading inside a backtick code fence", text: "```md\n## CD-15#loops\n```\n", expected: "not-assessed" },
+    { shape: "a heading inside a tilde code fence that holds a backtick line", text: "~~~\n```\n## CD-15#loops\n~~~\n", expected: "not-assessed" },
+  ] as const)("finds the section only by a level-2 heading that is exactly the clause address, given $shape", ({ text, expected }) => {
     expect(
-      readingsOver({ files: filesOver({ ...SHIPPED_PAGES, [ASSESSMENT_PATH]: presentFile({ text }) }), findings: [findingOn({ clause: LOOPS, file: "src/a.ts" })] }),
-    ).toMatchObject([{ assessmentSection: expected }]);
+      readingsOver({ files: filesOver({ ...SHIPPED_PAGES, [ASSESSMENT_PATH]: presentFile({ text }) }), findings: ONE_LOOPS_FINDING }),
+    ).toEqual([loopsReading({ assessmentSection: expected })]);
   });
+});
 
+describe("clauseReadingsOf without a readable assessment file", () => {
   it.each([
-    { state: "absent", assessment: ABSENT_FILE, expected: "no-file" },
-    { state: "unreadable", assessment: UNREADABLE_FILE, expected: "unreadable" },
-  ])("says so when the assessment file is $state, and still points at the rule page", ({ assessment, expected }) => {
+    { state: "not-written", assessment: ABSENT_FILE },
+    { state: "unreadable", assessment: UNREADABLE_FILE },
+  ])("notes once that the file is $state, naming the adoption guide, then points each clause at its rule page", ({ state, assessment }) => {
     expect(
-      readingsOver({ files: filesOver({ ...SHIPPED_PAGES, [ASSESSMENT_PATH]: assessment }), findings: [findingOn({ clause: LOOPS, file: "src/a.ts" })] }),
-    ).toEqual([{ clause: LOOPS, assessmentSection: expected, rulePage: { path: LOOPS_PAGE_TEXT, presence: "present" } }]);
+      readingsOver({
+        files: filesOver({ ...SHIPPED_PAGES, [ASSESSMENT_PATH]: assessment }),
+        findings: [findingOn({ clause: LOOPS, file: "src/a.ts" }), findingOn({ clause: CLASS_SYNTAX, file: "src/a.ts" })],
+      }),
+    ).toEqual([
+      { kind: "assessment-file", state, guide: GUIDE_TEXT },
+      loopsReading({ assessmentSection: "unread" }),
+      {
+        kind: "clause",
+        clause: CLASS_SYNTAX,
+        assessmentSection: "unread",
+        rulePage: { path: "node_modules/@hailstails/hone/rules/CD-14/README.md", presence: "present" },
+      },
+    ]);
   });
 });
 
 describe("clauseReadingsOf pointing at the rule page", () => {
   it("names a team rule set's page and says when it has none", () => {
     expect(
-      readingsOver({ files: filesOver({ [ASSESSMENT_PATH]: ABSENT_FILE }), findings: [findingOn({ clause: TEAM_CLAUSE, file: "src/a.ts" })] }),
+      readingsOver({ files: filesOver({ [ASSESSMENT_PATH]: presentFile({ text: "## CD-15#loops\n" }) }), findings: [findingOn({ clause: TEAM_CLAUSE, file: "src/a.ts" })] }),
     ).toEqual([
-      { clause: TEAM_CLAUSE, assessmentSection: "no-file", rulePage: { path: "team-rules/rules/TM-1/README.md", presence: "absent" } },
+      { kind: "clause", clause: TEAM_CLAUSE, assessmentSection: "not-assessed", rulePage: { path: "team-rules/rules/TM-1/README.md", presence: "absent" } },
     ]);
   });
 
-  it("names the page by its absolute path when it is on another root than the repository", () => {
+  it("names the page and the guide by their absolute paths, with forward slashes, when they are on another root than the repository", () => {
     expect(
       clauseReadingsOf({
-        findings: [findingOn({ clause: LOOPS, file: "src/a.ts" })],
+        findings: ONE_LOOPS_FINDING,
         clauseRoots: [{ clause: LOOPS, ruleSetRoot: absolutePathSchema.parse("D:\\hone") }],
         repoRoot: absolutePathSchema.parse("C:\\repo"),
+        installRoot: absolutePathSchema.parse("D:\\hone"),
         fileText: filesOver({ "D:\\hone\\rules\\CD-15\\README.md": presentFile({ text: "# CD-15\n" }) }),
         path: createPathPort({ flavour: "windows", workingDirectory: () => "C:\\repo" }),
       }),
     ).toEqual([
-      { clause: LOOPS, assessmentSection: "no-file", rulePage: { path: "D:\\hone\\rules\\CD-15\\README.md", presence: "present" } },
+      { kind: "assessment-file", state: "not-written", guide: "D:/hone/ADOPTING.md" },
+      { kind: "clause", clause: LOOPS, assessmentSection: "unread", rulePage: { path: "D:/hone/rules/CD-15/README.md", presence: "present" } },
     ]);
   });
 });

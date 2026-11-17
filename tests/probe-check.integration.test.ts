@@ -155,13 +155,15 @@ describe("a check selecting the probe rule set's PD-1 beside CD-23 through the a
         assessment: [],
         readFirst: [
           {
+            kind: "clause",
             clause: PROBE_ADDRESS,
             assessmentSection: "present",
             rulePage: { path: "probe/rules/PD-1/README.md", presence: "absent" },
           },
           {
+            kind: "clause",
             clause: EXPORT_TEST_SIBLING_ADDRESS,
-            assessmentSection: "missing",
+            assessmentSection: "not-assessed",
             rulePage: { path: "../install/rules/CD-23/README.md", presence: "present" },
           },
         ],
