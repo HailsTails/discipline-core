@@ -122,22 +122,9 @@ const SHELL_EXPANDED_DOUBLE_QUOTED = /[$`]/;
 
 const UNSETTLED_TEXT = /\.\.|[$`]|^[/~]|^[A-Za-z]:[\\/]/;
 
-const DIRECTORY_CHANGES: readonly string[] = ["cd", "pushd"];
+const PLAIN_RUNNER_TOKENS: readonly string[] = ["npx", "pnpm", "yarn", "npm", "bunx", "exec", "--"];
 
-const WORKING_DIRECTORY_OPTIONS: readonly string[] = [
-  "-C",
-  "--prefix",
-  "--dir",
-  "--cwd",
-  "--filter",
-  "-F",
-  "--workspace",
-  "-w",
-  "--workspaces",
-  "-ws",
-  "--recursive",
-  "-r",
-];
+const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 const SUPPRESSIONS_LOCATION_OPTION = "--suppressions-location";
 
@@ -306,42 +293,41 @@ export const eslintInvocationsOf = (request: {
   readonly commands: readonly ScriptCommand[];
 }): readonly EslintInvocation[] => request.commands.flatMap((command) => invocationOf({ command }));
 
-const directorySettlementOf = (request: { readonly token: ShellToken }): Settlement =>
-  DIRECTORY_CHANGES.includes(request.token.text) ||
-  WORKING_DIRECTORY_OPTIONS.some((option) => request.token.text === option || request.token.text.startsWith(`${option}=`))
-    ? "unsettled"
-    : "settled";
+const prefixSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
+  PLAIN_RUNNER_TOKENS.includes(request.token.text) ||
+  (request.token.expansion === "literal" && ENVIRONMENT_ASSIGNMENT.test(request.token.text))
+    ? "settled"
+    : "unsettled";
 
 const reachSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
   request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? "unsettled" : "settled";
 
 const settlementOf = (request: {
-  readonly earlier: readonly ShellCommand[];
+  readonly index: number;
   readonly command: ShellCommand;
   readonly eslintIndex: number;
 }): Settlement => {
-  const settlements = [
-    ...request.earlier.flat().map((token) => directorySettlementOf({ token })),
-    ...request.command.slice(0, request.eslintIndex).map((token) => directorySettlementOf({ token })),
+  const settlements: readonly Settlement[] = [
+    request.index === 0 ? "settled" : "unsettled",
+    ...request.command.slice(0, request.eslintIndex).map((token) => prefixSettlementOf({ token })),
     ...request.command.slice(request.eslintIndex + 1).map((token) => reachSettlementOf({ token })),
   ];
   return settlements.includes("unsettled") ? "unsettled" : "settled";
 };
 
 const settledInvocationOf = (request: {
-  readonly commands: readonly ShellCommand[];
   readonly index: number;
   readonly command: ShellCommand;
 }): readonly SettledInvocation[] => {
   const eslintIndex = request.command.findIndex((token) => eslintNamingOf({ token: token.text }) === "names-eslint");
   return invocationOf({ command: textsOf({ command: request.command }) }).map((invocation) => ({
     ...invocation,
-    settlement: settlementOf({ earlier: request.commands.slice(0, request.index), command: request.command, eslintIndex }),
+    settlement: settlementOf({ index: request.index, command: request.command, eslintIndex }),
   }));
 };
 
 const settledInvocationsOf = (request: { readonly commands: readonly ShellCommand[] }): readonly SettledInvocation[] =>
-  request.commands.flatMap((command, index) => settledInvocationOf({ commands: request.commands, index, command }));
+  request.commands.flatMap((command, index) => settledInvocationOf({ index, command }));
 
 const occurrenceFormOf = (request: {
   readonly token: string;

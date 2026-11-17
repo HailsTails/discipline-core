@@ -1743,6 +1743,8 @@ describe("native exceptions: lint-script options whose effect the script's own f
     { location: "package.json", script: 'eslint --ignore-pattern "$LEGACY" .', option: "--ignore-pattern $LEGACY" },
     { location: "tools/package.json", script: "cd .. && eslint --ignore-pattern 'src/legacy/**' .", option: "--ignore-pattern src/legacy/**" },
     { location: "tools/package.json", script: "eslint -c weak.config.mjs ..", option: "-c weak.config.mjs" },
+    { location: "package.json", script: "(cd src && eslint --ignore-pattern 'legacy/**' .)", option: "--ignore-pattern legacy/**" },
+    { location: "package.json", script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
   ])("reports $option in $location's script $script as weakening the run", async ({ location, script, option }) => {
     await expect(
       runnerOver({
@@ -1757,6 +1759,23 @@ describe("native exceptions: lint-script options whose effect the script's own f
       value: { nativeExceptions: [{ kind: "command-line-option", clause: CLASS_SYNTAX_OBJECT, location, script: "lint", option }] },
     });
   });
+});
+
+describe("native exceptions: lint-script options a plain invocation settles", () => {
+  it.each(["eslint --ignore-pattern dist --cache .", "pnpm exec eslint --ignore-pattern dist --cache .", "npx eslint --ignore-pattern dist --cache ."])(
+    "reports nothing for %s when the pattern ignores no checked file",
+    async (script) => {
+      await expect(
+        runnerOver({
+          eslint: ESLINT_IGNORING_NOTHING,
+          fileText: repoHolding({
+            projection: ENABLING_PROJECTION,
+            files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+          }),
+        }).run(trackedRun({ tracked: "package.json" })),
+      ).resolves.toMatchObject({ outcome: "ok", value: { nativeExceptions: [] } });
+    },
+  );
 });
 
 describe("native exceptions: inline directives with several selected clauses", () => {
