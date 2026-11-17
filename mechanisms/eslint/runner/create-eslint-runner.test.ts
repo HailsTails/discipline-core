@@ -13,7 +13,7 @@ import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.t
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
-import { repoPathSchema } from "../../../core/values/repo-path.ts";
+import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { createEslintRunner, type EslintRunnerPorts } from "./create-eslint-runner.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
@@ -608,6 +608,111 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
   });
 });
 
+const FIXTURE_B = repoPathSchema.parse("fixtures/bad/b.ts");
+const FIXTURE_C = repoPathSchema.parse("fixtures/bad/c.ts");
+
+const ROOT_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/eslint.config.mjs" };
+const BROKEN_FIXTURE_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/fixtures/bad/eslint.config.mjs" };
+
+const FILE_CHECKED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "checked" };
+const FILE_IGNORED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "ignored" };
+const CONFIG_UNLOADABLE: Result<IgnoredState, RunnerFailure> = {
+  outcome: "failed",
+  error: { kind: "team-config-unloadable", detail: UNEXPECTED_TOKEN },
+};
+
+const lookupQuery = (request: {
+  readonly ignored: Readonly<Record<string, Result<IgnoredState, RunnerFailure>>>;
+  readonly configs: Readonly<Record<string, ConfigFileSearch>>;
+}): QueryInstance => ({
+  ignoredState: ({ file }) => Promise.resolve(request.ignored[file]),
+  ruleState: () => Promise.resolve({ outcome: "ok", value: ERROR }),
+  configFileOf: ({ file }) => Promise.resolve(request.configs[file]),
+});
+
+const governingRoot = (ignored: Result<IgnoredState, RunnerFailure>): QueryInstance => ({
+  ...lookupQuery({ ignored: {}, configs: {} }),
+  ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValue(ignored),
+});
+
+const eslintQuerying = (createQueryInstance: EslintPort["createQueryInstance"]): EslintPort => ({
+  ...eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: [{ filePath: "/repo/src/a.ts", messages: [] }] }) }),
+  createQueryInstance,
+});
+
+const runOver = (request: { readonly files: readonly RepoPath[] }) => ({ ...CLASS_RUN, files: request.files, trackedPaths: request.files });
+
+const FIXTURE_RUN = runOver({ files: [FILE_A, FIXTURE_B] });
+
+const TEAM_WITH_BROKEN_FIXTURE = lookupQuery({
+  ignored: { "src/a.ts": FILE_CHECKED, "fixtures/bad/b.ts": CONFIG_UNLOADABLE, "fixtures/bad/c.ts": CONFIG_UNLOADABLE },
+  configs: { "fixtures/bad/b.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad/c.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad": ROOT_CONFIG },
+});
+
+const ROOT_GOVERNING_INSTANCE = [{ repoRoot: "/repo", configFile: "/repo/eslint.config.mjs" }];
+
+describe("the governance run, step 3: a broken nested ESLint config in a folder the root config ignores", () => {
+  it("reports the file as an ignore native exception, the way the team's ESLint never loads that config", async () => {
+    const root = governingRoot(FILE_IGNORED);
+    const createQueryInstance = vi
+      .fn<EslintPort["createQueryInstance"]>()
+      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
+      .mockReturnValueOnce(root);
+    const report = await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(FIXTURE_RUN);
+    expect({ report, instances: createQueryInstance.mock.calls, probes: vi.mocked(root.ignoredState).mock.calls }).toEqual({
+      report: {
+        outcome: "ok",
+        value: {
+          hits: [],
+          nativeExceptions: [{ kind: "ignore", clause: CLASS_SYNTAX_OBJECT, file: "fixtures/bad/b.ts" }],
+          projection: "current",
+        },
+      },
+      instances: [[{ repoRoot: "/repo" }], ROOT_GOVERNING_INSTANCE],
+      probes: [[{ file: "fixtures/bad/b.ts" }]],
+    });
+  });
+
+  it("builds the root config's instance once for every file under the broken config", async () => {
+    const createQueryInstance = vi
+      .fn<EslintPort["createQueryInstance"]>()
+      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
+      .mockReturnValue(governingRoot(FILE_IGNORED));
+    await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(runOver({ files: [FILE_A, FIXTURE_B, FIXTURE_C] }));
+    expect(createQueryInstance.mock.calls).toEqual([[{ repoRoot: "/repo" }], ROOT_GOVERNING_INSTANCE]);
+  });
+});
+
+describe("the governance run, step 3: a broken ESLint config the team's ESLint does load", () => {
+  it("stays team-config-unloadable, asking for the fix first, when the root config does not ignore the file", async () => {
+    const createQueryInstance = vi
+      .fn<EslintPort["createQueryInstance"]>()
+      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
+      .mockReturnValueOnce(governingRoot(FILE_CHECKED));
+    await expect(runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(FIXTURE_RUN)).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "fixtures/bad/eslint.config.mjs, the ESLint config for fixtures/bad/b.ts, failed to load: Unexpected token ';'. Fix that config. Only if fixtures/bad holds nothing Hone should check, add it to exclude in disciplines.json instead.",
+      },
+    });
+  });
+
+  it("asks no governing config when the config that failed to load is the repository root's", async () => {
+    const team: QueryInstance = {
+      ...lookupQuery({ ignored: { "src/a.ts": CONFIG_UNLOADABLE, "src/factory.ts": CONFIG_UNLOADABLE }, configs: {} }),
+      configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(ROOT_CONFIG),
+    };
+    const createQueryInstance = vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(team);
+    await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(CLASS_RUN);
+    expect({ instances: createQueryInstance.mock.calls, lookups: vi.mocked(team.configFileOf).mock.calls }).toEqual({
+      instances: [[{ repoRoot: "/repo" }]],
+      lookups: [[{ file: "src/a.ts" }], [{ file: "src/factory.ts" }]],
+    });
+  });
+});
+
 describe("the governance run, step 3: the projection in effect", () => {
   it("builds the query instance on the repository root", async () => {
     const eslint = eslintOver({});
@@ -631,7 +736,7 @@ describe("the governance run, step 3: the projection in effect", () => {
       error: {
         kind: "team-config-unloadable",
         detail:
-          "fixtures/broken/eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config: Hone loads the nearest config of every tracked file, including in a folder the repository's own ESLint skips through a global ignores entry. Only if fixtures/broken holds nothing Hone should check, add it to exclude in disciplines.json instead.",
+          "fixtures/broken/eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config. Only if fixtures/broken holds nothing Hone should check, add it to exclude in disciplines.json instead.",
       },
     });
     expect(query.configFileOf).toHaveBeenCalledWith({ file: "src/a.ts" });

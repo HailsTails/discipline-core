@@ -37,6 +37,7 @@ import {
 } from "./eslint-instance.ts";
 import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
+import { brokenConfigVerdict, cachedGoverningQueries, type GoverningQueries } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 import { teamConfigLookup } from "./config-lookup.ts";
@@ -399,7 +400,11 @@ const queriedFileOf = (request: {
   return checkedQueriedFile({ query: request.query, file: request.file, ruleIds: request.ruleIds });
 };
 
-type ConfigLocation = { readonly path: PathPort; readonly repoRoot: AbsolutePath };
+type ConfigLocation = {
+  readonly path: PathPort;
+  readonly repoRoot: AbsolutePath;
+  readonly governingQueryOf: GoverningQueries;
+};
 
 const FULL_STOP = ".";
 
@@ -410,7 +415,7 @@ const configRepair = (request: { readonly configFile: string; readonly location:
   const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
   return folder === "." || folder === ""
     ? "Fix that config."
-    : `Fix that config: Hone loads the nearest config of every tracked file, including in a folder the repository's own ESLint skips through a global ignores entry. Only if ${folder} holds nothing Hone should check, add it to exclude in disciplines.json instead.`;
+    : `Fix that config. Only if ${folder} holds nothing Hone should check, add it to exclude in disciplines.json instead.`;
 };
 
 const foundConfigDetail = (request: {
@@ -441,6 +446,44 @@ const unloadableConfigDetail = (request: {
       return `the ESLint config for ${request.file} failed to load: ${message} Fix that config.`;
   }
 };
+const unloadableConfigFailure = (request: {
+  readonly file: RepoPath;
+  readonly detail: string;
+  readonly search: ConfigFileSearch;
+  readonly location: ConfigLocation;
+}): Outcome<readonly QueriedFile[]> => ({
+  outcome: "failed",
+  error: { kind: "team-config-unloadable", detail: unloadableConfigDetail(request) },
+});
+
+const IGNORED_BY_GOVERNING_CONFIG = "ignored-by-governing-config";
+
+const searchedQueryFailure = (request: {
+  readonly query: QueryInstance;
+  readonly file: RepoPath;
+  readonly location: ConfigLocation;
+  readonly detail: string;
+  readonly search: ConfigFileSearch;
+}): Promise<Outcome<readonly QueriedFile[]>> => {
+  if (request.search.kind !== "found") {
+    return Promise.resolve(unloadableConfigFailure(request));
+  }
+  return brokenConfigVerdict({
+    lookup: {
+      query: request.query,
+      governingQueryOf: request.location.governingQueryOf,
+      path: request.location.path,
+      repoRoot: request.location.repoRoot,
+    },
+    brokenConfig: request.search.path,
+    file: request.file,
+  }).then((verdict): Outcome<readonly QueriedFile[]> =>
+    verdict === IGNORED_BY_GOVERNING_CONFIG
+      ? { outcome: "ok", value: [{ file: request.file, ignored: "ignored" }] }
+      : unloadableConfigFailure(request),
+  );
+};
+
 const explainedQueryFailure = (request: {
   readonly query: QueryInstance;
   readonly file: RepoPath;
@@ -452,13 +495,9 @@ const explainedQueryFailure = (request: {
     return Promise.resolve(queried);
   }
   const detail = queried.error.detail;
-  return request.query.configFileOf({ file: request.file }).then((search) => ({
-    outcome: "failed",
-    error: {
-      kind: "team-config-unloadable",
-      detail: unloadableConfigDetail({ file: request.file, detail, search, location: request.location }),
-    },
-  }));
+  return request.query
+    .configFileOf({ file: request.file })
+    .then((search) => searchedQueryFailure({ query: request.query, file: request.file, location: request.location, detail, search }));
 };
 
 const queriedFile = (request: {
@@ -1121,7 +1160,11 @@ const governedRun = (request: {
     ),
     files: request.run.files,
     ruleIds: ruleIdsOf({ selected: request.selected }),
-    location: { path: request.ports.path, repoRoot: request.run.repoRoot },
+    location: {
+      path: request.ports.path,
+      repoRoot: request.run.repoRoot,
+      governingQueryOf: cachedGoverningQueries({ eslint: request.ports.eslint }),
+    },
   }).then((queried) => queriedReport({ ...request, queried }));
 };
 
