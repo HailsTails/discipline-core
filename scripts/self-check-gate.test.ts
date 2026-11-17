@@ -115,7 +115,7 @@ const requestOver = (request: { readonly process: ProcessPort }): CommandRequest
 });
 
 describe("runSelfCheck", () => {
-  it("takes the hone subcommands, so a missing one exits 2 with the usage line and reads nothing", async () => {
+  it("takes the hone subcommands, so a missing one exits 2 with the arguments-invalid line and reads nothing", async () => {
     const processPort = processWith({ arguments: ["--repo", "."] });
     const request = requestOver({ process: processPort });
 
@@ -126,7 +126,7 @@ describe("runSelfCheck", () => {
       exits: vi.mocked(processPort.exitWith).mock.calls,
       reads: vi.mocked(request.fileText.read).mock.calls,
     }).toEqual({
-      writes: [[{ text: expect.stringMatching(/^load failure: arguments-invalid unknown subcommand "--repo"; usage: hone check /) }]],
+      writes: [[{ text: expect.stringMatching(/^load failure: arguments-invalid hone has no command "--repo"; /) }]],
       exits: [[{ code: 2 }]],
       reads: [],
     });

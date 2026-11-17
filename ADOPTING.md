@@ -298,7 +298,7 @@ The report prints only the sections that have entries, each with its count, then
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 ```
 
-Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `notRun`, `exempted`, `assessment` and `readFirst` is empty. The sections are:
+[docs/output-contract.md](docs/output-contract.md) lists every line the report can print, exactly as printed, and which parts are stable. Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `notRun`, `exempted`, `assessment` and `readFirst` is empty. The sections are:
 
 | Section | Meaning and what to do |
 | --- | --- |
@@ -314,7 +314,7 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
 | `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
-| `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; a clause the file does not assess reads `CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause`; before the file is written, one line first says so and names step 5a, and each clause line names its rule page only, as in the walkthrough below; the README lists every line exactly; paths are relative to the `--repo` folder; guidance, it never fails the run |
+| `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; before the file is written, one note line comes first, counted in the section, and each clause line names its rule page only, as in the walkthrough below; guidance, it never fails the run |
 
 To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment`, and keeps `readFirst`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` and `guidance` after `readFirst` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
 

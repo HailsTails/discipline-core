@@ -9,12 +9,15 @@ import { assessmentInEffect } from "../values/assessment.ts";
 import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { parseCheckArguments } from "./command-arguments-schema.ts";
+import { argumentsInvalid } from "./argument-problem.ts";
+import { parseCheckArguments } from "./command-arguments.ts";
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { runCheck } from "./run-check.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
+
+const SELECTION_FILE_NAME = "disciplines.json";
 
 export type CommandRequest = {
   readonly process: ProcessPort;
@@ -27,16 +30,17 @@ export type CommandRequest = {
 
 export const repoRootOf = (request: {
   readonly path: PathPort;
+  readonly fileText: FileTextPort;
   readonly repo: string;
 }): Result<AbsolutePath, LoadFailure> => {
   const resolved = request.path.resolve({ path: request.repo });
   if (resolved.outcome === "failed") {
-    return {
-      outcome: "failed",
-      error: { kind: "arguments-invalid", detail: `--repo ${request.repo} resolves to no absolute path` },
-    };
+    return argumentsInvalid({ problem: { kind: "repo-unresolvable", given: request.repo } });
   }
-  return resolved;
+  const selection = request.path.join({ segments: [resolved.value, SELECTION_FILE_NAME] });
+  return request.fileText.exists({ path: selection }) === "absent"
+    ? argumentsInvalid({ problem: { kind: "selection-absent", given: request.repo } })
+    : resolved;
 };
 
 export const printOutcome = (request: {
@@ -60,7 +64,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   if (parsed.outcome === "failed") {
     return parsed;
   }
-  const repoRoot = repoRootOf({ path: request.path, repo: parsed.value.repo });
+  const repoRoot = repoRootOf({ path: request.path, fileText: request.fileText, repo: parsed.value.repo });
   if (repoRoot.outcome === "failed") {
     return repoRoot;
   }

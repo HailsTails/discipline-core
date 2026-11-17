@@ -192,6 +192,21 @@ describe("runProjectCommand", () => {
     });
   });
 
+  it("exits 2 with the arguments-invalid line when --repo holds no disciplines.json", async () => {
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+
+    await runProjectCommand(
+      commandRequest({ process: processPort, fileText: fileTextOver({ ...NOTHING_SELECTED, "/repo/disciplines.json": ABSENT_FILE }) }),
+    );
+
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [
+        [{ text: "load failure: arguments-invalid --repo /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
+      ],
+      exits: [[{ code: 2 }]],
+    });
+  });
+
   it("exits 2 with the load failure line when the selection cannot be loaded", async () => {
     const processPort = processWith({ arguments: ["--repo", "/repo"] });
 

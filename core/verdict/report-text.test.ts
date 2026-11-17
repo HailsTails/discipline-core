@@ -855,6 +855,28 @@ describe("renderReportText readFirst without a rule page", () => {
       }),
     ).toContain(`\nreadFirst (1)\n${line}\nverdict: fail\n`);
   });
+
+  it.each([
+    {
+      state: "not-written",
+      note: "disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; ADOPTING.md#5a-write-the-assessment says how to write it.",
+    },
+    { state: "unreadable", note: "disciplines.assessment.md could not be read." },
+  ] as const)("points at no Spirit in the $state note when no clause line names one", ({ state, note }) => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          findings: [loopsFinding],
+          readFirst: [
+            { kind: "assessment-file", state, guide: "ADOPTING.md" },
+            readingOf({ clause: loops, assessmentSection: "unread", presence: "absent" }),
+          ],
+        },
+      }),
+    ).toContain(`\nreadFirst (2)\n${note}\nCD-15#loops: its rule set has no rule page at rules/CD-15/README.md\n`);
+  });
 });
 
 describe("renderReportText readFirst by output", () => {

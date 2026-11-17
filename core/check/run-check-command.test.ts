@@ -347,6 +347,23 @@ describe("runCheckCommand report output", () => {
   });
 });
 
+describe("runCheckCommand given a folder that holds no disciplines.json", () => {
+  it("exits 2 with the arguments-invalid line naming --repo as given", async () => {
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+
+    await runCheckCommand(
+      commandRequest({ process: processPort, fileText: fileTextOver({ ...NOTHING_SELECTED, "/repo/disciplines.json": ABSENT_FILE }) }),
+    );
+
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [
+        [{ text: "load failure: arguments-invalid --repo /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
+      ],
+      exits: [[{ code: 2 }]],
+    });
+  });
+});
+
 const carvedRunWith = async (request: {
   readonly arguments: readonly string[];
   readonly settings: Readonly<Record<string, unknown>>;

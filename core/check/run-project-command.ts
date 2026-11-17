@@ -1,6 +1,6 @@
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import type { Result } from "../values/result.ts";
-import { parseProjectArguments } from "./command-arguments-schema.ts";
+import { parseProjectArguments } from "./command-arguments.ts";
 import { projectCommandOutcome } from "./command-outcome.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 import { installRootOf } from "./install-root.ts";
@@ -13,7 +13,7 @@ const projectResult = (request: CommandRequest): Promise<Result<readonly Project
   if (parsed.outcome === "failed") {
     return Promise.resolve(parsed);
   }
-  const repoRoot = repoRootOf({ path: request.path, repo: parsed.value.repo });
+  const repoRoot = repoRootOf({ path: request.path, fileText: request.fileText, repo: parsed.value.repo });
   if (repoRoot.outcome === "failed") {
     return Promise.resolve(repoRoot);
   }
