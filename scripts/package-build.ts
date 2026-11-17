@@ -7,7 +7,8 @@ import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
 import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
-import { installedPackageFolderOf, type LockedPackage, productionClosureOf } from "./pnpm-lock.ts";
+import { type InstalledPackage, installedPackagesOf } from "./installed-packages.ts";
+import { type ClosureMember, productionClosureOf } from "./pnpm-lock.ts";
 import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
@@ -188,21 +189,19 @@ const stagedFile = (request: { readonly context: BuildContext; readonly sourceRo
 const stagedPackage = (request: {
   readonly context: BuildContext;
   readonly sourceRoot: string;
-  readonly locked: LockedPackage;
+  readonly installed: InstalledPackage;
 }): Built<null> =>
   stagedTree({
     context: request.context,
-    from: request.context.path.join({
-      segments: installedPackageFolderOf({ dependencies: request.context.dependencies, locked: request.locked }),
-    }),
-    to: request.context.path.join({ segments: [request.sourceRoot, NODE_MODULES, ...request.locked.name.split("/")] }),
+    from: request.installed.folder,
+    to: request.context.path.join({ segments: [request.sourceRoot, NODE_MODULES, ...request.installed.name.split("/")] }),
     disposition: () => "kept",
   });
 
 const stagedSource = (request: {
   readonly context: BuildContext;
   readonly sourceRoot: string;
-  readonly closure: readonly LockedPackage[];
+  readonly installed: readonly InstalledPackage[];
 }): Built<readonly null[]> =>
   allOk({
     results: [
@@ -215,7 +214,7 @@ const stagedSource = (request: {
         }),
       ),
       ...BUNDLED_SOURCE_FILES.map((name) => stagedFile({ context: request.context, sourceRoot: request.sourceRoot, name })),
-      ...request.closure.map((locked) => stagedPackage({ context: request.context, sourceRoot: request.sourceRoot, locked })),
+      ...request.installed.map((installed) => stagedPackage({ context: request.context, sourceRoot: request.sourceRoot, installed })),
     ],
   });
 
@@ -318,7 +317,7 @@ const bundledPackageOf = (request: {
 const lockedClosureOf = (request: {
   readonly context: BuildContext;
   readonly dependencies: readonly string[];
-}): Built<readonly LockedPackage[]> => {
+}): Built<readonly ClosureMember[]> => {
   const lockPath = sourceFile({ context: request.context, path: INSTALL_LOCK.join("/") });
   const lockText = readText({ context: request.context, path: lockPath });
   if (lockText.outcome === "failed") {
@@ -330,7 +329,7 @@ const lockedClosureOf = (request: {
 
 const lockedPackagesOf = (request: {
   readonly packages: readonly BundledPackageAt[];
-  readonly closure: readonly LockedPackage[];
+  readonly closure: readonly ClosureMember[];
 }): Built<readonly BundledPackageAt[]> => {
   const checked = failedOnProblems({
     label: `bundle: a bundled package is not the one ${INSTALL_LOCK.join("/")} locks`,
@@ -350,7 +349,17 @@ const bundledInStage = async (request: {
   if (closure.outcome === "failed") {
     return closure;
   }
-  const staged = stagedSource({ ...request, closure: closure.value });
+  const installed = installedPackagesOf({
+    closure: closure.value,
+    direct: request.dependencies,
+    nodeModules: request.context.dependencies,
+    path: request.context.path,
+    scratch: request.context.scratch,
+  });
+  if (installed.outcome === "failed") {
+    return failedWith({ label: "locate the installed packages", detail: installed.error });
+  }
+  const staged = stagedSource({ ...request, installed: installed.value });
   if (staged.outcome === "failed") {
     return staged;
   }

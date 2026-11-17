@@ -10,6 +10,8 @@ const BUILTIN_PREFIX = "node:";
 
 const PAGE_SUFFIX = ".md";
 
+const STAGED_PACKAGES_FOLDER = "node_modules";
+
 const RELATIVE_LINK = /\]\(([^)\s]+)\)/g;
 
 const PACKAGE_PATH = "/package/";
@@ -57,15 +59,30 @@ export const misplacedEntriesOf = (request: {
     .filter((entryPoint) => entryPlacementOf({ entryPoint, outputs: request.outputs }) === "misplaced")
     .map((entryPoint) => `${entryPoint} is not emitted with its own code at ${builtModulePath({ path: entryPoint })}`);
 
-const lockProblemOf = (request: { readonly bundled: BundledPackageVersion; readonly closure: readonly LockedPackage[] }): readonly string[] => {
-  const label = `${request.bundled.name} ${request.bundled.version} at ${request.bundled.root}`;
+const stagedRootOf = (request: { readonly name: string }): string => `${STAGED_PACKAGES_FOLDER}/${request.name}`;
+
+const rootProblemOf = (request: { readonly bundled: BundledPackageVersion; readonly label: string }): readonly string[] => {
+  const staged = stagedRootOf({ name: request.bundled.name });
+  return request.bundled.root === staged ? [] : [`${request.label}, which is not the staged ${staged}`];
+};
+
+const versionProblemOf = (request: {
+  readonly bundled: BundledPackageVersion;
+  readonly label: string;
+  readonly closure: readonly LockedPackage[];
+}): readonly string[] => {
   const held = request.closure.filter((locked) => locked.name === request.bundled.name);
   if (held.length === 0) {
-    return [`${label}, which is not in the closure of core's dependencies in the lock`];
+    return [`${request.label}, which is not in the closure of core's dependencies in the lock`];
   }
   return held.some((locked) => locked.version === request.bundled.version)
     ? []
-    : [`${label}, but the lock holds ${held.map((locked) => locked.version).join(", ")}`];
+    : [`${request.label}, but the lock holds ${held.map((locked) => locked.version).join(", ")}`];
+};
+
+const lockProblemOf = (request: { readonly bundled: BundledPackageVersion; readonly closure: readonly LockedPackage[] }): readonly string[] => {
+  const label = `${request.bundled.name} ${request.bundled.version} at ${request.bundled.root}`;
+  return [...rootProblemOf({ bundled: request.bundled, label }), ...versionProblemOf({ ...request, label })];
 };
 
 export const unlockedPackagesOf = (request: {

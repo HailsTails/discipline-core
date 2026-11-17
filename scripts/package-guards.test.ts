@@ -127,6 +127,33 @@ describe("unlockedPackagesOf", () => {
       "prelude-ls 1.2.1 at node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
     ]);
   });
+
+  it("names a bundled package that did not come from its own staged folder, one from outside core's install and a nested one", () => {
+    expect(
+      unlockedPackagesOf({
+        bundled: [
+          { root: "../../node_modules/levn", name: "levn", version: "0.4.1" },
+          { root: "node_modules/@eslint/plugin-kit/node_modules/@eslint/core", name: "@eslint/core", version: "1.2.1" },
+        ],
+        closure: CLOSURE,
+      }),
+    ).toEqual([
+      "levn 0.4.1 at ../../node_modules/levn, which is not the staged node_modules/levn",
+      "@eslint/core 1.2.1 at node_modules/@eslint/plugin-kit/node_modules/@eslint/core, which is not the staged node_modules/@eslint/core",
+    ]);
+  });
+
+  it("names both problems of a package that is outside the closure and not at its staged folder", () => {
+    expect(
+      unlockedPackagesOf({
+        bundled: [{ root: "../../node_modules/prelude-ls", name: "prelude-ls", version: "1.2.1" }],
+        closure: CLOSURE,
+      }),
+    ).toEqual([
+      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not the staged node_modules/prelude-ls",
+      "prelude-ls 1.2.1 at ../../node_modules/prelude-ls, which is not in the closure of core's dependencies in the lock",
+    ]);
+  });
 });
 
 describe("deadLinksOf", () => {

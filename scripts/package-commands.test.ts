@@ -34,7 +34,13 @@ const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
   "/package/mechanisms/audit/runner/runner.ts": "await project();\n",
 };
 
-const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_LOCK, "/package/pnpm-lock.yaml": "lockfileVersion: '9.0'\n" };
+const EMPTY_LOCK = `lockfileVersion: '9.0'
+importers:
+  .: {}
+snapshots: {}
+`;
+
+const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_LOCK, "/package/pnpm-lock.yaml": EMPTY_LOCK };
 
 const entryOutput = (request: { readonly source: string; readonly path: string; readonly text: string }): BundledOutput => ({
   path: request.path,

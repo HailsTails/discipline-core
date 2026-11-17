@@ -51,7 +51,7 @@ snapshots:
   zod@4.4.2: {}
 `;
 
-const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
+const SOURCE_WITHOUT_INSTALLED_ZOD: Readonly<Record<string, string>> = {
   "/package/package.json": DEVELOPMENT_MANIFEST,
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
@@ -67,10 +67,14 @@ const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
   "/package/rules/CD-15/discipline.json": '{ "version": 1 }\n',
   "/package/rules/CD-15/README.md": "# CD-15\n",
   "/package/docs/why-chain-contract.md": "# Why-chain contract\n",
-  "/deps/.pnpm/zod@4.4.3/node_modules/zod/package.json": '{ "name": "zod", "version": "4.4.3", "license": "MIT" }',
 };
 
-const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_ZOD_LICENCE, "/deps/.pnpm/zod@4.4.3/node_modules/zod/LICENSE": "MIT License\n" };
+const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
+  ...SOURCE_WITHOUT_INSTALLED_ZOD,
+  "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.3", "license": "MIT" }',
+};
+
+const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_ZOD_LICENCE, "/deps/zod/LICENSE": "MIT License\n" };
 
 const entryOutput = (request: { readonly source: string; readonly path: string; readonly text: string }): BundledOutput => ({
   path: request.path,
@@ -259,7 +263,7 @@ describe("buildPackage", () => {
 
   it("fails naming a bundled package whose version is not the one core's lock holds, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/deps/.pnpm/zod@4.4.3/node_modules/zod/package.json": '{ "name": "zod", "version": "4.4.2", "license": "MIT" }' },
+      source: { ...SOURCE, "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.2", "license": "MIT" }' },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
@@ -329,6 +333,18 @@ describe("buildPackage", () => {
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: { outcome: "failed", error: "FAIL: bundle zod: it ships no licence file to reproduce" },
+      written: NOTHING_WRITTEN,
+    });
+  });
+
+  it("fails naming a dependency of core that is not installed, writing nothing", async () => {
+    const { files, built } = builtWith({
+      source: SOURCE_WITHOUT_INSTALLED_ZOD,
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
+      result: { outcome: "failed", error: "FAIL: locate the installed packages: zod is not installed at /deps/zod: ENOENT /deps/zod" },
       written: NOTHING_WRITTEN,
     });
   });

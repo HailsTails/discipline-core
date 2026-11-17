@@ -27,6 +27,7 @@ const surfaceOver = (surface: Partial<ScratchFilesSurface>): ScratchFilesSurface
   copyTree: vi.fn(),
   listTree: vi.fn(),
   digestOf: vi.fn(),
+  realPathOf: vi.fn(),
   ...surface,
 });
 
@@ -184,6 +185,30 @@ describe("createScratchFilesPort listTree", () => {
     const listed = createScratchFilesPort({ surface: surfaceOver({ listTree: vi.fn<ScratchFilesSurface["listTree"]>().mockThrow(PERMISSION_DENIED) }) }).listTree({ path: "/repo/tools/hone" });
 
     expect(listed).toEqual({
+      outcome: "failed",
+      error: { kind: "effect-failed", detail: "EACCES: permission denied, rm '/scratch/proof'" },
+    });
+  });
+});
+
+describe("createScratchFilesPort realPathOf", () => {
+  it("returns the real path the surface resolved for the requested path", () => {
+    const realPathOf = vi.fn<ScratchFilesSurface["realPathOf"]>().mockReturnValue("/store/zod");
+
+    const resolved = createScratchFilesPort({ surface: surfaceOver({ realPathOf }) }).realPathOf({ path: "/repo/node_modules/zod" });
+
+    expect({ resolved, calls: realPathOf.mock.calls }).toEqual({
+      resolved: { outcome: "ok", value: "/store/zod" },
+      calls: [[{ path: "/repo/node_modules/zod" }]],
+    });
+  });
+
+  it("returns effect-failed when the path cannot be resolved", () => {
+    const resolved = createScratchFilesPort({
+      surface: surfaceOver({ realPathOf: vi.fn<ScratchFilesSurface["realPathOf"]>().mockThrow(PERMISSION_DENIED) }),
+    }).realPathOf({ path: "/repo/node_modules/zod" });
+
+    expect(resolved).toEqual({
       outcome: "failed",
       error: { kind: "effect-failed", detail: "EACCES: permission denied, rm '/scratch/proof'" },
     });

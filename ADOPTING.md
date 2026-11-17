@@ -35,7 +35,7 @@ To build the tarball yourself, use Node.js 22.18 or later with [corepack](https:
 ```bash
 git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/hone-source
 git -C /tmp/hone-source checkout <pinned-sha>
-cd /tmp/hone-source && corepack enable && pnpm install --frozen-lockfile && pnpm run pack-package && cd -
+cd /tmp/hone-source && corepack pnpm install --frozen-lockfile && corepack pnpm run pack-package && cd -
 ```
 
 The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-<version>.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA. The commands in this guide are POSIX shell; on Windows run them in Git Bash.

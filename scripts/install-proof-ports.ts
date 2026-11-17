@@ -24,6 +24,7 @@ export type ScratchFilesPort = {
   }) => Result<null, EffectFailure>;
   readonly listTree: (request: { readonly path: string }) => Result<readonly ListedEntry[], EffectFailure>;
   readonly digestOf: (request: { readonly path: string }) => Result<string, EffectFailure>;
+  readonly realPathOf: (request: { readonly path: string }) => Result<string, EffectFailure>;
 };
 
 export type ScratchFilesSurface = {
@@ -38,6 +39,7 @@ export type ScratchFilesSurface = {
   }) => void;
   readonly listTree: (request: { readonly path: string }) => readonly ListedEntry[];
   readonly digestOf: (request: { readonly path: string }) => string;
+  readonly realPathOf: (request: { readonly path: string }) => string;
 };
 
 export type ProofCommand = "git" | "npm" | "node";
@@ -98,6 +100,7 @@ export const createScratchFilesPort = (options: { readonly surface: ScratchFiles
     }),
   listTree: (request) => attempted({ action: () => options.surface.listTree({ path: request.path }) }),
   digestOf: (request) => attempted({ action: () => options.surface.digestOf({ path: request.path }) }),
+  realPathOf: (request) => attempted({ action: () => options.surface.realPathOf({ path: request.path }) }),
 });
 
 const launchOf = (request: { readonly command: ProofCommand; readonly platform: string }): Launch => {
@@ -167,6 +170,7 @@ export const defaultScratchFilesSurface: ScratchFilesSurface = {
       entryKind: entry.isDirectory() ? "folder" : "file",
     })),
   digestOf: (request) => createHash("sha256").update(readFileSync(request.path)).digest("hex"),
+  realPathOf: (request) => realpathSync(request.path),
 };
 
 const spawnedRun = (request: CommandSpawnRequest): StepRun => {

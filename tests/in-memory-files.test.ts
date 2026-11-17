@@ -118,6 +118,23 @@ describe("inMemoryFiles scratch", () => {
     });
   });
 
+  it("follows a link to its real folder, keeps a held folder where it is and fails on a missing one", () => {
+    const files = inMemoryFiles({
+      initial: { "/real/zod/package.json": "{}", "/repo/core/a.ts": "a" },
+      links: { "/repo/node_modules/zod": "/real/zod" },
+    });
+
+    expect({
+      linked: files.scratch.realPathOf({ path: "/repo/node_modules/zod" }),
+      held: files.scratch.realPathOf({ path: "/repo/core" }),
+      missing: files.scratch.realPathOf({ path: "/repo/node_modules/absent" }),
+    }).toEqual({
+      linked: { outcome: "ok", value: "/real/zod" },
+      held: { outcome: "ok", value: "/repo/core" },
+      missing: { outcome: "failed", error: { kind: "effect-failed", detail: "ENOENT /repo/node_modules/absent" } },
+    });
+  });
+
   it("digests a held file and fails on a missing one", () => {
     const files = inMemoryFiles({ initial: { "/out/core.tgz": "tarball" } });
 
