@@ -13,8 +13,8 @@ const DECLARATIONS: ClauseSettingDeclarations = {
 
 describe("clauseSettingsSchema", () => {
   it("reads each clause address with its settings object", () => {
-    expect(clauseSettingsSchema.parse({ "CD-19#import-boundaries": { confinedSpecifiers: ["eslint"] } })).toEqual([
-      [{ ruleSet: "hone", discipline: "CD-19", clause: "import-boundaries" }, { confinedSpecifiers: ["eslint"] }],
+    expect(clauseSettingsSchema.parse({ "CD-19#import-boundaries": { confinedPackages: ["eslint"] } })).toEqual([
+      [{ ruleSet: "hone", discipline: "CD-19", clause: "import-boundaries" }, { confinedPackages: ["eslint"] }],
     ]);
   });
 

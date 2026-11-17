@@ -43,6 +43,6 @@
     "CD-44#parameter-reassignment": "eslint"
   },
   "clauseSettings": {
-    "CD-19#import-boundaries": { "confinedSpecifiers": ["eslint"] }
+    "CD-19#import-boundaries": { "confinedPackages": ["eslint"] }
   }
 }

@@ -1,3 +1,4 @@
+import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
@@ -32,7 +33,7 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import { clauseSettingsSchema, settledClauseSettings } from "./clause-settings.ts";
+import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import type { ClauseBinding, SelectionReading } from "./selection.ts";
 
@@ -114,16 +115,18 @@ const consumerSelectionFileSchema = z.strictObject({
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
   reportOutput: reportOutputSchema.default("full"),
+  assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
   clauseSettings: clauseSettingsSchema.default([]),
 }).superRefine((file, context) => {
   const settingsAddresses = file.clauseSettings.map(([address]) => address);
   settingsAddresses
     .filter((address) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
     .forEach((address) => {
+      const text = clauseAddressText({ address });
       context.addIssue({
         code: "custom",
-        path: ["clauseSettings", clauseAddressText({ address })],
-        message: "clauseSettings names a clause that clauses does not select",
+        path: ["clauseSettings", text],
+        message: `clauseSettings for ${text}: clauses does not select it`,
       });
     });
   settingsAddresses
@@ -135,7 +138,7 @@ const consumerSelectionFileSchema = z.strictObject({
       context.addIssue({
         code: "custom",
         path: ["clauseSettings", text],
-        message: `clauseSettings names ${text} twice, also as ${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${text}`,
+        message: `clauseSettings for ${text}: given twice, also as ${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${text}`,
       });
     });
 });
@@ -307,6 +310,7 @@ const resolvedClauseOf = (request: {
           segments: [clauseRequest.ruleSetRoot, "mechanisms", clauseRequest.mechanism, clauseRequest.address.discipline],
         }),
         settings: entry.settings,
+        clauseSettings: defaultClauseSettings({ declarations: entry.declarations }),
       },
     },
   };
@@ -521,16 +525,21 @@ const withClauseSettings = (request: {
 const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
 
-export const readReportOutput = (request: {
+export type RunSettings = {
+  readonly reportOutput: ReportOutput;
+  readonly assessment: Assessment;
+};
+
+export const readRunSettings = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-}): Result<ReportOutput, LoadFailure> => {
+}): Result<RunSettings, LoadFailure> => {
   const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
   if (file.outcome === "failed") {
     return file;
   }
-  return { outcome: "ok", value: file.value.reportOutput };
+  return { outcome: "ok", value: { reportOutput: file.value.reportOutput, assessment: file.value.assessment } };
 };
 
 export const readSelection = (request: {

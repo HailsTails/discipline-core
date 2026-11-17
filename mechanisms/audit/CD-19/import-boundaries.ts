@@ -13,7 +13,7 @@ const sourceEligibility = (request: { readonly file: string }): "eligible" | "ex
   return "eligible";
 };
 
-type ConfinedPattern = { readonly specifier: string; readonly pattern: RegExp };
+type ConfinedPattern = { readonly pattern: RegExp };
 
 type ConfinedClause = {
   readonly clause: RunnerClause;
@@ -21,19 +21,21 @@ type ConfinedClause = {
   readonly patterns: readonly ConfinedPattern[];
 };
 
-const escapedSpecifier = (request: { readonly specifier: string }): string =>
-  request.specifier.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+const escapedPackage = (request: { readonly packageName: string }): string =>
+  request.packageName.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 
-const confinedImportPattern = (request: { readonly specifiers: readonly string[] }): RegExp =>
-  new RegExp(`from\\s+["'](?:${request.specifiers.map((specifier) => escapedSpecifier({ specifier })).join("|")})["']`);
+const confinedImportPattern = (request: { readonly packageNames: readonly string[] }): RegExp =>
+  new RegExp(
+    `from\\s+["']((?:${request.packageNames.map((packageName) => escapedPackage({ packageName })).join("|")})(?:/[^"']*)?)["']`,
+  );
 
 const confinedClauseOf = (request: {
   readonly clause: RunnerClause;
-  readonly specifiers: readonly string[];
+  readonly packageNames: readonly string[];
 }): ConfinedClause => ({
   clause: request.clause,
-  anywhere: request.specifiers.length === 0 ? undefined : confinedImportPattern({ specifiers: request.specifiers }),
-  patterns: request.specifiers.map((specifier) => ({ specifier, pattern: confinedImportPattern({ specifiers: [specifier] }) })),
+  anywhere: request.packageNames.length === 0 ? undefined : confinedImportPattern({ packageNames: request.packageNames }),
+  patterns: request.packageNames.map((packageName) => ({ pattern: confinedImportPattern({ packageNames: [packageName] }) })),
 });
 
 const confinedImportsIn = (request: {
@@ -42,7 +44,10 @@ const confinedImportsIn = (request: {
 }): readonly { readonly line: number; readonly specifier: string }[] => {
   if (request.confined.anywhere === undefined || !request.confined.anywhere.test(request.text)) return [];
   return request.text.split("\n").flatMap((text, index) =>
-    request.confined.patterns.filter(({ pattern }) => pattern.test(text)).map(({ specifier }) => ({ line: index + 1, specifier })),
+    request.confined.patterns.flatMap(({ pattern }) => {
+      const specifier = pattern.exec(text)?.[1];
+      return specifier === undefined ? [] : [{ line: index + 1, specifier }];
+    }),
   );
 };
 
@@ -63,9 +68,9 @@ const confinedClausesOf = (request: {
 }): Result<readonly ConfinedClause[], PieceFailure> =>
   gatheredOutcomes({
     outcomes: request.clauses.map((clause): Result<readonly ConfinedClause[], PieceFailure> => {
-      const settings = stringListClauseSettings({ clause, keys: ["confinedSpecifiers"] });
+      const settings = stringListClauseSettings({ clause, keys: ["confinedPackages"] });
       if (settings.outcome === "failed") return settings;
-      return { outcome: "ok", value: [confinedClauseOf({ clause, specifiers: settings.value.confinedSpecifiers })] };
+      return { outcome: "ok", value: [confinedClauseOf({ clause, packageNames: settings.value.confinedPackages })] };
     }),
   });
 

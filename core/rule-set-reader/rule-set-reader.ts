@@ -10,7 +10,7 @@ import {
   type MechanismId,
   mechanismIdSchema,
 } from "../values/identifiers.ts";
-import { jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
+import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
@@ -150,7 +150,7 @@ const clauseSettingDeclarationSchema = z
     if (declaration.choices === undefined) return;
     const defaultKind = jsonKindOf({ value: declaration.default });
     if (declaration.choices.some((choice) => jsonKindOf({ value: choice }) !== defaultKind)) {
-      context.addIssue({ code: "custom", path: ["choices"], message: `every choice must be a ${defaultKind}, as the default is` });
+      context.addIssue({ code: "custom", path: ["choices"], message: `every choice must be ${JSON_KIND_NAMES[defaultKind]}, as the default is` });
     }
     if (!declaration.choices.some((choice) => sameJsonValue({ left: choice, right: declaration.default }) === "same")) {
       context.addIssue({ code: "custom", path: ["default"], message: "the default must be one of the choices" });

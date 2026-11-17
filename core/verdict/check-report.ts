@@ -22,6 +22,12 @@ export type Unmeasured =
       readonly projection: "missing" | "not-included";
     };
 
+export type PartialAssessment = {
+  readonly concern: "forfeiture";
+  readonly assessedBy: "elsewhere";
+  readonly fileCarveOuts: number;
+};
+
 export type ProjectionProblem = {
   readonly mechanism: MechanismId;
   readonly state: "out-of-date";
@@ -39,4 +45,5 @@ export type CheckReport = {
   readonly invalidRecords: readonly InvalidRecord[];
   readonly unmeasured: readonly Unmeasured[];
   readonly projectionProblems: readonly ProjectionProblem[];
+  readonly assessment: readonly PartialAssessment[];
 };

@@ -339,6 +339,21 @@ describe("readPieceFile", () => {
     ).toMatchObject({ outcome: "failed", error: { kind } });
   });
 
+  it("names a choice's required kind with its article", () => {
+    expect(
+      readPiece({
+        ...PIECE,
+        clauses: [
+          {
+            clause: "class-syntax",
+            settings: { module: "class-syntax.ts" },
+            clauseSettings: { allowed: { default: [], choices: [[], "none"] } },
+          },
+        ],
+      }),
+    ).toMatchObject({ outcome: "failed", error: { detail: expect.stringContaining("every choice must be an array, as the default is") } });
+  });
+
   it("reads the joined piece path", () => {
     const fileText = fileTextReading({ text: JSON.stringify(PIECE) });
 

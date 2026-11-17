@@ -3,15 +3,16 @@ import type { ClauseSettingValues, RunnerClause } from "../../../core/mechanism-
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { stringListClauseSettings } from "./piece-clause-settings.ts";
 
-const CLAUSE_WITHOUT_SETTINGS: RunnerClause = {
+const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: clauseAddressSchema.parse("CD-19#import-boundaries"),
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
+  clauseSettings: {},
   settings: { module: "a.ts" },
 };
 
 const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): RunnerClause => ({
-  ...CLAUSE_WITHOUT_SETTINGS,
+  ...CLAUSE_WITH_NO_SETTINGS,
   clauseSettings: request.clauseSettings,
 });
 
@@ -26,7 +27,7 @@ describe("stringListClauseSettings", () => {
   });
 
   it.each<{ readonly name: string; readonly clause: RunnerClause }>([
-    { name: "absent", clause: CLAUSE_WITHOUT_SETTINGS },
+    { name: "empty", clause: CLAUSE_WITH_NO_SETTINGS },
     { name: "missing a named list", clause: clauseWith({ clauseSettings: { allowed: [] } }) },
     { name: "holding an unnamed setting", clause: clauseWith({ clauseSettings: { allowed: [], denied: [], extra: [] } }) },
     { name: "holding a list that is not of strings", clause: clauseWith({ clauseSettings: { allowed: [1], denied: [] } }) },

@@ -2,25 +2,22 @@ import { z } from "zod";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import type { ClauseSettingDeclaration, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
 import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
-import { type JsonKind, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
+import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
 import type { ReadonlyJsonValue } from "../values/json-value.ts";
 import type { Result } from "../values/result.ts";
 
 export const clauseSettingsSchema = z
   .record(z.string(), z.record(z.string(), z.json()))
-  .transform((settings) => Object.entries(settings))
-  .pipe(z.array(z.tuple([clauseAddressSchema, z.record(z.string(), z.json())])));
+  .transform((settings, context) =>
+    Object.entries(settings).flatMap(([key, values]): readonly (readonly [ClauseAddress, typeof values])[] => {
+      const address = clauseAddressSchema.safeParse(key);
+      if (address.success) return [[address.data, values]];
+      context.addIssue({ code: "custom", input: key, path: [key], message: `clauseSettings for ${key}: not a clause address` });
+      return [];
+    }),
+  );
 
 export type ClauseSettings = z.output<typeof clauseSettingsSchema>;
-
-const KIND_NAMES: Readonly<Record<JsonKind, string>> = {
-  string: "a string",
-  number: "a number",
-  boolean: "a boolean",
-  null: "null",
-  array: "an array",
-  object: "an object",
-};
 
 type GivenSetting = { readonly key: string; readonly value: ReadonlyJsonValue };
 
@@ -45,7 +42,7 @@ const settingRefusalOf = (request: {
     return `its piece takes no ${given.key}; it takes ${Object.keys(request.declarations).join(", ")}`;
   }
   const kind = jsonKindOf({ value: declaration.default });
-  if (jsonKindOf({ value: given.value }) !== kind) return `${given.key} must be ${KIND_NAMES[kind]}, as its default is`;
+  if (jsonKindOf({ value: given.value }) !== kind) return `${given.key} must be ${JSON_KIND_NAMES[kind]}, as its default is`;
   const choices = declaration.choices;
   if (choices !== undefined && !choices.some((choice) => sameJsonValue({ left: choice, right: given.value }) === "same")) {
     return `${given.key} must be one of ${listed({ values: choices })}`;

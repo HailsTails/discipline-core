@@ -6,7 +6,7 @@
     {
       "clause": "import-boundaries",
       "settings": { "module": "import-boundaries.ts" },
-      "clauseSettings": { "confinedSpecifiers": { "default": [] } }
+      "clauseSettings": { "confinedPackages": { "default": [] } }
     }
   ]
 }

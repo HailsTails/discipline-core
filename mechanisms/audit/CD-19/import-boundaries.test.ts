@@ -17,23 +17,22 @@ const IMPORT = "im" + "port";
 const REQUIRE = "req" + "uire";
 const LINE_COMMENT = "/" + "/";
 const TEMPLATE_SUBSTITUTION = "$" + "{name}";
-const CONFIGURED_SPECIFIERS: readonly string[] = [
-  "eslint", "winston", "winston-transport", "better-sqlite3", "pino", "hono", "@hono/node-server",
-  "hono/cors", "hono/cookie", "hono/types", "hono/utils/http-status", "jose", "@modelcontextprotocol/sdk",
-  "zod-to-json-schema", "uuid",
-];
-const CLAUSE_WITHOUT_SETTINGS: RunnerClause = {
+const CONFIGURED_PACKAGES: readonly string[] = [
+  "eslint", "winston", "winston-transport", "better-sqlite3", "pino", "hono", "@hono/node-server", "jose",
+  "@modelcontextprotocol/sdk", "zod-to-json-schema", "uuid",
+];const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
+  clauseSettings: {},
   settings: { module: "import-boundaries.ts" },
 };
 const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): RunnerClause => ({
-  ...CLAUSE_WITHOUT_SETTINGS,
+  ...CLAUSE_WITH_NO_SETTINGS,
   clauseSettings: request.clauseSettings,
 });
-const CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: CONFIGURED_SPECIFIERS } });
-const NEUTRAL_CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: [] } });
+const CLAUSE = clauseWith({ clauseSettings: { confinedPackages: CONFIGURED_PACKAGES } });
+const NEUTRAL_CLAUSE = clauseWith({ clauseSettings: { confinedPackages: [] } });
 
 const bannedHit = (request: { readonly line: number; readonly specifier: string }) => ({
   clause: ADDRESS,
@@ -75,6 +74,7 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
       { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary" },
       { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: hono — use its recorded wrapping boundary" },
       { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "banned third-party import: uuid — use its recorded wrapping boundary" },
+      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "banned third-party import: hono/client — use its recorded wrapping boundary" },
     ]);
     expect(observed.readText).not.toHaveBeenCalled();
     expect(observed.anchorAt).not.toHaveBeenCalled();
@@ -230,8 +230,8 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
   });
 });
 
-describe("CD-19 confined specifiers come from the clause settings", () => {
-  it("confines no third-party specifier by default while still flagging node: imports", () => {
+describe("CD-19 confined packages come from the clause settings", () => {
+  it("confines no third-party package by default while still flagging node: imports", () => {
     const observed = sourceObservations({
       clause: NEUTRAL_CLAUSE,
       source: `${IMPORT} a ${FROM} "eslint";\n${IMPORT} b ${FROM} "winston";\n${IMPORT} fs ${FROM} "node:fs";\n`,
@@ -246,18 +246,55 @@ describe("CD-19 confined specifiers come from the clause settings", () => {
     ]);
   });
 
-  it("flags only the specifiers a repository confines", () => {
+  it("flags only the packages a repository confines", () => {
     const observed = sourceObservations({
-      clause: clauseWith({ clauseSettings: { confinedSpecifiers: ["@acme/payments"] } }),
-      source: `${IMPORT} a ${FROM} "@acme/payments";\n${IMPORT} b ${FROM} "winston";\n${IMPORT} c ${FROM} "@acme/payments/client";\n`,
+      clause: clauseWith({ clauseSettings: { confinedPackages: ["@acme/payments"] } }),
+      source: `${IMPORT} a ${FROM} "@acme/payments";\n${IMPORT} b ${FROM} "winston";\n`,
     });
 
     expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "@acme/payments" })]);
   });
 
-  it("matches a confined specifier holding regular expression characters literally", () => {
+});
+
+describe("CD-19 package matching", () => {
+  it.each([
+    { name: "the package itself", packageName: "hono", specifier: "hono" },
+    { name: "a subpath of the package", packageName: "hono", specifier: "hono/cors" },
+    { name: "a nested subpath of the package", packageName: "hono", specifier: "hono/utils/http-status" },
+    { name: "a scoped package", packageName: "@acme/payments", specifier: "@acme/payments" },
+    { name: "a subpath of a scoped package", packageName: "@acme/payments", specifier: "@acme/payments/client" },
+  ])("flags $name, reporting the imported specifier", ({ packageName, specifier }) => {
     const observed = sourceObservations({
-      clause: clauseWith({ clauseSettings: { confinedSpecifiers: ["lib(x)+"] } }),
+      clause: clauseWith({ clauseSettings: { confinedPackages: [packageName] } }),
+      source: `${IMPORT} a ${FROM} "${specifier}";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier })]);
+  });
+
+  it.each([
+    { name: "a package whose name extends the confined one", packageName: "hono", specifier: "honox" },
+    { name: "a package joined by a hyphen", packageName: "hono", specifier: "hono-extra/cors" },
+    { name: "a scope whose name extends the confined scope", packageName: "@acme/payments", specifier: "@acmex/payments" },
+    { name: "a scoped package whose name extends the confined one", packageName: "@acme/payments", specifier: "@acme/payments-client" },
+    { name: "another package in the same scope", packageName: "@acme/payments", specifier: "@acme/ledger" },
+    { name: "the scope alone", packageName: "@acme/payments", specifier: "@acme" },
+  ])("does not flag $name", ({ packageName, specifier }) => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: [packageName] } }),
+      source: `${IMPORT} a ${FROM} "${specifier}";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+});
+
+describe("CD-19 confined package settings", () => {
+  it("matches a confined package holding regular expression characters literally", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: ["lib(x)+"] } }),
       source: `${IMPORT} a ${FROM} "lib(x)+";\n${IMPORT} b ${FROM} "libxx";\n`,
     });
 
@@ -265,12 +302,12 @@ describe("CD-19 confined specifiers come from the clause settings", () => {
   });
 
   it.each<{ readonly name: string; readonly clause: RunnerClause }>([
-    { name: "missing clause settings", clause: CLAUSE_WITHOUT_SETTINGS },
-    { name: "a specifier list that is not an array", clause: clauseWith({ clauseSettings: { confinedSpecifiers: "eslint" } }) },
-    { name: "an empty specifier", clause: clauseWith({ clauseSettings: { confinedSpecifiers: [""] } }) },
+    { name: "no confined list", clause: CLAUSE_WITH_NO_SETTINGS },
+    { name: "a package list that is not an array", clause: clauseWith({ clauseSettings: { confinedPackages: "eslint" } }) },
+    { name: "an empty package name", clause: clauseWith({ clauseSettings: { confinedPackages: [""] } }) },
     {
       name: "an unknown setting",
-      clause: clauseWith({ clauseSettings: { confinedSpecifiers: [], confinedPackages: ["eslint"] } }),
+      clause: clauseWith({ clauseSettings: { confinedPackages: [], confinedSpecifiers: ["eslint"] } }),
     },
   ])("refuses to prepare with $name, naming the clause", ({ clause }) => {
     const prepared = check.prepare({

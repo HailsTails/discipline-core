@@ -23,18 +23,21 @@ const FIRST_CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("XX-1#first-check"),
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
+  clauseSettings: {},
   settings: { module: "first.ts" },
 };
 const SECOND_CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("XX-1#second-check"),
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
+  clauseSettings: {},
   settings: { module: "second.ts" },
 };
 const THIRD_CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("XX-1#third-check"),
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
+  clauseSettings: {},
   settings: { module: "third.ts" },
 };
 const FIRST_HIT: PieceHit = {

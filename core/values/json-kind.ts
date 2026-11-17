@@ -4,6 +4,15 @@ export type JsonKind = "string" | "number" | "boolean" | "null" | "array" | "obj
 
 export type JsonSameness = "same" | "different";
 
+export const JSON_KIND_NAMES: Readonly<Record<JsonKind, string>> = {
+  string: "a string",
+  number: "a number",
+  boolean: "a boolean",
+  null: "null",
+  array: "an array",
+  object: "an object",
+};
+
 type JsonObject = { readonly [key: string]: ReadonlyJsonValue };
 
 export const jsonKindOf = (request: { readonly value: ReadonlyJsonValue }): JsonKind => {

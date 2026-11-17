@@ -10,27 +10,27 @@ The sections below describe what the audit check covers.
 
 | Clause | Mechanism | Checks |
 | --- | --- | --- |
-| `CD-19#import-boundaries` | audit | imports of the library specifiers the repository confines, and any `node:` import |
+| `CD-19#import-boundaries` | audit | imports of the packages the repository confines, and any `node:` import |
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags.
 
 ## What the check flags
 - `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A line with `from "<name>"` for each `<name>` listed in the clause's `confinedSpecifiers` setting (see [Settings](#settings)). A name matches only that exact specifier, so `hono` and `hono/cors` are listed separately. With no names listed, which is the default, no library import is flagged. Type-only imports and matches inside strings are flagged too.
+- A line with `from "<specifier>"` where the specifier is a package listed in the clause's `confinedPackages` setting (see [Settings](#settings)) or a subpath of one: `hono` covers `hono` and `hono/cors`, and `@scope/name` covers `@scope/name` and `@scope/name/client`. A longer name is a different package, so `hono` does not cover `honox` or `hono-extra`. With no packages listed, which is the default, no library import is flagged. Type-only imports and matches inside strings are flagged too.
 - A `node:` specifier in an import, `export ... from`, `import("node:...")`, `import type`, `import x = require(...)` or `require("node:...")`. Unprefixed `fs` is not detected.
-- The source rule covers every third-party dependency; the check covers only the listed specifiers. The rest is left to review.
+- The source rule covers every third-party dependency; the check covers only the listed packages. The rest is left to review.
 
 ## Settings
-List the specifiers of each library the repository confines behind a wrapping port in `disciplines.json`, then record each wrapping file as an `authorised-location`:
+List each package the repository confines behind a wrapping port in `disciplines.json`, then record each wrapping file as an `authorised-location`:
 
 ```json
 "clauseSettings": {
-  "CD-19#import-boundaries": { "confinedSpecifiers": ["winston", "uuid"] }
+  "CD-19#import-boundaries": { "confinedPackages": ["winston", "uuid"] }
 }
 ```
 
 ## Example violation
-With `"confinedSpecifiers": ["uuid"]`, both lines are flagged; with the default, only the first.
+With `"confinedPackages": ["uuid"]`, both lines are flagged; with the default, only the first.
 ```ts
 import { readFileSync } from "node:fs";
 import { v4 } from "uuid";

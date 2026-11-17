@@ -2,7 +2,7 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, Unmeasured } from "./check-report.ts";
+import type { CheckReport, PartialAssessment, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -82,6 +82,16 @@ const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string =>
   }
 };
 
+const fileCarveOutCount = (request: { readonly count: number }): string =>
+  request.count === 1 ? "1 file carve-out" : `${request.count} file carve-outs`;
+
+const assessmentLine = (request: { readonly partial: PartialAssessment }): string => {
+  switch (request.partial.concern) {
+    case "forfeiture":
+      return `${request.partial.concern} ${request.partial.assessedBy}: ${fileCarveOutCount({ count: request.partial.fileCarveOuts })} not checked for decay in this run`;
+  }
+};
+
 type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
@@ -103,14 +113,20 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ unmeasured })),
   projectionProblems: (request) =>
     request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
+  assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
 };
 
 const reportSections = (request: { readonly report: CheckReport }): readonly ReportSection[] =>
   SECTION_NAMES.map((name) => ({ name, lines: SECTION_LINES[name](request) }));
 
+const verdictLine = (request: { readonly report: CheckReport }): string =>
+  request.report.assessment.length === 0
+    ? `verdict: ${verdictOf(request)}`
+    : `verdict: ${verdictOf(request)} (partial assessment)`;
+
 export const renderReportText = (request: { readonly report: CheckReport; readonly output: ReportOutput }): string => {
   const sectionLines = reportSections(request)
     .filter((section) => section.lines.length > 0)
     .flatMap((section) => printedSectionLines({ output: request.output, section }));
-  return `${[...sectionLines, `verdict: ${verdictOf(request)}`].join("\n")}\n`;
+  return `${[...sectionLines, verdictLine(request)].join("\n")}\n`;
 };

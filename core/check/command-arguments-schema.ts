@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type ForfeitureAssessment, forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
@@ -8,6 +9,7 @@ export type CheckArguments = {
   readonly repo: string;
   readonly baseRevision: string | undefined;
   readonly reportOutput: ReportOutput | undefined;
+  readonly forfeiture: ForfeitureAssessment | undefined;
 };
 
 export type ProjectArguments = {
@@ -17,6 +19,7 @@ export type ProjectArguments = {
 const REPO_OPTION = "--repo";
 const BASE_REVISION_OPTION = "--base-revision";
 const REPORT_OUTPUT_OPTION = "--report-output";
+const FORFEITURE_OPTION = "--forfeiture";
 
 const optionPairs = (request: { readonly arguments: readonly string[] }): readonly unknown[] =>
   Array.from({ length: Math.ceil(request.arguments.length / 2) }, (_, index) => [
@@ -32,12 +35,13 @@ const optionsSchema = (request: { readonly options: readonly [string, ...string[
     })
     .transform((pairs) => Object.fromEntries(pairs));
 
-const checkArgumentsSchema = optionsSchema({ options: [REPO_OPTION, BASE_REVISION_OPTION, REPORT_OUTPUT_OPTION] })
+const checkArgumentsSchema = optionsSchema({ options: [REPO_OPTION, BASE_REVISION_OPTION, REPORT_OUTPUT_OPTION, FORFEITURE_OPTION] })
   .pipe(
     z.strictObject({
       [REPO_OPTION]: z.string(),
       [BASE_REVISION_OPTION]: z.string().optional(),
       [REPORT_OUTPUT_OPTION]: reportOutputSchema.optional(),
+      [FORFEITURE_OPTION]: forfeitureAssessmentSchema.optional(),
     }),
   )
   .transform(
@@ -45,6 +49,7 @@ const checkArgumentsSchema = optionsSchema({ options: [REPO_OPTION, BASE_REVISIO
       repo: options[REPO_OPTION],
       baseRevision: options[BASE_REVISION_OPTION],
       reportOutput: options[REPORT_OUTPUT_OPTION],
+      forfeiture: options[FORFEITURE_OPTION],
     }),
   );
 
@@ -83,7 +88,7 @@ export type SubcommandInvocation = {
 };
 
 const USAGE = [
-  `usage: ${TOOL_IDENTITY.command} check ${REPO_OPTION} <path> [${BASE_REVISION_OPTION} <revision>] [${REPORT_OUTPUT_OPTION} <${reportOutputSchema.options.join("|")}>]`,
+  `usage: ${TOOL_IDENTITY.command} check ${REPO_OPTION} <path> [${BASE_REVISION_OPTION} <revision>] [${REPORT_OUTPUT_OPTION} <${reportOutputSchema.options.join("|")}>] [${FORFEITURE_OPTION} <${forfeitureAssessmentSchema.options.join("|")}>]`,
   `${TOOL_IDENTITY.command} project ${REPO_OPTION} <path>`,
 ].join(" | ");
 

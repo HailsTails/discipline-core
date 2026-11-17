@@ -16,6 +16,7 @@ const SECTION_ROLES: Readonly<Record<SectionName, SectionRole>> = {
   invalidRecords: "failing",
   unmeasured: "failing",
   projectionProblems: "failing",
+  assessment: "informational",
 };
 
 const isSectionName = (key: string): key is SectionName => Object.hasOwn(SECTION_ROLES, key);

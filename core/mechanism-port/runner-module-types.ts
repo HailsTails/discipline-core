@@ -9,5 +9,5 @@ export type RunnerClause = {
   readonly anchor: AnchorKind;
   readonly pieceRoot: string;
   readonly settings: unknown;
-  readonly clauseSettings?: ClauseSettingValues;
+  readonly clauseSettings: ClauseSettingValues;
 };

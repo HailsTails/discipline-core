@@ -1,10 +1,11 @@
-import { readReportOutput } from "../consumer-selection/consumer-selection.ts";
+import { readRunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import { assessmentInEffect } from "../values/assessment.ts";
 import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
@@ -67,15 +68,20 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   if (installRoot.outcome === "failed") {
     return installRoot;
   }
-  const configured = readReportOutput({ fileText: request.fileText, path: request.path, repoRoot: repoRoot.value });
+  const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: repoRoot.value });
   if (configured.outcome === "failed") {
     return configured;
   }
+  const assessment = assessmentInEffect({
+    requested: { forfeiture: parsed.value.forfeiture },
+    configured: configured.value.assessment,
+  });
   const report = await runCheck({
     repoRoot: repoRoot.value,
     installRoot: installRoot.value,
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: parsed.value.baseRevision,
+    forfeiture: assessment.forfeiture,
     fileText: request.fileText,
     modules: request.modules,
     path: request.path,
@@ -83,7 +89,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   });
   return checkRunOf({
     report,
-    output: reportOutputInEffect({ requested: parsed.value.reportOutput, configured: configured.value }),
+    output: reportOutputInEffect({ requested: parsed.value.reportOutput, configured: configured.value.reportOutput }),
   });
 };
 

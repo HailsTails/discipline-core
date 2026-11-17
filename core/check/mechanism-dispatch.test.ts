@@ -19,6 +19,7 @@ const CLASS_SYNTAX_CLAUSE: RunnerClause = {
   address: CLASS_SYNTAX,
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
+  clauseSettings: {},
   settings: { module: "class-syntax.ts" },
 };
 

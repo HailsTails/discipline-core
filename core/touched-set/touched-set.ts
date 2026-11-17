@@ -8,7 +8,8 @@ export type TouchedSet =
       readonly measured: "no";
       readonly reason: "no-base-revision" | "git-failed";
       readonly detail: string;
-    };
+    }
+  | { readonly measured: "elsewhere" };
 
 export const computeTouchedSet = (request: {
   readonly repoRoot: AbsolutePath;
