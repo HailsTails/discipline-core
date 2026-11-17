@@ -108,7 +108,7 @@ A repository selects it by naming the rule set and the clause:
 
 ### 1. The runner
 
-Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-adopted`, which `disciplines.json` reserves for a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with test doubles. The ESLint runner's `runner.ts`:
+Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-run` or `not-adopted`, which `disciplines.json` reserves for a clause adopted with its mechanism not run and a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with test doubles. The ESLint runner's `runner.ts`:
 
 ```ts
 export const runner = toolchainBoundEmbeddedRunner({
@@ -168,7 +168,6 @@ An embedded runner has the same `run` and `conform` as a standalone one, plus:
 
 - `projectedKinds`: the native exception kinds its own projection writes. Only these kinds can be matched by a record.
 - `run` also receives the repository's exception records for that mechanism, so it can regenerate the projection and compare it. It returns hits, the native exceptions it found, and the projection's state: `current`, `out-of-date`, `missing` or `not-included`. A projection that is missing or not included means the mechanism did not run: core lists `mechanism-not-run` and the check fails. An out-of-date one is a projection problem and also fails.
-- `run` also receives `projectedClauses`: every selected clause of the mechanism, while `clauses` holds only the clauses to run. The two differ only when `waivedClauses` is `not-run` and a waived clause shares its mechanism with a clause still to run. Judge the projection, its effect and every native exception against `projectedClauses`; run, and report hits for, `clauses` only. Core refuses a hit on a clause outside `clauses`, and a native exception on a clause outside `projectedClauses`, as `runner-invalid-output`. The ESLint runner registers every projected plugin and watches every projected rule for inline comments, but switches on only the rules in `clauses`, so ESLint never creates a waived rule.
 - `project`: writes the projection file and returns its path with `written` or `unchanged`. `hone project` calls it.
 
 Core passes every record for the mechanism to both calls, forfeited or not, and never passes the touched set. A forfeited file carve-out therefore stays in the projection and still matches its native exception; core's check reports it as `forfeited` and fails the run. Keep it that way: a runner must not compute forfeiture or read the touched set itself, so that whether a forfeited carve-out stays pushed down remains core's decision. No test checks this; it is a rule for review.
@@ -197,7 +196,7 @@ How the runner finds each channel (`mechanisms/eslint/runner/`):
 - `suppression-entry` comes from `suppressions-scanner.ts`. Keys in a tracked `eslint-suppressions.json` are read relative to its folder; keys in a file named by `--suppressions-location` are read relative to the `package.json` that names it.
 - `command-line-option` comes from `package-script-scanner.ts`, which parses every tracked `package.json` and splits each script into commands. A command is an ESLint invocation when a token is `eslint`, starts `eslint@`, or ends `/eslint` or `/eslint.js`. A script with an unterminated quote is `tool-failed`.
 
-Hits come from a separate governance instance that uses only the runner's configuration: the rules of the clauses to run and the inline-config rule at `"error"` on `**/*.{ts,tsx,mts,cts}`, with every selected plugin registered and every selected rule watched by the inline-config rule, parsed with `@typescript-eslint/parser`, with the team's configuration file, ignores, suppressions and inline configuration all off. No native channel can change core's findings.
+Hits come from a separate governance instance that uses only the runner's configuration: the selected rules and the inline-config rule at `"error"` on `**/*.{ts,tsx,mts,cts}`, parsed with `@typescript-eslint/parser`, with the team's configuration file, ignores, suppressions and inline configuration all off. No native channel can change core's findings.
 
 Options passed outside a `package.json` script (a CI step, an editor setting, a wrapper script) are not found. They cannot change core's verdict, but core cannot check whether such a run honours the records.
 

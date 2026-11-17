@@ -27,7 +27,7 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
 
 ```text
-hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>] [--waived-clauses <run|not-run>]
+hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 ```
 
@@ -43,15 +43,15 @@ hone project --repo <dir>
 
 A load failure prints one line, `load failure: <kind> <fields>`.
 
-The report lists the excluded paths, the clauses not adopted, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems and any part of the assessment left to another run, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, exempted findings and assessment is empty.
+The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems and any part of the assessment left to another run, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, exempted findings and assessment is empty.
 
 `--report-output` sets how much of the report is printed for one run, overriding `reportOutput` in `disciplines.json`; with neither, the output is `full`.
 
 | Output | Prints |
 | --- | --- |
 | `full` | every non-empty section with its entries, then the verdict |
-| `failures-only` | the same without the `excluded`, `exempted` and `assessment` sections |
-| `counts` | one `<section> (<count>)` line per non-empty section, with ` informational` after `excluded`, `exempted` and `assessment`, then the verdict |
+| `failures-only` | the same without the `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` sections |
+| `counts` | one `<section> (<count>)` line per non-empty section, with ` informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment`, then the verdict |
 | `verdict-only` | only the verdict line |
 
 The output changes only what is printed: the verdict and exit code always come from the whole report. An unknown `--report-output` value is a load failure `arguments-invalid`; an unknown `reportOutput` value makes `disciplines.json` `file-malformed`, even when `--report-output` is given. Load failures print the same in every output.
@@ -67,12 +67,6 @@ verdict: pass (partial assessment)
 ```
 
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
-
-`--waived-clauses not-run` makes a run skip every selected clause a valid `clause-wide-carve-out` covers, overriding `assessment.waivedClauses` in `disciplines.json`; `--waived-clauses run`, the default, runs them as before. A mechanism left with nothing to run is not loaded at all, so a repository that waives every `eslint` clause needs no ESLint installed. A mechanism that still has another clause to run skips just the waived ones: ESLint never switches a waived rule on, while its projection is still judged against every selected clause, the waived clause and its `"off"` block included. When every ESLint clause is waived, ESLint is not loaded, so the projection's freshness is not checked in that run. Only the waived clauses' execution and the staleness of the records on them are skipped: `stale` is not judged for those records, while invalid records, forfeiture, doubly-held records and `uncovered` are reported as before, and `hone project` still writes the waived rules and their `"off"` blocks. The `assessment` section names each clause not run:
-
-```text
-waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming-convention eslint
-```
 
 `hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
@@ -113,15 +107,15 @@ At the repository root. It selects clauses and the mechanism that checks each on
 ```
 
 - `ruleSets` names the repository's own rule sets, each a directory relative to the repository root. The name `hone` is reserved for the rule set shipped with the tool; `hone/CD-15#loops` and `CD-15#loops` are the same address. A rule-set name may not start with `hone-`, and no declared name may be another declared name plus `-<suffix>`.
-- `clauses` maps a clause address to a mechanism id, or to `"not-adopted"`. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the `hone` rule set. The mechanism must be one the clause lists.
+- `clauses` maps a clause address to a mechanism id, to `"not-run"` or to `"not-adopted"`. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the `hone` rule set. The mechanism must be one the clause lists.
 - Listing a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not listed are reported as uncovered, and fail the run.
-- `"not-adopted"` states that the repository does not adopt that clause. It is never run and never projected, and its mechanism is not loaded unless another clause uses it. The report lists it under `notAdopted`, which is informational: the run is still a whole assessment. An exception record on it is invalid as `clause-not-adopted`, and `clauseSettings` for it make `disciplines.json` `file-malformed`: remove them. The clause must still exist and be mechanical, in any rule set; a judgement clause is never listed, adopted or not, and fails the run as `judgement-clause-listed`. No mechanism may be named `not-adopted`.
+- `"not-run"` states that the clause is adopted and binds the repository, but its mechanism is not run: the check is not a true measure of the rule's intent here, or cannot work here. The rule is enforced by review. `"not-adopted"` states that the clause does not apply to the repository. Either way the clause is never run and never projected, and its mechanism is not loaded unless another clause uses it. The report lists it under `notRun`, as `<clause> adopted, mechanism not run: enforced by review`, or under `notAdopted`; both are informational, and the run is still a whole assessment. An exception record on it is invalid as `clause-not-run` or `clause-not-adopted`, and `clauseSettings` for it make `disciplines.json` `file-malformed`: remove them. The clause must still exist and be mechanical, in any rule set; a judgement clause is never listed in either state and fails the run as `judgement-clause-listed`. No mechanism may be named `not-run` or `not-adopted`.
 - A judgement clause cannot be selected; it is enforced by review.
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
 - `clauseSettings`, optional, maps a selected clause address to an object of that clause's settings, for a clause whose CHECKS.md lists settings. Each key must be one the clause's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `disciplines.json` malformed, naming the clause, the key and what is accepted: settings for a clause the file does not select or names twice, for a clause that takes none, under an undeclared key, or of the wrong kind or choice.
-- `assessment`, optional, says which run assesses each concern. `forfeiture` is `"this-run"` (the default) or `"elsewhere"`, and `--forfeiture` overrides it for one run. `waivedClauses` is `"run"` (the default) or `"not-run"`, and `--waived-clauses` overrides it for one run. See [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
+- `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). `waivedClauses`, which earlier releases accepted, is removed: it makes `disciplines.json` `file-malformed`, naming the clause states that replace it; see [MIGRATING.md](MIGRATING.md#12-moving-off-waivedclauses). Any other key makes it `file-malformed`, naming the key as not available in this version.
 - `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 
 ## discipline-exceptions.json

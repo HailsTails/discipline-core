@@ -22,23 +22,11 @@ export type Unmeasured =
       readonly projection: "missing" | "not-included";
     };
 
-export type NotRunClause = {
-  readonly clause: ClauseAddress;
-  readonly mechanism: MechanismId;
+export type PartialAssessment = {
+  readonly concern: "forfeiture";
+  readonly assessedBy: "elsewhere";
+  readonly fileCarveOuts: number;
 };
-
-export type PartialAssessment =
-  | {
-      readonly concern: "forfeiture";
-      readonly assessedBy: "elsewhere";
-      readonly fileCarveOuts: number;
-    }
-  | {
-      readonly concern: "waivedClauses";
-      readonly assessedBy: "not-run";
-      readonly clausesNotRun: readonly NotRunClause[];
-      readonly recordsNotJudgedStale: number;
-    };
 
 export type ProjectionProblem = {
   readonly mechanism: MechanismId;
@@ -48,6 +36,7 @@ export type ProjectionProblem = {
 export type CheckReport = {
   readonly excluded: readonly RepoPath[];
   readonly notAdopted: readonly ClauseAddress[];
+  readonly notRun: readonly ClauseAddress[];
   readonly findings: readonly Finding[];
   readonly exempted: readonly ExemptedFinding[];
   readonly uncovered: readonly ClauseAddress[];

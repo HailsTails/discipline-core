@@ -808,7 +808,6 @@ const messageFindings = (request: {
   readonly message: LintedMessage;
   readonly file: RepoPath;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly sourceLines: SourceLines;
 }): Outcome<readonly LintFindings[]> => {
   if (request.message.ruleId === INLINE_CONFIG_RULE_ID) {
@@ -817,7 +816,7 @@ const messageFindings = (request: {
       map: (nativeExceptions): readonly LintFindings[] => [{ hits: [], nativeExceptions }],
     });
   }
-  const clause = request.running.find((entry) => entry.ruleId === request.message.ruleId);
+  const clause = request.selected.find((entry) => entry.ruleId === request.message.ruleId);
   if (clause === undefined) {
     return { outcome: "ok", value: [] };
   }
@@ -827,7 +826,6 @@ const messageFindings = (request: {
 const lintedFindings = (request: {
   readonly linted: LintedFile;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly ports: EslintRunnerPorts;
   readonly repoRoot: AbsolutePath;
 }): Outcome<readonly LintFindings[]> => {
@@ -843,7 +841,7 @@ const lintedFindings = (request: {
   });
   return gatheredOutcomes({
     outcomes: request.linted.messages.map((message) =>
-      messageFindings({ message, file: file.value, selected: request.selected, running: request.running, sourceLines }),
+      messageFindings({ message, file: file.value, selected: request.selected, sourceLines }),
     ),
   });
 };
@@ -1002,18 +1000,16 @@ const recordsUnderCheck = (request: {
 const governedLint = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly eslint: EslintPort;
 }): Promise<Outcome<readonly LintedFile[]>> => {
-  if (request.run.files.length === 0 || request.running.length === 0) {
+  if (request.run.files.length === 0 || request.selected.length === 0) {
     return Promise.resolve({ outcome: "ok", value: [] });
   }
   return request.eslint
     .createGovernanceInstance({
       repoRoot: request.run.repoRoot,
       plugins: pluginsByNamespace({ selected: request.selected }),
-      rules: governedRulesOf({ selected: request.running }),
-      watchedRuleIds: ruleIdsOf({ selected: request.selected }),
+      rules: governedRulesOf({ selected: request.selected }),
     })
     .lintFiles({ files: request.run.files });
 };
@@ -1021,7 +1017,6 @@ const governedLint = (request: {
 const governedReport = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly projection: "current" | "out-of-date";
   readonly ports: EslintRunnerPorts;
   readonly queried: QueriedFiles;
@@ -1029,13 +1024,7 @@ const governedReport = (request: {
 }): Outcome<EmbeddedRunReport> => {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
-      lintedFindings({
-        linted,
-        selected: request.selected,
-        running: request.running,
-        ports: request.ports,
-        repoRoot: request.run.repoRoot,
-      }),
+      lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
     ),
   });
   if (findings.outcome === "failed") {
@@ -1068,12 +1057,11 @@ const governedReport = (request: {
 const lintedReport = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly projection: "current" | "out-of-date";
   readonly ports: EslintRunnerPorts;
   readonly queried: QueriedFiles;
 }): Promise<Outcome<EmbeddedRunReport>> =>
-  governedLint({ run: request.run, selected: request.selected, running: request.running, eslint: request.ports.eslint }).then(
+  governedLint({ run: request.run, selected: request.selected, eslint: request.ports.eslint }).then(
     (lintedFiles) =>
       lintedFiles.outcome === "failed" ? lintedFiles : governedReport({ ...request, lintedFiles: lintedFiles.value }),
   );
@@ -1081,7 +1069,6 @@ const lintedReport = (request: {
 const queriedReport = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly projection: "current" | "out-of-date";
   readonly ports: EslintRunnerPorts;
   readonly queried: Outcome<QueriedFiles>;
@@ -1100,7 +1087,6 @@ const queriedReport = (request: {
 const governedRun = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
-  readonly running: readonly SelectedClause[];
   readonly projection: "current" | "out-of-date";
   readonly ports: EslintRunnerPorts;
 }): Promise<Outcome<EmbeddedRunReport>> => {
@@ -1137,14 +1123,6 @@ const presentProjectionState = (request: {
     ? "current"
     : "out-of-date";
 
-const runningClauses = (request: {
-  readonly selected: readonly SelectedClause[];
-  readonly clauses: readonly RunnerClause[];
-}): readonly SelectedClause[] =>
-  request.selected.filter((entry) =>
-    request.clauses.some((clause) => sameClauseAddress({ left: clause.address, right: entry.clause.address }) === "same"),
-  );
-
 const selectedRun = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
@@ -1163,7 +1141,6 @@ const selectedRun = (request: {
   }
   return governedRun({
     ...request,
-    running: runningClauses({ selected: request.selected, clauses: request.run.clauses }),
     projection: presentProjectionState({
       current: current.value,
       selected: request.selected,
@@ -1262,7 +1239,7 @@ const ranClauses = (request: {
     return Promise.resolve(origin);
   }
   return selectedClauses({
-    clauses: request.run.projectedClauses,
+    clauses: request.run.clauses,
     path: request.ports.path,
     origin: origin.value,
     modules: request.ports.modules,

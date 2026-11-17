@@ -7,14 +7,12 @@ import type { RunnerFailure } from "./runner-failure.ts";
 import type {
   embeddedRunnerModuleSchema,
   ProjectionRequest,
-  RunnerClause,
   RunRequest,
   StandaloneRunner,
 } from "./runner-module-schema.ts";
 import type { NativeException, ProjectionWrite } from "./runner-result-schema.ts";
 
 export type EmbeddedRunRequest = RunRequest & {
-  readonly projectedClauses: readonly RunnerClause[];
   readonly records: readonly ExceptionRecord[];
 };
 

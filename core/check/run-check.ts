@@ -28,16 +28,15 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { Assessment, ForfeitureAssessment, WaivedClausesAssessment } from "../values/assessment.ts";
+import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
-import type { CheckReport, NotRunClause, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
-import { bindingsToLoad, bindingsToRun, notRunClauses, waivedClausesAssessmentOf } from "./waived-clauses.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
@@ -57,14 +56,12 @@ export type ExceptionBaselineReader = (request: {
 
 export type LoadRequest = Omit<CheckRequest, "baseRevision" | "assessment" | "git"> & {
   readonly exceptionBaselineOf: ExceptionBaselineReader;
-  readonly waivedClauses: WaivedClausesAssessment;
 };
 
 export type LoadedMechanism = {
   readonly mechanism: MechanismId;
   readonly runner: LoadedRunner;
   readonly clauses: readonly RunnerClause[];
-  readonly projectedClauses: readonly RunnerClause[];
 };
 
 export type LoadedInputs = {
@@ -74,7 +71,6 @@ export type LoadedInputs = {
   readonly mechanisms: readonly LoadedMechanism[];
   readonly excluded: readonly RepoPath[];
   readonly exceptionBaseline: ExceptionBaseline;
-  readonly notRun: readonly NotRunClause[];
 };
 
 const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
@@ -143,40 +139,28 @@ const loadedMechanism = (request: {
   readonly bindings: readonly ClauseBinding[];
   readonly mechanism: MechanismId;
   readonly runner: Result<LoadedRunner, LoadFailure>;
-  readonly waivedClauses: WaivedClausesAssessment;
-  readonly records: readonly ExceptionRecord[];
 }): Result<LoadedMechanism, LoadFailure> => {
   if (request.runner.outcome === "failed") {
     return request.runner;
   }
   return {
     outcome: "ok",
-    value: {
-      mechanism: request.mechanism,
-      runner: request.runner.value,
-      clauses: clausesOf({ bindings: bindingsToRun(request), mechanism: request.mechanism }),
-      projectedClauses: clausesOf(request),
-    },
+    value: { mechanism: request.mechanism, runner: request.runner.value, clauses: clausesOf(request) },
   };
 };
 
 const loadMechanisms = async (
-  request: LoadRequest & { readonly bindings: readonly ClauseBinding[]; readonly records: readonly ExceptionRecord[] },
-): Promise<Result<readonly LoadedMechanism[], LoadFailure>> => {
-  const bindings = bindingsToLoad(request);
-  return allOk({
+  request: LoadRequest & { readonly bindings: readonly ClauseBinding[] },
+): Promise<Result<readonly LoadedMechanism[], LoadFailure>> =>
+  allOk({
     results: await Promise.all(
-      distinctMechanisms({ bindings }).map((mechanism) =>
+      distinctMechanisms(request).map((mechanism) =>
         loadRunner({ ...request, mechanism }).then((runner) =>
-          loadedMechanism({ ...request, bindings, mechanism, runner }),
+          loadedMechanism({ bindings: request.bindings, mechanism, runner }),
         ),
       ),
     ),
   });
-};
-
-const ranBindings = (request: { readonly mechanisms: readonly LoadedMechanism[] }): readonly ClauseBinding[] =>
-  request.mechanisms.flatMap((loaded) => loaded.clauses.map((clause) => ({ mechanism: loaded.mechanism, clause })));
 
 export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInputs, LoadFailure>> => {
   const reading = readSelection(request);
@@ -194,7 +178,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
     baseline: exceptionBaseline,
     fileExceptionWhyChains: reading.value.fileExceptionWhyChains,
   });
-  const mechanisms = await loadMechanisms({ ...request, bindings: reading.value.bindings, records: parsed.records });
+  const mechanisms = await loadMechanisms({ ...request, bindings: reading.value.bindings });
   if (mechanisms.outcome === "failed") {
     return mechanisms;
   }
@@ -207,7 +191,6 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
       mechanisms: mechanisms.value,
       excluded: reading.value.excluded,
       exceptionBaseline,
-      notRun: notRunClauses({ bindings: reading.value.bindings, ran: ranBindings({ mechanisms: mechanisms.value }) }),
     },
   };
 };
@@ -239,25 +222,13 @@ const touchedSetFor = (request: {
   return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
 };
 
-const forfeitureAssessmentOf = (request: {
-  readonly forfeiture: ForfeitureAssessment;
-  readonly records: readonly ExceptionRecord[];
-}): readonly PartialAssessment[] =>
-  request.forfeiture === "elsewhere"
-    ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request) }]
-    : [];
-
 const partialAssessmentsOf = (request: {
   readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
-}): readonly PartialAssessment[] => [
-  ...forfeitureAssessmentOf({ forfeiture: request.assessment.forfeiture, records: request.inputs.records }),
-  ...waivedClausesAssessmentOf({
-    waivedClauses: request.assessment.waivedClauses,
-    records: request.inputs.records,
-    notRun: request.inputs.notRun,
-  }),
-];
+}): readonly PartialAssessment[] =>
+  request.assessment.forfeiture === "elsewhere"
+    ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request.inputs) }]
+    : [];
 
 const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
   request.records.some((record) => recordImportOf({ record }).imported === "yes")
@@ -408,7 +379,6 @@ const mechanismRunOf = (request: {
     runner: request.loaded.runner,
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),
-    projectedClauses: request.loaded.projectedClauses,
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 
@@ -438,13 +408,13 @@ const checkReportOf = (request: {
     findings: findingsOf(request),
     records: request.inputs.records,
     touched: request.touched,
-    notRun: request.inputs.notRun.map((entry) => entry.clause),
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
   return {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
+    notRun: request.inputs.selection.notRun,
     ...governed,
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
@@ -463,7 +433,6 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   const inputs = await loadInputs({
     ...request,
     exceptionBaselineOf: ({ entries }) => exceptionBaselineOf({ check: request, entries }),
-    waivedClauses: request.assessment.waivedClauses,
   });
   if (inputs.outcome === "failed") {
     return inputs;

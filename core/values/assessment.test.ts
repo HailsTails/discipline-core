@@ -6,8 +6,6 @@ import {
   DEFAULT_ASSESSMENT,
   type ForfeitureAssessment,
   forfeitureAssessmentSchema,
-  type WaivedClausesAssessment,
-  waivedClausesAssessmentSchema,
 } from "./assessment.ts";
 
 describe("forfeitureAssessmentSchema", () => {
@@ -20,31 +18,17 @@ describe("forfeitureAssessmentSchema", () => {
   });
 });
 
-describe("waivedClausesAssessmentSchema", () => {
-  it.each(["run", "not-run"])("accepts %s", (waivedClauses) => {
-    expect(waivedClausesAssessmentSchema.safeParse(waivedClauses)).toEqual({ success: true, data: waivedClauses });
-  });
-
-  it.each(["skip", "", "Not-Run", "not run", false])("refuses %j", (waivedClauses) => {
-    expect(waivedClausesAssessmentSchema.safeParse(waivedClauses).success).toBe(false);
-  });
-});
-
 describe("assessmentSchema", () => {
   it("is the default assessment for an empty object", () => {
     expect(assessmentSchema.parse({})).toEqual(DEFAULT_ASSESSMENT);
   });
 
-  it("assesses forfeiture in this run and runs waived clauses by default", () => {
-    expect(DEFAULT_ASSESSMENT).toEqual({ forfeiture: "this-run", waivedClauses: "run" });
+  it("assesses forfeiture in this run by default", () => {
+    expect(DEFAULT_ASSESSMENT).toEqual({ forfeiture: "this-run" });
   });
 
   it("reads forfeiture elsewhere", () => {
-    expect(assessmentSchema.parse({ forfeiture: "elsewhere" })).toEqual({ forfeiture: "elsewhere", waivedClauses: "run" });
-  });
-
-  it("reads waived clauses not run", () => {
-    expect(assessmentSchema.parse({ waivedClauses: "not-run" })).toEqual({ forfeiture: "this-run", waivedClauses: "not-run" });
+    expect(assessmentSchema.parse({ forfeiture: "elsewhere" })).toEqual({ forfeiture: "elsewhere" });
   });
 
   it.each([
@@ -58,49 +42,55 @@ describe("assessmentSchema", () => {
     ["a forfeiture that is not one of the two", { forfeiture: "reported" }],
     ["a null forfeiture", { forfeiture: null }],
     ["a forfeiture list", { forfeiture: ["elsewhere"] }],
-    ["a waived clauses value that is not one of the two", { waivedClauses: "skip" }],
-    ["a boolean waived clauses value", { waivedClauses: false }],
   ])("refuses %s", (_shape, assessment) => {
     expect(assessmentSchema.safeParse(assessment).success).toBe(false);
   });
 });
 
+describe("assessmentSchema removed waived clauses", () => {
+  it.each(["run", "not-run"])("refuses waivedClauses %s and says how clauses now state it", (waivedClauses) => {
+    expect(assessmentSchema.safeParse({ waivedClauses })).toMatchObject({
+      success: false,
+      error: {
+        issues: [
+          {
+            message:
+              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12',
+          },
+        ],
+      },
+    });
+  });
+
+  it("names the removed key apart from a key this version does not assess", () => {
+    expect(assessmentSchema.safeParse({ waivedClauses: "not-run", eslint: { evidence: "hone" } })).toMatchObject({
+      success: false,
+      error: {
+        issues: [
+          {
+            message:
+              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12. not available in this version: "eslint"; assessment takes "forfeiture" only',
+          },
+        ],
+      },
+    });
+  });
+});
+
 describe("assessmentInEffect", () => {
-  it("is the configured assessment when no concern is requested for the run", () => {
-    expect(
-      assessmentInEffect({
-        requested: { forfeiture: undefined, waivedClauses: undefined },
-        configured: { forfeiture: "elsewhere", waivedClauses: "not-run" },
-      }),
-    ).toEqual({ forfeiture: "elsewhere", waivedClauses: "not-run" });
+  it("is the configured assessment when no forfeiture is requested for the run", () => {
+    expect(assessmentInEffect({ requested: { forfeiture: undefined }, configured: { forfeiture: "elsewhere" } })).toEqual({
+      forfeiture: "elsewhere",
+    });
   });
 
   it.each<[ForfeitureAssessment, ForfeitureAssessment]>([
     ["this-run", "elsewhere"],
     ["elsewhere", "this-run"],
     ["elsewhere", "elsewhere"],
-  ])("is the requested forfeiture %s over the configured %s, leaving waived clauses as configured", (requested, configured) => {
-    const expected: Assessment = { forfeiture: requested, waivedClauses: "not-run" };
+  ])("is the requested forfeiture %s over the configured %s", (requested, configured) => {
+    const expected: Assessment = { forfeiture: requested };
 
-    expect(
-      assessmentInEffect({
-        requested: { forfeiture: requested, waivedClauses: undefined },
-        configured: { forfeiture: configured, waivedClauses: "not-run" },
-      }),
-    ).toEqual(expected);
-  });
-
-  it.each<[WaivedClausesAssessment, WaivedClausesAssessment]>([
-    ["run", "not-run"],
-    ["not-run", "run"],
-  ])("is the requested waived clauses %s over the configured %s, leaving forfeiture as configured", (requested, configured) => {
-    const expected: Assessment = { forfeiture: "elsewhere", waivedClauses: requested };
-
-    expect(
-      assessmentInEffect({
-        requested: { forfeiture: undefined, waivedClauses: requested },
-        configured: { forfeiture: "elsewhere", waivedClauses: configured },
-      }),
-    ).toEqual(expected);
+    expect(assessmentInEffect({ requested: { forfeiture: requested }, configured: { forfeiture: configured } })).toEqual(expected);
   });
 });

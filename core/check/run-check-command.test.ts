@@ -455,103 +455,21 @@ describe("runCheckCommand assessment configuration", () => {
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*not available in this version: "eslint"/) }]]);
   });
 
-  it("exits 2 with the file-malformed line when disciplines.json sets waived clauses that are not one of the two", async () => {
+  it("exits 2 with the file-malformed line naming the removed waivedClauses and the clause states that replace it", async () => {
     expect(
-      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { waivedClauses: "skip" } } })).writes,
-    ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*waivedClauses/) }]]);
+      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { waivedClauses: "not-run" } } })).writes,
+    ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*removed: "waivedClauses"; in clauses, mark a clause "not-run"/) }]]);
+  });
+
+  it("exits 2 with the arguments-invalid line naming the removed --waived-clauses and the clause values that replace it", async () => {
+    expect((await carvedRunWith({ arguments: ["--repo", "/repo", "--waived-clauses", "not-run"], settings: {} })).writes).toEqual([
+      [{ text: expect.stringMatching(/^load failure: arguments-invalid removed: "--waived-clauses"; in clauses, mark a clause "not-run"/) }],
+    ]);
   });
 
   it("exits 2 with the file-malformed line when disciplines.json sets a forfeiture that is not one", async () => {
     expect(
       (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { forfeiture: "reported" } } })).writes,
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*forfeiture/) }]]);
-  });
-});
-
-const CLASS_SYNTAX_WAIVED = JSON.stringify({
-  version: 1,
-  exceptions: [
-    {
-      kind: "clause-wide-carve-out",
-      clause: "CD-14#class-syntax",
-      reason: "class syntax is not adopted yet",
-      whyChain: CAUSAL_WHY_CHAIN,
-    },
-  ],
-});
-
-const waivedRunWith = async (request: {
-  readonly arguments: readonly string[];
-  readonly settings: Readonly<Record<string, unknown>>;
-}) => {
-  const processPort = processWith({ arguments: request.arguments });
-  const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) });
-  await runCheckCommand(
-    commandRequest({
-      process: processPort,
-      fileText: fileTextOver({
-        ...classSyntaxSelectedWith(request.settings),
-        "/repo/discipline-exceptions.json": presentFile({ text: CLASS_SYNTAX_WAIVED }),
-      }),
-      modules,
-      git: gitTracking([repoPathSchema.parse("src/a.ts")]),
-    }),
-  );
-  return { ...outputOf({ process: processPort }), loads: vi.mocked(modules.load).mock.calls.length };
-};
-
-const WAIVED_RUN_REPORT =
-  "exempted (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} exempted by clause-wide-carve-out\nverdict: pass\n";
-
-const WAIVED_NOT_RUN_REPORT =
-  "assessment (1)\nwaived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-14#class-syntax audit\nverdict: pass (partial assessment)\n";
-
-describe("runCheckCommand waived clauses", () => {
-  it("runs waived clauses when neither --waived-clauses nor disciplines.json sets it", async () => {
-    expect(await waivedRunWith({ arguments: ["--repo", "/repo"], settings: {} })).toEqual({
-      writes: [[{ text: WAIVED_RUN_REPORT }]],
-      exits: [[{ code: 0 }]],
-      loads: 1,
-    });
-  });
-
-  it("prints a report byte-identical to today's when disciplines.json sets waived clauses to run", async () => {
-    expect(await waivedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { waivedClauses: "run" } } })).toEqual({
-      writes: [[{ text: WAIVED_RUN_REPORT }]],
-      exits: [[{ code: 0 }]],
-      loads: 1,
-    });
-  });
-
-  it("loads no runner and says so when disciplines.json sets waived clauses not run", async () => {
-    expect(
-      await waivedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { waivedClauses: "not-run" } } }),
-    ).toEqual({ writes: [[{ text: WAIVED_NOT_RUN_REPORT }]], exits: [[{ code: 0 }]], loads: 0 });
-  });
-
-  it("loads no runner when --waived-clauses not-run is given", async () => {
-    expect(await waivedRunWith({ arguments: ["--repo", "/repo", "--waived-clauses", "not-run"], settings: {} })).toEqual({
-      writes: [[{ text: WAIVED_NOT_RUN_REPORT }]],
-      exits: [[{ code: 0 }]],
-      loads: 0,
-    });
-  });
-
-  it("runs waived clauses when --waived-clauses run overrides not-run in disciplines.json", async () => {
-    expect(
-      await waivedRunWith({
-        arguments: ["--repo", "/repo", "--waived-clauses", "run"],
-        settings: { assessment: { waivedClauses: "not-run" } },
-      }),
-    ).toEqual({ writes: [[{ text: WAIVED_RUN_REPORT }]], exits: [[{ code: 0 }]], loads: 1 });
-  });
-
-  it.each(["counts", "failures-only", "verdict-only"])("marks the verdict as partial for the %s output", async (output) => {
-    const run = await waivedRunWith({
-      arguments: ["--repo", "/repo", "--waived-clauses", "not-run", "--report-output", output],
-      settings: {},
-    });
-
-    expect(run.writes).toEqual([[{ text: expect.stringMatching(/(?:^|\n)verdict: pass \(partial assessment\)\n$/) }]]);
   });
 });

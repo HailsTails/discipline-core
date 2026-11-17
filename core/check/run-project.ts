@@ -22,7 +22,7 @@ const projectionRequestOf = (request: {
 }): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
-  clauses: request.loaded.projectedClauses,
+  clauses: request.loaded.clauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
 
@@ -38,11 +38,7 @@ const projectionWritesOf = (request: {
 export const runProject = async (
   request: ProjectRequest,
 ): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
-  const inputs = await loadInputs({
-    ...request,
-    exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE,
-    waivedClauses: "run",
-  });
+  const inputs = await loadInputs({ ...request, exceptionBaselineOf: () => UNMEASURED_EXCEPTION_BASELINE });
   if (inputs.outcome === "failed") {
     return inputs;
   }
