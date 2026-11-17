@@ -12,7 +12,7 @@ type ReleaseStateRequest = { readonly commit: string; readonly manifest: string;
 
 type VersionChange = { readonly version: string; readonly previousVersion: string };
 
-type RemoteTag = { readonly commit: string; readonly name: string };
+export type RemoteTag = { readonly commit: string; readonly name: string };
 
 const COMMAND = "release-state";
 
@@ -22,7 +22,7 @@ const releaseStateArgumentsSchema = z.tuple([z.string().min(1), z.string(), z.st
 
 const REMOTE_TAG_LINE = /^(?<commit>[0-9a-f]+)\trefs\/tags\/(?<name>.+)$/;
 
-const remoteTagsOf = (request: { readonly remoteTags: string }): Result<readonly RemoteTag[], string> =>
+export const remoteTagsOf = (request: { readonly remoteTags: string }): Result<readonly RemoteTag[], string> =>
   request.remoteTags
     .split("\n")
     .filter((line) => line !== "")

@@ -101,6 +101,10 @@ jobs:
           title="$(node scripts/release-text-command.ts title "$RELEASE_TAG")"
           notes="$(node scripts/release-text-command.ts notes "$RELEASE_TAG")"
           gh release create "$RELEASE_TAG" "artefacts/$TARBALL_NAME" --target "$GITHUB_SHA" --title "$title" --notes "$notes" "${prerelease[@]}"
+      - name: Refuse a release whose tag names another commit
+        run: |
+          remote_tags="$(git ls-remote --tags --refs origin "refs/tags/$RELEASE_TAG")"
+          node scripts/release-tag-command.ts "$RELEASE_TAG" "$GITHUB_SHA" "$remote_tags"
 
   publish-npm:
     name: Stage the released tarball on npm
