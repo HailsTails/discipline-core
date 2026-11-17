@@ -1,5 +1,6 @@
 import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
+import type { InlineReach } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { ReportOutput } from "../values/report-output.ts";
@@ -38,6 +39,17 @@ const recordFile = (request: { readonly record: ExceptionRecord }): string => {
 const recordLine = (request: { readonly record: ExceptionRecord }): string =>
   `${clauseAddressText({ address: request.record.clause })} ${request.record.mechanism} ${request.record.kind} ${recordFile(request)}`;
 
+const INLINE_REACH_NOTE: Readonly<Record<InlineReach, string>> = {
+  "one-clause": "",
+  "every-selected-clause": " names no rule and escapes every selected clause: naming the rule is the cheap fix",
+};
+
+const SCRIPT_OPTION_NOTE = " weakens the script's whole run, so no record can cover it: remove it from the script";
+
+const inlineDetail = (request: {
+  readonly exception: { readonly file: string; readonly line: number; readonly text: string };
+}): string => `${request.exception.file}:${request.exception.line} ${escapedLineBreaks({ text: request.exception.text })}`;
+
 const unrecordedDetail = (request: { readonly exception: AttributedNativeException }): string => {
   switch (request.exception.kind) {
     case "ignore":
@@ -46,10 +58,11 @@ const unrecordedDetail = (request: { readonly exception: AttributedNativeExcepti
     case "suppression-entry":
       return `${request.exception.file} ${request.exception.location}`;
     case "inline-disable":
+      return `${inlineDetail({ exception: request.exception })}${INLINE_REACH_NOTE[request.exception.reach]}`;
     case "inline-rule-config":
-      return `${request.exception.file}:${request.exception.line} ${escapedLineBreaks({ text: request.exception.text })}`;
+      return inlineDetail({ exception: request.exception });
     case "command-line-option":
-      return `${request.exception.location} ${escapedLineBreaks({ text: request.exception.script })} ${escapedLineBreaks({ text: request.exception.option })}`;
+      return `${request.exception.location} ${escapedLineBreaks({ text: request.exception.script })} ${escapedLineBreaks({ text: request.exception.option })}${SCRIPT_OPTION_NOTE}`;
   }
 };
 

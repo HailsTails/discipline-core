@@ -18,9 +18,21 @@ export type EslintInvocation = {
   readonly options: readonly string[];
 };
 
+export type OptionEffect =
+  | { readonly kind: "weakens" }
+  | { readonly kind: "names-config"; readonly config: string }
+  | { readonly kind: "ignores-pattern"; readonly pattern: string };
+
 export type WeakeningOption = {
   readonly option: string;
   readonly ruleIds: readonly string[];
+  readonly effect: OptionEffect;
+};
+
+export type ScriptOption = {
+  readonly location: RepoPath;
+  readonly effect: OptionEffect;
+  readonly exceptions: readonly NativeException[];
 };
 
 export type ScriptSuppressionsLocation = {
@@ -29,7 +41,7 @@ export type ScriptSuppressionsLocation = {
 };
 
 export type PackageJsonScan = {
-  readonly nativeExceptions: readonly NativeException[];
+  readonly scriptOptions: readonly ScriptOption[];
   readonly suppressionsLocations: readonly ScriptSuppressionsLocation[];
 };
 
@@ -57,10 +69,13 @@ type OptionArity = "takes-value" | "flag";
 
 type OptionReach = "named-rules" | "every-clause";
 
+type OptionJudgement = "weakens" | "by-config" | "by-ignore-pattern";
+
 type WeakeningSpec = {
   readonly name: string;
   readonly arity: OptionArity;
   readonly reach: OptionReach;
+  readonly judgement: OptionJudgement;
 };
 
 type OptionOccurrence = {
@@ -92,17 +107,28 @@ const RULE_VALUE_SEPARATORS = /[,:]/;
 const SURROUNDING_QUOTES = /^(["'])(?<inner>.*)\1$/;
 
 const WEAKENING_OPTIONS: readonly WeakeningSpec[] = [
-  { name: "--rule", arity: "takes-value", reach: "named-rules" },
-  { name: "--suppress-rule", arity: "takes-value", reach: "named-rules" },
-  { name: "--suppress-all", arity: "flag", reach: "every-clause" },
-  { name: "--ignore-pattern", arity: "takes-value", reach: "every-clause" },
-  { name: "-c", arity: "takes-value", reach: "every-clause" },
-  { name: "--config", arity: "takes-value", reach: "every-clause" },
-  { name: "--no-config-lookup", arity: "flag", reach: "every-clause" },
-  { name: "--parser", arity: "takes-value", reach: "every-clause" },
-  { name: "--parser-options", arity: "takes-value", reach: "every-clause" },
-  { name: "--plugin", arity: "takes-value", reach: "every-clause" },
+  { name: "--rule", arity: "takes-value", reach: "named-rules", judgement: "weakens" },
+  { name: "--suppress-rule", arity: "takes-value", reach: "named-rules", judgement: "weakens" },
+  { name: "--suppress-all", arity: "flag", reach: "every-clause", judgement: "weakens" },
+  { name: "--ignore-pattern", arity: "takes-value", reach: "every-clause", judgement: "by-ignore-pattern" },
+  { name: "-c", arity: "takes-value", reach: "every-clause", judgement: "by-config" },
+  { name: "--config", arity: "takes-value", reach: "every-clause", judgement: "by-config" },
+  { name: "--no-config-lookup", arity: "flag", reach: "every-clause", judgement: "weakens" },
+  { name: "--parser", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
+  { name: "--parser-options", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
+  { name: "--plugin", arity: "takes-value", reach: "every-clause", judgement: "weakens" },
 ];
+
+const effectOf = (request: { readonly judgement: OptionJudgement; readonly optionValue: string }): OptionEffect => {
+  switch (request.judgement) {
+    case "weakens":
+      return { kind: "weakens" };
+    case "by-config":
+      return { kind: "names-config", config: request.optionValue };
+    case "by-ignore-pattern":
+      return { kind: "ignores-pattern", pattern: request.optionValue };
+  }
+};
 
 const scriptPieceOf = (request: { readonly match: RegExpMatchArray }): ScriptPiece => {
   const groups = request.match.groups ?? {};
@@ -287,6 +313,7 @@ const specWeakenings = (request: {
       optionValue: occurrence.optionValue,
       selectedRuleIds: request.selectedRuleIds,
     }),
+    effect: effectOf({ judgement: request.spec.judgement, optionValue: occurrence.optionValue }),
   }));
 
 const tokenWeakenings = (request: {
@@ -369,13 +396,15 @@ export const repoPathResolved = (request: {
   return { outcome: "ok", value: parsed.data };
 };
 
-const weakeningExceptions = (request: {
+const scriptOptionOf = (request: {
   readonly weakening: WeakeningOption;
   readonly path: RepoPath;
   readonly script: string;
   readonly selectedRules: readonly SelectedRule[];
-}): readonly NativeException[] =>
-  request.selectedRules
+}): ScriptOption => ({
+  location: request.path,
+  effect: request.weakening.effect,
+  exceptions: request.selectedRules
     .filter((rule) => request.weakening.ruleIds.includes(rule.ruleId))
     .map(
       (rule): NativeException => ({
@@ -385,18 +414,19 @@ const weakeningExceptions = (request: {
         script: request.script,
         option: request.weakening.option,
       }),
-    );
+    ),
+});
 
-const commandLineExceptions = (request: {
+const scriptOptionsOf = (request: {
   readonly invocations: readonly EslintInvocation[];
   readonly path: RepoPath;
   readonly script: string;
   readonly selectedRules: readonly SelectedRule[];
-}): readonly NativeException[] => {
+}): readonly ScriptOption[] => {
   const selectedRuleIds = request.selectedRules.map((rule) => rule.ruleId);
   return request.invocations
     .flatMap((invocation) => commandLineOptionsOf({ invocation, selectedRuleIds }))
-    .flatMap((weakening) => weakeningExceptions({ ...request, weakening }));
+    .map((weakening) => scriptOptionOf({ ...request, weakening }));
 };
 
 const locatedScan = (request: {
@@ -422,7 +452,7 @@ const locatedScan = (request: {
   return {
     outcome: "ok",
     value: {
-      nativeExceptions: request.scan.value.nativeExceptions,
+      scriptOptions: request.scan.value.scriptOptions,
       suppressionsLocations: [
         ...request.scan.value.suppressionsLocations,
         { location: location.value, script: request.script },
@@ -457,7 +487,7 @@ const scriptScan = (request: {
       {
         outcome: "ok",
         value: {
-          nativeExceptions: commandLineExceptions({ ...request, invocations }),
+          scriptOptions: scriptOptionsOf({ ...request, invocations }),
           suppressionsLocations: [],
         },
       },
@@ -486,7 +516,7 @@ const mergedScriptScan = (request: {
   return {
     outcome: "ok",
     value: {
-      nativeExceptions: [...request.scan.value.nativeExceptions, ...scanned.value.nativeExceptions],
+      scriptOptions: [...request.scan.value.scriptOptions, ...scanned.value.scriptOptions],
       suppressionsLocations: [
         ...request.scan.value.suppressionsLocations,
         ...scanned.value.suppressionsLocations,
@@ -514,6 +544,6 @@ export const scanPackageJson = (request: {
   return Object.entries(packageJson.data.scripts ?? {}).reduce<Result<PackageJsonScan, RunnerFailure>>(
     (scan, [script, scriptText]) =>
       mergedScriptScan({ scan, script, scriptText, path: request.path, selectedRules: request.selectedRules }),
-    { outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } },
+    { outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } },
   );
 };

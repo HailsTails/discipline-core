@@ -166,7 +166,7 @@ Stop and ask the human if anything outside the old trial uses the copied tools o
 | CD-3 flags | merged into the shared `compilerOptions`, wherever they were | set only in a base file not named `tsconfig.json`; any of the seven in a `tsconfig.json` is a finding |
 | Running with debt | the decay check needed a base ref | every run with a file carve-out needs `--base-revision`, unless it sets forfeiture `elsewhere`; every run with imported or legacy-chain records needs it either way |
 | Debt decay (CD-46) | optional `rin-harness-carve-out-decay.ts` run | built into every check run with `--base-revision` |
-| Stale and unrecorded exceptions | not checked | fail the run, including linter ignores or disables with no record |
+| Stale and unrecorded exceptions | not checked | fail the run, including linter ignores, `eslint-disable` comments and `@ts-expect-error`, `@ts-ignore` and `@ts-nocheck` directives with no record; an inline disable or directive is held by a file record on its clause and file, never by a clause-wide carve-out, and a lint-script option that weakens the run cannot be recorded at all |
 | Path matching | old tools matched records by path suffix | exact repository paths |
 | Linter | Biome, ESLint or oxlint for explicit `any` only | ESLint through the generated projection; Biome and oxlint are not Hone mechanisms |
 | CD-8 exhaustive switch | typed ESLint `switch-exhaustiveness-check` suggested | the audit's `switch-defaults` clause only; type-aware linting is not supported |

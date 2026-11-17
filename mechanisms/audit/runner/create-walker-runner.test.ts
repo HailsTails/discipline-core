@@ -130,14 +130,17 @@ describe("createWalkerRunner run", () => {
 
     expect(await runner.run(RUN)).toEqual({
       outcome: "ok",
-      value: [
-        { clause: FIRST, file: ALPHA, anchor: { line: 1, column: 0 }, snippet: "const a = 1;" },
-        { clause: SECOND, file: ALPHA, anchor: { line: 1, column: 0 }, snippet: "const a = 1;" },
-        { clause: FIRST, file: ALPHA, anchor: { line: 2, column: 0 }, snippet: "let b = 2;" },
-        { clause: SECOND, file: ALPHA, anchor: { line: 2, column: 0 }, snippet: "let b = 2;" },
-        { clause: FIRST, file: CONFIG, anchor: { line: 1, column: 0 }, snippet: CONFIG },
-        { clause: SECOND, file: CONFIG, anchor: { line: 1, column: 0 }, snippet: "repository-wide" },
-      ],
+      value: {
+        hits: [
+          { clause: FIRST, file: ALPHA, anchor: { line: 1, column: 0 }, snippet: "const a = 1;" },
+          { clause: SECOND, file: ALPHA, anchor: { line: 1, column: 0 }, snippet: "const a = 1;" },
+          { clause: FIRST, file: ALPHA, anchor: { line: 2, column: 0 }, snippet: "let b = 2;" },
+          { clause: SECOND, file: ALPHA, anchor: { line: 2, column: 0 }, snippet: "let b = 2;" },
+          { clause: FIRST, file: CONFIG, anchor: { line: 1, column: 0 }, snippet: CONFIG },
+          { clause: SECOND, file: CONFIG, anchor: { line: 1, column: 0 }, snippet: "repository-wide" },
+        ],
+        nativeExceptions: [],
+      },
     });
   });
 
@@ -207,6 +210,134 @@ describe("createWalkerRunner run", () => {
     expect(
       await runnerWith({ fileText: fileTextOf({ read: vi.fn() }), modules: modulesOf({ check: throwingPiece }) }).run(RUN),
     ).toEqual({ outcome: "failed", error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "finish broke" } });
+  });
+});
+
+const EXPECTATION = "@ts-expect-" + "error";
+const IGNORE = "@ts-" + "ignore";
+const NOCHECK = "@ts-" + "nocheck";
+const BETA = repoPathSchema.parse("src/beta.ts");
+const SKIPPED = repoPathSchema.parse("src/skipped.ts");
+
+const DIRECTIVE_SOURCE = `// ${NOCHECK}\n// ${EXPECTATION} legacy\nexport const a: number = "x";\n// ${IGNORE} reason (#42)\nexport const b = 1;\n// ordinary\n`;
+
+type PreparedFile = ReturnType<PreparedWalkerCheck["prepareFile"]>;
+
+const SYNTAX_FILE: PreparedFile = { outcome: "ok", value: { kind: "syntax", begin: () => ({ finish: () => [] }) } };
+
+const SKIPPED_FILE: PreparedFile = { outcome: "ok", value: { kind: "skipped" } };
+
+const READ_ALPHA_AND_BETA: ReadonlyMap<string, PreparedFile> = new Map([
+  [ALPHA, SYNTAX_FILE],
+  [BETA, SYNTAX_FILE],
+]);
+
+const syntaxPieceReading = (request: { readonly read: ReadonlyMap<string, PreparedFile> }): WalkerPiece => ({
+  prepare: () => ({
+    outcome: "ok",
+    value: {
+      prepareFile: ({ file }) => request.read.get(file) ?? SKIPPED_FILE,
+      finish: () => ({ outcome: "ok", value: [] }),
+    },
+  }),
+});
+
+const escapingClause = (request: { readonly address: typeof FIRST; readonly escapingDirectives: readonly string[] }): RunnerClause => ({
+  ...clauseFor({ address: request.address, module: "shared.ts" }),
+  settings: { module: "shared.ts", escapingDirectives: request.escapingDirectives },
+});
+
+const directiveRun = (request: { readonly clauses: readonly RunnerClause[] }) =>
+  runnerWith({
+    fileText: fileTextOf({ read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: DIRECTIVE_SOURCE }) }),
+    modules: modulesOf({ check: syntaxPieceReading({ read: READ_ALPHA_AND_BETA }) }),
+  }).run({ ...RUN, files: [ALPHA, BETA, SKIPPED], trackedPaths: [ALPHA, BETA, SKIPPED, CONFIG], clauses: request.clauses });
+
+const inlineDisable = (request: { readonly clause: typeof FIRST; readonly file: typeof ALPHA; readonly line: number; readonly text: string }) => ({
+  kind: "inline-disable",
+  ...request,
+  reach: "one-clause",
+});
+
+describe("createWalkerRunner run, type directives a clause declares as its escapes", () => {
+  it("reports each declared directive, tracked reference or not, as an inline disable of that clause in every file its piece reads", async () => {
+    expect(await directiveRun({ clauses: [escapingClause({ address: FIRST, escapingDirectives: [EXPECTATION, IGNORE, NOCHECK] })] })).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [],
+        nativeExceptions: [
+          inlineDisable({ clause: FIRST, file: ALPHA, line: 1, text: `// ${NOCHECK}` }),
+          inlineDisable({ clause: FIRST, file: ALPHA, line: 2, text: `// ${EXPECTATION} legacy` }),
+          inlineDisable({ clause: FIRST, file: ALPHA, line: 4, text: `// ${IGNORE} reason (#42)` }),
+          inlineDisable({ clause: FIRST, file: BETA, line: 1, text: `// ${NOCHECK}` }),
+          inlineDisable({ clause: FIRST, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
+          inlineDisable({ clause: FIRST, file: BETA, line: 4, text: `// ${IGNORE} reason (#42)` }),
+        ],
+      },
+    });
+  });
+
+  it("reports only the directives each clause declares, and none for a clause that declares none", async () => {
+    expect(
+      await directiveRun({
+        clauses: [escapingClause({ address: FIRST, escapingDirectives: [IGNORE] }), clauseFor({ address: SECOND, module: "shared.ts" })],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [],
+        nativeExceptions: [
+          inlineDisable({ clause: FIRST, file: ALPHA, line: 4, text: `// ${IGNORE} reason (#42)` }),
+          inlineDisable({ clause: FIRST, file: BETA, line: 4, text: `// ${IGNORE} reason (#42)` }),
+        ],
+      },
+    });
+  });
+
+});
+
+describe("createWalkerRunner run, type directives several clauses or conform meet", () => {
+  it("reports one inline disable per declaring clause, in clause order, for a directive two clauses declare", async () => {
+    expect(
+      await directiveRun({
+        clauses: [
+          escapingClause({ address: FIRST, escapingDirectives: [EXPECTATION] }),
+          escapingClause({ address: SECOND, escapingDirectives: [EXPECTATION] }),
+        ],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [],
+        nativeExceptions: [
+          inlineDisable({ clause: FIRST, file: ALPHA, line: 2, text: `// ${EXPECTATION} legacy` }),
+          inlineDisable({ clause: SECOND, file: ALPHA, line: 2, text: `// ${EXPECTATION} legacy` }),
+          inlineDisable({ clause: FIRST, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
+          inlineDisable({ clause: SECOND, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
+        ],
+      },
+    });
+  });
+
+  it("gives conform's verdict no line for a directive", async () => {
+    const runner = runnerWith({
+      fileText: fileTextOf({ read: vi.fn() }),
+      modules: modulesOf({ check: syntaxPieceReading({ read: READ_ALPHA_AND_BETA }) }),
+    });
+
+    expect(
+      await runner.conform({
+        clause: escapingClause({ address: FIRST, escapingDirectives: [IGNORE] }),
+        cases: [{ name: "a directive", fileName: ALPHA, source: DIRECTIVE_SOURCE, expectedLines: [] }],
+      }),
+    ).toEqual({ outcome: "ok", value: [{ caseName: "a directive", flaggedLines: [] }] });
+  });
+
+  it("is piece-invalid when a clause declares an escape the compiler does not honour", async () => {
+    expect(await directiveRun({ clauses: [escapingClause({ address: FIRST, escapingDirectives: ["@ts-check"] })] })).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: expect.any(String) },
+    });
   });
 });
 

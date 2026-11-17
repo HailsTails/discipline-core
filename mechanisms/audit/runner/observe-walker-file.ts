@@ -4,12 +4,14 @@ import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.
 import {
   type Hit,
   hitSchema,
+  type InlineDisable,
   runnerResultSchema,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { type ClauseAddress, sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { PreparedWalkerPiece } from "./prepare-walker-pieces.ts";
+import { type DirectiveEscape, directiveEscapesIn, escapesOf } from "./type-directives.ts";
 import type {
   CommentRange,
   SyntaxNode,
@@ -20,6 +22,7 @@ import type { PieceHit, WalkerFile } from "./walker-piece.ts";
 
 export type WalkerFileObservations = {
   readonly hits: readonly Hit[];
+  readonly nativeExceptions: readonly InlineDisable[];
   readonly applicable: readonly ClauseAddress[];
 };
 
@@ -27,6 +30,7 @@ export type ObserveWalkerFileRequest = {
   readonly file: WalkerFile;
   readonly pieces: readonly PreparedWalkerPiece[];
   readonly parse: TypeScriptParsePort;
+  readonly escapes: readonly DirectiveEscape[];
 };
 
 export type ObserveWalkerFileResult = Result<WalkerFileObservations, RunnerFailure>;
@@ -188,8 +192,9 @@ const observeSource = (request: {
   readonly file: WalkerFile;
   readonly parse: TypeScriptParsePort;
   readonly sources: readonly SyntaxFilePiece[];
-}): Outcome<void> => {
+}): Outcome<readonly CommentRange[]> => {
   const seenComments = new Set<number>();
+  const comments: CommentRange[] = [];
   const emptyMembership = new Set<SyntaxNode>();
   let failure: RunnerFailure | undefined;
   const invoke = (call: { readonly source: SyntaxFilePiece; readonly notify: () => unknown }): void => {
@@ -203,6 +208,7 @@ const observeSource = (request: {
   const comment = (range: CommentRange): void => {
     if (seenComments.has(range.pos)) return;
     seenComments.add(range.pos);
+    comments.push(range);
     request.sources.forEach((source) => {
       invoke({ source, notify: () => source.observers.comment?.({ range }) });
     });
@@ -247,7 +253,7 @@ const observeSource = (request: {
     };
   }
   if (failure !== undefined) return { outcome: "failed", error: failure };
-  return { outcome: "ok", value: undefined };
+  return { outcome: "ok", value: comments };
 };
 
 const attributedHits = (request: {
@@ -281,6 +287,7 @@ const finishFile = (request: { readonly active: ActiveFilePiece }): Outcome<read
 const completedFile = (request: {
   readonly file: WalkerFile;
   readonly active: readonly ActiveFilePiece[];
+  readonly nativeExceptions: readonly InlineDisable[];
 }): ObserveWalkerFileResult => {
   const finished = collect({ outcomes: request.active.map((active) => finishFile({ active })) });
   if (finished.outcome === "failed") return finished;
@@ -288,10 +295,16 @@ const completedFile = (request: {
     outcome: "ok",
     value: {
       hits: finished.value.flatMap((hits) => hits.map((hit) => ({ ...hit, file: request.file.file }))),
+      nativeExceptions: request.nativeExceptions,
       applicable: request.active.flatMap((active) => active.piece.clauses.map((clause) => clause.address)),
     },
   };
 };
+
+const syntaxClausesOf = (request: { readonly active: readonly ActiveFilePiece[] }): readonly ClauseAddress[] =>
+  request.active.flatMap((active) =>
+    active.completion.kind === "syntax" ? active.piece.clauses.map((clause) => clause.address) : [],
+  );
 
 export const observeWalkerFile = (request: ObserveWalkerFileRequest): ObserveWalkerFileResult => {
   const cache = cachedFile(request);
@@ -309,6 +322,7 @@ export const observeWalkerFile = (request: ObserveWalkerFileRequest): ObserveWal
           ? [{ piece: selected.piece, completion: selected.check }]
           : [],
       ),
+      nativeExceptions: [],
     });
   }
   const parsed = parsedSource({ file, parse: request.parse });
@@ -326,5 +340,16 @@ export const observeWalkerFile = (request: ObserveWalkerFileRequest): ObserveWal
     ),
   });
   if (observed.outcome === "failed") return observed;
-  return completedFile({ file, active: active.value });
+  return completedFile({
+    file,
+    active: active.value,
+    nativeExceptions: directiveEscapesIn({
+      sourceFile: parsed.value,
+      syntaxApi: request.parse.syntaxApi,
+      file: file.file,
+      comments: observed.value,
+      escapes: escapesOf({ escapes: request.escapes, clauses: syntaxClausesOf({ active: active.value }) }),
+      anchorAt: ({ position }) => anchorAt({ tree: parsed.value, position }),
+    }),
+  });
 };

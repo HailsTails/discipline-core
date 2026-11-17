@@ -47,6 +47,15 @@ const HIT_IN_A = {
   snippet: "class A {}",
 };
 
+const EXPECTATION_IN_A = {
+  kind: "inline-disable",
+  clause: CLASS_SYNTAX_OBJECT,
+  file: "src/a.ts",
+  line: 2,
+  text: "// @ts-expect-error legacy",
+  reach: "one-clause",
+};
+
 const standaloneRunner = (request: { readonly run: LoadedRunner["run"] }): LoadedRunner => ({
   exceptionPath: "standalone",
   run: request.run,
@@ -60,16 +69,16 @@ const dispatchRun = (request: { readonly runner: LoadedRunner }) =>
   runMechanism({ runner: request.runner, mechanism: WALKER, run: RUN_REQUEST, declaredConfigRoots: [], records: [CARVE_OUT] });
 
 describe("runMechanism with a standalone runner", () => {
-  it("returns the runner's hits with the standalone empty native values and no projection", async () => {
+  it("returns the runner's hits with no native exceptions, inline disables coverable and no projection", async () => {
     await expect(
-      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [HIT_IN_A] }) }) }),
+      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
       value: {
         mechanism: "audit",
         hits: [HIT_IN_A],
         nativeExceptions: [],
-        projectedKinds: [],
+        coverableKinds: ["inline-disable"],
         projection: "none",
         slices: [],
       },
@@ -78,15 +87,15 @@ describe("runMechanism with a standalone runner", () => {
 
   it("returns no hits when the runner flags nothing", async () => {
     await expect(
-      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) }) }),
+      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [], projectedKinds: [], projection: "none", slices: [] },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [] },
     });
   });
 
   it("calls run once with the run request it was given", async () => {
-    const run = runResolving({ outcome: "ok", value: [] });
+    const run = runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } });
     await dispatchRun({ runner: standaloneRunner({ run }) });
     expect(run).toHaveBeenCalledExactlyOnceWith(RUN_REQUEST);
   });
@@ -117,6 +126,41 @@ describe("runMechanism with a standalone runner", () => {
     });
   });
 
+  it("returns the runner's inline disables, which a standalone run can always have covered", async () => {
+    await expect(
+      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [EXPECTATION_IN_A] } }) }) }),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { mechanism: "audit", hits: [], nativeExceptions: [EXPECTATION_IN_A], coverableKinds: ["inline-disable"], projection: "none", slices: [] },
+    });
+  });
+
+  it("is runner-invalid-output when run returns the bare hit list a standalone run used to return", async () => {
+    await expect(
+      dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [HIT_IN_A] }) }) }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output" } });
+  });
+
+  it("is runner-invalid-output when an inline disable names a clause the request did not hold", async () => {
+    await expect(
+      dispatchRun({
+        runner: standaloneRunner({
+          run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [{ ...EXPECTATION_IN_A, clause: ABSTRACT_SYNTAX_OBJECT }] } }),
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a native exception names CD-14#abstract-syntax in src/a.ts, which the request did not hold") } });
+  });
+
+  it("is runner-invalid-output when an inline disable names a file that is not tracked", async () => {
+    await expect(
+      dispatchRun({
+        runner: standaloneRunner({
+          run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [{ ...EXPECTATION_IN_A, file: "src/untracked.ts" }] } }),
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a native exception names CD-14#class-syntax in src/untracked.ts, which the request did not hold") } });
+  });
+
   it("is runner-invalid-output when run returns a value that is not a result", async () => {
     await expect(
       dispatchRun({ runner: standaloneRunner({ run: runResolving([HIT_IN_A]) }) }),
@@ -126,9 +170,9 @@ describe("runMechanism with a standalone runner", () => {
   it("is runner-invalid-output when a hit's file is not a repo path", async () => {
     await expect(
       dispatchRun({
-        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [{ ...HIT_IN_A, file: "/repo/src/a.ts" }] }) }),
+        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "/repo/src/a.ts" }], nativeExceptions: [] } }) }),
       }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("→ at value[0].file") } });
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("→ at value.hits[0].file") } });
   });
 
   it("is runner-invalid-output when the runner returns a failure of an unknown kind", async () => {
@@ -143,7 +187,7 @@ describe("runMechanism with a standalone runner", () => {
     await expect(
       dispatchRun({
         runner: standaloneRunner({
-          run: runResolving({ outcome: "ok", value: [{ ...HIT_IN_A, clause: ABSTRACT_SYNTAX_OBJECT }] }),
+          run: runResolving({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, clause: ABSTRACT_SYNTAX_OBJECT }], nativeExceptions: [] } }),
         }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a hit names CD-14#abstract-syntax in src/a.ts, which the request did not hold") } });
@@ -152,7 +196,7 @@ describe("runMechanism with a standalone runner", () => {
   it("accepts a hit in a tracked file that is not in files, since a standalone runner walks every tracked path", async () => {
     await expect(
       dispatchRun({
-        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [{ ...HIT_IN_A, file: "README.md" }] }) }),
+        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "README.md" }], nativeExceptions: [] } }) }),
       }),
     ).resolves.toMatchObject({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "README.md" }] } });
   });
@@ -160,7 +204,7 @@ describe("runMechanism with a standalone runner", () => {
   it("is runner-invalid-output when a hit names a file that is not tracked", async () => {
     await expect(
       dispatchRun({
-        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [{ ...HIT_IN_A, file: "src/untracked.ts" }] }) }),
+        runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/untracked.ts" }], nativeExceptions: [] } }) }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a hit names CD-14#class-syntax in src/untracked.ts, which the request did not hold") } });
   });
@@ -168,7 +212,7 @@ describe("runMechanism with a standalone runner", () => {
 
 describe("projectMechanism with a standalone runner", () => {
   it("returns no projection writes without calling run or conform", async () => {
-    const runner = standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) });
+    const runner = standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }) });
     const writes = await projectMechanism({
       runner,
       request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
@@ -257,7 +301,7 @@ describe("runMechanism with an embedded runner", () => {
         mechanism: "eslint",
         hits: [HIT_IN_A],
         nativeExceptions: [IGNORED_B],
-        projectedKinds: ["config-override"],
+        coverableKinds: ["config-override"],
         projection: "current",
         slices: [],
       },
@@ -271,7 +315,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "not-included", slices: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "not-included", slices: [] },
     });
   });
 
@@ -282,7 +326,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "missing", slices: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "missing", slices: [] },
     });
   });
 
@@ -297,7 +341,7 @@ describe("runMechanism with an embedded runner", () => {
         mechanism: "eslint",
         hits: [HIT_IN_A],
         nativeExceptions: [],
-        projectedKinds: ["config-override"],
+        coverableKinds: ["config-override"],
         projection: "out-of-date",
         slices: [],
       },
@@ -485,7 +529,7 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         mechanism: "eslint",
         hits: [],
         nativeExceptions: [suppression],
-        projectedKinds: ["config-override"],
+        coverableKinds: ["config-override"],
         projection: "current",
         slices: [],
       },

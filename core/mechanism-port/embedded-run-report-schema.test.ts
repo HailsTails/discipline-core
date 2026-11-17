@@ -25,6 +25,7 @@ const EVERY_NATIVE_KIND = [
     file: "src/a.ts",
     line: 4,
     text: "// eslint-disable-next-line hone/no-class-authoring",
+    reach: "one-clause",
   },
   {
     kind: "inline-rule-config",
@@ -149,7 +150,34 @@ describe("embeddedRunReportSchema", () => {
       embeddedRunReportSchema.safeParse({
         hits: [],
         nativeExceptions: [
-          { kind: "inline-disable", clause: CLASS_SYNTAX, file: "src/a.ts", text: "// eslint-disable" },
+          { kind: "inline-disable", clause: CLASS_SYNTAX, file: "src/a.ts", text: "// eslint-disable", reach: "every-selected-clause" },
+        ],
+        projection: "current",
+      }),
+    ).toMatchObject({
+      success: false,
+      error: { issues: [{ path: expect.arrayContaining(["nativeExceptions", 0]) }] },
+    });
+  });
+
+  it("accepts an inline disable that names no rule and so reaches every selected clause", () => {
+    const report = {
+      hits: [],
+      nativeExceptions: [
+        { kind: "inline-disable", clause: CLASS_SYNTAX, file: "src/a.ts", line: 1, text: "/* eslint-disable */", reach: "every-selected-clause" },
+      ],
+      projection: "current",
+      slices: [],
+    };
+    expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
+  });
+
+  it("refuses an inline disable with no reach, within that exception", () => {
+    expect(
+      embeddedRunReportSchema.safeParse({
+        hits: [],
+        nativeExceptions: [
+          { kind: "inline-disable", clause: CLASS_SYNTAX, file: "src/a.ts", line: 1, text: "// eslint-disable-line" },
         ],
         projection: "current",
       }),

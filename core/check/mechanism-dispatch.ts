@@ -13,13 +13,13 @@ import type {
 } from "../mechanism-port/runner-module-schema.ts";
 import {
   type Hit,
-  hitSchema,
   type NativeException,
   type ProjectionState,
   type ProjectionWrite,
   runnerResultSchema,
 } from "../mechanism-port/runner-result-schema.ts";
 import { projectionWriteSchema } from "../mechanism-port/runner-result-schema.ts";
+import { standaloneRunReportSchema } from "../mechanism-port/standalone-run-report-schema.ts";
 import { clauseAddressText, sameClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -29,10 +29,12 @@ export type MechanismRun = {
   readonly mechanism: MechanismId;
   readonly hits: readonly Hit[];
   readonly nativeExceptions: readonly NativeException[];
-  readonly projectedKinds: readonly NativeException["kind"][];
+  readonly coverableKinds: readonly NativeException["kind"][];
   readonly projection: "none" | ProjectionState;
   readonly slices: readonly SliceProblem[];
 };
+
+const STANDALONE_COVERABLE_KINDS: readonly NativeException["kind"][] = ["inline-disable"];
 
 export type MechanismRequest = {
   readonly runner: LoadedRunner;
@@ -47,13 +49,15 @@ export type MechanismProjectionRequest = {
   readonly request: ProjectionRequest;
 };
 
-const hitsResultSchema = runnerResultSchema({ value: z.array(hitSchema).readonly() });
+const standaloneResultSchema = runnerResultSchema({ value: standaloneRunReportSchema });
 
-const unrequestedHit = (request: {
-  readonly hits: readonly Hit[];
+type FiledClause = Pick<Hit, "clause" | "file">;
+
+const unrequestedHit = <Filed extends FiledClause>(request: {
+  readonly hits: readonly Filed[];
   readonly run: RunRequest;
   readonly checkedFiles: readonly RepoPath[];
-}): Hit | undefined =>
+}): Filed | undefined =>
   request.hits.find(
     (hit) =>
       !request.checkedFiles.includes(hit.file) ||
@@ -67,26 +71,33 @@ const standaloneRun = (request: {
   readonly mechanism: MechanismId;
   readonly run: RunRequest;
 }): Result<MechanismRun, RunnerFailure> => {
-  const parsed = hitsResultSchema.safeParse(request.returned);
+  const parsed = standaloneResultSchema.safeParse(request.returned);
   if (!parsed.success) {
     return runnerInvalidOutput({ detail: z.prettifyError(parsed.error) });
   }
   if (parsed.data.outcome === "failed") {
     return parsed.data;
   }
-  const unrequested = unrequestedHit({ hits: parsed.data.value, run: request.run, checkedFiles: request.run.trackedPaths });
+  const report = parsed.data.value;
+  const unrequested = unrequestedHit({ hits: report.hits, run: request.run, checkedFiles: request.run.trackedPaths });
   if (unrequested !== undefined) {
     return runnerInvalidOutput({
       detail: `a hit names ${clauseAddressText({ address: unrequested.clause })} in ${unrequested.file}, which the request did not hold`,
+    });
+  }
+  const unrequestedInline = unrequestedHit({ hits: report.nativeExceptions, run: request.run, checkedFiles: request.run.trackedPaths });
+  if (unrequestedInline !== undefined) {
+    return runnerInvalidOutput({
+      detail: `a native exception names ${clauseAddressText({ address: unrequestedInline.clause })} in ${unrequestedInline.file}, which the request did not hold`,
     });
   }
   return {
     outcome: "ok",
     value: {
       mechanism: request.mechanism,
-      hits: parsed.data.value,
-      nativeExceptions: [],
-      projectedKinds: [],
+      hits: report.hits,
+      nativeExceptions: report.nativeExceptions,
+      coverableKinds: STANDALONE_COVERABLE_KINDS,
       projection: "none",
       slices: [],
     },
@@ -144,7 +155,7 @@ const embeddedRun = (request: {
       mechanism: request.mechanism,
       hits: report.hits,
       nativeExceptions: report.nativeExceptions,
-      projectedKinds: request.projectedKinds,
+      coverableKinds: request.projectedKinds,
       projection: report.projection,
       slices: report.slices,
     },

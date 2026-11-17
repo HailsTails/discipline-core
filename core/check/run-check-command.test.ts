@@ -157,7 +157,7 @@ const commandRequest = (overrides: Partial<CommandRequest>): CommandRequest => (
   process: processWith({ arguments: ["--repo", "/repo"] }),
   path: TABLE_PATH,
   fileText: fileTextOver(NOTHING_SELECTED),
-  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) }),
+  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
   git: gitTracking([]),
   moduleUrl: ENTRY_URL,
   ...overrides,
@@ -198,7 +198,7 @@ describe("runCheckCommand", () => {
       commandRequest({
         process: processPort,
         fileText: fileTextOver(CLASS_SYNTAX_SELECTED),
-        modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) }),
+        modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
         git: gitTracking([repoPathSchema.parse("src/a.ts")]),
       }),
     );
@@ -210,7 +210,7 @@ describe("runCheckCommand", () => {
   });
 
   it("loads the runner from the install three levels above the entry file", async () => {
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) });
 
     await runCheckCommand(
       commandRequest({ fileText: fileTextOver(CLASS_SYNTAX_SELECTED), modules, git: gitTracking([repoPathSchema.parse("src/a.ts")]) }),
@@ -248,7 +248,7 @@ const checkedWith = async (request: {
     commandRequest({
       process: processPort,
       fileText: fileTextOver(classSyntaxSelectedWith(request.settings)),
-      modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) }),
+      modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
       git: gitTracking([repoPathSchema.parse("src/a.ts")]),
     }),
   );
@@ -361,7 +361,7 @@ const carvedRunWith = async (request: {
         ...classSyntaxSelectedWith(request.settings),
         "/repo/discipline-exceptions.json": presentFile({ text: FILE_CARVE_OUT_ON_A }),
       }),
-      modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) }),
+      modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
       git,
     }),
   );

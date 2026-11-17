@@ -1,6 +1,6 @@
 # ESLint runner
 
-The ESLint runner is Hone's embedded mechanism: each selected clause runs as an ESLint rule inside the team's own ESLint setup. Its `exceptionPath` is `embedded`. Core hands it the selected clauses, the files to check, the repository's tracked paths and the exception records for this mechanism. The runner lints the files with its own configuration to find hits, reports every native channel in the team's setup that weakens a selected rule, and writes and checks the projection `disciplines.eslint.mjs`, one slice per config root, that carries the records into the team's own run. Its `projectedKinds` is `["config-override"]`, so a record can cover only that kind.
+The ESLint runner is Hone's embedded mechanism: each selected clause runs as an ESLint rule inside the team's own ESLint setup. Its `exceptionPath` is `embedded`. Core hands it the selected clauses, the files to check, the repository's tracked paths and the exception records for this mechanism. The runner lints the files with its own configuration to find hits, reports every native channel in the team's setup that weakens a selected rule, and writes and checks the projection `disciplines.eslint.mjs`, one slice per config root, that carries the records into the team's own run. Its `projectedKinds` is `["config-override", "inline-disable"]`, so a record can cover only those kinds, and an `inline-disable` only by a file record on its clause and file.
 
 The native channels, the exception kind each maps to, and how the projection is adopted and checked are in [the guide](../../../docs/adding-a-discipline-or-mechanism.md#embedded-mechanisms).
 
@@ -28,6 +28,7 @@ The config roots are the repository root, every folder holding a tracked `eslint
 - `sliced-projection.ts` renders each root's slice, reports stale package slices, and plans then writes, removes or leaves slices for `project`.
 - `config-lookup.ts` reads `eslintConfigLookup` from `disciplines.json`, and decides which config the team's ESLint run applies.
 - `package-script-scanner.ts` finds ESLint invocations in tracked `package.json` scripts, and the options and `--suppressions-location` values they carry.
+- `script-option-effect.ts` judges whether a `-c`, `--config` or `--ignore-pattern` option changes what ESLint does to the checked files under its script's folder; one that changes nothing is not reported.
 - `suppressions-scanner.ts` reads suppression entries from `eslint-suppressions.json` files and from files named by `--suppressions-location`.
 - `eslint-piece-settings-schema.ts`, `eslint-plugin-schema.ts`, `eslint-config-schema.ts` and `eslint-file-schemas.ts` hold the schemas for a piece's settings, a loaded plugin module, ESLint's resolved configuration, and `package.json` and suppressions files.
 - `runner.ts` is the runner core loads: the default ports, bound to the toolchain loaded from the install's own resolution.

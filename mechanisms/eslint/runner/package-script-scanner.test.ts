@@ -4,6 +4,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import {
   commandLineOptionsOf,
   eslintInvocationsOf,
+  type OptionEffect,
   type SelectedRule,
   scanPackageJson,
   scriptCommandsOf,
@@ -15,6 +16,10 @@ const noTmpFiles = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
 const noClassAuthoring = "hone/no-class-authoring";
 const rootPackageJson = repoPathSchema.parse("package.json");
 const nestedPackageJson = repoPathSchema.parse("packages/a/package.json");
+
+const WEAKENS: OptionEffect = { kind: "weakens" };
+
+type OptionRow = { readonly options: readonly string[]; readonly option: string; readonly effect: OptionEffect };
 
 const classRule: SelectedRule = { ruleId: noClassAuthoring, clause: classSyntax };
 const tmpRule: SelectedRule = { ruleId: "probe-lint/no-tmp-files", clause: noTmpFiles };
@@ -93,7 +98,7 @@ describe("commandLineOptionsOf", () => {
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([
-      { option: "--rule hone/no-class-authoring: off", ruleIds: [noClassAuthoring] },
+      { option: "--rule hone/no-class-authoring: off", ruleIds: [noClassAuthoring], effect: WEAKENS },
     ]);
   });
 
@@ -104,7 +109,7 @@ describe("commandLineOptionsOf", () => {
         selectedRuleIds: [noClassAuthoring],
       }),
     ).toEqual([
-      { option: "--rule=hone/no-class-authoring: off", ruleIds: [noClassAuthoring] },
+      { option: "--rule=hone/no-class-authoring: off", ruleIds: [noClassAuthoring], effect: WEAKENS },
     ]);
   });
 
@@ -118,6 +123,7 @@ describe("commandLineOptionsOf", () => {
       {
         option: "--rule no-console: off,   hone/no-class-authoring : off",
         ruleIds: [noClassAuthoring],
+        effect: WEAKENS,
       },
     ]);
   });
@@ -128,7 +134,7 @@ describe("commandLineOptionsOf", () => {
         invocation: { options: ["--rule", "probe-lint/no-tmp-files: off"] },
         selectedRuleIds: [noClassAuthoring, "probe-lint/no-tmp-files"],
       }),
-    ).toEqual([{ option: "--rule probe-lint/no-tmp-files: off", ruleIds: ["probe-lint/no-tmp-files"] }]);
+    ).toEqual([{ option: "--rule probe-lint/no-tmp-files: off", ruleIds: ["probe-lint/no-tmp-files"], effect: WEAKENS }]);
   });
 
   it.each([
@@ -151,7 +157,7 @@ describe("commandLineOptionsOf", () => {
   ])("reports %j when it names a selected rule id", (options, option) => {
     expect(
       commandLineOptionsOf({ invocation: { options }, selectedRuleIds: [noClassAuthoring] }),
-    ).toEqual([{ option, ruleIds: [noClassAuthoring] }]);
+    ).toEqual([{ option, ruleIds: [noClassAuthoring], effect: WEAKENS }]);
   });
 
   it("does not report --suppress-rule naming a rule id that only extends a selected one", () => {
@@ -163,38 +169,38 @@ describe("commandLineOptionsOf", () => {
     ).toEqual([]);
   });
 
-  it.each([
-    [["--suppress-all"], "--suppress-all"],
-    [["--ignore-pattern", "dist/**"], "--ignore-pattern dist/**"],
-    [["--ignore-pattern=dist/**"], "--ignore-pattern=dist/**"],
-    [["-c", "alt.config.mjs"], "-c alt.config.mjs"],
-    [["--config", "alt.config.mjs"], "--config alt.config.mjs"],
-    [["--config=alt.config.mjs"], "--config=alt.config.mjs"],
-    [["--no-config-lookup"], "--no-config-lookup"],
-    [["--parser", "espree"], "--parser espree"],
-    [["--parser-options", "ecmaVersion:2020"], "--parser-options ecmaVersion:2020"],
-    [["--plugin", "local"], "--plugin local"],
-  ])("reports %j for every selected rule id", (options, option) => {
+  it.each<OptionRow>([
+    { options: ["--suppress-all"], option: "--suppress-all", effect: WEAKENS },
+    { options: ["--ignore-pattern", "dist/**"], option: "--ignore-pattern dist/**", effect: { kind: "ignores-pattern", pattern: "dist/**" } },
+    { options: ["--ignore-pattern=dist/**"], option: "--ignore-pattern=dist/**", effect: { kind: "ignores-pattern", pattern: "dist/**" } },
+    { options: ["-c", "alt.config.mjs"], option: "-c alt.config.mjs", effect: { kind: "names-config", config: "alt.config.mjs" } },
+    { options: ["--config", "alt.config.mjs"], option: "--config alt.config.mjs", effect: { kind: "names-config", config: "alt.config.mjs" } },
+    { options: ["--config=alt.config.mjs"], option: "--config=alt.config.mjs", effect: { kind: "names-config", config: "alt.config.mjs" } },
+    { options: ["--no-config-lookup"], option: "--no-config-lookup", effect: WEAKENS },
+    { options: ["--parser", "espree"], option: "--parser espree", effect: WEAKENS },
+    { options: ["--parser-options", "ecmaVersion:2020"], option: "--parser-options ecmaVersion:2020", effect: WEAKENS },
+    { options: ["--plugin", "local"], option: "--plugin local", effect: WEAKENS },
+  ])("reports $option for every selected rule id, with the effect it is judged by", ({ options, option, effect }) => {
     expect(
       commandLineOptionsOf({
         invocation: { options: ["src", ...options] },
         selectedRuleIds: [noClassAuthoring, "probe-lint/no-tmp-files"],
       }),
-    ).toEqual([{ option, ruleIds: [noClassAuthoring, "probe-lint/no-tmp-files"] }]);
+    ).toEqual([{ option, ruleIds: [noClassAuthoring, "probe-lint/no-tmp-files"], effect }]);
   });
 
-  it.each([
-    [["-c=alt.config.mjs"], "-c=alt.config.mjs"],
-    [["--parser=espree"], "--parser=espree"],
-    [["--parser-options=ecmaVersion:2020"], "--parser-options=ecmaVersion:2020"],
-    [["--plugin=local"], "--plugin=local"],
-  ])("reports the = form %j for every selected rule id", (options, option) => {
+  it.each<OptionRow>([
+    { options: ["-c=alt.config.mjs"], option: "-c=alt.config.mjs", effect: { kind: "names-config", config: "alt.config.mjs" } },
+    { options: ["--parser=espree"], option: "--parser=espree", effect: WEAKENS },
+    { options: ["--parser-options=ecmaVersion:2020"], option: "--parser-options=ecmaVersion:2020", effect: WEAKENS },
+    { options: ["--plugin=local"], option: "--plugin=local", effect: WEAKENS },
+  ])("reports the = form $option for every selected rule id, with the effect it is judged by", ({ options, option, effect }) => {
     expect(
       commandLineOptionsOf({
         invocation: { options },
         selectedRuleIds: [noClassAuthoring, "probe-lint/no-tmp-files"],
       }),
-    ).toEqual([{ option, ruleIds: [noClassAuthoring, "probe-lint/no-tmp-files"] }]);
+    ).toEqual([{ option, ruleIds: [noClassAuthoring, "probe-lint/no-tmp-files"], effect }]);
   });
 });
 
@@ -234,7 +240,7 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ name: "app" }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
   });
 
   it("reports a script with an unterminated quote as tool-failed naming the script", () => {
@@ -260,13 +266,19 @@ describe("scanPackageJson", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        nativeExceptions: [
+        scriptOptions: [
           {
-            kind: "command-line-option",
-            clause: classSyntax,
             location: "package.json",
-            script: "lint",
-            option: "--rule hone/no-class-authoring: off",
+            effect: WEAKENS,
+            exceptions: [
+              {
+                kind: "command-line-option",
+                clause: classSyntax,
+                location: "package.json",
+                script: "lint",
+                option: "--rule hone/no-class-authoring: off",
+              },
+            ],
           },
         ],
         suppressionsLocations: [],
@@ -281,7 +293,7 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring-x: off' src" } }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
   });
 
   it("reports an every-clause option once per selected clause", () => {
@@ -294,20 +306,26 @@ describe("scanPackageJson", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        nativeExceptions: [
+        scriptOptions: [
           {
-            kind: "command-line-option",
-            clause: classSyntax,
             location: "package.json",
-            script: "lint",
-            option: "-c alt.config.mjs",
-          },
-          {
-            kind: "command-line-option",
-            clause: noTmpFiles,
-            location: "package.json",
-            script: "lint",
-            option: "-c alt.config.mjs",
+            effect: { kind: "names-config", config: "alt.config.mjs" },
+            exceptions: [
+              {
+                kind: "command-line-option",
+                clause: classSyntax,
+                location: "package.json",
+                script: "lint",
+                option: "-c alt.config.mjs",
+              },
+              {
+                kind: "command-line-option",
+                clause: noTmpFiles,
+                location: "package.json",
+                script: "lint",
+                option: "-c alt.config.mjs",
+              },
+            ],
           },
         ],
         suppressionsLocations: [],
@@ -322,7 +340,7 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ scripts: { format: "prettier --config .prettierrc --ignore-pattern dist ." } }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { nativeExceptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
   });
 
   it("reads --suppressions-location in space and = forms from a root package.json", () => {
@@ -340,7 +358,7 @@ describe("scanPackageJson", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        nativeExceptions: [],
+        scriptOptions: [],
         suppressionsLocations: [
           { location: "lint-suppressions.json", script: "lint" },
           { location: "ci/suppressions.json", script: "lint:ci" },
@@ -359,7 +377,7 @@ describe("scanPackageJson", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        nativeExceptions: [],
+        scriptOptions: [],
         suppressionsLocations: [{ location: "packages/x/suppressions.json", script: "lint" }],
       },
     });

@@ -45,6 +45,13 @@ A load failure prints one line, `load failure: <kind> <fields>`.
 
 The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems, any part of the assessment left to another run and, last, where to read first for each clause with findings, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, exempted findings, assessment and where to read first is empty.
 
+An `unrecorded` line is `<clause> <mechanism> <kind> <detail>`. Two kinds end with a note:
+
+| Kind | Line |
+| --- | --- |
+| `inline-disable` naming no rule | `<clause> eslint inline-disable <file>:<line> <comment> names no rule and escapes every selected clause: naming the rule is the cheap fix` |
+| `command-line-option` | `<clause> eslint command-line-option <package.json> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script` |
+
 `readFirst` comes last, just before the verdict, so a reader who looks only at the end of a failing report lands on it. It has one line per clause with findings, not one per finding, in the order the findings first name the clauses. Each line points at the Spirit section of the clause's rule page, `rules/<ID>/README.md` in the clause's rule set, and, where the repository has written one, at the clause's own section in `disciplines.assessment.md` at the repository root first. That file is where a repository records its own causes, forward goal and steps for a clause; [ADOPTING step 5a](ADOPTING.md#5a-write-the-assessment) says how to write it. Paths are printed with forward slashes, relative to the `--repo` folder; a page on another drive is printed as its absolute path.
 
 When `disciplines.assessment.md` is not written yet, or cannot be read, one line comes first, and each clause line then names its rule page only:
@@ -177,7 +184,8 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 
 - An `authorised-location` says the clause does not apply to that file.
 - A `file-carve-out` is debt in one file. It is forfeited once the file is touched.
-- A `clause-wide-carve-out` exempts the clause everywhere.
+- A `clause-wide-carve-out` exempts the clause's findings everywhere. It does not hold an inline exception.
+- An inline exception, an `eslint-disable` comment naming a selected rule or no rule, or a `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` directive under `CD-2#cast-expressions`, is held only by an `authorised-location` or `file-carve-out` on its clause and file. A comment naming no rule escapes every selected ESLint clause and needs one per clause. Without a record it is listed under `unrecorded` and fails the run. A lint-script option that weakens the whole run, such as `--rule`, `--suppress-all` or `-c` naming another config, cannot be recorded.
 - Every entry needs a `whyChain` (an `authorised-location` or `file-carve-out` may leave it out when `fileExceptionWhyChains` is `"optional"`; see below) that follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootCheck`, `readback` and `owner`. The contract lists what Hone refuses and what review still judges:
 
   ```json

@@ -2,9 +2,20 @@ import { z } from "zod";
 import { clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Equal } from "../values/type-equality.ts";
-import { hitSchema, type ProjectionState } from "./runner-result-schema.ts";
+import { hitSchema, type InlineReach, type ProjectionState } from "./runner-result-schema.ts";
 
 const inlineLineSchema = z.number().int().min(1);
+
+export const inlineDisableSchema = z
+  .object({
+    kind: z.literal("inline-disable"),
+    clause: clauseAddressObjectSchema,
+    file: repoPathSchema,
+    line: inlineLineSchema,
+    text: z.string(),
+    reach: z.enum(["one-clause", "every-selected-clause"]),
+  })
+  .readonly();
 
 export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
@@ -25,15 +36,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
       location: repoPathSchema,
     })
     .readonly(),
-  z
-    .object({
-      kind: z.literal("inline-disable"),
-      clause: clauseAddressObjectSchema,
-      file: repoPathSchema,
-      line: inlineLineSchema,
-      text: z.string(),
-    })
-    .readonly(),
+  inlineDisableSchema,
   z
     .object({
       kind: z.literal("inline-rule-config"),
@@ -73,6 +76,8 @@ export const embeddedRunReportSchema = z
   .readonly();
 
 export type EmbeddedRunReport = z.infer<typeof embeddedRunReportSchema>;
+
+export const isInlineReachEqual: Equal<z.infer<typeof inlineDisableSchema>["reach"], InlineReach> = true;
 
 export const isProjectionStateEqual: Equal<EmbeddedRunReport["projection"], ProjectionState> =
   true;

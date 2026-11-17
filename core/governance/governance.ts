@@ -10,7 +10,7 @@ export type Finding = Hit & { readonly mechanism: MechanismId };
 export type GovernedRun = {
   readonly mechanism: MechanismId;
   readonly nativeExceptions: readonly NativeException[];
-  readonly projectedKinds: readonly NativeException["kind"][];
+  readonly coverableKinds: readonly NativeException["kind"][];
 };
 
 export type AttributedNativeException = NativeException & {
@@ -67,11 +67,12 @@ const nativeCoverageKeys = (request: {
 }): readonly string[] => {
   switch (request.exception.kind) {
     case "command-line-option":
-      return [clauseKey({ clause: request.exception.clause })];
+      return [];
+    case "inline-disable":
+      return [clauseFileKey({ clause: request.exception.clause, file: request.exception.file })];
     case "ignore":
     case "config-override":
     case "suppression-entry":
-    case "inline-disable":
     case "inline-rule-config":
       return [
         clauseKey({ clause: request.exception.clause }),
@@ -122,15 +123,18 @@ const recordKeysOf = (request: {
     ),
   );
 
+const coverageKeysIn = (request: {
+  readonly run: GovernedRun;
+  readonly exception: NativeException;
+}): readonly string[] =>
+  request.run.coverableKinds.includes(request.exception.kind) ? nativeCoverageKeys({ exception: request.exception }) : [];
+
 const recordingOf = (request: {
   readonly run: GovernedRun;
   readonly recordKeys: ReadonlySet<string>;
   readonly exception: NativeException;
 }): "recorded" | "unrecorded" =>
-  request.run.projectedKinds.includes(request.exception.kind) &&
-  nativeCoverageKeys({ exception: request.exception }).some((key) => request.recordKeys.has(key))
-    ? "recorded"
-    : "unrecorded";
+  coverageKeysIn(request).some((key) => request.recordKeys.has(key)) ? "recorded" : "unrecorded";
 
 const unrecordedInRun = (request: {
   readonly run: GovernedRun;
@@ -171,11 +175,26 @@ const judgedFinding = (request: {
   };
 };
 
+const recordsHoldingNative = (request: {
+  readonly runs: readonly GovernedRun[];
+  readonly exempting: readonly ExceptionRecord[];
+}): readonly ExceptionRecord[] =>
+  request.runs.flatMap((run) => {
+    const coverageKeys = new Set(run.nativeExceptions.flatMap((exception) => coverageKeysIn({ run, exception })));
+    return request.exempting.filter(
+      (record) => record.mechanism === run.mechanism && coverageKeys.has(coverageKeyOf({ record })),
+    );
+  });
+
 const governedFindings = (request: {
   readonly judged: readonly ExemptedFinding[];
   readonly exempting: readonly ExceptionRecord[];
+  readonly runs: readonly GovernedRun[];
 }): Pick<GovernanceResult, "findings" | "exempted" | "stale"> => {
-  const credited = new Set(request.judged.flatMap((entry) => entry.by));
+  const credited = new Set([
+    ...request.judged.flatMap((entry) => entry.by),
+    ...recordsHoldingNative({ runs: request.runs, exempting: request.exempting }),
+  ]);
   return {
     findings: request.judged.flatMap((entry) => (entry.by.length === 0 ? [entry.finding] : [])),
     exempted: request.judged.filter((entry) => entry.by.length > 0),
@@ -190,7 +209,7 @@ export const applyGovernance = (request: GovernanceRequest): GovernanceResult =>
   const exempting = exemptingRecords({ inForce, doublyHeld });
   const judged = request.findings.map((finding) => judgedFinding({ finding, exempting }));
   return {
-    ...governedFindings({ judged, exempting }),
+    ...governedFindings({ judged, exempting, runs: request.runs }),
     forfeited,
     doublyHeld,
     unrecorded: unrecordedExceptions({ runs: request.runs, records: request.records }),

@@ -336,6 +336,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
   return {
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(parts.query),
     ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
+    ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>(),
     createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>().mockReturnValue({
       lintFiles: parts.lintFiles,
     }),
@@ -457,8 +458,8 @@ const CLASS_VERDICTS: Result<readonly CaseVerdict[], RunnerFailure> = {
 };
 
 describe("createEslintRunner", () => {
-  it("declares config-override as the only kind its projection writes", () => {
-    expect(runnerOver({}).projectedKinds).toEqual(["config-override"]);
+  it("declares config-override and inline-disable as the kinds its projection carries, since a file record turns the rule off for that file", () => {
+    expect(runnerOver({}).projectedKinds).toEqual(["config-override", "inline-disable"]);
   });
 });
 
@@ -1174,6 +1175,7 @@ describe("the governance run, step 5: messages", () => {
             file: "src/a.ts",
             line: 4,
             text: "// eslint-disable-next-line hone/no-class-authoring",
+            reach: "one-clause",
           },
         ],
         projection: "current",
@@ -1754,6 +1756,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "// eslint-disable-next-line hone/no-class-authoring",
+            reach: "one-clause",
           },
         ],
         projection: "out-of-date",
@@ -1785,6 +1788,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
+            reach: "one-clause",
           },
           {
             kind: "inline-disable",
@@ -1792,6 +1796,7 @@ describe("native exceptions: inline directives with several selected clauses", (
             file: "src/a.ts",
             line: 2,
             text: "/* eslint-disable hone/no-class-authoring, loops/no-for-of */",
+            reach: "one-clause",
           },
         ],
         projection: "out-of-date",
@@ -1814,8 +1819,8 @@ describe("native exceptions: inline directives with several selected clauses", (
       value: {
         hits: [],
         nativeExceptions: [
-          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
-          { kind: "inline-disable", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
+          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
+          { kind: "inline-disable", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
         ],
         projection: "out-of-date",
         slices: [],
@@ -1885,7 +1890,7 @@ describe("the governance run, settled message handling", () => {
         nativeExceptions: [
           { kind: "ignore", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" },
           { kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" },
-          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
+          { kind: "inline-disable", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */", reach: "every-selected-clause" },
           { kind: "suppression-entry", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", location: "eslint-suppressions.json" },
           {
             kind: "command-line-option",

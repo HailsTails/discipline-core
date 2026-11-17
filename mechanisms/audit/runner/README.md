@@ -1,6 +1,6 @@
 # Audit runner
 
-The audit runner is Hone's standalone mechanism for checks that read a project's TypeScript source directly. Core hands it the selected clauses and the files to check; it loads each clause's piece module, parses each file once, visits every node of the syntax tree, and reports a hit wherever a piece's check finds one. It reports no native exceptions: the audit mechanism has no suppression format of its own, so its `exceptionPath` is `standalone`.
+The audit runner is Hone's standalone mechanism for checks that read a project's TypeScript source directly. Core hands it the selected clauses and the files to check; it loads each clause's piece module, parses each file once, visits every node of the syntax tree, and reports a hit wherever a piece's check finds one. Its `exceptionPath` is `standalone`: the audit mechanism has no suppression format of its own. The one native channel it reports is a TypeScript directive, `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck`, in a file the clause's piece reads, for each clause whose `piece.json` settings list that directive in `escapingDirectives`; each is an `inline-disable` of that clause, which only a file record on that clause and file covers.
 
 ## Runtime
 
@@ -12,7 +12,8 @@ The audit runner is Hone's standalone mechanism for checks that read a project's
 
 - `walker-piece.ts` declares the contract a piece implements, `WalkerPiece`: a `prepare` call that receives the piece's selected clauses, the repository's tracked paths and TypeScript's API, and returns a prepared check with per-file `prepareFile` and a repository-wide `finish`.
 - `source-scope.ts` classifies a repository path as `generated` (under `node_modules`, `dist`, `build`, `coverage`, `.git`, or a root `vendor`) or `authored`, so every piece skips generated folders the same way.
-- `walker-check-schema.ts` holds the schema for a clause's settings: `module`, a path inside the piece folder ending `.ts`.
+- `walker-check-schema.ts` holds the schema for a clause's settings: `module`, a path inside the piece folder ending `.ts`, and optionally `escapingDirectives`, the TypeScript directives that escape the clause.
+- `type-directives.ts` reads a comment as a TypeScript directive only where the compiler honours it, and turns each directive a clause lists into an `inline-disable` of that clause. A piece that judges directives reads them through it too.
 - `piece-clause-settings.ts` reads the string lists a Hone piece declares under `clauseSettings` from the settled values core hands it on each clause, and reports a malformed value as `piece-invalid`.
 - `prepare-walker-pieces.ts` loads each selected module once and prepares it with every selected clause that names it.
 - `observe-walker-file.ts` offers one file to every prepared piece, parses it once if any piece asks for syntax, walks it, and collects the hits.

@@ -390,7 +390,7 @@ const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
   baseRevision: "main",
   assessment: DEFAULT_ASSESSMENT,
   fileText: fileTextOver(INSTALL),
-  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) }),
+  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
   path: TABLE_PATH,
   git: MEASURED_GIT,
   ...overrides,
@@ -405,7 +405,7 @@ describe("runCheck reports", () => {
     await expect(
       runCheck(
         checkRequest({
-          modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) }),
+          modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
         }),
       ),
     ).resolves.toEqual({
@@ -420,7 +420,7 @@ describe("runCheck reports", () => {
         checkRequest({
           fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_AUTHORISED_LOCATION }) }),
           modules: modulesLoading({
-            runner: standaloneRunner({ runReturns: { outcome: "ok", value: [{ ...HIT_IN_A, file: "src/factory.ts" }] } }),
+            runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/factory.ts" }], nativeExceptions: [] } } }),
           }),
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] },
@@ -831,7 +831,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
         checkRequest({
           fileText: installWithReasonedRecords({ selection: SELECTION_WITH_OPTIONAL_WHY_CHAINS }),
           modules: modulesLoading({
-            runner: standaloneRunner({ runReturns: { outcome: "ok", value: [{ ...HIT_IN_A, file: "src/factory.ts" }] } }),
+            runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/factory.ts" }], nativeExceptions: [] } } }),
           }),
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] },
@@ -957,7 +957,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
 
 describe("runCheck runner dispatch", () => {
   it("loads the runner module once from the install's mechanism runner path", async () => {
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) });
     const report = await runCheck(
       checkRequest({
         modules,
@@ -976,7 +976,7 @@ describe("runCheck runner dispatch", () => {
   });
 
   it("calls run once for the mechanism with every selected clause, the TypeScript files and the tracked paths", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     await runCheck(
       checkRequest({
         modules: modulesLoading({ runner }),
@@ -1027,7 +1027,7 @@ describe("runCheck runner dispatch", () => {
   });
 
   it("drops a tracked path absent from the working tree from both the files and the tracked paths it runs on", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     await runCheck(
       checkRequest({
         modules: modulesLoading({ runner }),
@@ -1043,7 +1043,7 @@ describe("runCheck runner dispatch", () => {
   });
 
   it("drops every tracked path disciplines.json excludes, as a folder or as an exact file, from the files and the tracked paths it runs on", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     await runCheck(
       checkRequest({
         fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_EXCLUDING_VENDOR }) }),
@@ -1068,7 +1068,7 @@ describe("runCheck runner dispatch", () => {
   });
 
   it("still forfeits a carve-out on a tracked path absent from the working tree that the change set touched", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
 
     const checked = await runCheck(
       checkRequest({
@@ -1091,7 +1091,7 @@ describe("runCheck runner dispatch", () => {
     const fileText = fileTextOver(INSTALL);
     const reads = vi.spyOn(fileText, "read");
     const existenceChecks = vi.spyOn(fileText, "exists");
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) });
     const report = await runCheck(checkRequest({ fileText, modules }));
     expect({
       report,
@@ -1113,7 +1113,7 @@ describe("runCheck runner dispatch", () => {
   });
 
   it("roots a named rule set's piece under the consumer's rule-set directory and still loads the install's runner", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     const modules = modulesLoading({ runner });
     const report = await runCheck(checkRequest({ fileText: fileTextOver(TEAM_INSTALL), modules }));
     expect({
@@ -1210,7 +1210,7 @@ describe("runCheck load failures", () => {
       runCheck(
         checkRequest({
           modules: modulesLoading({
-            runner: { ...standaloneRunner({ runReturns: { outcome: "ok", value: [] } }), exceptionPath: "unknown-path" },
+            runner: { ...standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }), exceptionPath: "unknown-path" },
           }),
         }),
       ),
@@ -1501,7 +1501,7 @@ describe("runCheck with an embedded runner", () => {
     });
   });
 
-  it("records a config override an authorised location names, since its projection writes that kind", async () => {
+  it("records a config override an authorised location names, since its projection writes that kind, and does not list that record as stale", async () => {
     await expect(
       runCheck(
         checkRequest({
@@ -1522,22 +1522,7 @@ describe("runCheck with an embedded runner", () => {
           }),
         }),
       ),
-    ).resolves.toEqual({
-      outcome: "ok",
-      value: {
-        ...EMPTY_REPORT,
-        stale: [
-          {
-            kind: "authorised-location",
-            clause: CLASS_SYNTAX_OBJECT,
-            mechanism: "audit",
-            file: "src/factory.ts",
-            reason: "the wrapping factory for the library",
-            provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" },
-          },
-        ],
-      },
-    });
+    ).resolves.toEqual({ outcome: "ok", value: EMPTY_REPORT });
   });
 
   it("hands the runner's run only the records of its own mechanism", async () => {
@@ -1547,7 +1532,7 @@ describe("runCheck with an embedded runner", () => {
         fileText: fileTextOver(TWO_MECHANISM_INSTALL),
         modules: modulesByPath({
           [RUNNER_PATH]: { runner },
-          [LINT_RUNNER_PATH]: { runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) },
+          [LINT_RUNNER_PATH]: { runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) },
         }),
         git: gitReporting({
           trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
@@ -1591,7 +1576,7 @@ const twoClauseInstall = (request: { readonly selection: string; readonly except
 
 describe("runCheck clauses not adopted", () => {
   it("loads no mechanism when no listed clause is adopted, lists the clauses, and passes as a whole assessment", async () => {
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) });
     const report = await runCheck(
       checkRequest({
         modules,
@@ -1608,7 +1593,7 @@ describe("runCheck clauses not adopted", () => {
   });
 
   it("hands the runner only the adopted clause and lists the other as not adopted", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     const report = await runCheck(
       checkRequest({
         modules: modulesLoading({ runner }),
@@ -1694,7 +1679,7 @@ describe("runCheck with ESLint config roots declared in disciplines.json", () =>
 
 describe("runCheck clauses adopted but not run", () => {
   it("runs only the clause whose mechanism runs, lists the other as not run, and passes as a whole assessment", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } });
     const report = await runCheck(
       checkRequest({
         modules: modulesLoading({ runner }),
@@ -1727,7 +1712,8 @@ describe("runCheck clauses adopted but not run", () => {
   });
 });
 
-const hitRunner = () => standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A, { ...HIT_IN_A, anchor: { line: 9, column: 0 } }] } });
+const hitRunner = () => standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A, { ...HIT_IN_A, anchor: { line: 9, column: 0 } }], nativeExceptions: [] } },
+  });
 
 describe("runCheck pointing a failing clause at where to read first", () => {
   it("points once at the clause's assessment section and its rule page, however many findings it has", async () => {

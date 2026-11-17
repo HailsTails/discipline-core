@@ -8,12 +8,12 @@ import type { Equal } from "../values/type-equality.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
 import type {
   CaseVerdict,
-  Hit,
   NativeException,
   nativeExceptionKindSchema,
 } from "./runner-result-schema.ts";
 import { nativeExceptionKindSchema as projectedKindSchema } from "./runner-result-schema.ts";
 import type { RunnerClause } from "./runner-module-types.ts";
+import type { StandaloneRunReport } from "./standalone-run-report-schema.ts";
 
 export type { RunnerClause } from "./runner-module-types.ts";
 
@@ -36,7 +36,7 @@ export type ProjectionRequest = {
 
 export type StandaloneRunner = {
   readonly exceptionPath: "standalone";
-  readonly run: (request: RunRequest) => Promise<Result<readonly Hit[], RunnerFailure>>;
+  readonly run: (request: RunRequest) => Promise<Result<StandaloneRunReport, RunnerFailure>>;
   readonly conform: (request: {
     readonly clause: RunnerClause;
     readonly cases: readonly SourceCase[];
