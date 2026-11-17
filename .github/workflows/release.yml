@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [package.json]
 
 permissions: {}
 
@@ -11,16 +12,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release the package tarball
-    runs-on: windows-latest
-    timeout-minutes: 25
+  version:
+    name: Find whether this push releases a version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
-      contents: write
+      contents: read
     outputs:
-      tarball-name: ${{ steps.tarball.outputs.name }}
-      tarball-sha256: ${{ steps.tarball.outputs.sha256 }}
-      dist-tag: ${{ steps.dist-tag.outputs.value }}
+      tag: ${{ steps.state.outputs.tag }}
+      state: ${{ steps.state.outputs.state }}
     defaults:
       run:
         shell: bash
@@ -31,8 +31,42 @@ jobs:
           node-version: 22.18.0
       - name: Enable corepack
         run: corepack enable
-      - name: Require the tag to match the package version
-        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Decide whether this push releases the package version
+        id: state
+        env:
+          PREVIOUS_REVISION: ${{ github.event.before }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$PREVIOUS_REVISION"
+          previous_manifest="$(git show "$PREVIOUS_REVISION:package.json")"
+          remote_tags="$(git ls-remote --tags --refs origin 'refs/tags/v*')"
+          node scripts/release-state-command.ts "$(cat package.json)" "$previous_manifest" "$remote_tags" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release the package tarball
+    needs: version
+    if: needs.version.outputs.state == 'unreleased'
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    outputs:
+      tarball-name: ${{ steps.tarball.outputs.name }}
+      tarball-sha256: ${{ steps.tarball.outputs.sha256 }}
+      dist-tag: ${{ steps.dist-tag.outputs.value }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+      - name: Enable corepack
+        run: corepack enable
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Check
@@ -54,9 +88,9 @@ jobs:
       - name: Choose the dist-tag
         id: dist-tag
         run: |
-          dist_tag="$(node scripts/release-text-command.ts dist-tag "$GITHUB_REF_NAME")"
+          dist_tag="$(node scripts/release-text-command.ts dist-tag "$RELEASE_TAG")"
           echo "value=$dist_tag" >> "$GITHUB_OUTPUT"
-      - name: Attach the tarball to a release
+      - name: Tag the merged commit with a release holding the tarball
         env:
           GH_TOKEN: ${{ github.token }}
           TARBALL_NAME: ${{ steps.tarball.outputs.name }}
@@ -64,16 +98,16 @@ jobs:
         run: |
           prerelease=()
           case "$DIST_TAG" in next) prerelease=(--prerelease) ;; esac
-          title="$(node scripts/release-text-command.ts title "$GITHUB_REF_NAME")"
-          notes="$(node scripts/release-text-command.ts notes "$GITHUB_REF_NAME")"
-          gh release create "$GITHUB_REF_NAME" "artefacts/$TARBALL_NAME" --verify-tag --title "$title" --notes "$notes" "${prerelease[@]}"
+          title="$(node scripts/release-text-command.ts title "$RELEASE_TAG")"
+          notes="$(node scripts/release-text-command.ts notes "$RELEASE_TAG")"
+          gh release create "$RELEASE_TAG" "artefacts/$TARBALL_NAME" --target "$GITHUB_SHA" --title "$title" --notes "$notes" "${prerelease[@]}"
 
   publish-npm:
     name: Stage the released tarball on npm
-    needs: release
+    needs: [version, release]
     if: vars.NPM_PUBLISH == 'enabled'
     environment: npm
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -82,6 +116,7 @@ jobs:
       run:
         shell: bash
     env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
       TARBALL_NAME: ${{ needs.release.outputs.tarball-name }}
       TARBALL_SHA256: ${{ needs.release.outputs.tarball-sha256 }}
       DIST_TAG: ${{ needs.release.outputs.dist-tag }}
@@ -97,7 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           case "$TARBALL_NAME" in */* | '') exit 1 ;; *.tgz) ;; *) exit 1 ;; esac
-          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "$TARBALL_NAME" --dir artefacts
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$TARBALL_NAME" --dir artefacts
       - name: Refuse any tarball but the one the release job packed
         run: |
           test -n "$TARBALL_SHA256"
