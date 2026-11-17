@@ -391,6 +391,48 @@ describe("observeWalkerFile", () => {
     });
   });
 
+  it.each(["enter", "leave", "comment", "finish"])("refuses a non-function %s observer as piece-invalid naming the observer", (observer) => {
+    const first = preparedPiece({
+      modulePath: "first.ts",
+      clauses: [FIRST_CLAUSE],
+      prepareFile: () => ({
+        outcome: "ok",
+        value: { kind: "syntax", begin: () => ({ finish: () => [], [observer]: 7 }) },
+      }),
+    });
+    const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
+
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+
+    expect(observed).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "piece-invalid",
+        pieceRoot: FIRST_CLAUSE.pieceRoot,
+        detail: expect.stringContaining("Invalid input: expected function, received number"),
+      },
+    });
+    expect(JSON.stringify(observed)).toContain(observer);
+  });
+
+  it("hands each observer the node the walk is visiting and publishes what finish returns", () => {
+    const entered = vi.fn();
+    const first = preparedPiece({
+      modulePath: "first.ts",
+      clauses: [FIRST_CLAUSE],
+      prepareFile: () => ({
+        outcome: "ok",
+        value: { kind: "syntax", begin: () => ({ enter: entered, finish: () => [FIRST_HIT] }) },
+      }),
+    });
+    const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: SOURCE });
+
+    const observed = observeWalkerFile({ file: { file: FILE, readText }, pieces: [first], parse: parseFixture() });
+
+    expect(entered).toHaveBeenCalledWith({ node: expect.objectContaining({ pos: 0 }) });
+    expect(observed.outcome).toBe("ok");
+  });
+
   it("attributes a thrown observer to its piece and does not publish source completion", () => {
     const finish = vi.fn().mockReturnValue([FIRST_HIT]);
     const first = preparedPiece({

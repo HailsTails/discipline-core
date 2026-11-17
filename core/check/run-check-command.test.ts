@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
@@ -82,6 +83,19 @@ const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
   '["/install","mechanisms","audit","runner","runner.ts"]': "/install/mechanisms/audit/runner/runner.ts",
 };
+
+const FILE_CARVE_OUT_ON_A = JSON.stringify({
+  version: 1,
+  exceptions: [
+    {
+      kind: "file-carve-out",
+      clause: "CD-14#class-syntax",
+      file: "src/a.ts",
+      reason: "legacy class awaiting paydown",
+      whyChain: CAUSAL_WHY_CHAIN,
+    },
+  ],
+});
 
 const FILE_PATHS: Readonly<Record<string, string>> = {
   [ENTRY_URL]: "/install/core/check/tool-command.ts",
@@ -202,11 +216,18 @@ describe("runCheckCommand", () => {
     ]);
   });
 
-  it("measures the change set against the --base-revision it is given", async () => {
-    const git = gitTracking([]);
+  it("measures the change set against the --base-revision it is given when a file carve-out needs it", async () => {
+    const git = gitTracking([repoPathSchema.parse("src/a.ts")]);
 
     await runCheckCommand(
-      commandRequest({ process: processWith({ arguments: ["--repo", "/repo", "--base-revision", "main"] }), git }),
+      commandRequest({
+        process: processWith({ arguments: ["--repo", "/repo", "--base-revision", "main"] }),
+        fileText: fileTextOver({
+          ...CLASS_SYNTAX_SELECTED,
+          "/repo/discipline-exceptions.json": presentFile({ text: FILE_CARVE_OUT_ON_A }),
+        }),
+        git,
+      }),
     );
 
     expect(vi.mocked(git.changedSince).mock.calls).toEqual([[{ repoRoot: "/repo", baseRevision: "main" }]]);

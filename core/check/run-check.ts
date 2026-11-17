@@ -207,6 +207,14 @@ const forfeitureUnmeasured = (request: {
     ? [{ kind: "forfeiture-unmeasured" }]
     : [];
 
+const touchedSetFor = (request: {
+  readonly check: CheckRequest;
+  readonly records: readonly ExceptionRecord[];
+}): TouchedSet =>
+  request.records.some((record) => record.kind === "file-carve-out")
+    ? computeTouchedSet(request.check)
+    : { measured: "yes", paths: new Set() };
+
 const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
   request.records.some((record) => recordImportOf({ record }).imported === "yes")
     ? "present"
@@ -423,7 +431,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
     value: checkReportOf({
       inputs: inputs.value,
       runs: runs.value,
-      touched: computeTouchedSet(request),
+      touched: touchedSetFor({ check: request, records: inputs.value.records }),
     }),
   };
 };

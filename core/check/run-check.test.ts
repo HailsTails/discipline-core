@@ -565,6 +565,34 @@ describe("runCheck forfeiture measurement", () => {
     expect(git.textInBase).not.toHaveBeenCalled();
   });
 
+  it("measures the change set once when a file carve-out exists", async () => {
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    await runCheck(
+      checkRequest({
+        fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
+        git,
+      }),
+    );
+    expect(git.changedSince).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not measure the change set when no file carve-out exists", async () => {
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    await expect(runCheck(checkRequest({ git }))).resolves.toEqual({ outcome: "ok", value: EMPTY_REPORT });
+    expect(git.changedSince).not.toHaveBeenCalled();
+  });
+
+  it("does not measure the change set for records that are not file carve-outs", async () => {
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    await runCheck(
+      checkRequest({
+        fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }) }),
+        git,
+      }),
+    );
+    expect(git.changedSince).not.toHaveBeenCalled();
+  });
+
   it("reports nothing unmeasured when the change set is measured and a file carve-out exists", async () => {
     await expect(
       runCheck(
