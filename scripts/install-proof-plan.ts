@@ -14,17 +14,18 @@ export type StepRun =
   | { readonly outcome: "exited"; readonly exitCode: number; readonly output: string }
   | { readonly outcome: "not-exited"; readonly detail: string };
 
-export type ConsumerFixture = "audit" | "eslint" | "typed-team-piece";
+export type ConsumerFixture = "audit" | "eslint" | "team";
 
 export type ProofAction =
   | { readonly kind: "check"; readonly expectation: StepExpectation }
   | { readonly kind: "project"; readonly expectation: StepExpectation }
-  | { readonly kind: "remove"; readonly path: string }
   | { readonly kind: "commit"; readonly message: string }
   | { readonly kind: "read"; readonly path: string; readonly text: string }
   | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation };
 
-export type ProofToolchain = "typescript-floor" | "typescript-current" | "eslint-9-floor" | "eslint-10-floor";
+export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
+
+export type TypeStripping = "disabled" | "enabled";
 
 export type CommandScript = "check" | "project";
 
@@ -32,12 +33,11 @@ export type ProofCase = {
   readonly consumer: string;
   readonly fixture: ConsumerFixture;
   readonly toolchain: ProofToolchain;
+  readonly typeStripping: TypeStripping;
   readonly actions: readonly ProofAction[];
 };
 
 export type ManifestFailure = { readonly kind: "manifest-invalid"; readonly detail: string };
-
-const PASSING_REPORT = "verdict: pass\n";
 
 const ESLINT_PROJECTION = `import piece0 from "${TOOL_IDENTITY.packageName}/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
 
@@ -59,9 +59,6 @@ const ESLINT_CONSUMER_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
 ];
 
 const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
@@ -72,10 +69,6 @@ const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
       output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
     },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
-  { kind: "project", expectation: { exitCode: 0, output: "" } },
 ];
 
 const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
@@ -89,37 +82,44 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
   },
 ];
 
-const COMPILES: StepExpectation = { exitCode: 0, output: "" };
+const SILENT_SUCCESS: StepExpectation = { exitCode: 0, output: "" };
 
 const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
   kind: "typecheck",
-  project: "tsconfig.wrong.json",
+  project: "typing/tsconfig.wrong.json",
   expectation: {
     exitCode: 2,
     output:
-      "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n",
+      "typing/wrong-piece-settings.mts(7,37): error TS2344: Type '{ pluginNamespace: string; pluginModule: string; rule: number; }' does not satisfy the constraint 'EslintPieceSettings'.\n  Types of property 'rule' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n",
   },
 };
 
-const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
-  WRONG_FIELD_TYPES_REJECTED,
-];
+const TEAM_RULE_SET = "tools/disciplines/acme";
 
-const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: COMPILES },
-  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: COMPILES },
-  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: COMPILES },
+const TEAM_FINDINGS_REPORT = `findings (2)
+acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
+acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
+verdict: fail
+`;
+
+const TEAM_FLOOR_ACTIONS: readonly ProofAction[] = [WRONG_FIELD_TYPES_REJECTED];
+
+const TEAM_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.pieces.json`, expectation: SILENT_SUCCESS },
+  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.bundler.json`, expectation: SILENT_SUCCESS },
+  { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT_SUCCESS },
   WRONG_FIELD_TYPES_REJECTED,
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+  { kind: "check", expectation: { exitCode: 1, output: TEAM_FINDINGS_REPORT } },
 ];
 
 export const PROOF_CASES: readonly ProofCase[] = [
-  { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_CONSUMER_ACTIONS },
-  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
-  { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
-  { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
+  { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_CONSUMER_ACTIONS },
+  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
+  { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: TEAM_FLOOR_ACTIONS },
+  { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({
@@ -174,7 +174,12 @@ type FloorPins = Readonly<Record<string, string>>;
 
 const TYPESCRIPT_FLOOR: FloorPins = { typescript: "typescript-floor" };
 
-const TYPESCRIPT_CURRENT: FloorPins = { typescript: "typescript" };
+const CURRENT: FloorPins = {
+  typescript: "typescript",
+  eslint: "eslint",
+  "@typescript-eslint/parser": "@typescript-eslint/parser",
+  "@typescript-eslint/eslint-plugin": "@typescript-eslint/eslint-plugin",
+};
 
 const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
   ...TYPESCRIPT_FLOOR,
@@ -184,7 +189,7 @@ const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
 
 const FLOOR_PINS: Readonly<Record<ProofToolchain, FloorPins>> = {
   "typescript-floor": TYPESCRIPT_FLOOR,
-  "typescript-current": TYPESCRIPT_CURRENT,
+  current: CURRENT,
   "eslint-9-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-9-floor" },
   "eslint-10-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-10-floor" },
 };

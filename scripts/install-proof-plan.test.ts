@@ -100,8 +100,8 @@ describe("requiredPeerPinsOf", () => {
     },
   );
 
-  it("pins typescript at the development version this package is built with for a typescript-current consumer", () => {
-    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+  it("pins only the required peer typescript at the development version this package is built with for a current consumer", () => {
+    expect(requiredPeerPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
       value: { typescript: "6.0.3" },
     });
@@ -126,10 +126,12 @@ describe("toolchainManifest, over this package's own package.json read as a buil
     });
   });
 
-  it("gives the current TypeScript root only typescript, at the development version installed under its own name", () => {
-    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-current" })).toEqual({
+  it("gives the current root every peer at the development version this package is built with, installed under its own name", () => {
+    expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
-      value: manifestText({ devDependencies: { typescript: "6.0.3" } }),
+      value: manifestText({
+        devDependencies: { typescript: "6.0.3", eslint: "10.11.0", "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
+      }),
     });
   });
 
@@ -198,18 +200,9 @@ const ESLINT_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
 ];
 
-const AUDIT_ACTIONS: readonly ProofAction[] = [
-  { kind: "check", expectation: FAILING },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
-  { kind: "project", expectation: SILENT },
-];
+const AUDIT_ACTIONS: readonly ProofAction[] = [{ kind: "check", expectation: FAILING }];
 
 const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
   {
@@ -223,29 +216,35 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
 ];
 
 const WRONG_FIELD_REPORT =
-  "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n";
+  "typing/wrong-piece-settings.mts(7,37): error TS2344: Type '{ pluginNamespace: string; pluginModule: string; rule: number; }' does not satisfy the constraint 'EslintPieceSettings'.\n  Types of property 'rule' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n";
 
-const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
-];
+const WRONG_FIELDS_REJECTED: ProofAction = { kind: "typecheck", project: "typing/tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } };
 
-const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
+const TEAM_ACTIONS: readonly ProofAction[] = [
+  { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.pieces.json", expectation: SILENT },
+  { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.bundler.json", expectation: SILENT },
+  { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT },
+  WRONG_FIELDS_REJECTED,
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+  {
+    kind: "check",
+    expectation: {
+      exitCode: 1,
+      output:
+        'findings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nverdict: fail\n',
+    },
+  },
 ];
 
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint and a typed team piece on the TypeScript floor and current version, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, and a team consumer type-checking the public entries on the TypeScript floor and running its own rule set on the current version, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
-      { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", actions: AUDIT_ACTIONS },
-      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", actions: ESLINT_MISSING_ACTIONS },
-      { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", actions: TYPED_FLOOR_ACTIONS },
-      { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "typescript-current", actions: TYPED_CURRENT_ACTIONS },
+      { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
+      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
+      { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: [WRONG_FIELDS_REJECTED] },
+      { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

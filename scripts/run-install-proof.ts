@@ -15,6 +15,7 @@ import {
   type ProofToolchain,
   requiredPeerPinsOf,
   type StepRun,
+  type TypeStripping,
   toolchainManifest,
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
@@ -181,13 +182,6 @@ const typeCheckedProject = (request: {
   return SUCCEEDED;
 };
 
-const removedPath = (request: {
-  readonly context: ProofContext;
-  readonly label: string;
-  readonly path: string;
-}): Result<null, string> =>
-  labelled({ label: request.label, result: request.context.scratch.removeFile({ path: request.path }) });
-
 const readExactly = (request: {
   readonly context: ProofContext;
   readonly label: string;
@@ -226,12 +220,6 @@ const performedAction = (request: {
       });
     case "project":
       return installedCommand({ ...request, label: `${request.consumer} project`, script: "project", arguments: [], action });
-    case "remove":
-      return removedPath({
-        context: request.context,
-        label: `remove ${action.path} in ${request.consumer}`,
-        path: request.context.path.join({ segments: [request.repo, action.path] }),
-      });
     case "commit":
       return commitAll({ context: request.context, repo: request.repo, consumer: request.consumer, message: action.message });
     case "read":
@@ -258,10 +246,18 @@ const writtenFile = (request: {
 
 type ConsumerFile = { readonly name: string; readonly text: string };
 
-const consumerFiles = (request: { readonly requiredPeers: Readonly<Record<string, string>> }): readonly ConsumerFile[] => [
+const NPM_CONFIG_FILES: Readonly<Record<TypeStripping, readonly ConsumerFile[]>> = {
+  disabled: [{ name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC }],
+  enabled: [],
+};
+
+const consumerFiles = (request: {
+  readonly requiredPeers: Readonly<Record<string, string>>;
+  readonly typeStripping: TypeStripping;
+}): readonly ConsumerFile[] => [
   { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY, requiredPeers: request.requiredPeers }) },
   { name: ".gitignore", text: IGNORED_INSTALLS },
-  { name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC },
+  ...NPM_CONFIG_FILES[request.typeStripping],
 ];
 
 const installedVersionSchema = z.object({ version: z.string() });
@@ -406,7 +402,13 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
   const repo = consumerRepo(request);
   return inOrder({
     steps: [
-      () => preparedConsumer({ context, fixture: consumerFixture(request), repo, files: consumerFiles({ requiredPeers: pins.value }) }),
+      () =>
+        preparedConsumer({
+          context,
+          fixture: consumerFixture(request),
+          repo,
+          files: consumerFiles({ requiredPeers: pins.value, typeStripping: request.proofCase.typeStripping }),
+        }),
       () =>
         ranCommand({
           context,

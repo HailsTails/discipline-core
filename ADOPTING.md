@@ -104,7 +104,7 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 - To adopt a discipline through one mechanism only, for example CD-6's `identifier-names` through `audit` without its ESLint-only `naming-convention`, select both clauses, record a `clause-wide-carve-out` with its why-chain on the clause you do not adopt, and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`. The waived clause is then never run, and a mechanism left with nothing to run is not loaded, so this adopter needs no ESLint installed. `hone project` still writes the waived clause's `"off"` block to the projection, and whenever ESLint runs for another clause the projection is still checked against every selected clause. The trade: in those runs the waiver is not judged `stale`, so it stays in force until you remove it, and every report says so in its `assessment` section.
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
 - `clauseSettings` gives a clause the settings its rules page lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; see [README.md](README.md#disciplinesjson).
-- `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/adding-a-discipline-or-mechanism.md](docs/adding-a-discipline-or-mechanism.md).
+- `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/extending.md](docs/extending.md).
 
 Every clause address Hone ships:
 
@@ -337,4 +337,4 @@ verdict: pass
 - The worked example uses only the audit mechanism. The ESLint consumer in `tests/test-fixtures/consumer-proof/eslint/` is the tested ESLint setup.
 - Each check flags exactly what its rules page says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
 - A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above. No snippet is longer than 200 characters: a longer one is cut and ends in `…`. An ESLint finding on a line longer than that, such as a bundled or minified file, shows the line from the finding's column.
-- The disciplines' IDs and rule text come from one team's code-discipline set. Selecting a subset is supported; editing a shipped rule is not. Write your own rule set for different rules.
+- The disciplines' IDs and rule text come from one team's code-discipline set. Selecting a subset is supported; editing a shipped rule is not. Write your own rule set for different rules, following [docs/extending.md](docs/extending.md).
