@@ -56,7 +56,7 @@ default intuition.
 
 1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `function-first`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
-3. Read each kept page in full, including its `## Exceptions` section and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names exact permitted sites (the one permitted class and its file, the closed table of wrapping-factory files, the closed list of library-callback signatures), those are the only permitted sites.
+3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names exact permitted sites (the one permitted class and its file, the closed table of wrapping-factory files, the closed list of library-callback signatures), those are the only permitted sites.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no function-first discipline and produce an empty finding set — do not invent rules.
 
 ## Inspection procedure
@@ -186,7 +186,7 @@ declarations by classification (justified / closure-candidate / pure-fn-candidat
 raw-library-import and `new X(...)` sites by in-factory vs out-of-factory, and
 multi-argument authored signatures by carve-out vs finding. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`), plus the bucket or the named-field/composition
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), plus the bucket or the named-field/composition
 replacement. Where a finding touches another lens's rule (the context-generic
 binding, the port/boundary discipline), name that as a cross-reference — do not
 re-tag or re-own it. State the rule-page paths you resolved and which rule

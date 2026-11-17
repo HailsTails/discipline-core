@@ -8,10 +8,8 @@ transformation, not imperative looping). CD-15 now carries both. This id is
 retained as a redirect so existing citations resolve; it is not independently
 enforced.
 
-The sections below describe how the rule is checked.
+Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags.
+## Spirit
 
-## How it is checked
-
-This discipline has no clauses of its own. Its rule is carried by [CD-15](../CD-15/README.md); select that discipline's clauses instead.
+See [CD-15's Spirit section](../CD-15/README.md#spirit). A counted loop is the same signal as any other loop, plus a manual index that can drift out of bounds.

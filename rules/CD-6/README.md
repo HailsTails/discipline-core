@@ -4,54 +4,25 @@
 
 A name states the concept the value represents, not its shape or its category. Shorthand (single letters, truncations) and filler words (data, info, value, result, manager, handler) force the reader to reconstruct meaning the name should have carried — at every scope, including callback parameters and destructures. The name is the documentation.
 
-The sections below describe what the audit and ESLint checks cover.
+Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-6#identifier-names` | audit | a binding named from a fixed shorthand or filler list |
-| `CD-6#naming-convention` | eslint | a name that breaks the naming convention for its kind |
+**What the friction is for.** A reader meets a name far more often than its definition. The friction makes stating the concept the easy path, so meaning lives where it is read.
 
-Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A concept not yet understood.* `data` or `result` because the writer did not know what the value was. Find out, then name it.
+- *A function returning a mix.* `result` is the only honest name because the function returns several things. Split it.
+- *No shared vocabulary.* The team has no agreed words for the domain, so names fall back to shapes. Agree the terms and use them in code.
+- *A framework's habit copied inward.* `req`, `res`, `e` from library examples. Name it for what it is in your code.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- The declared name of a variable, a parameter, a named function declaration or a destructured binding, when the whole name is exactly one of these (case-sensitive):
-  - shorthand: `c op s cb fn tx e ev acc item k v el arr i j n obj val res req tmp temp`
-  - filler: `object obj args arguments details extra extras data info params parameters props payload body value result stuff things misc metadata`
-- Allowed: longer names that contain these words (`accountData`), names starting with `_`, property keys and property accesses.
-- Other poor names (`manager`, `handler`, vague nouns) are left to review.
+**Where to go.** Every name states the concept, in the domain's words, at every scope.
 
-## What the ESLint check flags
-Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-6/README.md).
-- `hone-cd6/naming-convention` is typescript-eslint's `naming-convention` with the option list in the piece's `piece.json`.
-- Enum members are CONSTANT_CASE. `const` bindings are CONSTANT_CASE, camelCase or PascalCase.
-- Object literal properties are camelCase. Type properties are camelCase or PascalCase.
-- Other variables, functions and parameters are camelCase or PascalCase; a leading or trailing `_` or `$` is allowed.
-- Types are PascalCase. Class members are camelCase, and static ones may also be CONSTANT_CASE.
-- Consecutive capitals are allowed (`agentID`, `HTTPServer`).
-- Ignored: names that need quotes, destructured bindings, imports and unused bindings whose name starts with `_`.
-- Not checked, unlike Biome: the local name of a renamed named import (`import { a as b }`) and a `catch` parameter. typescript-eslint has no selector for either; review covers them.
+**Reactions to distrust.**
+- "Everyone knows what `i` means." They know it is an index, not an index of what.
+- "Short scopes don't need long names." The rule covers every scope. The reader of a short scope still has to reconstruct the meaning.
+- "It's the library's convention." Conventions belong at the boundary. Inside, use your words.
 
-## Example violation
-```ts
-const data = await loadAccount(id);
-```
-
-## How to fix
-```ts
-const account = await loadAccount(id);
-```
-Name the value for what it is in the domain.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file must keep a name fixed by an external contract. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-6#identifier-names", "file": "src/adapters/legacy-feed.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Intention-revealing names* (Robert C. Martin, *Clean Code*). A name should say why the thing exists and what it does, so no comment is needed.
+- *Ubiquitous language* (Eric Evans, *Domain-Driven Design*). The code uses the same words as the people who know the domain.

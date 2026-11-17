@@ -4,52 +4,24 @@
 
 Throwing is confined to a closed, named set of contexts: a startup-invariant check that fails at boot, and a branch made unreachable by exhaustive type narrowing. Defensive throws — "this should never happen", "guard against impossible state" — are forbidden: if you can name the state, you can model it as a result variant. A library that throws is caught at the boundary and converted to a result. Tests carry no exemption; they surface failures through assertions, not by throwing.
 
-The sections below describe what the audit and ESLint checks cover.
+Review lens: [errors-as-data](../../methods/lenses/errors-as-data.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-10#throws-in-tests` | audit | a `throw` statement in a test file |
-| `CD-10#throw-only-error` | eslint | a `throw` of something that is not an error object |
+**What the friction is for.** A throw is a failure the type does not mention. The friction makes returning the failure as a value the easy path, so every caller sees what can go wrong and must decide what to do.
 
-Review lens: [errors-as-data](../../methods/lenses/errors-as-data.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A defensive "can't happen".* A throw guards a state the code believes impossible. If you can name the state, model it as a result variant or rule it out with a type.
+- *A library that throws, caught too late.* Exceptions escape into the core. Catch at the wrapping boundary and return a result.
+- *Tests that throw to fail.* A test throws instead of asserting. Assert on the result; the assertion is the failure.
+- *Failure modes nobody listed.* Errors are thrown because no error type exists yet. List the ways the operation fails.
 
-## What the check flags
-- Test files only: `*.test.ts` and `*.test.tsx`. `*.spec.ts` and `.js` tests are not read. Generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- Every `throw` statement, wherever it sits in the file.
-- Allowed: assertion calls such as `expect(...)`.
-- The source rule also confines throwing in production code to a closed list of contexts. The check does not look at production files; that part is left to review.
+**Where to go.** Throws exist only for a failed startup invariant and a branch the types prove unreachable. Everything else returns its failure.
 
-## What the ESLint check flags
-Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-10/README.md).
-- `hone-cd10/throw-only-error` flags a `throw` of a literal, an object literal, a binary expression, a template or tagged template, or `undefined`. It follows the thrown value through `a ? b : c`, `a || b`, assignment and sequence expressions.
-- Allowed: `new Error(...)`, identifiers, calls and member access.
-- This clause applies to every file the ESLint run includes, not only tests.
+**Reactions to distrust.**
+- "It really can't happen." Then the type can say so, and the throw is unnecessary.
+- "Results are verbose." They are the failure paths written down. A throw hides the same paths.
 
-## Example violation
-```ts
-it("loads the account", () => {
-  const result = load("a1");
-  if (result.outcome === "failed") throw new Error("load failed");
-});
-```
-
-## How to fix
-```ts
-it("loads the account", () => {
-  expect(load("a1")).toEqual({ outcome: "ok", value: account });
-});
-```
-Assert on the whole result. Branching in tests is also reported by CD-27.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs a throw, such as a shared test harness. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-10#throws-in-tests", "file": "src/legacy/harness.test.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Railway oriented programming* (Scott Wlaschin). Success and failure travel as two tracks of one value, so failure is handled, not escaped.
+- *Fail fast.* A broken startup invariant stops the program at once; that is the one place a throw is the clearest signal.

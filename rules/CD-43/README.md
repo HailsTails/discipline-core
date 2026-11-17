@@ -4,40 +4,24 @@
 
 A boolean parameter, field, or return is an evaluative predicate the reader must decode at every call site — `true` for what? Prefer a string-literal or discriminated union that states the meaning in the value itself. Booleans that name a state or mode hide that meaning behind a bare truth value.
 
-The sections below describe what the audit check covers.
+Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-43#boolean-signatures` | audit | a boolean type in a parameter, property signature or return |
+**What the friction is for.** A bare true or false says nothing about what it means. The friction makes naming the state the easy path, so a call site reads as what it does.
 
-Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A mode passed as a flag.* A parameter switches the function between behaviours. Split the function, or name the modes as a union.
+- *A state that will grow.* Today it is on or off; tomorrow there is a third case and a second flag. Name the states now.
+- *Two flags that cannot both be true.* Pairs of booleans allow combinations that make no sense. One union rules them out.
+- *An outcome as a boolean.* A result says success or not, and the reason is lost. Return a tagged outcome.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A declared type of `boolean`, or `boolean` unioned only with `null` and `undefined`, on a parameter, an interface or type-literal property, a function, method, arrow or accessor return, or a function, call or index signature.
-- Allowed: `true` or `false` literals, `boolean | string`, aliases of boolean, type predicates such as `value is Item`, inferred types, variables and class fields.
-- All boolean signatures are reported, including predicates such as `isReady(): boolean`. Telling evaluative booleans from state is left to review.
+**Where to go.** States and modes are named values. A reader learns the meaning from the value itself.
 
-## Example violation
-```ts
-const render = (compact: boolean): string => "";
-```
+**Reactions to distrust.**
+- "It's obviously a yes or no." Then name what yes means. If that is easy, the union is easy.
+- "The library returns a boolean." Read it at the boundary and turn it into your own named state there.
 
-## How to fix
-```ts
-const render = (mode: "compact" | "full"): string => "";
-```
-Name each state in the type.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file must follow an external interface that uses a boolean. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-43#boolean-signatures", "file": "src/adapters/vendor-flags.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Make illegal states unrepresentable* (Yaron Minsky). A union of named states rules out the combinations flags allow.
+- *Flag arguments* (Robert C. Martin, *Clean Code*). A boolean argument announces that the function does more than one thing.

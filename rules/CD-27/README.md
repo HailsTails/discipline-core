@@ -2,50 +2,28 @@
 
 ## Rule
 
-Test bodies are zero-logic straight lines: no branching, no loops, no try, no ternary, no computed expectations — just arrange, act, assert against hardcoded values. Logic in a test is untested code testing code; variability is faked and pinned, never accommodated with a conditional.
+Test bodies are zero-logic straight lines: no branching, no loops, no try, no ternary, no computed expectations — just arrange, act, assert against hardcoded values. Logic in a test is untested code testing code; variability is supplied by a stub or a fake clock and pinned, never accommodated with a conditional.
 
-The sections below describe what the audit and ESLint checks cover.
+Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-27#test-body-logic` | audit | branching, `let`, and computing methods in a test file |
-| `CD-27#focused-tests` | eslint | `.only` on a test or suite, or `fdescribe`, `fit`, `ftest`, `fsuite` |
-| `CD-27#skipped-tests` | eslint | `.skip` or `.fixme` on a test or suite, or `xdescribe`, `xit`, `xtest`, `xsuite` |
+**What the friction is for.** A test is the unit's specification, and it is read when it fails. Logic in a test is code with no test of its own. The friction makes a straight line with written-out expectations the easy test, so a failure can be trusted and read in one pass.
 
-Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *Output that is hard to predict.* Expectations are computed because the result varies with time, randomness or ordering. Inject the source of variation and pin it with a stub.
+- *Several cases in one test.* A branch or a conditional picks between cases. Write one test per case, or one parameterised test over a table of rows.
+- *The unit's logic repeated in the test.* The test derives the answer the way the unit does. Write the answer out. If that is hard, the unit returns too much for one case or does too much.
+- *Failures caught to inspect them.* A try in a test means the unit throws where it could return its failure as data. Assert on the returned result.
+- *Tests switched off or focused.* A skip or an only hides a failing, slow or flaky case. Fix it or delete it.
 
-## What the check flags
-- Test files only: `*.test.ts` and `*.test.tsx`. Generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- `if` statements, `try` statements, ternary expressions and `let` declarations.
-- Any method call with a computing or mutating name, on any receiver: `map`, `filter`, `reduce`, `find`, `forEach`, `join`, `slice`, `split`, `replace`, `includes`, `sort`, `trim`, `keys`, `values`, `push`, `pop`, `splice`, `fill` and similar string and array methods.
-- Loops are not flagged here; CD-15 covers them. `throw` is CD-10.
+**Where to go.** Every test is arrange, act, assert, against literal values. Variation comes from injected stubs. N cases are N tests or one table.
 
-## What the ESLint check flags
-Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-27/README.md).
-- `hone-cd27/focused-tests` flags `.only` on a `describe`, `it`, `test` or `suite` chain, including `.only.each` and `test.describe.only`, and the bare names `fdescribe`, `fit`, `ftest` and `fsuite`. It reports at the `only` token.
-- `hone-cd27/skipped-tests` flags `.skip` and `.fixme` on those chains, and the bare names `xdescribe`, `xit`, `xtest` and `xsuite`.
-- Not flagged: `.todo`, `.concurrent` and `.each`.
+**Reactions to distrust.**
+- "It's just a helper in the test." A helper with logic is untested code deciding whether other code passes.
+- "Written-out values are brittle." They break when behaviour changes. That is their job.
+- "The expected value is too big to write." Then the test asserts more than the unit's own responsibility, or the unit does too much.
 
-## Example violation
-```ts
-const expected = rows.map((row) => row.id);
-```
-
-## How to fix
-```ts
-expect(ids).toEqual(["a1", "b2"]);
-```
-Write the expected value out. A method call in the act step is flagged too, so move such logic into the unit under test.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs logic. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-27#test-body-logic", "file": "src/legacy/report.test.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Conditional Test Logic* (a test smell in Gerard Meszaros, *xUnit Test Patterns*). A test with branches can pass without checking what it claims to check.
+- *Arrange, act, assert.* One setup, one action, one check: the shape that makes a test a readable specification.

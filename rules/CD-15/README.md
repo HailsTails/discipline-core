@@ -6,43 +6,25 @@ Iteration is a transformation, expressed with `map`, `reduce`, `flatMap`, `filte
 
 **Async stream consumption is iteration this rule does not reach.** Draining an `AsyncIterable` — pulling `await iterator.next()` until exhaustion, or the `for await…of` that desugars to it — is permitted at sites declared as authorised locations for CD-15. The functional forms cannot express it: `map`/`reduce`/`flatMap` over an `AsyncIterable` require materialising the whole stream, which destroys the bounded-residency property that streaming exists to provide. This is a structural fact about the language, not debt — a drain loop at a declared site is fully compliant, carries no paydown obligation, and takes an authorised-location entry, never a carve-out. Everything the rule does reach still binds inside such a loop: the body is a transformation, accumulator updates are whole-value replacements rather than in-place mutation, and synchronous iteration over materialised collections stays functional.
 
-The sections below describe what the audit check covers.
+Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-15#loops` | audit | `for...of`, `for await`, counted `for` and `while` loops |
+**What the friction is for.** A loop says how to step; a transformation says what is produced. The friction makes naming the transformation the easy path, and removes counters that drift and accumulators changed in place.
 
-Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A transformation hidden in control flow.* The body builds one result from each element. Express it as a map, filter or reduce.
+- *Several jobs in one pass.* One loop filters, reshapes and records. Split it into named steps.
+- *Effects mixed with computation.* The loop computes and writes at once. Compute the result first, then perform the effects at the edge.
+- *A stream being drained.* Consuming an async stream is a limit of the language, not debt. Record the site as an authorised location; it is fully compliant.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- Lines matching `for (... of ...)` (with or without `await`), `for (init; test; step)` and `while (`. This includes `do...while`. Each kind is reported once per line.
-- Matching is on raw lines, so loop headers split over several lines are missed and the same text inside a string is flagged. Comment lines are ignored.
-- The source rule names element and counted iteration; the check also flags `while`.
-- Draining an `AsyncIterable` with `for await` is allowed by the rule at declared sites; record it as an `authorised-location`.
+**Where to go.** Iteration reads as data flowing through named transformations, with effects at the end.
 
-## Example violation
-```ts
-for (const order of orders) {
-  totals.push(order.total);
-}
-```
+**Reactions to distrust.**
+- "Loops are faster." Usually unmeasured, and the rule makes no performance carve-out. Measure before arguing it.
+- "It's just tests." A loop in a test is several cases in one. Use one parameterised test over the rows (CD-27).
+- "A loop is clearer here." Clearer to the writer, who knows what it builds. Name what it builds.
 
-## How to fix
-```ts
-const totals = orders.map((order) => order.total);
-```
-Replace a counted loop with `Array.from({ length }, (_, position) => ...)`.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file drains an async stream and cannot use a functional form. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-15#loops", "file": "src/streams/drain.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Replace Loop with Pipeline* (Martin Fowler, *Refactoring*, second edition). A collection pipeline names each step of the processing.
+- *Functional core, imperative shell* (Gary Bernhardt). The transformation is pure; effects run at the edge on its result.
