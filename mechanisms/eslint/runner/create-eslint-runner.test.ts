@@ -1715,3 +1715,92 @@ describe("the governance run on Windows paths", () => {
     ]);
   });
 });
+
+describe("plugin namespace ownership", () => {
+  const teamRun = (request: { readonly pluginNamespace: string }) =>
+    runRequest({
+      clauses: [
+        {
+          ...CLASS_CLAUSE,
+          address: clauseAddressSchema.parse("acme/CD-14#class-syntax"),
+          settings: { ...CLASS_SETTINGS, pluginNamespace: request.pluginNamespace },
+        },
+      ],
+      records: [],
+    });
+
+  const refusedRun = (request: { readonly ruleSet: string; readonly pluginNamespace: string }) =>
+    runnerOver({}).run(
+      runRequest({
+        clauses: [
+          {
+            ...CLASS_CLAUSE,
+            address: clauseAddressSchema.parse(`${request.ruleSet}/CD-14#class-syntax`),
+            settings: { ...CLASS_SETTINGS, pluginNamespace: request.pluginNamespace },
+          },
+        ],
+        records: [],
+      }),
+    );
+
+  it.each(["hone", "hone-x", "hone-core", "hone-acme"])(
+    "refuses the namespace %s for a team piece as belonging to the tool",
+    async (pluginNamespace) => {
+      await expect(refusedRun({ ruleSet: "acme", pluginNamespace })).resolves.toEqual({
+        outcome: "failed",
+        error: {
+          kind: "piece-invalid",
+          pieceRoot: PIECE_ROOT,
+          detail: `the plugin namespace ${pluginNamespace} belongs to Hone; the rule set acme must use acme or acme-<name>`,
+        },
+      });
+    },
+  );
+
+  it.each(["loops", "acmeish", "acm", "honeycomb"])(
+    "refuses the namespace %s for a team piece as not owned by its rule set",
+    async (pluginNamespace) => {
+      await expect(refusedRun({ ruleSet: "acme", pluginNamespace })).resolves.toEqual({
+        outcome: "failed",
+        error: {
+          kind: "piece-invalid",
+          pieceRoot: PIECE_ROOT,
+          detail: `the plugin namespace ${pluginNamespace} is not owned by the rule set acme; use acme or acme-<name>`,
+        },
+      });
+    },
+  );
+
+  it.each(["honeycomb", "honeycomb-x"])("accepts the namespace %s for the team rule set honeycomb", async (pluginNamespace) => {
+    await expect(refusedRun({ ruleSet: "honeycomb", pluginNamespace })).resolves.toMatchObject({ outcome: "ok" });
+  });
+
+  it("keeps the plain reserved message for hone-core on Hone's own rule set", async () => {
+    await expect(
+      runnerOver({}).run(
+        runRequest({
+          clauses: [{ ...CLASS_CLAUSE, settings: { ...CLASS_SETTINGS, pluginNamespace: "hone-core" } }],
+          records: [],
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "failed",
+      error: { kind: "piece-invalid", detail: "the plugin namespace hone-core is reserved for hone's own rules" },
+    });
+  });
+
+  it.each(["", "acme-", "Acme", "acme--x", "-acme"])("rejects the malformed namespace %j", async (pluginNamespace) => {
+    await expect(refusedRun({ ruleSet: "acme", pluginNamespace })).resolves.toMatchObject({
+      outcome: "failed",
+      error: { kind: "piece-invalid" },
+    });
+  });
+
+  it.each(["acme", "acme-x", "acme-cd14"])("accepts the namespace %s for a team piece", async (pluginNamespace) => {
+    await expect(runnerOver({}).run(teamRun({ pluginNamespace }))).resolves.toMatchObject({ outcome: "ok" });
+  });
+
+  it("still accepts Hone's own namespaces for the shared rule set", async () => {
+    await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({ outcome: "ok" });
+  });
+});
