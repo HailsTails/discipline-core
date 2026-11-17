@@ -1715,3 +1715,39 @@ describe("the governance run on Windows paths", () => {
     ]);
   });
 });
+
+describe("plugin namespace ownership", () => {
+  const teamRun = (request: { readonly pluginNamespace: string }) =>
+    runRequest({
+      clauses: [
+        {
+          ...CLASS_CLAUSE,
+          address: clauseAddressSchema.parse("acme/CD-14#class-syntax"),
+          settings: { ...CLASS_SETTINGS, pluginNamespace: request.pluginNamespace },
+        },
+      ],
+      records: [],
+    });
+
+  it.each(["hone", "hone-x", "hone-acme", "loops", "acmeish", "acm"])(
+    "refuses the namespace %s for a team piece, naming the namespaces the rule set may use",
+    async (pluginNamespace) => {
+      await expect(runnerOver({}).run(teamRun({ pluginNamespace }))).resolves.toEqual({
+        outcome: "failed",
+        error: {
+          kind: "piece-invalid",
+          pieceRoot: PIECE_ROOT,
+          detail: expect.stringContaining("use acme or acme-<name>"),
+        },
+      });
+    },
+  );
+
+  it.each(["acme", "acme-x", "acme-cd14"])("accepts the namespace %s for a team piece", async (pluginNamespace) => {
+    await expect(runnerOver({}).run(teamRun({ pluginNamespace }))).resolves.toMatchObject({ outcome: "ok" });
+  });
+
+  it("still accepts Hone's own namespaces for the shared rule set", async () => {
+    await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({ outcome: "ok" });
+  });
+});
