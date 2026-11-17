@@ -10,7 +10,7 @@ const ESLINT = mechanismIdSchema.parse("eslint");
 describe("loadFailureText", () => {
   it("prints an untracked ESLint config root with what the entry must be", () => {
     expect(loadFailureText({ failure: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/Web") } })).toBe(
-      "load failure: config-root-untracked packages/Web: an eslintConfigRoots entry is a folder git tracks, spelled exactly as git spells it; fix or remove it in disciplines.json\n",
+      "load failure: config-root-untracked packages/Web: an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json\n",
     );
   });
   it("prints one line naming the kind and its detail", () => {

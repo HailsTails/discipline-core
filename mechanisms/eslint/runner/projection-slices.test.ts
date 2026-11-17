@@ -10,7 +10,7 @@ import {
   governingPackageOf,
   orphanedSliceDirectoriesOf,
   packageFoldersOf,
-  skippedNestedFoldersOf,
+  nestedConfigurationFoldersOf,
   sliceRecordsOf,
   slicePathOf,
 } from "./projection-slices.ts";
@@ -165,29 +165,21 @@ describe("governingPackageOf", () => {
   });
 });
 
-describe("skippedNestedFoldersOf", () => {
+describe("nestedConfigurationFoldersOf", () => {
   const NESTED_TREE = tracked([
     "fixtures/consumer/disciplines.json",
     "fixtures/consumer/inner/disciplines.json",
     "fixtures/plain/disciplines.json",
-    "fixtures/configured/disciplines.json",
-    "fixtures/configured/eslint.config.mjs",
+    "fixtures/idle/disciplines.json",
   ]);
 
-  it("names each outermost folder holding its own disciplines.json whose files under check have a file exception or a tracked eslint.config", () => {
+  it("names each outermost folder holding its own disciplines.json and a file under check", () => {
     expect(
-      skippedNestedFoldersOf({
+      nestedConfigurationFoldersOf({
         trackedPaths: NESTED_TREE,
-        files: tracked(["fixtures/consumer/inner/old.ts", "fixtures/plain/x.ts", "fixtures/configured/y.ts", "src/a.ts"]),
-        records: [carveOutIn("fixtures/consumer/inner/old.ts")],
+        files: tracked(["fixtures/consumer/inner/old.ts", "fixtures/plain/x.ts", "src/a.ts"]),
       }),
-    ).toEqual(["fixtures/configured", "fixtures/consumer"]);
-  });
-
-  it("names no folder for a clause-wide carve-out alone or a folder with no file under check", () => {
-    expect(
-      skippedNestedFoldersOf({ trackedPaths: NESTED_TREE, files: tracked(["fixtures/plain/x.ts"]), records: [clauseWide] }),
-    ).toEqual([]);
+    ).toEqual(["fixtures/consumer", "fixtures/plain"]);
   });
 });
 

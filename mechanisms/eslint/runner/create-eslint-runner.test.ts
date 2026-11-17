@@ -2393,72 +2393,129 @@ describe("package projection slices, which roots they cover", () => {
   });
 });
 
-const FIXTURE_CONFIG = repoPathSchema.parse("fixtures/broken/eslint.config.mjs");
-
-const IGNORED_FIXTURE_FILES: Readonly<Record<string, FakeFile>> = {
-  "/repo/eslint.config.mjs": presentFile({ text: 'export default [{ ignores: ["fixtures/"] }];\n' }),
-  "/repo/fixtures/broken/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+const ROOT_IGNORING_PACKAGES: Readonly<Record<string, FakeFile>> = {
+  "/repo/eslint.config.mjs": presentFile({ text: 'export default [{ ignores: ["packages/**"] }];\n' }),
+  "/repo/packages/a/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
 };
 
-const FIXTURE_TEAM = lookupQuery({
-  ignored: { "src/a.ts": FILE_CHECKED, "src/factory.ts": FILE_CHECKED },
-  configs: { "fixtures/broken": ROOT_CONFIG },
+const packageQueryUnderIgnoringRoot = (request: { readonly factory: RuleState }): QueryInstance => ({
+  ...queryOver({
+    ignored: { "packages/a/src/a.ts": "checked", "packages/a/src/factory.ts": "checked" },
+    states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: request.factory },
+  }),
+  configFileOf: () => Promise.resolve(ROOT_CONFIG),
 });
 
-const fixtureEslint = (request: { readonly folder: Result<IgnoredState, RunnerFailure> }) =>
-  eslintAsking({ query: FIXTURE_TEAM, ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(request.folder) });
-
-describe("package projection slices, under a folder the team's config ignores", () => {
-  it("requires no slice for a config root a governing config ignores, since the team's ESLint never loads it", async () => {
-    await expect(
-      runnerOver({
-        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
-        eslint: fixtureEslint({ folder: FILE_IGNORED }),
-      }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
+const rootIgnoringEslint = (request: { readonly factory: RuleState }): EslintPort =>
+  eslintAsking({
+    query: packageQueryUnderIgnoringRoot(request),
+    ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED),
   });
 
-  it("still requires the slice when the governing config checks that folder", async () => {
+const PACKAGE_PROJECTION_REQUEST = {
+  repoRoot: REPO_ROOT,
+  installRoot: INSTALL_ROOT,
+  declaredConfigRoots: [],
+  trackedPaths: [PACKAGE_A_CONFIG],
+  clauses: [CLASS_CLAUSE],
+  records: [PACKAGE_FACTORY_LOCATION],
+};
+
+const projectedUnderIgnoringRoot = async (request: {
+  readonly rootProjection: FakeFile;
+  readonly slice: FakeFile;
+}) => {
+  const fileText = fileTextOver({
+    ...SOURCE_FILES,
+    ...ROOT_IGNORING_PACKAGES,
+    [PROJECTION_PATH]: request.rootProjection,
+    [PACKAGE_A_SLICE_PATH]: request.slice,
+  });
+  const eslint = rootIgnoringEslint({ factory: OFF });
+  const write = await runnerOver({ fileText, eslint }).project(PACKAGE_PROJECTION_REQUEST);
+  return { write, fileWrites: vi.mocked(fileText.write).mock.calls, asked: vi.mocked(eslint.ignoredByConfig).mock.calls };
+};
+
+describe("package projection slices, under a folder the repository root config ignores", () => {
+  it("still names the missing slice, since linting from that folder loads its config without the root's ignores", async () => {
     await expect(
       runnerOver({
-        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
-        eslint: fixtureEslint({ folder: FILE_CHECKED }),
-      }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
+        fileText: repoHolding({ projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION, files: ROOT_IGNORING_PACKAGES }),
+        eslint: rootIgnoringEslint({ factory: OFF }),
+      }).run(PACKAGE_RUN),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { slices: [{ slice: "fixtures/broken/disciplines.eslint.mjs", state: "missing" }] },
+      value: { slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }] },
     });
   });
 
-  it("projects no slice into a folder a governing config ignores", async () => {
-    const fileText = fileTextOver({ ...SOURCE_FILES, ...IGNORED_FIXTURE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
-    await runnerOver({ fileText, eslint: fixtureEslint({ folder: FILE_IGNORED }) }).project({
-      repoRoot: REPO_ROOT,
-      installRoot: INSTALL_ROOT,
-      declaredConfigRoots: [],
-      trackedPaths: [FIXTURE_CONFIG],
-      clauses: [CLASS_CLAUSE],
-      records: [],
+  it("still names the slice out of date after an exception is added there", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION,
+          files: { ...ROOT_IGNORING_PACKAGES, [PACKAGE_A_SLICE_PATH]: presentFile({ text: ENABLING_PROJECTION }) },
+        }),
+        eslint: rootIgnoringEslint({ factory: OFF }),
+      }).run(PACKAGE_RUN),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" }] },
     });
-    expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
   });
 
-  it("asks no governing config anything when every slice is current", async () => {
-    const eslint = eslintOver({
-      query: queryOver({
-        ignored: { "packages/a/src/a.ts": "checked", "packages/a/src/factory.ts": "checked" },
-        states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: OFF },
-      }),
+  it("names the slice not applied when the package's own config, the one its lint loads, does not carry its carve-out", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION,
+          files: { ...ROOT_IGNORING_PACKAGES, [PACKAGE_A_SLICE_PATH]: presentFile({ text: PACKAGE_A_SLICE }) },
+        }),
+        eslint: rootIgnoringEslint({ factory: ERROR }),
+      }).run(PACKAGE_RUN),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" }] },
     });
-    await runnerOver({
-      fileText: packageRepo({
-        files: { ...IGNORED_FIXTURE_FILES, "/repo/packages/a/eslint.config.mjs": presentFile({ text: "export default [];\n" }) },
+  });
+
+});
+
+describe("package projection slices, projected under a folder the repository root config ignores", () => {
+  it("rewrites an out-of-date slice there", async () => {
+    await expect(
+      projectedUnderIgnoringRoot({
+        rootProjection: presentFile({ text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }),
+        slice: presentFile({ text: ENABLING_PROJECTION }),
       }),
-      eslint,
-    }).run(PACKAGE_RUN);
-    expect({ queries: vi.mocked(eslint.createQueryInstance).mock.calls.length, asked: vi.mocked(eslint.ignoredByConfig).mock.calls }).toEqual({
-      queries: 1,
-      asked: [],
+    ).resolves.toMatchObject({ fileWrites: [[{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }]] });
+  });
+
+  it("recreates a deleted slice there", async () => {
+    await expect(
+      projectedUnderIgnoringRoot({
+        rootProjection: presentFile({ text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }),
+        slice: ABSENT_FILE,
+      }),
+    ).resolves.toMatchObject({ fileWrites: [[{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }]] });
+  });
+
+  it("writes the same slices whether or not the root projection exists yet, asking no config about any folder", async () => {
+    const first = await projectedUnderIgnoringRoot({ rootProjection: ABSENT_FILE, slice: ABSENT_FILE });
+    const second = await projectedUnderIgnoringRoot({
+      rootProjection: presentFile({ text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }),
+      slice: ABSENT_FILE,
+    });
+    expect({ first, second }).toEqual({
+      first: {
+        write: expect.anything(),
+        fileWrites: [
+          [{ path: PROJECTION_PATH, text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }],
+          [{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }],
+        ],
+        asked: [],
+      },
+      second: { write: expect.anything(), fileWrites: [[{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }]], asked: [] },
     });
   });
 });
@@ -2470,45 +2527,48 @@ const NESTED_FILE = repoPathSchema.parse("packages/b/src/old.ts");
 const NESTED_RUN = {
   ...runRequest({ clauses: [CLASS_CLAUSE], records: [{ ...FACTORY_LOCATION, file: NESTED_FILE }] }),
   files: [...FILES, NESTED_FILE],
-  trackedPaths: [...FILES, NESTED_FILE, NESTED_SELECTION],
+  trackedPaths: [...FILES, NESTED_FILE, NESTED_SELECTION, NESTED_CONFIG],
 };
 
 const NESTED_SKIPPED = { slice: "packages/b/disciplines.eslint.mjs", state: "nested-configuration" };
 
-const nestedQuery = queryOver({
-  ignored: { ...CHECKED, "packages/b/src/old.ts": "checked" },
-  states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: ERROR, [`packages/b/src/old.ts ${RULE_ID}`]: OFF },
-});
+const nestedQuery = (request: { readonly old: RuleState }) =>
+  queryOver({
+    ignored: { ...CHECKED, "packages/b/src/old.ts": "checked" },
+    states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: ERROR, [`packages/b/src/old.ts ${RULE_ID}`]: request.old },
+  });
 
 describe("package projection slices, a folder holding its own disciplines.json", () => {
-  it("names the skipped folder's slice when a file under check there has a file exception", async () => {
-    await expect(
-      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run(NESTED_RUN),
-    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [NESTED_SKIPPED] } });
+  it("names the folder beside a not-included projection when its own config loses the carve-out this repository records there", async () => {
+    await expect(runnerOver({ eslint: eslintOver({ query: nestedQuery({ old: ERROR }) }) }).run(NESTED_RUN)).resolves.toEqual({
+      ...NOT_INCLUDED,
+      value: { ...NOT_INCLUDED.value, slices: [NESTED_SKIPPED] },
+    });
   });
 
-  it("names the skipped folder's slice when a file under check there sits beside a tracked eslint.config", async () => {
+  it("names nothing when the projection is in effect there, whatever the folder records", async () => {
     await expect(
-      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run({
-        ...NESTED_RUN,
-        records: [],
-        trackedPaths: [...NESTED_RUN.trackedPaths, NESTED_CONFIG],
-      }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [NESTED_SKIPPED] } });
-  });
-
-  it("names nothing for a skipped folder with no file under check", async () => {
-    await expect(
-      runnerOver({}).run({ ...NESTED_RUN, files: FILES, trackedPaths: [...NESTED_RUN.trackedPaths, NESTED_CONFIG] }),
+      runnerOver({ eslint: eslintOver({ query: nestedQuery({ old: OFF }) }) }).run(NESTED_RUN),
     ).resolves.toMatchObject({ outcome: "ok", value: { slices: [] } });
   });
 
-  it("names nothing for a skipped folder whose files under check have no exception and no eslint.config beside them", async () => {
+  it("names nothing for a folder with no file under check", async () => {
+    await expect(runnerOver({}).run({ ...NESTED_RUN, files: FILES })).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [] },
+    });
+  });
+
+  it("names nothing when ESLint resolves every file from the repository root config, which never loads the folder's own config", async () => {
     await expect(
-      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run({ ...NESTED_RUN, records: [] }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [] } });
+      runnerOver({
+        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: ROOT_LOOKUP_FILES }),
+        eslint: eslintOver({ query: nestedQuery({ old: ERROR }) }),
+      }).run(NESTED_RUN),
+    ).resolves.toEqual(NOT_INCLUDED);
   });
 });
+
 describe("package projection slices, a run that cannot finish", () => {
   it("writes and removes nothing when one slice cannot be rendered", async () => {
     const fileText = fileTextOver({

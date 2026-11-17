@@ -92,7 +92,7 @@ const classFinding = (request: { readonly file: string; readonly line: number })
   mechanism: "eslint",
 });
 
-const NOT_RUN_NOT_INCLUDED = { kind: "mechanism-not-run", mechanism: "eslint", projection: "not-included" };
+const NOT_RUN_NOT_INCLUDED = { kind: "mechanism-not-run", mechanism: "eslint", projection: "not-included", nestedConfigurations: [] };
 
 describe.each(ESLINT_LINES)("real %s config resolution behind the ESLint runner's query instance, over a consumer repository", (line) => {
   it("reports an unrecorded override block placed after the projection as a config-override", async () => {

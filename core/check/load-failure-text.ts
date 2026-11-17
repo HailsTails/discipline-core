@@ -10,7 +10,7 @@ const JUDGEMENT_CLAUSE_LISTED_REPAIR =
   "a judgement clause is enforced by review and is left out of clauses, adopted or not; remove it";
 
 const CONFIG_ROOT_REPAIR =
-  "an eslintConfigRoots entry is a folder git tracks, spelled exactly as git spells it; fix or remove it in disciplines.json";
+  "an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json";
 
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 

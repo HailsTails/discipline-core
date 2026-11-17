@@ -451,26 +451,37 @@ exceptions[4] why-chain-refused why 2\nis empty\r
     ).toContain("\neslint not-applied packages/a/disciplines.eslint.mjs\n");
   });
 
-  it("renders a folder skipped for holding its own disciplines.json as an assessment line saying no slice can be written there and pointing at the tracking issue", () => {
+  it("explains a not-included projection in the failures-only output by the folders holding their own disciplines.json, without marking the verdict partial", () => {
     expect(
       renderReportText({
-        output: "full",
+        output: "failures-only",
         report: {
           ...emptyReport,
-          assessment: [
+          unmeasured: [
             {
-              concern: "nestedConfiguration",
-              assessedBy: "not-supported",
+              kind: "mechanism-not-run",
               mechanism: eslint,
-              folder: repoPathSchema.parse("packages/b"),
-              slice: repoPathSchema.parse("packages/b/disciplines.eslint.mjs"),
+              projection: "not-included",
+              nestedConfigurations: repoPathSchema.array().parse(["fixtures/a", "fixtures/b"]),
             },
           ],
         },
       }),
     ).toBe(
-      "assessment (1)\nnested-configuration not-supported: eslint skips packages/b, which holds its own disciplines.json, so hone project cannot write packages/b/disciplines.eslint.mjs; nested Hone configurations are not supported yet, see https://github.com/HailsTails/hone/issues/72\nverdict: pass (partial assessment)\n",
+      "unmeasured (1)\nmechanism-not-run eslint not-included; not managed from this repository, each holding its own disciplines.json: fixtures/a, fixtures/b; nested Hone configurations are not supported yet, see https://github.com/HailsTails/hone/issues/72\nverdict: fail\n",
     );
+  });
+
+  it("renders a not-included projection with no folder holding its own disciplines.json as its kind, mechanism and projection alone", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          unmeasured: [{ kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] }],
+        },
+      }),
+    ).toContain("\nmechanism-not-run eslint not-included\n");
   });
 });
 

@@ -11,7 +11,6 @@ import {
   type GoverningIgnores,
   type GoverningLookup,
   governingConfigIgnores,
-  ignoredFolderVerdict,
 } from "./governing-config.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
@@ -268,50 +267,5 @@ describe("brokenConfigVerdict where no config governs above the broken one", () 
       file: FIXTURE_FILE,
     });
     expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({ verdict: "not-ignored", asked: [] });
-  });
-});
-
-const PACKAGE_FIXTURE_FOLDER = repoPathSchema.parse("packages/a/fixtures/bad");
-
-describe("ignoredFolderVerdict, whether the team's ESLint ever enters a folder", () => {
-  it("is ignored when the folder's governing config ignores it, asking about no file in it", async () => {
-    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
-    const verdict = await ignoredFolderVerdict({
-      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf: cachedGoverningIgnores({ eslint: portOver(ignoredByConfig) }) }),
-      folder: PACKAGE_FIXTURE_FOLDER,
-    });
-    expect({ verdict, asked: ignoredByConfig.mock.calls }).toEqual({
-      verdict: "ignored-by-governing-config",
-      asked: [[{ configFile: "/repo/packages/a/eslint.config.mjs", cwd: "/repo/packages/a", path: "fixtures/bad/hone-folder-probe" }]],
-    });
-  });
-
-  it("walks up to the config above when the nearest governing config checks the folder", async () => {
-    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValueOnce(FILE_CHECKED).mockResolvedValueOnce(FILE_IGNORED);
-    const verdict = await ignoredFolderVerdict({
-      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf: cachedGoverningIgnores({ eslint: portOver(ignoredByConfig) }) }),
-      folder: PACKAGE_FIXTURE_FOLDER,
-    });
-    expect({ verdict, asked: ignoredByConfig.mock.calls }).toEqual({
-      verdict: "ignored-by-governing-config",
-      asked: [
-        [{ configFile: "/repo/packages/a/eslint.config.mjs", cwd: "/repo/packages/a", path: "fixtures/bad/hone-folder-probe" }],
-        [{ configFile: "/repo/eslint.config.mjs", cwd: "/repo", path: "packages/a/hone-folder-probe" }],
-      ],
-    });
-  });
-
-  it("is not ignored when every config up to the root checks the folder", async () => {
-    await expect(
-      ignoredFolderVerdict({
-        lookup: lookupOver({
-          query: PACKAGE_FIXTURE_TEAM,
-          governingIgnoreOf: cachedGoverningIgnores({
-            eslint: portOver(vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_CHECKED)),
-          }),
-        }),
-        folder: PACKAGE_FIXTURE_FOLDER,
-      }),
-    ).resolves.toBe("not-ignored");
   });
 });

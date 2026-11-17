@@ -1339,7 +1339,7 @@ describe("runCheck with an embedded runner", () => {
       ),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { ...EMPTY_REPORT, unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included" }] },
+      value: { ...EMPTY_REPORT, unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: [] }] },
     });
   });
 
@@ -1428,12 +1428,12 @@ describe("runCheck with an embedded runner", () => {
       outcome: "ok",
       value: {
         ...EMPTY_REPORT,
-        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included" }],
+        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: [] }],
         projectionProblems: [{ scope: "slice", mechanism: "audit", state: "not-applied", slice: "packages/a/disciplines.eslint.mjs" }],
       },
     });
   });
-  it("lists a folder the mechanism skipped for holding its own disciplines.json under the assessment, not as a projection problem", async () => {
+  it("explains a not-included projection by each folder holding its own disciplines.json the runner names, leaving the assessment whole", async () => {
     await expect(
       runCheck(
         checkRequest({
@@ -1442,7 +1442,7 @@ describe("runCheck with an embedded runner", () => {
               report: {
                 hits: [],
                 nativeExceptions: [],
-                projection: "current",
+                projection: "not-included",
                 slices: [{ slice: "packages/b/disciplines.eslint.mjs", state: "nested-configuration" }],
               },
             }),
@@ -1453,18 +1453,11 @@ describe("runCheck with an embedded runner", () => {
       outcome: "ok",
       value: {
         ...EMPTY_REPORT,
-                assessment: [
-          {
-            concern: "nestedConfiguration",
-            assessedBy: "not-supported",
-            mechanism: "audit",
-            folder: "packages/b",
-            slice: "packages/b/disciplines.eslint.mjs",
-          },
-        ],
+        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: ["packages/b"] }],
       },
     });
   });
+
 
   it("lists a native exception of a kind its projection does not write as unrecorded", async () => {
     await expect(
@@ -1659,6 +1652,25 @@ describe("runCheck with ESLint config roots declared in disciplines.json", () =>
       error: { kind: "config-root-untracked", root },
     });
     expect(runner.run).not.toHaveBeenCalled();
+  });
+
+  it("is the load failure config-root-untracked for a tracked folder the selection excludes", async () => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    const selection = JSON.stringify({
+      version: 1,
+      ruleSets: {},
+      clauses: { "CD-14#class-syntax": "audit" },
+      exclude: ["src"],
+      eslintConfigRoots: ["src"],
+    });
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: selection }) }),
+          modules: modulesLoading({ runner }),
+        }),
+      ),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "config-root-untracked", root: "src" } });
   });
 });
 

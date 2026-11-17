@@ -114,19 +114,14 @@ const outermostOf = (request: { readonly nested: readonly string[] }): readonly 
 const holdingOf = (request: { readonly paths: readonly string[]; readonly folder: string }): "holds" | "holds-none" =>
   request.paths.some((path) => within({ path, directory: request.folder }) === "within") ? "holds" : "holds-none";
 
-export const skippedNestedFoldersOf = (request: {
+export const nestedConfigurationFoldersOf = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly files: readonly RepoPath[];
-  readonly records: readonly ExceptionRecord[];
-}): readonly RepoPath[] => {
-  const recordedFiles = request.records.flatMap((record) => (record.kind === "clause-wide-carve-out" ? [] : [record.file]));
-  const configs = request.trackedPaths.filter((path) => CONFIG_FILE_NAMES.includes(fileNameOf({ path })));
-  return outermostOf({ nested: nestedRepositories(request) })
+}): readonly RepoPath[] =>
+  outermostOf({ nested: nestedRepositories(request) })
     .filter((folder) => holdingOf({ paths: request.files, folder }) === "holds")
-    .filter((folder) => holdingOf({ paths: [...recordedFiles, ...configs], folder }) === "holds")
     .sort(codeUnitOrder)
     .map((folder) => repoPathSchema.parse(folder));
-};
 
 export const orphanedSliceDirectoriesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];

@@ -19,22 +19,20 @@ export type Unmeasured =
   | {
       readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;
-      readonly projection: "missing" | "not-included";
-    };
-
-export type PartialAssessment =
-  | {
-      readonly concern: "forfeiture";
-      readonly assessedBy: "elsewhere";
-      readonly fileCarveOuts: number;
+      readonly projection: "missing";
     }
   | {
-      readonly concern: "nestedConfiguration";
-      readonly assessedBy: "not-supported";
+      readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;
-      readonly folder: RepoPath;
-      readonly slice: RepoPath;
+      readonly projection: "not-included";
+      readonly nestedConfigurations: readonly RepoPath[];
     };
+
+export type PartialAssessment = {
+  readonly concern: "forfeiture";
+  readonly assessedBy: "elsewhere";
+  readonly fileCarveOuts: number;
+};
 
 export type ProjectionProblem =
   | { readonly scope: "projection"; readonly mechanism: MechanismId; readonly state: "out-of-date" }

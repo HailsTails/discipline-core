@@ -26,8 +26,6 @@ export type GoverningLookup = {
 
 type PlacedGoverningConfig = GoverningConfig & { readonly repositoryFolder: RepoPath | "repository-root" };
 
-type IgnoredFolderConfirmation = { readonly kind: "folder" } | { readonly kind: "file"; readonly file: RepoPath };
-
 const REPOSITORY_ROOT_FOLDER = ".";
 
 const FOLDER_PROBE_NAME = "hone-folder-probe";
@@ -123,15 +121,11 @@ const targetOf = (request: {
 const verdictAbove = (request: {
   readonly lookup: GoverningLookup;
   readonly governing: PlacedGoverningConfig;
-  readonly confirmation: IgnoredFolderConfirmation;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> =>
   request.governing.repositoryFolder === "repository-root"
     ? Promise.resolve("not-ignored")
-    : governingVerdict({
-        lookup: request.lookup,
-        boundary: request.governing.repositoryFolder,
-        confirmation: request.confirmation,
-      });
+    : governingVerdict({ lookup: request.lookup, boundary: request.governing.repositoryFolder, file: request.file });
 
 const fileVerdict = (request: {
   readonly lookup: GoverningLookup;
@@ -147,20 +141,11 @@ const fileVerdict = (request: {
     .then((answer): GoverningVerdict => (answer === "ignored" ? "ignored-by-governing-config" : "not-ignored"));
 };
 
-const confirmedVerdict = (request: {
-  readonly lookup: GoverningLookup;
-  readonly governing: PlacedGoverningConfig;
-  readonly confirmation: IgnoredFolderConfirmation;
-}): Promise<GoverningVerdict> =>
-  request.confirmation.kind === "file"
-    ? fileVerdict({ lookup: request.lookup, governing: request.governing, file: request.confirmation.file })
-    : Promise.resolve("ignored-by-governing-config");
-
 const verdictOfGoverning = (request: {
   readonly lookup: GoverningLookup;
   readonly governing: PlacedGoverningConfig;
   readonly boundary: RepoPath;
-  readonly confirmation: IgnoredFolderConfirmation;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> => {
   const target = targetOf({ ...request, kind: "folder", path: request.boundary });
   if (target === undefined) {
@@ -168,13 +153,13 @@ const verdictOfGoverning = (request: {
   }
   return request.lookup
     .governingIgnoreOf({ governing: { configFile: request.governing.configFile, folder: request.governing.folder }, target })
-    .then((answer): Promise<GoverningVerdict> => (answer === "ignored" ? confirmedVerdict(request) : verdictAbove(request)));
+    .then((answer): Promise<GoverningVerdict> => (answer === "ignored" ? fileVerdict(request) : verdictAbove(request)));
 };
 
 const governingVerdict = (request: {
   readonly lookup: GoverningLookup;
   readonly boundary: RepoPath;
-  readonly confirmation: IgnoredFolderConfirmation;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> =>
   request.lookup.query.configFileOf({ file: request.boundary }).then((search): GoverningVerdict | Promise<GoverningVerdict> => {
     const governing = placedGoverningConfig({ lookup: request.lookup, search, boundary: request.boundary });
@@ -193,11 +178,5 @@ export const brokenConfigVerdict = (request: {
   const boundary = repositoryFolderOf({ folder: request.lookup.path.repositoryDirectoryOf({ path: placed.path }) });
   return boundary === "repository-root" || boundary === "outside-repository"
     ? Promise.resolve("not-ignored")
-    : governingVerdict({ lookup: request.lookup, boundary, confirmation: { kind: "file", file: request.file } });
+    : governingVerdict({ lookup: request.lookup, boundary, file: request.file });
 };
-
-export const ignoredFolderVerdict = (request: {
-  readonly lookup: GoverningLookup;
-  readonly folder: RepoPath;
-}): Promise<GoverningVerdict> =>
-  governingVerdict({ lookup: request.lookup, boundary: request.folder, confirmation: { kind: "folder" } });

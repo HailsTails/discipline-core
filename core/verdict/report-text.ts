@@ -74,6 +74,15 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
   }
 };
 
+const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
+
+const nestedConfigurationNote = (request: {
+  readonly unmeasured: Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
+}): string =>
+  request.unmeasured.projection === "missing" || request.unmeasured.nestedConfigurations.length === 0
+    ? ""
+    : `; not managed from this repository, each holding its own disciplines.json: ${request.unmeasured.nestedConfigurations.join(", ")}; nested Hone configurations are not supported yet, see ${NESTED_CONFIGURATION_ISSUE}`;
+
 const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string => {
   switch (request.unmeasured.kind) {
     case "forfeiture-unmeasured":
@@ -81,21 +90,17 @@ const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string =>
     case "legacy-chain-unmeasured":
       return request.unmeasured.kind;
     case "mechanism-not-run":
-      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}`;
+      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}${nestedConfigurationNote({ unmeasured: request.unmeasured })}`;
   }
 };
 
 const counted = (request: { readonly count: number; readonly noun: string }): string =>
   request.count === 1 ? `1 ${request.noun}` : `${request.count} ${request.noun}s`;
 
-const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
-
 const assessmentLine = (request: { readonly partial: PartialAssessment }): string => {
   switch (request.partial.concern) {
     case "forfeiture":
       return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.fileCarveOuts, noun: "file carve-out" })} not checked for decay in this run`;
-    case "nestedConfiguration":
-      return `nested-configuration ${request.partial.assessedBy}: ${request.partial.mechanism} skips ${request.partial.folder}, which holds its own disciplines.json, so hone project cannot write ${request.partial.slice}; nested Hone configurations are not supported yet, see ${NESTED_CONFIGURATION_ISSUE}`;
   }
 };
 

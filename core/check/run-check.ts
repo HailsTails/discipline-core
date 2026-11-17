@@ -224,22 +224,13 @@ const touchedSetFor = (request: {
   return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
 };
 
-const forfeitureAssessmentOf = (request: {
+const partialAssessmentsOf = (request: {
   readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
 }): readonly PartialAssessment[] =>
   request.assessment.forfeiture === "elsewhere"
     ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request.inputs) }]
     : [];
-
-const partialAssessmentsOf = (request: {
-  readonly assessment: Assessment;
-  readonly inputs: LoadedInputs;
-  readonly runs: readonly MechanismRun[];
-}): readonly PartialAssessment[] => [
-  ...forfeitureAssessmentOf(request),
-  ...nestedConfigurationsOf(request),
-];
 
 const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
   request.records.some((record) => recordImportOf({ record }).imported === "yes")
@@ -321,10 +312,16 @@ const projectionOutcome = (request: {
     case "current":
       return { unmeasured: [], problems: [] };
     case "missing":
+      return { unmeasured: [{ kind: "mechanism-not-run", mechanism: request.run.mechanism, projection: "missing" }], problems: [] };
     case "not-included":
       return {
         unmeasured: [
-          { kind: "mechanism-not-run", mechanism: request.run.mechanism, projection: request.run.projection },
+          {
+            kind: "mechanism-not-run",
+            mechanism: request.run.mechanism,
+            projection: "not-included",
+            nestedConfigurations: nestedConfigurationsOf(request),
+          },
         ],
         problems: [],
       };
@@ -342,19 +339,14 @@ const sliceProblemsOf = (request: { readonly run: MechanismRun }): readonly Proj
       : [{ scope: "slice", mechanism: request.run.mechanism, state: slice.state, slice: slice.slice }],
   );
 
-const nestedConfigurationOf = (request: { readonly mechanism: MechanismId; readonly slice: RepoPath }): readonly PartialAssessment[] => {
-  const folder = repoPathSchema.safeParse(request.slice.split("/").slice(0, -1).join("/"));
-  return folder.success
-    ? [{ concern: "nestedConfiguration", assessedBy: "not-supported", mechanism: request.mechanism, folder: folder.data, slice: request.slice }]
-    : [];
-};
-
-const nestedConfigurationsOf = (request: { readonly runs: readonly MechanismRun[] }): readonly PartialAssessment[] =>
-  request.runs.flatMap((run) =>
-    run.slices.flatMap((slice) =>
-      slice.state === NESTED_CONFIGURATION ? nestedConfigurationOf({ mechanism: run.mechanism, slice: slice.slice }) : [],
-    ),
-  );
+const nestedConfigurationsOf = (request: { readonly run: MechanismRun }): readonly RepoPath[] =>
+  request.run.slices.flatMap((slice) => {
+    if (slice.state !== NESTED_CONFIGURATION) {
+      return [];
+    }
+    const folder = repoPathSchema.safeParse(slice.slice.split("/").slice(0, -1).join("/"));
+    return folder.success ? [folder.data] : [];
+  });
 
 type TreeRequest = Pick<CheckRequest, "git" | "repoRoot" | "path" | "fileText">;
 

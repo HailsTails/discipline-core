@@ -39,7 +39,6 @@ import {
 } from "./eslint-instance.ts";
 import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
-import { ignoredRootsOf } from "./ignored-roots.ts";
 import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
@@ -51,7 +50,7 @@ import {
   configRootsOf,
   governingPackageOf,
   packageFoldersOf,
-  skippedNestedFoldersOf,
+  nestedConfigurationFoldersOf,
   slicePathOf,
 } from "./projection-slices.ts";
 import {
@@ -356,16 +355,6 @@ const sliceOriginOf = (request: { readonly path: PathPort; readonly origin: Impo
   install: request.origin.install,
 });
 
-const nestedConfigurationSlicesOf = (request: {
-  readonly run: EmbeddedRunRequest;
-  readonly lookup: ConfigLookup;
-}): readonly SliceProblem[] =>
-  request.lookup.kind === "nearest-to-file"
-    ? skippedNestedFoldersOf({ trackedPaths: request.run.trackedPaths, files: request.run.files, records: request.run.records }).map(
-        (directory) => ({ slice: slicePathOf({ root: { placement: "package", directory } }), state: "nested-configuration" as const }),
-      )
-    : [];
-
 const configuredOnDisk = (request: {
   readonly ports: EslintRunnerPorts;
   readonly repoRoot: AbsolutePath;
@@ -392,51 +381,6 @@ const unconfiguredSlicesOf = (request: {
       ? [{ slice: slicePathOf({ root }), state: "unconfigured" as const }]
       : [],
   );
-
-const directoriesOfSlices = (request: {
-  readonly roots: readonly ConfigRoot[];
-  readonly slices: readonly SliceProblem[];
-}): readonly RepoPath[] => {
-  const named = new Set<string>(request.slices.map((problem) => problem.slice));
-  return request.roots.flatMap((root) => (root.placement === "package" && named.has(slicePathOf({ root })) ? [root.directory] : []));
-};
-
-const ignoredSliceDirectories = (request: {
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
-  readonly lookup: ConfigLookup;
-  readonly roots: readonly ConfigRoot[];
-  readonly slices: readonly SliceProblem[];
-}): Promise<ReadonlySet<string>> =>
-  ignoredRootsOf({
-    eslint: request.ports.eslint,
-    path: request.ports.path,
-    repoRoot: request.repoRoot,
-    lookup: request.lookup,
-    candidates: directoriesOfSlices(request),
-  });
-
-const loadedSlicesOf = (request: {
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
-  readonly lookup: ConfigLookup;
-  readonly roots: readonly ConfigRoot[];
-  readonly report: Outcome<EmbeddedRunReport>;
-}): Promise<Outcome<EmbeddedRunReport>> => {
-  const report = request.report;
-  if (report.outcome === "failed" || report.value.slices.length === 0) {
-    return Promise.resolve(report);
-  }
-  return ignoredSliceDirectories({ ...request, slices: report.value.slices }).then((ignored) => {
-    const ignoredSlices = new Set<string>(
-      request.roots.flatMap((root) => (root.placement === "package" && ignored.has(root.directory) ? [slicePathOf({ root })] : [])),
-    );
-    return {
-      outcome: "ok",
-      value: { ...report.value, slices: report.value.slices.filter((problem) => !ignoredSlices.has(problem.slice)) },
-    };
-  });
-};
 
 const fileRuleStates = (request: {
   readonly query: QueryInstance;
@@ -1192,6 +1136,7 @@ const lintedReport = (request: {
 
 const unappliedSliceOf = (request: {
   readonly folder: RepoPath;
+  readonly state: "not-applied" | "nested-configuration";
   readonly selected: readonly SelectedClause[];
   readonly records: readonly ExceptionRecord[];
   readonly checked: readonly CheckedFile[];
@@ -1201,7 +1146,7 @@ const unappliedSliceOf = (request: {
     records: recordsUnderCheck({ records: request.records, checked: request.checked }),
     queried: { ignored: [], checked: request.checked },
   }) === "not-in-effect"
-    ? [{ slice: slicePathOf({ root: { placement: "package", directory: request.folder } }), state: "not-applied" }]
+    ? [{ slice: slicePathOf({ root: { placement: "package", directory: request.folder } }), state: request.state }]
     : [];
 
 const unappliedSlicesOf = (request: {
@@ -1221,6 +1166,7 @@ const unappliedSlicesOf = (request: {
       ? []
       : unappliedSliceOf({
           folder: root.directory,
+          state: "not-applied",
           selected: request.selected,
           records: [...clauseWide, ...(fileRecordsByPackage.get(root.directory) ?? [])],
           checked: checkedByPackage.get(root.directory) ?? [],
@@ -1228,11 +1174,31 @@ const unappliedSlicesOf = (request: {
   );
 };
 
+const nestedConfigurationSlicesOf = (request: {
+  readonly folders: readonly RepoPath[];
+  readonly selected: readonly SelectedClause[];
+  readonly records: readonly ExceptionRecord[];
+  readonly queried: QueriedFiles;
+}): readonly SliceProblem[] => {
+  const clauseWide = request.records.filter((record) => record.kind === "clause-wide-carve-out");
+  return request.folders.flatMap((folder) => {
+    const prefix = `${folder}/`;
+    return unappliedSliceOf({
+      folder,
+      state: "nested-configuration",
+      selected: request.selected,
+      records: [...clauseWide, ...fileRecordsOf({ records: request.records }).filter((record) => record.file.startsWith(prefix))],
+      checked: request.queried.checked.filter((entry) => entry.file.startsWith(prefix)),
+    });
+  });
+};
+
 const queriedReport = (request: {
   readonly run: EmbeddedRunRequest;
   readonly selected: readonly SelectedClause[];
   readonly status: ProjectionStatus;
   readonly attributedRoots: readonly ConfigRoot[];
+  readonly nestedFolders: readonly RepoPath[];
   readonly ports: EslintRunnerPorts;
   readonly queried: Outcome<QueriedFiles>;
 }): Promise<Outcome<EmbeddedRunReport>> => {
@@ -1248,7 +1214,13 @@ const queriedReport = (request: {
       records: request.run.records,
       queried,
     });
-    return Promise.resolve(reportWith({ projection: "not-included", slices: [...request.status.slices, ...unapplied] }));
+    const nested = nestedConfigurationSlicesOf({
+      folders: request.nestedFolders,
+      selected: request.selected,
+      records: request.run.records,
+      queried,
+    });
+    return Promise.resolve(reportWith({ projection: "not-included", slices: [...request.status.slices, ...unapplied, ...nested] }));
   }
   return lintedReport({ ...request, queried });
 };
@@ -1279,6 +1251,10 @@ const governedRun = (request: {
     queriedReport({
       ...request,
       attributedRoots: lookup.kind === "repository-root" ? [] : request.roots,
+      nestedFolders:
+        lookup.kind === "repository-root"
+          ? []
+          : nestedConfigurationFoldersOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }),
       queried,
     }),
   );
@@ -1353,12 +1329,11 @@ const selectedRun = (request: {
           slices: [
             ...status.value.slices,
             ...unconfiguredSlicesOf({ ports: request.ports, run: request.run, roots }),
-            ...nestedConfigurationSlicesOf({ run: request.run, lookup: lookup.value }),
           ],
         },
         roots,
         lookup: lookup.value,
-      }).then((report) => loadedSlicesOf({ ports: request.ports, repoRoot: request.run.repoRoot, lookup: lookup.value, roots, report }));
+      });
 };
 
 const lintedSourceCases = (request: {
@@ -1412,23 +1387,6 @@ const importOriginOf = (request: {
   return install.outcome === "failed" ? install : { outcome: "ok", value: { repoRoot: request.repoRoot, install: install.value } };
 };
 
-const loadedRootsOf = (request: {
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
-  readonly lookup: Outcome<ConfigLookup>;
-  readonly roots: readonly ConfigRoot[];
-  readonly source: SliceSource & { readonly fileText: FileTextPort };
-}): Promise<readonly ConfigRoot[]> => {
-  const lookup = request.lookup;
-  const problems = packageSliceProblemsOf({ ...request.source, roots: request.roots });
-  if (lookup.outcome === "failed" || problems.outcome === "failed" || problems.value.length === 0) {
-    return Promise.resolve(request.roots);
-  }
-  return ignoredSliceDirectories({ ...request, lookup: lookup.value, slices: problems.value }).then((ignored) =>
-    request.roots.filter((root) => root.placement === "repository" || !ignored.has(root.directory)),
-  );
-};
-
 const projectedWrite = (request: {
   readonly request: ProjectionRequest;
   readonly ports: EslintRunnerPorts;
@@ -1455,28 +1413,20 @@ const projectedWrite = (request: {
     records: request.request.records,
     origin: sliceOriginOf({ path: request.ports.path, origin: origin.value }),
   };
-  const lookupRequest = {
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    repoRoot: request.request.repoRoot,
-    trackedPaths: request.request.trackedPaths,
-  };
-  const roots = configRootsOf({
-    trackedPaths: request.request.trackedPaths,
-    declared: request.request.declaredConfigRoots,
-    lookup: configLookupOf(lookupRequest),
-  });
-  return loadedRootsOf({
-    ports: request.ports,
-    repoRoot: request.request.repoRoot,
-    lookup: teamConfigLookup(lookupRequest),
-    roots,
-    source,
-  }).then((loaded) =>
+  return Promise.resolve(
     slicedProjectionWrites({
       ...source,
       fileRemoval: request.ports.fileRemoval,
-      roots: loaded,
+      roots: configRootsOf({
+        trackedPaths: request.request.trackedPaths,
+        declared: request.request.declaredConfigRoots,
+        lookup: configLookupOf({
+          fileText: request.ports.fileText,
+          path: request.ports.path,
+          repoRoot: request.request.repoRoot,
+          trackedPaths: request.request.trackedPaths,
+        }),
+      }),
       trackedPaths: request.request.trackedPaths,
     }),
   );
