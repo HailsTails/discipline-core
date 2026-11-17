@@ -91,10 +91,6 @@ export const inMemoryFiles = (request: {
           });
         return { outcome: "ok", value: null };
       },
-      removeFile: ({ path }) => {
-        files.delete(path);
-        return { outcome: "ok", value: null };
-      },
       makeDirectory: () => ({ outcome: "ok", value: null }),
       copyTree: ({ from, to, disposition }) => {
         copiedInto({ files, from, to, disposition }).forEach(([path, text]) => {

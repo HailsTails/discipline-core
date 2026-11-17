@@ -5,8 +5,12 @@
     "moduleResolution": "nodenext",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
     "skipLibCheck": false,
     "types": []
   },
-  "files": ["src/team-piece.mts", "src/team-rule-set.mts"]
+  "include": ["**/*.ts"]
 }

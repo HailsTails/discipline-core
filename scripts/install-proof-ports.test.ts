@@ -22,7 +22,6 @@ const AMBIENT_ENVIRONMENT = {
 const surfaceOver = (surface: Partial<ScratchFilesSurface>): ScratchFilesSurface => ({
   makeTemporaryDirectory: vi.fn(),
   removeTree: vi.fn(),
-  removeFile: vi.fn(),
   makeDirectory: vi.fn(),
   copyTree: vi.fn(),
   listTree: vi.fn(),
@@ -91,7 +90,7 @@ describe("createScratchFilesPort makeDirectory", () => {
   });
 });
 
-describe("createScratchFilesPort removeTree and removeFile", () => {
+describe("createScratchFilesPort removeTree", () => {
   it("removes the requested tree", () => {
     const removeTree = vi.fn<ScratchFilesSurface["removeTree"]>();
 
@@ -114,27 +113,6 @@ describe("createScratchFilesPort removeTree and removeFile", () => {
     });
   });
 
-  it("removes the requested file", () => {
-    const removeFile = vi.fn<ScratchFilesSurface["removeFile"]>();
-
-    const removed = createScratchFilesPort({ surface: surfaceOver({ removeFile }) }).removeFile({ path: "/repo/src/kept.ts" });
-
-    expect({ removed, calls: removeFile.mock.calls }).toEqual({
-      removed: { outcome: "ok", value: null },
-      calls: [[{ path: "/repo/src/kept.ts" }]],
-    });
-  });
-
-  it("returns effect-failed when removing the file throws", () => {
-    const removed = createScratchFilesPort({ surface: surfaceOver({ removeFile: vi.fn<ScratchFilesSurface["removeFile"]>().mockThrow(PERMISSION_DENIED) }) }).removeFile({
-      path: "/repo/src/kept.ts",
-    });
-
-    expect(removed).toEqual({
-      outcome: "failed",
-      error: { kind: "effect-failed", detail: "EACCES: permission denied, rm '/scratch/proof'" },
-    });
-  });
 });
 
 describe("createScratchFilesPort copyTree", () => {

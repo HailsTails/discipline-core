@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "discipline": "ACME-1",
+  "mechanism": "eslint",
+  "clauses": [
+    {
+      "clause": "console-calls",
+      "settings": { "pluginNamespace": "acme", "pluginModule": "acme.eslint-plugin.ts", "rule": "no-console-calls" }
+    }
+  ]
+}

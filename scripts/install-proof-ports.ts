@@ -15,7 +15,6 @@ export type ListedEntry = { readonly path: string; readonly name: string; readon
 export type ScratchFilesPort = {
   readonly createTemporaryDirectory: (request: { readonly prefix: string }) => Result<string, EffectFailure>;
   readonly removeTree: (request: { readonly path: string }) => Result<null, EffectFailure>;
-  readonly removeFile: (request: { readonly path: string }) => Result<null, EffectFailure>;
   readonly makeDirectory: (request: { readonly path: string }) => Result<null, EffectFailure>;
   readonly copyTree: (request: {
     readonly from: string;
@@ -30,7 +29,6 @@ export type ScratchFilesPort = {
 export type ScratchFilesSurface = {
   readonly makeTemporaryDirectory: (request: { readonly prefix: string }) => string;
   readonly removeTree: (request: { readonly path: string }) => void;
-  readonly removeFile: (request: { readonly path: string }) => void;
   readonly makeDirectory: (request: { readonly path: string }) => void;
   readonly copyTree: (request: {
     readonly from: string;
@@ -91,7 +89,6 @@ export const createScratchFilesPort = (options: { readonly surface: ScratchFiles
   createTemporaryDirectory: (request) =>
     attempted({ action: () => options.surface.makeTemporaryDirectory({ prefix: request.prefix }) }),
   removeTree: (request) => completed({ action: () => options.surface.removeTree({ path: request.path }) }),
-  removeFile: (request) => completed({ action: () => options.surface.removeFile({ path: request.path }) }),
   makeDirectory: (request) => completed({ action: () => options.surface.makeDirectory({ path: request.path }) }),
   copyTree: (request) =>
     completed({
@@ -146,9 +143,6 @@ export const defaultScratchFilesSurface: ScratchFilesSurface = {
   makeTemporaryDirectory: (request) => realpathSync(mkdtempSync(join(tmpdir(), request.prefix))),
   removeTree: (request) => {
     rmSync(request.path, { recursive: true, force: true });
-  },
-  removeFile: (request) => {
-    rmSync(request.path);
   },
   makeDirectory: (request) => {
     mkdirSync(request.path, { recursive: true });
