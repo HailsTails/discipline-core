@@ -16,7 +16,7 @@ import {
   readVersionOneJson,
 } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
+import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
 import {
   type ClauseAddress,
   clauseAddressSchema,
@@ -100,8 +100,10 @@ const consumerSelectionFileSchema = z.strictObject({
     .pipe(z.array(z.tuple([clauseAddressSchema, mechanismIdSchema]))),
   exclude: z
     .array(
-      repoPathSchema.refine((excludedPath) => !excludedPath.includes("*"), {
-        error: "an exclude entry is a repository path, not a glob",
+      brandedRepoPathSchema({
+        text: repoPathTextSchema.refine((excludedPath) => !excludedPath.includes("*"), {
+          error: "an exclude entry is a repository path, not a glob",
+        }),
       }),
     )
     .default([]),

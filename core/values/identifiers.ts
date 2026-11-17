@@ -1,23 +1,44 @@
 import { z } from "zod";
+import { brandedTextSchema } from "./branded-schema.ts";
+import type { ClauseId, DisciplineId, MechanismId, RuleSetName } from "./identifier-types.ts";
+import type { Equal } from "./type-equality.ts";
 
-export const ruleSetNameSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"RuleSetName">();
-export const disciplineIdSchema = z
-  .string()
-  .regex(/^[A-Z]{2,4}-[0-9]+[a-z]?$/)
-  .brand<"DisciplineId">();
-export const clauseIdSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"ClauseId">();
-export const mechanismIdSchema = z
-  .string()
-  .regex(/^[a-z][a-z0-9-]*$/)
-  .brand<"MechanismId">();
+export type { ClauseId, DisciplineId, MechanismId, RuleSetName } from "./identifier-types.ts";
 
-export type RuleSetName = z.infer<typeof ruleSetNameSchema>;
-export type DisciplineId = z.infer<typeof disciplineIdSchema>;
-export type ClauseId = z.infer<typeof clauseIdSchema>;
-export type MechanismId = z.infer<typeof mechanismIdSchema>;
+const RULE_SET_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+const DISCIPLINE_ID_PATTERN = /^[A-Z]{2,4}-[0-9]+[a-z]?$/;
+const CLAUSE_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
+const MECHANISM_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+const NOT_AN_IDENTIFIER = "not an identifier of its kind";
+
+const isRuleSetName = (text: string): text is RuleSetName => RULE_SET_NAME_PATTERN.test(text);
+const isDisciplineId = (text: string): text is DisciplineId => DISCIPLINE_ID_PATTERN.test(text);
+const isClauseId = (text: string): text is ClauseId => CLAUSE_ID_PATTERN.test(text);
+const isMechanismId = (text: string): text is MechanismId => MECHANISM_ID_PATTERN.test(text);
+
+export const ruleSetNameSchema = brandedTextSchema({
+  text: z.string().regex(RULE_SET_NAME_PATTERN),
+  isBranded: isRuleSetName,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const disciplineIdSchema = brandedTextSchema({
+  text: z.string().regex(DISCIPLINE_ID_PATTERN),
+  isBranded: isDisciplineId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const clauseIdSchema = brandedTextSchema({
+  text: z.string().regex(CLAUSE_ID_PATTERN),
+  isBranded: isClauseId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+export const mechanismIdSchema = brandedTextSchema({
+  text: z.string().regex(MECHANISM_ID_PATTERN),
+  isBranded: isMechanismId,
+  refusal: NOT_AN_IDENTIFIER,
+});
+
+export const isRuleSetNameSchemaEqual: Equal<z.output<typeof ruleSetNameSchema>, RuleSetName> = true;
+export const isDisciplineIdSchemaEqual: Equal<z.output<typeof disciplineIdSchema>, DisciplineId> = true;
+export const isClauseIdSchemaEqual: Equal<z.output<typeof clauseIdSchema>, ClauseId> = true;
+export const isMechanismIdSchemaEqual: Equal<z.output<typeof mechanismIdSchema>, MechanismId> = true;

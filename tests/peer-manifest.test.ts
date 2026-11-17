@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TYPESCRIPT_REQUIREMENT } from "../mechanisms/audit/runner/typescript-parse.ts";
+import { TYPESCRIPT_REQUIREMENT } from "../mechanisms/audit/runner/typescript-toolchain.ts";
 import {
   ESLINT_REQUIREMENT,
   TYPESCRIPT_ESLINT_PARSER_REQUIREMENT,

@@ -1,44 +1,28 @@
-import { z } from "zod";
-import { repoPathSchema } from "../values/repo-path.ts";
+import type { RepoPath } from "../values/repo-path-types.ts";
 
-export const peerKindSchema = z.enum(["required", "optional"]);
+export type PeerKind = "required" | "optional";
 
-export type PeerKind = z.infer<typeof peerKindSchema>;
-
-export const runnerFailureSchema = z.discriminatedUnion("kind", [
-  z
-    .object({ kind: z.literal("piece-invalid"), pieceRoot: z.string(), detail: z.string() })
-    .readonly(),
-  z.object({ kind: z.literal("tool-failed"), detail: z.string() }).readonly(),
-  z
-    .object({ kind: z.literal("file-unreadable"), file: repoPathSchema, detail: z.string() })
-    .readonly(),
-  z.object({ kind: z.literal("plugin-conflict"), detail: z.string() }).readonly(),
-  z.object({ kind: z.literal("team-config-unloadable"), detail: z.string() }).readonly(),
-  z.object({ kind: z.literal("runner-invalid-output"), detail: z.string() }).readonly(),
-  z
-    .object({ kind: z.literal("file-unparseable"), file: repoPathSchema, detail: z.string() })
-    .readonly(),
-  z
-    .object({
-      kind: z.literal("toolchain-unavailable"),
-      packageName: z.string(),
-      peer: peerKindSchema,
-      supported: z.string(),
-      found: z.string(),
-    })
-    .readonly(),
-  z
-    .object({
-      kind: z.literal("toolchain-shadowed"),
-      packageName: z.string(),
-      location: z.string(),
-      installRoot: z.string(),
-    })
-    .readonly(),
-]);
-
-export type RunnerFailure = z.infer<typeof runnerFailureSchema>;
+export type RunnerFailure =
+  | { readonly kind: "piece-invalid"; readonly pieceRoot: string; readonly detail: string }
+  | { readonly kind: "tool-failed"; readonly detail: string }
+  | { readonly kind: "file-unreadable"; readonly file: RepoPath; readonly detail: string }
+  | { readonly kind: "plugin-conflict"; readonly detail: string }
+  | { readonly kind: "team-config-unloadable"; readonly detail: string }
+  | { readonly kind: "runner-invalid-output"; readonly detail: string }
+  | { readonly kind: "file-unparseable"; readonly file: RepoPath; readonly detail: string }
+  | {
+      readonly kind: "toolchain-unavailable";
+      readonly packageName: string;
+      readonly peer: PeerKind;
+      readonly supported: string;
+      readonly found: string;
+    }
+  | {
+      readonly kind: "toolchain-shadowed";
+      readonly packageName: string;
+      readonly location: string;
+      readonly installRoot: string;
+    };
 
 export const runnerInvalidOutput = (request: {
   readonly detail: string;
