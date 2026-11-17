@@ -8,8 +8,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/route/[id].ts",
-    files: ["route/\\[id\\].ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "route/\\[id\\].ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];

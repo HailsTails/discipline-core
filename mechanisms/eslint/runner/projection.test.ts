@@ -112,18 +112,18 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
-    files: ["src/a.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/a.ts",
+      "src/b.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/b.ts",
-    files: ["src/b.ts"],
-    rules: { "hone/no-class-authoring": "off" },
-  },
-  {
-    name: "hone-core/authorised-location/probe/PD-1#no-tmp-files/route/[id].ts",
-    files: ["route/\\\\[id\\\\].ts"],
+    name: "hone-core/file-records/probe/PD-1#no-tmp-files",
+    files: [
+      "route/\\\\[id\\\\].ts",
+    ],
     rules: { "custom-lint/no-tmp-files": "off" },
   },
   {
@@ -171,8 +171,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
-    files: ["src/a.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/a.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
@@ -188,12 +190,51 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/b.ts",
-    files: ["src/b.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/b.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
 `;
+
+const sharedFileProjection = `import piece0 from "../team-rules/mechanisms/eslint/PD-1/plugin.ts";
+import piece1 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+
+export default [
+  {
+    name: "hone-core/piece/custom-lint",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "custom-lint": piece0 },
+    rules: { "custom-lint/no-tmp-files": "error" },
+  },
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece1 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/b.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax, probe/PD-1#no-tmp-files",
+    files: [
+      "src/a.ts",
+    ],
+    rules: { "custom-lint/no-tmp-files": "off", "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const tmpFilesInA: ExceptionRecord = { ...authorisedRoute, file: repoPathSchema.parse("src/a.ts") };
+
+const carveOutInB: ExceptionRecord = { ...carveOutInA, file: repoPathSchema.parse("src/b.ts") };
 
 describe("escapedGlobPath", () => {
   it("backslash-escapes each of \\ * ? [ ] { } ( ) ! + @ so the path matches only itself", () => {
@@ -208,7 +249,7 @@ describe("escapedGlobPath", () => {
 });
 
 describe("projectionText", () => {
-  it("generates the whole projection: piece blocks, then file blocks by clause text then file, then clause-wide blocks by clause text", () => {
+  it("generates the whole projection: piece blocks, then one block per set of clauses its files are excepted from, by that set's text, then clause-wide blocks by clause text", () => {
     expect(
       projectionText({
         selectedPieces: [cd14Piece, probePiece],
@@ -267,7 +308,7 @@ describe("projectionText", () => {
     );
   });
 
-  it("orders files by code unit, so src/B.ts precedes src/a.ts", () => {
+  it("orders the files of a block by code unit, so src/B.ts precedes src/a.ts", () => {
     expect(
       projectionText({
         selectedPieces: [cd14Piece],
@@ -283,17 +324,33 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/B.ts",
-    files: ["src/B.ts"],
-    rules: { "hone/no-class-authoring": "off" },
-  },
-  {
-    name: "hone-core/file-carve-out/CD-14#class-syntax/src/a.ts",
-    files: ["src/a.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/B.ts",
+      "src/a.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
 `);
+  });
+
+  it("gives a file excepted from several clauses one block turning all their rules off, apart from files excepted from fewer", () => {
+    expect(
+      projectionText({ selectedPieces: [cd14Piece, probePiece], records: [carveOutInA, authorisedInB, tmpFilesInA] }),
+    ).toBe(sharedFileProjection);
+  });
+
+  it("groups the same files whatever order their records arrive in", () => {
+    expect(
+      projectionText({ selectedPieces: [probePiece, cd14Piece], records: [tmpFilesInA, authorisedInB, carveOutInA] }),
+    ).toBe(sharedFileProjection);
+  });
+
+  it("lists a file once when both an authorised location and a carve-out except it from the same clause", () => {
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [authorisedInB, carveOutInB] })).toBe(
+      authorisedInBOnlyProjection,
+    );
   });
 });
 
