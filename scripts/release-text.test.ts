@@ -30,9 +30,15 @@ describe("releaseTextOf", () => {
     expect(releaseTextOf({ identity: IDENTITY, tag: "v0.1.0-pre.1", part: "title" })).toBe("Tool v0.1.0-pre.1");
   });
 
-  it("notes which npm package the tarball installs as and the command it provides", () => {
+  it("notes, without naming the version, how to install a pre-release from npm or the attached tarball and the command it provides", () => {
     expect(releaseTextOf({ identity: IDENTITY, tag: "v0.1.0-pre.1", part: "notes" })).toBe(
-      "Tool v0.1.0-pre.1. Install the attached tarball as the npm package tooled, not the unscoped tool, which is an unrelated npm package; it provides the command tool.",
+      "Install it with `npm install --save-dev tooled@next` once it is approved on npm, or install the attached tarball. The package is tooled, not the unscoped tool, which is an unrelated npm package; it provides the command tool.",
+    );
+  });
+
+  it("notes a stable release's install under the latest dist-tag", () => {
+    expect(releaseTextOf({ identity: IDENTITY, tag: "v1.0.0", part: "notes" })).toBe(
+      "Install it with `npm install --save-dev tooled@latest` once it is approved on npm, or install the attached tarball. The package is tooled, not the unscoped tool, which is an unrelated npm package; it provides the command tool.",
     );
   });
 });

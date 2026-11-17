@@ -6,7 +6,7 @@ import type { Result } from "../core/values/result.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
-import { deadLinksOf, misplacedEntriesOf, otherVersionTarballsOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
+import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
 import { dependencyNamesOf, packageVersionOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
@@ -425,8 +425,8 @@ const linkedFiles = (request: { readonly files: readonly OutputFile[]; readonly 
     return linked;
   }
   const versioned = failedOnProblems({
-    label: "a shipped page names the tarball at another version",
-    problems: otherVersionTarballsOf({ files: request.files, tarballStem: PACKAGE_FILE_STEM, version: request.version }),
+    label: "a shipped page names a Hone version, which goes stale on the next release",
+    problems: versionMentionsOf({ files: request.files, tarballStem: PACKAGE_FILE_STEM, version: request.version }),
   });
   return versioned.outcome === "failed" ? versioned : { outcome: "ok", value: request.files };
 };

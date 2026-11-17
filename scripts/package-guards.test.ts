@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadLinksOf, misplacedEntriesOf, otherVersionTarballsOf, unbundledImportsOf, unlockedPackagesOf } from "./package-guards.ts";
+import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
 
 const output = (request: {
   readonly path: string;
@@ -202,34 +202,46 @@ describe("deadLinksOf", () => {
   });
 });
 
-describe("otherVersionTarballsOf", () => {
-  it("accepts pages naming only this version's tarball, a placeholder version and other packages' tarballs", () => {
+describe("versionMentionsOf", () => {
+  it("accepts pages naming a placeholder tarball, older versions in prose, toolchain versions and other packages' tarballs", () => {
     expect(
-      otherVersionTarballsOf({
+      versionMentionsOf({
         files: [
-          { path: "README.md", text: "Download `hailstails-hone-0.1.0-pre.1.tgz`, or `hailstails-hone-<version>.tgz` later." },
-          { path: "ADOPTING.md", text: "Not `other-core-0.0.0.tgz`." },
-          { path: "rules/CD-1/discipline.json", text: "hailstails-hone-0.0.0.tgz" },
+          { path: "README.md", text: "Download `hailstails-hone-<version>.tgz`; TypeScript 4.8.4 or later." },
+          { path: "MIGRATING.md", text: "Version `0.1.0-pre.1` shipped as `honed-0.1.0-pre.1.tgz`." },
+          { path: "ADOPTING.md", text: "Not `other-core-0.1.0-pre.3.tgz`, and not 0.1.0-pre.30 or 10.1.0-pre.3." },
+          { path: "rules/CD-1/discipline.json", text: "hailstails-hone-0.0.0.tgz 0.1.0-pre.3" },
         ],
         tarballStem: "hailstails-hone",
-        version: "0.1.0-pre.1",
+        version: "0.1.0-pre.3",
       }),
     ).toEqual([]);
   });
 
-  it("names each shipped page that names the package's tarball at another version", () => {
+  it("names each versioned tarball of the package a shipped page names, at any version", () => {
     expect(
-      otherVersionTarballsOf({
+      versionMentionsOf({
         files: [
           { path: "README.md", text: "wrote artefacts/hailstails-hone-0.0.0.tgz" },
-          { path: "ADOPTING.md", text: "vendor/hailstails-hone/hailstails-hone-0.1.0.tgz and hailstails-hone-0.1.0-pre.1.tgz" },
+          { path: "ADOPTING.md", text: "vendor/hailstails-hone/hailstails-hone-0.1.0-pre.3.tgz" },
         ],
         tarballStem: "hailstails-hone",
-        version: "0.1.0-pre.1",
+        version: "0.1.0-pre.3",
       }),
-    ).toEqual([
-      "README.md names hailstails-hone-0.0.0.tgz, not hailstails-hone-0.1.0-pre.1.tgz",
-      "ADOPTING.md names hailstails-hone-0.1.0.tgz, not hailstails-hone-0.1.0-pre.1.tgz",
-    ]);
+    ).toEqual(["README.md names hailstails-hone-0.0.0.tgz", "ADOPTING.md names hailstails-hone-0.1.0-pre.3.tgz"]);
+  });
+
+  it("names each shipped page that names the package's current version, with or without a v", () => {
+    expect(
+      versionMentionsOf({
+        files: [
+          { path: "README.md", text: "The current version, `0.1.0`, is stable; so is 0.1.0." },
+          { path: "ADOPTING.md", text: "See the [`v0.1.0` release](https://github.com/example/tool/releases/tag/v0.1.0)." },
+          { path: "docs/notes.md", text: "Not 0.1.0-pre.3, 0.1.0.1 or 10.1.0." },
+        ],
+        tarballStem: "hailstails-hone",
+        version: "0.1.0",
+      }),
+    ).toEqual(["README.md names 0.1.0", "README.md names 0.1.0", "ADOPTING.md names v0.1.0", "ADOPTING.md names v0.1.0"]);
   });
 });
