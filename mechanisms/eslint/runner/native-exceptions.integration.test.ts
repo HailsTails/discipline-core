@@ -70,6 +70,7 @@ const checkOf = (request: { readonly name: string; readonly tracked: readonly Re
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
+    forfeiture: "this-run",
     fileText,
     modules: runnerModulesOn({ line: request.line, base: modules }),
     path,

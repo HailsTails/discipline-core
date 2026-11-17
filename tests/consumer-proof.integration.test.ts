@@ -106,6 +106,7 @@ const checkOf = (request: {
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
+    forfeiture: "this-run",
     fileText: request.ports.fileText,
     modules: request.ports.runnerModules,
     path,
@@ -179,6 +180,7 @@ const CLEAN_REPORT = {
   invalidRecords: [],
   unmeasured: [],
   projectionProblems: [],
+  assessment: [],
 };
 
 describe("a consumer with no harness directory selecting CD-23 through the audit, run against the install", () => {

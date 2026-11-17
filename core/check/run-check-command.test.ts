@@ -341,3 +341,126 @@ describe("runCheckCommand report output", () => {
     });
   });
 });
+
+const carvedRunWith = async (request: {
+  readonly arguments: readonly string[];
+  readonly settings: Readonly<Record<string, unknown>>;
+}) => {
+  const processPort = processWith({ arguments: request.arguments });
+  const git = gitTracking([repoPathSchema.parse("src/a.ts")]);
+  vi.mocked(git.changedSince).mockReturnValue({ outcome: "ok", value: [repoPathSchema.parse("src/a.ts")] });
+  await runCheckCommand(
+    commandRequest({
+      process: processPort,
+      fileText: fileTextOver({
+        ...classSyntaxSelectedWith(request.settings),
+        "/repo/discipline-exceptions.json": presentFile({ text: FILE_CARVE_OUT_ON_A }),
+      }),
+      modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A] } }) }),
+      git,
+    }),
+  );
+  return { ...outputOf({ process: processPort }), changedSince: vi.mocked(git.changedSince).mock.calls };
+};
+
+const FORFEITED_FULL_REPORT =
+  "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nforfeited (1)\nCD-14#class-syntax audit file-carve-out src/a.ts\nverdict: fail\n";
+
+const ELSEWHERE_FULL_REPORT =
+  "exempted (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} exempted by file-carve-out\nassessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n";
+
+describe("runCheckCommand forfeiture assessment", () => {
+  it("assesses forfeiture in this run when neither --forfeiture nor disciplines.json sets it", async () => {
+    expect(
+      await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: {} }),
+    ).toEqual({
+      writes: [[{ text: FORFEITED_FULL_REPORT }]],
+      exits: [[{ code: 1 }]],
+      changedSince: [[{ repoRoot: "/repo", baseRevision: "main" }]],
+    });
+  });
+
+  it("leaves forfeiture to another run when disciplines.json sets it elsewhere, and says so", async () => {
+    expect(
+      await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { forfeiture: "elsewhere" } } }),
+    ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
+  });
+
+  it("leaves forfeiture to another run when --forfeiture elsewhere is given", async () => {
+    expect(await carvedRunWith({ arguments: ["--repo", "/repo", "--forfeiture", "elsewhere"], settings: {} })).toEqual({
+      writes: [[{ text: ELSEWHERE_FULL_REPORT }]],
+      exits: [[{ code: 0 }]],
+      changedSince: [],
+    });
+  });
+
+  it("assesses forfeiture when --forfeiture this-run overrides elsewhere in disciplines.json", async () => {
+    expect(
+      await carvedRunWith({
+        arguments: ["--repo", "/repo", "--forfeiture", "this-run", "--base-revision", "main"],
+        settings: { assessment: { forfeiture: "elsewhere" } },
+      }),
+    ).toMatchObject({ exits: [[{ code: 1 }]], changedSince: [[{ repoRoot: "/repo", baseRevision: "main" }]] });
+  });
+
+});
+
+describe("runCheckCommand forfeiture assessment defaults and outputs", () => {
+  it("prints a report byte-identical to today's when disciplines.json sets forfeiture to this-run", async () => {
+    const defaulted = await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: {} });
+
+    expect(
+      await carvedRunWith({
+        arguments: ["--repo", "/repo", "--base-revision", "main"],
+        settings: { assessment: { forfeiture: "this-run" } },
+      }),
+    ).toEqual(defaulted);
+  });
+
+  it.each(["counts", "failures-only", "verdict-only"])("marks the verdict as partial for the %s output", async (output) => {
+    const run = await carvedRunWith({
+      arguments: ["--repo", "/repo", "--forfeiture", "elsewhere", "--report-output", output],
+      settings: {},
+    });
+
+    expect(run.writes).toEqual([[{ text: expect.stringMatching(/(?:^|\n)verdict: pass \(partial assessment\)\n$/) }]]);
+  });
+
+});
+
+describe("runCheckCommand forfeiture elsewhere with a base revision", () => {
+  it("runs with --forfeiture elsewhere and --base-revision, forfeiting nothing and asking git for no change set", async () => {
+    expect(
+      await carvedRunWith({
+        arguments: ["--repo", "/repo", "--forfeiture", "elsewhere", "--base-revision", "main"],
+        settings: {},
+      }),
+    ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
+  });
+
+  it("runs with --base-revision when disciplines.json sets forfeiture elsewhere, forfeiting nothing", async () => {
+    expect(
+      await carvedRunWith({
+        arguments: ["--repo", "/repo", "--base-revision", "main"],
+        settings: { assessment: { forfeiture: "elsewhere" } },
+      }),
+    ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
+  });
+});
+
+describe("runCheckCommand assessment configuration", () => {
+  it.each([
+    ["eslint", { eslint: { evidence: "hone" } }],
+    ["waivedClauses", { waivedClauses: "not-run" }],
+  ])("exits 2 with the file-malformed line naming %s, which this release does not assess", async (key, assessment) => {
+    expect((await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment } })).writes).toEqual([
+      [{ text: expect.stringMatching(new RegExp(String.raw`^load failure: file-malformed /repo/disciplines\.json .*${key}`)) }],
+    ]);
+  });
+
+  it("exits 2 with the file-malformed line when disciplines.json sets a forfeiture that is not one", async () => {
+    expect(
+      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { forfeiture: "reported" } } })).writes,
+    ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*forfeiture/) }]]);
+  });
+});

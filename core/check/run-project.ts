@@ -13,7 +13,7 @@ import {
   runnerFailed,
 } from "./run-check.ts";
 
-export type ProjectRequest = Omit<CheckRequest, "baseRevision">;
+export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "forfeiture">;
 
 const projectionRequestOf = (request: {
   readonly project: ProjectRequest;

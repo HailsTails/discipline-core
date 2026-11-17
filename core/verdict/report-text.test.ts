@@ -6,7 +6,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
-import type { CheckReport } from "./check-report.ts";
+import type { CheckReport, PartialAssessment } from "./check-report.ts";
 import { renderReportText } from "./report-text.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
@@ -63,6 +63,7 @@ const emptyReport: CheckReport = {
   invalidRecords: [],
   unmeasured: [],
   projectionProblems: [],
+  assessment: [],
 };
 
 describe("renderReportText entry lines", () => {
@@ -570,5 +571,83 @@ describe("renderReportText outputs", () => {
     expect(renderReportText({ output, report: { ...emptyReport, exempted: [{ finding, by: [carved] }] } })).toMatch(
       /(?:^|\n)verdict: pass\n$/,
     );
+  });
+});
+const forfeitureElsewhere = (request: { readonly fileCarveOuts: number }): PartialAssessment => ({
+  concern: "forfeiture",
+  assessedBy: "elsewhere",
+  fileCarveOuts: request.fileCarveOuts,
+});
+
+describe("renderReportText assessment", () => {
+  it("renders forfeiture elsewhere with its count of file carve-outs not checked for decay, last before the verdict", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: { ...emptyReport, exempted: [{ finding, by: [carved] }], assessment: [forfeitureElsewhere({ fileCarveOuts: 37 })] },
+      }),
+    ).toBe(
+      "exempted (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {} exempted by file-carve-out\nassessment (1)\nforfeiture elsewhere: 37 file carve-outs not checked for decay in this run\nverdict: pass (partial assessment)\n",
+    );
+  });
+
+  it("names one file carve-out in the singular", () => {
+    expect(
+      renderReportText({ output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 1 })] } }),
+    ).toBe(
+      "assessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n",
+    );
+  });
+
+  it("still renders the section when no file carve-out exists, so the choice is never invisible", () => {
+    expect(
+      renderReportText({ output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 0 })] } }),
+    ).toBe(
+      "assessment (1)\nforfeiture elsewhere: 0 file carve-outs not checked for decay in this run\nverdict: pass (partial assessment)\n",
+    );
+  });
+
+  it("renders the assessment section and the marked fail verdict for a failing full report", () => {
+    expect(
+      renderReportText({ output: "full", report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+    ).toBe(
+      "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nassessment (1)\nforfeiture elsewhere: 2 file carve-outs not checked for decay in this run\nverdict: fail (partial assessment)\n",
+    );
+  });
+});
+
+describe("renderReportText assessment outputs", () => {
+  it("leaves the informational assessment section out of failures-only but keeps the marked verdict", () => {
+    expect(
+      renderReportText({
+        output: "failures-only",
+        report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
+      }),
+    ).toBe("findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nverdict: fail (partial assessment)\n");
+  });
+
+  it("counts the assessment section as informational and marks the verdict for the counts output", () => {
+    expect(
+      renderReportText({
+        output: "counts",
+        report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
+      }),
+    ).toBe("findings (1)\nassessment (1) informational\nverdict: fail (partial assessment)\n");
+  });
+
+  it("marks the verdict for the verdict-only output", () => {
+    expect(
+      renderReportText({ output: "verdict-only", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+    ).toBe("verdict: pass (partial assessment)\n");
+  });
+
+  it.each(reportOutputSchema.options)("never prints a bare verdict for the %s output of a partial assessment", (output) => {
+    expect(
+      renderReportText({ output, report: { ...mixedReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+    ).toMatch(/(?:^|\n)verdict: fail \(partial assessment\)\n$/);
+  });
+
+  it.each(reportOutputSchema.options)("prints the bare verdict for the %s output of a full assessment", (output) => {
+    expect(renderReportText({ output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
   });
 });
