@@ -49,9 +49,9 @@ const configVerdict = (request: { readonly context: JudgeContext; readonly locat
   const folderSegments = folderSegmentsOf(request);
   const config = repoPathResolved({ baseSegments: folderSegments, path: request.config });
   if (config.outcome === "failed") return Promise.resolve(WEAKENS);
-  return Promise.all(
-    checkedWithin({ checked: request.context.checked, folderSegments }).map((file) => request.context.query.configFileOf({ file })),
-  ).then((searches) =>
+  const files = checkedWithin({ checked: request.context.checked, folderSegments });
+  if (files.length === 0) return Promise.resolve(WEAKENS);
+  return Promise.all(files.map((file) => request.context.query.configFileOf({ file }))).then((searches) =>
     searches.every((search) => resolvesTo({ search, config: config.value, context: request.context }) === "same-config")
       ? WEAKENS_NOTHING
       : WEAKENS,
@@ -61,7 +61,7 @@ const configVerdict = (request: { readonly context: JudgeContext; readonly locat
 const ignorePatternVerdict = (request: { readonly context: JudgeContext; readonly location: RepoPath; readonly pattern: string }): Promise<Result<OptionVerdict, RunnerFailure>> => {
   const folderSegments = folderSegmentsOf(request);
   const files = checkedWithin({ checked: request.context.checked, folderSegments });
-  if (files.length === 0) return Promise.resolve(WEAKENS_NOTHING);
+  if (files.length === 0) return Promise.resolve(WEAKENS);
   const cwd = request.context.path.resolve({ path: request.context.path.join({ segments: [request.context.repoRoot, ...folderSegments] }) });
   if (cwd.outcome === "failed") return Promise.resolve(WEAKENS);
   return request.context.eslint
@@ -79,6 +79,7 @@ const ignorePatternVerdict = (request: { readonly context: JudgeContext; readonl
 export const scriptOptionJudge =
   (context: JudgeContext): ScriptOptionJudge =>
   ({ option }) => {
+    if (option.settlement === "unsettled") return Promise.resolve(WEAKENS);
     switch (option.effect.kind) {
       case "weakens":
         return Promise.resolve(WEAKENS);

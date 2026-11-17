@@ -212,6 +212,6 @@ export const applyGovernance = (request: GovernanceRequest): GovernanceResult =>
     ...governedFindings({ judged, exempting, runs: request.runs }),
     forfeited,
     doublyHeld,
-    unrecorded: unrecordedExceptions({ runs: request.runs, records: request.records }),
+    unrecorded: unrecordedExceptions({ runs: request.runs, records: inForce }),
   };
 };

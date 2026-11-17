@@ -126,6 +126,13 @@ describe("runMechanism with a standalone runner", () => {
     });
   });
 
+  it("names the { hits, nativeExceptions } shape when a runner still returns a bare list of hits", async () => {
+    await expect(dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) }) })).resolves.toMatchObject({
+      outcome: "failed",
+      error: { kind: "runner-invalid-output", detail: expect.stringContaining("a standalone run's value is { hits, nativeExceptions }") },
+    });
+  });
+
   it("returns the runner's inline disables, which a standalone run can always have covered", async () => {
     await expect(
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [EXPECTATION_IN_A] } }) }) }),

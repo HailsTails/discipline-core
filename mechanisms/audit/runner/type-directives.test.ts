@@ -8,13 +8,16 @@ const TYPE_EXPECTATION = "@ts-expect-" + "error";
 const TYPE_IGNORE = "@ts-" + "ignore";
 const TYPE_NOCHECK = "@ts-" + "nocheck";
 const COMPILED_FILE = "/virtual/directive.ts";
+const COMPILED_JSX_FILE = "/virtual/directive.tsx";
 const TYPE_ERROR_LINE = 'export const broken: number = "text";';
+const JSX_DECLARATIONS = "declare global { namespace JSX { interface IntrinsicElements { div: {} } interface Element {} } }\nconst n = { bar: 1 };\n";
 
-const compiledDiagnostics = (request: { readonly source: string }): readonly Diagnostic[] => {
-  const sourceFile = SYNTAX_API.createSourceFile(COMPILED_FILE, request.source, SYNTAX_API.ScriptTarget.Latest, true);
+const compiledDiagnostics = (request: { readonly source: string; readonly file?: string }): readonly Diagnostic[] => {
+  const file = request.file ?? COMPILED_FILE;
+  const sourceFile = SYNTAX_API.createSourceFile(file, request.source, SYNTAX_API.ScriptTarget.Latest, true);
   const program = SYNTAX_API.createProgram({
-    rootNames: [COMPILED_FILE],
-    options: { noEmit: true, strict: true, noLib: true, types: [] },
+    rootNames: [file],
+    options: { noEmit: true, strict: true, noLib: true, types: [], jsx: SYNTAX_API.JsxEmit.Preserve },
     host: {
       getSourceFile: () => sourceFile,
       getDefaultLibFileName: () => "lib.d.ts",
@@ -30,8 +33,8 @@ const compiledDiagnostics = (request: { readonly source: string }): readonly Dia
   return program.getSemanticDiagnostics(sourceFile);
 };
 
-const directiveAt = (request: { readonly source: string; readonly commentAt: number }): TypeDirective | undefined => {
-  const sourceFile = SYNTAX_API.createSourceFile("src/directive.ts", request.source, SYNTAX_API.ScriptTarget.Latest, true);
+const directiveAt = (request: { readonly source: string; readonly commentAt: number; readonly file?: string }): TypeDirective | undefined => {
+  const sourceFile = SYNTAX_API.createSourceFile(request.file ?? "src/directive.ts", request.source, SYNTAX_API.ScriptTarget.Latest, true);
   const [range] = SYNTAX_API.getLeadingCommentRanges(request.source, request.commentAt) ?? [];
   assert(range !== undefined);
   return typeDirectiveReaderFor({ sourceFile, syntaxApi: SYNTAX_API })({ range })?.directive;
@@ -65,6 +68,20 @@ describe("typeDirectiveReaderFor, read as the installed TypeScript honours each 
       diagnostics,
       read,
     });
+  });
+
+  it.each<{ readonly name: string; readonly markup: string; readonly commentAt: number; readonly diagnostics: number; readonly read: TypeDirective | undefined }>([
+    { name: "an ignore in a line comment before a statement", markup: `// ${TYPE_IGNORE}\nexport const view = n.foo;\n`, commentAt: -1, diagnostics: 0, read: "@ts-ignore" },
+    { name: "an ignore in a line comment inside braces", markup: `export const view = <div>{\n  // ${TYPE_IGNORE}\n  n.foo}</div>;\n`, commentAt: 26, diagnostics: 0, read: "@ts-ignore" },
+    { name: "an ignore-shaped line in JSX text", markup: `export const view = <div>\n  // ${TYPE_IGNORE}\n  {n.foo}</div>;\n`, commentAt: 25, diagnostics: 1, read: undefined },
+  ])("reads $name in a .tsx file the way the compiler does", ({ markup, commentAt, diagnostics, read }) => {
+    const source = `${JSX_DECLARATIONS}${markup}`;
+    const position = JSX_DECLARATIONS.length + commentAt;
+
+    expect({
+      diagnostics: compiledDiagnostics({ source, file: COMPILED_JSX_FILE }).length,
+      read: directiveAt({ source, commentAt: position, file: "src/directive.tsx" }),
+    }).toEqual({ diagnostics, read });
   });
 
   it("reads the text after the directive as its tail", () => {

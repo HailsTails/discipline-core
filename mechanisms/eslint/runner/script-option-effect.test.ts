@@ -15,13 +15,23 @@ const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 
 const optionAt = (request: { readonly location: typeof ROOT_PACKAGE; readonly effect: OptionEffect }): ScriptOption => ({
   ...request,
+  settlement: "settled",
   exceptions: [],
 });
 
 const foundAt = (path: string): ConfigFileSearch => ({ kind: "found", path });
 
-const queryFinding = (request: { readonly configs: Readonly<Record<string, ConfigFileSearch>> }): Pick<QueryInstance, "configFileOf"> => ({
-  configFileOf: vi.fn<QueryInstance["configFileOf"]>(({ file }) => Promise.resolve(request.configs[file] ?? { kind: "none" })),
+const NO_CONFIG: ConfigFileSearch = { kind: "none" };
+
+const queryFinding = (search: ConfigFileSearch): Pick<QueryInstance, "configFileOf"> => ({
+  configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(search),
+});
+
+const queryFindingInTurn = (request: {
+  readonly first: ConfigFileSearch;
+  readonly second: ConfigFileSearch;
+}): Pick<QueryInstance, "configFileOf"> => ({
+  configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValueOnce(request.first).mockResolvedValueOnce(request.second),
 });
 
 const judgeOver = (request: {
@@ -29,7 +39,7 @@ const judgeOver = (request: {
   readonly ignoredByPatterns?: EslintPort["ignoredByPatterns"];
 }) =>
   scriptOptionJudge({
-    query: request.query ?? queryFinding({ configs: {} }),
+    query: request.query ?? queryFinding(NO_CONFIG),
     eslint: { ignoredByPatterns: request.ignoredByPatterns ?? vi.fn<EslintPort["ignoredByPatterns"]>() },
     path: PATH,
     repoRoot: REPO_ROOT,
@@ -46,9 +56,34 @@ describe("scriptOptionJudge, an option that always weakens the run", () => {
   });
 });
 
+describe("scriptOptionJudge, what is not positively settled", () => {
+  it.each<OptionEffect>([
+    { kind: "names-config", config: "eslint.config.mjs" },
+    { kind: "ignores-pattern", pattern: "legacy/**" },
+  ])("weakens $kind when the script's own folder does not settle it, without asking ESLint anything", async (effect) => {
+    const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
+    const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
+    await expect(
+      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "unsettled" } }),
+    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    expect({ configs: vi.mocked(query.configFileOf).mock.calls, ignores: ignoredByPatterns.mock.calls }).toEqual({ configs: [], ignores: [] });
+  });
+
+  it.each<OptionEffect>([
+    { kind: "names-config", config: "eslint.config.mjs" },
+    { kind: "ignores-pattern", pattern: "legacy/**" },
+  ])("weakens $kind when no checked file is under the script's folder", async (effect) => {
+    await expect(
+      judgeOver({ query: queryFinding(foundAt("/repo/tools/eslint.config.mjs")) })({
+        option: optionAt({ location: repoPathSchema.parse("tools/package.json"), effect }),
+      }),
+    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+  });
+});
+
 describe("scriptOptionJudge, a config option", () => {
   it("weakens nothing when it names, from the script's folder, the config the team's ESLint finds for every checked file there", async () => {
-    const query = queryFinding({ configs: { [NESTED_FILE]: foundAt("/repo/packages/a/eslint.config.mjs") } });
+    const query = queryFinding(foundAt("/repo/packages/a/eslint.config.mjs"));
     await expect(
       judgeOver({ query })({
         option: optionAt({ location: NESTED_PACKAGE, effect: { kind: "names-config", config: "eslint.config.mjs" } }),
@@ -58,7 +93,7 @@ describe("scriptOptionJudge, a config option", () => {
   });
 
   it("weakens nothing when it names the root config by a path that climbs out of the script's folder", async () => {
-    const query = queryFinding({ configs: { [NESTED_FILE]: foundAt("/repo/eslint.config.mjs") } });
+    const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     await expect(
       judgeOver({ query })({
         option: optionAt({ location: NESTED_PACKAGE, effect: { kind: "names-config", config: "../../eslint.config.mjs" } }),
@@ -67,16 +102,14 @@ describe("scriptOptionJudge, a config option", () => {
   });
 
   it("weakens when any checked file in the script's folder is governed by another config", async () => {
-    const query = queryFinding({
-      configs: { [ROOT_FILE]: foundAt("/repo/eslint.config.mjs"), [NESTED_FILE]: foundAt("/repo/packages/a/eslint.config.mjs") },
-    });
+    const query = queryFindingInTurn({ first: foundAt("/repo/eslint.config.mjs"), second: foundAt("/repo/packages/a/eslint.config.mjs") });
     await expect(
       judgeOver({ query })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "eslint.config.mjs" } }) }),
     ).resolves.toEqual({ outcome: "ok", value: "weakens" });
   });
 
   it("weakens when it names a config other than the one the team's ESLint finds", async () => {
-    const query = queryFinding({ configs: { [ROOT_FILE]: foundAt("/repo/eslint.config.mjs"), [NESTED_FILE]: foundAt("/repo/eslint.config.mjs") } });
+    const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     await expect(
       judgeOver({ query })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "alt.config.mjs" } }) }),
     ).resolves.toEqual({ outcome: "ok", value: "weakens" });

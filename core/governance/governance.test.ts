@@ -592,7 +592,7 @@ describe("applyGovernance rule 5, unrecorded", () => {
     ).toEqual([{ kind: "config-override", clause: noClass, file: fileA, mechanism: audit }]);
   });
 
-  it("records a native exception that a forfeited file carve-out matches", () => {
+  it("lists a native exception that only a forfeited file carve-out matches, since the forfeited record no longer holds it", () => {
     expect(
       applyGovernance({
         findings: [],
@@ -606,7 +606,7 @@ describe("applyGovernance rule 5, unrecorded", () => {
           },
         ],
       }).unrecorded,
-    ).toEqual([]);
+    ).toEqual([{ kind: "config-override", clause: noClass, file: fileA, mechanism: eslint }]);
   });
 
   it("records a native exception in any file that a clause-wide carve-out matches", () => {
@@ -782,15 +782,23 @@ describe("applyGovernance rule 5, an inline disable added after adoption", () =>
     ).toEqual({ ...nothingGoverned, findings: [noClassInA], unrecorded: [{ ...expectationInA, mechanism: audit }] });
   });
 
-  it("fails the run as forfeited when the file is carved out, since adding the directive touches the file", () => {
+  it("fails the run as forfeited when the file is carved out, and lists every directive the forfeited carve-out held", () => {
     expect(
       applyGovernance({
         findings: [noClassInA],
         records: [carvedNoClassInA],
         touched: fileATouched,
-        runs: [inlineRun({ nativeExceptions: [expectationInA] })],
+        runs: [inlineRun({ nativeExceptions: [expectationInA, { ...expectationInA, line: 9 }] })],
       }),
-    ).toEqual({ ...nothingGoverned, findings: [noClassInA], forfeited: [carvedNoClassInA] });
+    ).toEqual({
+      ...nothingGoverned,
+      findings: [noClassInA],
+      forfeited: [carvedNoClassInA],
+      unrecorded: [
+        { ...expectationInA, mechanism: audit },
+        { ...expectationInA, line: 9, mechanism: audit },
+      ],
+    });
   });
 });
 

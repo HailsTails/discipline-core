@@ -1732,6 +1732,33 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
   });
 });
 
+const ESLINT_IGNORING_NOTHING: EslintPort = {
+  ...eslintOver({}),
+  ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>().mockResolvedValue({ outcome: "ok", value: ["checked", "checked"] }),
+};
+
+describe("native exceptions: lint-script options whose effect the script's own folder does not settle", () => {
+  it.each([
+    { location: "package.json", script: "cd src && eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
+    { location: "package.json", script: 'eslint --ignore-pattern "$LEGACY" .', option: "--ignore-pattern $LEGACY" },
+    { location: "tools/package.json", script: "cd .. && eslint --ignore-pattern 'src/legacy/**' .", option: "--ignore-pattern src/legacy/**" },
+    { location: "tools/package.json", script: "eslint -c weak.config.mjs ..", option: "-c weak.config.mjs" },
+  ])("reports $option in $location's script $script as weakening the run", async ({ location, script, option }) => {
+    await expect(
+      runnerOver({
+        eslint: ESLINT_IGNORING_NOTHING,
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { [`/repo/${location}`]: presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+        }),
+      }).run(trackedRun({ tracked: location })),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { nativeExceptions: [{ kind: "command-line-option", clause: CLASS_SYNTAX_OBJECT, location, script: "lint", option }] },
+    });
+  });
+});
+
 describe("native exceptions: inline directives with several selected clauses", () => {
   it("reports a disable naming one selected rule for that rule's clause only", async () => {
     await expect(

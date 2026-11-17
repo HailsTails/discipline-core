@@ -2,7 +2,7 @@ import type { InlineDisable } from "../../../core/mechanism-port/runner-result-s
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { type ClauseAddress, sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
-import type { CommentRange, SyntaxApi, SyntaxTree } from "./typescript-parse.ts";
+import type { CommentRange, SyntaxApi, SyntaxNode, SyntaxTree } from "./typescript-parse.ts";
 
 export const TYPE_DIRECTIVES = ["@ts-expect-error", "@ts-ignore", "@ts-nocheck"] as const;
 
@@ -64,6 +64,27 @@ const readingByPlacement = (request: {
 
 export type TypeDirectiveReader = (request: { readonly range: CommentRange }) => TypeDirectiveReading | undefined;
 
+type TextSpan = { readonly pos: number; readonly end: number };
+
+const jsxTextSpansUnder = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): readonly TextSpan[] => {
+  const own: readonly TextSpan[] = request.syntaxApi.isJsxText(request.node) ? [{ pos: request.node.pos, end: request.node.end }] : [];
+  const children: SyntaxNode[] = [];
+  request.syntaxApi.forEachChild(request.node, (child) => {
+    children.push(child);
+  });
+  return [...own, ...children.flatMap((child) => jsxTextSpansUnder({ node: child, syntaxApi: request.syntaxApi }))];
+};
+
+const jsxTextSpansOf = (request: { readonly sourceFile: SyntaxTree; readonly syntaxApi: SyntaxApi }): readonly TextSpan[] =>
+  request.sourceFile.languageVariant === request.syntaxApi.LanguageVariant.JSX
+    ? jsxTextSpansUnder({ node: request.sourceFile, syntaxApi: request.syntaxApi })
+    : [];
+
+type RangePlacement = "jsx-text" | "trivia";
+
+const rangePlacementOf = (request: { readonly range: CommentRange; readonly spans: readonly TextSpan[] }): RangePlacement =>
+  request.spans.some((span) => span.pos <= request.range.pos && request.range.end <= span.end) ? "jsx-text" : "trivia";
+
 export const typeDirectiveReaderFor = (request: {
   readonly sourceFile: SyntaxTree;
   readonly syntaxApi: SyntaxApi;
@@ -72,11 +93,14 @@ export const typeDirectiveReaderFor = (request: {
   const fileHeaderPositions = new Set(
     (syntaxApi.getLeadingCommentRanges(sourceFile.text, 0) ?? []).map((headerRange) => headerRange.pos),
   );
+  const jsxTextSpans = jsxTextSpansOf({ sourceFile, syntaxApi });
   return ({ range }) =>
-    readingByPlacement({
-      comment: sourceFile.text.slice(range.pos, range.end),
-      placement: commentPlacementOf({ range, fileHeaderPositions, syntaxApi }),
-    });
+    rangePlacementOf({ range, spans: jsxTextSpans }) === "jsx-text"
+      ? undefined
+      : readingByPlacement({
+          comment: sourceFile.text.slice(range.pos, range.end),
+          placement: commentPlacementOf({ range, fileHeaderPositions, syntaxApi }),
+        });
 };
 
 export type DirectiveEscape = { readonly clause: ClauseAddress; readonly directives: readonly TypeDirective[] };

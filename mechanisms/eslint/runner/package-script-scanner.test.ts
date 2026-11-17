@@ -226,6 +226,31 @@ describe("suppressionsLocationValuesOf", () => {
   });
 });
 
+describe("scanPackageJson, whether the script's own folder settles an option's effect", () => {
+  it.each([
+    { script: "eslint --ignore-pattern 'legacy/**' .", settlement: "settled" },
+    { script: "eslint -c eslint.config.mjs src", settlement: "settled" },
+    { script: "pnpm exec eslint --ignore-pattern 'legacy/**' src", settlement: "settled" },
+    { script: "cd src && eslint --ignore-pattern 'legacy/**' .", settlement: "unsettled" },
+    { script: "pushd src; eslint --ignore-pattern 'legacy/**' .", settlement: "unsettled" },
+    { script: "pnpm -C src exec eslint --ignore-pattern 'legacy/**' .", settlement: "unsettled" },
+    { script: "npm --prefix=src exec eslint --ignore-pattern 'legacy/**' .", settlement: "unsettled" },
+    { script: "pnpm --filter web exec eslint --ignore-pattern 'legacy/**' .", settlement: "unsettled" },
+    { script: 'eslint --ignore-pattern "$LEGACY" .', settlement: "unsettled" },
+    { script: "eslint --ignore-pattern `cat legacy.txt` .", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern '$LEGACY' .", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern legacy/** .", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern 'legacy/**' ..", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern '../legacy/**' .", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern 'legacy/**' /repo/src", settlement: "unsettled" },
+    { script: "eslint --ignore-pattern 'legacy/**' ~/src", settlement: "unsettled" },
+  ])("marks the option in $script $settlement", ({ script, settlement }) => {
+    expect(
+      scanPackageJson({ path: rootPackageJson, text: JSON.stringify({ scripts: { lint: script } }), selectedRules: [classRule] }),
+    ).toMatchObject({ outcome: "ok", value: { scriptOptions: [{ settlement }] } });
+  });
+});
+
 describe("scanPackageJson", () => {
   it("reports malformed JSON as tool-failed", () => {
     expect(
@@ -270,6 +295,7 @@ describe("scanPackageJson", () => {
           {
             location: "package.json",
             effect: WEAKENS,
+            settlement: "settled",
             exceptions: [
               {
                 kind: "command-line-option",
@@ -310,6 +336,7 @@ describe("scanPackageJson", () => {
           {
             location: "package.json",
             effect: { kind: "names-config", config: "alt.config.mjs" },
+            settlement: "settled",
             exceptions: [
               {
                 kind: "command-line-option",

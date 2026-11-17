@@ -66,6 +66,18 @@ const unrequestedHit = <Filed extends FiledClause>(request: {
       ),
   );
 
+const okOutcomeSchema = z.object({ outcome: z.literal("ok") });
+
+const okStandaloneSchema = z.object({ outcome: z.literal("ok"), value: standaloneRunReportSchema });
+
+const invalidStandaloneDetail = (request: { readonly returned: unknown; readonly error: z.ZodError }): string => {
+  if (!okOutcomeSchema.safeParse(request.returned).success) {
+    return z.prettifyError(request.error);
+  }
+  const report = okStandaloneSchema.safeParse(request.returned);
+  return z.prettifyError(report.success ? request.error : report.error);
+};
+
 const standaloneRun = (request: {
   readonly returned: unknown;
   readonly mechanism: MechanismId;
@@ -73,7 +85,7 @@ const standaloneRun = (request: {
 }): Result<MechanismRun, RunnerFailure> => {
   const parsed = standaloneResultSchema.safeParse(request.returned);
   if (!parsed.success) {
-    return runnerInvalidOutput({ detail: z.prettifyError(parsed.error) });
+    return runnerInvalidOutput({ detail: invalidStandaloneDetail({ returned: request.returned, error: parsed.error }) });
   }
   if (parsed.data.outcome === "failed") {
     return parsed.data;
