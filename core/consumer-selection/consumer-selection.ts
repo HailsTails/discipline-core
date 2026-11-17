@@ -82,6 +82,34 @@ export type RuleSetLocation =
 
 const LEADING_CURRENT_DIRECTORY = "./";
 
+const NOT_ADOPTED = "not-adopted";
+
+type ClauseChoice =
+  | { readonly adoption: "adopted"; readonly mechanism: MechanismId }
+  | { readonly adoption: "not-adopted" };
+
+const clauseChoiceSchema = z.union(
+  [
+    z.literal(NOT_ADOPTED).transform((): ClauseChoice => ({ adoption: "not-adopted" })),
+    mechanismIdSchema.transform((mechanism): ClauseChoice => ({ adoption: "adopted", mechanism })),
+  ],
+  { error: `a clause takes a mechanism id or "${NOT_ADOPTED}"` },
+);
+
+type ClauseListing = ClauseChoice["adoption"] | "unlisted";
+
+const UNSETTABLE_LISTING_REFUSALS: Readonly<Record<Exclude<ClauseListing, "adopted">, string>> = {
+  unlisted: "clauses does not select it",
+  "not-adopted": "clauses does not adopt it",
+};
+
+const clauseListingOf = (request: {
+  readonly clauses: readonly (readonly [ClauseAddress, ClauseChoice])[];
+  readonly address: ClauseAddress;
+}): ClauseListing =>
+  request.clauses.find(([listed]) => sameClauseAddress({ left: listed, right: request.address }) === "same")?.[1].adoption ??
+  "unlisted";
+
 const ruleSetLocationSchema = z.union([
   z.enum([".", LEADING_CURRENT_DIRECTORY]).transform((): RuleSetLocation => ({ location: "repo-root" })),
   z
@@ -102,7 +130,7 @@ const consumerSelectionFileSchema = z.strictObject({
   clauses: z
     .record(z.string(), z.string())
     .transform((clauses) => Object.entries(clauses))
-    .pipe(z.array(z.tuple([clauseAddressSchema, mechanismIdSchema]))),
+    .pipe(z.array(z.tuple([clauseAddressSchema, clauseChoiceSchema]))),
   exclude: z
     .array(
       brandedRepoPathSchema({
@@ -120,13 +148,16 @@ const consumerSelectionFileSchema = z.strictObject({
 }).superRefine((file, context) => {
   const settingsAddresses = file.clauseSettings.map(([address]) => address);
   settingsAddresses
-    .filter((address) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
-    .forEach((address) => {
+    .flatMap((address) => {
+      const listing = clauseListingOf({ clauses: file.clauses, address });
+      return listing === "adopted" ? [] : [{ address, listing }];
+    })
+    .forEach(({ address, listing }) => {
       const text = clauseAddressText({ address });
       context.addIssue({
         code: "custom",
         path: ["clauseSettings", text],
-        message: `clauseSettings for ${text}: clauses does not select it`,
+        message: `clauseSettings for ${text}: ${UNSETTABLE_LISTING_REFUSALS[listing]}`,
       });
     });
   settingsAddresses
@@ -199,7 +230,7 @@ type DefinedClause = {
   readonly definition: MechanicalDefinition;
 };
 
-const disciplineOf = (request: ClauseRequest): Result<DisciplineFile, LoadFailure> => {
+const disciplineOf = (request: Omit<ClauseRequest, "mechanism">): Result<DisciplineFile, LoadFailure> => {
   const loaded = request.earlier.find(
     (earlier) =>
       earlier.ruleSetRoot === request.ruleSetRoot && earlier.discipline.id === request.address.discipline,
@@ -214,7 +245,7 @@ const disciplineOf = (request: ClauseRequest): Result<DisciplineFile, LoadFailur
   return readDisciplineFile({ ...location, fileText: request.fileText });
 };
 
-const definedClause = (request: ClauseRequest): Result<DefinedClause, LoadFailure> => {
+const mechanicalClause = (request: Omit<ClauseRequest, "mechanism">): Result<DefinedClause, LoadFailure> => {
   const address = clauseAddressText({ address: request.address });
   const discipline = disciplineOf(request);
   if (discipline.outcome === "failed") {
@@ -227,10 +258,18 @@ const definedClause = (request: ClauseRequest): Result<DefinedClause, LoadFailur
   if (definition.kind === "judgement") {
     return failed({ kind: "judgement-clause-selected", address });
   }
-  if (!definition.mechanisms.includes(request.mechanism)) {
-    return failed({ kind: "mechanism-not-allowed", address, mechanism: request.mechanism });
-  }
   return { outcome: "ok", value: { discipline: discipline.value, definition } };
+};
+
+const definedClause = (request: ClauseRequest): Result<DefinedClause, LoadFailure> => {
+  const defined = mechanicalClause(request);
+  if (defined.outcome === "failed") {
+    return defined;
+  }
+  if (!defined.value.definition.mechanisms.includes(request.mechanism)) {
+    return failed({ kind: "mechanism-not-allowed", address: clauseAddressText({ address: request.address }), mechanism: request.mechanism });
+  }
+  return defined;
 };
 
 type PieceRequest = ClauseRequest & { readonly discipline: DisciplineFile };
@@ -346,55 +385,64 @@ const resolveClause = (request: {
 const addressOf = (request: { readonly resolved: ResolvedClause }): ClauseAddress =>
   request.resolved.binding.clause.address;
 
+type ListedClause = {
+  readonly discipline: DisciplineFile;
+  readonly address: ClauseAddress;
+};
+
 const occurrenceInDiscipline = (request: {
-  readonly resolved: readonly ResolvedClause[];
-  readonly clause: ResolvedClause;
+  readonly listed: readonly ListedClause[];
+  readonly clause: ListedClause;
   readonly index: number;
 }): "first" | "repeat" => {
-  const address = addressOf({ resolved: request.clause });
-  const firstIndex = request.resolved.findIndex(
-    (earlier) =>
-      sameClauseAddress({ left: { ...addressOf({ resolved: earlier }), clause: address.clause }, right: address }) ===
-      "same",
+  const address = request.clause.address;
+  const firstIndex = request.listed.findIndex(
+    (earlier) => sameClauseAddress({ left: { ...earlier.address, clause: address.clause }, right: address }) === "same",
   );
   return firstIndex === request.index ? "first" : "repeat";
 };
 
 const listingOf = (request: {
-  readonly resolved: readonly ResolvedClause[];
+  readonly listed: readonly ListedClause[];
   readonly address: ClauseAddress;
 }): "listed" | "unlisted" =>
-  request.resolved.some(
-    (listed) => sameClauseAddress({ left: addressOf({ resolved: listed }), right: request.address }) === "same",
-  )
+  request.listed.some((listed) => sameClauseAddress({ left: listed.address, right: request.address }) === "same")
     ? "listed"
     : "unlisted";
 
 const unlistedClausesOf = (request: {
-  readonly resolved: readonly ResolvedClause[];
-  readonly representative: ResolvedClause;
+  readonly listed: readonly ListedClause[];
+  readonly representative: ListedClause;
 }): readonly ClauseAddress[] =>
   request.representative.discipline.clauses
     .filter((definition) => definition.kind === "mechanical")
-    .map((definition): ClauseAddress => ({ ...addressOf({ resolved: request.representative }), clause: definition.id }))
-    .filter((address) => listingOf({ resolved: request.resolved, address }) === "unlisted");
+    .map((definition): ClauseAddress => ({ ...request.representative.address, clause: definition.id }))
+    .filter((address) => listingOf({ listed: request.listed, address }) === "unlisted");
 
-const uncoveredClauses = (request: {
-  readonly resolved: readonly ResolvedClause[];
-}): readonly ClauseAddress[] =>
-  request.resolved
-    .filter((clause, index) => occurrenceInDiscipline({ resolved: request.resolved, clause, index }) === "first")
-    .flatMap((representative) => unlistedClausesOf({ resolved: request.resolved, representative }));
+const uncoveredClauses = (request: { readonly listed: readonly ListedClause[] }): readonly ClauseAddress[] =>
+  request.listed
+    .filter((clause, index) => occurrenceInDiscipline({ listed: request.listed, clause, index }) === "first")
+    .flatMap((representative) => unlistedClausesOf({ listed: request.listed, representative }));
 
-const resolvedClauses = (request: {
+type SelectionRequest = {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
   readonly file: ConsumerSelectionFile;
-}): Result<readonly ResolvedClause[], LoadFailure> =>
-  request.file.clauses.reduce<Result<readonly ResolvedClause[], LoadFailure>>(
+};
+
+const adoptedEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, MechanismId])[] =>
+  request.file.clauses.flatMap(([address, choice]): readonly (readonly [ClauseAddress, MechanismId])[] =>
+    choice.adoption === "adopted" ? [[address, choice.mechanism]] : [],
+  );
+
+const notAdoptedAddresses = (request: { readonly file: ConsumerSelectionFile }): readonly ClauseAddress[] =>
+  request.file.clauses.flatMap(([address, choice]) => (choice.adoption === "not-adopted" ? [address] : []));
+
+const resolvedClauses = (request: SelectionRequest): Result<readonly ResolvedClause[], LoadFailure> =>
+  adoptedEntries(request).reduce<Result<readonly ResolvedClause[], LoadFailure>>(
     (sofar, [address, mechanism]) =>
       appendedClause({
         sofar,
@@ -404,10 +452,31 @@ const resolvedClauses = (request: {
     { outcome: "ok", value: [] },
   );
 
-const appendedClause = (request: {
-  readonly sofar: Result<readonly ResolvedClause[], LoadFailure>;
-  readonly resolve: (resolution: { readonly earlier: readonly ResolvedClause[] }) => Result<ResolvedClause, LoadFailure>;
-}): Result<readonly ResolvedClause[], LoadFailure> => {
+type NotAdoptedRequest = SelectionRequest & { readonly adopted: readonly ResolvedClause[] };
+
+const notAdoptedClause = (request: NotAdoptedRequest & { readonly address: ClauseAddress }): Result<ListedClause, LoadFailure> => {
+  const root = ruleSetRootOf({
+    ...request,
+    ruleSet: request.address.ruleSet,
+    ruleSets: Object.fromEntries(request.file.ruleSets),
+  });
+  if (root.outcome === "failed") {
+    return root;
+  }
+  const defined = mechanicalClause({ ...request, ruleSetRoot: root.value, earlier: request.adopted });
+  return defined.outcome === "failed" ? defined : { outcome: "ok", value: { discipline: defined.value.discipline, address: request.address } };
+};
+
+const notAdoptedClauses = (request: NotAdoptedRequest): Result<readonly ListedClause[], LoadFailure> =>
+  notAdoptedAddresses(request).reduce<Result<readonly ListedClause[], LoadFailure>>(
+    (sofar, address) => appendedClause({ sofar, resolve: () => notAdoptedClause({ ...request, address }) }),
+    { outcome: "ok", value: [] },
+  );
+
+const appendedClause = <Clause>(request: {
+  readonly sofar: Result<readonly Clause[], LoadFailure>;
+  readonly resolve: (resolution: { readonly earlier: readonly Clause[] }) => Result<Clause, LoadFailure>;
+}): Result<readonly Clause[], LoadFailure> => {
   if (request.sofar.outcome === "failed") {
     return request.sofar;
   }
@@ -469,6 +538,7 @@ const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile 
 
 const selectionReadingOf = (request: {
   readonly resolved: readonly ResolvedClause[];
+  readonly notAdopted: readonly ListedClause[];
   readonly file: ConsumerSelectionFile;
 }): SelectionReading => ({
   selection: {
@@ -477,7 +547,13 @@ const selectionReadingOf = (request: {
       mechanism: binding.mechanism,
       exceptions,
     })),
-    uncovered: uncoveredClauses(request),
+    uncovered: uncoveredClauses({
+      listed: [
+        ...request.resolved.map((resolved) => ({ discipline: resolved.discipline, address: addressOf({ resolved }) })),
+        ...request.notAdopted,
+      ],
+    }),
+    notAdopted: request.notAdopted.map((listed) => listed.address),
   },
   bindings: request.resolved.map(({ binding }) => binding),
   excluded: request.file.exclude,
@@ -561,5 +637,9 @@ export const readSelection = (request: {
   if (settled.outcome === "failed") {
     return settled;
   }
-  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, file: file.value }) };
+  const notAdopted = notAdoptedClauses({ ...request, file: file.value, adopted: settled.value });
+  if (notAdopted.outcome === "failed") {
+    return notAdopted;
+  }
+  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, notAdopted: notAdopted.value, file: file.value }) };
 };

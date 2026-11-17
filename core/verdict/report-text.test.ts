@@ -53,6 +53,7 @@ const carvedEverywhere: ExceptionRecord = {
 
 const emptyReport: CheckReport = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -730,5 +731,41 @@ describe("renderReportText waived clauses beside other assessment", () => {
         report: { ...mixedReport, assessment: [waivedNotRun({ clausesNotRun: [], recordsNotJudgedStale: 0 })] },
       }),
     ).toMatch(/(?:^|\n)verdict: fail \(partial assessment\)\n$/);
+  });
+});
+
+const namingConvention = clauseAddressSchema.parse("CD-6#naming-convention");
+
+describe("renderReportText clauses not adopted", () => {
+  it("lists the not-adopted clauses after the excluded paths and before the findings", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: { ...emptyReport, excluded: [repoPathSchema.parse("generated")], notAdopted: [namingConvention], findings: [finding] },
+      }),
+    ).toBe(
+      "excluded (1)\ngenerated\nnotAdopted (1)\nCD-6#naming-convention\nfindings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nverdict: fail\n",
+    );
+  });
+
+  it("passes as a whole assessment when the report lists only not-adopted clauses", () => {
+    expect(renderReportText({ output: "full", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+      "notAdopted (1)\nCD-6#naming-convention\nverdict: pass\n",
+    );
+  });
+
+  it("counts the not-adopted clauses as informational", () => {
+    expect(renderReportText({ output: "counts", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+      "notAdopted (1) informational\nverdict: pass\n",
+    );
+  });
+
+  it("renders a clause-not-adopted invalid record with the clause's address text", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: { ...emptyReport, invalidRecords: [{ index: 2, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
+      }),
+    ).toContain("\nexceptions[2] clause-not-adopted CD-6#naming-convention\n");
   });
 });

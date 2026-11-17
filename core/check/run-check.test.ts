@@ -320,6 +320,7 @@ const HIT_IN_A = {
 
 const EMPTY_REPORT = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -1634,6 +1635,69 @@ describe("runCheck waived clauses not run across mechanisms", () => {
           { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 0 },
           waivedClassSyntax({ recordsNotJudgedStale: 1 }),
         ],
+      },
+    });
+  });
+});
+
+const NOT_ADOPTING_CLASS_SYNTAX = JSON.stringify({
+  version: 1,
+  ruleSets: {},
+  clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
+});
+
+const notAdoptingInstall = (request: { readonly selection: string; readonly exceptions: FakeFile }) =>
+  fileTextOver({ ...TWO_CLAUSE_INSTALL, [SELECTION_PATH]: presentFile({ text: request.selection }), [EXCEPTIONS_PATH]: request.exceptions });
+
+describe("runCheck clauses not adopted", () => {
+  it("loads no mechanism when no listed clause is adopted, lists the clauses, and passes as a whole assessment", async () => {
+    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
+    const report = await runCheck(
+      checkRequest({
+        modules,
+        fileText: notAdoptingInstall({
+          selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" } }),
+          exceptions: ABSENT_FILE,
+        }),
+      }),
+    );
+    expect({ report, loads: vi.mocked(modules.load).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, notAdopted: [CLASS_SYNTAX_OBJECT, ABSTRACT_SYNTAX_OBJECT] } },
+      loads: [],
+    });
+  });
+
+  it("hands the runner only the adopted clause and lists the other as not adopted", async () => {
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const report = await runCheck(
+      checkRequest({
+        modules: modulesLoading({ runner }),
+        fileText: notAdoptingInstall({ selection: NOT_ADOPTING_CLASS_SYNTAX, exceptions: ABSENT_FILE }),
+      }),
+    );
+    expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, notAdopted: [CLASS_SYNTAX_OBJECT] } },
+      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE] })]],
+    });
+  });
+
+  it("fails a record on a not-adopted clause as clause-not-adopted, whatever waived clauses do", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          assessment: WAIVED_NOT_RUN,
+          fileText: notAdoptingInstall({
+            selection: NOT_ADOPTING_CLASS_SYNTAX,
+            exceptions: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        invalidRecords: [{ index: 0, problem: { kind: "clause-not-adopted", clause: CLASS_SYNTAX_OBJECT } }],
+        notAdopted: [CLASS_SYNTAX_OBJECT],
+        assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
       },
     });
   });
