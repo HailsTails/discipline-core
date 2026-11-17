@@ -20,7 +20,9 @@ const TEMPLATE_SUBSTITUTION = "$" + "{name}";
 const CONFIGURED_PACKAGES: readonly string[] = [
   "eslint", "winston", "winston-transport", "better-sqlite3", "pino", "hono", "@hono/node-server", "jose",
   "@modelcontextprotocol/sdk", "zod-to-json-schema", "uuid",
-];const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
+];
+
+const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
