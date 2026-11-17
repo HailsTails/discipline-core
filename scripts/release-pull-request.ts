@@ -11,11 +11,12 @@ import { packageVersionOf } from "./published-manifest.ts";
 import {
   changeSizeOf,
   channelOf,
-  latestReleaseOf,
   nextVersionOf,
   RELEASE_TAG_PREFIX,
   type Release,
   type ReleaseChannel,
+  type ReleaseLine,
+  releaseLineOf,
   type ReleaseSize,
   releaseSizeOf,
   versionText,
@@ -38,14 +39,16 @@ type RepositoryFiles = {
   readonly manifest: PreparedFile;
 };
 
-type MergedHistory = { readonly release: Release; readonly entries: readonly ChangeEntry[] };
+type MergedHistory = { readonly line: ReleaseLine; readonly entries: readonly ChangeEntry[]; readonly lineEntries: readonly ChangeEntry[] };
 
 type NextRelease = {
   readonly from: Release;
+  readonly sizedFrom: Release;
   readonly version: string;
   readonly size: ReleaseSize;
   readonly channel: ReleaseChannel;
   readonly entries: readonly ChangeEntry[];
+  readonly lineEntries: readonly ChangeEntry[];
 };
 
 type FileUpdate = { readonly path: string; readonly original: string; readonly updated: string };
@@ -108,34 +111,47 @@ const linearMessagesOf = (request: { readonly commits: readonly CommitRecord[]; 
   };
 };
 
+const entriesSince = (request: {
+  readonly history: GitHistoryPort;
+  readonly repoRoot: AbsolutePath;
+  readonly release: Release;
+}): Prepared<readonly ChangeEntry[]> => {
+  const commits = request.history.commitsAfter({ repoRoot: request.repoRoot, revision: request.release.tag });
+  if (commits.outcome === "failed") {
+    return { outcome: "failed", error: gitFailureText({ failure: commits.error }) };
+  }
+  const messages = linearMessagesOf({ commits: commits.value, release: request.release });
+  return messages.outcome === "failed" ? messages : { outcome: "ok", value: messages.value.map((message) => changeEntryOf({ message })) };
+};
+
 const mergedHistoryOf = (request: { readonly history: GitHistoryPort; readonly repoRoot: AbsolutePath }): Prepared<MergedHistory> => {
   const tags = request.history.mergedTags({ repoRoot: request.repoRoot, pattern: `${RELEASE_TAG_PREFIX}*` });
   if (tags.outcome === "failed") {
     return { outcome: "failed", error: gitFailureText({ failure: tags.error }) };
   }
-  const release = latestReleaseOf({ tags: tags.value });
-  if (release.outcome === "failed") {
-    return release;
+  const line = releaseLineOf({ tags: tags.value });
+  if (line.outcome === "failed") {
+    return line;
   }
-  const commits = request.history.commitsAfter({ repoRoot: request.repoRoot, revision: release.value.tag });
-  if (commits.outcome === "failed") {
-    return { outcome: "failed", error: gitFailureText({ failure: commits.error }) };
+  const entries = entriesSince({ ...request, release: line.value.latest });
+  if (entries.outcome === "failed") {
+    return entries;
   }
-  const messages = linearMessagesOf({ commits: commits.value, release: release.value });
-  return messages.outcome === "failed"
-    ? messages
-    : { outcome: "ok", value: { release: release.value, entries: messages.value.map((message) => changeEntryOf({ message })) } };
+  const lineEntries = entriesSince({ ...request, release: line.value.start });
+  return lineEntries.outcome === "failed"
+    ? lineEntries
+    : { outcome: "ok", value: { line: line.value, entries: entries.value, lineEntries: lineEntries.value } };
 };
 
 const nextReleaseOf = (request: { readonly history: MergedHistory; readonly requestedChannel: ReleaseChannel | undefined }): Prepared<NextRelease> => {
-  const { release, entries } = request.history;
-  const size = releaseSizeOf({ entries });
-  if (size === "nothing") {
-    return { outcome: "failed", error: `nothing is merged since ${release.tag}, so there is nothing to release.` };
+  const { line, entries, lineEntries } = request.history;
+  const size = releaseSizeOf({ entries: lineEntries });
+  if (entries.length === 0 || size === "nothing") {
+    return { outcome: "failed", error: `nothing is merged since ${line.latest.tag}, so there is nothing to release.` };
   }
-  const channel = request.requestedChannel ?? channelOf({ version: release.version });
-  const version = versionText({ version: nextVersionOf({ current: release.version, size, channel }) });
-  return { outcome: "ok", value: { from: release, version, size, channel, entries } };
+  const channel = request.requestedChannel ?? channelOf({ version: line.latest.version });
+  const version = versionText({ version: nextVersionOf({ current: line.latest.version, size, channel }) });
+  return { outcome: "ok", value: { from: line.latest, sizedFrom: line.start, version, size, channel, entries, lineEntries } };
 };
 
 const releasedManifestVersionOf = (request: { readonly manifest: string; readonly release: Release }): Prepared<string> => {
@@ -237,7 +253,7 @@ const writtenUpdates = (request: { readonly fileText: FileTextPort; readonly upd
 const subjectCountText = (request: { readonly count: number }): string => `${request.count} ${request.count === 1 ? "subject" : "subjects"}`;
 
 const summaryOf = (request: { readonly prepared: PreparedRelease }): string =>
-  `${COMMAND}: ${versionText({ version: request.prepared.from.version })} to ${request.prepared.version}, a ${request.prepared.size} change on the ${request.prepared.channel} channel, from ${subjectCountText({ count: request.prepared.entries.length })} since ${request.prepared.from.tag}. ${CHANGELOG_FILE} and ${MANIFEST_FILE} are updated in the working tree; no tag was made and nothing was published.\n`;
+  `${COMMAND}: ${versionText({ version: request.prepared.from.version })} to ${request.prepared.version}, a ${request.prepared.size} change on the ${request.prepared.channel} channel, sized from ${subjectCountText({ count: request.prepared.lineEntries.length })} since ${request.prepared.sizedFrom.tag}, with ${subjectCountText({ count: request.prepared.entries.length })} since ${request.prepared.from.tag} in its section. ${CHANGELOG_FILE} and ${MANIFEST_FILE} are updated in the working tree; no tag was made and nothing was published.\n`;
 
 const unclassifiedWarningsOf = (request: { readonly entries: readonly ChangeEntry[] }): readonly string[] =>
   request.entries.flatMap((entry) =>

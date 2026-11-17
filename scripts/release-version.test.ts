@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { changeEntryOf } from "./conventional-subject.ts";
 import {
   channelOf,
-  latestReleaseOf,
   nextVersionOf,
+  releaseLineOf,
   type ReleaseChannel,
   type ReleaseSize,
   releaseSizeOf,
@@ -58,37 +58,69 @@ describe("channelOf", () => {
   });
 });
 
-describe("latestReleaseOf", () => {
-  it("picks the highest release tag, ranking a stable release above its pre-releases", () => {
-    expect(latestReleaseOf({ tags: ["v0.1.0-pre.1", "v0.1.0", "v0.1.0-pre.3", "v0.1.0-pre.2", "backup-pre1-before-rewrite"] })).toEqual({
+describe("releaseLineOf", () => {
+  it("picks the highest release tag as the latest, ranking a stable release above its pre-releases", () => {
+    expect(releaseLineOf({ tags: ["v0.1.0-pre.1", "v0.1.0", "v0.1.0-pre.3", "v0.1.0-pre.2", "backup-pre1-before-rewrite"] })).toMatchObject({
       outcome: "ok",
-      value: { tag: "v0.1.0", version: stable({ major: 0, minor: 1, patch: 0 }) },
+      value: { latest: { tag: "v0.1.0", version: stable({ major: 0, minor: 1, patch: 0 }) } },
     });
   });
 
   it("ranks pre-releases by number, not as text", () => {
-    expect(latestReleaseOf({ tags: ["v0.1.0-pre.9", "v0.1.0-pre.10", "v0.0.9"] })).toEqual({
+    expect(releaseLineOf({ tags: ["v0.1.0-pre.9", "v0.1.0-pre.10", "v0.0.9"] })).toMatchObject({
       outcome: "ok",
-      value: { tag: "v0.1.0-pre.10", version: pre({ major: 0, minor: 1, patch: 0, number: 10 }) },
+      value: { latest: { tag: "v0.1.0-pre.10", version: pre({ major: 0, minor: 1, patch: 0, number: 10 }) } },
     });
   });
 
   it("ranks pre-release identifiers in ASCII order, as semver does, so an uppercase identifier ranks below a lowercase one", () => {
-    expect(latestReleaseOf({ tags: ["v1.0.0-alpha.1", "v1.0.0-Beta.1"] })).toEqual({
+    expect(releaseLineOf({ tags: ["v1.0.0-alpha.1", "v1.0.0-Beta.1"] })).toMatchObject({
       outcome: "ok",
-      value: { tag: "v1.0.0-alpha.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "alpha", number: 1 } } },
+      value: { latest: { tag: "v1.0.0-alpha.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "alpha", number: 1 } } } },
     });
   });
 
   it("ranks an identifier above its own prefix, whatever the numbers", () => {
-    expect(latestReleaseOf({ tags: ["v1.0.0-pre-a.1", "v1.0.0-pre.2"] })).toEqual({
+    expect(releaseLineOf({ tags: ["v1.0.0-pre-a.1", "v1.0.0-pre.2"] })).toMatchObject({
       outcome: "ok",
-      value: { tag: "v1.0.0-pre-a.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "pre-a", number: 1 } } },
+      value: { latest: { tag: "v1.0.0-pre-a.1", version: { major: 1, minor: 0, patch: 0, preRelease: { identifier: "pre-a", number: 1 } } } },
+    });
+  });
+
+  it("sizes a line from the latest stable release, which is the latest release itself when that is stable", () => {
+    expect([
+      releaseLineOf({ tags: ["v1.0.0", "v1.1.0-pre.1", "v0.1.0-pre.7", "v1.1.0-pre.2"] }),
+      releaseLineOf({ tags: ["v1.0.0", "v1.0.1"] }),
+    ]).toEqual([
+      {
+        outcome: "ok",
+        value: {
+          latest: { tag: "v1.1.0-pre.2", version: pre({ major: 1, minor: 1, patch: 0, number: 2 }) },
+          start: { tag: "v1.0.0", version: stable({ major: 1, minor: 0, patch: 0 }) },
+        },
+      },
+      {
+        outcome: "ok",
+        value: {
+          latest: { tag: "v1.0.1", version: stable({ major: 1, minor: 0, patch: 1 }) },
+          start: { tag: "v1.0.1", version: stable({ major: 1, minor: 0, patch: 1 }) },
+        },
+      },
+    ]);
+  });
+
+  it("sizes a line from the earliest release when no release is stable", () => {
+    expect(releaseLineOf({ tags: ["v0.1.0-pre.6", "v0.1.0-pre.5", "v0.1.0-pre.7"] })).toEqual({
+      outcome: "ok",
+      value: {
+        latest: { tag: "v0.1.0-pre.7", version: pre({ major: 0, minor: 1, patch: 0, number: 7 }) },
+        start: { tag: "v0.1.0-pre.5", version: pre({ major: 0, minor: 1, patch: 0, number: 5 }) },
+      },
     });
   });
 
   it("fails when no tag is a release tag", () => {
-    expect(latestReleaseOf({ tags: ["backup-pre1-before-rewrite", "vnext"] })).toEqual({
+    expect(releaseLineOf({ tags: ["backup-pre1-before-rewrite", "vnext"] })).toEqual({
       outcome: "failed",
       error: "no release tag v<version> is merged into HEAD",
     });
@@ -134,7 +166,7 @@ describe("nextVersionOf", () => {
   it.each([
     { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "patch", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
     { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "minor", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
-    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "major", channel: "pre-release", next: pre({ major: 0, minor: 1, patch: 0, number: 4 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "major", channel: "pre-release", next: pre({ major: 1, minor: 0, patch: 0, number: 1 }) },
     { current: pre({ major: 0, minor: 1, patch: 0, number: 3 }), size: "patch", channel: "stable", next: stable({ major: 0, minor: 1, patch: 0 }) },
     { current: pre({ major: 0, minor: 1, patch: 1, number: 2 }), size: "minor", channel: "pre-release", next: pre({ major: 0, minor: 2, patch: 0, number: 1 }) },
     { current: pre({ major: 1, minor: 0, patch: 0, number: 2 }), size: "major", channel: "pre-release", next: pre({ major: 1, minor: 0, patch: 0, number: 3 }) },
@@ -144,13 +176,28 @@ describe("nextVersionOf", () => {
     { current: stable({ major: 1, minor: 2, patch: 3 }), size: "minor", channel: "stable", next: stable({ major: 1, minor: 3, patch: 0 }) },
     { current: stable({ major: 1, minor: 2, patch: 3 }), size: "major", channel: "stable", next: stable({ major: 2, minor: 0, patch: 0 }) },
     { current: stable({ major: 1, minor: 2, patch: 3 }), size: "major", channel: "pre-release", next: pre({ major: 2, minor: 0, patch: 0, number: 1 }) },
-    { current: stable({ major: 0, minor: 3, patch: 4 }), size: "major", channel: "stable", next: stable({ major: 0, minor: 4, patch: 0 }) },
+    { current: stable({ major: 0, minor: 3, patch: 4 }), size: "major", channel: "stable", next: stable({ major: 1, minor: 0, patch: 0 }) },
     { current: stable({ major: 0, minor: 3, patch: 4 }), size: "minor", channel: "stable", next: stable({ major: 0, minor: 4, patch: 0 }) },
     { current: stable({ major: 0, minor: 3, patch: 4 }), size: "patch", channel: "stable", next: stable({ major: 0, minor: 3, patch: 5 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 7 }), size: "major", channel: "stable", next: stable({ major: 1, minor: 0, patch: 0 }) },
+    { current: pre({ major: 0, minor: 1, patch: 0, number: 7 }), size: "major", channel: "pre-release", next: pre({ major: 1, minor: 0, patch: 0, number: 1 }) },
   ] satisfies ReadonlyArray<{ readonly current: Version; readonly size: ReleaseSize; readonly channel: ReleaseChannel; readonly next: Version }>)(
     "case $#: a $size change on the $channel channel",
     ({ current, size, channel, next }) => {
       expect(nextVersionOf({ current, size, channel })).toEqual(next);
+    },
+  );
+
+  it.each([
+    { current: stable({ major: 1, minor: 0, patch: 0 }), size: "patch", channel: "pre-release", next: "1.0.1-pre.1" },
+    { current: pre({ major: 1, minor: 0, patch: 1, number: 1 }), size: "patch", channel: "pre-release", next: "1.0.1-pre.2" },
+    { current: pre({ major: 1, minor: 0, patch: 1, number: 2 }), size: "minor", channel: "pre-release", next: "1.1.0-pre.1" },
+    { current: pre({ major: 1, minor: 1, patch: 0, number: 1 }), size: "minor", channel: "pre-release", next: "1.1.0-pre.2" },
+    { current: pre({ major: 1, minor: 1, patch: 0, number: 2 }), size: "minor", channel: "stable", next: "1.1.0" },
+  ] satisfies ReadonlyArray<{ readonly current: Version; readonly size: ReleaseSize; readonly channel: ReleaseChannel; readonly next: string }>)(
+    "walks a pre-release line from 1.0.0 to $next for a $size line on the $channel channel",
+    ({ current, size, channel, next }) => {
+      expect(versionText({ version: nextVersionOf({ current, size, channel }) })).toBe(next);
     },
   );
 });

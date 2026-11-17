@@ -36,6 +36,17 @@ describe("releaseStateOf deciding the state", () => {
     ).toEqual({ outcome: "ok", value: { tag: "v0.1.0-pre.7", state: "unreleased" } });
   });
 
+  it.each([
+    { previous: "0.1.0-pre.7", version: "1.0.0" },
+    { previous: "1.0.0", version: "1.0.1-pre.1" },
+    { previous: "1.0.1-pre.1", version: "1.0.1" },
+  ])("releases $version after $previous", ({ previous, version }) => {
+    expect(releaseStateOf({ commit: COMMIT, manifest: manifestAt(version), previousManifest: manifestAt(previous), remoteTags: RELEASED_TAGS })).toEqual({
+      outcome: "ok",
+      value: { tag: `v${version}`, state: "unreleased" },
+    });
+  });
+
   it("releases nothing when this push leaves the version as it was, even when that version has no tag", () => {
     expect(
       releaseStateOf({ commit: COMMIT, manifest: manifestAt("0.1.0-pre.7"), previousManifest: manifestAt("0.1.0-pre.7"), remoteTags: RELEASED_TAGS }),
