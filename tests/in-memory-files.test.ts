@@ -71,14 +71,6 @@ describe("inMemoryFiles scratch", () => {
     expect({ removed, texts: files.texts() }).toEqual({ removed: { outcome: "ok", value: null }, texts: { "/repo/output.ts": "o" } });
   });
 
-  it("removes one file", () => {
-    const files = inMemoryFiles({ initial: { "/repo/a.ts": "a", "/repo/b.ts": "b" } });
-
-    const removed = files.scratch.removeFile({ path: "/repo/a.ts" });
-
-    expect({ removed, texts: files.texts() }).toEqual({ removed: { outcome: "ok", value: null }, texts: { "/repo/b.ts": "b" } });
-  });
-
   it("makes a directory without holding a file for it", () => {
     const files = inMemoryFiles({ initial: {} });
 

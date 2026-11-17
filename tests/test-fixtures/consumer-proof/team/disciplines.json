@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "ruleSets": { "acme": "tools/disciplines/acme" },
+  "clauses": {
+    "acme/ACME-1#console-calls": "eslint",
+    "acme/ACME-2#scratch-files": "audit"
+  }
+}
