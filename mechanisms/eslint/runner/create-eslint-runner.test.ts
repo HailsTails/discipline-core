@@ -163,8 +163,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/factory.ts",
-    files: ["src/factory.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/factory.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
@@ -180,8 +182,10 @@ export default [
     rules: { "hone/no-class-authoring": "error" },
   },
   {
-    name: "hone-core/authorised-location/CD-14#class-syntax/src/gone.ts",
-    files: ["src/gone.ts"],
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/gone.ts",
+    ],
     rules: { "hone/no-class-authoring": "off" },
   },
 ];
