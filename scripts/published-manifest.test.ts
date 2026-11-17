@@ -34,8 +34,8 @@ const published = (developmentManifest: string) =>
     files: ["LICENSE", "chunks", "core", "mechanisms"],
     exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
     typed: [
-      { subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.js" },
-      { subpath: "rule-set", declaration: "api/rule-set.d.ts", module: "api/rule-set.js" },
+      { subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.mjs" },
+      { subpath: "rule-set", declaration: "api/rule-set.d.ts", module: "api/rule-set.mjs" },
     ],
     nodeRange: "^22.18.0 || >=24",
   });
@@ -60,8 +60,8 @@ describe("publishManifestOf", () => {
           bin: { provisional: "core/check/tool-command.js" },
           exports: {
             "./package.json": "./package.json",
-            "./audit": { types: "./api/audit.d.ts", default: "./api/audit.js" },
-            "./rule-set": { types: "./api/rule-set.d.ts", default: "./api/rule-set.js" },
+            "./audit": { types: "./api/audit.d.ts", default: "./api/audit.mjs" },
+            "./rule-set": { types: "./api/rule-set.d.ts", default: "./api/rule-set.mjs" },
             "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js": "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",
           },
           files: ["LICENSE", "chunks", "core", "mechanisms"],

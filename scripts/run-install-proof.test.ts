@@ -76,7 +76,7 @@ const INSTALLED_PACKAGE: readonly ListedEntry[] = [
 const INSTALLED_PACKAGE_WITH_DECLARATIONS: readonly ListedEntry[] = [
   ...INSTALLED_PACKAGE,
   { path: "api/audit.d.ts", name: "audit.d.ts", entryKind: "file" },
-  { path: "api/audit.js", name: "audit.js", entryKind: "file" },
+  { path: "api/audit.mjs", name: "audit.mjs", entryKind: "file" },
 ];
 
 const EXPECTING_TYPES: ProofCase = {

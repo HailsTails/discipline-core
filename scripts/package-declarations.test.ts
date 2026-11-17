@@ -40,7 +40,7 @@ describe("PUBLIC_TYPE_ENTRIES", () => {
 
 describe("typedExportOf", () => {
   it("pairs an entry's subpath with the declaration and the module built from its source", () => {
-    expect(typedExportOf({ entry: ENTRY })).toEqual({ subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.js" });
+    expect(typedExportOf({ entry: ENTRY })).toEqual({ subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.mjs" });
   });
 });
 
@@ -72,7 +72,7 @@ describe("publishedDeclarationsOf", () => {
         { path: "api/audit.d.ts", text: "api/audit.d.ts\n" },
         { path: "core/values/result.d.ts", text: "core/values/result.d.ts\n" },
         { path: "mechanisms/audit/runner/typescript-parse.d.ts", text: "mechanisms/audit/runner/typescript-parse.d.ts\n" },
-        { path: "api/audit.js", text: ENTRY_MODULE_TEXT },
+        { path: "api/audit.mjs", text: ENTRY_MODULE_TEXT },
       ],
     });
   });
@@ -115,7 +115,7 @@ describe("declarationFilesOf", () => {
   it("publishes what the port emitted for the entries", async () => {
     await expect(
       declarationFilesOf({ port: portEmitting({ emitted: { outcome: "ok", value: EMITTED } }), sourceRoot: "/repo", entries: [ENTRY], requiredPeers: ["typescript"] }),
-    ).resolves.toMatchObject({ outcome: "ok", value: expect.arrayContaining([{ path: "api/audit.js", text: ENTRY_MODULE_TEXT }]) });
+    ).resolves.toMatchObject({ outcome: "ok", value: expect.arrayContaining([{ path: "api/audit.mjs", text: ENTRY_MODULE_TEXT }]) });
   });
 
   it("names the port's failure", async () => {

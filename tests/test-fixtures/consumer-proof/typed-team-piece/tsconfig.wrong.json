@@ -8,5 +8,5 @@
     "skipLibCheck": false,
     "types": []
   },
-  "files": ["src/wrong-piece.mts"]
+  "files": ["src/wrong-piece.mts", "src/wrong-rule-set.mts"]
 }

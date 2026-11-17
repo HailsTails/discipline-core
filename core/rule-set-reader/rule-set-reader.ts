@@ -13,6 +13,7 @@ import {
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
+import type { AuthoredDisciplineFile, AuthoredPieceFile, AuthoredSourceCase } from "./authored-rule-set-types.ts";
 import type { DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
 
 export type { ClauseDefinition, ClauseExceptions, DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
@@ -147,6 +148,12 @@ export const isSourceCaseSchemaEqual: Equal<DeepReadonly<z.output<typeof sourceC
 export const isDisciplineFileSchemaEqual: Equal<DeepReadonly<z.output<typeof disciplineFileSchema>>, DisciplineFile> = true;
 
 export const isPieceFileSchemaEqual: Equal<DeepReadonly<z.output<typeof pieceFileSchema>>, PieceFile> = true;
+
+export const isAuthoredSourceCaseSchemaEqual: Equal<DeepReadonly<z.input<typeof sourceCaseSchema>>, AuthoredSourceCase> = true;
+
+export const isAuthoredDisciplineFileSchemaEqual: Equal<DeepReadonly<z.input<typeof disciplineFileSchema>>, AuthoredDisciplineFile> = true;
+
+export const isAuthoredPieceFileSchemaEqual: Equal<DeepReadonly<z.input<typeof pieceFileSchema>>, AuthoredPieceFile> = true;
 
 const isContentRefusal = (
   issue: z.core.$ZodIssue,

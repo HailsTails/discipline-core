@@ -1,0 +1,46 @@
+import type { AnchorKind } from "../values/anchor.ts";
+
+export type ClauseExceptions = "allowed" | "refused";
+
+export type AuthoredSourceCase = {
+  readonly name: string;
+  readonly fileName: string;
+  readonly source: string;
+  readonly expectedLines: readonly number[];
+};
+
+export type AuthoredClauseDefinition =
+  | {
+      readonly kind: "mechanical";
+      readonly id: string;
+      readonly summary: string;
+      readonly mechanisms: readonly string[];
+      readonly anchor: AnchorKind;
+      readonly exceptions?: ClauseExceptions;
+      readonly cases: {
+        readonly flag: readonly AuthoredSourceCase[];
+        readonly allow: readonly AuthoredSourceCase[];
+      };
+    }
+  | {
+      readonly kind: "judgement";
+      readonly id: string;
+      readonly summary: string;
+      readonly enforcedBy: "review";
+    };
+
+export type AuthoredDisciplineFile = {
+  readonly version: 1;
+  readonly id: string;
+  readonly clauses: readonly AuthoredClauseDefinition[];
+};
+
+export type AuthoredPieceFile = {
+  readonly version: 1;
+  readonly discipline: string;
+  readonly mechanism: string;
+  readonly clauses: readonly {
+    readonly clause: string;
+    readonly settings: unknown;
+  }[];
+};

@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { PUBLIC_TYPE_ENTRIES } from "../scripts/package-declarations.ts";
 import { createDefaultTypeScriptDeclarationPort } from "../scripts/typescript-declaration-port.ts";
 import { publicTypeReachOf } from "./public-type-reach.ts";
+import { defaultParsePort } from "./typescript-parse-port.ts";
 
 const ENTRY_SOURCES = ["api/audit.ts", "api/rule-set.ts"];
 
 const reach = publicTypeReachOf({
+  syntaxApi: defaultParsePort.syntaxApi,
   emitted: await createDefaultTypeScriptDeclarationPort({}).emit({ sourceRoot: `${import.meta.dirname}/..`, entryPoints: ENTRY_SOURCES }),
   entries: PUBLIC_TYPE_ENTRIES,
   requiredPeers: ["typescript"],
@@ -25,7 +27,7 @@ describe("the declarations the public type entries ship, emitted in memory by th
       audit: {
         reached: expect.not.arrayContaining([
           expect.stringMatching(
-            /^core\/(?:mechanism-port\/(?:toolchain-requirement|runner-failure)|platform-ports\/package-location-port|values\/install-layout|values\/tool-identity)\.d\.ts$/,
+            /^core\/(?:mechanism-port\/(?:toolchain-requirement|runner-failure(?:-types)?)|platform-ports\/package-location-port|values\/install-layout|values\/tool-identity)\.d\.ts$/,
           ),
         ]),
       },
