@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clauseAddressObjectSchema,
   clauseAddressSchema,
   clauseAddressText,
   sameClauseAddress,
@@ -8,10 +9,28 @@ import {
 describe("clauseAddressSchema", () => {
   it("reads a text with no rule-set prefix as the shared rule set", () => {
     expect(clauseAddressSchema.parse("CD-14#no-class-syntax")).toEqual({
-      ruleSet: "shared",
+      ruleSet: "hone",
       discipline: "CD-14",
       clause: "no-class-syntax",
     });
+  });
+
+  it("reads the hone prefix as the same address as no prefix", () => {
+    expect(clauseAddressSchema.parse("hone/CD-15#loops")).toEqual(clauseAddressSchema.parse("CD-15#loops"));
+  });
+
+  it("reads shared as an ordinary team rule-set name", () => {
+    expect(clauseAddressSchema.parse("shared/CD-14#no-class-syntax")).toEqual({
+      ruleSet: { name: "shared" },
+      discipline: "CD-14",
+      clause: "no-class-syntax",
+    });
+  });
+
+  it("refuses an object that declares hone as a named rule set", () => {
+    expect(
+      clauseAddressObjectSchema.safeParse({ ruleSet: { name: "hone" }, discipline: "CD-14", clause: "no-class-syntax" }).success,
+    ).toBe(false);
   });
 
   it("reads a prefixed text as that named rule set", () => {
@@ -35,7 +54,6 @@ describe("clauseAddressSchema", () => {
     "Probe/CD-14#no-class-syntax",
     "probe/team/CD-14#no-class-syntax",
     "probe//CD-14#no-class-syntax",
-    "shared/CD-14#no-class-syntax",
   ])("refuses %j", (text) => {
     expect(clauseAddressSchema.safeParse(text).success).toBe(false);
   });
@@ -43,7 +61,7 @@ describe("clauseAddressSchema", () => {
   it("refuses a value that is not text", () => {
     expect(
       clauseAddressSchema.safeParse({
-        ruleSet: "shared",
+        ruleSet: "hone",
         discipline: "CD-14",
         clause: "no-class-syntax",
       }).success,
@@ -52,6 +70,10 @@ describe("clauseAddressSchema", () => {
 });
 
 describe("clauseAddressText", () => {
+  it("formats the hone prefix back to the bare form", () => {
+    expect(clauseAddressText({ address: clauseAddressSchema.parse("hone/CD-15#loops") })).toBe("CD-15#loops");
+  });
+
   it.each(["CD-14#no-class-syntax", "probe/PD-1#no-tmp-files"])(
     "formats the address read from %j back to the same text",
     (text) => {
@@ -63,6 +85,15 @@ describe("clauseAddressText", () => {
 });
 
 describe("sameClauseAddress", () => {
+  it("is same for the hone-prefixed and bare forms", () => {
+    expect(
+      sameClauseAddress({
+        left: clauseAddressSchema.parse("hone/CD-15#loops"),
+        right: clauseAddressSchema.parse("CD-15#loops"),
+      }),
+    ).toBe("same");
+  });
+
   it.each(["CD-14#no-class-syntax", "probe/PD-1#no-tmp-files"])(
     "is same for two separately read addresses of %j",
     (text) => {

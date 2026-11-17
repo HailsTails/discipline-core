@@ -167,7 +167,7 @@ const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
 
 const WALKER_RECORD = {
   kind: "authorised-location",
-  clause: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+  clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
   mechanism: "audit",
   file: "src/walker.ts",
   reason: "audit location",

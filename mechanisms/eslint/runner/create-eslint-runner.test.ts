@@ -50,8 +50,8 @@ const LOOPS_RULE_ID = "loops/no-for-of";
 const ESLINT = mechanismIdSchema.parse("eslint");
 const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");
 const FOR_OF = clauseAddressSchema.parse("CD-15#for-of");
-const CLASS_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
-const FOR_OF_OBJECT = { ruleSet: "shared", discipline: "CD-15", clause: "for-of" };
+const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
+const FOR_OF_OBJECT = { ruleSet: "hone", discipline: "CD-15", clause: "for-of" };
 
 const FILE_A = repoPathSchema.parse("src/a.ts");
 const FACTORY = repoPathSchema.parse("src/factory.ts");

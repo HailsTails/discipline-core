@@ -25,8 +25,8 @@ const TEAM_DISCIPLINE_PATH = "/repo/rules/team/rules/CD-14/discipline.json";
 const TEAM_PIECE_PATH = "/repo/rules/team/mechanisms/audit/CD-14/piece.json";
 const HARNESS_SEGMENT = /(?:^|\/)\.(?:claude|kiro|codex|cursor|aidlc|opencode|github|copilot)(?:\/|$)/;
 
-const CLASS_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
-const ABSTRACT_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" };
+const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
+const ABSTRACT_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" };
 
 type FakeFile = {
   readonly read: Result<string, { readonly kind: "unreadable"; readonly path: string; readonly detail: string }>;

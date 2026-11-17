@@ -7,22 +7,23 @@ import {
   type RuleSetName,
   ruleSetNameSchema,
 } from "./identifiers.ts";
+import { TOOL_IDENTITY } from "./tool-identity.ts";
 
 export type ClauseAddress = {
-  readonly ruleSet: "shared" | { readonly name: RuleSetName };
+  readonly ruleSet: "hone" | { readonly name: RuleSetName };
   readonly discipline: DisciplineId;
   readonly clause: ClauseId;
 };
 
-const SHARED_RULE_SET = "shared";
+export const TOOL_RULE_SET = TOOL_IDENTITY.command;
 
 const CLAUSE_ADDRESS_TEXT = /^(?:(?<ruleSet>[^/#]+)\/)?(?<discipline>[^/#]+)#(?<clause>[^/#]+)$/;
 
 export const clauseAddressObjectSchema = z.object({
   ruleSet: z.union([
-    z.literal(SHARED_RULE_SET),
+    z.literal(TOOL_RULE_SET),
     z.object({
-      name: ruleSetNameSchema.refine((name) => name !== SHARED_RULE_SET),
+      name: ruleSetNameSchema.refine((name) => name !== TOOL_RULE_SET),
     }),
   ]),
   discipline: disciplineIdSchema,
@@ -42,8 +43,8 @@ export const clauseAddressSchema = z
     }
     return {
       ruleSet:
-        parts.ruleSet === undefined
-          ? SHARED_RULE_SET
+        parts.ruleSet === undefined || parts.ruleSet === TOOL_RULE_SET
+          ? TOOL_RULE_SET
           : { name: parts.ruleSet },
       discipline: parts.discipline,
       clause: parts.clause,
@@ -54,7 +55,7 @@ export const clauseAddressSchema = z
 export const clauseAddressText = (request: {
   readonly address: ClauseAddress;
 }): string =>
-  request.address.ruleSet === SHARED_RULE_SET
+  request.address.ruleSet === TOOL_RULE_SET
     ? `${request.address.discipline}#${request.address.clause}`
     : `${request.address.ruleSet.name}/${request.address.discipline}#${request.address.clause}`;
 

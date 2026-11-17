@@ -32,7 +32,7 @@ const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`)
 
 const CLAUSE = clauseAddressSchema.parse("CD-14#class-syntax");
 
-const CLASS_SYNTAX = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
+const CLASS_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
 
 const ESLINT_CLAUSE: RunnerClause = {
   address: CLAUSE,

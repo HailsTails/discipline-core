@@ -94,9 +94,9 @@ describe("adopting a repository whose legacy file holds CD-1 debt beside another
         invalidRecords: [],
         forfeited: [],
         exempted: expect.arrayContaining([
-          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "shared", discipline: "CD-1", clause: "any-cast" } }) }),
-          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "shared", discipline: "CD-1", clause: "explicit-any" } }) }),
-          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "shared", discipline: "CD-15", clause: "loops" } }) }),
+          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } }) }),
+          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "hone", discipline: "CD-1", clause: "explicit-any" } }) }),
+          expect.objectContaining({ finding: expect.objectContaining({ clause: { ruleSet: "hone", discipline: "CD-15", clause: "loops" } }) }),
         ]),
       },
     });

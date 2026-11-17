@@ -22,6 +22,7 @@ import {
   clauseAddressSchema,
   clauseAddressText,
   sameClauseAddress,
+  TOOL_RULE_SET,
 } from "../values/clause-address.ts";
 import {
   type MechanismId,
@@ -65,8 +66,6 @@ type ResolvedClause = {
   readonly binding: ClauseBinding;
   readonly exceptions: ClauseExceptions;
 };
-
-const SHARED_RULE_SET = "shared";
 
 export type RuleSetLocation =
   | { readonly location: "repo-root" }
@@ -122,7 +121,7 @@ export const ruleSetRootOf = (request: {
   readonly path: PathPort;
 }): Result<AbsolutePath, LoadFailure> => {
   const ruleSet = request.ruleSet;
-  if (ruleSet === SHARED_RULE_SET) {
+  if (ruleSet === TOOL_RULE_SET) {
     return { outcome: "ok", value: request.installRoot };
   }
   const declared = Object.entries(request.ruleSets).find(([name]) => name === ruleSet.name);
@@ -388,7 +387,7 @@ const parsedSelectionFile = (request: {
   if (!parsed.success) {
     return failed({ kind: "file-malformed", path: request.path, detail: z.prettifyError(parsed.error) });
   }
-  const reserved = parsed.data.ruleSets.find(([name]) => name === SHARED_RULE_SET);
+  const reserved = parsed.data.ruleSets.find(([name]) => name === TOOL_RULE_SET);
   if (reserved !== undefined) {
     return failed({ kind: "reserved-rule-set-name", name: reserved[0] });
   }

@@ -92,7 +92,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 }
 ```
 
-- `ruleSets` names the repository's own rule sets, each a directory relative to the repository root. The name `shared` is reserved for the rule set shipped with core.
+- `ruleSets` names the repository's own rule sets, each a directory relative to the repository root. The name `hone` is reserved for the rule set shipped with the tool; `hone/CD-15#loops` and `CD-15#loops` are the same address.
 - `clauses` maps a clause address to a mechanism id. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the shared rule set. The mechanism must be one the clause lists.
 - Selecting a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not selected are reported as uncovered, and fail the run.
 - A judgement clause cannot be selected; it is enforced by review.

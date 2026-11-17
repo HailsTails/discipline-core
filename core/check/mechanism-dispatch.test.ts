@@ -12,8 +12,8 @@ const WALKER = mechanismIdSchema.parse("audit");
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const INSTALL_ROOT = absolutePathSchema.parse("/install");
 const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");
-const CLASS_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
-const ABSTRACT_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" };
+const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
+const ABSTRACT_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" };
 
 const CLASS_SYNTAX_CLAUSE: RunnerClause = {
   address: CLASS_SYNTAX,
