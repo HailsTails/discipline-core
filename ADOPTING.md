@@ -208,7 +208,54 @@ npm run --silent hone:check -- --base-revision <base-commit>
 
 The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
-Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
+Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. When a check fails, read the section for the failing clause in `disciplines.assessment.md` and the Spirit section of the clause's rule page before changing anything; do not add an exception, exclusion or setting to make it pass. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in `disciplines.assessment.md` with their review lenses." Copying the rule pages does not make an agent read them; the instruction does. Step 5a writes `disciplines.assessment.md`.
+
+### 5a. Write the assessment
+
+The first run on an existing codebase usually fails, often with many findings. Each finding is a signal about the design: a missing boundary, an earlier choice that forces the workaround, a port wider than its use. Before fixing or recording anything, write down what the signals mean in this codebase, in `<repo>/disciplines.assessment.md`. Whoever later hits a red check then has more to go on than the assumption that the friction is unnecessary: the file says what that clause points at here and where the code is going.
+
+Each rule page's Spirit section lists the usual causes behind its findings. The assessment does not repeat them. It says which cause applies here, where, the forward goal in this codebase's terms, and the steps toward it.
+
+Start from the template the package ships:
+
+```bash
+cp node_modules/@hailstails/hone/methods/assessment-template.md disciplines.assessment.md
+```
+
+Fill the top sections: the rules adopted, the clauses not adopted because the rule does not apply here, the clauses adopted with their mechanism not run because the check is not a true measure here or cannot work here, and the judgement rules adopted (step 9). Step 4 says how each is declared in `disciplines.json`; the assessment says why.
+
+Then write one section per high-count clause. Hone has no threshold for this. A clause is high-count when its findings will not all be fixed in the change that adopts it: three findings in one file you fix today need no section; three findings in three folders you will not reach this week do.
+
+The assessment is usually drafted by a coding agent. Give it this instruction as it is:
+
+```text
+Draft disciplines.assessment.md from node_modules/@hailstails/hone/methods/assessment-template.md, using the latest hone:check report.
+
+For each clause in the report's findings section whose findings will not all be fixed in this change:
+1. Measure. Count its findings and group them by folder, by the value, library or dependency involved, and by the shape of the code.
+2. Read the code at several sites in each group, not only the report lines.
+3. Read the clause's rule page, node_modules/@hailstails/hone/rules/<ID>/README.md, in full, and its Spirit section closely.
+4. Match each group against the causes listed under "What a finding points at". Name the cause exactly as the rule names it. If no listed cause fits, say so and describe what the sites show; do not pick the closest.
+5. Write the clause's section from the template: the cause, the count and example sites as file:line, the forward goal in this codebase's terms, and the steps that change the code toward it, starting with the step that unlocks the others.
+
+Exclusions, exceptions, settings and not adopting a clause are never a cause, a goal or a step. The Debt line says how existing debt is held while the steps are taken; write it last, after the rest of the section. A section that gives only counts, or whose steps are about recording exceptions, is not done.
+
+Stop when every such clause has a section. Report the sections for review before changing code or recording exceptions.
+```
+
+Review the draft as you would a design: the causes and the goals are the decisions in it. Commit it beside `disciplines.json`. Record exceptions (step 7) only after the assessment, and note each in the clause's Debt line. Keep the file current: when steps land or a count changes, update the section; when a clause has no findings left, delete its section.
+
+A finished section reads like this:
+
+```markdown
+## CD-2#cast-expressions
+
+- **Cause here:** Parsing skipped at a boundary. Database rows are cast to domain types where they are read.
+- **Sites:** 118 at 3f1c2ab, in src/orders/ and src/billing/. For example src/orders/order-reader.ts:41, src/billing/invoice-reader.ts:17.
+- **Forward goal:** rows are parsed once in the storage port, and services receive typed orders and invoices.
+- **Steps:** 1. A schema per table read, in the storage port. 2. The port returns parsed types. 3. Delete the casts, one folder at a time.
+- **Debt:** held by the orders team; file carve-outs in discipline-exceptions.json, paid off as each file is touched.
+```
 
 ## 6. Read the report
 
@@ -239,7 +286,7 @@ To print less, set `"reportOutput"` in `disciplines.json` for the repository, or
 
 ## 7. Record exceptions
 
-Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section, then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
+Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section and the clause's section in `disciplines.assessment.md` (step 5a), then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
 - `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`.
@@ -288,7 +335,7 @@ It must exit `1` with the line `CD-17#clock-sources audit src/discipline-probe.t
 
 ## 9. Apply the judgement rules
 
-A judgement clause cannot be selected in `disciplines.json`, and no check reports it. Write down which judgement rules the repository adopts, in the project instructions beside `disciplines.json`, so reviewers and agents know to apply them.
+A judgement clause cannot be selected in `disciplines.json`, and no check reports it. List the judgement rules the repository adopts in the Judgement rules section of `disciplines.assessment.md` (step 5a), so reviewers and agents know to apply them.
 
 Each rule page names its review lens, a method under [methods/lenses/](methods/README.md) for reading code against that kind of rule. To review a change, by a human reviewer or a coding agent:
 
@@ -304,7 +351,7 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
-To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
+To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json`, `disciplines.assessment.md` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 
 ## Worked example
 
