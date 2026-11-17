@@ -12,6 +12,8 @@ import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import expectedReports from "./test-fixtures/walkthrough/expected-reports.json" with { type: "json" };
 
+const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
 const path = createDefaultPathPort({});
 
 const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
@@ -64,7 +66,7 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     git: trackingGit({ tracked: request.tracked }),
   });
   assert(checked.outcome === "ok", `${request.repo} loads`);
-  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full" } } });
+  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND } } });
 };
 
 const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {

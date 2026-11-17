@@ -83,11 +83,7 @@ const carvedProbeNoClassInA: ExceptionRecord = {
 
 const nothingTouched: TouchedSet = { measured: "yes", paths: new Set() };
 const fileATouched: TouchedSet = { measured: "yes", paths: new Set([fileA]) };
-const unmeasured: TouchedSet = {
-  measured: "no",
-  reason: "no-base-revision",
-  detail: "no base revision was given",
-};
+const unmeasured: TouchedSet = { measured: "no", base: { state: "not-given" } };
 
 const quietWalker = { mechanism: audit, nativeExceptions: [], projectedKinds: [] };
 

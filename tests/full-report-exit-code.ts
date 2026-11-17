@@ -4,10 +4,12 @@ import type { ExitCode } from "../core/platform-ports/process-port.ts";
 import type { Result } from "../core/values/result.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 
+const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
 export const fullReportExitCode = (request: { readonly checked: Result<CheckReport, LoadFailure> }): ExitCode =>
   checkCommandOutcome({
     result:
       request.checked.outcome === "failed"
         ? request.checked
-        : { outcome: "ok", value: { report: request.checked.value, output: "full" } },
+        : { outcome: "ok", value: { report: request.checked.value, output: "full", projectCommand: PROJECT_COMMAND } },
   }).code;

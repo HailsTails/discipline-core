@@ -188,7 +188,7 @@ export default {
 };
 ```
 
-The check names a slice that is missing, out of date, or not applied to that package's files, and names a listed folder whose `eslint.config.*` is not on disk as `unconfigured`: until the tool has written it, nothing loads the slice, so run the tool's configure step (for sku, any sku command or `sku configure`) before the check. A package that spreads nothing at all shows its files under `unrecorded` as `config-override`, not as a slice problem, because its config switches the selected rules off rather than carrying the wrong carve-outs. Hone sees which slice a package config spreads only through its effect: a package config that spreads the root projection by mistake is reported `not-applied` once a file under check in that package has a file exception the root projection cannot carry. Until then the check says nothing, because for a package with no file exceptions of its own the root projection and the slice switch on the same rules, and clause-wide carve-outs reach the package either way. To confirm the spread before adding an exception, run ESLint from the package folder on a file the check flags and see the same finding. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
+The check names a slice that is missing, out of date, or not applied to that package's files, and names a listed folder whose `eslint.config.*` is not on disk as `unconfigured`: until the tool has written it, nothing loads the slice, so run the tool's configure step (for sku, any sku command or `sku configure`) before the check. A package that spreads nothing at all shows its files under `unrecorded` as `config-override` while it has no file exception of its own; once a file under check there has one, the package is also reported `not-applied`. Hone sees which slice a package config spreads only through its effect: a package config that spreads the root projection by mistake is reported `not-applied` once a file under check in that package has a file exception the root projection cannot carry. Until then the check says nothing, because for a package with no file exceptions of its own the root projection and the slice switch on the same rules, and clause-wide carve-outs reach the package either way. To confirm the spread before adding an exception, run ESLint from the package folder on a file the check flags and see the same finding. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
 
 ```json
 { "eslintConfigLookup": "nearest-to-file" }
@@ -212,15 +212,9 @@ npm run --silent hone:check
 
 `npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names every toolchain package that is missing from the repository root or outside its range; install a version of each in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
 
-In CI, pass the branch's base so that debt recorded per file is forfeited once that file changes:
+Add the check to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
 
-```bash
-npm run --silent hone:check -- --base-revision origin/main
-```
-
-Add the command to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
-
-To assess decay at push only, for example so that a hotfix in a carved file is not blocked in CI, set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI and the pre-push hook then run different commands. The pre-push hook assesses decay for its run:
+A first adoption assesses decay at push only, so that a hotfix in a carved file is not blocked in CI while the check is new: set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI and the pre-push hook then run different commands. The pre-push hook assesses decay for its run:
 
 ```bash
 npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main
@@ -237,6 +231,8 @@ A repository with imported records (`provenance`) or legacy-chain records still 
 ```bash
 npm run --silent hone:check -- --base-revision <base-commit>
 ```
+
+A team that assesses decay in CI leaves `assessment` unset and runs `npm run --silent hone:check -- --base-revision origin/main` there; the check then needs that revision and the history back to where the branch left it, for example `fetch-depth: 0` with `actions/checkout`.
 
 The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
@@ -312,7 +308,8 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
 | `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-run` or `clause-not-adopted` for an entry on a clause listed as `"not-run"` or `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
-| `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
+| `unmeasured` | something could not be measured; each line says what, why and what Hone needs, for example `forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere` |
+| `projectionProblems` | a projection or package slice that differs from what `hone project` writes now, is not written, is not applied, or has no configuration to load it, each with what to do, for example `eslint out-of-date: disciplines.eslint.mjs differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mjs it writes` |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 | `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; a clause the file does not assess reads `CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause`; before the file is written, one line first says so and names step 5a, and each clause line names its rule page only, as in the walkthrough below; the README lists every line exactly; paths are relative to the `--repo` folder; guidance, it never fails the run |
 

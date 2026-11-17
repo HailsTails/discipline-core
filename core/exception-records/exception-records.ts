@@ -5,6 +5,7 @@ import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import { parsedJson, readVersionOneJson } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import {
   type ClauseAddress,
   clauseAddressSchema,
@@ -110,14 +111,14 @@ const exceptionsFileSchema = z.object({
 export type StructuralExceptionEntry = z.infer<typeof exceptionsFileSchema>["exceptions"][number];
 
 export type ExceptionBaseline =
-  | { readonly measured: "no" }
+  | { readonly measured: "no"; readonly base: BaseRevisionAvailability }
   | {
       readonly measured: "yes";
       readonly entriesAtBase: readonly StructuralExceptionEntry[];
       readonly sourceTextsAtBase: ReadonlyMap<RepoPath, string>;
     };
 
-export const UNMEASURED_EXCEPTION_BASELINE: ExceptionBaseline = { measured: "no" };
+export const UNMEASURED_EXCEPTION_BASELINE: ExceptionBaseline = { measured: "no", base: { state: "not-given" } };
 
 const LEGACY_DIRECTORY_OF = {
   "inherited-debt": ".constitution-carve-outs",

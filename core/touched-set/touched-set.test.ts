@@ -4,7 +4,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { Equal } from "../values/type-equality.ts";
-import { computeTouchedSet, type TouchedSet } from "./touched-set.ts";
+import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "./touched-set.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const A = repoPathSchema.parse("a.ts");
@@ -75,10 +75,7 @@ describe("computeTouchedSet", () => {
       git: fakeGit(okPaths),
     });
 
-    expect(touched).toMatchObject({
-      measured: "no",
-      reason: "no-base-revision",
-    });
+    expect(touched).toEqual({ measured: "no", base: { state: "not-given" } });
   });
 
   it("does not run git when no base revision is given", () => {
@@ -93,17 +90,42 @@ describe("computeTouchedSet", () => {
     expect(changedSince).not.toHaveBeenCalled();
   });
 
-  it("is unmeasured with git-failed carrying the git detail when git fails", () => {
+  it("is unmeasured with the base git failed on, carrying git's own message, when git fails", () => {
     const touched = computeTouchedSet({
       repoRoot: REPO_ROOT,
       baseRevision: "abc123",
       git: fakeGit(failed),
     });
 
-    expect(touched).toMatchObject({
+    expect(touched).toEqual({
       measured: "no",
-      reason: "git-failed",
-      detail: expect.stringContaining("fatal: bad revision"),
+      base: { state: "git-failed", revision: "abc123", gitMessage: "fatal: bad revision" },
     });
+  });
+
+});
+
+describe("baseRevisionAvailabilityOf", () => {
+  it("keeps the first line git wrote when git fails otherwise", () => {
+    expect(
+      baseRevisionAvailabilityOf({
+        revision: "HEAD",
+        failure: {
+          kind: "git-failed",
+          command: "git ls-tree",
+          detail: "\n  fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'  \nhint: more\n",
+        },
+      }),
+    ).toEqual({
+      state: "git-failed",
+      revision: "HEAD",
+      gitMessage: "fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'",
+    });
+  });
+
+  it("keeps an empty message when git wrote none", () => {
+    expect(
+      baseRevisionAvailabilityOf({ revision: "HEAD", failure: { kind: "git-failed", command: "git ls-tree", detail: "" } }),
+    ).toEqual({ state: "git-failed", revision: "HEAD", gitMessage: "" });
   });
 });

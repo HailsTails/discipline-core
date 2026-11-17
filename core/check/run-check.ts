@@ -24,10 +24,10 @@ import {
   runnerModuleSchema,
 } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { GitPort } from "../platform-ports/git-port.ts";
+import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
-import { computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
+import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
@@ -35,7 +35,12 @@ import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
-import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import type {
+  CheckReport,
+  PartialAssessment,
+  ProjectionProblem,
+  Unmeasured,
+} from "../verdict/check-report.ts";
 import { clauseReadingsOf } from "./clause-readings.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
@@ -212,7 +217,7 @@ const forfeitureUnmeasured = (request: {
   readonly records: readonly ExceptionRecord[];
 }): readonly Unmeasured[] =>
   request.touched.measured === "no" && request.records.some((record) => record.kind === "file-carve-out")
-    ? [{ kind: "forfeiture-unmeasured" }]
+    ? [{ kind: "forfeiture-unmeasured", base: request.touched.base }]
     : [];
 
 const fileCarveOutsIn = (request: { readonly records: readonly ExceptionRecord[] }): number =>
@@ -251,7 +256,7 @@ const legacyChainUnmeasured = (request: {
   readonly records: readonly ExceptionRecord[];
 }): readonly Unmeasured[] =>
   request.exceptionBaseline.measured === "no" && legacyChainRecords({ records: request.records }) === "present"
-    ? [{ kind: "legacy-chain-unmeasured" }]
+    ? [{ kind: "legacy-chain-unmeasured", base: request.exceptionBaseline.base }]
     : [];
 
 const importUnmeasured = (request: {
@@ -259,26 +264,30 @@ const importUnmeasured = (request: {
   readonly records: readonly ExceptionRecord[];
 }): readonly Unmeasured[] =>
   request.exceptionBaseline.measured === "no" && importedRecords({ records: request.records }) === "present"
-    ? [{ kind: "import-unmeasured" }]
+    ? [{ kind: "import-unmeasured", base: request.exceptionBaseline.base }]
     : [];
 
 const textsInBase = (request: {
   readonly check: CheckRequest;
   readonly baseRevision: string;
   readonly files: readonly RepoPath[];
-}): "unmeasured" | ReadonlyMap<RepoPath, string> => {
+}): Result<ReadonlyMap<RepoPath, string>, GitFailure> => {
   const readings = request.files.map((file) => ({
     file,
     reading: request.check.git.textInBase({ repoRoot: request.check.repoRoot, baseRevision: request.baseRevision, file }),
   }));
-  if (readings.some(({ reading }) => reading.outcome === "failed")) {
-    return "unmeasured";
+  const failed = readings.find(({ reading }) => reading.outcome === "failed");
+  if (failed !== undefined && failed.reading.outcome === "failed") {
+    return failed.reading;
   }
-  return new Map(
-    readings.flatMap(({ file, reading }): readonly (readonly [RepoPath, string])[] =>
-      reading.outcome === "ok" && reading.value.presence === "present-in-base" ? [[file, reading.value.text]] : [],
+  return {
+    outcome: "ok",
+    value: new Map(
+      readings.flatMap(({ file, reading }): readonly (readonly [RepoPath, string])[] =>
+        reading.outcome === "ok" && reading.value.presence === "present-in-base" ? [[file, reading.value.text]] : [],
+      ),
     ),
-  );
+  };
 };
 
 const exceptionBaselineOf = (request: {
@@ -297,14 +306,14 @@ const exceptionBaselineOf = (request: {
     baseRevision,
     files: [EXCEPTIONS_FILE, ...importSourcesOf({ entries: request.entries })],
   });
-  if (texts === "unmeasured") {
-    return UNMEASURED_EXCEPTION_BASELINE;
+  if (texts.outcome === "failed") {
+    return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: texts.error }) };
   }
-  const exceptionsAtBase = texts.get(EXCEPTIONS_FILE);
+  const exceptionsAtBase = texts.value.get(EXCEPTIONS_FILE);
   return {
     measured: "yes",
     entriesAtBase: exceptionsAtBase === undefined ? [] : exceptionEntriesOfText({ text: exceptionsAtBase }),
-    sourceTextsAtBase: texts,
+    sourceTextsAtBase: texts.value,
   };
 };
 
@@ -479,8 +488,8 @@ const checkReportOf = (request: {
     invalidRecords: request.inputs.invalidRecords,
     unmeasured: [
       ...forfeitureUnmeasured({ touched: request.touched, records: request.inputs.records }),
-      ...importUnmeasured({ exceptionBaseline: request.inputs.exceptionBaseline, records: request.inputs.records }),
-      ...legacyChainUnmeasured({ exceptionBaseline: request.inputs.exceptionBaseline, records: request.inputs.records }),
+      ...importUnmeasured(request.inputs),
+      ...legacyChainUnmeasured(request.inputs),
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
     projectionProblems: [
