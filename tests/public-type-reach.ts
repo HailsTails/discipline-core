@@ -1,5 +1,5 @@
 import type { Result } from "../core/values/result.ts";
-import type { SyntaxApi } from "../mechanisms/audit/runner/typescript-parse.ts";
+import type { ExportDeclaration, ImportDeclaration, Statement, SyntaxApi } from "../mechanisms/audit/runner/typescript-parse.ts";
 import {
   type DeclarationEmit,
   type DeclarationFailure,
@@ -23,21 +23,7 @@ const RELATIVE_SPECIFIER = /^\.\.?\//;
 
 const DECLARATION_FILE = /\.d\.ts$/;
 
-type Statement = ReturnType<SyntaxApi["createSourceFile"]>["statements"][number];
-
 type StatementRequest = { readonly syntaxApi: SyntaxApi; readonly statement: Statement };
-
-const valueNamesOf = (request: StatementRequest): readonly string[] => {
-  const syntaxApi = request.syntaxApi;
-  const statement = request.statement;
-  if (syntaxApi.isVariableStatement(statement)) {
-    return statement.declarationList.declarations.map((declaration) => declaration.name.getText());
-  }
-  return (syntaxApi.isFunctionDeclaration(statement) || syntaxApi.isClassDeclaration(statement) || syntaxApi.isEnumDeclaration(statement) || syntaxApi.isModuleDeclaration(statement)) &&
-    statement.name !== undefined
-    ? [statement.name.text]
-    : [];
-};
 
 const exportKeywordOf = (request: StatementRequest): "exported" | "local" =>
   request.syntaxApi.canHaveModifiers(request.statement) &&
@@ -45,27 +31,60 @@ const exportKeywordOf = (request: StatementRequest): "exported" | "local" =>
     ? "exported"
     : "local";
 
-const valueClaimsOf = (request: StatementRequest & { readonly localValues: ReadonlySet<string> }): readonly string[] => {
+const importOnlyOf = (request: { readonly syntaxApi: SyntaxApi; readonly imported: ImportDeclaration }): "types" | "values" => {
+  const clause = request.imported.importClause;
+  const bindings = clause?.namedBindings;
+  if (clause?.isTypeOnly) return "types";
+  return clause !== undefined && clause.name === undefined && bindings !== undefined && request.syntaxApi.isNamedImports(bindings) && bindings.elements.every((element) => element.isTypeOnly)
+    ? "types"
+    : "values";
+};
+
+const typeNamesOf = (request: StatementRequest): readonly string[] => {
   const syntaxApi = request.syntaxApi;
   const statement = request.statement;
-  if (syntaxApi.isExportAssignment(statement)) {
-    return [statement.getText()];
+  if (syntaxApi.isTypeAliasDeclaration(statement) || syntaxApi.isInterfaceDeclaration(statement)) return [statement.name.text];
+  if (!syntaxApi.isImportDeclaration(statement) || importOnlyOf({ syntaxApi, imported: statement }) === "values") return [];
+  const bindings = statement.importClause?.namedBindings;
+  if (bindings === undefined) return statement.importClause?.name === undefined ? [] : [statement.importClause.name.text];
+  return syntaxApi.isNamedImports(bindings) ? bindings.elements.map((element) => element.name.text) : [bindings.name.text];
+};
+
+const exportedValueNamesOf = (request: StatementRequest): readonly string[] => {
+  const syntaxApi = request.syntaxApi;
+  const statement = request.statement;
+  if (exportKeywordOf(request) === "local") return [];
+  if (syntaxApi.isVariableStatement(statement)) return statement.declarationList.declarations.map((declaration) => declaration.name.getText());
+  return (syntaxApi.isFunctionDeclaration(statement) || syntaxApi.isClassDeclaration(statement) || syntaxApi.isEnumDeclaration(statement)) && statement.name !== undefined
+    ? [statement.name.text]
+    : [];
+};
+
+const exportListClaims = (request: { readonly syntaxApi: SyntaxApi; readonly exported: ExportDeclaration; readonly typeNames: ReadonlySet<string> }): readonly string[] => {
+  const clause = request.exported.exportClause;
+  if (request.exported.isTypeOnly) return [];
+  if (request.exported.moduleSpecifier !== undefined || clause === undefined || !request.syntaxApi.isNamedExports(clause)) return [request.exported.getText()];
+  return clause.elements.filter((element) => !element.isTypeOnly && !request.typeNames.has((element.propertyName ?? element.name).text)).map((element) => element.getText());
+};
+
+const valueClaimsOf = (request: StatementRequest & { readonly typeNames: ReadonlySet<string> }): readonly string[] => {
+  const syntaxApi = request.syntaxApi;
+  const statement = request.statement;
+  if (syntaxApi.isExportDeclaration(statement)) return exportListClaims({ syntaxApi, exported: statement, typeNames: request.typeNames });
+  if (syntaxApi.isImportDeclaration(statement)) return importOnlyOf({ syntaxApi, imported: statement }) === "types" ? [] : [statement.getText()];
+  if (syntaxApi.isTypeAliasDeclaration(statement) || syntaxApi.isInterfaceDeclaration(statement)) return [];
+  if (syntaxApi.isVariableStatement(statement) || syntaxApi.isFunctionDeclaration(statement) || syntaxApi.isClassDeclaration(statement) || syntaxApi.isEnumDeclaration(statement)) {
+    return exportedValueNamesOf(request);
   }
-  if (syntaxApi.isExportDeclaration(statement)) {
-    if (statement.isTypeOnly) return [];
-    if (statement.moduleSpecifier !== undefined || statement.exportClause === undefined || !syntaxApi.isNamedExports(statement.exportClause)) return [statement.getText()];
-    return statement.exportClause.elements
-      .filter((element) => !element.isTypeOnly && request.localValues.has((element.propertyName ?? element.name).text))
-      .map((element) => element.getText());
-  }
-  return exportKeywordOf(request) === "exported" ? valueNamesOf(request) : [];
+  return [statement.getText()];
 };
 
 export const valueClaimsIn = (request: { readonly syntaxApi: SyntaxApi; readonly text: string }): readonly string[] => {
   const sourceFile = request.syntaxApi.createSourceFile("shipped.d.ts", request.text, request.syntaxApi.ScriptTarget.Latest, true);
-  const localValues = new Set(sourceFile.statements.flatMap((statement) => valueNamesOf({ syntaxApi: request.syntaxApi, statement })));
-  return sourceFile.statements.flatMap((statement) => valueClaimsOf({ syntaxApi: request.syntaxApi, statement, localValues }));
+  const typeNames = new Set(sourceFile.statements.flatMap((statement) => typeNamesOf({ syntaxApi: request.syntaxApi, statement })));
+  return sourceFile.statements.flatMap((statement) => valueClaimsOf({ syntaxApi: request.syntaxApi, statement, typeNames }));
 };
+
 const entryReachOf = (request: { readonly declarations: readonly EmittedDeclaration[]; readonly entry: PublicTypeEntry }): EntryReach => {
   const reached = reachableDeclarations({ declarations: request.declarations, roots: [typedExportOf({ entry: request.entry }).declaration] });
   const packageImports = request.declarations

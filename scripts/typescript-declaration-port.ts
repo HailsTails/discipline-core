@@ -1,23 +1,20 @@
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { Result } from "../core/values/result.ts";
-import type { SyntaxApi, SyntaxNode, TypeScriptParsePort } from "../mechanisms/audit/runner/typescript-parse.ts";
+import type {
+  CompilerOptions,
+  CustomTransformers,
+  Diagnostic,
+  ExportDeclaration,
+  ImportDeclaration,
+  Statement,
+  SyntaxApi,
+  SyntaxNode,
+  TypeScriptParsePort,
+} from "../mechanisms/audit/runner/typescript-parse.ts";
 import { defaultTypeScriptPeers, loadParsePort } from "../mechanisms/audit/runner/typescript-toolchain.ts";
 import type { DeclarationEmit, DeclarationFailure, DeclarationPort, EmittedDeclaration } from "./package-declarations.ts";
 
-type Program = ReturnType<SyntaxApi["createProgram"]>;
-
-type CompilerOptions = Program extends { readonly getCompilerOptions: () => infer Options } ? Options : never;
-
-type CustomTransformers = NonNullable<Parameters<Program["emit"]>[4]>;
-
 type DeclarationTransformerFactory = NonNullable<CustomTransformers["afterDeclarations"]>[number];
-
-type Diagnostic = ReturnType<SyntaxApi["getPreEmitDiagnostics"]>[number];
-
-type Statement = ReturnType<SyntaxApi["createSourceFile"]>["statements"][number];
-
-type ExportDeclaration = ReturnType<SyntaxApi["factory"]["createExportDeclaration"]>;
-
 type ParsePortLoader = (request: { readonly installRoot: string }) => Promise<Result<TypeScriptParsePort, RunnerFailure>>;
 
 type Emitted = Result<DeclarationEmit, DeclarationFailure>;
@@ -46,15 +43,23 @@ type StatementPublication =
   | { readonly kind: "dropped" }
   | { readonly kind: "refused"; readonly detail: string };
 
-type PublicationRequest = { readonly syntaxApi: SyntaxApi; readonly statement: Statement; readonly valueNames: ReadonlySet<string> };
+type FileBindings = { readonly types: ReadonlySet<string>; readonly privateValues: ReadonlySet<string> };
 
-const visibilityOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "exported" | "local" =>
+type StatementRequest = { readonly syntaxApi: SyntaxApi; readonly statement: Statement };
+
+type PublicationRequest = StatementRequest & { readonly bindings: FileBindings };
+
+const ONLY_TYPES = "a shipped declaration may hold only type declarations, type-only imports and type-only exports";
+
+const refused = (request: { readonly reason: string }): StatementPublication => ({ kind: "refused", detail: `${request.reason}; ${ONLY_TYPES}` });
+
+const visibilityOf = (request: StatementRequest): "exported" | "local" =>
   request.syntaxApi.canHaveModifiers(request.statement) &&
   (request.syntaxApi.getModifiers(request.statement) ?? []).some((modifier) => modifier.kind === request.syntaxApi.SyntaxKind.ExportKeyword)
     ? "exported"
     : "local";
 
-const declaredValueNames = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): readonly string[] => {
+const valueDeclarationNames = (request: StatementRequest): readonly string[] => {
   const syntaxApi = request.syntaxApi;
   const statement = request.statement;
   if (syntaxApi.isVariableStatement(statement)) {
@@ -66,7 +71,7 @@ const declaredValueNames = (request: { readonly syntaxApi: SyntaxApi; readonly s
   return [];
 };
 
-const natureOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: Statement }): "value" | "other" =>
+const natureOf = (request: StatementRequest): "value" | "other" =>
   request.syntaxApi.isVariableStatement(request.statement) ||
   request.syntaxApi.isFunctionDeclaration(request.statement) ||
   request.syntaxApi.isClassDeclaration(request.statement) ||
@@ -74,13 +79,55 @@ const natureOf = (request: { readonly syntaxApi: SyntaxApi; readonly statement: 
     ? "value"
     : "other";
 
+const importKindOf = (request: { readonly syntaxApi: SyntaxApi; readonly imported: ImportDeclaration }): "type-only" | "value" => {
+  const clause = request.imported.importClause;
+  if (clause === undefined) return "value";
+  if (clause.isTypeOnly) return "type-only";
+  const bindings = clause.namedBindings;
+  return clause.name === undefined && bindings !== undefined && request.syntaxApi.isNamedImports(bindings) && bindings.elements.every((element) => element.isTypeOnly)
+    ? "type-only"
+    : "value";
+};
+
+const importedNames = (request: { readonly syntaxApi: SyntaxApi; readonly imported: ImportDeclaration }): readonly string[] => {
+  const clause = request.imported.importClause;
+  const bindings = clause?.namedBindings;
+  const named = bindings === undefined ? [] : request.syntaxApi.isNamedImports(bindings) ? bindings.elements.map((element) => element.name.text) : [bindings.name.text];
+  return [...(clause?.name === undefined ? [] : [clause.name.text]), ...named];
+};
+
+const typeNamesOf = (request: StatementRequest): readonly string[] => {
+  const syntaxApi = request.syntaxApi;
+  const statement = request.statement;
+  if (syntaxApi.isTypeAliasDeclaration(statement) || syntaxApi.isInterfaceDeclaration(statement)) {
+    return [statement.name.text];
+  }
+  return syntaxApi.isImportDeclaration(statement) && importKindOf({ syntaxApi, imported: statement }) === "type-only"
+    ? importedNames({ syntaxApi, imported: statement })
+    : [];
+};
+
+const bindingsIn = (request: { readonly syntaxApi: SyntaxApi; readonly statements: readonly Statement[] }): FileBindings => ({
+  types: new Set(request.statements.flatMap((statement) => typeNamesOf({ syntaxApi: request.syntaxApi, statement }))),
+  privateValues: new Set(
+    request.statements
+      .filter((statement) => visibilityOf({ syntaxApi: request.syntaxApi, statement }) === "local")
+      .flatMap((statement) => valueDeclarationNames({ syntaxApi: request.syntaxApi, statement })),
+  ),
+});
+
 const localExportPublication = (request: PublicationRequest & { readonly exported: ExportDeclaration }): StatementPublication => {
   const syntaxApi = request.syntaxApi;
   const clause = request.exported.exportClause;
   if (clause === undefined || !syntaxApi.isNamedExports(clause)) {
-    return { kind: "kept", statement: request.statement };
+    return refused({ reason: "an export without a list" });
   }
-  const typeElements = clause.elements.filter((element) => element.isTypeOnly || !request.valueNames.has((element.propertyName ?? element.name).text));
+  const localName = (element: (typeof clause.elements)[number]): string => (element.propertyName ?? element.name).text;
+  const unknown = clause.elements.find((element) => !element.isTypeOnly && !request.bindings.types.has(localName(element)) && !request.bindings.privateValues.has(localName(element)));
+  if (unknown !== undefined) {
+    return refused({ reason: `"${localName(unknown)}" is exported but is not a type declared or imported as a type here` });
+  }
+  const typeElements = clause.elements.filter((element) => element.isTypeOnly || request.bindings.types.has(localName(element)));
   if (typeElements.length === clause.elements.length) {
     return { kind: "kept", statement: request.statement };
   }
@@ -105,10 +152,24 @@ const exportDeclarationPublication = (request: PublicationRequest & { readonly e
   }
   const specifier = request.exported.moduleSpecifier;
   if (specifier !== undefined) {
-    const named = request.syntaxApi.isStringLiteral(specifier) ? specifier.text : "another module";
-    return { kind: "refused", detail: `a value re-export from ${named}; re-export the types by name with "export type { … } from"` };
+    return refused({ reason: `a value re-export from ${request.syntaxApi.isStringLiteral(specifier) ? specifier.text : "another module"}` });
   }
   return localExportPublication(request);
+};
+
+const otherStatementPublication = (request: StatementRequest): StatementPublication => {
+  const syntaxApi = request.syntaxApi;
+  const statement = request.statement;
+  if (syntaxApi.isModuleDeclaration(statement)) {
+    return refused({ reason: `the module declaration "${statement.name.text}"` });
+  }
+  if (syntaxApi.isImportEqualsDeclaration(statement)) {
+    return refused({ reason: `the import-equals "${statement.name.text}"` });
+  }
+  if (syntaxApi.isNamespaceExportDeclaration(statement)) {
+    return refused({ reason: `"export as namespace ${statement.name.text}"` });
+  }
+  return refused({ reason: `a statement of kind ${statement.kind}` });
 };
 
 const statementPublication = (request: PublicationRequest): StatementPublication => {
@@ -117,18 +178,22 @@ const statementPublication = (request: PublicationRequest): StatementPublication
   if (syntaxApi.isExportDeclaration(statement)) {
     return exportDeclarationPublication({ ...request, exported: statement });
   }
-  if (syntaxApi.isExportAssignment(statement) || (natureOf(request) === "value" && visibilityOf(request) === "exported")) {
+  if (syntaxApi.isImportDeclaration(statement)) {
+    return importKindOf({ syntaxApi, imported: statement }) === "type-only"
+      ? { kind: "kept", statement }
+      : refused({ reason: `a value import from ${syntaxApi.isStringLiteral(statement.moduleSpecifier) ? statement.moduleSpecifier.text : "another module"}` });
+  }
+  if (syntaxApi.isTypeAliasDeclaration(statement) || syntaxApi.isInterfaceDeclaration(statement)) {
+    return { kind: "kept", statement };
+  }
+  if (natureOf(request) === "value") {
+    return visibilityOf(request) === "exported" ? { kind: "dropped" } : { kind: "kept", statement };
+  }
+  if (syntaxApi.isExportAssignment(statement)) {
     return { kind: "dropped" };
   }
-  if (syntaxApi.isModuleDeclaration(statement) && visibilityOf(request) === "exported") {
-    return { kind: "refused", detail: `the namespace "${statement.name.text}" may hold values; publish its types as plain exports` };
-  }
-  return { kind: "kept", statement };
+  return otherStatementPublication(request);
 };
-
-const valueNamesIn = (request: { readonly syntaxApi: SyntaxApi; readonly statements: readonly Statement[] }): ReadonlySet<string> =>
-  new Set(request.statements.flatMap((statement) => declaredValueNames({ syntaxApi: request.syntaxApi, statement })));
-
 const publishedLiteral = (request: { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode }): SyntaxNode =>
   request.syntaxApi.isStringLiteral(request.node) && SOURCE_SPECIFIER.test(request.node.text)
     ? request.syntaxApi.factory.createStringLiteral(publishedSpecifier({ specifier: request.node.text }))
@@ -166,8 +231,8 @@ export type PublishedDeclarationText = { readonly text: string; readonly refusal
 export const publishedDeclarationText = (request: { readonly syntaxApi: SyntaxApi; readonly path: string; readonly text: string }): PublishedDeclarationText => {
   const syntaxApi = request.syntaxApi;
   const sourceFile = syntaxApi.createSourceFile(request.path, request.text, syntaxApi.ScriptTarget.Latest, true);
-  const valueNames = valueNamesIn({ syntaxApi, statements: sourceFile.statements });
-  const publications = sourceFile.statements.map((statement) => statementPublication({ syntaxApi, statement, valueNames }));
+  const bindings = bindingsIn({ syntaxApi, statements: sourceFile.statements });
+  const publications = sourceFile.statements.map((statement) => statementPublication({ syntaxApi, statement, bindings }));
   const kept = publications.flatMap((publication) => (publication.kind === "kept" ? [publication.statement] : []));
   return {
     text: syntaxApi.createPrinter({ newLine: syntaxApi.NewLineKind.LineFeed }).printFile(
@@ -251,6 +316,7 @@ const emittedWith = (request: {
     ],
   };
 };
+
 const emittedBy = (request: { readonly syntaxApi: SyntaxApi; readonly sourceRoot: string; readonly entryPoints: readonly string[] }): Emitted => {
   const root = repositoryRootOf(request);
   const options = projectOptionsOf({ syntaxApi: request.syntaxApi, root });

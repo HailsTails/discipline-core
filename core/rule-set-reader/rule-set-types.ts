@@ -3,14 +3,14 @@ import type { ClauseExceptions } from "./authored-rule-set-types.ts";
 import type { ClauseId, DisciplineId, MechanismId } from "../values/identifier-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 
+export type { ClauseExceptions };
+
 export type SourceCase = {
   readonly name: string;
   readonly fileName: RepoPath;
   readonly source: string;
   readonly expectedLines: readonly number[];
 };
-
-export type { ClauseExceptions } from "./authored-rule-set-types.ts";
 
 export type ClauseDefinition =
   | {

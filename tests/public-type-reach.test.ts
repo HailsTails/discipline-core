@@ -73,7 +73,7 @@ describe("valueClaimsIn", () => {
       "ask",
       "Asker",
       "Mood",
-      "Space",
+      "export declare namespace Space {}",
       "export default answer;",
       "hidden",
       'export * from "./other.js";',
@@ -82,11 +82,29 @@ describe("valueClaimsIn", () => {
     ]);
   });
 
-  it("claims nothing for types, type-only exports and a private symbol a type depends on", () => {
+  it("names a value imported and exported again, import-equals, namespaces and augmentations, exported or not", () => {
     expect(
       valueClaimsIn({
         syntaxApi,
-        text: 'declare const brand: unique symbol;\nexport type Branded = { readonly [brand]: 1 };\nexport interface Shape {}\ntype Local = 1;\nexport { type Local };\nexport type { Answer } from "./other.js";\nexport {};\n',
+        text: 'import { answer } from "./other.js";\nexport { answer };\nimport reply = require("./other.js");\ndeclare namespace Hidden {}\nexport { Hidden };\ndeclare global { var shared: 1; }\ndeclare module "other" { export const inner: 1; }\nexport as namespace Hone;\n',
+      }),
+    ).toEqual([
+      'import { answer } from "./other.js";',
+      "answer",
+      'import reply = require("./other.js");',
+      "declare namespace Hidden {}",
+      "Hidden",
+      "declare global { var shared: 1; }",
+      'declare module "other" { export const inner: 1; }',
+      "export as namespace Hone;",
+    ]);
+  });
+
+  it("claims nothing for types, type-only imports, type-only exports and a private symbol a type depends on", () => {
+    expect(
+      valueClaimsIn({
+        syntaxApi,
+        text: 'import type typescript from "typescript";\nimport { type Node } from "./node.js";\nexport { Node };\ndeclare const brand: unique symbol;\nexport type Branded = { readonly [brand]: 1 };\nexport interface Shape {}\ntype Local = 1;\nexport { type Local };\nexport type { Answer } from "./other.js";\nexport {};\n',
       }),
     ).toEqual([]);
   });
