@@ -37,15 +37,25 @@
             "expectedLines": [
               3
             ]
+          },
+          {
+            "name": "array of any over a property value",
+            "fileName": "array-of-any.ts",
+            "source": "declare const result: { readonly value: unknown };\nexport const rows = result.value as Array<any>;\n",
+            "expectedLines": [
+              2
+            ]
+          },
+          {
+            "name": "record of any",
+            "fileName": "record-of-any.ts",
+            "source": "declare const candidate: unknown;\nexport const fields = candidate as Record<string, any>;\n",
+            "expectedLines": [
+              2
+            ]
           }
         ],
         "allow": [
-          {
-            "name": "as unknown assertion",
-            "fileName": "unknown.ts",
-            "source": "export const parsed = JSON.parse(text) as unknown;\n",
-            "expectedLines": []
-          },
           {
             "name": "const assertion",
             "fileName": "const-assertion.ts",
