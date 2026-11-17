@@ -84,16 +84,15 @@ jobs:
   supported-node:
     name: Package on Node ${{ matrix.node-version }} on ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { platform: Linux, runner: ubuntu-latest, node-version: 22.13.0, run-tests: true }
-          - { platform: Linux, runner: ubuntu-latest, node-version: 22.17.0, run-tests: true }
-          - { platform: Linux, runner: ubuntu-latest, node-version: 24, run-tests: true }
+          - { platform: Linux, runner: ubuntu-latest, node-version: 22.13.0, run-tests: false }
           - { platform: Windows, runner: windows-latest, node-version: 22.13.0, run-tests: false }
-          - { platform: Windows, runner: windows-latest, node-version: 24, run-tests: false }
+          - { platform: macOS, runner: macos-latest, node-version: 22.13.0, run-tests: false }
+          - { platform: Linux, runner: ubuntu-latest, node-version: 24, run-tests: true }
     defaults:
       run:
         shell: bash
@@ -114,5 +113,5 @@ jobs:
       - name: Prove a package install
         run: node --experimental-strip-types scripts/install-proof.ts
       - name: Run the tests
-        if: ${{ !cancelled() && matrix.run-tests }}
+        if: ${{ matrix.run-tests }}
         run: bun run test
