@@ -1,6 +1,6 @@
 import type typescriptEslintPlugin from "@typescript-eslint/eslint-plugin";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
-import { gatheredPeerFailure, loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../../../core/mechanism-port/toolchain-requirement.ts";
+import { gatheredPeerFailure, installedPeer, loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../../../core/mechanism-port/toolchain-requirement.ts";
 import { createDefaultPackageLocationPort } from "../../../core/platform-ports/package-location-port.ts";
 import type { InstallForm } from "../../../core/values/install-layout.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -101,13 +101,18 @@ export const loadEslintToolchain = (request: { readonly peers: EslintToolchainPe
     load: request.peers.modules.typescriptParser,
     versionOf: (parser) => parser.version,
   });
-  const typescriptEslintPlugin = loadedPeer({
-    requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT,
-    location: request.peers.location,
-    load: request.peers.modules.typescriptEslintPlugin,
-    versionOf: (plugin) => plugin.default.meta.version,
-  });
-  return Promise.all([eslint, typescriptParser, typescriptEslintPlugin]).then(([loadedEslint, loadedParser, loadedPlugin]) =>
-    toolchainOf({ eslint: loadedEslint, typescriptParser: loadedParser, typescriptEslintPlugin: loadedPlugin }),
+  return Promise.all([eslint, typescriptParser]).then(([loadedEslint, loadedParser]) =>
+    loadedEslint.outcome === "ok"
+      ? loadedPeer({
+          requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT,
+          location: request.peers.location,
+          load: request.peers.modules.typescriptEslintPlugin,
+          versionOf: (plugin) => plugin.default.meta.version,
+        }).then((loadedPlugin) => toolchainOf({ eslint: loadedEslint, typescriptParser: loadedParser, typescriptEslintPlugin: loadedPlugin }))
+      : installedPeer({ requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT, location: request.peers.location }).then((installedPlugin) =>
+          failedWith({
+            failures: [loadedEslint.error, ...failureOf({ loaded: loadedParser }), ...failureOf({ loaded: installedPlugin })],
+          }),
+        ),
   );
 };

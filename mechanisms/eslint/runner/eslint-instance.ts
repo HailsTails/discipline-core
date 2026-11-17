@@ -125,6 +125,20 @@ export type EslintToolchain = {
 
 export type IgnoredState = "ignored" | "checked";
 
+export type ConfigFileSearch =
+  | { readonly kind: "found"; readonly path: string }
+  | { readonly kind: "none" }
+  | { readonly kind: "unknown" };
+
+const CONFIG_UNKNOWN: ConfigFileSearch = { kind: "unknown" };
+
+const searchedConfigFile = (request: { readonly found: Result<string | undefined, RunnerFailure> }): ConfigFileSearch => {
+  if (request.found.outcome === "failed") {
+    return CONFIG_UNKNOWN;
+  }
+  return request.found.value === undefined ? { kind: "none" } : { kind: "found", path: request.found.value };
+};
+
 export type QueryInstance = {
   readonly ignoredState: (request: {
     readonly file: RepoPath;
@@ -133,7 +147,7 @@ export type QueryInstance = {
     readonly file: RepoPath;
     readonly ruleId: string;
   }) => Promise<Result<RuleState, RunnerFailure>>;
-  readonly configFileOf: (request: { readonly file: RepoPath }) => Promise<string | undefined>;
+  readonly configFileOf: (request: { readonly file: RepoPath }) => Promise<ConfigFileSearch>;
 };
 
 export type GovernanceInstance = {
@@ -392,7 +406,7 @@ const queryInstanceOf = (request: {
       surface: request.surface,
       act: (eslint) => eslint.findConfigFile({ filePath: query.file }),
       onRejected: toolFailed,
-    }).then((found) => (found.outcome === "ok" ? found.value : undefined)),
+    }).then((found) => searchedConfigFile({ found })),
 });
 
 const lintedCaseOf = (request: {

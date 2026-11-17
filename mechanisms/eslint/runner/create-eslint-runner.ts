@@ -20,11 +20,12 @@ import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import { SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
+import { CUT_MARK, SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import {
+  type ConfigFileSearch,
   type EslintPort,
   type GovernedRule,
   INLINE_CONFIG_RULE_ID,
@@ -400,26 +401,46 @@ const queriedFileOf = (request: {
 
 type ConfigLocation = { readonly path: PathPort; readonly repoRoot: AbsolutePath };
 
+const FULL_STOP = ".";
+
+const sentenceOf = (request: { readonly text: string }): string =>
+  request.text.endsWith(FULL_STOP) ? request.text : `${request.text}${FULL_STOP}`;
+
 const configRepair = (request: { readonly configFile: string; readonly location: ConfigLocation }): string => {
   const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
   return folder === "." || folder === ""
-    ? "Fix it"
-    : `Fix it, or add ${folder} to exclude in disciplines.json so that Hone checks no file under it`;
+    ? "Fix that config."
+    : `Fix that config: Hone loads the nearest config of every tracked file, including in a folder the repository's own ESLint skips through a global ignores entry. Only if ${folder} holds nothing Hone should check, add it to exclude in disciplines.json instead.`;
+};
+
+const foundConfigDetail = (request: {
+  readonly file: RepoPath;
+  readonly message: string;
+  readonly configFile: string;
+  readonly location: ConfigLocation;
+}): string => {
+  const placed = request.location.path.relative({ from: request.location.repoRoot, to: request.configFile });
+  return placed.relation === "different-root"
+    ? `${request.configFile}, the ESLint config for ${request.file}, failed to load: ${request.message} Fix that config.`
+    : `${placed.path}, the ESLint config for ${request.file}, failed to load: ${request.message} ${configRepair({ configFile: placed.path, location: request.location })}`;
 };
 
 const unloadableConfigDetail = (request: {
   readonly file: RepoPath;
   readonly detail: string;
-  readonly configFile: string | undefined;
+  readonly search: ConfigFileSearch;
   readonly location: ConfigLocation;
 }): string => {
-  const placed =
-    request.configFile === undefined ? undefined : request.location.path.relative({ from: request.location.repoRoot, to: request.configFile });
-  return placed === undefined || placed.relation === "different-root"
-    ? `the ESLint config for ${request.file} failed to load: ${request.detail}. Fix that config`
-    : `${placed.path}, the ESLint config for ${request.file}, failed to load: ${request.detail}. ${configRepair({ configFile: placed.path, location: request.location })}`;
+  const message = sentenceOf({ text: request.detail });
+  switch (request.search.kind) {
+    case "found":
+      return foundConfigDetail({ file: request.file, message, configFile: request.search.path, location: request.location });
+    case "none":
+      return `no eslint.config.* applies to ${request.file}. Create one at the repository root that spreads disciplines.eslint.mjs last, as ADOPTING.md step 4a shows.`;
+    case "unknown":
+      return `the ESLint config for ${request.file} failed to load: ${message} Fix that config.`;
+  }
 };
-
 const explainedQueryFailure = (request: {
   readonly query: QueryInstance;
   readonly file: RepoPath;
@@ -431,11 +452,11 @@ const explainedQueryFailure = (request: {
     return Promise.resolve(queried);
   }
   const detail = queried.error.detail;
-  return request.query.configFileOf({ file: request.file }).then((configFile) => ({
+  return request.query.configFileOf({ file: request.file }).then((search) => ({
     outcome: "failed",
     error: {
       kind: "team-config-unloadable",
-      detail: unloadableConfigDetail({ file: request.file, detail, configFile, location: request.location }),
+      detail: unloadableConfigDetail({ file: request.file, detail, search, location: request.location }),
     },
   }));
 };
@@ -705,7 +726,7 @@ const linesOf = (request: {
 
 const lineSnippet = (request: { readonly line: string; readonly column: number }): string => {
   const trimmed = request.line.trim();
-  return trimmed.length > SNIPPET_LIMIT ? request.line.slice(request.column - 1) : trimmed;
+  return trimmed.length > SNIPPET_LIMIT ? `${CUT_MARK}${request.line.slice(request.column - 1)}` : trimmed;
 };
 
 const sourceLineOf = (request: {

@@ -511,10 +511,21 @@ describe("createQueryInstance", () => {
       .createQueryInstance({ repoRoot })
       .configFileOf({ file: fileA });
 
-    expect([configFile, findConfigFile.mock.calls]).toEqual(["/repo/fixtures/broken/eslint.config.mjs", [[{ filePath: fileA }]]]);
+    expect([configFile, findConfigFile.mock.calls]).toEqual([
+      { kind: "found", path: "/repo/fixtures/broken/eslint.config.mjs" },
+      [[{ filePath: fileA }]],
+    ]);
   });
 
-  it("names no config when ESLint cannot find one", async () => {
+  it("says no config applies when ESLint finds none for the file", async () => {
+    const configFile = await portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue(idleSurface) })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect(configFile).toEqual({ kind: "none" });
+  });
+
+  it("says the config is unknown when ESLint cannot search for one", async () => {
     const configFile = await portWith({
       createEslint: vi.fn<CreateEslint>().mockReturnValue({
         ...idleSurface,
@@ -524,7 +535,7 @@ describe("createQueryInstance", () => {
       .createQueryInstance({ repoRoot })
       .configFileOf({ file: fileA });
 
-    expect(configFile).toBeUndefined();
+    expect(configFile).toEqual({ kind: "unknown" });
   });
 
   it("reports ESLint failing to build as tool-failed", async () => {
