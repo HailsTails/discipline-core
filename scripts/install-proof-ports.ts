@@ -40,7 +40,7 @@ export type ScratchFilesSurface = {
   readonly realPathOf: (request: { readonly path: string }) => string;
 };
 
-export type ProofCommand = "git" | "npm" | "node";
+export type ProofCommand = "git" | "npm" | "pnpm" | "node";
 
 export type Launch = "direct" | "shell";
 
@@ -103,6 +103,7 @@ export const createScratchFilesPort = (options: { readonly surface: ScratchFiles
 const launchOf = (request: { readonly command: ProofCommand; readonly platform: string }): Launch => {
   switch (request.command) {
     case "npm":
+    case "pnpm":
       return request.platform === WINDOWS_PLATFORM ? "shell" : "direct";
     case "git":
     case "node":
@@ -116,6 +117,7 @@ const fileOf = (request: { readonly command: ProofCommand; readonly executablePa
       return request.executablePath;
     case "git":
     case "npm":
+    case "pnpm":
       return request.command;
   }
 };
@@ -164,7 +166,7 @@ export const defaultScratchFilesSurface: ScratchFilesSurface = {
       entryKind: entry.isDirectory() ? "folder" : "file",
     })),
   digestOf: (request) => createHash("sha256").update(readFileSync(request.path)).digest("hex"),
-  realPathOf: (request) => realpathSync(request.path),
+  realPathOf: (request) => realpathSync.native(request.path),
 };
 
 const spawnedRun = (request: CommandSpawnRequest): StepRun => {

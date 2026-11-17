@@ -26,7 +26,13 @@ The main route is the npm registry. Pre-releases are published under the dist-ta
 npm install --save-dev @hailstails/hone@next
 ```
 
-npm records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With pnpm or Yarn, add `@hailstails/hone@next` with their own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
+With pnpm, add it as a development dependency, using `-Dw` in place of `-D` at the root of a pnpm workspace:
+
+```bash
+pnpm add -D @hailstails/hone@next
+```
+
+The package manager records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With Yarn, add `@hailstails/hone@next` with its own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
 
 The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-<version>.tgz`, or an `https://` URL your team serves it from. Download the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases), or build it from a pinned commit as below.
 
@@ -46,7 +52,13 @@ Install it as a development dependency of the repository root, beside the toolch
 npm install --save-dev <hone-tarball>
 ```
 
-npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
+With pnpm, using `-Dw` in place of `-D` at the root of a pnpm workspace:
+
+```bash
+pnpm add -D <hone-tarball>
+```
+
+The package manager records it in `package.json` and the lockfile. With Yarn, add the same tarball with its own `add -D` command at the workspace root.
 
 Add the two commands to the root `package.json` scripts:
 
