@@ -10,7 +10,7 @@ Hone reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks
 node --version
 ```
 
-It must print `v22.18.0` or a later 22.x, or `v24.0.0` or later. That also covers a rule set of your own whose piece modules are `.ts` files, which Hone loads as they are. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
+It must print `v22.18.0` or a later 22.x, or `v24.0.0` or later. A rule set of your own may write its piece modules as `.ts` files, which Hone runs with Node's built-in type stripping, so they are limited to what [Node's TypeScript support](https://nodejs.org/docs/latest-v22.x/api/typescript.html) allows: only syntax that can be erased, so no enums, no namespaces that hold values and no parameter properties; relative imports that spell the `.ts` extension; and `import type` (or `type` on each name) for anything that is only a type. Node does not strip types from files under `node_modules`, so a rule set installed as a package must ship `.js`. Also needed: git 2.24 or later and npm. `<repo>` must be a git repository, and the files to check must be committed or staged: untracked files are not checked.
 
 ## 2. Install the Hone package
 
