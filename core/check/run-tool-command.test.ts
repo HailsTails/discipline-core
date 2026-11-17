@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
-import type { PathPort } from "../platform-ports/path-port.ts";
+import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
+import { helpText } from "./command-help.ts";
 import type { CommandRequest } from "./run-check-command.ts";
 import { type CommandHandler, toolCommandOf } from "./run-tool-command.ts";
 
@@ -89,34 +90,100 @@ describe("toolCommandOf", () => {
       project: [[{ ...request, process: { ...request.process, arguments: ["--repo", "/repo"] } }]],
     });
   });
+});
 
-  it("exits 2 with the arguments-invalid usage line and runs nothing when no subcommand is given", async () => {
+const ranNothing = { check: [], project: [] };
+
+describe("toolCommandOf refusing an invocation it cannot read", () => {
+  it.each([
+    { given: [], line: "load failure: arguments-invalid hone needs a command, check or project; run hone --help for usage\n" },
+    {
+      given: ["lint", "--repo", "/repo"],
+      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check and project; run hone --help for usage\n',
+    },
+  ])("exits 2 with the arguments-invalid line and runs nothing, given $given", async ({ given, line }) => {
     const subcommands = subcommandsSpied();
-    const processPort = processWith({ arguments: [] });
+    const processPort = processWith({ arguments: given });
 
     await toolCommandOf({ subcommands })(commandRequest({ process: processPort }));
 
     expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
-      output: {
-        writes: [[{ text: expect.stringMatching(/^load failure: arguments-invalid a subcommand is required; usage: hone check --repo /) }]],
-        exits: [[{ code: 2 }]],
-      },
-      ran: { check: [], project: [] },
+      output: { writes: [[{ text: line }]], exits: [[{ code: 2 }]] },
+      ran: ranNothing,
+    });
+  });
+});
+
+describe("toolCommandOf printing help", () => {
+  it.each([
+    { given: ["--help"], topic: "tool" },
+    { given: ["check", "--repo", "/repo", "--help"], topic: "check" },
+    { given: ["project", "-h"], topic: "project" },
+  ] as const)("prints the $topic help and exits 0, running nothing, given $given", async ({ given, topic }) => {
+    const subcommands = subcommandsSpied();
+    const processPort = processWith({ arguments: given });
+
+    await toolCommandOf({ subcommands })(commandRequest({ process: processPort }));
+
+    expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
+      output: { writes: [[{ text: helpText({ topic }) }]], exits: [[{ code: 0 }]] },
+      ran: ranNothing,
+    });
+  });
+});
+
+const PACKAGE_PATH = "/install/package.json";
+
+const UNREAD: ReturnType<FileTextPort["read"]> = { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } };
+
+const versionRequest = (request: { readonly process: ProcessPort; readonly read: ReturnType<FileTextPort["read"]> }): CommandRequest => ({
+  ...commandRequest(request),
+  path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
+  fileText: { ...UNUSED_FILE_TEXT, read: ({ path }) => ({ [PACKAGE_PATH]: request.read })[path] ?? UNREAD },
+});
+
+describe("toolCommandOf printing the version", () => {
+  it("prints the installed version and exits 0, running nothing", async () => {
+    const subcommands = subcommandsSpied();
+    const processPort = processWith({ arguments: ["--version"] });
+
+    await toolCommandOf({ subcommands })(
+      versionRequest({ process: processPort, read: { outcome: "ok", value: JSON.stringify({ version: "1.2.3" }) } }),
+    );
+
+    expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
+      output: { writes: [[{ text: "1.2.3\n" }]], exits: [[{ code: 0 }]] },
+      ran: ranNothing,
     });
   });
 
-  it("exits 2 with the arguments-invalid usage line and runs nothing for an unknown subcommand", async () => {
-    const subcommands = subcommandsSpied();
-    const processPort = processWith({ arguments: ["lint", "--repo", "/repo"] });
+  it("exits 2 with the load failure line when the install's package.json cannot be read", async () => {
+    const processPort = processWith({ arguments: ["--version"] });
 
-    await toolCommandOf({ subcommands })(commandRequest({ process: processPort }));
+    await toolCommandOf({ subcommands: subcommandsSpied() })(
+      versionRequest({ process: processPort, read: { outcome: "failed", error: { kind: "unreadable", path: PACKAGE_PATH, detail: "EACCES" } } }),
+    );
 
-    expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
-      output: {
-        writes: [[{ text: expect.stringMatching(/^load failure: arguments-invalid unknown subcommand "lint"; usage: hone check --repo /) }]],
-        exits: [[{ code: 2 }]],
-      },
-      ran: { check: [], project: [] },
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [[{ text: "load failure: file-unreadable /install/package.json EACCES\n" }]],
+      exits: [[{ code: 2 }]],
     });
+  });
+});
+
+const rejecting: CommandHandler = () => Promise.reject(new Error("Cannot read properties of undefined"));
+
+const throwing: CommandHandler = () => Promise.resolve(BigInt("one")).then(() => undefined);
+
+describe("toolCommandOf when a command fails unexpectedly", () => {
+  it.each([
+    { handler: rejecting, line: "load failure: unexpected-error Cannot read properties of undefined\n" },
+    { handler: throwing, line: "load failure: unexpected-error Cannot convert one to a BigInt\n" },
+  ])("exits 2 with an unexpected-error load failure line, so exit 1 always means a failing verdict: $line", async ({ handler, line }) => {
+    const processPort = processWith({ arguments: ["check", "--repo", "/repo"] });
+
+    await toolCommandOf({ subcommands: { check: handler, project: handler } })(commandRequest({ process: processPort }));
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
   });
 });

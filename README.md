@@ -27,21 +27,17 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
 
 ```text
-hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>]
+hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
+hone --help
+hone --version
 ```
 
-`hone` with no subcommand, or with one it does not know, is a load failure `arguments-invalid` whose line ends with the usage, and exits `2`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
+`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help` and `hone project --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
-`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`.
+[docs/output-contract.md](docs/output-contract.md) lists every line `hone` prints, exactly as it prints it, with the exit codes and which parts are stable for hooks, CI and agents to rely on. A test renders every kind of line and checks it against that page, both ways.
 
-| Exit | `hone check` | `hone project` |
-| --- | --- | --- |
-| `0` | the verdict is `pass` | every projection was written or already current |
-| `1` | the verdict is `fail` | not used |
-| `2` | an input could not be loaded, or a mechanism failed or returned invalid output | any failure |
-
-A load failure prints one line, `load failure: <kind> <fields>`.
+`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`. It exits `0` when the verdict is `pass`, `1` when it is `fail`, and `2` on a load failure, which prints one line, `load failure: <kind> <fields>`. `hone project` exits `0` or `2`.
 
 The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems, any part of the assessment left to another run and, last, where to read first for each clause with findings, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, exempted findings, assessment and where to read first is empty.
 
@@ -57,23 +53,7 @@ An `unrecorded` line is `<clause> <mechanism> <kind> <detail>`. Two kinds end wi
 
 `readFirst` comes last, just before the verdict, so a reader who looks only at the end of a failing report lands on it. It has one line per clause with findings, not one per finding, in the order the findings first name the clauses. Each line points at the Spirit section of the clause's rule page, `rules/<ID>/README.md` in the clause's rule set, and, where the repository has written one, at the clause's own section in `disciplines.assessment.md` at the repository root first. That file is where a repository records its own causes, forward goal and steps for a clause; [ADOPTING step 5a](ADOPTING.md#5a-write-the-assessment) says how to write it. Paths are printed with forward slashes, relative to the `--repo` folder; a page on another drive is printed as its absolute path.
 
-When `disciplines.assessment.md` is not written yet, or cannot be read, one line comes first, and each clause line then names its rule page only:
-
-| `disciplines.assessment.md` | First line |
-| --- | --- |
-| not written | `Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; <adoption guide>#5a-write-the-assessment says how to write it.` |
-| cannot be read | `Start from each rule's Spirit below. disciplines.assessment.md could not be read.` |
-
-The adoption guide is `ADOPTING.md` in the installed package, for example `node_modules/@hailstails/hone/ADOPTING.md`. Each clause line is one of:
-
-| Clause's section | Rule page | Line |
-| --- | --- | --- |
-| present | present | `<clause>: read the "## <clause>" section of disciplines.assessment.md, then <rule page>#spirit` |
-| not in the file | present | `<clause>: read <rule page>#spirit; disciplines.assessment.md does not assess this clause` |
-| file not read | present | `<clause>: read <rule page>#spirit` |
-| present | absent | `<clause>: read the "## <clause>" section of disciplines.assessment.md; its rule set has no rule page at <rule page>` |
-| not in the file | absent | `<clause>: its rule set has no rule page at <rule page>; disciplines.assessment.md does not assess this clause` |
-| file not read | absent | `<clause>: its rule set has no rule page at <rule page>` |
+When `disciplines.assessment.md` is not written yet, or cannot be read, one note line comes first and says so, naming ADOPTING step 5a; each clause line then names its rule page only. The note counts as an entry, so a report with two failing clauses and no assessment file prints `readFirst (3)`. A clause line names the clause's section when the file has one, and says `disciplines.assessment.md does not assess this clause` when the file is there without it. [The output contract](docs/output-contract.md#report-lines) lists every `readFirst` line exactly.
 
 A file that does not assess a clause is normal: the assessment covers the clauses the repository chose to describe, and the rule page's Spirit is the read for the rest.
 
@@ -81,14 +61,7 @@ A clause's section is a level-2 heading whose text is exactly the clause address
 
 Hone matches the heading only; it never reads the section's text. A missing file or section never fails the run. A run with no findings prints no `readFirst` section and reads neither file, so its report is unchanged; a run with findings reads `disciplines.assessment.md` once and checks that each failing clause's rule page exists.
 
-`--report-output` sets how much of the report is printed for one run, overriding `reportOutput` in `disciplines.json`; with neither, the output is `full`.
-
-| Output | Prints |
-| --- | --- |
-| `full` | every non-empty section with its entries, then the verdict |
-| `failures-only` | the same without the `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` sections; `readFirst` stays |
-| `counts` | one `<section> (<count>)` line per non-empty section, with ` informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` and ` guidance` after `readFirst`, then the verdict |
-| `verdict-only` | only the verdict line |
+`--report-output` sets how much of the report is printed for one run, overriding `reportOutput` in `disciplines.json`; with neither, the output is `full`. `full` prints every non-empty section, `failures-only` leaves out the informational sections and keeps `readFirst`, `counts` prints each section's heading line only, with `informational` or `guidance` after the sections that never fail the run, and `verdict-only` prints the verdict line alone; [the output contract](docs/output-contract.md#the-report) shows each.
 
 The output changes only what is printed: the verdict and exit code always come from the whole report. An unknown `--report-output` value is a load failure `arguments-invalid`; an unknown `reportOutput` value makes `disciplines.json` `file-malformed`, even when `--report-output` is given. Load failures print the same in every output.
 
@@ -288,6 +261,7 @@ Hone's version numbers follow semantic versioning under these rules:
 - A new or tightened check ships off by default in a minor release and becomes a default only in a major release.
 - A change to the ESLint config that `hone project` generates, which an adopter must regenerate, is a minor release, with a clear message telling the adopter to regenerate: its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
 - A change to a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag is a major release.
+- A change to what [the output contract](docs/output-contract.md) says a tool can parse is a major release: the command and option names, the exit codes and streams, the report's sections, outputs and verdict lines, the load failure kinds, and each line's leading fields up to its first value that may hold a space. What it marks not stable, such as the help text, the wording of `arguments-invalid` and `readFirst` lines and the repair text after a load failure's values, may change in a minor release, and a minor release may add a section, a kind of line or an option.
 - A breaking change to a type in `@hailstails/hone/rule-set` is a major release. `@hailstails/hone/audit` is experimental: its types may change in a minor release until it is marked stable.
 - Before the first stable release, a change that would need a major release ships in a minor release instead.
 - A pre-release previews the release it is numbered towards and is published under the `next` dist-tag. A change of any size can land between two pre-releases of the same release, and the changelog lists it.

@@ -5,6 +5,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
+import { shownPathOf } from "./shown-path.ts";
 import type { AssessmentFileNote, AssessmentSection, ClauseReading, ReadFirstEntry } from "../verdict/check-report.ts";
 
 type AssessmentHeadings =
@@ -19,7 +20,7 @@ type ReadingRequest = {
 
 type HeadingScan = { readonly fence: string | undefined; readonly headings: readonly string[] };
 
-const BYTE_ORDER_MARK = /^﻿/u;
+const BYTE_ORDER_MARK = /^\uFEFF/u;
 
 const FENCE_OPENING = /^ {0,3}(`{3,}|~{3,})/;
 
@@ -72,10 +73,8 @@ const assessmentSectionOf = (request: {
   return request.headings.headings.has(assessmentSectionHeading(request)) ? "present" : "not-assessed";
 };
 
-const shownPathOf = (request: ReadingRequest & { readonly page: string }): string => {
-  const location = request.path.relative({ from: request.repoRoot, to: request.page });
-  return location.relation === "within-root" ? location.path : request.page.replaceAll("\\", "/");
-};
+const shownPageOf = (request: ReadingRequest & { readonly page: string }): string =>
+  shownPathOf({ path: request.path, repoRoot: request.repoRoot, target: request.page });
 
 const clauseReadingOf = (
   request: ReadingRequest & { readonly headings: AssessmentHeadings; readonly clause: ClauseAddress; readonly page: string },
@@ -83,7 +82,7 @@ const clauseReadingOf = (
   kind: "clause",
   clause: request.clause,
   assessmentSection: assessmentSectionOf(request),
-  rulePage: { path: shownPathOf(request), presence: request.fileText.exists({ path: request.page }) },
+  rulePage: { path: shownPageOf(request), presence: request.fileText.exists({ path: request.page }) },
 });
 
 const rulePageOf = (request: { readonly root: ClauseRoot; readonly path: PathPort }): string =>
@@ -98,7 +97,7 @@ const assessmentFileNotes = (
         {
           kind: "assessment-file",
           state: request.headings.file,
-          guide: shownPathOf({ ...request, page: request.path.join({ segments: [request.installRoot, ADOPTING_GUIDE] }) }),
+          guide: shownPageOf({ ...request, page: request.path.join({ segments: [request.installRoot, ADOPTING_GUIDE] }) }),
         },
       ];
 

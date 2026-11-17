@@ -48,6 +48,7 @@ const SHIPPED_DOCUMENTS = new Set([
   "docs/why-chain-contract.md",
   "docs/adding-a-discipline-or-mechanism.md",
   "docs/extending.md",
+  "docs/output-contract.md",
 ]);
 
 const SHIPPED_DATA = [/^rules\/[^/]+\/discipline\.json$/, /^rules\/.+\.md$/, /^methods\/.+\.md$/, /^mechanisms\/.+\.md$/];

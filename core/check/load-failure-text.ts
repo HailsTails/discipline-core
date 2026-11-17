@@ -12,6 +12,8 @@ const JUDGEMENT_CLAUSE_LISTED_REPAIR =
 const CONFIG_ROOT_REPAIR =
   "an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json";
 
+const SELECTION_ABSENT_REPAIR = "holds no disciplines.json; give the folder that holds it, usually the repository root";
+
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
@@ -59,7 +61,10 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
   switch (request.failure.kind) {
     case "arguments-invalid":
     case "git-failed":
+    case "unexpected-error":
       return [request.failure.detail];
+    case "selection-absent":
+      return [request.failure.repo, SELECTION_ABSENT_REPAIR];
     case "install-root-unresolvable":
       return [request.failure.url, request.failure.detail];
     case "file-unreadable":
