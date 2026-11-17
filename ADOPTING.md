@@ -18,11 +18,19 @@ Hone ships as one npm package tarball: built JavaScript with its own packages bu
 
 **The npm package is named `@hailstails/hone`.** The unscoped name `hone` on npm belongs to an unrelated package: never run `npm install hone`. The package `@hailstails/hone` installs one command, `hone`. Its tarball is named `hailstails-hone-<version>.tgz`, the file name `npm pack` gives a scoped package. Version `0.1.0-pre.1` was released under the old name `honed`; [MIGRATING.md](MIGRATING.md#11-moving-from-honed-to-hailstailshone) says how to move from it.
 
-The current version, `0.1.0-pre.2`, is a pre-release: its commands, flags and files may still change before `0.1.0`. This page writes the tarball's location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-0.1.0-pre.2.tgz`, or an `https://` URL your team serves it from.
+The current version, `0.1.0-pre.3`, is a pre-release: its commands, flags and files may still change before `0.1.0`.
 
-The main route is to download `hailstails-hone-0.1.0-pre.2.tgz` from the [`v0.1.0-pre.2` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.2` is pushed. Until that tag exists, build the tarball from a pinned commit as below; the earlier [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the previous pre-release under the old name `honed`.
+The main route is the npm registry. Pre-releases are published under the dist-tag `next`, so name it:
 
-The alternative is to build the tarball yourself from a pinned commit. Install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
+```bash
+npm install --save-dev @hailstails/hone@next
+```
+
+npm records it in `package.json`, and the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. With pnpm or Yarn, add `@hailstails/hone@next` with their own `add -D` command at the workspace root. `next` names the newest pre-release approved on npm, so it can trail the newest GitHub release for a while; [README.md](README.md#developing-hone) says how a version reaches npm.
+
+The alternative is a tarball, copied into the repository so every teammate and CI runner installs the same bytes without the registry. This page writes its location as `<hone-tarball>`: a path such as `vendor/hailstails-hone/hailstails-hone-0.1.0-pre.3.tgz`, or an `https://` URL your team serves it from. Download `hailstails-hone-0.1.0-pre.3.tgz` from the [`v0.1.0-pre.3` GitHub release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.3), which the release workflow creates, marked as a pre-release, when the tag `v0.1.0-pre.3` is pushed. Until that tag exists, use the [`v0.1.0-pre.2` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.2), or build the tarball from a pinned commit as below; the earlier [`v0.1.0-pre.1` release](https://github.com/HailsTails/hone/releases/tag/v0.1.0-pre.1) holds the first pre-release under the old name `honed`.
+
+To build the tarball yourself, install [bun](https://bun.sh) and pick the commit to pin, such as the latest on [`main`](https://github.com/HailsTails/hone/commits/main). Then run, with that commit's SHA in place of `<pinned-sha>`:
 
 ```bash
 git clone -c core.longpaths=true https://github.com/HailsTails/hone.git /tmp/hone-source
@@ -30,7 +38,7 @@ git -C /tmp/hone-source checkout <pinned-sha>
 cd /tmp/hone-source && bun install --frozen-lockfile && bun run pack-package && cd -
 ```
 
-The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-0.1.0-pre.2.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA, so every teammate and CI runner installs the same bytes. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
+The last command prints `pack package: wrote <path>/artefacts/hailstails-hone-0.1.0-pre.3.tgz`. Copy the downloaded or built tarball into `<repo>/vendor/hailstails-hone/` and commit it with a message naming the release tag or the pinned SHA. The commands in this guide are POSIX shell; on Windows run them in Git Bash.
 
 Install it as a development dependency of the repository root, beside the toolchain:
 
@@ -39,14 +47,6 @@ npm install --save-dev <hone-tarball>
 ```
 
 npm records it in `package.json` and the lockfile. With pnpm or Yarn, add the same tarball with their own `add -D` command at the workspace root.
-
-After the first registry publish of `@hailstails/hone`, the registry is a third route, with no tarball to copy or commit. Pre-releases are published under the dist-tag `next`, so name it:
-
-```bash
-npm install --save-dev @hailstails/hone@next
-```
-
-npm records the exact version it installed in the lockfile. Check the name before you run it: `@hailstails/hone`, never the unscoped `hone`. Until that first publish, npm answers this command with `404 Not Found`; use one of the tarball routes above.
 
 Add the two commands to the root `package.json` scripts:
 
@@ -72,7 +72,7 @@ A repository that already has them in range needs nothing more. A package that i
 
 Hone finds these by Node's resolution upward from where the package is installed, so in a monorepo they must resolve from the repository root: declare them in the root `package.json` (with pnpm, `pnpm add -Dw` at the versions the packages already use), even where packages also declare their own. Yarn Plug'n'Play is not supported, because Hone resolves the toolchain through `node_modules`.
 
-Commit `package.json`, the lockfile and the tarball if it is a file in the repository. To update later, repeat this step with a newer tarball.
+Commit `package.json`, the lockfile and the tarball if it is a file in the repository. To update later, run `npm install --save-dev @hailstails/hone@next` again, or repeat this step with a newer tarball.
 
 ## 3. Read what each discipline means
 
@@ -276,7 +276,7 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
-To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, the tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
+To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 
 ## Worked example
 
