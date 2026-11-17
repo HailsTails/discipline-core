@@ -134,7 +134,7 @@ describe("toolchainManifest, over this package's own package.json read as a buil
   });
 
   it.each([
-    { toolchain: "eslint-9-floor", eslint: "9.12.0" },
+    { toolchain: "eslint-9-floor", eslint: "9.28.0" },
     { toolchain: "eslint-10-floor", eslint: "10.0.0" },
   ] as const)("gives the $toolchain root every peer at its floor pin, ESLint at $eslint", ({ toolchain, eslint }) => {
     expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
@@ -217,13 +217,13 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 2,
       output:
-        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
     },
   },
 ];
 
 const WRONG_FIELD_REPORT =
-  "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\n";
+  "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n";
 
 const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
@@ -233,6 +233,7 @@ const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
 const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
   { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT },
+  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: SILENT },
   { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
 ];
 

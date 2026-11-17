@@ -31,13 +31,13 @@ const MODULE_EXTENSION = /\.js$/;
 
 const DECLARATION_EXTENSION = ".d.ts";
 
-const BUILT_EXTENSION = ".js";
+const ENTRY_MODULE_EXTENSION = ".mjs";
 
 const RELATIVE_SPECIFIER = /^\.\.?\//;
 
 const declarationPathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, DECLARATION_EXTENSION);
 
-const modulePathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, BUILT_EXTENSION);
+const modulePathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, ENTRY_MODULE_EXTENSION);
 
 export const typedExportOf = (request: { readonly entry: PublicTypeEntry }): TypedExport => ({
   subpath: request.entry.subpath,

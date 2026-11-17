@@ -7,7 +7,7 @@ const TWO_MAJORS: ToolchainRequirement = {
   packageName: "eslint",
   peer: "optional",
   lines: [
-    { floor: "9.12.0", below: "10.0.0" },
+    { floor: "9.28.0", below: "10.0.0" },
     { floor: "10.0.0", below: "11.0.0" },
   ],
 };
@@ -49,21 +49,21 @@ describe("supportedRange", () => {
     expect({
       twoMajors: supportedRange({ requirement: TWO_MAJORS }),
       span: supportedRange({ requirement: SPAN }),
-    }).toEqual({ twoMajors: "^9.12.0 || ^10.0.0", span: ">=4.8.4 <7.0.0" });
+    }).toEqual({ twoMajors: "^9.28.0 || ^10.0.0", span: ">=4.8.4 <7.0.0" });
   });
 });
 
 describe("versionSupport", () => {
   it.each([
-    { version: "9.12.0", support: "supported" },
+    { version: "9.28.0", support: "supported" },
     { version: "9.39.5", support: "supported" },
     { version: "10.0.0", support: "supported" },
     { version: "10.11.0", support: "supported" },
-    { version: "9.11.1", support: "unsupported" },
+    { version: "9.27.0", support: "unsupported" },
     { version: "8.57.1", support: "unsupported" },
     { version: "11.0.0", support: "unsupported" },
     { version: "not-a-version", support: "unsupported" },
-  ])("reads $version as $support against ^9.12.0 || ^10.0.0", ({ version, support }) => {
+  ])("reads $version as $support against ^9.28.0 || ^10.0.0", ({ version, support }) => {
     expect(versionSupport({ requirement: TWO_MAJORS, version })).toBe(support);
   });
 
@@ -77,7 +77,7 @@ describe("versionSupport", () => {
     expect(versionSupport({ requirement: SPAN, version })).toBe(support);
   });
 
-  it.each(["10.12.0-rc.0", "11.0.0-alpha.1", "9.12.0-beta"])(
+  it.each(["10.12.0-rc.0", "11.0.0-alpha.1", "9.28.0-beta"])(
     "reads the prerelease %s as unsupported, as npm's ranges leave prereleases out",
     (version) => {
       expect(versionSupport({ requirement: TWO_MAJORS, version })).toBe("unsupported");
@@ -93,7 +93,7 @@ describe("loadedPeer", () => {
   it("names the package as not installed when it does not resolve", async () => {
     await expect(loadedPeer({ ...peerAt({ version: "10.11.0" }), location: { installRoot: INSTALL_ROOT, installForm: "package", locate: vi.fn<PackageLocationPort["locate"]>().mockThrow(missingPackage({ packageName: "eslint" })) } })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
     });
   });
 
@@ -118,7 +118,7 @@ describe("loadedPeer", () => {
         kind: "toolchain-unavailable",
         packageName: "eslint",
         peer: "optional",
-        supported: "^9.12.0 || ^10.0.0",
+        supported: "^9.28.0 || ^10.0.0",
         found: "unloadable: node:eslint (the text is not a file: URL)",
       },
     });
@@ -178,7 +178,7 @@ describe("loadedPeer", () => {
   it("names the installed version when it is outside the supported range", async () => {
     await expect(loadedPeer(peerAt({ version: "8.57.1" }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "8.57.1" },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "8.57.1" },
     });
   });
 

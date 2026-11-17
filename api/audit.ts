@@ -1,4 +1,4 @@
-export type { RunnerFailure, PeerKind } from "../core/mechanism-port/runner-failure-types.ts";
+export type { PieceFailure } from "../core/mechanism-port/piece-failure-types.ts";
 export type { RunnerClause } from "../core/mechanism-port/runner-module-types.ts";
 export type { Hit } from "../core/mechanism-port/runner-result-types.ts";
 export type { Anchor, AnchorKind } from "../core/values/anchor.ts";

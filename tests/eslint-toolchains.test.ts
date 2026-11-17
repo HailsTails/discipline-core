@@ -24,7 +24,7 @@ describe("the ESLint lines of the development install", () => {
     { line: "eslint-10", version: /^10\./ },
     { line: "eslint-10-floor", version: /^10\.0\.0$/ },
     { line: "eslint-9", version: /^9\./ },
-    { line: "eslint-9-floor", version: /^9\.12\.0$/ },
+    { line: "eslint-9-floor", version: /^9\.28\.0$/ },
   ] as const)("loads the $line toolchain at its own ESLint version", async ({ line, version }) => {
     expect((await loadedEslintToolchain({ line })).eslintVersion).toMatch(version);
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultTypeScriptDeclarationPort } from "./typescript-declaration-port.ts";
+import { defaultParsePort } from "../tests/typescript-parse-port.ts";
+import { createDefaultTypeScriptDeclarationPort, publishedDeclarationText } from "./typescript-declaration-port.ts";
 
 const REPO_ROOT = `${import.meta.dirname}/..`;
 
@@ -9,12 +10,12 @@ const emitted = (request: { readonly entryPoints: readonly string[] }) => port.e
 
 describe("the TypeScript declaration port, emitting in memory with the repository's own TypeScript and tsconfig (CD-47: nothing is spawned or written)", () => {
   it("emits a declaration per source module the entry imports, without diagnostics", async () => {
-    await expect(emitted({ entryPoints: ["core/mechanism-port/runner-failure-types.ts"] })).resolves.toMatchObject({
+    await expect(emitted({ entryPoints: ["core/mechanism-port/piece-failure-types.ts"] })).resolves.toMatchObject({
       outcome: "ok",
       value: {
         diagnostics: [],
         declarations: [
-          { path: "core/mechanism-port/runner-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"] },
+          { path: "core/mechanism-port/piece-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"] },
           { path: "core/values/branded.d.ts", specifiers: [] },
           { path: "core/values/repo-path-types.d.ts", specifiers: ["./branded.js"] },
         ],
@@ -63,5 +64,106 @@ describe("the TypeScript declaration port, emitting in memory with the repositor
       outcome: "ok",
       value: { diagnostics: [expect.stringContaining("missing.ts")] },
     });
+  });
+});
+
+const syntaxApi = defaultParsePort.syntaxApi;
+
+const ONLY_TYPES = "a shipped declaration may hold only type declarations, type-only imports and type-only exports";
+
+const VALUE_RE_EXPORT = `a value re-export from ./other.js; ${ONLY_TYPES}`;
+
+describe("publishedDeclarationText, over declaration text parsed and printed with the repository's own TypeScript", () => {
+  it("drops exported values and export assignments, and keeps types and private declarations", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "entry.d.ts",
+        text: "export declare const answer: 1;\nexport declare function ask(): void;\nexport declare class Asker {\n}\nexport declare enum Mood {\n    Calm = 0\n}\nexport default answer;\nexport type Answer = 1;\ndeclare const brand: unique symbol;\n",
+      }),
+    ).toEqual({ text: "export type Answer = 1;\ndeclare const brand: unique symbol;\n", refusals: [] });
+  });
+
+  it("leaves a value out of a local export list, drops a list naming only values, and keeps the types beside them", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "entry.d.ts",
+        text: "declare const answer = 1;\ntype Answer = number;\nexport { answer, Answer };\nexport { answer as reply };\n",
+      }),
+    ).toEqual({ text: "declare const answer = 1;\ntype Answer = number;\nexport { Answer };\n", refusals: [] });
+  });
+
+});
+
+describe("publishedDeclarationText, refusing what a shipped declaration may not hold", () => {
+  it("refuses every value re-export from another module and keeps a type-only one", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "entry.d.ts",
+        text: 'export * from "./other.js";\nexport * as other from "./other.js";\nexport { answer } from "./other.js";\nexport type { Answer } from "./other.js";\n',
+      }),
+    ).toEqual({
+      text: 'export type { Answer } from "./other.js";\n',
+      refusals: [`entry.d.ts: ${VALUE_RE_EXPORT}`, `entry.d.ts: ${VALUE_RE_EXPORT}`, `entry.d.ts: ${VALUE_RE_EXPORT}`],
+    });
+  });
+
+  it("refuses a value imported and exported again, and an import-equals, as it refuses a value re-export", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "entry.d.ts",
+        text: 'import { answer } from "./other.js";\nexport { answer };\nimport reply = require("./other.js");\nexport { reply };\n',
+      }),
+    ).toEqual({
+      text: "export {};\n",
+      refusals: [
+        `entry.d.ts: a value import from ./other.js; ${ONLY_TYPES}`,
+        `entry.d.ts: "answer" is exported but is not a type declared or imported as a type here; ${ONLY_TYPES}`,
+        `entry.d.ts: the import-equals "reply"; ${ONLY_TYPES}`,
+        `entry.d.ts: "reply" is exported but is not a type declared or imported as a type here; ${ONLY_TYPES}`,
+      ],
+    });
+  });
+
+  it("keeps a type imported as a type and exported again", () => {
+    expect(publishedDeclarationText({ syntaxApi, path: "entry.d.ts", text: 'import type { Answer } from "./other.js";\nexport { Answer };\n' })).toEqual({
+      text: 'import type { Answer } from "./other.js";\nexport { Answer };\n',
+      refusals: [],
+    });
+  });
+
+  it("refuses namespaces, global and module augmentations, an exported import-equals and a global namespace export, exported or not", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "entry.d.ts",
+        text: 'export declare namespace Space {\n    const inner: 1;\n}\ndeclare namespace Hidden {\n}\nexport { Hidden };\ndeclare global {\n    var answer: 1;\n}\ndeclare module "other" {\n    export const answer: 1;\n}\nexport import Alias = Space;\nexport as namespace Hone;\n',
+      }),
+    ).toEqual({
+      text: "export {};\n",
+      refusals: [
+        `entry.d.ts: the module declaration "Space"; ${ONLY_TYPES}`,
+        `entry.d.ts: the module declaration "Hidden"; ${ONLY_TYPES}`,
+        `entry.d.ts: "Hidden" is exported but is not a type declared or imported as a type here; ${ONLY_TYPES}`,
+        `entry.d.ts: the module declaration "global"; ${ONLY_TYPES}`,
+        `entry.d.ts: the module declaration "other"; ${ONLY_TYPES}`,
+        `entry.d.ts: the import-equals "Alias"; ${ONLY_TYPES}`,
+        `entry.d.ts: "export as namespace Hone"; ${ONLY_TYPES}`,
+      ],
+    });
+  });
+
+});
+
+describe("publishedDeclarationText, keeping a file a module", () => {
+  it("marks a module whose every statement was dropped as a module still", () => {
+    expect(publishedDeclarationText({ syntaxApi, path: "entry.d.ts", text: "export declare const answer: 1;\n" })).toEqual({ text: "export {};\n", refusals: [] });
+  });
+
+  it("keeps an empty module marker so a types-only file stays a module", () => {
+    expect(publishedDeclarationText({ syntaxApi, path: "entry.d.ts", text: "type Local = 1;\nexport {};\n" })).toEqual({ text: "type Local = 1;\nexport {};\n", refusals: [] });
   });
 });

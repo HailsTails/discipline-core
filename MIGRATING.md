@@ -185,7 +185,7 @@ An install from before the [why-chain contract](docs/why-chain-contract.md) hold
 
 Hone is no longer installed by copying its source into the repository: this version ships no install files for that route. A copy of the source in `tools/discipline-core/` moves to the package, which gives the same reports from the same `disciplines.json` and `discipline-exceptions.json`, and runs on the repository's own toolchain. To move:
 
-1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.12.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
+1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.28.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
 2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says, including the two `hone:` scripts.
 3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check` (pass flags after `--`, as in `npm run --silent hone:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent hone:project`. Point agent instructions at `node_modules/@hailstails/hone/rules/`.
 4. **Remove the copy.** Delete `tools/discipline-core/`, its line in `.gitignore`, and its entry in `disciplines.json`'s `exclude`.

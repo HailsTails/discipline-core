@@ -1,4 +1,4 @@
-import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure-types.ts";
+import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { Hit } from "../../../core/mechanism-port/runner-result-types.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
@@ -15,7 +15,7 @@ export type PieceHit = {
 
 export type WalkerFile = {
   readonly file: RepoPath;
-  readonly readText: () => Result<string, RunnerFailure>;
+  readonly readText: () => Result<string, PieceFailure>;
 };
 
 export type SourceObservers = {
@@ -37,8 +37,8 @@ export type PreparedFileCheck =
     };
 
 export type PreparedWalkerCheck = {
-  readonly prepareFile: (request: WalkerFile) => Result<PreparedFileCheck, RunnerFailure>;
-  readonly finish: () => Result<readonly Hit[], RunnerFailure>;
+  readonly prepareFile: (request: WalkerFile) => Result<PreparedFileCheck, PieceFailure>;
+  readonly finish: () => Result<readonly Hit[], PieceFailure>;
 };
 
 export type WalkerRepository = {
@@ -51,5 +51,5 @@ export type WalkerPiece = {
     readonly clauses: readonly RunnerClause[];
     readonly repository: WalkerRepository;
     readonly syntaxApi: SyntaxApi;
-  }) => Result<PreparedWalkerCheck, RunnerFailure>;
+  }) => Result<PreparedWalkerCheck, PieceFailure>;
 };
