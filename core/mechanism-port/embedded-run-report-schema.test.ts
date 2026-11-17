@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { embeddedRunReportSchema } from "./embedded-run-report-schema.ts";
 
-const CLASS_SYNTAX = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
+const CLASS_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
 
 const HIT_IN_A = {
   clause: CLASS_SYNTAX,

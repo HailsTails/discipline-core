@@ -12,7 +12,7 @@ import {
 } from "./runner-result-schema.ts";
 
 const sharedClause = {
-  ruleSet: "shared",
+  ruleSet: "hone",
   discipline: "CD-14",
   clause: "no-class-syntax",
 };

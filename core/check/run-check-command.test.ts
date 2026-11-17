@@ -104,7 +104,7 @@ const TABLE_PATH: PathPort = {
 };
 
 const HIT_IN_A = {
-  clause: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+  clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
   file: "src/a.ts",
   anchor: { line: 3, column: 0 },
   snippet: "class A {}",

@@ -93,7 +93,7 @@ const git: GitPort = {
 };
 
 const PROBE_ADDRESS = { ruleSet: { name: "probe" }, discipline: "PD-1", clause: "no-tmp-files" };
-const EXPORT_TEST_SIBLING_ADDRESS = { ruleSet: "shared", discipline: "CD-23", clause: "export-test-sibling" };
+const EXPORT_TEST_SIBLING_ADDRESS = { ruleSet: "hone", discipline: "CD-23", clause: "export-test-sibling" };
 
 const probeCheck = () => {
   const parse = { ...defaultParsePort };
