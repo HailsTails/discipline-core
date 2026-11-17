@@ -3,6 +3,7 @@
   "ruleSets": {},
   "clauses": {
     "CD-2#cast-expressions": "audit",
+    "CD-2#non-null-assertions": "not-run",
     "CD-15#loops": "audit",
     "CD-17#clock-sources": "audit",
     "CD-23#export-test-sibling": "audit"
