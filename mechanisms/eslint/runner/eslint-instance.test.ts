@@ -653,14 +653,14 @@ describe("eslintOptionsOf, which asks every supported ESLint for the configurati
     });
   });
 
-  it.each(["9.12.0", "9.29.0"])("asks ESLint %s for the lookup by its unstable flag, the only name these releases accept", (version) => {
+  it.each(["9.28.0", "9.29.0"])("asks ESLint %s for the lookup by its unstable flag, the only name these releases accept", (version) => {
     expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({
       cwd: OPTIONS_CWD,
       flags: ["unstable_config_lookup_from_file"],
     });
   });
 
-  it.each(["9.12.0", "9.39.5", "10.11.0"])("names no lookup flag for ESLint %s when a configuration file is named", (version) => {
+  it.each(["9.28.0", "9.39.5", "10.11.0"])("names no lookup flag for ESLint %s when a configuration file is named", (version) => {
     expect(
       eslintOptionsOf({
         version,

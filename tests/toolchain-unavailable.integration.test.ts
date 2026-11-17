@@ -91,7 +91,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "eslint",
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
         },
       },
       pieceLoads: [],
@@ -106,7 +106,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
     });
     assert(checked.outcome === "failed", "the check fails to load");
     expect(loadFailureText({ failure: checked.error })).toBe(
-      "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+      "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
     );
   });
 

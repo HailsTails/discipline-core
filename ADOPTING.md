@@ -64,7 +64,7 @@ Hone runs on the toolchain the repository already uses, which the package declar
 | Package | Needed for | Range |
 | --- | --- | --- |
 | `typescript` | any `audit` clause | `>=4.8.4 <7.0.0` |
-| `eslint` | any `eslint` clause | `^9.12.0 \|\| ^10.0.0` |
+| `eslint` | any `eslint` clause | `^9.28.0 \|\| ^10.0.0` |
 | `@typescript-eslint/parser` | any `eslint` clause | `^8.56.0` |
 | `@typescript-eslint/eslint-plugin` | any `eslint` clause | `^8.56.0` |
 
@@ -156,7 +156,7 @@ In a monorepo, every `eslint.config.*` that applies to checked files spreads the
 { "eslintConfigLookup": "nearest-to-file" }
 ```
 
-Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.12 to 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
+Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.28 and 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
 
 Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
 
