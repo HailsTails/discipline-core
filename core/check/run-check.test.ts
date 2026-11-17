@@ -3,7 +3,7 @@ import { requiredEntry } from "../../tests/required-entry.ts";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { BaseFileText, BaseReadFailure, ChangeSetFailure, GitFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { BaseFileText, GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
@@ -369,8 +369,8 @@ const presentAtBase = (request: { readonly text: string }): Result<BaseFileText,
 
 const gitReporting = (request: {
   readonly trackedPaths: Result<readonly RepoPath[], GitFailure>;
-  readonly changedSince: Result<readonly RepoPath[], ChangeSetFailure>;
-  readonly textInBase?: Result<BaseFileText, BaseReadFailure>;
+  readonly changedSince: Result<readonly RepoPath[], GitFailure>;
+  readonly textInBase?: Result<BaseFileText, GitFailure>;
 }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue(request.trackedPaths),
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
@@ -523,42 +523,6 @@ describe("runCheck forfeiture measurement", () => {
     });
   });
 
-  it("reports forfeiture-unmeasured with the base not found when this clone does not hold it and a file carve-out exists", async () => {
-    await expect(
-      runCheck(
-        checkRequest({
-          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
-          git: gitReporting({
-            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
-            changedSince: { outcome: "failed", error: { kind: "base-absent" } },
-          }),
-        }),
-      ),
-    ).resolves.toMatchObject({
-      outcome: "ok",
-      value: { unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-found", revision: "main" } }] },
-    });
-  });
-
-  it("reports forfeiture-unmeasured with no merge base when a shallow clone holds no common ancestor and a file carve-out exists", async () => {
-    await expect(
-      runCheck(
-        checkRequest({
-          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
-          git: gitReporting({
-            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
-            changedSince: { outcome: "failed", error: { kind: "no-merge-base", clone: "shallow" } },
-          }),
-        }),
-      ),
-    ).resolves.toMatchObject({
-      outcome: "ok",
-      value: {
-        unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "main", clone: "shallow" } }],
-      },
-    });
-  });
-
   it("reports nothing unmeasured when no base revision is given and no file carve-out exists", async () => {
     await expect(runCheck(checkRequest({ baseRevision: undefined }))).resolves.toEqual({
       outcome: "ok",
@@ -623,7 +587,7 @@ describe("runCheck forfeiture measurement", () => {
     });
   });
 
-  it("reports import-unmeasured with the base not found when this clone does not hold it and an imported authorised location exists", async () => {
+  it("reports import-unmeasured with git's message when git cannot read the base and an imported authorised location exists", async () => {
     await expect(
       runCheck(
         checkRequest({
@@ -631,13 +595,17 @@ describe("runCheck forfeiture measurement", () => {
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
             changedSince: { outcome: "ok", value: [] },
-            textInBase: { outcome: "failed", error: { kind: "base-absent" } },
+            textInBase: { outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "fatal: Not a valid object name main" } },
           }),
         }),
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "not-found", revision: "main" } }] },
+      value: {
+        unmeasured: [
+          { kind: "import-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: Not a valid object name main" } },
+        ],
+      },
     });
   });
 

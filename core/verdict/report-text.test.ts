@@ -17,7 +17,7 @@ const suppressions = repoPathSchema.parse("eslint-suppressions.json");
 const audit = mechanismIdSchema.parse("audit");
 const eslint = mechanismIdSchema.parse("eslint");
 const SLICE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
-const PROJECT_COMMAND = "node node_modules/@hailstails/hone/core/check/tool-command.js project --repo .";
+const PROJECT_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop";
 
 const finding: Finding = {
   clause: noClass,
@@ -419,55 +419,35 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it.each<readonly [Unmeasured, string]>([
     [
       { kind: "forfeiture-unmeasured", base: { state: "not-given" } },
-      "forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main",
-    ],
-    [
-      { kind: "forfeiture-unmeasured", base: { state: "not-found", revision: "origin/main" } },
-      "forfeiture-unmeasured base-not-found \"origin/main\": this clone holds no commit by that name; fetch it, or pass --base-revision with a revision this clone holds",
-    ],
-    [
-      { kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "origin/main", clone: "shallow" } },
-      "forfeiture-unmeasured no-merge-base \"origin/main\": this shallow clone holds no commit that revision and HEAD share; deepen it with git fetch --deepen=<commits> until they share one, or fetch the whole history with git fetch --unshallow (with actions/checkout, set fetch-depth: 0)",
-    ],
-    [
-      { kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "origin/main", clone: "complete" } },
-      "forfeiture-unmeasured no-merge-base \"origin/main\": HEAD shares no history with that revision; pass --base-revision with the revision this branch started from",
+      "forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with \"assessment\": { \"forfeiture\": \"elsewhere\" } in disciplines.json or --forfeiture elsewhere",
     ],
     [
       { kind: "forfeiture-unmeasured", base: { state: "git-failed", revision: "HEAD@{1 week ago}", gitMessage: "fatal: bad \"range\"" } },
-      "forfeiture-unmeasured base-git-failed \"HEAD@{1 week ago}\": git could not list the files changed since that revision and said \"fatal: bad \\\"range\\\"\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
+      "forfeiture-unmeasured base-git-failed \"HEAD@{1 week ago}\": git could not list the files changed since that revision and said \"fatal: bad \\\"range\\\"\"; Hone needs that revision and the history back to where this branch left it, or leave decay to another run with \"assessment\": { \"forfeiture\": \"elsewhere\" } in disciplines.json or --forfeiture elsewhere",
     ],
     [
       { kind: "import-unmeasured", base: { state: "not-given" } },
       "import-unmeasured no-base-revision: no --base-revision was given, so imported records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main",
     ],
     [
-      { kind: "import-unmeasured", base: { state: "not-found", revision: ":/fix: the base" } },
-      "import-unmeasured base-not-found \":/fix: the base\": this clone holds no commit by that name; fetch that one commit (a fetch of depth 1 is enough), or pass --base-revision with a revision this clone holds",
-    ],
-    [
       { kind: "import-unmeasured", base: { state: "git-failed", revision: "HEAD", gitMessage: "fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'" } },
-      "import-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
+      "import-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; Hone needs the exception records as they were at that revision",
     ],
     [
       { kind: "legacy-chain-unmeasured", base: { state: "not-given" } },
       "legacy-chain-unmeasured no-base-revision: no --base-revision was given, so legacy-chain records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main",
     ],
     [
-      { kind: "legacy-chain-unmeasured", base: { state: "not-found", revision: "origin/main" } },
-      "legacy-chain-unmeasured base-not-found \"origin/main\": this clone holds no commit by that name; fetch that one commit (a fetch of depth 1 is enough), or pass --base-revision with a revision this clone holds",
-    ],
-    [
       { kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "HEAD", gitMessage: "fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'" } },
-      "legacy-chain-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
+      "legacy-chain-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; Hone needs the exception records as they were at that revision",
     ],
     [
       { kind: "mechanism-not-run", mechanism: eslint, projection: "missing" },
-      "mechanism-not-run eslint missing: disciplines.eslint.mjs is not written; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+      "mechanism-not-run eslint missing: disciplines.eslint.mjs is not written; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mjs it writes",
     ],
     [
       { kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] },
-      "mechanism-not-run eslint not-included: the eslint configuration does not apply disciplines.eslint.mjs; spread its default export last in that configuration, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
+      "mechanism-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.eslint.mjs, or of a package's own disciplines.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
     ],
   ])("renders the unmeasured entry %o as the line with its reason and next step", (unmeasured, line) => {
     expect(
@@ -478,19 +458,19 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it.each<readonly [ProjectionProblem, string]>([
     [
       { scope: "projection", mechanism: eslint, state: "out-of-date" },
-      "eslint out-of-date: disciplines.eslint.mjs differs from what hone project writes now; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+      "eslint out-of-date: disciplines.eslint.mjs differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mjs it writes",
     ],
     [
       { scope: "slice", mechanism: eslint, state: "out-of-date", slice: SLICE },
-      "eslint out-of-date packages/a/disciplines.eslint.mjs: that slice differs from what hone project writes now; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+      "eslint out-of-date packages/a/disciplines.eslint.mjs: that slice differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mjs it writes",
     ],
     [
       { scope: "slice", mechanism: eslint, state: "missing", slice: SLICE },
-      "eslint missing packages/a/disciplines.eslint.mjs: that slice is not written; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+      "eslint missing packages/a/disciplines.eslint.mjs: that slice is not written; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mjs it writes",
     ],
     [
       { scope: "slice", mechanism: eslint, state: "not-applied", slice: SLICE },
-      "eslint not-applied packages/a/disciplines.eslint.mjs: the eslint configuration for packages/a leaves records of that slice out of effect; spread the default export of packages/a/disciplines.eslint.mjs last in that package's configuration, in place of the root disciplines.eslint.mjs, or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
+      "eslint not-applied packages/a/disciplines.eslint.mjs: the eslint configuration for packages/a leaves records of that slice out of effect; spread the default export of packages/a/disciplines.eslint.mjs last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
     ],
     [
       { scope: "slice", mechanism: eslint, state: "unconfigured", slice: SLICE },
@@ -502,7 +482,35 @@ exceptions[4] why-chain-refused why 2\nis empty\r
     ).toContain(`\n${line}\n`);
   });
 
-  it("names the folders holding their own disciplines.json on a not-included line in the failures-only output, without marking the verdict partial", () => {
+  it("points a not-included line at the slice lines when the mechanism reports package slices", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          unmeasured: [{ kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] }],
+          projectionProblems: [{ scope: "slice", mechanism: eslint, state: "not-applied", slice: SLICE }],
+        },
+      }),
+    ).toContain(`\n${"mechanism-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.eslint.mjs, or of a package's own disciplines.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the eslint lines under projectionProblems name the package slices involved"}\n`);
+  });
+
+  it("does not point a not-included line at another mechanism's slice lines", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          unmeasured: [{ kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] }],
+          projectionProblems: [{ scope: "slice", mechanism: audit, state: "not-applied", slice: SLICE }],
+        },
+      }),
+    ).toContain(`\n${"mechanism-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.eslint.mjs, or of a package's own disciplines.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes"}\n`);
+  });
+
+  it("adds the folders holding their own disciplines.json to a not-included line in the failures-only output, without marking the verdict partial", () => {
     expect(
       renderReportText({
         projectCommand: PROJECT_COMMAND,
@@ -519,7 +527,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
           ],
         },
       }),
-    ).toBe(`unmeasured (1)\n${"mechanism-not-run eslint not-included fixtures/a, fixtures/b: the eslint configuration of those folders is not managed from this repository, as each holds its own disciplines.json, and it leaves records there out of effect; exclude those folders in this repository's disciplines.json and record their exceptions in each folder's own discipline-exceptions.json, as nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72)"}\nverdict: fail\n`);
+    ).toBe(`unmeasured (1)\n${"mechanism-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.eslint.mjs, or of a package's own disciplines.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; fixtures/a, fixtures/b hold their own disciplines.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop, which writes its slice"}\nverdict: fail\n`);
   });
 
   it("names the command it was given to refresh a projection", () => {

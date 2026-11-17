@@ -6,7 +6,7 @@ import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
-import type { ChangeSetBase } from "../values/base-revision-availability.ts";
+import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type {
   AssessmentFileNote,
   CheckReport,
@@ -86,52 +86,55 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
   }
 };
 
-type RecordsUnmeasured = Extract<Unmeasured, { readonly kind: "import-unmeasured" | "legacy-chain-unmeasured" }>;
+type BaseDependentUnmeasured = Extract<Unmeasured, { readonly base: BaseRevisionAvailability }>;
 
 type MechanismNotRun = Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
 
 const PASS_A_BASE = "pass --base-revision with the branch's base, such as origin/main";
 
-const NO_SUCH_COMMIT = "this clone holds no commit by that name";
+const LEAVE_DECAY_ELSEWHERE =
+  'leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere';
 
-const FIX_WHAT_GIT_REPORTS = "fix what git reports (Hone needs git 2.24 or later), then run the check again";
+const RECORDS_AT_BASE = "Hone needs the exception records as they were at that revision";
 
-const RECORDS_CHECKED_AGAINST_A_BASE: Readonly<Record<RecordsUnmeasured["kind"], string>> = {
-  "import-unmeasured": "imported records",
-  "legacy-chain-unmeasured": "legacy-chain records",
+type BaseNeeds = {
+  readonly unchecked: string;
+  readonly nextStep: string;
+  readonly gitAttempt: string;
+  readonly needs: string;
 };
 
-const NO_MERGE_BASE_IN: Readonly<Record<"shallow" | "complete", string>> = {
-  shallow:
-    "this shallow clone holds no commit that revision and HEAD share; deepen it with git fetch --deepen=<commits> until they share one, or fetch the whole history with git fetch --unshallow (with actions/checkout, set fetch-depth: 0)",
-  complete: "HEAD shares no history with that revision; pass --base-revision with the revision this branch started from",
+const BASE_NEEDS: Readonly<Record<BaseDependentUnmeasured["kind"], BaseNeeds>> = {
+  "forfeiture-unmeasured": {
+    unchecked: "file carve-outs cannot be checked for decay",
+    nextStep: `${PASS_A_BASE}, or ${LEAVE_DECAY_ELSEWHERE}`,
+    gitAttempt: "list the files changed since that revision",
+    needs: `Hone needs that revision and the history back to where this branch left it, or ${LEAVE_DECAY_ELSEWHERE}`,
+  },
+  "import-unmeasured": {
+    unchecked: "imported records cannot be checked against it",
+    nextStep: PASS_A_BASE,
+    gitAttempt: "read the exception records at that revision",
+    needs: RECORDS_AT_BASE,
+  },
+  "legacy-chain-unmeasured": {
+    unchecked: "legacy-chain records cannot be checked against it",
+    nextStep: PASS_A_BASE,
+    gitAttempt: "read the exception records at that revision",
+    needs: RECORDS_AT_BASE,
+  },
 };
 
 const quoted = (request: { readonly text: string }): string => JSON.stringify(request.text);
 
-const forfeitureLine = (request: { readonly base: ChangeSetBase }): string => {
-  const { base } = request;
-  switch (base.state) {
-    case "not-given":
-      return `forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; ${PASS_A_BASE}`;
-    case "not-found":
-      return `forfeiture-unmeasured base-not-found ${quoted({ text: base.revision })}: ${NO_SUCH_COMMIT}; fetch it, or pass --base-revision with a revision this clone holds`;
-    case "no-merge-base":
-      return `forfeiture-unmeasured no-merge-base ${quoted({ text: base.revision })}: ${NO_MERGE_BASE_IN[base.clone]}`;
-    case "git-failed":
-      return `forfeiture-unmeasured base-git-failed ${quoted({ text: base.revision })}: git could not list the files changed since that revision and said ${quoted({ text: base.gitMessage })}; ${FIX_WHAT_GIT_REPORTS}`;
-  }
-};
-
-const recordsLine = (request: { readonly unmeasured: RecordsUnmeasured }): string => {
+const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasured }): string => {
   const { kind, base } = request.unmeasured;
+  const needs = BASE_NEEDS[kind];
   switch (base.state) {
     case "not-given":
-      return `${kind} no-base-revision: no --base-revision was given, so ${RECORDS_CHECKED_AGAINST_A_BASE[kind]} cannot be checked against it; ${PASS_A_BASE}`;
-    case "not-found":
-      return `${kind} base-not-found ${quoted({ text: base.revision })}: ${NO_SUCH_COMMIT}; fetch that one commit (a fetch of depth 1 is enough), or pass --base-revision with a revision this clone holds`;
+      return `${kind} no-base-revision: no --base-revision was given, so ${needs.unchecked}; ${needs.nextStep}`;
     case "git-failed":
-      return `${kind} base-git-failed ${quoted({ text: base.revision })}: git could not read the exception records at that revision and said ${quoted({ text: base.gitMessage })}; ${FIX_WHAT_GIT_REPORTS}`;
+      return `${kind} base-git-failed ${quoted({ text: base.revision })}: git could not ${needs.gitAttempt} and said ${quoted({ text: base.gitMessage })}; ${needs.needs}`;
   }
 };
 
@@ -146,20 +149,32 @@ const refreshStep = (request: ProjectionRequest & { readonly mechanism: Mechanis
 
 const GENERATED_CONFIGURATION = "or, where a tool such as sku generates the configuration, last in the configuration the tool takes";
 
-const notIncludedLine = (request: { readonly unmeasured: Extract<MechanismNotRun, { readonly projection: "not-included" }> }): string => {
+type ReportRequest = ProjectionRequest & { readonly report: CheckReport };
+
+const sliceNote = (request: ReportRequest & { readonly mechanism: MechanismId }): string =>
+  request.report.projectionProblems.some((problem) => problem.scope === "slice" && problem.mechanism === request.mechanism)
+    ? `; the ${request.mechanism} lines under projectionProblems name the package slices involved`
+    : "";
+
+const nestedNote = (request: ProjectionRequest & { readonly folders: readonly RepoPath[] }): string =>
+  request.folders.length === 0
+    ? ""
+    : `; ${request.folders.join(", ")} hold their own disciplines.json, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run ${request.projectCommand}, which writes its slice`;
+
+const notIncludedLine = (
+  request: ReportRequest & { readonly unmeasured: Extract<MechanismNotRun, { readonly projection: "not-included" }> },
+): string => {
   const { mechanism, nestedConfigurations } = request.unmeasured;
-  const subject = `mechanism-not-run ${mechanism} not-included`;
-  return nestedConfigurations.length === 0
-    ? `${subject}: the ${mechanism} configuration does not apply ${projectionFileOf({ mechanism })}; spread its default export last in that configuration, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}`
-    : `${subject} ${nestedConfigurations.join(", ")}: the ${mechanism} configuration of those folders is not managed from this repository, as each holds its own disciplines.json, and it leaves records there out of effect; exclude those folders in this repository's disciplines.json and record their exceptions in each folder's own discipline-exceptions.json, as nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE})`;
+  const file = projectionFileOf({ mechanism });
+  return `mechanism-not-run ${mechanism} not-included: the ${mechanism} configuration leaves the projection out of effect for a file under check; spread the default export of ${file}, or of a package's own ${file} in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}${sliceNote({ ...request, mechanism })}${nestedNote({ ...request, folders: nestedConfigurations })}`;
 };
 
-const mechanismNotRunLine = (request: ProjectionRequest & { readonly unmeasured: MechanismNotRun }): string => {
+const mechanismNotRunLine = (request: ReportRequest & { readonly unmeasured: MechanismNotRun }): string => {
   switch (request.unmeasured.projection) {
     case "missing":
       return `mechanism-not-run ${request.unmeasured.mechanism} missing: ${projectionFileOf(request.unmeasured)} is not written; ${refreshStep({ ...request, mechanism: request.unmeasured.mechanism })}`;
     case "not-included":
-      return notIncludedLine({ unmeasured: request.unmeasured });
+      return notIncludedLine({ ...request, unmeasured: request.unmeasured });
   }
 };
 
@@ -176,7 +191,7 @@ const sliceProblemReason = (request: ProjectionRequest & { readonly problem: Sli
     case "missing":
       return `that slice is not written; ${refreshStep({ ...request, mechanism })}`;
     case "not-applied":
-      return `the ${mechanism} configuration for ${folder} leaves records of that slice out of effect; spread the default export of ${slice} last in that package's configuration, in place of the root ${projectionFileOf({ mechanism })}, ${GENERATED_CONFIGURATION}`;
+      return `the ${mechanism} configuration for ${folder} leaves records of that slice out of effect; spread the default export of ${slice} last in that package's configuration, in place of any other projection it spreads, ${GENERATED_CONFIGURATION}`;
     case "unconfigured":
       return `${folder} has no ${mechanism} configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check`;
   }
@@ -192,13 +207,12 @@ const projectionProblemLine = (request: ProjectionRequest & { readonly problem: 
   }
 };
 
-const unmeasuredLine = (request: ProjectionRequest & { readonly unmeasured: Unmeasured }): string => {
+const unmeasuredLine = (request: ReportRequest & { readonly unmeasured: Unmeasured }): string => {
   switch (request.unmeasured.kind) {
     case "forfeiture-unmeasured":
-      return forfeitureLine(request.unmeasured);
     case "import-unmeasured":
     case "legacy-chain-unmeasured":
-      return recordsLine({ unmeasured: request.unmeasured });
+      return baseDependentLine({ unmeasured: request.unmeasured });
     case "mechanism-not-run":
       return mechanismNotRunLine({ ...request, unmeasured: request.unmeasured });
   }

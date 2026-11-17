@@ -9,14 +9,16 @@ import type {
   Finding,
 } from "../governance/governance.ts";
 import type { FilePresence } from "../platform-ports/file-text-port.ts";
-import type { BaseRevisionAvailability, ChangeSetBase } from "../values/base-revision-availability.ts";
+import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 
 export type Unmeasured =
-  | { readonly kind: "forfeiture-unmeasured"; readonly base: ChangeSetBase }
-  | { readonly kind: "import-unmeasured" | "legacy-chain-unmeasured"; readonly base: BaseRevisionAvailability }
+  | {
+      readonly kind: "forfeiture-unmeasured" | "import-unmeasured" | "legacy-chain-unmeasured";
+      readonly base: BaseRevisionAvailability;
+    }
   | {
       readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;

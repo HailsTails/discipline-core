@@ -62,7 +62,7 @@ describe("checkCommandOutcome", () => {
       }),
     ).toEqual({
       code: 1,
-      text: "unmeasured (1)\nforfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main\nverdict: fail\n",
+      text: "unmeasured (1)\nforfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with \"assessment\": { \"forfeiture\": \"elsewhere\" } in disciplines.json or --forfeiture elsewhere\nverdict: fail\n",
     });
   });
 

@@ -73,7 +73,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   if (installRoot.outcome === "failed") {
     return installRoot;
   }
-  const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repo: parsed.value.repo });
+  const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repoRoot: repoRoot.value });
   if (projectCommand.outcome === "failed") {
     return projectCommand;
   }

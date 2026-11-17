@@ -24,7 +24,7 @@ import {
   runnerModuleSchema,
 } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { BaseReadFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
@@ -271,7 +271,7 @@ const textsInBase = (request: {
   readonly check: CheckRequest;
   readonly baseRevision: string;
   readonly files: readonly RepoPath[];
-}): Result<ReadonlyMap<RepoPath, string>, BaseReadFailure> => {
+}): Result<ReadonlyMap<RepoPath, string>, GitFailure> => {
   const readings = request.files.map((file) => ({
     file,
     reading: request.check.git.textInBase({ repoRoot: request.check.repoRoot, baseRevision: request.baseRevision, file }),

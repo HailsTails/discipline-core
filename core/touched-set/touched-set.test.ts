@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ChangeSetFailure, GitFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
@@ -103,35 +103,9 @@ describe("computeTouchedSet", () => {
     });
   });
 
-  it.each<readonly [ChangeSetFailure, TouchedSet]>([
-    [{ kind: "base-absent" }, { measured: "no", base: { state: "not-found", revision: "abc123" } }],
-    [
-      { kind: "no-merge-base", clone: "shallow" },
-      { measured: "no", base: { state: "no-merge-base", revision: "abc123", clone: "shallow" } },
-    ],
-    [
-      { kind: "no-merge-base", clone: "complete" },
-      { measured: "no", base: { state: "no-merge-base", revision: "abc123", clone: "complete" } },
-    ],
-  ])("is unmeasured with the base state git found for %o", (failure, touched) => {
-    expect(
-      computeTouchedSet({
-        repoRoot: REPO_ROOT,
-        baseRevision: "abc123",
-        git: fakeGit(() => ({ outcome: "failed", error: failure })),
-      }),
-    ).toEqual(touched);
-  });
 });
 
 describe("baseRevisionAvailabilityOf", () => {
-  it("is not-found when the base names no commit in this clone", () => {
-    expect(baseRevisionAvailabilityOf({ revision: "origin/main", failure: { kind: "base-absent" } })).toEqual({
-      state: "not-found",
-      revision: "origin/main",
-    });
-  });
-
   it("keeps the first line git wrote when git fails otherwise", () => {
     expect(
       baseRevisionAvailabilityOf({
