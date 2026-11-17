@@ -1765,14 +1765,14 @@ describe("native exceptions: lint-script options whose effect the script's own f
 describe("native exceptions: why a lint-script option is reported", () => {
   it.each([
     {
-      script: "tsc && eslint -c eslint.config.mjs .",
+      script: "tsc && TIMING=1 eslint -c eslint.config.mjs .",
       option: "-c eslint.config.mjs",
-      cause: { kind: "not-plain", command: "eslint", invocation: "eslint -c eslint.config.mjs ." },
+      cause: { kind: "after-another-command", command: "eslint", invocation: "TIMING=1 eslint -c eslint.config.mjs ." },
     },
     {
       script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .",
       option: "--ignore-pattern legacy/**",
-      cause: { kind: "not-plain", command: "eslint", invocation: "eslint --ignore-pattern 'legacy/**' ." },
+      cause: { kind: "wrapped", command: "eslint", wrapper: "env" },
     },
     {
       script: "tsc && eslint --rule 'hone/no-class-authoring: off' .",
@@ -1801,7 +1801,12 @@ describe("native exceptions: why a lint-script option is reported", () => {
 });
 
 describe("native exceptions: lint-script options a plain invocation settles", () => {
-  it.each(["eslint --ignore-pattern dist --cache .", "pnpm exec eslint --ignore-pattern dist --cache .", "npx eslint --ignore-pattern dist --cache ."])(
+  it.each([
+    "eslint --ignore-pattern dist --cache .",
+    "pnpm exec eslint --ignore-pattern dist --cache .",
+    "npx eslint --ignore-pattern dist --cache .",
+    "cross-env NODE_OPTIONS=--max-old-space-size=4096 eslint --ignore-pattern dist --cache .",
+  ])(
     "reports nothing for %s when the pattern ignores no checked file",
     async (script) => {
       await expect(

@@ -3,7 +3,7 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { ConfigFileSearch, EslintPort, QueryInstance } from "./eslint-instance.ts";
-import type { OptionEffect, ScriptOption } from "./package-script-scanner.ts";
+import type { NotPlainReason, OptionEffect, ScriptOption } from "./package-script-scanner.ts";
 import { scriptOptionJudge } from "./script-option-effect.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
@@ -15,9 +15,8 @@ const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 
 const optionAt = (request: { readonly location: typeof ROOT_PACKAGE; readonly effect: OptionEffect }): ScriptOption => ({
   ...request,
-  settlement: "settled",
+  settlement: { kind: "settled" },
   command: "eslint",
-  invocation: "eslint .",
   exceptions: [],
 });
 
@@ -53,7 +52,7 @@ describe("scriptOptionJudge, an option that always weakens the run", () => {
     const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
     await expect(
       judgeOver({ ignoredByPatterns })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "weakens" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
     expect(ignoredByPatterns).not.toHaveBeenCalled();
   });
 });
@@ -66,27 +65,32 @@ describe("scriptOptionJudge, what is not positively settled", () => {
     const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
     await expect(
-      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "unresolved" } }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: { kind: "unresolved" } } }),
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
     expect({ configs: vi.mocked(query.configFileOf).mock.calls, ignores: ignoredByPatterns.mock.calls }).toEqual({ configs: [], ignores: [] });
   });
 
-  it.each<OptionEffect>([
-    { kind: "names-config", config: "eslint.config.mjs" },
-    { kind: "ignores-pattern", pattern: "legacy/**" },
-  ])("reports $kind as not judged when eslint is not run plainly, without asking ESLint anything", async (effect) => {
+  it.each<{ readonly effect: OptionEffect; readonly reason: NotPlainReason }>([
+    { effect: { kind: "names-config", config: "eslint.config.mjs" }, reason: { kind: "after-another-command", invocation: "eslint ." } },
+    { effect: { kind: "ignores-pattern", pattern: "legacy/**" }, reason: { kind: "wrapped", wrapper: "env" } },
+  ])("reports $effect.kind as not judged, for the reason eslint is not run plainly, without asking ESLint anything", async ({ effect, reason }) => {
     const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>();
     await expect(
-      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: "not-plain" } }),
-    ).resolves.toEqual({ outcome: "ok", value: "not-plain" });
+      judgeOver({ query, ignoredByPatterns })({ option: { ...optionAt({ location: ROOT_PACKAGE, effect }), settlement: { kind: "not-plain", reason } } }),
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "not-plain", reason } });
     expect({ configs: vi.mocked(query.configFileOf).mock.calls, ignores: ignoredByPatterns.mock.calls }).toEqual({ configs: [], ignores: [] });
   });
 
   it("weakens an option that always weakens even when eslint is not run plainly", async () => {
     await expect(
-      judgeOver({})({ option: { ...optionAt({ location: ROOT_PACKAGE, effect: { kind: "weakens" } }), settlement: "not-plain" } }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+      judgeOver({})({
+        option: {
+          ...optionAt({ location: ROOT_PACKAGE, effect: { kind: "weakens" } }),
+          settlement: { kind: "not-plain", reason: { kind: "wrapped", wrapper: "env" } },
+        },
+      }),
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 
   it.each<OptionEffect>([
@@ -97,7 +101,7 @@ describe("scriptOptionJudge, what is not positively settled", () => {
       judgeOver({ query: queryFinding(foundAt("/repo/tools/eslint.config.mjs")) })({
         option: optionAt({ location: repoPathSchema.parse("tools/package.json"), effect }),
       }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 });
 
@@ -108,7 +112,7 @@ describe("scriptOptionJudge, a config option", () => {
       judgeOver({ query })({
         option: optionAt({ location: NESTED_PACKAGE, effect: { kind: "names-config", config: "eslint.config.mjs" } }),
       }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens-nothing" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens-nothing" } });
     expect(vi.mocked(query.configFileOf).mock.calls).toEqual([[{ file: NESTED_FILE }]]);
   });
 
@@ -118,33 +122,33 @@ describe("scriptOptionJudge, a config option", () => {
       judgeOver({ query })({
         option: optionAt({ location: NESTED_PACKAGE, effect: { kind: "names-config", config: "../../eslint.config.mjs" } }),
       }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens-nothing" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens-nothing" } });
   });
 
   it("weakens when any checked file in the script's folder is governed by another config", async () => {
     const query = queryFindingInTurn({ first: foundAt("/repo/eslint.config.mjs"), second: foundAt("/repo/packages/a/eslint.config.mjs") });
     await expect(
       judgeOver({ query })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "eslint.config.mjs" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 
   it("weakens when it names a config other than the one the team's ESLint finds", async () => {
     const query = queryFinding(foundAt("/repo/eslint.config.mjs"));
     await expect(
       judgeOver({ query })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "alt.config.mjs" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 
   it("weakens when no config is found for a checked file", async () => {
     await expect(
       judgeOver({})({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "eslint.config.mjs" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 
   it("weakens when it names a path outside the repository", async () => {
     await expect(
       judgeOver({})({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "names-config", config: "../shared/eslint.config.mjs" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 });
 
@@ -155,7 +159,7 @@ describe("scriptOptionJudge, an ignore pattern", () => {
       judgeOver({ ignoredByPatterns })({
         option: optionAt({ location: NESTED_PACKAGE, effect: { kind: "ignores-pattern", pattern: "dist/**" } }),
       }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens-nothing" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens-nothing" } });
     expect(ignoredByPatterns.mock.calls).toEqual([
       [{ cwd: "/repo/packages/a", patterns: ["dist/**"], paths: ["src/b.ts"] }],
     ]);
@@ -165,7 +169,7 @@ describe("scriptOptionJudge, an ignore pattern", () => {
     const ignoredByPatterns = vi.fn<EslintPort["ignoredByPatterns"]>().mockResolvedValue({ outcome: "ok", value: ["checked", "ignored"] });
     await expect(
       judgeOver({ ignoredByPatterns })({ option: optionAt({ location: ROOT_PACKAGE, effect: { kind: "ignores-pattern", pattern: "packages/**" } }) }),
-    ).resolves.toEqual({ outcome: "ok", value: "weakens" });
+    ).resolves.toEqual({ outcome: "ok", value: { kind: "weakens" } });
   });
 
   it("passes ESLint's failure on the pattern through", async () => {

@@ -19,7 +19,8 @@ export const inlineDisableSchema = z
 
 const scriptOptionCauseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("weakens-run") }).readonly(),
-  z.object({ kind: z.literal("not-plain"), command: z.string(), invocation: z.string() }).readonly(),
+  z.object({ kind: z.literal("after-another-command"), command: z.string(), invocation: z.string() }).readonly(),
+  z.object({ kind: z.literal("wrapped"), command: z.string(), wrapper: z.string() }).readonly(),
 ]);
 
 export const nativeExceptionSchema = z.discriminatedUnion("kind", [

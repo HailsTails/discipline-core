@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import type { Finding } from "../governance/governance.ts";
+import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -366,7 +367,18 @@ exceptions[4] why-chain-refused why 2\nis empty\r
     ).toContain("\nCD-14#no-class-syntax eslint command-line-option package.json lint --rule no-class:off weakens the script's whole run, so no record can cover it: remove it from the script\n");
   });
 
-  it("renders an option in a script where eslint is not the only command with the script's own eslint invocation as the way out", () => {
+  it.each<{ readonly option: string; readonly cause: ScriptOptionCause; readonly note: string }>([
+    {
+      option: "-c eslint.config.mjs",
+      cause: { kind: "after-another-command", command: "eslint", invocation: "TIMING=1 eslint -c eslint.config.mjs ." },
+      note: ': eslint is not the first command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as "TIMING=1 eslint -c eslint.config.mjs ."',
+    },
+    {
+      option: "--ignore-pattern dist",
+      cause: { kind: "wrapped", command: "eslint", wrapper: "-y" },
+      note: ': "-y" comes before eslint and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before eslint',
+    },
+  ])("renders $option with the reason $cause.kind gives and its way out", ({ option, cause, note }) => {
     expect(
       renderReportText({
         projectCommand: PROJECT_COMMAND,
@@ -374,21 +386,13 @@ exceptions[4] why-chain-refused why 2\nis empty\r
         report: {
           ...emptyReport,
           unrecorded: [
-            {
-              kind: "command-line-option",
-              clause: noClass,
-              location: packageJson,
-              script: "lint",
-              option: "-c eslint.config.mjs",
-              cause: { kind: "not-plain", command: "eslint", invocation: "eslint -c eslint.config.mjs ." },
-              mechanism: eslint,
-            },
+            { kind: "command-line-option", clause: noClass, location: packageJson, script: "lint", option, cause, mechanism: eslint },
           ],
         },
       }),
-    ).toContain(
-      '\nCD-14#no-class-syntax eslint command-line-option package.json lint -c eslint.config.mjs: eslint is not the only command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as "eslint -c eslint.config.mjs ."\n',
-    );
+    ).toContain(`
+CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${note}
+`);
   });
 
   it("renders an invalid record that carries a detail as its index, problem kind and detail", () => {

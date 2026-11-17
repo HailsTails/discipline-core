@@ -55,12 +55,16 @@ const INLINE_REACH_NOTE: Readonly<Record<InlineReach, string>> = {
   "every-selected-clause": " names no rule and escapes every selected clause: naming the rule is the cheap fix",
 };
 
+const UNJUDGED_OPTION = "so Hone cannot tell what the option does to the files under check";
+
 const scriptOptionNote = (request: { readonly cause: ScriptOptionCause }): string => {
   switch (request.cause.kind) {
     case "weakens-run":
       return " weakens the script's whole run, so no record can cover it: remove it from the script";
-    case "not-plain":
-      return `: ${request.cause.command} is not the only command of its script, so Hone cannot tell what the option does to the files under check; give ${request.cause.command} a script of its own, such as ${quoted({ text: request.cause.invocation })}`;
+    case "after-another-command":
+      return `: ${request.cause.command} is not the first command of its script, ${UNJUDGED_OPTION}; give ${request.cause.command} a script of its own, such as ${quoted({ text: request.cause.invocation })}`;
+    case "wrapped":
+      return `: ${quoted({ text: request.cause.wrapper })} comes before ${request.cause.command} and is neither a package runner nor a NAME=value setting, ${UNJUDGED_OPTION}; put only package runners and NAME=value settings before ${request.cause.command}`;
   }
 };
 

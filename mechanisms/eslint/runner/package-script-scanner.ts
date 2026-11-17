@@ -18,12 +18,18 @@ export type EslintInvocation = {
   readonly options: readonly string[];
 };
 
-export type Settlement = "settled" | "not-plain" | "unresolved";
+export type NotPlainReason =
+  | { readonly kind: "after-another-command"; readonly invocation: string }
+  | { readonly kind: "wrapped"; readonly wrapper: string };
+
+export type Settlement =
+  | { readonly kind: "settled" }
+  | { readonly kind: "unresolved" }
+  | { readonly kind: "not-plain"; readonly reason: NotPlainReason };
 
 type SettledInvocation = EslintInvocation & {
   readonly settlement: Settlement;
   readonly command: string;
-  readonly invocation: string;
 };
 
 export type ScriptOptionException = Omit<Extract<NativeException, { readonly kind: "command-line-option" }>, "cause">;
@@ -53,7 +59,6 @@ export type ScriptOption = {
   readonly effect: OptionEffect;
   readonly settlement: Settlement;
   readonly command: string;
-  readonly invocation: string;
   readonly exceptions: readonly ScriptOptionException[];
 };
 
@@ -129,6 +134,8 @@ const SHELL_EXPANDED_DOUBLE_QUOTED = /[$`]/;
 const UNSETTLED_TEXT = /\.\.|[$`]|^[/~]|^[A-Za-z]:[\\/]/;
 
 const PLAIN_RUNNER_TOKENS: readonly string[] = ["npx", "pnpm", "yarn", "npm", "bunx", "exec", "--"];
+
+const ENVIRONMENT_SETTER = "cross-env";
 
 const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
@@ -299,14 +306,44 @@ export const eslintInvocationsOf = (request: {
   readonly commands: readonly ScriptCommand[];
 }): readonly EslintInvocation[] => request.commands.flatMap((command) => invocationOf({ command }));
 
-const prefixSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
-  PLAIN_RUNNER_TOKENS.includes(request.token.text) ||
-  (request.token.expansion === "literal" && ENVIRONMENT_ASSIGNMENT.test(request.token.text))
-    ? "settled"
-    : "not-plain";
+const SETTLED: Settlement = { kind: "settled" };
+
+const UNRESOLVED: Settlement = { kind: "unresolved" };
+
+type PrefixRole = "runner" | "setting" | "wrapper";
+
+const prefixRoleOf = (request: { readonly token: ShellToken; readonly following: readonly ShellToken[] }): PrefixRole => {
+  if (PLAIN_RUNNER_TOKENS.includes(request.token.text)) return "runner";
+  if (request.token.expansion === "literal" && ENVIRONMENT_ASSIGNMENT.test(request.token.text)) return "setting";
+  const settingsOnlyFollow = request.following.every((token) => ENVIRONMENT_ASSIGNMENT.test(token.text));
+  return request.token.text === ENVIRONMENT_SETTER && settingsOnlyFollow ? "setting" : "wrapper";
+};
 
 const reachSettlementOf = (request: { readonly token: ShellToken }): Settlement =>
-  request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? "unresolved" : "settled";
+  request.token.expansion === "shell-expanded" || UNSETTLED_TEXT.test(request.token.text) ? UNRESOLVED : SETTLED;
+
+const SHELL_PLAIN_TOKEN = /^[\w./:=@+,-]+$/;
+
+const shellWritten = (request: { readonly token: ShellToken }): string =>
+  SHELL_PLAIN_TOKEN.test(request.token.text) ? request.token.text : `'${request.token.text}'`;
+
+const prefixSettlementOf = (request: { readonly prefix: readonly ShellToken[] }): Settlement => {
+  const wrapper = request.prefix.find(
+    (token, index) => prefixRoleOf({ token, following: request.prefix.slice(index + 1) }) === "wrapper",
+  );
+  return wrapper === undefined ? SETTLED : { kind: "not-plain", reason: { kind: "wrapped", wrapper: wrapper.text } };
+};
+
+const orderSettlementOf = (request: { readonly index: number; readonly command: ShellCommand }): Settlement =>
+  request.index === 0
+    ? SETTLED
+    : {
+        kind: "not-plain",
+        reason: {
+          kind: "after-another-command",
+          invocation: request.command.map((token) => shellWritten({ token })).join(" "),
+        },
+      };
 
 const settlementOf = (request: {
   readonly index: number;
@@ -315,16 +352,11 @@ const settlementOf = (request: {
 }): Settlement => {
   const settlements: readonly Settlement[] = [
     ...request.command.slice(request.eslintIndex + 1).map((token) => reachSettlementOf({ token })),
-    request.index === 0 ? "settled" : "not-plain",
-    ...request.command.slice(0, request.eslintIndex).map((token) => prefixSettlementOf({ token })),
+    prefixSettlementOf({ prefix: request.command.slice(0, request.eslintIndex) }),
+    orderSettlementOf(request),
   ];
-  return settlements.find((settlement) => settlement !== "settled") ?? "settled";
+  return settlements.find((settlement) => settlement.kind !== "settled") ?? SETTLED;
 };
-
-const SHELL_PLAIN_TOKEN = /^[\w./:=@+,-]+$/;
-
-const shellWritten = (request: { readonly token: ShellToken }): string =>
-  SHELL_PLAIN_TOKEN.test(request.token.text) ? request.token.text : `'${request.token.text}'`;
 
 const settledInvocationOf = (request: {
   readonly index: number;
@@ -335,10 +367,6 @@ const settledInvocationOf = (request: {
     ...invocation,
     settlement: settlementOf({ index: request.index, command: request.command, eslintIndex }),
     command: request.command[eslintIndex]?.text ?? "",
-    invocation: request.command
-      .slice(eslintIndex)
-      .map((token) => shellWritten({ token }))
-      .join(" "),
   }));
 };
 
@@ -510,7 +538,6 @@ const scriptOptionOf = (request: {
   effect: request.weakening.effect,
   settlement: request.invocation.settlement,
   command: request.invocation.command,
-  invocation: request.invocation.invocation,
   exceptions: request.selectedRules
     .filter((rule) => request.weakening.ruleIds.includes(rule.ruleId))
     .map(

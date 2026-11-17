@@ -7,6 +7,7 @@ import {
   type OptionEffect,
   type SelectedRule,
   scanPackageJson,
+  type Settlement,
   scriptCommandsOf,
   suppressionsLocationValuesOf,
 } from "./package-script-scanner.ts";
@@ -226,34 +227,52 @@ describe("suppressionsLocationValuesOf", () => {
   });
 });
 
+const SETTLED: Settlement = { kind: "settled" };
+
+const UNRESOLVED: Settlement = { kind: "unresolved" };
+
+const afterAnotherCommand = (invocation: string): Settlement => ({
+  kind: "not-plain",
+  reason: { kind: "after-another-command", invocation },
+});
+
+const wrappedBy = (wrapper: string): Settlement => ({ kind: "not-plain", reason: { kind: "wrapped", wrapper } });
+
 describe("scanPackageJson, whether the script's own folder settles an option's effect", () => {
-  it.each([
-    { script: "eslint --ignore-pattern 'legacy/**' .", settlement: "settled" },
-    { script: "eslint -c eslint.config.mjs src", settlement: "settled" },
-    { script: "pnpm exec eslint --ignore-pattern 'legacy/**' src", settlement: "settled" },
-    { script: "pnpm exec eslint -c eslint.config.mjs .", settlement: "settled" },
-    { script: "npx eslint --ignore-pattern dist --cache .", settlement: "settled" },
-    { script: "yarn eslint -c eslint.config.mjs .", settlement: "settled" },
-    { script: "npm exec -- eslint -c eslint.config.mjs .", settlement: "settled" },
-    { script: "TIMING=1 eslint -c eslint.config.mjs .", settlement: "settled" },
-    { script: "(cd src && eslint --ignore-pattern 'legacy/**' .)", settlement: "not-plain" },
-    { script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: "tsc && eslint -c eslint.config.mjs .", settlement: "not-plain" },
-    { script: "ROOT=$PWD eslint -c eslint.config.mjs .", settlement: "not-plain" },
-    { script: "cd src && eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: "pushd src; eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: "pnpm -C src exec eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: "npm --prefix=src exec eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: "pnpm --filter web exec eslint --ignore-pattern 'legacy/**' .", settlement: "not-plain" },
-    { script: 'eslint --ignore-pattern "$LEGACY" .', settlement: "unresolved" },
-    { script: "eslint --ignore-pattern `cat legacy.txt` .", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern '$LEGACY' .", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern legacy/** .", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern 'legacy/**' ..", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern '../legacy/**' .", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern 'legacy/**' /repo/src", settlement: "unresolved" },
-    { script: "eslint --ignore-pattern 'legacy/**' ~/src", settlement: "unresolved" },
-  ])("marks the option in $script $settlement", ({ script, settlement }) => {
+  it.each<{ readonly script: string; readonly settlement: Settlement }>([
+    { script: "eslint --ignore-pattern 'legacy/**' .", settlement: SETTLED },
+    { script: "eslint -c eslint.config.mjs src", settlement: SETTLED },
+    { script: "pnpm exec eslint --ignore-pattern 'legacy/**' src", settlement: SETTLED },
+    { script: "pnpm exec eslint -c eslint.config.mjs .", settlement: SETTLED },
+    { script: "npx eslint --ignore-pattern dist --cache .", settlement: SETTLED },
+    { script: "yarn eslint -c eslint.config.mjs .", settlement: SETTLED },
+    { script: "npm exec -- eslint -c eslint.config.mjs .", settlement: SETTLED },
+    { script: "TIMING=1 eslint -c eslint.config.mjs .", settlement: SETTLED },
+    { script: "cross-env NODE_OPTIONS=--max-old-space-size=4096 eslint --ignore-pattern dist .", settlement: SETTLED },
+    { script: "pnpm exec cross-env TIMING=1 NODE_ENV=ci eslint -c eslint.config.mjs .", settlement: SETTLED },
+    { script: "tsc && eslint -c eslint.config.mjs .", settlement: afterAnotherCommand("eslint -c eslint.config.mjs .") },
+    { script: "tsc && TIMING=1 eslint -c eslint.config.mjs .", settlement: afterAnotherCommand("TIMING=1 eslint -c eslint.config.mjs .") },
+    { script: "cd src && eslint --ignore-pattern 'legacy/**' .", settlement: afterAnotherCommand("eslint --ignore-pattern 'legacy/**' .") },
+    { script: "(cd src && eslint --ignore-pattern 'legacy/**' .)", settlement: afterAnotherCommand("eslint --ignore-pattern 'legacy/**' '.)'") },
+    { script: "pushd src; eslint --ignore-pattern 'legacy/**' .", settlement: afterAnotherCommand("eslint --ignore-pattern 'legacy/**' .") },
+    { script: "npx -y eslint --ignore-pattern dist .", settlement: wrappedBy("-y") },
+    { script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .", settlement: wrappedBy("env") },
+    { script: "ROOT=$PWD eslint -c eslint.config.mjs .", settlement: wrappedBy("ROOT=$PWD") },
+    { script: "pnpm -C src exec eslint --ignore-pattern 'legacy/**' .", settlement: wrappedBy("-C") },
+    { script: "npm --prefix=src exec eslint --ignore-pattern 'legacy/**' .", settlement: wrappedBy("--prefix=src") },
+    { script: "pnpm --filter web exec eslint --ignore-pattern 'legacy/**' .", settlement: wrappedBy("--filter") },
+    { script: "cross-env NODE_ENV=$MODE eslint -c eslint.config.mjs .", settlement: wrappedBy("NODE_ENV=$MODE") },
+    { script: "cross-env pnpm exec eslint -c eslint.config.mjs .", settlement: wrappedBy("cross-env") },
+    { script: "tsc && env eslint -c eslint.config.mjs .", settlement: wrappedBy("env") },
+    { script: 'eslint --ignore-pattern "$LEGACY" .', settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern `cat legacy.txt` .", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern '$LEGACY' .", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern legacy/** .", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern 'legacy/**' ..", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern '../legacy/**' .", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern 'legacy/**' /repo/src", settlement: UNRESOLVED },
+    { script: "eslint --ignore-pattern 'legacy/**' ~/src", settlement: UNRESOLVED },
+  ])("marks the option in $script as $settlement.kind", ({ script, settlement }) => {
     expect(
       scanPackageJson({ path: rootPackageJson, text: JSON.stringify({ scripts: { lint: script } }), selectedRules: [classRule] }),
     ).toMatchObject({ outcome: "ok", value: { scriptOptions: [{ settlement }] } });
@@ -304,9 +323,8 @@ describe("scanPackageJson", () => {
           {
             location: "package.json",
             effect: WEAKENS,
-            settlement: "settled",
+            settlement: SETTLED,
             command: "eslint",
-            invocation: "eslint --rule 'hone/no-class-authoring: off' src",
             exceptions: [
               {
                 kind: "command-line-option",
@@ -347,9 +365,8 @@ describe("scanPackageJson", () => {
           {
             location: "package.json",
             effect: { kind: "names-config", config: "alt.config.mjs" },
-            settlement: "settled",
+            settlement: SETTLED,
             command: "eslint",
-            invocation: "eslint -c alt.config.mjs src",
             exceptions: [
               {
                 kind: "command-line-option",

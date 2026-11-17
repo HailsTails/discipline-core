@@ -4,9 +4,12 @@ import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { ConfigFileSearch, EslintPort, QueryInstance } from "./eslint-instance.ts";
-import { repoPathResolved, type ScriptOption } from "./package-script-scanner.ts";
+import { type NotPlainReason, repoPathResolved, type ScriptOption } from "./package-script-scanner.ts";
 
-export type OptionVerdict = "weakens" | "weakens-nothing" | "not-plain";
+export type OptionVerdict =
+  | { readonly kind: "weakens" }
+  | { readonly kind: "weakens-nothing" }
+  | { readonly kind: "not-plain"; readonly reason: NotPlainReason };
 
 export type ScriptOptionJudge = (request: {
   readonly option: ScriptOption;
@@ -20,11 +23,9 @@ type JudgeContext = {
   readonly checked: readonly RepoPath[];
 };
 
-const WEAKENS: Result<OptionVerdict, RunnerFailure> = { outcome: "ok", value: "weakens" };
+const WEAKENS: Result<OptionVerdict, RunnerFailure> = { outcome: "ok", value: { kind: "weakens" } };
 
-const WEAKENS_NOTHING: Result<OptionVerdict, RunnerFailure> = { outcome: "ok", value: "weakens-nothing" };
-
-const NOT_PLAIN: Result<OptionVerdict, RunnerFailure> = { outcome: "ok", value: "not-plain" };
+const WEAKENS_NOTHING: Result<OptionVerdict, RunnerFailure> = { outcome: "ok", value: { kind: "weakens-nothing" } };
 
 const folderSegmentsOf = (request: { readonly location: RepoPath }): readonly string[] =>
   request.location.split("/").slice(0, -1);
@@ -81,8 +82,10 @@ const ignorePatternVerdict = (request: { readonly context: JudgeContext; readonl
 export const scriptOptionJudge =
   (context: JudgeContext): ScriptOptionJudge =>
   ({ option }) => {
-    if (option.effect.kind === "weakens" || option.settlement === "unresolved") return Promise.resolve(WEAKENS);
-    if (option.settlement === "not-plain") return Promise.resolve(NOT_PLAIN);
+    if (option.effect.kind === "weakens" || option.settlement.kind === "unresolved") return Promise.resolve(WEAKENS);
+    if (option.settlement.kind === "not-plain") {
+      return Promise.resolve({ outcome: "ok", value: { kind: "not-plain", reason: option.settlement.reason } });
+    }
     switch (option.effect.kind) {
       case "names-config":
         return configVerdict({ context, location: option.location, config: option.effect.config });

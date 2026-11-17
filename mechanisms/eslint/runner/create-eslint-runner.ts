@@ -985,11 +985,11 @@ const suppressionsFileExceptions = (request: {
 };
 
 const causeOf = (request: { readonly verdict: OptionVerdict; readonly option: ScriptOption }): ScriptOptionCause | undefined => {
-  switch (request.verdict) {
+  switch (request.verdict.kind) {
     case "weakens":
       return { kind: "weakens-run" };
     case "not-plain":
-      return { kind: "not-plain", command: request.option.command, invocation: request.option.invocation };
+      return { ...request.verdict.reason, command: request.option.command };
     case "weakens-nothing":
       return undefined;
   }

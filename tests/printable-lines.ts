@@ -117,7 +117,9 @@ const INLINE_DISABLES: Readonly<Record<AttributedInlineDisable["reach"], Filled<
   },
 };
 
-const SCRIPT_OPTION_INVOCATION = "eslint -c eslint.config.mjs .";
+const SCRIPT_OPTION_INVOCATION = "TIMING=1 eslint -c eslint.config.mjs .";
+
+const SCRIPT_OPTION_WRAPPER = "env";
 
 const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], Filled<AttributedScriptOption>>> = {
   "weakens-run": {
@@ -132,7 +134,7 @@ const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], F
     },
     fills: { "package file": "package.json", script: "lint", option: "--no-inline-config" },
   },
-  "not-plain": {
+  "after-another-command": {
     entry: {
       kind: "command-line-option",
       clause: LOOPS,
@@ -140,7 +142,7 @@ const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], F
       location: repoPathSchema.parse("package.json"),
       script: "lint",
       option: "-c eslint.config.mjs",
-      cause: { kind: "not-plain", command: "eslint", invocation: SCRIPT_OPTION_INVOCATION },
+      cause: { kind: "after-another-command", command: "eslint", invocation: SCRIPT_OPTION_INVOCATION },
     },
     fills: {
       "package file": "package.json",
@@ -148,6 +150,24 @@ const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], F
       option: "-c eslint.config.mjs",
       command: "eslint",
       invocation: JSON.stringify(SCRIPT_OPTION_INVOCATION),
+    },
+  },
+  wrapped: {
+    entry: {
+      kind: "command-line-option",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      location: repoPathSchema.parse("package.json"),
+      script: "lint",
+      option: "--ignore-pattern legacy/**",
+      cause: { kind: "wrapped", command: "eslint", wrapper: SCRIPT_OPTION_WRAPPER },
+    },
+    fills: {
+      "package file": "package.json",
+      script: "lint",
+      option: "--ignore-pattern legacy/**",
+      command: "eslint",
+      wrapper: JSON.stringify(SCRIPT_OPTION_WRAPPER),
     },
   },
 };
