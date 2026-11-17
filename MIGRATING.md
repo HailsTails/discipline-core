@@ -31,7 +31,7 @@ Old code often holds CD-1 `any` the old route never checked. Hone flags it in st
 
 Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`: create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. Leave the old files in place until step 6.
 
-Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. To adopt a discipline through one mechanism only, list the other clauses as `"not-adopted"`, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 shows. A repository that did this with a `clause-wide-carve-out` and `"waivedClauses": "not-run"` can switch: list the clause as `"not-adopted"`, delete its carve-out, which would otherwise be `clause-not-adopted`, and re-run `hone project` so the projection no longer carries that rule.
+Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. Where the rule binds but a clause's mechanism cannot work in this repository, such as an ESLint-only clause with no ESLint installed, list that clause as `"not-run"`; where the rule does not apply at all, list it as `"not-adopted"`. [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out the three states.
 
 | Old CD | Clauses to select in `disciplines.json` |
 | --- | --- |
@@ -236,3 +236,15 @@ Version `0.1.0-pre.1` was published as the GitHub release tarball `honed-0.1.0-p
 3. **Keep the scripts.** `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."` work unchanged, because the command is still `hone`.
 4. **Repoint agent instructions** from `node_modules/honed/rules/` to `node_modules/@hailstails/hone/rules/`.
 5. **Run the check.** It must give the same report as the last run under `honed`.
+
+## 12. Moving off `waivedClauses`
+
+Earlier releases let a repository record a `clause-wide-carve-out` and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`, or pass `--waived-clauses not-run`, so the carved-out clause was not run. That setting and that flag are gone. A clause now states this itself, in `clauses`. With either one still in place, `disciplines.json` is `file-malformed`, naming `waivedClauses` and the clause states to use, or the flag is `arguments-invalid`.
+
+For each clause the setting skipped:
+
+1. **Say what is true of it.** Set the clause to `"not-run"` when the rule binds but its check is not a true measure of the rule here, or cannot work here, such as CD-6's ESLint-only `naming-convention` with no ESLint installed: the report lists it under `notRun`, and the rule is owed through review. Set it to `"not-adopted"` when the rule does not apply to this codebase. If neither is true, and the clause is debt the codebase cannot pay right now, keep its mechanism and its carve-out, and let the check run; see [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4.
+2. **Delete its carve-out** from `discipline-exceptions.json` when the clause is now `"not-run"` or `"not-adopted"`: an entry on such a clause is invalid, as `clause-not-run` or `clause-not-adopted`, and fails the run.
+3. **Remove the setting and the flag.** Delete `waivedClauses` from `assessment` in `disciplines.json`, and `--waived-clauses` from scripts, CI and the pre-push hook.
+4. **Re-project** if any clause was `eslint`: run `npm run --silent hone:project`. The projection no longer carries the clause's rule or its `"off"` block; commit it.
+5. **Run the check.** The `assessment` section's `waived-clauses` line is gone, and the verdict line is no longer marked `(partial assessment)` unless forfeiture is assessed elsewhere.

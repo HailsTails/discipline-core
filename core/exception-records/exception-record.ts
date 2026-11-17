@@ -84,6 +84,7 @@ export type InvalidRecord = {
     | { readonly kind: "clause-unparseable"; readonly detail: string }
     | { readonly kind: "clause-not-selected"; readonly clause: ClauseAddress }
     | { readonly kind: "clause-not-adopted"; readonly clause: ClauseAddress }
+    | { readonly kind: "clause-not-run"; readonly clause: ClauseAddress }
     | { readonly kind: "file-not-repo-path"; readonly file: string }
     | { readonly kind: "why-chain-refused"; readonly detail: string }
     | { readonly kind: "evidence-refused"; readonly detail: string }

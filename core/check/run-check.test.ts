@@ -309,8 +309,6 @@ const CHANGED_PATHS: readonly RepoPath[] = [repoPathSchema.parse("src/a.ts")];
 
 const FORFEITURE_ELSEWHERE: Assessment = { ...DEFAULT_ASSESSMENT, forfeiture: "elsewhere" };
 
-const WAIVED_NOT_RUN: Assessment = { ...DEFAULT_ASSESSMENT, waivedClauses: "not-run" };
-
 const HIT_IN_A = {
   clause: CLASS_SYNTAX_OBJECT,
   file: "src/a.ts",
@@ -321,6 +319,7 @@ const HIT_IN_A = {
 const EMPTY_REPORT = {
   excluded: [],
   notAdopted: [],
+  notRun: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -1464,181 +1463,22 @@ describe("runCheck with an embedded runner", () => {
   });
 });
 
-const CLASS_SYNTAX_WAIVER = {
+const CLASS_SYNTAX_CARVE_OUT = {
   kind: "clause-wide-carve-out",
   clause: "CD-14#class-syntax",
   reason: "class syntax is not adopted yet",
   whyChain: CAUSAL_WHY_CHAIN,
 } as const;
 
-const EXCEPTIONS_WAIVING_CLASS_SYNTAX = JSON.stringify({ version: 1, exceptions: [CLASS_SYNTAX_WAIVER] });
-
-const WAIVER_RECORD = {
-  kind: "clause-wide-carve-out",
-  clause: CLASS_SYNTAX_OBJECT,
-  mechanism: "audit",
-  reason: "class syntax is not adopted yet",
-  whyChain: CAUSAL_WHY_CHAIN,
-};
+const EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX = JSON.stringify({ version: 1, exceptions: [CLASS_SYNTAX_CARVE_OUT] });
 
 const TWO_CLAUSE_INSTALL: Readonly<Record<string, FakeFile>> = {
   ...INSTALL,
-  [SELECTION_PATH]: presentFile({ text: SELECTION_OF_TWO_CLAUSES }),
   [DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE_WITH_TWO_CLAUSES }),
   [PIECE_PATH]: presentFile({ text: PIECE_WITH_TWO_CLAUSES }),
-  [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
 };
 
-const CLASS_SYNTAX_CLAUSE = expect.objectContaining({ address: CLASS_SYNTAX_OBJECT });
-
 const ABSTRACT_SYNTAX_CLAUSE = expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT });
-
-const waivedClassSyntax = (request: { readonly recordsNotJudgedStale: number }) => ({
-  concern: "waivedClauses",
-  assessedBy: "not-run",
-  clausesNotRun: [{ clause: CLASS_SYNTAX_OBJECT, mechanism: "audit" }],
-  recordsNotJudgedStale: request.recordsNotJudgedStale,
-});
-
-describe("runCheck waived clauses not run", () => {
-  it("loads no mechanism whose every clause is waived, and reports the clause and its waiver as not judged", async () => {
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) });
-    const report = await runCheck(
-      checkRequest({
-        assessment: WAIVED_NOT_RUN,
-        modules,
-        fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }),
-      }),
-    );
-    expect({ report, loads: vi.mocked(modules.load).mock.calls }).toEqual({
-      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
-      loads: [],
-    });
-  });
-
-  it("runs the waived clause and judges its waiver stale by default, as before", async () => {
-    await expect(
-      runCheck(
-        checkRequest({ fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }) }),
-      ),
-    ).resolves.toEqual({ outcome: "ok", value: { ...EMPTY_REPORT, stale: [WAIVER_RECORD] } });
-  });
-
-  it("hands a standalone runner only the clauses that are not waived", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
-    const report = await runCheck(
-      checkRequest({ assessment: WAIVED_NOT_RUN, modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }),
-    );
-    expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
-      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
-      runCalls: [[expect.objectContaining({ clauses: [expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT })] })]],
-    });
-  });
-
-  it("reports an invalid waiver as today and runs its clause", async () => {
-    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
-    const report = await runCheck(
-      checkRequest({
-        assessment: WAIVED_NOT_RUN,
-        modules: modulesLoading({ runner }),
-        fileText: fileTextOver({
-          ...INSTALL,
-          [EXCEPTIONS_PATH]: presentFile({
-            text: JSON.stringify({ version: 1, exceptions: [{ ...CLASS_SYNTAX_WAIVER, whyChain: "because" }] }),
-          }),
-        }),
-      }),
-    );
-    expect({ report, runs: vi.mocked(runner.run).mock.calls.length }).toMatchObject({
-      report: {
-        outcome: "ok",
-        value: {
-          invalidRecords: [{ index: 0, problem: { kind: "why-chain-refused" } }],
-          assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
-        },
-      },
-      runs: 1,
-    });
-  });
-});
-
-describe("runCheck waived clauses not run within an embedded mechanism", () => {
-  it("runs only the in-force clause of an embedded mechanism, still projecting both, and does not judge the waiver stale", async () => {
-    const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
-    const report = await runCheck(
-      checkRequest({ assessment: WAIVED_NOT_RUN, modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }),
-    );
-    expect({ report, runCalls: runner.run.mock.calls }).toEqual({
-      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
-      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE], projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE] })]],
-    });
-  });
-
-  it("hands an embedded runner the same clauses to run and to project when waived clauses run", async () => {
-    const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
-    await runCheck(checkRequest({ modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }));
-    expect(runner.run.mock.calls).toEqual([
-      [
-        expect.objectContaining({
-          clauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
-          projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
-        }),
-      ],
-    ]);
-  });
-
-});
-
-describe("runCheck waived clauses not run across mechanisms", () => {
-  it("never loads a second mechanism whose only clause is waived", async () => {
-    const report = await runCheck(
-      checkRequest({
-        assessment: WAIVED_NOT_RUN,
-        modules: modulesByPath({ [RUNNER_PATH]: { runner: standaloneRunner({ runReturns: { outcome: "ok", value: [] } }) } }),
-        fileText: fileTextOver({
-          ...TWO_MECHANISM_INSTALL,
-          [EXCEPTIONS_PATH]: presentFile({
-            text: JSON.stringify({ version: 1, exceptions: [{ ...CLASS_SYNTAX_WAIVER, clause: "CD-14#abstract-syntax" }] }),
-          }),
-        }),
-      }),
-    );
-    expect(report).toEqual({
-      outcome: "ok",
-      value: {
-        ...EMPTY_REPORT,
-        assessment: [
-          {
-            concern: "waivedClauses",
-            assessedBy: "not-run",
-            clausesNotRun: [{ clause: ABSTRACT_SYNTAX_OBJECT, mechanism: "lint" }],
-            recordsNotJudgedStale: 1,
-          },
-        ],
-      },
-    });
-  });
-
-  it("reports forfeiture before waived clauses when both are partial, and still forfeits nothing", async () => {
-    await expect(
-      runCheck(
-        checkRequest({
-          assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" },
-          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }) }),
-        }),
-      ),
-    ).resolves.toEqual({
-      outcome: "ok",
-      value: {
-        ...EMPTY_REPORT,
-        assessment: [
-          { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 0 },
-          waivedClassSyntax({ recordsNotJudgedStale: 1 }),
-        ],
-      },
-    });
-  });
-});
 
 const NOT_ADOPTING_CLASS_SYNTAX = JSON.stringify({
   version: 1,
@@ -1646,7 +1486,7 @@ const NOT_ADOPTING_CLASS_SYNTAX = JSON.stringify({
   clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
 });
 
-const notAdoptingInstall = (request: { readonly selection: string; readonly exceptions: FakeFile }) =>
+const twoClauseInstall = (request: { readonly selection: string; readonly exceptions: FakeFile }) =>
   fileTextOver({ ...TWO_CLAUSE_INSTALL, [SELECTION_PATH]: presentFile({ text: request.selection }), [EXCEPTIONS_PATH]: request.exceptions });
 
 describe("runCheck clauses not adopted", () => {
@@ -1655,7 +1495,7 @@ describe("runCheck clauses not adopted", () => {
     const report = await runCheck(
       checkRequest({
         modules,
-        fileText: notAdoptingInstall({
+        fileText: twoClauseInstall({
           selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" } }),
           exceptions: ABSENT_FILE,
         }),
@@ -1672,7 +1512,7 @@ describe("runCheck clauses not adopted", () => {
     const report = await runCheck(
       checkRequest({
         modules: modulesLoading({ runner }),
-        fileText: notAdoptingInstall({ selection: NOT_ADOPTING_CLASS_SYNTAX, exceptions: ABSENT_FILE }),
+        fileText: twoClauseInstall({ selection: NOT_ADOPTING_CLASS_SYNTAX, exceptions: ABSENT_FILE }),
       }),
     );
     expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
@@ -1681,14 +1521,13 @@ describe("runCheck clauses not adopted", () => {
     });
   });
 
-  it("fails a record on a not-adopted clause as clause-not-adopted, whatever waived clauses do", async () => {
+  it("fails a record on a not-adopted clause as clause-not-adopted", async () => {
     await expect(
       runCheck(
         checkRequest({
-          assessment: WAIVED_NOT_RUN,
-          fileText: notAdoptingInstall({
+          fileText: twoClauseInstall({
             selection: NOT_ADOPTING_CLASS_SYNTAX,
-            exceptions: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
+            exceptions: presentFile({ text: EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX }),
           }),
         }),
       ),
@@ -1697,8 +1536,42 @@ describe("runCheck clauses not adopted", () => {
       value: {
         invalidRecords: [{ index: 0, problem: { kind: "clause-not-adopted", clause: CLASS_SYNTAX_OBJECT } }],
         notAdopted: [CLASS_SYNTAX_OBJECT],
-        assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
       },
+    });
+  });
+});
+
+describe("runCheck clauses adopted but not run", () => {
+  it("runs only the clause whose mechanism runs, lists the other as not run, and passes as a whole assessment", async () => {
+    const runner = standaloneRunner({ runReturns: { outcome: "ok", value: [] } });
+    const report = await runCheck(
+      checkRequest({
+        modules: modulesLoading({ runner }),
+        fileText: twoClauseInstall({
+          selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" } }),
+          exceptions: ABSENT_FILE,
+        }),
+      }),
+    );
+    expect({ report, runCalls: vi.mocked(runner.run).mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, notRun: [CLASS_SYNTAX_OBJECT] } },
+      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE] })]],
+    });
+  });
+
+  it("fails a record on a not-run clause as clause-not-run", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: twoClauseInstall({
+            selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" } }),
+            exceptions: presentFile({ text: EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX }),
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [{ index: 0, problem: { kind: "clause-not-run", clause: CLASS_SYNTAX_OBJECT } }], notRun: [CLASS_SYNTAX_OBJECT] },
     });
   });
 });

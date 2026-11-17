@@ -73,7 +73,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
     return configured;
   }
   const assessment = assessmentInEffect({
-    requested: { forfeiture: parsed.value.forfeiture, waivedClauses: parsed.value.waivedClauses },
+    requested: { forfeiture: parsed.value.forfeiture },
     configured: configured.value.assessment,
   });
   const report = await runCheck({

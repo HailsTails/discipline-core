@@ -224,6 +224,7 @@ describe("createSelectionRepository", () => {
           ],
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
           notAdopted: [],
+          notRun: [],
         },
         bindings: [
           {
@@ -428,7 +429,7 @@ describe("readRunSettings", () => {
   it("is the full report and the default assessment when disciplines.json sets neither", () => {
     expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {} })).toEqual({
       outcome: "ok",
-      value: { reportOutput: "full", assessment: { forfeiture: "this-run", waivedClauses: "run" } },
+      value: { reportOutput: "full", assessment: { forfeiture: "this-run" } },
     });
   });
 
@@ -461,23 +462,16 @@ describe("readRunSettings assessment", () => {
     });
   });
 
-  it.each(["run", "not-run"])("reads the waived clauses assessment %s from disciplines.json", (waivedClauses) => {
-    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: { waivedClauses } })).toMatchObject({
-      outcome: "ok",
-      value: { assessment: { waivedClauses } },
-    });
-  });
-
   it("is the default assessment for an empty assessment object", () => {
     expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: {} })).toMatchObject({
       outcome: "ok",
-      value: { assessment: { forfeiture: "this-run", waivedClauses: "run" } },
+      value: { assessment: { forfeiture: "this-run" } },
     });
   });
 
   it.each([
     ["an eslint key, which is not built", { eslint: { evidence: "results-file", paths: ["reports/eslint.json"] } }],
-    ["a waived clauses value that is not one of the two", { waivedClauses: "skip" }],
+    ["the removed waivedClauses key", { waivedClauses: "not-run" }],
     ["a forfeiture that is not one of the two", { forfeiture: "reported" }],
     ["a list", ["elsewhere"]],
   ])("is file-malformed when disciplines.json gives the assessment %s", (_shape, assessment) => {
@@ -490,7 +484,7 @@ describe("readRunSettings assessment", () => {
 });
 
 describe("readRunSettings unbuilt assessment keys", () => {
-  it("names each unbuilt key as not available in this version and the keys assessment takes", () => {
+  it("names the removed waivedClauses with the clause states that replace it, then each unbuilt key", () => {
     expect(
       configuredSettings({
         version: 1,
@@ -503,7 +497,8 @@ describe("readRunSettings unbuilt assessment keys", () => {
       error: {
         kind: "file-malformed",
         path: SELECTION_PATH,
-        detail: '✖ not available in this version: "eslint"; assessment takes "forfeiture", "waivedClauses" only\n  → at assessment',
+        detail:
+          '✖ removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply. not available in this version: "eslint"; assessment takes "forfeiture" only\n  → at assessment',
       },
     });
   });
@@ -535,14 +530,14 @@ describe("readRunSettings reading", () => {
               ruleSets: {},
               clauses: { "CD-99#missing": "audit" },
               reportOutput: "counts",
-              assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" },
+              assessment: { forfeiture: "elsewhere" },
             }),
           }),
         }),
         path: TABLE_PATH,
         repoRoot: REPO_ROOT,
       }),
-    ).toEqual({ outcome: "ok", value: { reportOutput: "counts", assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" } } });
+    ).toEqual({ outcome: "ok", value: { reportOutput: "counts", assessment: { forfeiture: "elsewhere" } } });
   });
 });
 
@@ -564,6 +559,7 @@ describe("readSelection", () => {
           ],
           uncovered: [],
           notAdopted: [],
+          notRun: [],
         },
         bindings: [
           {
@@ -609,6 +605,7 @@ describe("readSelection", () => {
           ],
           uncovered: [],
           notAdopted: [],
+          notRun: [],
         },
         bindings: [
           {
@@ -640,6 +637,7 @@ describe("readSelection", () => {
           ],
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
           notAdopted: [],
+          notRun: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
         excluded: [],
@@ -1406,7 +1404,7 @@ describe("readSelection with clauses not adopted", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX] },
+        selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX], notRun: [] },
         bindings: [],
         excluded: [],
         fileExceptionWhyChains: "required",
@@ -1478,9 +1476,94 @@ describe("readSelection refusing a clause not adopted", () => {
     ).toEqual(malformedWith({ detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: clauses does not adopt it, so remove its settings") }));
   });
 
-  it("names both accepted forms when a clauses value is neither a mechanism id nor not-adopted", () => {
+  it("names every accepted form when a clauses value is neither a mechanism id nor a clause state", () => {
     expect(selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "Walker" } })).toEqual(
-      malformedWith({ detail: expect.stringContaining("a clause takes a mechanism id or \"not-adopted\"") }),
+      malformedWith({ detail: expect.stringContaining("a clause takes a mechanism id, \"not-run\" or \"not-adopted\"") }),
+    );
+  });
+});
+
+describe("readSelection with clauses adopted but not run", () => {
+  it("lists a not-run clause apart from the selected and not-adopted ones and binds no mechanism for it", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-run" } }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        selection: {
+          selected: [{ address: HONE_CLASS_SYNTAX, mechanism: "audit", exceptions: "allowed" }],
+          uncovered: [],
+          notAdopted: [],
+          notRun: [HONE_ABSTRACT_SYNTAX],
+        },
+        bindings: [expect.objectContaining({ clause: expect.objectContaining({ address: HONE_CLASS_SYNTAX }) })],
+      },
+    });
+  });
+
+  it("reads no runner and no piece when no clause of a discipline runs", () => {
+    expect(
+      selectingWithoutAudit({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "not-adopted" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        selection: { selected: [], uncovered: [], notAdopted: [HONE_ABSTRACT_SYNTAX], notRun: [HONE_CLASS_SYNTAX] },
+        bindings: [],
+        excluded: [],
+        fileExceptionWhyChains: "required",
+      },
+    });
+  });
+
+  it("still lists a clause missing from the selection as uncovered beside a not-run one", () => {
+    expect(
+      select({
+        ...INSTALL_WITHOUT_AUDIT,
+        "/install/rules/CD-14/discipline.json": presentFile({ text: CD_14_WITH_THREE_MECHANICAL }),
+        [SELECTION_PATH]: presentFile({
+          text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-run" } }),
+        }),
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        selection: {
+          uncovered: [HONE_ABSTRACT_SYNTAX, { ruleSet: "hone", discipline: "CD-14", clause: "decorator-syntax" }],
+          notRun: [HONE_CLASS_SYNTAX],
+        },
+      },
+    });
+  });
+});
+
+describe("readSelection refusing clauses adopted but not run", () => {
+  it.each([
+    { name: "a clause its discipline does not declare", clause: "CD-14#no-such-clause", error: { kind: "unknown-clause", address: "CD-14#no-such-clause" } },
+    { name: "a judgement clause", clause: "CD-14#library-construction", error: { kind: "judgement-clause-listed", address: "CD-14#library-construction" } },
+    { name: "a rule set the file does not declare", clause: "team/TM-1#no-tmp-files", error: { kind: "unknown-rule-set", name: "team" } },
+  ])("refuses not running $name", ({ clause, error }) => {
+    expect(selectingWithoutAudit({ version: 1, ruleSets: {}, clauses: { [clause]: "not-run" } })).toEqual({
+      outcome: "failed",
+      error,
+    });
+  });
+
+  it("refuses clauseSettings for a not-run clause as file-malformed, saying its mechanism does not run", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" },
+        clauseSettings: { "CD-14#class-syntax": { style: "strict" } },
+      }),
+    ).toEqual(
+      malformedWith({
+        detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: clauses runs no mechanism for it, so remove its settings"),
+      }),
     );
   });
 });

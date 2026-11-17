@@ -57,13 +57,7 @@ const runResolving = (returned: unknown): LoadedRunner["run"] =>
   vi.fn<LoadedRunner["run"]>().mockResolvedValue(returned);
 
 const dispatchRun = (request: { readonly runner: LoadedRunner }) =>
-  runMechanism({
-    runner: request.runner,
-    mechanism: WALKER,
-    run: RUN_REQUEST,
-    projectedClauses: RUN_REQUEST.clauses,
-    records: [CARVE_OUT],
-  });
+  runMechanism({ runner: request.runner, mechanism: WALKER, run: RUN_REQUEST, records: [CARVE_OUT] });
 
 describe("runMechanism with a standalone runner", () => {
   it("returns the runner's hits with the standalone empty native values and no projection", async () => {
@@ -226,7 +220,6 @@ const dispatchEmbeddedRun = (request: { readonly run: EmbeddedCall }) =>
     runner: embeddedRunner({ run: request.run, project: UNCALLED_PROJECT }),
     mechanism: ESLINT,
     run: RUN_REQUEST,
-    projectedClauses: RUN_REQUEST.clauses,
     records: [ESLINT_LOCATION],
   });
 
@@ -305,11 +298,10 @@ describe("runMechanism with an embedded runner", () => {
       runner: embeddedRunner({ run, project }),
       mechanism: ESLINT,
       run: RUN_REQUEST,
-      projectedClauses: RUN_REQUEST.clauses,
       records: [ESLINT_LOCATION],
     });
     expect({ runCalls: run.mock.calls, projectCalls: project.mock.calls }).toEqual({
-      runCalls: [[{ ...RUN_REQUEST, projectedClauses: RUN_REQUEST.clauses, records: [ESLINT_LOCATION] }]],
+      runCalls: [[{ ...RUN_REQUEST, records: [ESLINT_LOCATION] }]],
       projectCalls: [],
     });
   });
@@ -485,52 +477,5 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         projection: "current",
       },
     });
-  });
-});
-
-const ABSTRACT_SYNTAX_CLAUSE: RunnerClause = {
-  ...CLASS_SYNTAX_CLAUSE,
-  address: clauseAddressSchema.parse("CD-14#abstract-syntax"),
-};
-
-const dispatchPartialRun = (request: { readonly run: EmbeddedCall }) =>
-  runMechanism({
-    runner: embeddedRunner({ run: request.run, project: UNCALLED_PROJECT }),
-    mechanism: ESLINT,
-    run: RUN_REQUEST,
-    projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
-    records: [ESLINT_LOCATION],
-  });
-
-describe("runMechanism with an embedded runner, a projected clause not run", () => {
-  it("calls run with the clauses to run and every projected clause", async () => {
-    const run = embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } });
-    await dispatchPartialRun({ run });
-
-    expect(run).toHaveBeenCalledExactlyOnceWith({
-      ...RUN_REQUEST,
-      projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
-      records: [ESLINT_LOCATION],
-    });
-  });
-
-  it("is runner-invalid-output when a hit names a projected clause the request did not run", async () => {
-    await expect(
-      dispatchPartialRun({
-        run: embeddedResolving({
-          outcome: "ok",
-          value: { hits: [{ ...HIT_IN_A, clause: ABSTRACT_SYNTAX_OBJECT }], nativeExceptions: [], projection: "current" },
-        }),
-      }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a hit names CD-14#abstract-syntax in src/a.ts, which the request did not hold") } });
-  });
-
-  it("returns a native exception on a projected clause the request did not run", async () => {
-    const inline = { kind: "inline-rule-config", clause: ABSTRACT_SYNTAX_OBJECT, file: "src/a.ts", line: 1, text: "eslint hone/no-abstract: error" };
-    await expect(
-      dispatchPartialRun({
-        run: embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [inline], projection: "current" } }),
-      }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { nativeExceptions: [inline] } });
   });
 });

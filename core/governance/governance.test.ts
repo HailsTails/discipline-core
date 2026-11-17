@@ -107,7 +107,6 @@ describe("applyGovernance with no records", () => {
         findings: [noClassInA],
         records: [],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({ ...nothingGoverned, findings: [noClassInA] });
@@ -135,15 +134,15 @@ describe("applyGovernance with provenance-only inherited debt", () => {
       resolve: vi.fn<PathPort["resolve"]>(),
       fromFileUrl: vi.fn<PathPort["fromFileUrl"]>(),
     };
-    const exceptionReading = createExceptionRepository({ repoRoot: absolutePathSchema.parse("/repo"), fileText, path }).read({ selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" });
+    const exceptionReading = createExceptionRepository({ repoRoot: absolutePathSchema.parse("/repo"), fileText, path }).read({ selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" });
 
     expect(exceptionReading).toMatchObject({ outcome: "ok", value: { invalid: [] } });
     assert(exceptionReading.outcome === "ok");
-    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: nothingTouched, runs: [quietWalker], notRun: [] })).toEqual({
+    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: nothingTouched, runs: [quietWalker] })).toEqual({
       ...nothingGoverned,
       exempted: [{ finding: noClassInA, by: [{ kind: "file-carve-out", clause: noClass, mechanism: audit, file: fileA, reason: "fictional inherited-debt fixture", provenance }] }],
     });
-    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: fileATouched, runs: [quietWalker], notRun: [] })).toEqual({
+    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: fileATouched, runs: [quietWalker] })).toEqual({
       ...nothingGoverned,
       findings: [noClassInA],
       forfeited: [{ kind: "file-carve-out", clause: noClass, mechanism: audit, file: fileA, reason: "fictional inherited-debt fixture", provenance }],
@@ -158,7 +157,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA],
         records: [locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -173,7 +171,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA],
         records: [carvedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -188,7 +185,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA, noClassInB],
         records: [carvedNoClassEverywhere],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -206,7 +202,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA],
         records: [carvedNoClassEverywhere, carvedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).exempted,
     ).toEqual([{ finding: noClassInA, by: [carvedNoClassEverywhere, carvedNoClassInA] }]);
@@ -218,7 +213,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInB],
         records: [locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).findings,
     ).toEqual([noClassInB]);
@@ -230,7 +224,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA],
         records: [locatedNoForOfInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).findings,
     ).toEqual([noClassInA]);
@@ -242,7 +235,6 @@ describe("applyGovernance rule 3, exempt", () => {
         findings: [noClassInA],
         records: [carvedProbeNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).findings,
     ).toEqual([noClassInA]);
@@ -256,7 +248,6 @@ describe("applyGovernance rule 1, forfeit", () => {
         findings: [noClassInA],
         records: [carvedNoClassInA],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -272,7 +263,6 @@ describe("applyGovernance rule 1, forfeit", () => {
         findings: [noClassInA],
         records: [locatedNoClassInA],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -287,7 +277,6 @@ describe("applyGovernance rule 1, forfeit", () => {
         findings: [noClassInA],
         records: [carvedNoClassEverywhere],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -302,7 +291,6 @@ describe("applyGovernance rule 1, forfeit", () => {
         findings: [noClassInA],
         records: [carvedNoClassInA],
         touched: unmeasured,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -319,7 +307,6 @@ describe("applyGovernance rule 1, forfeiture assessed elsewhere", () => {
         findings: [noClassInA],
         records: [carvedNoClassInA],
         touched: { measured: "elsewhere" },
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -336,7 +323,6 @@ describe("applyGovernance rule 2, doubly held", () => {
         findings: [noClassInA],
         records: [locatedNoClassInA, carvedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -352,7 +338,6 @@ describe("applyGovernance rule 2, doubly held", () => {
         findings: [],
         records: [locatedNoClassInA, carvedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -367,7 +352,6 @@ describe("applyGovernance rule 2, doubly held", () => {
         findings: [noClassInA],
         records: [locatedNoClassInA, carvedNoClassInA],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -385,7 +369,6 @@ describe("applyGovernance rule 4, stale", () => {
         findings: [noClassInB],
         records: [locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }),
     ).toEqual({
@@ -401,7 +384,6 @@ describe("applyGovernance rule 4, stale", () => {
         findings: [],
         records: [carvedNoClassEverywhere],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).stale,
     ).toEqual([carvedNoClassEverywhere]);
@@ -413,60 +395,9 @@ describe("applyGovernance rule 4, stale", () => {
         findings: [],
         records: [carvedNoClassInA],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }).stale,
     ).toEqual([]);
-  });
-});
-
-describe("applyGovernance rule 4, stale, for waived clauses not run", () => {
-  it("does not judge a clause-wide carve-out on a clause that was not run", () => {
-    expect(
-      applyGovernance({
-        findings: [],
-        records: [carvedNoClassEverywhere],
-        touched: nothingTouched,
-        notRun: [noClass],
-        runs: [quietWalker],
-      }),
-    ).toEqual(nothingGoverned);
-  });
-
-  it("does not judge any other record on a clause that was not run", () => {
-    expect(
-      applyGovernance({
-        findings: [],
-        records: [carvedNoClassEverywhere, locatedNoClassInA],
-        touched: nothingTouched,
-        notRun: [noClass],
-        runs: [quietWalker],
-      }).stale,
-    ).toEqual([]);
-  });
-
-  it("still judges a record on a clause that ran", () => {
-    expect(
-      applyGovernance({
-        findings: [],
-        records: [carvedNoClassEverywhere, locatedNoForOfInA],
-        touched: nothingTouched,
-        notRun: [noClass],
-        runs: [quietWalker],
-      }).stale,
-    ).toEqual([locatedNoForOfInA]);
-  });
-
-  it("still forfeits a file carve-out on a clause that was not run once its file is touched", () => {
-    expect(
-      applyGovernance({
-        findings: [],
-        records: [carvedNoClassEverywhere, carvedNoClassInA],
-        touched: fileATouched,
-        notRun: [noClass],
-        runs: [quietWalker],
-      }).forfeited,
-    ).toEqual([carvedNoClassInA]);
   });
 });
 
@@ -477,7 +408,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker, { mechanism: eslint, nativeExceptions: [], projectedKinds: [] }],
       }).unrecorded,
     ).toEqual([]);
@@ -489,7 +419,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...locatedNoClassInA, mechanism: eslint }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -507,7 +436,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...locatedNoClassInA, mechanism: eslint }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -542,7 +470,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -560,7 +487,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...locatedNoClassInA, mechanism: eslint }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -578,7 +504,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -601,7 +526,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...carvedNoClassInA, mechanism: eslint }],
         touched: fileATouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -619,7 +543,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...carvedNoClassEverywhere, mechanism: eslint }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -644,7 +567,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...carvedNoClassInA, mechanism: eslint, file: packageJson }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -679,7 +601,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [],
         records: [{ ...carvedNoClassEverywhere, mechanism: eslint }],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -705,7 +626,6 @@ describe("applyGovernance rule 5, unrecorded", () => {
         findings: [noClassInB],
         records: [],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -728,7 +648,6 @@ describe("applyGovernance rule 5, doubly held", () => {
           { ...carvedNoClassInA, mechanism: eslint },
         ],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -751,7 +670,6 @@ describe("applyGovernance rule 5, mechanism", () => {
         findings: [],
         records: [locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,
@@ -771,7 +689,6 @@ describe("applyGovernance order", () => {
         findings: [],
         records: [locatedNoForOfInA, carvedNoClassEverywhere, locatedNoClassInA],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).stale,
     ).toEqual([locatedNoForOfInA, carvedNoClassEverywhere, locatedNoClassInA]);
@@ -786,7 +703,6 @@ describe("applyGovernance order", () => {
           carvedNoClassInA,
         ],
         touched: fileATouched,
-        notRun: [],
         runs: [quietWalker],
       }).forfeited,
     ).toEqual([carvedProbeNoClassInA, carvedNoClassInA]);
@@ -803,7 +719,6 @@ describe("applyGovernance order", () => {
           carvedNoClassInA,
         ],
         touched: nothingTouched,
-        notRun: [],
         runs: [quietWalker],
       }).doublyHeld,
     ).toEqual([
@@ -818,7 +733,6 @@ describe("applyGovernance order", () => {
         findings: [],
         records: [],
         touched: nothingTouched,
-        notRun: [],
         runs: [
           {
             mechanism: eslint,

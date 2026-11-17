@@ -1,25 +1,41 @@
 import { z } from "zod";
+import { NOT_ADOPTED, NOT_RUN } from "./identifiers.ts";
 
 export const forfeitureAssessmentSchema = z.enum(["this-run", "elsewhere"]);
 
 export type ForfeitureAssessment = z.infer<typeof forfeitureAssessmentSchema>;
 
-export const waivedClausesAssessmentSchema = z.enum(["run", "not-run"]);
-
-export type WaivedClausesAssessment = z.infer<typeof waivedClausesAssessmentSchema>;
-
 const ASSESSMENT_CONCERNS = {
   forfeiture: forfeitureAssessmentSchema.default("this-run"),
-  waivedClauses: waivedClausesAssessmentSchema.default("run"),
 };
+
+const REMOVED_CONCERNS: ReadonlyMap<string, string> = new Map([
+  [
+    "waivedClauses",
+    `in clauses, mark a clause "${NOT_RUN}" when its mechanism does not run, or "${NOT_ADOPTED}" when its rule does not apply`,
+  ],
+]);
 
 const quotedKeys = (request: { readonly keys: readonly string[] }): string =>
   request.keys.map((key) => JSON.stringify(key)).join(", ");
 
+const removedKeyMessages = (request: { readonly keys: readonly string[] }): readonly string[] =>
+  request.keys.flatMap((key) => {
+    const instead = REMOVED_CONCERNS.get(key);
+    return instead === undefined ? [] : [`removed: ${JSON.stringify(key)}; ${instead}`];
+  });
+
+const unbuiltKeyMessages = (request: { readonly keys: readonly string[] }): readonly string[] => {
+  const unbuilt = request.keys.filter((key) => !REMOVED_CONCERNS.has(key));
+  return unbuilt.length === 0
+    ? []
+    : [`not available in this version: ${quotedKeys({ keys: unbuilt })}; assessment takes ${quotedKeys({ keys: Object.keys(ASSESSMENT_CONCERNS) })} only`];
+};
+
 export const assessmentSchema = z.strictObject(ASSESSMENT_CONCERNS, {
   error: (issue) =>
     issue.code === "unrecognized_keys"
-      ? `not available in this version: ${quotedKeys({ keys: issue.keys })}; assessment takes ${quotedKeys({ keys: Object.keys(ASSESSMENT_CONCERNS) })} only`
+      ? [...removedKeyMessages({ keys: issue.keys }), ...unbuiltKeyMessages({ keys: issue.keys })].join(". ")
       : undefined,
 });
 
@@ -36,5 +52,4 @@ export const assessmentInEffect = (request: {
   readonly configured: Assessment;
 }): Assessment => ({
   forfeiture: request.requested.forfeiture ?? request.configured.forfeiture,
-  waivedClauses: request.requested.waivedClauses ?? request.configured.waivedClauses,
 });
