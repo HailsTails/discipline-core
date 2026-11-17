@@ -16,23 +16,23 @@ Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whol
 
 ## What the check flags
 - `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- `// TODO` not followed by `(`. Any parenthesised text is accepted, for example `// TODO(spec-42) ...`.
+- `// TODO` not followed, after optional spaces, by a tracked reference, for example `// TODO(#42) ...`.
 - A comment starting with `biome-ignore`, `eslint-disable`, `eslint-enable`, `eslint-disable-line`, `eslint-disable-next-line`, an `oxlint-` equivalent or `eslint <config>`, unless the comment carries a tracked reference.
-- `// @ts-expect-error` without a tracked reference after it on the same line.
-- A tracked reference is text matching one of the clause's `trackerPatterns` (see [Settings](#settings)). By default that is any non-blank text in parentheses, such as `(#42)`, `(PROJ-7)` or `(spec-42)`.
-- TODO and `@ts-expect-error` are matched on raw lines, so the same text inside a string is flagged too.
+- A line or block comment starting with `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` without a tracked reference after the directive. `@ts-check` turns checking on and is not flagged.
+- A tracked reference is a parenthesised token with no spaces that contains a digit, such as `(#42)`, `(PROJ-7)`, `(spec-42)` or `(https://tracker.example/issues/42)`. `()`, `(legacy)` and `(issue 42)` are not tracked references.
+- TODO is matched on raw lines, so the same text inside a string is flagged too; linter and type directives are read from comments only.
 - Ordinary explanatory comments and JSDoc are not flagged; keeping them out is left to review.
 
 ## Settings
-`trackerPatterns` lists the regular expressions, as JavaScript source text, that a tracked reference must match; a directive passes when any one matches. To accept only your own tracker's format, set it in `disciplines.json`:
+`trackerPatterns` narrows which tracked references count, for example to your own tracker's format. Each entry is a regular expression, as JavaScript source text, tested against each tracked reference with its parentheses; a reference counts when any entry matches. The test is an unanchored search unless the pattern anchors itself with `^` and `$`. The default, `["^\\(\\S+\\)$"]`, lets every tracked reference count.
 
 ```json
 "clauseSettings": {
-  "CD-5#comments-directives": { "trackerPatterns": ["\\(spec-\\d+\\)", "\\(#\\d+\\)"] }
+  "CD-5#comments-directives": { "trackerPatterns": ["^\\(spec-\\d+\\)$", "^\\(#\\d+\\)$"] }
 }
 ```
 
-Each entry must be a non-empty string that compiles as a regular expression; otherwise the check stops with a piece-invalid failure naming the clause and the entry. The TODO form is not affected: any parenthesised text after `TODO` is accepted.
+The patterns only narrow: a reference must still be a parenthesised token with no spaces that contains a digit, so a pattern such as `.*` cannot make `(legacy)` count. The same measure applies to TODO, where the reference must come right after `TODO`. Each entry must be a non-empty string that compiles as a regular expression; otherwise the check stops with a piece-invalid failure naming the clause and the entry.
 
 ## Example violation
 ```ts

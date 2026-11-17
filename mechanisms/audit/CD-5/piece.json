@@ -6,7 +6,7 @@
     {
       "clause": "comments-directives",
       "settings": { "module": "comments-directives.ts" },
-      "clauseSettings": { "trackerPatterns": { "default": ["\\([^()]*[^()\\s][^()]*\\)"] } }
+      "clauseSettings": { "trackerPatterns": { "default": ["^\\(\\S+\\)$"] } }
     }
   ]
 }

@@ -45,6 +45,38 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "biome-ignore with a word in parentheses",
+            "fileName": "word-tracker.ts",
+            "source": "// biome-ignore lint/style/noMagicNumbers: literal port (legacy)\nexport const portNumber = 8080;\n",
+            "expectedLines": [
+              1
+            ]
+          },
+          {
+            "name": "todo with empty parentheses",
+            "fileName": "empty-todo.ts",
+            "source": "// TODO() rename this\nexport const someValue = 1;\n",
+            "expectedLines": [
+              1
+            ]
+          },
+          {
+            "name": "ts-ignore without tracker",
+            "fileName": "ts-ignore.ts",
+            "source": "// @ts-ignore\nexport const broken: number = \"text\";\n",
+            "expectedLines": [
+              1
+            ]
+          },
+          {
+            "name": "ts-nocheck in a block comment without tracker",
+            "fileName": "ts-nocheck.ts",
+            "source": "/* @ts-nocheck */\nexport const broken: number = \"text\";\n",
+            "expectedLines": [
+              1
+            ]
           }
         ],
         "allow": [

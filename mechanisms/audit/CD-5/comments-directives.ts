@@ -13,10 +13,12 @@ const sourceEligibility = (request: { readonly file: string }): "eligible" | "ex
   return "eligible";
 };
 
-const BARE_TODO_PATTERN = /\/\/\s*TODO\b(?!\s*\()/;
-const TS_EXPECT_ERROR_PATTERN = /\/\/\s*@ts-expect-error\b/;
+const TODO_PATTERN = /\/\/\s*TODO\b/;
+const TYPE_DIRECTIVE_PATTERN = /^(?:\/\/|\/\*+)\s*@ts-(?:expect-error|ignore|nocheck)\b/;
 const LINTER_DIRECTIVE_PATTERN =
   /^(?:\/\/|\/\*)\s*((?:biome-ignore(?:-all|-start|-end)?|(?:eslint|oxlint)-(?:disable(?:-line|-next-line)?|enable)|eslint(?=\s)))\b/;
+const TRACKED_REFERENCE_PATTERN = /\([^()\s]*\d[^()\s]*\)/g;
+const LEADING_TRACKED_REFERENCE_PATTERN = /^\s*(\([^()\s]*\d[^()\s]*\))/;
 
 type TrackedClause = {
   readonly clause: RunnerClause;
@@ -58,14 +60,33 @@ const trackedClausesOf = (request: {
 }): Result<readonly TrackedClause[], PieceFailure> =>
   gatheredOutcomes({ outcomes: request.clauses.map((clause) => trackedClauseOf({ clause })) });
 
-const trackingOf = (request: { readonly text: string; readonly tracked: TrackedClause }): Tracking =>
-  request.tracked.trackers.some((tracker) => tracker.test(request.text)) ? "tracked" : "untracked";
+const chosenReference = (request: { readonly references: readonly string[]; readonly tracked: TrackedClause }): Tracking =>
+  request.references.some((reference) => request.tracked.trackers.some((tracker) => tracker.test(reference)))
+    ? "tracked"
+    : "untracked";
 
-const expectationTracking = (request: { readonly line: string; readonly tracked: TrackedClause }): Tracking | "no-expectation" => {
-  const marker = TS_EXPECT_ERROR_PATTERN.exec(request.line);
-  if (marker === null) return "no-expectation";
-  return trackingOf({ text: request.line.slice(marker.index + marker[0].length), tracked: request.tracked });
+const trackingAnywhere = (request: { readonly text: string; readonly tracked: TrackedClause }): Tracking =>
+  chosenReference({
+    references: Array.from(request.text.matchAll(TRACKED_REFERENCE_PATTERN), (match) => match[0]),
+    tracked: request.tracked,
+  });
+
+const trackingAtStart = (request: { readonly text: string; readonly tracked: TrackedClause }): Tracking => {
+  const reference = LEADING_TRACKED_REFERENCE_PATTERN.exec(request.text)?.[1];
+  return chosenReference({ references: reference === undefined ? [] : [reference], tracked: request.tracked });
 };
+
+const textAfter = (request: { readonly pattern: RegExp; readonly text: string }): string | undefined => {
+  const marker = request.pattern.exec(request.text);
+  return marker === null ? undefined : request.text.slice(marker.index + marker[0].length);
+};
+
+const untrackedClauses = (request: {
+  readonly trackedClauses: readonly TrackedClause[];
+  readonly text: string;
+  readonly tracking: (request: { readonly text: string; readonly tracked: TrackedClause }) => Tracking;
+}): readonly TrackedClause[] =>
+  request.trackedClauses.filter((tracked) => request.tracking({ text: request.text, tracked }) === "untracked");
 
 export const check: WalkerPiece = {
   prepare: ({ clauses }) => {
@@ -86,31 +107,41 @@ export const check: WalkerPiece = {
               begin: ({ sourceFile, anchorAt }) => {
                 const todoHits: PieceHit[] = [];
                 const directiveHits: PieceHit[] = [];
-                const expectationHits: PieceHit[] = [];
+                const typeDirectiveHits: PieceHit[] = [];
                 let linePosition = 0;
                 sourceFile.text.split("\n").forEach((line) => {
-                  const snippet = line.trim();
-                  if (BARE_TODO_PATTERN.test(line)) {
-                    const anchor = anchorAt({ position: linePosition });
-                    todoHits.push(...clauses.map((clause) => ({ clause: clause.address, anchor, snippet })));
-                  }
-                  const untracked = trackedClauses.filter((tracked) => expectationTracking({ line, tracked }) === "untracked");
+                  const afterTodo = textAfter({ pattern: TODO_PATTERN, text: line });
+                  const untracked = afterTodo === undefined
+                    ? []
+                    : untrackedClauses({ trackedClauses, text: afterTodo, tracking: trackingAtStart });
                   if (untracked.length > 0) {
                     const anchor = anchorAt({ position: linePosition });
-                    expectationHits.push(...untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet })));
+                    todoHits.push(...untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: line.trim() })));
                   }
                   linePosition += line.length + 1;
                 });
+                const untrackedHits = (request: {
+                  readonly text: string;
+                  readonly comment: string;
+                  readonly position: number;
+                }): readonly PieceHit[] => {
+                  const untracked = untrackedClauses({ trackedClauses, text: request.text, tracking: trackingAnywhere });
+                  if (untracked.length === 0) return [];
+                  const anchor = anchorAt({ position: request.position });
+                  return untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: request.comment.trim() }));
+                };
                 return {
                   comment: ({ range }) => {
                     const comment = sourceFile.text.slice(range.pos, range.end);
+                    const afterTypeDirective = textAfter({ pattern: TYPE_DIRECTIVE_PATTERN, text: comment });
+                    if (afterTypeDirective !== undefined) {
+                      typeDirectiveHits.push(...untrackedHits({ text: afterTypeDirective, comment, position: range.pos }));
+                      return;
+                    }
                     if (LINTER_DIRECTIVE_PATTERN.exec(comment)?.[1] === undefined) return;
-                    const untracked = trackedClauses.filter((tracked) => trackingOf({ text: comment, tracked }) === "untracked");
-                    if (untracked.length === 0) return;
-                    const anchor = anchorAt({ position: range.pos });
-                    directiveHits.push(...untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: comment.trim() })));
+                    directiveHits.push(...untrackedHits({ text: comment, comment, position: range.pos }));
                   },
-                  finish: () => [...todoHits, ...directiveHits, ...expectationHits],
+                  finish: () => [...todoHits, ...directiveHits, ...typeDirectiveHits],
                 };
               },
             },

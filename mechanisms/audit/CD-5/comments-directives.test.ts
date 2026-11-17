@@ -13,8 +13,15 @@ const ADDRESS = clauseAddressSchema.parse("CD-5#comments-directives");
 const SYNTAX_API = defaultParsePort.syntaxApi;
 const TODO_ANNOTATION = "TO" + "DO";
 const TYPE_EXPECTATION = "@ts-expect-" + "error";
-const NEUTRAL_TRACKER_PATTERNS: readonly string[] = ["\\([^()]*[^()\\s][^()]*\\)"];
-const SPEC_TRACKER_PATTERNS: readonly string[] = ["\\(spec-\\d+\\)"];
+const TYPE_IGNORE = "@ts-" + "ignore";
+const TYPE_NOCHECK = "@ts-" + "nocheck";
+const ANY_TOKEN_PATTERNS: readonly string[] = ["^\\(\\S+\\)$"];
+const SPEC_TRACKER_PATTERNS: readonly string[] = ["^\\(spec-\\d+\\)$"];
+const LINE_COMMENT = SYNTAX_API.SyntaxKind.SingleLineCommentTrivia;
+const BLOCK_COMMENT = SYNTAX_API.SyntaxKind.MultiLineCommentTrivia;
+
+type CommentKind = typeof LINE_COMMENT | typeof BLOCK_COMMENT;
+type CommentCase = { readonly name: string; readonly comment: string; readonly kind: CommentKind };
 
 const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: ADDRESS,
@@ -27,7 +34,7 @@ const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): 
   ...CLAUSE_WITH_NO_SETTINGS,
   clauseSettings: request.clauseSettings,
 });
-const CLAUSE = clauseWith({ clauseSettings: { trackerPatterns: NEUTRAL_TRACKER_PATTERNS } });
+const CLAUSE = clauseWith({ clauseSettings: { trackerPatterns: ANY_TOKEN_PATTERNS } });
 const SPEC_CLAUSE = clauseWith({ clauseSettings: { trackerPatterns: SPEC_TRACKER_PATTERNS } });
 
 const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): {
@@ -46,6 +53,16 @@ const sourceObservations = (request: { readonly source: string; readonly clause?
     anchorAt,
     finish: prepared.value.finish,
   };
+};
+
+const singleCommentHits = (request: {
+  readonly comment: string;
+  readonly kind?: CommentKind;
+  readonly clause?: RunnerClause;
+}): ReturnType<SourceObservers["finish"]> => {
+  const observed = sourceObservations({ source: `${request.comment}\nexport const marker = 1;\n`, clause: request.clause });
+  observed.observers.comment?.({ range: { kind: request.kind ?? LINE_COMMENT, pos: 0, end: request.comment.length } });
+  return observed.observers.finish();
 };
 
 describe("CD-5 existing annotation capability", () => {
@@ -68,38 +85,34 @@ describe("CD-5 existing annotation capability", () => {
     expect(readText).not.toHaveBeenCalled();
   });
 
-  it("returns every annotation in legacy category order with supplied anchors", () => {
-    const observed = sourceObservations({ source: `// ${TYPE_EXPECTATION} missing\n// biome-ignore lint/example: rationale\n// ${TODO_ANNOTATION} first\n// ${TODO_ANNOTATION} second\n` });
+  it("returns every annotation in category order with supplied anchors", () => {
+    const expectation = `// ${TYPE_EXPECTATION} missing`;
+    const directive = "// biome-ignore lint/example: rationale";
+    const firstTask = `// ${TODO_ANNOTATION} first`;
+    const observed = sourceObservations({ source: `${expectation}\n${directive}\n${firstTask}\n// ${TODO_ANNOTATION} second\n` });
 
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 28, end: 67 } });
+    observed.observers.comment?.({ range: { kind: LINE_COMMENT, pos: 0, end: expectation.length } });
+    observed.observers.comment?.({ range: { kind: LINE_COMMENT, pos: expectation.length + 1, end: expectation.length + 1 + directive.length } });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `// ${TODO_ANNOTATION} first` },
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: firstTask },
       { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `// ${TODO_ANNOTATION} second` },
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: "// biome-ignore lint/example: rationale" },
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `// ${TYPE_EXPECTATION} missing` },
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: directive },
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation },
     ]);
-    expect(observed.anchorAt).toHaveBeenCalledTimes(4);
-    expect(observed.anchorAt).toHaveBeenCalledWith({ position: 68 });
-    expect(observed.anchorAt).toHaveBeenCalledWith({ position: 82 });
-    expect(observed.anchorAt).toHaveBeenCalledWith({ position: 28 });
-    expect(observed.anchorAt).toHaveBeenCalledWith({ position: 0 });
+    expect(observed.anchorAt.mock.calls).toEqual([
+      [{ position: expectation.length + directive.length + 2 }],
+      [{ position: expectation.length + directive.length + firstTask.length + 3 }],
+      [{ position: 0 }],
+      [{ position: expectation.length + 1 }],
+    ]);
     expect(observed.finish()).toEqual({ outcome: "ok", value: [] });
-  });
-
-  it("retains tracked annotations, permissive parenthesised tasks and directive-lookalike exclusions", () => {
-    const observed = sourceObservations({ source: `// ${TODO_ANNOTATION}(legacy) later\n// ${TYPE_EXPECTATION} reason (spec-099)\n// oxlint-disable no-alert (spec-099)\nconst note = '// eslint-disable no-alert';\n// ordinary explanation\n` });
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 60, end: 97 } });
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 141, end: 164 } });
-
-    expect(observed.observers.finish()).toEqual([]);
-    expect(observed.anchorAt).not.toHaveBeenCalled();
   });
 
   it("retains complete multiline directive snippets and refuses a tracker outside the comment", () => {
     const observed = sourceObservations({ source: "/* eslint no-console: off\nreason */\nconst tracker = '(spec-099)';\n" });
 
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.MultiLineCommentTrivia, pos: 0, end: 35 } });
+    observed.observers.comment?.({ range: { kind: BLOCK_COMMENT, pos: 0, end: 35 } });
 
     expect(observed.observers.finish()).toEqual([
       { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: "/* eslint no-console: off\nreason */" },
@@ -107,88 +120,129 @@ describe("CD-5 existing annotation capability", () => {
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 0 });
   });
 
-  it("preserves existing raw-line matches inside strings without a comment observation", () => {
+  it("matches task annotations on raw lines, including inside strings, and type directives only in comments", () => {
     const observed = sourceObservations({ source: `const note = '// ${TODO_ANNOTATION} later';\nconst marker = '// ${TYPE_EXPECTATION} ignored';\n` });
 
     expect(observed.observers.finish()).toEqual([
       { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `const note = '// ${TODO_ANNOTATION} later';` },
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `const marker = '// ${TYPE_EXPECTATION} ignored';` },
     ]);
+  });
+
+  it("leaves ordinary comments and directive lookalikes in strings alone", () => {
+    const observed = sourceObservations({ source: "const note = '// eslint-disable no-alert';\n// ordinary explanation\n" });
+
+    observed.observers.comment?.({ range: { kind: LINE_COMMENT, pos: 43, end: 66 } });
+
+    expect(observed.observers.finish()).toEqual([]);
   });
 });
 
-describe("CD-5 neutral tracker patterns", () => {
+describe("CD-5 type directives", () => {
+  it.each<CommentCase>([
+    { name: "an expectation in a line comment", comment: `// ${TYPE_EXPECTATION} reason`, kind: LINE_COMMENT },
+    { name: "an ignore in a line comment", comment: `// ${TYPE_IGNORE} reason`, kind: LINE_COMMENT },
+    { name: "a file-wide nocheck in a line comment", comment: `// ${TYPE_NOCHECK}`, kind: LINE_COMMENT },
+    { name: "an ignore without a space", comment: `//${TYPE_IGNORE}`, kind: LINE_COMMENT },
+    { name: "an ignore in a block comment", comment: `/* ${TYPE_IGNORE} reason */`, kind: BLOCK_COMMENT },
+    { name: "an expectation in a doc comment", comment: `/** ${TYPE_EXPECTATION} reason */`, kind: BLOCK_COMMENT },
+  ])("flags $name without a tracked reference", ({ comment, kind }) => {
+    expect(singleCommentHits({ comment, kind })).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: comment }]);
+  });
+
+  it.each<CommentCase>([
+    { name: "an expectation", comment: `// ${TYPE_EXPECTATION} reason (#42)`, kind: LINE_COMMENT },
+    { name: "an ignore", comment: `// ${TYPE_IGNORE} reason (PROJ-7)`, kind: LINE_COMMENT },
+    { name: "a nocheck", comment: `// ${TYPE_NOCHECK} (spec-099)`, kind: LINE_COMMENT },
+    { name: "a block ignore", comment: `/* ${TYPE_IGNORE} reason (#42) */`, kind: BLOCK_COMMENT },
+  ])("accepts $name carrying a tracked reference", ({ comment, kind }) => {
+    expect(singleCommentHits({ comment, kind })).toEqual([]);
+  });
+
+  it("does not read a directive marker that does not open the comment", () => {
+    const comment = `// (#42) ${TYPE_IGNORE} reason`;
+
+    expect(singleCommentHits({ comment })).toEqual([]);
+  });
+
+  it("leaves a type-check opt-in and prose mentioning a directive alone", () => {
+    expect(singleCommentHits({ comment: "// @ts-check" })).toEqual([]);
+    expect(singleCommentHits({ comment: `// avoid ${TYPE_IGNORE} here` })).toEqual([]);
+  });
+});
+
+describe("CD-5 tracked references with the default patterns", () => {
   it.each([
     { name: "an issue number", tracker: "(#42)" },
     { name: "a ticket key", tracker: "(PROJ-7)" },
     { name: "a spec number", tracker: "(spec-099)" },
-    { name: "a link", tracker: "(https://tracker.example/issues/42)" },
-  ])("accepts a directive and a type expectation carrying $name", ({ tracker }) => {
-    const directive = `// biome-ignore lint/example: rationale ${tracker}`;
-    const observed = sourceObservations({ source: `${directive}\n// ${TYPE_EXPECTATION} reason ${tracker}\n` });
+    { name: "a link with an id", tracker: "(https://tracker.example/issues/42)" },
+  ])("accepts a linter directive, a type directive and a task carrying $name", ({ tracker }) => {
+    const observed = sourceObservations({ source: `// ${TODO_ANNOTATION}${tracker} later\n` });
 
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: directive.length } });
-
+    expect(singleCommentHits({ comment: `// biome-ignore lint/example: rationale ${tracker}` })).toEqual([]);
+    expect(singleCommentHits({ comment: `// ${TYPE_EXPECTATION} reason ${tracker}` })).toEqual([]);
     expect(observed.observers.finish()).toEqual([]);
   });
 
   it.each([
     { name: "empty parentheses", tracker: "()" },
     { name: "blank parentheses", tracker: "(  )" },
+    { name: "a word with no digit", tracker: "(legacy)" },
+    { name: "a single letter", tracker: "(x)" },
+    { name: "a reference with a space", tracker: "(issue 42)" },
     { name: "an unclosed parenthesis", tracker: "(#42" },
-  ])("flags a directive and a type expectation carrying only $name", ({ tracker }) => {
+  ])("flags a linter directive, a type directive and a task carrying only $name", ({ tracker }) => {
     const directive = `// biome-ignore lint/example: rationale ${tracker}`;
     const expectation = `// ${TYPE_EXPECTATION} reason ${tracker}`;
-    const observed = sourceObservations({ source: `${directive}\n${expectation}\n` });
+    const task = `// ${TODO_ANNOTATION}${tracker} later`;
+    const observed = sourceObservations({ source: `${task}\n` });
 
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: directive.length } });
-
-    expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: directive },
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation },
-    ]);
+    expect(singleCommentHits({ comment: directive })).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: directive }]);
+    expect(singleCommentHits({ comment: expectation })).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation }]);
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: task }]);
   });
+});
 
-  it("refuses a tracker written before the type expectation marker", () => {
-    const expectation = `(#42) // ${TYPE_EXPECTATION} reason`;
-    const observed = sourceObservations({ source: `${expectation}\n` });
-
-    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation }]);
+describe("CD-5 task annotations", () => {
+  it.each([
+    { name: "a reference right after the annotation", source: `// ${TODO_ANNOTATION}(#42) later\n`, hits: 0 },
+    { name: "a reference after a space", source: `// ${TODO_ANNOTATION} (#42) later\n`, hits: 0 },
+    { name: "a bare annotation", source: `// ${TODO_ANNOTATION} later\n`, hits: 1 },
+    { name: "empty parentheses", source: `// ${TODO_ANNOTATION}() later\n`, hits: 1 },
+    { name: "a reference further along the line", source: `// ${TODO_ANNOTATION} later (#42)\n`, hits: 1 },
+  ])("reads $name as $hits findings", ({ source, hits }) => {
+    expect(sourceObservations({ source }).observers.finish()).toHaveLength(hits);
   });
 });
 
 describe("CD-5 configured tracker patterns", () => {
-  it("accepts only references the configured patterns match", () => {
-    const tracked = `// biome-ignore lint/example: rationale (spec-7)`;
-    const untracked = `// biome-ignore lint/example: rationale (#42)`;
-    const expectation = `// ${TYPE_EXPECTATION} reason (#42)`;
-    const observed = sourceObservations({ source: `${tracked}\n${untracked}\n${expectation}\n`, clause: SPEC_CLAUSE });
+  it("accepts only tracked references the configured patterns choose", () => {
+    const tracked = "// biome-ignore lint/example: rationale (spec-7)";
+    const untracked = "// biome-ignore lint/example: rationale (#42)";
+    const task = `// ${TODO_ANNOTATION}(#42) later`;
 
-    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: tracked.length } });
-    observed.observers.comment?.({
-      range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: tracked.length + 1, end: tracked.length + 1 + untracked.length },
-    });
-
-    expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: untracked },
-      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation },
+    expect(singleCommentHits({ comment: tracked, clause: SPEC_CLAUSE })).toEqual([]);
+    expect(singleCommentHits({ comment: untracked, clause: SPEC_CLAUSE })).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: untracked }]);
+    expect(sourceObservations({ source: `${task}\n`, clause: SPEC_CLAUSE }).observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: task },
     ]);
   });
 
-  it("accepts a reference any one of several configured patterns matches", () => {
-    const expectation = `// ${TYPE_EXPECTATION} reason [ABC-12]`;
-    const observed = sourceObservations({
-      source: `${expectation}\n`,
-      clause: clauseWith({ clauseSettings: { trackerPatterns: [...SPEC_TRACKER_PATTERNS, "\\[ABC-\\d+\\]"] } }),
-    });
+  it("accepts a reference any one of several configured patterns chooses", () => {
+    const clause = clauseWith({ clauseSettings: { trackerPatterns: [...SPEC_TRACKER_PATTERNS, "^\\(ABC-\\d+\\)$"] } });
 
-    expect(observed.observers.finish()).toEqual([]);
+    expect(singleCommentHits({ comment: `// ${TYPE_IGNORE} reason (ABC-12)`, clause })).toEqual([]);
   });
 
-  it("leaves the parenthesised task rule to the annotation itself", () => {
-    const observed = sourceObservations({ source: `// ${TODO_ANNOTATION}(#42) later\n`, clause: SPEC_CLAUSE });
+  it.each([
+    { name: "a word with no digit", tracker: "(legacy)" },
+    { name: "empty parentheses", tracker: "()" },
+    { name: "a reference with a space", tracker: "(issue 42)" },
+  ])("cannot loosen the default shape to accept $name", ({ tracker }) => {
+    const clause = clauseWith({ clauseSettings: { trackerPatterns: [".*"] } });
+    const directive = `// biome-ignore lint/example: rationale ${tracker}`;
 
-    expect(observed.observers.finish()).toEqual([]);
+    expect(singleCommentHits({ comment: directive, clause })).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: directive }]);
   });
 
   it.each<{ readonly name: string; readonly clause: RunnerClause; readonly detail: string }>([
