@@ -46,6 +46,8 @@ const FLOW_STARTS: readonly string[] = ["{", "["];
 
 const ROOT_IMPORTER = ".";
 
+const EMPTY_FLOW_MAPPING = "{}";
+
 const DEPENDENCY_SECTIONS: readonly (readonly [string, RequirementKind])[] = [
   ["dependencies", "required"],
   ["optionalDependencies", "optional"],
@@ -144,15 +146,34 @@ const allRead = <Value>(request: { readonly results: readonly Reading<Value>[] }
     { outcome: "ok", value: [] },
   );
 
-const dependenciesOf = (request: { readonly owner: string; readonly holder: LockNode | undefined }): Reading<readonly Dependency[]> => {
+const inlineValueOf = (request: { readonly node: LockNode | undefined }): string | undefined =>
+  request.node === undefined || request.node.value === "" || request.node.value === EMPTY_FLOW_MAPPING ? undefined : request.node.value;
+
+const sectionDependenciesOf = (request: {
+  readonly owner: string;
+  readonly section: string;
+  readonly kind: RequirementKind;
+  readonly node: LockNode | undefined;
+}): Reading<readonly Dependency[]> => {
+  const inline = inlineValueOf({ node: request.node });
+  if (inline !== undefined) {
+    return failedReading({ error: `${request.owner} holds an inline value for ${request.section}: ${inline}` });
+  }
   return allRead({
-    results: DEPENDENCY_SECTIONS.flatMap(([section, kind]) =>
-      [...(childOf({ node: request.holder, key: section })?.children ?? [])].map(([name, node]): Reading<Dependency> => {
-        const version = versionOf({ owner: request.owner, name, value: node.value });
-        return version.outcome === "failed" ? version : { outcome: "ok", value: { name, version: version.value, kind } };
-      }),
+    results: [...(request.node?.children ?? [])].map(([name, node]): Reading<Dependency> => {
+      const version = versionOf({ owner: request.owner, name, value: node.value });
+      return version.outcome === "failed" ? version : { outcome: "ok", value: { name, version: version.value, kind: request.kind } };
+    }),
+  });
+};
+
+const dependenciesOf = (request: { readonly owner: string; readonly holder: LockNode | undefined }): Reading<readonly Dependency[]> => {
+  const sections = allRead({
+    results: DEPENDENCY_SECTIONS.map(([section, kind]) =>
+      sectionDependenciesOf({ owner: request.owner, section, kind, node: childOf({ node: request.holder, key: section }) }),
     ),
   });
+  return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.flat() };
 };
 
 const identityOf = (request: { readonly name: string; readonly version: string }): string =>
@@ -187,6 +208,10 @@ const closureOf = (request: {
   const snapshot = childOf({ node: request.snapshots, key });
   if (snapshot === undefined) {
     return failedReading({ error: `the lock holds no snapshot for ${key}` });
+  }
+  const inlineSnapshot = inlineValueOf({ node: snapshot });
+  if (inlineSnapshot !== undefined) {
+    return failedReading({ error: `the lock holds an inline value for ${key}: ${inlineSnapshot}` });
   }
   const found = dependenciesOf({ owner: key, holder: snapshot });
   if (found.outcome === "failed") {

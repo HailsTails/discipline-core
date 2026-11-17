@@ -183,6 +183,38 @@ const ZOD_AT_TWO_VERSIONS = lockOf({
 `,
 });
 
+const kitLockHoldingLevn = (request: { readonly levn: string }): string =>
+  lockOf({
+    header: HEADER,
+    importers: KIT_IMPORTERS,
+    snapshots: `snapshots:
+
+  '@eslint/plugin-kit@0.7.3':
+    dependencies:
+      levn: 0.4.1
+
+${request.levn}
+
+  prelude-ls@1.2.1: {}
+
+  zod@4.4.3: {}
+`,
+  });
+
+const INLINE_SECTION = kitLockHoldingLevn({ levn: `  levn@0.4.1:
+    dependencies: {prelude-ls: 1.2.1}` });
+
+const INLINE_SNAPSHOT = kitLockHoldingLevn({ levn: "  levn@0.4.1: {dependencies: {prelude-ls: 1.2.1}}" });
+
+const INLINE_OPTIONAL_SECTION = kitLockHoldingLevn({ levn: `  levn@0.4.1:
+    optionalDependencies: {prelude-ls: 1.2.1}` });
+
+const EMPTY_FORMS = kitLockHoldingLevn({ levn: `  levn@0.4.1:
+    dependencies: {}
+    optionalDependencies:` });
+
+const EMPTY_SNAPSHOT = kitLockHoldingLevn({ levn: "  levn@0.4.1: {}" });
+
 const DEPENDENCIES = ["zod", "@eslint/plugin-kit"];
 
 describe("productionClosureOf", () => {
@@ -306,6 +338,28 @@ describe("productionClosureOf on a value it does not read", () => {
       { outcome: "failed", error: "@eslint/plugin-kit@0.7.3 holds an empty version for levn" },
       { outcome: "failed", error: "@eslint/plugin-kit@0.7.3 holds a version that is not semver for levn: latest" },
       { outcome: "failed", error: "@eslint/plugin-kit@0.7.3 holds a flow value for levn: {a: 1}" },
+    ]);
+  });
+
+  it("fails naming a dependency section or a snapshot written as a non-empty inline value", () => {
+    expect([
+      productionClosureOf({ lockText: INLINE_SECTION, dependencies: DEPENDENCIES }),
+      productionClosureOf({ lockText: INLINE_OPTIONAL_SECTION, dependencies: DEPENDENCIES }),
+      productionClosureOf({ lockText: INLINE_SNAPSHOT, dependencies: DEPENDENCIES }),
+    ]).toEqual([
+      { outcome: "failed", error: "levn@0.4.1 holds an inline value for dependencies: {prelude-ls: 1.2.1}" },
+      { outcome: "failed", error: "levn@0.4.1 holds an inline value for optionalDependencies: {prelude-ls: 1.2.1}" },
+      { outcome: "failed", error: "the lock holds an inline value for levn@0.4.1: {dependencies: {prelude-ls: 1.2.1}}" },
+    ]);
+  });
+
+  it("accepts a snapshot and its dependency sections written empty or as {}", () => {
+    expect([
+      productionClosureOf({ lockText: EMPTY_FORMS, dependencies: DEPENDENCIES }),
+      productionClosureOf({ lockText: EMPTY_SNAPSHOT, dependencies: DEPENDENCIES }),
+    ]).toEqual([
+      { outcome: "ok", value: expect.arrayContaining([{ name: "levn", version: "0.4.1", requires: [] }]) },
+      { outcome: "ok", value: expect.arrayContaining([{ name: "levn", version: "0.4.1", requires: [] }]) },
     ]);
   });
 
