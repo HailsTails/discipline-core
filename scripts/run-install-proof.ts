@@ -558,21 +558,67 @@ const provenInside = (request: ProofInputs & { readonly proofCases: readonly Pro
     ),
   });
 
+type TarballSource = { readonly kind: "packed-here" } | { readonly kind: "given"; readonly path: string };
+
+const TARBALL_OPTION = "--tarball";
+const GIVEN_TARBALL_FOLDER = "given-tarball";
+const GIVEN_TARBALL_NAME = `${packageFileStemOf({ packageName: TOOL_IDENTITY.packageName })}.tgz`;
+
+const unrecognisedArguments = (request: { readonly arguments: readonly string[] }): Result<TarballSource, string> => ({
+  outcome: "failed",
+  error: `FAIL: install-proof takes no arguments, to pack the package itself, or ${TARBALL_OPTION} <path>, to prove a packed tarball; got ${JSON.stringify(request.arguments)}`,
+});
+
+const tarballSourceOf = (request: { readonly path: PathPort; readonly arguments: readonly string[] }): Result<TarballSource, string> => {
+  if (request.arguments.length === 0) {
+    return { outcome: "ok", value: { kind: "packed-here" } };
+  }
+  const [option, given, ...rest] = request.arguments;
+  if (option !== TARBALL_OPTION || given === undefined || rest.length > 0) {
+    return unrecognisedArguments(request);
+  }
+  const resolved = request.path.resolve({ path: given });
+  return resolved.outcome === "failed"
+    ? { outcome: "failed", error: `FAIL: resolve ${given}: the working directory is unusable` }
+    : { outcome: "ok", value: { kind: "given", path: resolved.value } };
+};
+
+const copiedTarball = (request: { readonly context: ProofContext; readonly given: string; readonly temporaryRoot: string }): Result<string, string> => {
+  const copy = request.context.path.join({ segments: [request.temporaryRoot, GIVEN_TARBALL_FOLDER, GIVEN_TARBALL_NAME] });
+  const copied = labelled({
+    label: `copy ${request.given} into the temporary consumer root`,
+    result: request.context.scratch.copyTree({ from: request.given, to: copy, disposition: () => "kept" }),
+  });
+  return copied.outcome === "failed" ? copied : { outcome: "ok", value: copy };
+};
+
+const tarballToProve = (request: {
+  readonly context: ProofContext;
+  readonly packer: TarballPackerPort;
+  readonly source: TarballSource;
+  readonly temporaryRoot: string;
+}): Promise<Result<string, string>> =>
+  request.source.kind === "given"
+    ? Promise.resolve(copiedTarball({ context: request.context, given: request.source.path, temporaryRoot: request.temporaryRoot }))
+    : request.packer.pack({ packageRoot: request.context.packageRoot, workRoot: request.temporaryRoot });
+
 const provenWithTarball = async (request: {
   readonly context: ProofContext;
   readonly packer: TarballPackerPort;
+  readonly source: TarballSource;
   readonly temporaryRoot: string;
   readonly packageManifest: string;
   readonly settings: InstallSettings;
   readonly proofCases: readonly ProofCase[];
 }): Promise<Result<null, string>> => {
-  const tarball = await request.packer.pack({ packageRoot: request.context.packageRoot, workRoot: request.temporaryRoot });
+  const tarball = await tarballToProve(request);
   return tarball.outcome === "failed" ? tarball : provenInside({ ...request, tarball: tarball.value });
 };
 
 const provenWithin = async (request: {
   readonly context: ProofContext;
   readonly packer: TarballPackerPort;
+  readonly source: TarballSource;
   readonly packageManifest: string;
   readonly settings: InstallSettings;
   readonly proofCases: readonly ProofCase[];
@@ -635,6 +681,7 @@ const installSettingsOf = (request: { readonly context: ProofContext; readonly p
 const proof = (request: {
   readonly context: ProofContext;
   readonly packer: TarballPackerPort;
+  readonly source: TarballSource;
   readonly proofCases: readonly ProofCase[];
 }): Promise<Result<null, string>> => {
   const packageManifest = readPackageFile({ context: request.context, name: "package.json" });
@@ -648,6 +695,7 @@ const proof = (request: {
   return provenWithin({
     context: request.context,
     packer: request.packer,
+    source: request.source,
     packageManifest: packageManifest.value,
     settings: settings.value,
     proofCases: request.proofCases,
@@ -658,8 +706,13 @@ const proofOutcome = (request: InstallProofRequest): Promise<Result<null, string
   if (packageRoot.outcome === "failed") {
     return Promise.resolve(packageRoot);
   }
+  const source = tarballSourceOf({ path: request.path, arguments: request.process.arguments });
+  if (source.outcome === "failed") {
+    return Promise.resolve(source);
+  }
   return proof({
     packer: request.packer,
+    source: source.value,
     context: {
       process: request.process,
       path: request.path,

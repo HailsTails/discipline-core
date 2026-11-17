@@ -14,7 +14,7 @@ const ENTRY_URL = "file:///package/scripts/install-proof.ts";
 const PACKAGE_MANIFEST =
   '{ "packageManager": "pnpm@10.34.9", "dependencies": { "zod": "^4.4.3" }, "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
 
-const CONSUMER_MANIFEST = `${JSON.stringify(
+const consumerManifestPinning = (request: { readonly tarball: string }): string => `${JSON.stringify(
   {
     private: true,
     type: "commonjs",
@@ -23,11 +23,15 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
       "hone:check": "hone check --repo .",
       "hone:project": "hone project --repo .",
     },
-    devDependencies: { typescript: "4.8.4", "@hailstails/hone": "file:../package-tarball/hailstails-hone-0.0.0.tgz" },
+    devDependencies: { typescript: "4.8.4", "@hailstails/hone": request.tarball },
   },
   null,
   2,
 )}\n`;
+
+const CONSUMER_MANIFEST = consumerManifestPinning({ tarball: "file:../package-tarball/hailstails-hone-0.0.0.tgz" });
+
+const CONSUMER_MANIFEST_PINNING_GIVEN_TARBALL = consumerManifestPinning({ tarball: "file:../given-tarball/hailstails-hone.tgz" });
 
 const CONSUMER = "/scratch/audit";
 
@@ -111,8 +115,8 @@ const SCRATCH_FAILURE: { readonly outcome: "failed"; readonly error: EffectFailu
   error: { kind: "effect-failed", detail: "EBUSY: resource busy" },
 };
 
-const processPort = (): ProcessPort => ({
-  arguments: [],
+const processPort = (scriptArguments: readonly string[] = []): ProcessPort => ({
+  arguments: scriptArguments,
   writeOut: vi.fn<ProcessPort["writeOut"]>(),
   writeError: vi.fn<ProcessPort["writeError"]>(),
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
@@ -673,4 +677,110 @@ describe("runInstallProof", () => {
 
     expect(reportOf({ process: proofProcess }).exits).toEqual([[{ code: 1 }]]);
   });
+});
+
+const GIVEN_TARBALL = "/artefacts/hailstails-hone-1.0.0.tgz";
+
+const COPIED_TARBALL = "/scratch/given-tarball/hailstails-hone.tgz";
+
+describe("runInstallProof, given a tarball to prove", () => {
+  it("copies the given tarball into the temporary root and installs that copy, packing nothing", async () => {
+    const proofProcess = processPort(["--tarball", GIVEN_TARBALL]);
+    const packer = packerReturning({ outcome: "ok", value: TARBALL });
+    const scratch = scratchPort({});
+    const fileText = fileTextPort();
+
+    await runInstallProof(proofRequest({ process: proofProcess, packer, scratch, fileText }));
+
+    expect({
+      packed: vi.mocked(packer.pack).mock.calls,
+      copied: vi.mocked(scratch.copyTree).mock.calls[0],
+      manifest: vi.mocked(fileText.write).mock.calls[0],
+      exits: reportOf({ process: proofProcess }).exits,
+    }).toEqual({
+      packed: [],
+      copied: [expect.objectContaining({ from: GIVEN_TARBALL, to: COPIED_TARBALL })],
+      manifest: [
+        {
+          path: `${CONSUMER}/package.json`,
+          text: CONSUMER_MANIFEST_PINNING_GIVEN_TARBALL,
+        },
+      ],
+      exits: [[{ code: 0 }]],
+    });
+  });
+
+  it("resolves a relative tarball path against the working directory", async () => {
+    const scratch = scratchPort({});
+
+    await runInstallProof(proofRequest({ process: processPort(["--tarball", "artefacts/hailstails-hone-1.0.0.tgz"]), scratch }));
+
+    expect(vi.mocked(scratch.copyTree).mock.calls[0]).toEqual([expect.objectContaining({ from: GIVEN_TARBALL, to: COPIED_TARBALL })]);
+  });
+});
+
+describe("runInstallProof, failing to take the given tarball", () => {
+  it("exits 1 naming a relative tarball path it cannot resolve when the working directory is unusable, creating nothing", async () => {
+    const proofProcess = processPort(["--tarball", "artefacts/hailstails-hone-1.0.0.tgz"]);
+    const scratch = scratchPort({});
+
+    await runInstallProof(
+      proofRequest({ process: proofProcess, scratch, path: createPathPort({ flavour: "posix", workingDirectory: () => "unusable" }) }),
+    );
+
+    expect({ report: reportOf({ process: proofProcess }), created: vi.mocked(scratch.createTemporaryDirectory).mock.calls }).toEqual({
+      report: {
+        writes: [[{ text: "FAIL: resolve artefacts/hailstails-hone-1.0.0.tgz: the working directory is unusable\n" }]],
+        exits: [[{ code: 1 }]],
+      },
+      created: [],
+    });
+  });
+
+  it("exits 1 naming the copy that failed, running no consumer and removing the temporary root", async () => {
+    const proofProcess = processPort(["--tarball", GIVEN_TARBALL]);
+    const commands = commandsReturning(EXITED_PASSING);
+    const scratch = scratchPort({ copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue(SCRATCH_FAILURE) });
+
+    await runInstallProof(proofRequest({ process: proofProcess, commands, scratch }));
+
+    expect({
+      report: reportOf({ process: proofProcess }),
+      runs: vi.mocked(commands.run).mock.calls,
+      removed: vi.mocked(scratch.removeTree).mock.calls,
+    }).toEqual({
+      report: {
+        writes: [[{ text: `FAIL: copy ${GIVEN_TARBALL} into the temporary consumer root: EBUSY: resource busy\n` }]],
+        exits: [[{ code: 1 }]],
+      },
+      runs: [],
+      removed: [[{ path: "/scratch" }]],
+    });
+  });
+});
+
+describe("runInstallProof, taking its arguments", () => {
+  it.each([[["--tarball"]], [["--tarball", GIVEN_TARBALL, "--tarball", GIVEN_TARBALL]], [["--pack"]]])(
+    "exits 1 naming the arguments it takes, creating nothing, given %j",
+    async (scriptArguments) => {
+      const proofProcess = processPort(scriptArguments);
+      const scratch = scratchPort({});
+
+      await runInstallProof(proofRequest({ process: proofProcess, scratch }));
+
+      expect({ report: reportOf({ process: proofProcess }), created: vi.mocked(scratch.createTemporaryDirectory).mock.calls }).toEqual({
+        report: {
+          writes: [
+            [
+              {
+                text: `FAIL: install-proof takes no arguments, to pack the package itself, or --tarball <path>, to prove a packed tarball; got ${JSON.stringify(scriptArguments)}\n`,
+              },
+            ],
+          ],
+          exits: [[{ code: 1 }]],
+        },
+        created: [],
+      });
+    },
+  );
 });
