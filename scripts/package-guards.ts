@@ -1,16 +1,14 @@
 import type { BundledOutput } from "./esbuild-bundler-port.ts";
 import { builtModulePath } from "./package-plan.ts";
 import type { LockedPackage } from "./pnpm-lock.ts";
-
-export type BundledPackageVersion = { readonly root: string; readonly name: string; readonly version: string };
+import { caretRangeOf } from "./caret-range.ts";
+import type { DependencyRanges } from "./published-manifest.ts";
 
 export type ShippedText = { readonly path: string; readonly text: string };
 
 const BUILTIN_PREFIX = "node:";
 
 const PAGE_SUFFIX = ".md";
-
-const STAGED_PACKAGES_FOLDER = "node_modules";
 
 const RELATIVE_LINK = /\]\(([^)\s]+)\)/g;
 
@@ -20,24 +18,27 @@ const PACKAGE_BASE = `file://${PACKAGE_PATH}`;
 
 const NOT_RELATIVE = /^(?:[a-z][a-z0-9+.-]*:|#)/i;
 
-type ExternalImport = "builtin" | "peer" | "unbundled";
+type ExternalImport = "builtin" | "declared" | "undeclared";
 
-const externalImportOf = (request: { readonly specifier: string; readonly peers: readonly string[] }): ExternalImport => {
+const externalImportOf = (request: { readonly specifier: string; readonly declared: readonly string[] }): ExternalImport => {
   if (request.specifier.startsWith(BUILTIN_PREFIX)) {
     return "builtin";
   }
-  return request.peers.some((peer) => request.specifier === peer || request.specifier.startsWith(`${peer}/`)) ? "peer" : "unbundled";
+  return request.declared.some((name) => request.specifier === name || request.specifier.startsWith(`${name}/`)) ? "declared" : "undeclared";
 };
 
-export const unbundledImportsOf = (request: {
+export const undeclaredImportsOf = (request: {
   readonly outputs: readonly BundledOutput[];
-  readonly peers: readonly string[];
+  readonly declared: readonly string[];
 }): readonly string[] =>
   request.outputs.flatMap((output) =>
     output.externalImports
-      .filter((specifier) => externalImportOf({ specifier, peers: request.peers }) === "unbundled")
+      .filter((specifier) => externalImportOf({ specifier, declared: request.declared }) === "undeclared")
       .map((specifier) => `${output.path} imports ${specifier}`),
   );
+
+export const bundledPackageCodeOf = (request: { readonly packageRoots: readonly string[] }): readonly string[] =>
+  request.packageRoots.map((root) => `${root} is bundled into the package`);
 
 type EntryPlacement = "in-place" | "misplaced";
 
@@ -59,36 +60,21 @@ export const misplacedEntriesOf = (request: {
     .filter((entryPoint) => entryPlacementOf({ entryPoint, outputs: request.outputs }) === "misplaced")
     .map((entryPoint) => `${entryPoint} is not emitted with its own code at ${builtModulePath({ path: entryPoint })}`);
 
-const stagedRootOf = (request: { readonly name: string }): string => `${STAGED_PACKAGES_FOLDER}/${request.name}`;
-
-const rootProblemOf = (request: { readonly bundled: BundledPackageVersion; readonly label: string }): readonly string[] => {
-  const staged = stagedRootOf({ name: request.bundled.name });
-  return request.bundled.root === staged ? [] : [`${request.label}, which is not the staged ${staged}`];
-};
-
-const versionProblemOf = (request: {
-  readonly bundled: BundledPackageVersion;
-  readonly label: string;
-  readonly closure: readonly LockedPackage[];
-}): readonly string[] => {
-  const held = request.closure.filter((locked) => locked.name === request.bundled.name);
-  if (held.length === 0) {
-    return [`${request.label}, which is not in the closure of core's dependencies in the lock`];
+const rangeProblemOf = (request: { readonly name: string; readonly range: string; readonly locked: readonly LockedPackage[] }): readonly string[] => {
+  const published = `${request.name} is published as ${request.range}`;
+  const caret = caretRangeOf({ range: request.range });
+  if (caret.outcome === "failed") {
+    return [`${published}, which is not a caret range of one release`];
   }
-  return held.some((locked) => locked.version === request.bundled.version)
-    ? []
-    : [`${request.label}, but the lock holds ${held.map((locked) => locked.version).join(", ")}`];
+  const held = request.locked.find((locked) => locked.name === request.name);
+  if (held === undefined) {
+    return [`${published}, but the lock's root importer holds no version of it`];
+  }
+  return held.version === caret.value.floor ? [] : [`${published}, whose floor is not the locked ${held.version}`];
 };
 
-const lockProblemOf = (request: { readonly bundled: BundledPackageVersion; readonly closure: readonly LockedPackage[] }): readonly string[] => {
-  const label = `${request.bundled.name} ${request.bundled.version} at ${request.bundled.root}`;
-  return [...rootProblemOf({ bundled: request.bundled, label }), ...versionProblemOf({ ...request, label })];
-};
-
-export const unlockedPackagesOf = (request: {
-  readonly bundled: readonly BundledPackageVersion[];
-  readonly closure: readonly LockedPackage[];
-}): readonly string[] => request.bundled.flatMap((bundled) => lockProblemOf({ bundled, closure: request.closure }));
+export const unlockedRangesOf = (request: { readonly ranges: DependencyRanges; readonly locked: readonly LockedPackage[] }): readonly string[] =>
+  Object.entries(request.ranges).flatMap(([name, range]) => rangeProblemOf({ name, range, locked: request.locked }));
 
 const resolvedLink = (request: { readonly page: string; readonly link: string }): string => {
   const pathname = decodeURIComponent(new URL(request.link.split("#")[0], `${PACKAGE_BASE}${request.page}`).pathname);

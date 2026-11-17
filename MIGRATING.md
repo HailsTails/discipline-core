@@ -14,6 +14,7 @@ Look for each of these and write down what you find:
 | Copied guides | the same folder | `standalone-adoption.md`, `standalone-cd-inventory.md`, `standalone-linter-options.md` |
 | Copied tools tree | `.claude/tools/`, `.codex/tools/` or `.cursor/tools/` | `.cursor/tools/rin-harness-constitution-audit.ts` |
 | Tool config | repository root | `harness.config.json` |
+| Settings in the tool's own code | the copied tools tree, or rin's walker | a list of confined packages, or of files it skips (step 2a) |
 | Debt records | repository root | `.constitution-carve-outs/cd-<id>.json` |
 | Structural records | repository root | `.constitution-authorised-locations/cd-<id>.json` |
 | Hand-written linter rules | `biome.json`, `eslint.config.*`, `.oxlintrc.json` | `noExplicitAny`, `@typescript-eslint/no-explicit-any`, `typescript/no-explicit-any` |
@@ -29,7 +30,7 @@ Old code often holds CD-1 `any` the old route never checked. Hone flags it in st
 
 ## 2. Install Hone and select the clauses
 
-Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`: create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. Leave the old files in place until step 6.
+Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`. If it selects any clause through `eslint`, create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. If it lists every ESLint clause as `"not-run"` or `"not-adopted"`, it needs no ESLint config and no ESLint installed. Leave the old files in place until step 6.
 
 Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. Where the rule binds but a clause's mechanism cannot work in this repository, such as an ESLint-only clause with no ESLint installed, list that clause as `"not-run"`; where the rule does not apply at all, list it as `"not-adopted"`. [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out the clause values and the three declared states.
 
@@ -46,9 +47,22 @@ Clauses whose mechanism is `review` are judgement clauses: do not put them in `d
 
 Stop and ask the human if a chosen CD is one of CD-35 to CD-38, or if selecting a whole discipline adds clauses the old route never checked and the first run shows findings for them: they decide whether to fix those findings, carve them out (step 3), or not adopt that discipline yet.
 
+### 2a. Carry over the old route's settings
+
+Do this before step 3, and before you delete any record Hone lists as `stale`. The old tool kept settings in `harness.config.json` and in its own code, and Hone reads neither. A setting left behind stops a boundary being checked without any finding to show it: the old records for it exempt nothing, Hone lists them as `stale`, and deleting them drops the boundary.
+
+| Old route | Where to look | In Hone |
+| --- | --- | --- |
+| Packages confined to wrapping files | a list in the tool's code or its config. Rin's walker holds it as `BANNED_THIRD_PARTY_IMPORTS`: search its tools folder for that name, since an installed copy keeps it in `constitution-audit/audit-constitution.runtime.js`, and its `audit-constitution.ts` only re-exports that file | `confinedPackages` for `CD-19#import-boundaries` under `clauseSettings` in `disciplines.json`. Hone confines no package by default, so until you list them CD-19 flags only `node:` imports. A package covers its subpaths, as [rules/CD-19/CHECKS.md](rules/CD-19/CHECKS.md#what-the-check-flags) says, where the old walker matched each listed name exactly, so Hone can flag a subpath import the old list did not name. |
+| Scope | `constitution.include` and `constitution.exclude` in `harness.config.json` | `exclude` in `disciplines.json`, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 says. Hone has no include list and no globs: list each folder or file outside the old scope as an exact path. |
+| Rules relaxed by folder | `scriptGlobs`, `uiGlobs` or similar in `harness.config.json` | nothing. Hone has one selection for the whole repository. What those folders fail under the full rules is existing debt: fix it or record it in step 3. Do not exclude the folders to hide it. |
+| Files the tool skipped in its own code | a list such as `SELF_AUDIT_EXCLUDED_FILENAMES` | an `exclude` entry or an exception record for each file. Stop and ask the human which, and why. |
+
+A `stale` record on `CD-19#import-boundaries` right after the move usually means the confined list was not carried over. Fix `confinedPackages` and run the check again before deleting anything.
+
 ## 3. Convert the old records into exceptions
 
-Run the check once with no exceptions file, to see what Hone finds:
+Do step 2a first. Then run the check once with no exceptions file, to see what Hone finds:
 
 ```bash
 npm run --silent hone:check
@@ -70,7 +84,7 @@ An old record file is a JSON array of entries, each listing one or more files:
 
 - Each file in a `.constitution-carve-outs/cd-<id>.json` entry that Hone now flags becomes one `file-carve-out`: `clause` is the clause the finding names (for example `CD-15#loops`), `file` is the exact path. Two flagged files in one entry become two records with the same `source`.
 - Each file in a `.constitution-authorised-locations/cd-<id>.json` entry that Hone now flags becomes one `authorised-location`.
-- A listed file Hone does not flag gets no record: a record that exempts nothing is reported `stale` and fails the run.
+- A listed file Hone does not flag gets no record: a record that exempts nothing is reported `stale` and fails the run. Before you drop one, check step 2a: a file Hone does not flag only because a setting was left behind still needs its record.
 - A finding in a file no old record lists is new debt: fix it, or record it only after the human approves.
 
 Each converted record is imported: give it `provenance` naming the old record instead of a `whyChain`, and keep the old `reason`:
@@ -91,7 +105,7 @@ Each converted record is imported: give it `provenance` naming the old record in
 
 `source` is the old file and the entry's position in its array, counting from `0`, so both files in the example above use `.constitution-carve-outs/cd-15.json#0`. An authorised location uses `{ "kind": "existing-authorisation", "source": ".constitution-authorised-locations/cd-<id>.json#<index>" }`. Hone accepts an imported record only while the `--base-revision` holds it unchanged or its `source` entry lists the record's file at that revision, so keep the old record files committed until step 6, and run every check in this migration with `--base-revision HEAD`. A record you write for new debt, or an imported record you later change, needs a full `whyChain` that follows the [why-chain contract](docs/why-chain-contract.md): Hone refuses it as `import-unverified` otherwise. A repository whose `disciplines.json` sets `"fileExceptionWhyChains": "optional"` may instead give such an `authorised-location` or `file-carve-out` only its `reason`, with no `whyChain` and no `provenance`.
 
-Stop and ask the human if an old record has no `decision`. Never write a placeholder or a root cause that only says the check was failing: Hone refuses those as `invalidRecords`.
+An imported `file-carve-out` needs a `decision`: copy the old entry's. If the old entry has none, stop and ask the human who accepted the debt. An imported `authorised-location` needs no `decision`: copy the old entry's if it has one, otherwise give `kind` and `source` only. Never write a placeholder or a root cause that only says the check was failing: Hone refuses those as `invalidRecords`.
 
 ## 4. Replace the hand-written linter rules
 
@@ -107,6 +121,13 @@ Then re-run `hone:project` and the check. With any `file-carve-out` recorded, pa
 ```bash
 npm run --silent hone:project
 npm run --silent hone:check -- --base-revision HEAD
+```
+
+With pnpm, options go straight after the script name:
+
+```bash
+pnpm run --silent hone:project
+pnpm run --silent hone:check --base-revision HEAD
 ```
 
 Stop and ask the human if a rule you are about to remove was there before the trial, or if you cannot tell which rules the trial added (the adoption record or `git log -p -- biome.json` usually says).
@@ -136,6 +157,8 @@ git add src/discipline-probe-loop.ts src/discipline-probe-any.ts
 npm run --silent hone:check -- --base-revision HEAD
 ```
 
+With pnpm, run the check as `pnpm run --silent hone:check --base-revision HEAD`.
+
 It must print a `CD-15#loops audit` finding and a `CD-1#explicit-any eslint` finding, then `verdict: fail`, and exit `1`. Use a selected clause in place of either if the repository did not adopt CD-15 or CD-1. Then remove both files (`git rm -f src/discipline-probe-loop.ts src/discipline-probe-any.ts`) and run the check again: it must print `verdict: pass` and exit `0`.
 
 To see debt decay, change one line in a carved file, stage it and run the check: the record moves to `forfeited` and the run fails. Restore the file afterwards (`git restore --staged --worktree <file>`).
@@ -147,9 +170,9 @@ Stop here, do not remove anything, and ask the human if the check does not pass.
 Only after step 5 passes:
 
 1. Delete the copied rule files and guides from step 1's harness folder (`.cursor/knowledge/aidlc-shared/code-discipline/` or its `.claude`/`.codex` equivalent).
-2. Delete the copied tools tree and `harness.config.json`, unless anything else in the repository uses them. A repository that also runs the rin AIDLC plugin keeps `harness.config.json`, and in this same change sets `"constitution": { "engine": "discipline-core", "baseRevision": "origin/main" }` in it. Otherwise rin's stage gate, sensors and review lenses keep running the old walker over the old records, and they refuse what this check passes. Set `baseRevision` whenever a file carve-out or an imported entry exists.
-3. Delete `.constitution-carve-outs/` and `.constitution-authorised-locations/`: their content now lives in `discipline-exceptions.json`.
-4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the Hone check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists, unless it leaves forfeiture to another run as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows, and a run with imported records needs it in any case: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit.
+2. Delete the copied tools tree and `harness.config.json`, unless anything else in the repository uses them. A repository that also runs the rin AIDLC plugin keeps `harness.config.json`, and in this same change sets `"constitution": { "engine": "hone", "baseRevision": "origin/main" }` in it. Otherwise rin's stage gate, sensors and review lenses keep running the old walker over the old records, and they refuse what this check passes. A rin plugin from before the rename refuses `"hone"` and takes `"discipline-core"`. Set `baseRevision` whenever a file carve-out or an imported entry exists.
+3. Delete the old record files, `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json`: their content now lives in `discipline-exceptions.json`. Leave any other file in those folders, and the folder that holds it: another tool, such as a hook, may read it.
+4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the Hone check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists, unless it leaves forfeiture to another run as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows, and a run with imported records needs it in any case: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit. A run that leaves forfeiture to another run ends `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)`, so a hook or gate that matches `verdict: pass` or `verdict: fail` at the end of the line reads neither; see the warning in [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5.
 5. Rewrite the agent instructions to point at `node_modules/@hailstails/hone/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
 6. Run the check and the repository's own validation command again, then commit everything in one change.
 
@@ -176,21 +199,37 @@ Stop and ask the human if anything outside the old trial uses the copied tools o
 
 An install from before the [why-chain contract](docs/why-chain-contract.md) holds chains with `whys`, `rootCause` and `owner` only. Hone still accepts such a chain while `--base-revision` holds its entry unchanged, but the first run without a base revision reports `legacy-chain-unmeasured` and fails. Do these steps in order:
 
-1. **Give every check a base revision, before you refresh Hone.** Add `--base-revision` to the check command in `package.json` scripts, CI and the pre-push hook: `origin/main` locally, the pull request's base commit in CI. On a push to the main branch, the base is the commit before the push. Make sure CI fetches enough history to reach the base: `actions/checkout` defaults to one commit, so set `fetch-depth: 0` or fetch the base explicitly. A rin consumer on the `discipline-core` engine sets `constitution.baseRevision` in `harness.config.json`. Rin's stage gate and `disciplines` sensor pass it on.
+1. **Give every check a base revision, before you refresh Hone.** Add `--base-revision` to the check command in `package.json` scripts, CI and the pre-push hook: `origin/main` locally, the pull request's base commit in CI. On a push to the main branch, the base is the commit before the push. Make sure CI fetches enough history to reach the base: `actions/checkout` defaults to one commit, so set `fetch-depth: 0` or fetch the base explicitly. A rin consumer whose `constitution.engine` is `"hone"`, or `"discipline-core"` before the rename, sets `constitution.baseRevision` in `harness.config.json`. Rin's stage gate and `disciplines` sensor pass it on.
 2. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Every chain that is unchanged since the base passes. If the run lists `legacy-chain-unmeasured`, step 1 is missing somewhere. Any `why-chain-refused` entry is a legacy chain that is new or edited since the base.
 3. **Rewrite each chain when you next touch its entry.** An edited entry with a legacy chain is refused until the chain follows the contract. Write the chain from the symptom down: ask why the exception exists, then ask why that answer is true, four more times. Add the `rootCheck` you ran today and the `readback`.
 4. **Queue a rewrite of the rest.** Nothing ends the grace period: a legacy chain whose entry is never touched stays accepted. To make every chain causal, rewrite the remaining ones as tracked work. Rewriting a chain is an edit, so each rewritten chain must pass the contract in that change.
 
 ## 9. Moving from a copied source tree to the package
 
-Hone is no longer installed by copying its source into the repository: this version ships no install files for that route. A copy of the source in `tools/discipline-core/` moves to the package, which gives the same reports from the same `disciplines.json` and `discipline-exceptions.json`, and runs on the repository's own toolchain. To move:
+Hone is no longer installed by copying its source into the repository: this version ships no install files for that route. A copy of the source in `tools/discipline-core/` moves to the package, which reads the same `disciplines.json` and `discipline-exceptions.json` and runs on the repository's own toolchain.
+
+The copy is an older release, so the package checks more than it did. Read these first, and do what applies before the first run on the package:
+
+- [Section 8](#8-moving-to-causal-why-chains), if any exception's `whyChain` has no `rootCheck` and no `readback`: give every check a base revision first.
+- [Section 10](#10-moving-from-the-discipline-core-names-to-hone) step 4: rule ids written by hand, such as in an `eslint-disable` comment, change from `discipline/...` to `hone/...`.
+- [Section 14](#14-moving-to-recorded-inline-exceptions): each `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck` and `eslint-disable` is listed under `unrecorded` until it is removed or a file record holds it.
+- [Section 15](#15-adopting-cd-2non-null-assertions), if any CD-2 clause is selected: CD-2 has a new clause to list.
+- [Step 2a](#2a-carry-over-the-old-routes-settings), if the repository also ran rin's walker or another tool with settings of its own.
+
+To move:
 
 1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.28.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
 2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says, including the two `hone:` scripts.
-3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check` (pass flags after `--`, as in `npm run --silent hone:check -- --base-revision origin/main`), and `project-command.ts` with `npm run --silent hone:project`. Point agent instructions at `node_modules/@hailstails/hone/rules/`.
-4. **Remove the copy.** Delete `tools/discipline-core/`, its line in `.gitignore`, and its entry in `disciplines.json`'s `exclude`.
-5. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection now imports each piece by package name instead of by a path into `tools/discipline-core/`, so it changes once; commit it.
-6. **Run the check.** It must give the same report as the last run on the copy. A `toolchain-unavailable` load failure names a package to install at the repository root.
+3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check`, and `project-command.ts` with `npm run --silent hone:project`. Pass options after `--` with npm, as in `npm run --silent hone:check -- --base-revision origin/main`, and straight after the script name with pnpm, as in `pnpm run --silent hone:check --base-revision origin/main`. A hook or gate that reads the verdict line needs the warning in [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5. Point agent instructions at `node_modules/@hailstails/hone/rules/`.
+4. **Repoint your own pieces and tests.** Nothing outside the package's public entries can be imported now:
+   - A piece that imported types or `folderScope` from the copy, such as from `walker-piece.ts` or `source-scope.ts`, imports them from `@hailstails/hone/audit`.
+   - A piece that read JSON with comments through the copy's `jsonc-parse.ts` calls TypeScript's own parser on the syntax API that `prepare` hands it: `syntaxApi.parseConfigFileTextToJson(file, text)` returns the parsed value as `config`, and sets `error` when it cannot parse the text. Do not import `jsonc-parser`: it is Hone's own dependency, not one the repository declares, so a strict package manager such as pnpm does not resolve it from a piece, and a piece imports only what [docs/extending.md](docs/extending.md#what-is-stable) lists.
+   - For a file it cannot parse, a piece returns `{ outcome: "failed", error: { kind: "file-unparseable", file, detail } }`. The check then stops with `load failure: runner-failed audit file-unparseable <file> <detail>` and exit `2`.
+   - Case tests use `clauseConformanceOf` from `@hailstails/hone/testing`, as [docs/extending.md](docs/extending.md#test-a-piece) shows.
+   - A test that called the copy's check or governance functions directly, such as `runCheck` or `applyGovernance`, has no entry to call: run the `hone check` command against a repository the test sets up, and assert on its report and exit code.
+5. **Remove the copy.** Delete `tools/discipline-core/`, its line in `.gitignore`, and its entry in `disciplines.json`'s `exclude`.
+6. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection now imports each piece by package name instead of by a path into `tools/discipline-core/`, so it changes once; commit it.
+7. **Run the check.** Compare it with the last run on the copy. A `readFirst` line now names its rule page under `node_modules/@hailstails/hone/rules/`, not in the copy. Any other new line comes from what the package checks that the copy did not, which the sections listed above describe. A `toolchain-unavailable` load failure names a package to install at the repository root.
 
 ## 10. Moving from the discipline-core names to Hone
 
@@ -210,13 +249,13 @@ Before `0.1.0-pre.1` the tool was called discipline core, with provisional names
 | rule pages under `node_modules/discipline-core/rules/` | `node_modules/@hailstails/hone/rules/` |
 
 1. **Swap the package.** Run `npm uninstall discipline-core`, then install `@hailstails/hone` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says. Replace the vendored tarball file if the repository keeps one.
-2. **Rename the scripts and repoint their callers.** In `package.json`, replace the two scripts with `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."`, then change every caller of the old scripts or commands: CI, the pre-push hook and the validation script. Flags are unchanged and still go after `--`.
+2. **Rename the scripts and repoint their callers.** In `package.json`, replace the two scripts with `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."`, then change every caller of the old scripts or commands: CI, the pre-push hook and the validation script. Flags are unchanged: with npm they go after `--`, with pnpm straight after the script name.
 3. **Re-project** if any clause is `eslint`: run `npm run --silent hone:project`. The projection's imports, block names and rule ids change once; commit it.
 4. **Rename old rule ids written by hand.** Any `eslint-disable` comment, team config rule entry or suppression that names `discipline/...` or `discipline-cd<N>/...` now names a rule that no longer exists. The check does not list it: it names no selected rule, so it drops out of `unrecorded` instead of appearing there. What appears is the finding it no longer suppresses, in the repository's own ESLint run. Search the repository for `discipline/` and `discipline-cd` and rename each to `hone/...` or `hone-cd<N>/...`, so the check governs it again.
 5. **Repoint agent instructions** from `node_modules/discipline-core/rules/` to `node_modules/@hailstails/hone/rules/`.
 6. **Run the check.** It must give the same report as the last run under the old names.
 
-A repository whose own tooling calls the commands, such as the rin harness on the `discipline-core` engine, changes those calls on its own side. The engine name in `harness.config.json` belongs to that tooling and is not renamed here.
+A repository whose own tooling calls the commands, such as the rin harness, changes those calls on its own side. The engine name in `harness.config.json` belongs to that tooling: a current rin plugin names it `"hone"` and still accepts `"discipline-core"`, as [step 6](#6-remove-the-old-route-and-repoint-everything) says.
 
 ## 11. Moving from `honed` to `@hailstails/hone`
 
@@ -231,7 +270,7 @@ Version `0.1.0-pre.1` was published as the GitHub release tarball `honed-0.1.0-p
 | governance rule `honed/inline-config` | `hone-core/inline-config` |
 | rule pages under `node_modules/honed/rules/` | `node_modules/@hailstails/hone/rules/` |
 
-1. **Swap the package.** Run `npm uninstall honed`, then install `@hailstails/hone` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says: `npm install --save-dev @hailstails/hone@next`, or the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases). Remove the vendored `honed-0.1.0-pre.1.tgz` if the repository keeps one, or replace it with the new tarball. `typescript` is now a required peer, where `honed` declared it optional: if the repository root does not already declare it, npm 7 and later install the newest supported release on their own, so add it to `devDependencies` at the version the repository uses.
+1. **Swap the package.** Run `npm uninstall honed`, then install `@hailstails/hone` as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says: from npm at an exact version, or the tarball attached to the latest [GitHub release](https://github.com/HailsTails/hone/releases). Remove the vendored `honed-0.1.0-pre.1.tgz` if the repository keeps one, or replace it with the new tarball. `typescript` is now a required peer, where `honed` declared it optional: if the repository root does not already declare it, npm 7 and later install the newest supported release on their own, so add it to `devDependencies` at the version the repository uses.
 2. **Re-project straight away** if any clause is `eslint`, before the check, the linter or anything else runs: `npm run --silent hone:project`, then commit `disciplines.eslint.mjs`. Until then the committed projection still imports `honed/...`, which is no longer installed, so the repository's own ESLint cannot load its configuration and the check stops with `load failure: runner-failed eslint team-config-unloadable eslint.config.mjs, the ESLint config for <file>, failed to load: Cannot find package 'honed' imported from ...disciplines.eslint.mjs ...` and exit 2. `hone project` does not load the old projection, so it runs and repairs it. Its import specifiers change from `honed/...` to `@hailstails/hone/...`, and its block names from `honed/...` to `hone-core/...`, in that same re-projection. The disciplines' rule ids `hone/...` and `hone-cd<N>/...` stay, so an `eslint-disable` comment, team config entry or suppression needs renaming only if it names `honed/inline-config`, which is now `hone-core/inline-config`.
 3. **Keep the scripts.** `"hone:check": "hone check --repo ."` and `"hone:project": "hone project --repo ."` work unchanged, because the command is still `hone`.
 4. **Repoint agent instructions** from `node_modules/honed/rules/` to `node_modules/@hailstails/hone/rules/`.

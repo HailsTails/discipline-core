@@ -11,50 +11,39 @@ const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/"
 
 const STAGE_SOURCE = "/tmp/hailstails-hone-package-stage-1/source";
 
-const DEVELOPMENT_MANIFEST = JSON.stringify({
-  version: "0.0.0",
-  private: true,
-  type: "module",
-  description: "Runs disciplines.",
-  keywords: ["disciplines"],
-  license: "MIT-0",
-  author: "Example Author",
-  engines: { node: ">=22.18.0" },
-  dependencies: { zod: "4.4.3" },
-  peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
-  peerDependenciesMeta: { eslint: { optional: true }, typescript: { optional: true } },
-  devDependencies: { esbuild: "0.25.12" },
-});
+const developmentManifestDeclaring = (request: { readonly dependencies: Readonly<Record<string, string>> }): string =>
+  JSON.stringify({
+    version: "0.0.0",
+    private: true,
+    type: "module",
+    description: "Runs disciplines.",
+    keywords: ["disciplines"],
+    license: "MIT-0",
+    author: "Example Author",
+    engines: { node: ">=22.18.0" },
+    dependencies: request.dependencies,
+    peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
+    peerDependenciesMeta: { eslint: { optional: true }, typescript: { optional: true } },
+    devDependencies: { esbuild: "0.25.12" },
+  });
+
+const DEVELOPMENT_MANIFEST = developmentManifestDeclaring({ dependencies: { zod: "^4.4.3" } });
 
 const LOCK = `lockfileVersion: '9.0'
 importers:
   .:
     dependencies:
+      levn:
+        specifier: ^0.4.1
+        version: 0.4.1
       zod:
-        specifier: 4.4.3
+        specifier: ^4.4.3
         version: 4.4.3
 snapshots:
   zod@4.4.3: {}
 `;
 
-const LOCK_HOLDING_ZOD_TWICE = `lockfileVersion: '9.0'
-importers:
-  .:
-    dependencies:
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-snapshots:
-  zod@4.4.3:
-    dependencies:
-      other: 1.0.0
-  other@1.0.0:
-    dependencies:
-      zod: 4.4.2
-  zod@4.4.2: {}
-`;
-
-const SOURCE_WITHOUT_INSTALLED_ZOD: Readonly<Record<string, string>> = {
+const SOURCE: Readonly<Record<string, string>> = {
   "/package/package.json": DEVELOPMENT_MANIFEST,
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
@@ -75,13 +64,6 @@ const SOURCE_WITHOUT_INSTALLED_ZOD: Readonly<Record<string, string>> = {
   "/package/docs/why-chain-contract.md": "# Why-chain contract\n",
 };
 
-const SOURCE_WITHOUT_ZOD_LICENCE: Readonly<Record<string, string>> = {
-  ...SOURCE_WITHOUT_INSTALLED_ZOD,
-  "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.3", "license": "MIT" }',
-};
-
-const SOURCE: Readonly<Record<string, string>> = { ...SOURCE_WITHOUT_ZOD_LICENCE, "/deps/zod/LICENSE": "MIT License\n" };
-
 const entryOutput = (request: { readonly source: string; readonly path: string; readonly text: string }): BundledOutput => ({
   path: request.path,
   text: request.text,
@@ -94,8 +76,8 @@ const CHUNK: BundledOutput = {
   path: "chunks/chunk-A.js",
   text: "export {};\n",
   entryPoint: undefined,
-  inputs: ["node_modules/zod/index.js"],
-  externalImports: ["typescript", "eslint/use-at-your-own-risk"],
+  inputs: ["core/values/result.ts"],
+  externalImports: ["typescript", "eslint/use-at-your-own-risk", "zod"],
 };
 
 const TOOL_COMMAND = entryOutput({
@@ -116,7 +98,7 @@ const LOOPS = entryOutput({ source: "mechanisms/audit/CD-15/loops.ts", path: "me
 
 const BUNDLE: Bundle = {
   outputs: [TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, CHUNK],
-  packageRoots: ["node_modules/zod"],
+  packageRoots: [],
 };
 
 const bundlerReturning = (bundle: Result<Bundle, BundleFailure>): BundlerPort => ({
@@ -139,7 +121,6 @@ const builtWith = (request: { readonly source: Readonly<Record<string, string>>;
       },
       packageRoot: "/package",
       outputRoot: "/out",
-      dependencies: "/deps",
     }),
   };
 };
@@ -147,7 +128,6 @@ const builtWith = (request: { readonly source: Readonly<Record<string, string>>;
 const SHIPPED_FILES = [
   "LICENSE",
   "README.md",
-  "THIRD-PARTY-NOTICES.md",
   "api/audit.d.ts",
   "api/audit.js",
   "api/rule-set.d.ts",
@@ -169,7 +149,7 @@ const SHIPPED_FILES = [
 const NOTHING_WRITTEN = { "/out/stale.js": "stale\n" };
 
 describe("buildPackage", () => {
-  it("bundles the command, the public entries, the runners and the shipped piece modules from a stage holding core's code and core's own installed packages, with each peer external", async () => {
+  it("bundles the command, the public entries, the runners and the shipped piece modules from a stage holding only core's code, with each peer and each dependency external", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const recording = recordingBundler({ files, stage: STAGE_SOURCE, bundle: { outcome: "ok", value: BUNDLE } });
 
@@ -183,7 +163,6 @@ describe("buildPackage", () => {
       },
       packageRoot: "/package",
       outputRoot: "/out",
-      dependencies: "/deps",
     });
 
     expect({
@@ -202,7 +181,7 @@ describe("buildPackage", () => {
             "mechanisms/audit/runner/runner.ts",
             "mechanisms/audit/CD-15/loops.ts",
           ],
-          external: ["eslint", "eslint/*", "typescript", "typescript/*"],
+          external: ["eslint", "eslint/*", "typescript", "typescript/*", "zod", "zod/*"],
           target: "node22.18",
         },
       ],
@@ -214,8 +193,6 @@ describe("buildPackage", () => {
         "mechanisms/audit/CD-15/loops.ts",
         "mechanisms/audit/CD-15/piece.json",
         "mechanisms/audit/runner/runner.ts",
-        "node_modules/zod/LICENSE",
-        "node_modules/zod/package.json",
         "package.json",
         "tsconfig.base.json",
         "tsconfig.json",
@@ -224,7 +201,7 @@ describe("buildPackage", () => {
     });
   });
 
-  it("replaces the output root with the bundle, the shipped documents and data, the built pieces, the notices and the published manifest", async () => {
+  it("replaces the output root with the bundle, the shipped documents and data, the built pieces and the published manifest, and no third-party notices", async () => {
     const { files, built } = builtWith({ source: SOURCE, bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }) });
 
     const packaged = await built;
@@ -235,17 +212,19 @@ describe("buildPackage", () => {
     });
   });
 
-  it("writes the published manifest naming every top-level entry, the built piece naming its .js module, and the bundled package's licence", async () => {
+  it("writes the published manifest naming every top-level entry and each dependency at its declared caret range, and the built piece naming its .js module", async () => {
     const { files, built } = builtWith({ source: SOURCE, bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }) });
 
     await built;
 
     expect(files.texts()).toMatchObject({
+      "/out/package.json": expect.stringContaining('"dependencies": {\n    "zod": "^4.4.3"\n  },'),
+    });
+    expect(files.texts()).toMatchObject({
       "/out/package.json": expect.stringContaining(
-        '"files": [\n    "LICENSE",\n    "README.md",\n    "THIRD-PARTY-NOTICES.md",\n    "api",\n    "chunks",\n    "core",\n    "docs",\n    "mechanisms",\n    "rules"\n  ]',
+        '"files": [\n    "LICENSE",\n    "README.md",\n    "api",\n    "chunks",\n    "core",\n    "docs",\n    "mechanisms",\n    "rules"\n  ]',
       ),
       "/out/mechanisms/audit/CD-15/piece.json": expect.stringContaining('"module": "loops.js"'),
-      "/out/THIRD-PARTY-NOTICES.md": expect.stringContaining("## zod 4.4.3\n\nLicense: MIT\n\n```text\nMIT License\n```"),
     });
   });
 
@@ -265,7 +244,7 @@ describe("buildPackage", () => {
     });
   });
 
-  it("fails naming each output that imports a package it neither bundles nor declares as a peer, writing nothing", async () => {
+  it("fails naming each output that imports a package declared neither as a peer nor as a dependency, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
       bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
@@ -274,7 +253,7 @@ describe("buildPackage", () => {
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
-        error: "FAIL: bundle: an output imports what is neither bundled, a node: builtin nor a declared peer: chunks/chunk-A.js imports levn",
+        error: "FAIL: bundle: an output imports what is neither a node: builtin, a declared peer nor a declared dependency: chunks/chunk-A.js imports levn",
       },
       written: NOTHING_WRITTEN,
     });
@@ -296,35 +275,45 @@ describe("buildPackage", () => {
     });
   });
 
-  it("fails naming a bundled package whose version is not the one core's lock holds, writing nothing", async () => {
+  it("fails naming a dependency published as a range wider than a caret, or from another floor than the version core's lock holds, before bundling, writing nothing", async () => {
+    const bundler = bundlerReturning({ outcome: "ok", value: BUNDLE });
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/deps/zod/package.json": '{ "name": "zod", "version": "4.4.2", "license": "MIT" }' },
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: ">=4.4.3", levn: "^0.4.0" } }) },
+      bundler,
+    });
+
+    expect({ result: await built, written: files.textsUnder({ folder: "/out" }), bundled: vi.mocked(bundler.bundle).mock.calls }).toEqual({
+      result: {
+        outcome: "failed",
+        error: "FAIL: the published dependency ranges do not start at the versions pnpm-lock.yaml locks: zod is published as >=4.4.3, which is not a caret range of one release; levn is published as ^0.4.0, whose floor is not the locked 0.4.1",
+      },
+      written: NOTHING_WRITTEN,
+      bundled: [],
+    });
+  });
+
+  it("fails naming a dependency of core the lock does not hold, writing nothing", async () => {
+    const { files, built } = builtWith({
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: "^4.4.3", other: "^1.0.0" } }) },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
-      result: {
-        outcome: "failed",
-        error: "FAIL: bundle: a bundled package is not the one pnpm-lock.yaml locks: zod 4.4.2 at node_modules/zod, but the lock holds 4.4.3",
-      },
+      result: { outcome: "failed", error: "FAIL: read /package/pnpm-lock.yaml: core depends on other, which the lock does not hold" },
       written: NOTHING_WRITTEN,
     });
   });
 
-  it("fails naming a dependency of core the lock holds at two versions, which a flat stage cannot place, writing nothing", async () => {
+  it("fails naming each installed package whose code the bundle carries, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: {
-        ...SOURCE,
-        "/package/pnpm-lock.yaml": LOCK_HOLDING_ZOD_TWICE,
-      },
-      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+      source: SOURCE,
+      bundler: bundlerReturning({ outcome: "ok", value: { ...BUNDLE, packageRoots: ["node_modules/zod"] } }),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
       result: {
         outcome: "failed",
-        error:
-          "FAIL: read /package/pnpm-lock.yaml: core's dependencies in the lock hold zod at more than one version, which a flat stage cannot place",
+        error: "FAIL: bundle: an output carries an installed package's code, which the package imports by name instead: node_modules/zod is bundled into the package",
       },
       written: NOTHING_WRITTEN,
     });
@@ -345,6 +334,31 @@ describe("buildPackage", () => {
     });
   });
 
+  it("ships the changelog the release writes, though it names the version being built", async () => {
+    const changelog = "# Changelog\n\n## 0.0.0\n\n### Fixes\n\n- read the right line (#1)\n";
+    const { files, built } = builtWith({
+      source: { ...SOURCE, "/package/CHANGELOG.md": changelog },
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect({ result: (await built).outcome, shipped: files.textsUnder({ folder: "/out" })["/out/CHANGELOG.md"] }).toEqual({
+      result: "ok",
+      shipped: changelog,
+    });
+  });
+
+  it("still fails naming a guide page that names the version being built when the changelog ships beside it", async () => {
+    const { built } = builtWith({
+      source: { ...SOURCE, "/package/CHANGELOG.md": "# Changelog\n\n## 0.0.0\n", "/package/README.md": "# Hone\n\nVersion 0.0.0.\n" },
+      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
+    });
+
+    expect(await built).toEqual({
+      outcome: "failed",
+      error: "FAIL: a shipped page names a Hone version, which goes stale on the next release: README.md names 0.0.0",
+    });
+  });
+
   it("fails naming a shipped page that links to a file the package does not ship, writing nothing", async () => {
     const { files, built } = builtWith({
       source: { ...SOURCE, "/package/README.md": "# Hone\n\n[Proof](tests/test-fixtures/walkthrough/)\n" },
@@ -356,30 +370,6 @@ describe("buildPackage", () => {
         outcome: "failed",
         error: "FAIL: a shipped page links to a file the package does not ship: README.md links to tests/test-fixtures/walkthrough",
       },
-      written: NOTHING_WRITTEN,
-    });
-  });
-
-  it("fails naming a bundled package that ships no licence file, writing nothing", async () => {
-    const { files, built } = builtWith({
-      source: SOURCE_WITHOUT_ZOD_LICENCE,
-      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
-    });
-
-    expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
-      result: { outcome: "failed", error: "FAIL: bundle zod: it ships no licence file to reproduce" },
-      written: NOTHING_WRITTEN,
-    });
-  });
-
-  it("fails naming a dependency of core that is not installed, writing nothing", async () => {
-    const { files, built } = builtWith({
-      source: SOURCE_WITHOUT_INSTALLED_ZOD,
-      bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
-    });
-
-    expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
-      result: { outcome: "failed", error: "FAIL: locate the installed packages: zod is not installed at /deps/zod: ENOENT /deps/zod" },
       written: NOTHING_WRITTEN,
     });
   });

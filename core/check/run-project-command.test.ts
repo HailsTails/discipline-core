@@ -45,6 +45,7 @@ const CLASS_SYNTAX_DEFINITION = {
 const NOTHING_SELECTED: Readonly<Record<string, FakeFile>> = {
   "/repo/disciplines.json": presentFile({ text: JSON.stringify({ version: 1, ruleSets: {}, clauses: {} }) }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
+  "/install/package.json": ABSENT_FILE,
 };
 
 const CLASS_SYNTAX_SELECTED: Readonly<Record<string, FakeFile>> = {
@@ -75,6 +76,8 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
+  '["/install","package.json"]': "/install/package.json",
+  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
@@ -104,7 +107,7 @@ const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
 
 const TABLE_PATH: PathPort = {
   join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
-  relative: vi.fn<PathPort["relative"]>(),
+  relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
   joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
   repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),

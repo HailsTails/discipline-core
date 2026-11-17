@@ -2,20 +2,37 @@ import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import type { PackageLink } from "./package-link.ts";
 
 type ShownRequest = {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath | undefined;
+  readonly link: PackageLink;
 };
 
 const NATIVE_SEPARATOR = "\\";
 
 const SHOWN_SEPARATOR = "/";
 
+const PARENT_FOLDER = "..";
+
+const insidePackage = (request: { readonly within: string }): "inside" | "outside" =>
+  request.within === PARENT_FOLDER || request.within.startsWith(`${PARENT_FOLDER}${SHOWN_SEPARATOR}`) ? "outside" : "inside";
+
+const throughLink = (request: ShownRequest & { readonly target: string }): string => {
+  if (request.link.kind === "unlinked") {
+    return request.target;
+  }
+  const location = request.path.relative({ from: request.link.installRoot, to: request.target });
+  return location.relation === "within-root" && insidePackage({ within: location.path }) === "inside"
+    ? request.path.join({ segments: [request.link.linkRoot, location.path] })
+    : request.target;
+};
+
 export const shownPathOf = (request: ShownRequest & { readonly target: string }): string => {
-  const location =
-    request.repoRoot === undefined ? undefined : request.path.relative({ from: request.repoRoot, to: request.target });
-  return location?.relation === "within-root" ? location.path : request.target.replaceAll(NATIVE_SEPARATOR, SHOWN_SEPARATOR);
+  const target = throughLink(request);
+  const location = request.repoRoot === undefined ? undefined : request.path.relative({ from: request.repoRoot, to: target });
+  return location?.relation === "within-root" ? location.path : target.replaceAll(NATIVE_SEPARATOR, SHOWN_SEPARATOR);
 };
 
 const shownRunnerFailureOf = (request: ShownRequest & { readonly failure: RunnerFailure }): RunnerFailure => {

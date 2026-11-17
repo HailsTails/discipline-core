@@ -15,6 +15,7 @@ import { type CheckArguments, parseCheckArguments } from "./command-arguments.ts
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { type PackageLink, packageLinkOf, UNLINKED } from "./package-link.ts";
 import { projectCommandOf } from "./project-command.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "./shown-path.ts";
@@ -45,13 +46,24 @@ export const repoRootOf = (request: {
     : resolved;
 };
 
-export const withShownPaths = <Value>(request: {
+type ShownPathsRequest = {
   readonly path: PathPort;
+  readonly fileText: FileTextPort;
   readonly repoRoot: AbsolutePath;
-  readonly run: Result<Value, LoadFailure>;
-}): Result<Value, LoadFailure> =>
+  readonly installRoot: Result<AbsolutePath, LoadFailure>;
+};
+
+const installLinkOf = (request: ShownPathsRequest): PackageLink =>
+  request.installRoot.outcome === "failed" ? UNLINKED : packageLinkOf({ ...request, installRoot: request.installRoot.value });
+
+export const withShownPaths = <Value>(
+  request: ShownPathsRequest & { readonly run: Result<Value, LoadFailure> },
+): Result<Value, LoadFailure> =>
   request.run.outcome === "failed"
-    ? { outcome: "failed", error: shownFailureOf({ failure: request.run.error, path: request.path, repoRoot: request.repoRoot }) }
+    ? {
+        outcome: "failed",
+        error: shownFailureOf({ failure: request.run.error, path: request.path, repoRoot: request.repoRoot, link: installLinkOf(request) }),
+      }
     : request.run;
 
 export const printOutcome = (request: {
@@ -75,12 +87,12 @@ const checkRunOf = (request: {
       };
 
 const checkRunIn = async (
-  request: CommandRequest & { readonly arguments: CheckArguments; readonly repoRoot: AbsolutePath },
+  request: CommandRequest & {
+    readonly arguments: CheckArguments;
+    readonly repoRoot: AbsolutePath;
+    readonly installRoot: AbsolutePath;
+  },
 ): Promise<Result<CheckRun, LoadFailure>> => {
-  const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
-  if (installRoot.outcome === "failed") {
-    return installRoot;
-  }
   const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repoRoot: request.repoRoot });
   if (projectCommand.outcome === "failed") {
     return projectCommand;
@@ -95,7 +107,7 @@ const checkRunIn = async (
   });
   const report = await runCheck({
     repoRoot: request.repoRoot,
-    installRoot: installRoot.value,
+    installRoot: request.installRoot,
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: request.arguments.baseRevision,
     assessment,
@@ -120,10 +132,16 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   if (repoRoot.outcome === "failed") {
     return repoRoot;
   }
+  const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
   return withShownPaths({
     path: request.path,
+    fileText: request.fileText,
     repoRoot: repoRoot.value,
-    run: await checkRunIn({ ...request, arguments: parsed.value, repoRoot: repoRoot.value }),
+    installRoot,
+    run:
+      installRoot.outcome === "failed"
+        ? installRoot
+        : await checkRunIn({ ...request, arguments: parsed.value, repoRoot: repoRoot.value, installRoot: installRoot.value }),
   });
 };
 

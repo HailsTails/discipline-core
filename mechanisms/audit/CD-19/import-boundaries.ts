@@ -94,7 +94,7 @@ export const check: WalkerPiece = {
                 const record = (specifier: SyntaxNode | undefined): void => {
                   if (specifier === undefined || !syntaxApi.isStringLiteralLike(specifier) || !specifier.text.startsWith("node:")) return;
                   const anchor = anchorAt({ position: specifier.getStart(sourceFile) });
-                  const snippet = `bare node: stdlib import - use the kernel port package: ${specifier.text}`;
+                  const snippet = `bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: ${specifier.text}`;
                   nodeHits.push(...clauses.map((clause) => ({ clause: clause.address, anchor, snippet })));
                 };
                 return {

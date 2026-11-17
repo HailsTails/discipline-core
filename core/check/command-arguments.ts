@@ -40,6 +40,8 @@ const FLAG_MARKER = "-";
 
 const JOINED_VALUE_MARKER = "=";
 
+const END_OF_OPTIONS = "--";
+
 const REMOVED_OPTIONS: ReadonlyMap<string, string> = new Map([["--waived-clauses", WAIVED_CLAUSES_REPLACEMENT]]);
 
 const failedWith = (request: { readonly problem: ArgumentProblem }): { readonly outcome: "failed"; readonly error: LoadFailure } =>
@@ -84,6 +86,18 @@ const optionValuesFrom = (request: {
   return optionValuesFrom({ ...request, remaining: rest, given: new Map([...request.given, [option.name, given]]) });
 };
 
+const withoutEndOfOptions = (request: { readonly remaining: readonly string[] }): readonly string[] => {
+  const [name, ...rest] = request.remaining;
+  if (name === undefined) {
+    return [];
+  }
+  if (name === END_OF_OPTIONS) {
+    return withoutEndOfOptions({ remaining: rest });
+  }
+  const [given, ...beyond] = rest;
+  return given === undefined ? [name] : [name, given, ...withoutEndOfOptions({ remaining: beyond })];
+};
+
 const givenOptionValues = (request: {
   readonly subcommand: Subcommand;
   readonly arguments: readonly string[];
@@ -92,7 +106,11 @@ const givenOptionValues = (request: {
   if (removed !== undefined) {
     return failedWith({ problem: removed });
   }
-  return optionValuesFrom({ subcommand: request.subcommand, remaining: request.arguments, given: new Map() });
+  return optionValuesFrom({
+    subcommand: request.subcommand,
+    remaining: withoutEndOfOptions({ remaining: request.arguments }),
+    given: new Map(),
+  });
 };
 
 const requiredRepo = (request: { readonly subcommand: Subcommand; readonly values: OptionValues }): Result<string, LoadFailure> => {
@@ -158,7 +176,7 @@ export const parseProjectArguments = (request: {
 };
 
 const optionNamePositions = (request: { readonly arguments: readonly string[] }): readonly string[] =>
-  request.arguments.filter((_, position) => position % 2 === 0);
+  withoutEndOfOptions({ remaining: request.arguments }).filter((_, position) => position % 2 === 0);
 
 const asksForHelp = (request: { readonly arguments: readonly string[] }): "help" | "no-help" =>
   optionNamePositions(request).some((argument) => HELP_FLAGS.includes(argument)) ? "help" : "no-help";

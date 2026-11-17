@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
+import { CHANGELOG_FILE } from "./changelog.ts";
 import { PUBLIC_TYPE_ENTRIES } from "./package-declarations.ts";
 
 export type PlanFailure = { readonly kind: "piece-invalid"; readonly path: string; readonly detail: string };
@@ -14,14 +15,6 @@ export type PackagePlan = {
   readonly copied: readonly string[];
   readonly pieces: readonly PieceText[];
   readonly exported: readonly string[];
-};
-
-export type BundledPackage = {
-  readonly name: string;
-  readonly version: string;
-  readonly license: string;
-  readonly licenseText: string;
-  readonly noticeText: string | undefined;
 };
 
 export const SHIPPED_NODE_RANGE = "^22.18.0 || >=24";
@@ -51,6 +44,13 @@ const SHIPPED_DOCUMENTS = new Set([
   "docs/extending.md",
   "docs/output-contract.md",
 ]);
+
+const RELEASE_WRITTEN_DOCUMENTS: ReadonlySet<string> = new Set([CHANGELOG_FILE]);
+
+export type DocumentAuthor = "release" | "maintainer";
+
+export const documentAuthorOf = (request: { readonly path: string }): DocumentAuthor =>
+  RELEASE_WRITTEN_DOCUMENTS.has(request.path) ? "release" : "maintainer";
 
 const SHIPPED_DATA = [/^rules\/[^/]+\/discipline\.json$/, /^rules\/.+\.md$/, /^methods\/.+\.md$/, /^mechanisms\/.+\.md$/];
 
@@ -173,7 +173,10 @@ const parsedPieces = (request: { readonly pieces: readonly PieceText[] }): Resul
   }, { outcome: "ok", value: [] });
 
 const copiedPathsIn = (request: { readonly sourcePaths: readonly string[] }): readonly string[] =>
-  shippedPaths(request).filter((path) => SHIPPED_DOCUMENTS.has(path) || SHIPPED_DATA.some((pattern) => pattern.test(path)));
+  shippedPaths(request).filter(
+    (path) =>
+      SHIPPED_DOCUMENTS.has(path) || documentAuthorOf({ path }) === "release" || SHIPPED_DATA.some((pattern) => pattern.test(path)),
+  );
 
 export const packagePlanOf = (request: {
   readonly sourcePaths: readonly string[];
@@ -197,34 +200,5 @@ export const packagePlanOf = (request: {
   };
 };
 
-export const externalPeersOf = (request: { readonly peers: readonly string[] }): readonly string[] =>
-  request.peers.flatMap((peer) => [peer, `${peer}/*`]);
-
-const nameOrder = (request: { readonly left: string; readonly right: string }): number => {
-  if (request.left === request.right) {
-    return 0;
-  }
-  return request.left < request.right ? -1 : 1;
-};
-
-const noticeSection = (request: { readonly bundled: BundledPackage }): string =>
-  [
-    `## ${request.bundled.name} ${request.bundled.version}`,
-    "",
-    `License: ${request.bundled.license}`,
-    "",
-    "```text",
-    request.bundled.licenseText.trimEnd(),
-    "```",
-    ...(request.bundled.noticeText === undefined ? [] : ["", "NOTICE:", "", "```text", request.bundled.noticeText.trimEnd(), "```"]),
-  ].join("\n");
-
-export const thirdPartyNoticesOf = (request: { readonly packages: readonly BundledPackage[] }): string =>
-  `${[
-    "# Third-party notices",
-    "",
-    "This package bundles the following packages into its JavaScript: esbuild combined and re-emitted their code, without changing what it does. Each is redistributed under its own licence, reproduced below.",
-    ...[...request.packages]
-      .sort((left, right) => nameOrder({ left: left.name, right: right.name }))
-      .flatMap((bundled) => ["", noticeSection({ bundled })]),
-  ].join("\n")}\n`;
+export const externalPackagesOf = (request: { readonly packages: readonly string[] }): readonly string[] =>
+  request.packages.flatMap((name) => [name, `${name}/*`]);

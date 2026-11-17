@@ -163,8 +163,8 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
 
     expect(observed.observers.finish()).toEqual([
       { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 1, column: 15 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
-      { clause: ADDRESS, anchor: { line: 3, column: 14 }, snippet: "bare node: stdlib import - use the kernel port package: node:path" },
+      { clause: ADDRESS, anchor: { line: 1, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
+      { clause: ADDRESS, anchor: { line: 3, column: 14 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path" },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 15 }], [{ position: 72 }]]);
     expect(observed.readText).not.toHaveBeenCalled();
@@ -185,10 +185,10 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     observed.observers.enter?.({ node: required });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 20 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
-      { clause: ADDRESS, anchor: { line: 2, column: 22 }, snippet: "bare node: stdlib import - use the kernel port package: node:path" },
-      { clause: ADDRESS, anchor: { line: 3, column: 7 }, snippet: "bare node: stdlib import - use the kernel port package: node:url" },
-      { clause: ADDRESS, anchor: { line: 4, column: 8 }, snippet: "bare node: stdlib import - use the kernel port package: node:crypto" },
+      { clause: ADDRESS, anchor: { line: 1, column: 20 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
+      { clause: ADDRESS, anchor: { line: 2, column: 22 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path" },
+      { clause: ADDRESS, anchor: { line: 3, column: 7 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:url" },
+      { clause: ADDRESS, anchor: { line: 4, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:crypto" },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 20 }], [{ position: 60 }], [{ position: 81 }], [{ position: 102 }]]);
   });
@@ -209,7 +209,7 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     observed.observers.enter?.({ node: templateImport });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 2, column: 8 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
+      { clause: ADDRESS, anchor: { line: 2, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
     ]);
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 32 });
   });
@@ -244,7 +244,7 @@ describe("CD-19 confined packages come from the clause settings", () => {
     observed.observers.enter?.({ node: nodeImport });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
+      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
     ]);
   });
 

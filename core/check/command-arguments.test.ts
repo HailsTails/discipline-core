@@ -18,6 +18,8 @@ describe("parseInvocation", () => {
     { given: ["check", "--help"], expected: { kind: "help", topic: "check" } },
     { given: ["project", "--repo", "/work/repo", "-h"], expected: { kind: "help", topic: "project" } },
     { given: ["--help", "check"], expected: { kind: "help", topic: "check" } },
+    { given: ["check", "--", "--help"], expected: { kind: "help", topic: "check" } },
+    { given: ["check", "--repo", "/work/repo", "--", "-h"], expected: { kind: "help", topic: "check" } },
   ])("reads $given", ({ given, expected }) => {
     expect(parseInvocation({ arguments: given })).toEqual({ outcome: "ok", value: expected });
   });
@@ -39,6 +41,9 @@ describe("parseCheckArguments", () => {
     { given: ["--base-revision", "origin/main", "--repo", "/work/repo"], expected: { repo: "/work/repo", baseRevision: "origin/main" } },
     { given: ["--repo", "/work/repo", "--report-output", "counts"], expected: { repo: "/work/repo", reportOutput: "counts" } },
     { given: ["--repo", "/work/repo", "--forfeiture", "elsewhere"], expected: { repo: "/work/repo", forfeiture: "elsewhere" } },
+    { given: ["--repo", "/work/repo", "--", "--base-revision", "origin/main"], expected: { repo: "/work/repo", baseRevision: "origin/main" } },
+    { given: ["--", "--repo", "/work/repo"], expected: { repo: "/work/repo" } },
+    { given: ["--repo", "/work/repo", "--"], expected: { repo: "/work/repo" } },
   ])("reads $given", ({ given, expected }) => {
     expect(parseCheckArguments({ arguments: given })).toEqual({
       outcome: "ok",
@@ -56,6 +61,9 @@ describe("parseCheckArguments refusing what it cannot read", () => {
     { given: ["--repo", "/work/repo", "-x"], problem: { kind: "option-unknown", subcommand: "check", given: "-x" } },
     { given: ["--repo", "-h"], problem: { kind: "value-missing", option: REPO_OPTION } },
     { given: ["--repo", "/work/repo", "src"], problem: { kind: "argument-unexpected", subcommand: "check", given: "src" } },
+    { given: ["--repo", "/work/repo", "--", "src"], problem: { kind: "argument-unexpected", subcommand: "check", given: "src" } },
+    { given: ["--repo", "--"], problem: { kind: "value-missing", option: REPO_OPTION } },
+    { given: ["--repo", "--", "/work/repo"], problem: { kind: "value-missing", option: REPO_OPTION } },
     { given: ["--repo=/work/repo"], problem: { kind: "option-joined", option: REPO_OPTION, given: "--repo=/work/repo" } },
     { given: ["--repo", "/a", "--repo", "/b"], problem: { kind: "option-repeated", option: REPO_OPTION } },
     {
@@ -84,8 +92,8 @@ describe("parseCheckArguments refusing what it cannot read", () => {
 });
 
 describe("parseProjectArguments", () => {
-  it("reads --repo", () => {
-    expect(parseProjectArguments({ arguments: ["--repo", "/work/repo"] })).toEqual({ outcome: "ok", value: { repo: "/work/repo" } });
+  it.each([{ given: ["--repo", "/work/repo"] }, { given: ["--", "--repo", "/work/repo"] }])("reads --repo from $given", ({ given }) => {
+    expect(parseProjectArguments({ arguments: given })).toEqual({ outcome: "ok", value: { repo: "/work/repo" } });
   });
 
   it.each([

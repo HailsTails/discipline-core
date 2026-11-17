@@ -120,7 +120,7 @@ const reportOf = (request: { readonly process: ProcessPort }) => ({
 });
 
 describe("createTarballPacker", () => {
-  it("builds into the work root from the given installed packages, packs that build with npm into the work root's tarball folder, and names the one tarball", async () => {
+  it("builds into the work root, packs that build with npm into the work root's tarball folder, and names the one tarball", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const npm = npmFaking({ files, tarballText: SAME_TARBALL });
     const packer = createTarballPacker({
@@ -170,7 +170,7 @@ describe("createTarballPacker", () => {
 });
 
 describe("runBuildPackage", () => {
-  it("builds into dist from core's own installed packages, running no command", async () => {
+  it("builds into dist, running no command", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const npm = npmFaking({ files, tarballText: SAME_TARBALL });
     const request = commandRequest({ files, bundler: steadyBundler(), commands: npm.commands });
@@ -178,7 +178,7 @@ describe("runBuildPackage", () => {
     await runBuildPackage(request);
 
     expect({ report: reportOf(request), runs: npm.runs(), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
-      report: { writes: [[{ text: "build package: wrote 12 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "build package: wrote 11 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
       runs: [],
       left: [],
     });
@@ -227,7 +227,7 @@ describe("runPackageDeterminism", () => {
 
     expect({ report: reportOf(request), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
       report: {
-        writes: [[{ text: "package determinism: pass, 12 files and the packed tarball byte-identical across two builds\n" }]],
+        writes: [[{ text: "package determinism: pass, 11 files and the packed tarball byte-identical across two builds\n" }]],
         exits: [[{ code: 0 }]],
       },
       left: [],

@@ -10,8 +10,8 @@ Hone prints everything to standard output: the report, the help, the version, `h
 
 The exit code is the signal a hook should act on:
 
-- `0`: `hone check` printed `verdict: pass`, `hone project` wrote or confirmed every projection, or help or the version was printed;
-- `1`: `hone check` printed `verdict: fail` as its last line. Exit `1` always comes with that line, and with nothing else;
+- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, or help or the version was printed;
+- `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line. Exit `1` always comes with one of those lines, and with nothing else;
 - `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, and an error Hone did not expect, which prints as `unexpected-error`.
 
 A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
@@ -62,7 +62,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<comment>`, `<script>`, `<option>`, `<source>` | the native exception's comment, the `package.json` script name and the option in it, or where an imported record came from | may hold a space |
 | `<detail>`, `<given>`, `<values>`, `<rule set>`, `<other rule set>`, `<clause with its rule set>`, `<version found>`, `<other package>`, `<range>` | text from the input, a tool or the command as typed | may hold a space |
 
-Paths are printed with forward slashes. A path inside the `--repo` folder is printed relative to it, in the report and in load failures alike. A path outside it is printed absolute, such as `C:/Users/me/shared/rule.json` on Windows. A load failure from before `--repo` is resolved names the folder as typed (`<dir>`). A load failure reading the installed package's own `package.json`, which only `hone --version` reads, prints its absolute path. A path inside a `<detail>` is printed however the tool that wrote the detail printed it.
+Paths are printed with forward slashes. A path inside the `--repo` folder is printed relative to it, in the report and in load failures alike. A path outside it is printed absolute, such as `C:/Users/me/shared/rule.json` on Windows. A load failure from before `--repo` is resolved names the folder as typed (`<dir>`). A path into Hone's own package, such as a `<rule page>`, the `<adoption guide>`, a `<piece folder>` or the `<install folder>`, is printed through the repository's `node_modules/@hailstails/hone` when that folder holds the same `package.json` as the package that is running, as it does under pnpm, which runs the package from its store under `node_modules/.pnpm`. When the repository root has no such folder, as when the package is installed only in a workspace package, installed globally or run from a source checkout, the path is printed where the running package is, by the rules above. A load failure reading the installed package's own `package.json`, which only `hone --version` reads, prints its absolute path. A path inside a `<detail>` is printed however the tool that wrote the detail printed it.
 
 ## Commands
 
@@ -73,7 +73,7 @@ hone --help
 hone --version
 ```
 
-Each option is followed by its value as the next argument; a value that starts with `-` is read as a missing value. `--help` or `-h` after a command prints that command's help instead of running it, and `hone --help <command>` prints the same. `hone --help` and `hone --version` take nothing else after them.
+Each option is followed by its value as the next argument; a value that starts with `-` is read as a missing value. A bare `--` where an option is expected is skipped and the options after it are still read, so `pnpm run <script> -- <options>` works whether or not the package manager passes the `--` on; a `--` where a value is expected is a missing value, like any value that starts with `-`. `--help` or `-h` after a command prints that command's help instead of running it, and `hone --help <command>` prints the same. `hone --help` and `hone --version` take nothing else after them.
 
 `hone --help` prints:
 
