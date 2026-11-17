@@ -94,6 +94,7 @@ const idleSurface: EslintSurface = {
     .mockResolvedValue(undefined),
   lintFiles: vi.fn<EslintSurface["lintFiles"]>().mockResolvedValue([]),
   lintText: vi.fn<EslintSurface["lintText"]>().mockResolvedValue([]),
+  findConfigFile: vi.fn<EslintSurface["findConfigFile"]>().mockResolvedValue(undefined),
 };
 
 const throwsOnBuild = vi
@@ -502,6 +503,28 @@ describe("createQueryInstance", () => {
       outcome: "failed",
       error: { kind: "team-config-unloadable", detail: "Unexpected token in eslint.config.js" },
     });
+  });
+
+  it("names the config ESLint finds for a file, so a failure to load it can say which config it was", async () => {
+    const findConfigFile = vi.fn<EslintSurface["findConfigFile"]>().mockResolvedValue("/repo/fixtures/broken/eslint.config.mjs");
+    const configFile = await portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue({ ...idleSurface, findConfigFile }) })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect([configFile, findConfigFile.mock.calls]).toEqual(["/repo/fixtures/broken/eslint.config.mjs", [[{ filePath: fileA }]]]);
+  });
+
+  it("names no config when ESLint cannot find one", async () => {
+    const configFile = await portWith({
+      createEslint: vi.fn<CreateEslint>().mockReturnValue({
+        ...idleSurface,
+        findConfigFile: vi.fn<EslintSurface["findConfigFile"]>().mockRejectedValue(new Error("ENOENT")),
+      }),
+    })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect(configFile).toBeUndefined();
   });
 
   it("reports ESLint failing to build as tool-failed", async () => {

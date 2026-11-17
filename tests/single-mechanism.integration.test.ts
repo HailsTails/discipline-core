@@ -175,7 +175,14 @@ describe("adopting CD-6 through the audit only, with the ESLint clause waived an
     const checked = await checkOf({ assessment: DEFAULT_ASSESSMENT, modules: PEERLESS_ESLINT, fileText: ADOPTING_REPOSITORY });
     expect(checked).toMatchObject({
       outcome: "failed",
-      error: { kind: "runner-failed", mechanism: "eslint", failure: { kind: "toolchain-unavailable", packageName: "eslint" } },
+      error: {
+        kind: "runner-failed",
+        mechanism: "eslint",
+        failure: {
+          kind: "toolchain-unavailable",
+          peers: [{ packageName: "eslint" }, { packageName: "@typescript-eslint/parser" }, { packageName: "@typescript-eslint/eslint-plugin" }],
+        },
+      },
     });
   });
 

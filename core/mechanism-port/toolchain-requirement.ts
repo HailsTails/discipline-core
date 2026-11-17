@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PackageLocationPort, PackageUnlocatable } from "../platform-ports/package-location-port.ts";
 import type { Result } from "../values/result.ts";
-import type { PeerKind, RunnerFailure } from "./runner-failure.ts";
+import type { PeerKind, RunnerFailure, UnavailablePeer } from "./runner-failure.ts";
 
 export type ReleaseLine = {
   readonly floor: string;
@@ -84,12 +84,28 @@ const toolchainUnavailable = (request: {
   outcome: "failed",
   error: {
     kind: "toolchain-unavailable",
-    packageName: request.requirement.packageName,
-    peer: request.requirement.peer,
-    supported: supportedRange({ requirement: request.requirement }),
-    found: request.found,
+    peers: [
+      {
+        packageName: request.requirement.packageName,
+        peer: request.requirement.peer,
+        supported: supportedRange({ requirement: request.requirement }),
+        found: request.found,
+      },
+    ],
   },
 });
+
+const unavailablePeersOf = (request: { readonly failure: RunnerFailure }): readonly UnavailablePeer[] =>
+  request.failure.kind === "toolchain-unavailable" ? request.failure.peers : [];
+
+export const gatheredPeerFailure = (request: { readonly failures: readonly [RunnerFailure, ...RunnerFailure[]] }): RunnerFailure => {
+  const otherFailure = request.failures.find((failure) => failure.kind !== "toolchain-unavailable");
+  if (otherFailure !== undefined) {
+    return otherFailure;
+  }
+  const [first, ...rest] = request.failures.flatMap((failure) => unavailablePeersOf({ failure }));
+  return first === undefined ? request.failures[0] : { kind: "toolchain-unavailable", peers: [first, ...rest] };
+};
 
 const thrownState = (request: { readonly thrown: unknown; readonly packageName: string }): string => {
   const parsed = moduleErrorSchema.safeParse(request.thrown);

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { anchorSchema } from "../values/anchor-schema.ts";
 import { type ClauseAddress, clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
+import { snippetSchema } from "../values/snippet.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import { runnerFailureSchema } from "./runner-failure-schema.ts";
 import type { Hit } from "./runner-result-types.ts";
@@ -55,7 +56,7 @@ export const hitSchema = z
     clause: clauseAddressObjectSchema,
     file: repoPathSchema,
     anchor: anchorSchema,
-    snippet: z.string(),
+    snippet: snippetSchema,
   })
   .readonly();
 

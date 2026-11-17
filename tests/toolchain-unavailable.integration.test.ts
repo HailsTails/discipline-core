@@ -43,7 +43,10 @@ const pieceLoads = (): ModuleLoaderPort => ({
 const unresolvedFirst = (request: { readonly packageName: string }): PackageLocationPort => ({
   installRoot: INSTALL_ROOT,
   installForm: "package",
-  locate: vi.fn<PackageLocationPort["locate"]>().mockThrow(notInstalled(request)),
+  locate: vi
+    .fn<PackageLocationPort["locate"]>()
+    .mockThrowOnce(notInstalled(request))
+    .mockReturnValue({ outcome: "ok", value: "/repository/node_modules/peer/index.js" }),
 });
 
 const shadowedEslint: PackageLocationPort = {
@@ -93,7 +96,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "eslint",
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
         },
       },
       pieceLoads: [],
@@ -125,7 +128,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "audit",
-          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" }] },
         },
       },
       pieceLoads: [],

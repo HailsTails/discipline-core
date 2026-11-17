@@ -20,6 +20,7 @@ import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
@@ -397,14 +398,58 @@ const queriedFileOf = (request: {
   return checkedQueriedFile({ query: request.query, file: request.file, ruleIds: request.ruleIds });
 };
 
+type ConfigLocation = { readonly path: PathPort; readonly repoRoot: AbsolutePath };
+
+const configRepair = (request: { readonly configFile: string; readonly location: ConfigLocation }): string => {
+  const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
+  return folder === "." || folder === ""
+    ? "Fix it"
+    : `Fix it, or add ${folder} to exclude in disciplines.json so that Hone checks no file under it`;
+};
+
+const unloadableConfigDetail = (request: {
+  readonly file: RepoPath;
+  readonly detail: string;
+  readonly configFile: string | undefined;
+  readonly location: ConfigLocation;
+}): string => {
+  const placed =
+    request.configFile === undefined ? undefined : request.location.path.relative({ from: request.location.repoRoot, to: request.configFile });
+  return placed === undefined || placed.relation === "different-root"
+    ? `the ESLint config for ${request.file} failed to load: ${request.detail}. Fix that config`
+    : `${placed.path}, the ESLint config for ${request.file}, failed to load: ${request.detail}. ${configRepair({ configFile: placed.path, location: request.location })}`;
+};
+
+const explainedQueryFailure = (request: {
+  readonly query: QueryInstance;
+  readonly file: RepoPath;
+  readonly location: ConfigLocation;
+  readonly queried: Outcome<readonly QueriedFile[]>;
+}): Promise<Outcome<readonly QueriedFile[]>> => {
+  const queried = request.queried;
+  if (queried.outcome === "ok" || queried.error.kind !== "team-config-unloadable") {
+    return Promise.resolve(queried);
+  }
+  const detail = queried.error.detail;
+  return request.query.configFileOf({ file: request.file }).then((configFile) => ({
+    outcome: "failed",
+    error: {
+      kind: "team-config-unloadable",
+      detail: unloadableConfigDetail({ file: request.file, detail, configFile, location: request.location }),
+    },
+  }));
+};
+
 const queriedFile = (request: {
   readonly query: QueryInstance;
   readonly file: RepoPath;
   readonly ruleIds: readonly string[];
+  readonly location: ConfigLocation;
 }): Promise<Outcome<readonly QueriedFile[]>> =>
   request.query
     .ignoredState({ file: request.file })
-    .then((ignoredState) => queriedFileOf({ ...request, ignoredState }));
+    .then((ignoredState) => queriedFileOf({ ...request, ignoredState }))
+    .then((queried) => explainedQueryFailure({ query: request.query, file: request.file, location: request.location, queried }));
 
 const checkedFileOf = (request: { readonly entry: QueriedFile }): readonly CheckedFile[] =>
   request.entry.ignored === "checked" ? [{ file: request.entry.file, states: request.entry.states }] : [];
@@ -418,9 +463,10 @@ const queriedFiles = (request: {
   readonly query: QueryInstance;
   readonly files: readonly RepoPath[];
   readonly ruleIds: readonly string[];
+  readonly location: ConfigLocation;
 }): Promise<Outcome<QueriedFiles>> =>
   Promise.all(
-    request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds })),
+    request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds, location: request.location })),
   ).then((outcomes) =>
     mappedOutcome({
       outcome: gatheredOutcomes({ outcomes }),
@@ -657,13 +703,19 @@ const linesOf = (request: {
   return { outcome: "ok", value: text.value.split(LINE_BREAK) };
 };
 
+const lineSnippet = (request: { readonly line: string; readonly column: number }): string => {
+  const trimmed = request.line.trim();
+  return trimmed.length > SNIPPET_LIMIT ? request.line.slice(request.column - 1) : trimmed;
+};
+
 const sourceLineOf = (request: {
   readonly sourceLines: SourceLines;
   readonly line: number;
+  readonly column: number;
 }): Outcome<string> =>
   mappedOutcome({
     outcome: request.sourceLines(),
-    map: (lines) => (lines[request.line - 1] ?? "").trim(),
+    map: (lines) => lineSnippet({ line: lines[request.line - 1] ?? "", column: request.column }),
   });
 
 type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
@@ -715,7 +767,7 @@ const ruleFindings = (request: {
   readonly sourceLines: SourceLines;
 }): Outcome<readonly LintFindings[]> =>
   mappedOutcome({
-    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line }),
+    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line, column: request.message.column }),
     map: (snippet): readonly LintFindings[] => [
       {
         hits: [
@@ -1048,6 +1100,7 @@ const governedRun = (request: {
     ),
     files: request.run.files,
     ruleIds: ruleIdsOf({ selected: request.selected }),
+    location: { path: request.ports.path, repoRoot: request.run.repoRoot },
   }).then((queried) => queriedReport({ ...request, queried }));
 };
 

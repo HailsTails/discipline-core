@@ -1,6 +1,6 @@
 import type { RunnerFailure } from "./runner-failure-types.ts";
 
-export type { PeerKind, RunnerFailure } from "./runner-failure-types.ts";
+export type { PeerKind, RunnerFailure, UnavailablePeer, UnavailablePeers } from "./runner-failure-types.ts";
 
 export const runnerInvalidOutput = (request: {
   readonly detail: string;
