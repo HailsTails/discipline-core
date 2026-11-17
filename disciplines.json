@@ -41,5 +41,8 @@
     "CD-41#function-length": "eslint",
     "CD-42#useless-else": "eslint",
     "CD-44#parameter-reassignment": "eslint"
+  },
+  "clauseSettings": {
+    "CD-19#import-boundaries": { "confinedSpecifiers": ["eslint"] }
   }
 }

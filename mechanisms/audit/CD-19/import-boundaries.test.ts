@@ -16,12 +16,19 @@ const IMPORT = "im" + "port";
 const REQUIRE = "req" + "uire";
 const LINE_COMMENT = "/" + "/";
 const TEMPLATE_SUBSTITUTION = "$" + "{name}";
-const CLAUSE: RunnerClause = {
+const CONFIGURED_SPECIFIERS: readonly string[] = [
+  "eslint", "winston", "winston-transport", "better-sqlite3", "pino", "hono", "@hono/node-server",
+  "hono/cors", "hono/cookie", "hono/types", "hono/utils/http-status", "jose", "@modelcontextprotocol/sdk",
+  "zod-to-json-schema", "uuid",
+];
+const clauseWith = (request: { readonly clauseSettings: unknown }): RunnerClause => ({
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
-  settings: { module: "import-boundaries.ts" },
-};
+  settings: { module: "import-boundaries.ts", clauseSettings: request.clauseSettings },
+});
+const CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: CONFIGURED_SPECIFIERS } });
+const NEUTRAL_CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: [] } });
 
 const bannedHit = (request: { readonly line: number; readonly specifier: string }) => ({
   clause: ADDRESS,
@@ -37,14 +44,14 @@ type ObservationFixture = {
   readonly finish: PreparedWalkerCheck["finish"];
 };
 
-const preparedFor = (request: { readonly file: WalkerFile["file"] }): PreparedWalkerCheck => {
-  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+const preparedFor = (request: { readonly file: WalkerFile["file"]; readonly clause?: RunnerClause }): PreparedWalkerCheck => {
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   return prepared.value;
 };
 
-const sourceObservations = (request: { readonly source: string }): ObservationFixture => {
-  const prepared = preparedFor({ file: FILE });
+const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): ObservationFixture => {
+  const prepared = preparedFor({ file: FILE, clause: request.clause ?? CLAUSE });
   const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file: FILE, detail: "piece must use supplied source" } });
   const file = prepared.prepareFile({ file: FILE, readText });
   assert(file.outcome === "ok");
@@ -218,3 +225,59 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
   });
 });
 
+describe("CD-19 confined specifiers come from the clause settings", () => {
+  it("confines no third-party specifier by default while still flagging node: imports", () => {
+    const observed = sourceObservations({
+      clause: NEUTRAL_CLAUSE,
+      source: `${IMPORT} a ${FROM} "eslint";\n${IMPORT} b ${FROM} "winston";\n${IMPORT} fs ${FROM} "node:fs";\n`,
+    });
+    const nodeImport = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree);
+    observed.anchorAt.mockReturnValueOnce({ line: 3, column: 15 });
+
+    observed.observers.enter?.({ node: nodeImport });
+
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - use the kernel port package: node:fs" },
+    ]);
+  });
+
+  it("flags only the specifiers a repository confines", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedSpecifiers: ["@acme/payments"] } }),
+      source: `${IMPORT} a ${FROM} "@acme/payments";\n${IMPORT} b ${FROM} "winston";\n${IMPORT} c ${FROM} "@acme/payments/client";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "@acme/payments" })]);
+  });
+
+  it("matches a confined specifier holding regular expression characters literally", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedSpecifiers: ["lib(x)+"] } }),
+      source: `${IMPORT} a ${FROM} "lib(x)+";\n${IMPORT} b ${FROM} "libxx";\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "lib(x)+" })]);
+  });
+
+  it.each([
+    { name: "missing clause settings", clauseSettings: undefined },
+    { name: "a specifier list that is not an array", clauseSettings: { confinedSpecifiers: "eslint" } },
+    { name: "an empty specifier", clauseSettings: { confinedSpecifiers: [""] } },
+    { name: "an unknown setting", clauseSettings: { confinedSpecifiers: [], confinedPackages: ["eslint"] } },
+  ])("refuses to prepare with $name, naming the clause", ({ clauseSettings }) => {
+    const prepared = check.prepare({
+      clauses: [clauseWith({ clauseSettings })],
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      syntaxApi: SYNTAX_API,
+    });
+
+    expect(prepared).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "piece-invalid",
+        pieceRoot: "/install/mechanisms/audit/CD-19",
+        detail: expect.stringContaining("the clauseSettings of CD-19#import-boundaries are malformed"),
+      },
+    });
+  });
+});

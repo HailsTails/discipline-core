@@ -1077,3 +1077,90 @@ describe("ruleSetRootOf", () => {
     });
   });
 });
+
+const CD_14_SETTABLE_PIECE = JSON.stringify({
+  version: 1,
+  discipline: "CD-14",
+  mechanism: "audit",
+  clauses: [
+    { clause: "class-syntax", settings: { module: "class-syntax.ts", clauseSettings: { allowedNames: [], limit: 3 } } },
+    { clause: "abstract-syntax", settings: { module: "abstract-syntax.ts" } },
+  ],
+});
+
+const selectingSettable = (selection: unknown) =>
+  select({
+    ...INSTALL,
+    "/install/mechanisms/audit/CD-14/piece.json": presentFile({ text: CD_14_SETTABLE_PIECE }),
+    [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }),
+  });
+
+const BOTH_CD_14_CLAUSES = { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "audit" };
+
+const ABSTRACT_SYNTAX_BINDING = { clause: { settings: { module: "abstract-syntax.ts" } } };
+
+type BoundSettings = { readonly outcome: "ok"; readonly value: { readonly bindings: readonly unknown[] } };
+
+const boundWith = (request: { readonly classSyntaxSettings: unknown }): BoundSettings => ({
+  outcome: "ok",
+  value: { bindings: [{ clause: { settings: request.classSyntaxSettings } }, ABSTRACT_SYNTAX_BINDING] },
+});
+
+describe("readSelection with clauseSettings", () => {
+  it("passes the piece's declared clause settings unchanged when disciplines.json sets none", () => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES })).toMatchObject(
+      boundWith({ classSyntaxSettings: { module: "class-syntax.ts", clauseSettings: { allowedNames: [], limit: 3 } } }),
+    );
+  });
+
+  it("overrides only the declared settings disciplines.json gives, keeping the piece's module", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#class-syntax": { allowedNames: ["Widget"] } },
+      }),
+    ).toMatchObject(boundWith({ classSyntaxSettings: { module: "class-syntax.ts", clauseSettings: { allowedNames: ["Widget"], limit: 3 } } }));
+  });
+
+  it("matches a hone-prefixed clauseSettings key to the bare selected clause", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "hone/CD-14#class-syntax": { limit: 5 } },
+      }),
+    ).toMatchObject(boundWith({ classSyntaxSettings: { module: "class-syntax.ts", clauseSettings: { allowedNames: [], limit: 5 } } }));
+  });
+
+  it.each([
+    {
+      name: "a setting the piece does not declare",
+      clauseSettings: { "CD-14#class-syntax": { module: "elsewhere.ts" } },
+      detail: "clauseSettings for CD-14#class-syntax: its piece takes no module; it takes allowedNames, limit",
+    },
+    {
+      name: "settings for a clause whose piece declares none",
+      clauseSettings: { "CD-14#abstract-syntax": { limit: 1 } },
+      detail: "clauseSettings for CD-14#abstract-syntax: its piece takes no settings",
+    },
+  ])("is file-malformed for $name", ({ clauseSettings, detail }) => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, clauseSettings })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH, detail },
+    });
+  });
+
+  it.each([
+    { name: "a clause the file does not select", clauseSettings: { "CD-14#decorator-syntax": { limit: 1 } } },
+    { name: "a key that is not a clause address", clauseSettings: { "CD-14 class-syntax": { limit: 1 } } },
+    { name: "settings that are not an object", clauseSettings: { "CD-14#class-syntax": ["Widget"] } },
+  ])("is file-malformed for clauseSettings naming $name", ({ clauseSettings }) => {
+    expect(selectingSettable({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, clauseSettings })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH },
+    });
+  });
+});

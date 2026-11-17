@@ -10,15 +10,24 @@ The sections below describe what the audit check covers.
 
 | Clause | Mechanism | Checks |
 | --- | --- | --- |
-| `CD-19#import-boundaries` | audit | imports of a fixed list of libraries, and any `node:` import |
+| `CD-19#import-boundaries` | audit | imports of the library specifiers the repository confines, and any `node:` import |
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags.
 
 ## What the check flags
 - `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A line with `from "<name>"` for: `eslint winston winston-transport better-sqlite3 pino hono @hono/node-server hono/cors hono/cookie hono/types hono/utils/http-status jose @modelcontextprotocol/sdk zod-to-json-schema uuid`. Type-only imports and matches inside strings are flagged too.
+- A line with `from "<name>"` for each `<name>` listed in the clause's `confinedSpecifiers` setting (see [Settings](#settings)). A name matches only that exact specifier, so `hono` and `hono/cors` are listed separately. With no names listed, which is the default, no library import is flagged. Type-only imports and matches inside strings are flagged too.
 - A `node:` specifier in an import, `export ... from`, `import("node:...")`, `import type`, `import x = require(...)` or `require("node:...")`. Unprefixed `fs` is not detected.
-- The source rule covers every third-party dependency; the check covers only the list above. The rest is left to review.
+- The source rule covers every third-party dependency; the check covers only the listed specifiers. The rest is left to review.
+
+## Settings
+List the specifiers of each library the repository confines behind a wrapping port in `disciplines.json`, then record each wrapping file as an `authorised-location`:
+
+```json
+"clauseSettings": {
+  "CD-19#import-boundaries": { "confinedSpecifiers": ["winston", "uuid"] }
+}
+```
 
 ## Example violation
 ```ts

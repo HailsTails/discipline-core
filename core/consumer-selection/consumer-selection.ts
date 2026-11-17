@@ -31,6 +31,7 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
+import { clauseSettingsSchema, settledPieceSettings } from "./clause-settings.ts";
 import type { ClauseBinding, SelectionReading } from "./selection.ts";
 
 export type { SelectedClause, Selection, ClauseBinding, SelectionReading } from "./selection.ts";
@@ -110,6 +111,17 @@ const consumerSelectionFileSchema = z.strictObject({
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
   reportOutput: reportOutputSchema.default("full"),
+  clauseSettings: clauseSettingsSchema.default([]),
+}).superRefine((file, context) => {
+  file.clauseSettings
+    .filter(([address]) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
+    .forEach(([address]) => {
+      context.addIssue({
+        code: "custom",
+        path: ["clauseSettings", clauseAddressText({ address })],
+        message: "clauseSettings names a clause that clauses does not select",
+      });
+    });
 });
 
 type ConsumerSelectionFile = z.infer<typeof consumerSelectionFileSchema>;
@@ -447,7 +459,42 @@ const selectionReadingOf = (request: {
   fileExceptionWhyChains: request.file.fileExceptionWhyChains,
 });
 
-const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
+const givenClauseSettings = (request: {
+  readonly file: ConsumerSelectionFile;
+  readonly address: ClauseAddress;
+}): Readonly<Record<string, unknown>> | undefined =>
+  request.file.clauseSettings.find(([address]) => sameClauseAddress({ left: address, right: request.address }) === "same")?.[1];
+
+const settledClause = (request: {
+  readonly clause: ResolvedClause;
+  readonly file: ConsumerSelectionFile;
+  readonly path: string;
+}): Result<ResolvedClause, LoadFailure> => {
+  const address = addressOf({ resolved: request.clause });
+  const settings = settledPieceSettings({
+    address,
+    pieceSettings: request.clause.binding.clause.settings,
+    given: givenClauseSettings({ file: request.file, address }),
+  });
+  if (settings.outcome === "failed") {
+    return failed({ kind: "file-malformed", path: request.path, detail: settings.error });
+  }
+  const { binding } = request.clause;
+  return { outcome: "ok", value: { ...request.clause, binding: { ...binding, clause: { ...binding.clause, settings: settings.value } } } };
+};
+
+const withClauseSettings = (request: {
+  readonly resolved: readonly ResolvedClause[];
+  readonly file: ConsumerSelectionFile;
+  readonly path: string;
+}): Result<readonly ResolvedClause[], LoadFailure> =>
+  request.resolved.reduce<Result<readonly ResolvedClause[], LoadFailure>>(
+    (sofar, clause) =>
+      appendedClause({ sofar, resolve: () => settledClause({ clause, file: request.file, path: request.path }) }),
+    { outcome: "ok", value: [] },
+  );
+
+const selectionFilePath = (request:{ readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
 
 export const readReportOutput = (request: {
@@ -477,5 +524,9 @@ export const readSelection = (request: {
   if (resolved.outcome === "failed") {
     return resolved;
   }
-  return { outcome: "ok", value: selectionReadingOf({ resolved: resolved.value, file: file.value }) };
+  const settled = withClauseSettings({ resolved: resolved.value, file: file.value, path: selectionFilePath(request) });
+  if (settled.outcome === "failed") {
+    return settled;
+  }
+  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, file: file.value }) };
 };
