@@ -498,7 +498,7 @@ describe("readRunSettings unbuilt assessment keys", () => {
         kind: "file-malformed",
         path: SELECTION_PATH,
         detail:
-          '✖ removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply. not available in this version: "eslint"; assessment takes "forfeiture" only\n  → at assessment',
+          '✖ removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12. not available in this version: "eslint"; assessment takes "forfeiture" only\n  → at assessment',
       },
     });
   });

@@ -461,9 +461,9 @@ describe("runCheckCommand assessment configuration", () => {
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*removed: "waivedClauses"; in clauses, mark a clause "not-run"/) }]]);
   });
 
-  it("exits 2 with arguments-invalid for the removed --waived-clauses", async () => {
+  it("exits 2 with the arguments-invalid line naming the removed --waived-clauses and the clause values that replace it", async () => {
     expect((await carvedRunWith({ arguments: ["--repo", "/repo", "--waived-clauses", "not-run"], settings: {} })).writes).toEqual([
-      [{ text: expect.stringMatching(/^load failure: arguments-invalid /) }],
+      [{ text: expect.stringMatching(/^load failure: arguments-invalid removed: "--waived-clauses"; in clauses, mark a clause "not-run"/) }],
     ]);
   });
 

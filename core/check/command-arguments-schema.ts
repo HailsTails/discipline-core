@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { type ForfeitureAssessment, forfeitureAssessmentSchema } from "../values/assessment.ts";
+import {
+  type ForfeitureAssessment,
+  forfeitureAssessmentSchema,
+  removedText,
+  WAIVED_CLAUSES_REPLACEMENT,
+} from "../values/assessment.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
@@ -20,6 +25,8 @@ const REPO_OPTION = "--repo";
 const BASE_REVISION_OPTION = "--base-revision";
 const REPORT_OUTPUT_OPTION = "--report-output";
 const FORFEITURE_OPTION = "--forfeiture";
+
+const REMOVED_CHECK_OPTIONS: ReadonlyMap<string, string> = new Map([["--waived-clauses", WAIVED_CLAUSES_REPLACEMENT]]);
 
 const optionPairs = (request: { readonly arguments: readonly string[] }): readonly unknown[] =>
   Array.from({ length: Math.ceil(request.arguments.length / 2) }, (_, index) => [
@@ -68,10 +75,21 @@ const parsedArguments = <Parsed>(request: {
   return { outcome: "ok", value: parsed.data };
 };
 
+const removedOptionsIn = (request: { readonly arguments: readonly string[] }): readonly string[] =>
+  request.arguments.flatMap((argument) => {
+    const instead = REMOVED_CHECK_OPTIONS.get(argument);
+    return instead === undefined ? [] : [removedText({ removed: argument, instead })];
+  });
+
 export const parseCheckArguments = (request: {
   readonly arguments: readonly string[];
-}): Result<CheckArguments, LoadFailure> =>
-  parsedArguments({ schema: checkArgumentsSchema, arguments: request.arguments });
+}): Result<CheckArguments, LoadFailure> => {
+  const [removed] = removedOptionsIn(request);
+  if (removed !== undefined) {
+    return { outcome: "failed", error: { kind: "arguments-invalid", detail: removed } };
+  }
+  return parsedArguments({ schema: checkArgumentsSchema, arguments: request.arguments });
+};
 
 export const parseProjectArguments = (request: {
   readonly arguments: readonly string[];

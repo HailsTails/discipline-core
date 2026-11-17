@@ -55,7 +55,7 @@ describe("assessmentSchema removed waived clauses", () => {
         issues: [
           {
             message:
-              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply',
+              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12',
           },
         ],
       },
@@ -69,7 +69,7 @@ describe("assessmentSchema removed waived clauses", () => {
         issues: [
           {
             message:
-              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply. not available in this version: "eslint"; assessment takes "forfeiture" only',
+              'removed: "waivedClauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12. not available in this version: "eslint"; assessment takes "forfeiture" only',
           },
         ],
       },

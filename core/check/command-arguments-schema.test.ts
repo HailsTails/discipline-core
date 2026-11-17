@@ -155,10 +155,21 @@ describe("parseCheckArguments", () => {
     });
   });
 
-  it.each(["run", "not-run"])("is arguments-invalid for the removed --waived-clauses %s", (waivedClauses) => {
-    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--waived-clauses", waivedClauses] })).toMatchObject({
+  it.each(["run", "not-run"])("names the removed --waived-clauses %s and the clause values that replace it", (waivedClauses) => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--waived-clauses", waivedClauses] })).toEqual({
       outcome: "failed",
-      error: { kind: "arguments-invalid" },
+      error: {
+        kind: "arguments-invalid",
+        detail:
+          'removed: "--waived-clauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12',
+      },
+    });
+  });
+
+  it("names the removed --waived-clauses wherever it comes among the options", () => {
+    expect(parseCheckArguments({ arguments: ["--waived-clauses", "not-run", "--repo", "/work/repo"] })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "arguments-invalid", detail: expect.stringMatching(/^removed: "--waived-clauses"; /) },
     });
   });
 

@@ -9,12 +9,12 @@ const ASSESSMENT_CONCERNS = {
   forfeiture: forfeitureAssessmentSchema.default("this-run"),
 };
 
-const REMOVED_CONCERNS: ReadonlyMap<string, string> = new Map([
-  [
-    "waivedClauses",
-    `in clauses, mark a clause "${NOT_RUN}" when its mechanism does not run, or "${NOT_ADOPTED}" when its rule does not apply`,
-  ],
-]);
+export const WAIVED_CLAUSES_REPLACEMENT = `in clauses, mark a clause "${NOT_RUN}" when its mechanism does not run, or "${NOT_ADOPTED}" when its rule does not apply; see MIGRATING.md section 12`;
+
+export const removedText = (request: { readonly removed: string; readonly instead: string }): string =>
+  `removed: ${JSON.stringify(request.removed)}; ${request.instead}`;
+
+const REMOVED_CONCERNS: ReadonlyMap<string, string> = new Map([["waivedClauses", WAIVED_CLAUSES_REPLACEMENT]]);
 
 const quotedKeys = (request: { readonly keys: readonly string[] }): string =>
   request.keys.map((key) => JSON.stringify(key)).join(", ");
@@ -22,7 +22,7 @@ const quotedKeys = (request: { readonly keys: readonly string[] }): string =>
 const removedKeyMessages = (request: { readonly keys: readonly string[] }): readonly string[] =>
   request.keys.flatMap((key) => {
     const instead = REMOVED_CONCERNS.get(key);
-    return instead === undefined ? [] : [`removed: ${JSON.stringify(key)}; ${instead}`];
+    return instead === undefined ? [] : [removedText({ removed: key, instead })];
   });
 
 const unbuiltKeyMessages = (request: { readonly keys: readonly string[] }): readonly string[] => {
