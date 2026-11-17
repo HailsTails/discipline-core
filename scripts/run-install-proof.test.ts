@@ -12,7 +12,7 @@ import { type InstallProofRequest, runInstallProof } from "./run-install-proof.t
 const ENTRY_URL = "file:///package/scripts/install-proof.ts";
 
 const PACKAGE_MANIFEST =
-  '{ "packageManager": "pnpm@10.34.9", "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
+  '{ "packageManager": "pnpm@10.34.9", "dependencies": { "zod": "4.4.3" }, "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "devDependencies": { "typescript-floor": "npm:typescript@4.8.4" } }';
 
 const CONSUMER_MANIFEST = `${JSON.stringify(
   {
@@ -31,6 +31,13 @@ const CONSUMER_MANIFEST = `${JSON.stringify(
 
 const CONSUMER = "/scratch/audit";
 
+const SECOND_REPO = "/scratch/second";
+
+const STORED_PACKAGE = "/node_modules/.pnpm/hone/node_modules/@hailstails/hone";
+
+const INSTALLED_ZOD = `${CONSUMER}/node_modules/.pnpm/hone/node_modules/zod`;
+
+const installedZodManifest = (request: { readonly version: string }): string => `{ "name": "zod", "version": "${request.version}" }`;
 
 const TARBALL = "/scratch/package-tarball/hailstails-hone-0.0.0.tgz";
 
@@ -40,6 +47,9 @@ const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
   "/package/pnpm-workspace.yaml": "minimumReleaseAge: 4320\n",
   [`${CONSUMER}/disciplines.eslint.mjs`]: PROJECTION,
+  [`${INSTALLED_ZOD}/package.json`]: installedZodManifest({ version: "4.4.3" }),
+  [`${SECOND_REPO}/node_modules/.pnpm/hone/node_modules/zod/package.json`]: installedZodManifest({ version: "4.4.3" }),
+  "/scratch/typed/node_modules/.pnpm/hone/node_modules/zod/package.json": installedZodManifest({ version: "4.4.3" }),
 };
 
 const EXPECTING_PASS: ProofCase = {
@@ -116,13 +126,19 @@ const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTex
 
 const LINKED_PACKAGE = "/node_modules/@hailstails/hone";
 
-const STORED_PACKAGE = "/node_modules/.pnpm/hone/node_modules/@hailstails/hone";
-
 const realPathsOf = (request: { readonly consumer: string; readonly installed: string }): ScratchFilesPort["realPathOf"] =>
   vi
     .fn<ScratchFilesPort["realPathOf"]>()
     .mockReturnValueOnce({ outcome: "ok", value: request.consumer })
     .mockReturnValue({ outcome: "ok", value: request.installed });
+
+const realPathsOfTwoConsumers = (): ScratchFilesPort["realPathOf"] =>
+  vi
+    .fn<ScratchFilesPort["realPathOf"]>()
+    .mockReturnValueOnce({ outcome: "ok", value: CONSUMER })
+    .mockReturnValueOnce({ outcome: "ok", value: `${CONSUMER}${STORED_PACKAGE}` })
+    .mockReturnValueOnce({ outcome: "ok", value: SECOND_REPO })
+    .mockReturnValue({ outcome: "ok", value: `${SECOND_REPO}${STORED_PACKAGE}` });
 
 const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => ({
   createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>().mockReturnValue({ outcome: "ok", value: "/scratch" }),
@@ -208,6 +224,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
         [{ text: "ok: audit check -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit project -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit disciplines.eslint.mjs reads exactly as expected\n" }],
@@ -217,10 +234,45 @@ describe("runInstallProof", () => {
     });
   });
 
+  it("exits 1 naming a dependency pnpm installed beside the package at another version than the package pins, running nothing after the install", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning(EXITED_PASSING);
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        fileText: fileTextPort({ [`${INSTALLED_ZOD}/package.json`]: installedZodManifest({ version: "4.4.2" }) }),
+      }),
+    );
+
+    expect(proofProcess.writeOut).toHaveBeenLastCalledWith({
+      text: `FAIL: audit resolves each dependency beside the package: zod is 4.4.2 at ${INSTALLED_ZOD}, not the pinned 4.4.3\n`,
+    });
+    expect(commands.run).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits 1 naming a dependency the package pins that pnpm did not install beside it", async () => {
+    const proofProcess = processPort();
+    const missingZod = vi
+      .fn<FileTextPort["read"]>()
+      .mockReturnValueOnce({ outcome: "ok", value: PACKAGE_MANIFEST })
+      .mockReturnValueOnce({ outcome: "ok", value: "minimumReleaseAge: 4320\n" })
+      .mockReturnValue({ outcome: "failed", error: { kind: "unreadable", path: `${INSTALLED_ZOD}/package.json`, detail: "ENOENT" } });
+
+    await runInstallProof(proofRequest({ process: proofProcess, fileText: { ...fileTextPort(), read: missingZod } }));
+
+    expect(proofProcess.writeOut).toHaveBeenLastCalledWith({
+      text: `FAIL: audit resolves each dependency beside the package: zod is not installed at ${INSTALLED_ZOD}: ENOENT\n`,
+    });
+  });
+
   it("packs the package once inside the temporary root, from the package root", async () => {
     const packer = packerReturning({ outcome: "ok", value: TARBALL });
 
-    await runInstallProof(proofRequest({ packer, proofCases: [EXPECTING_PASS, SECOND_CONSUMER] }));
+    await runInstallProof(
+      proofRequest({ packer, scratch: scratchPort({ realPathOf: realPathsOfTwoConsumers() }), proofCases: [EXPECTING_PASS, SECOND_CONSUMER] }),
+    );
 
     expect(vi.mocked(packer.pack).mock.calls).toEqual([[{ packageRoot: "/package", workRoot: "/scratch" }]]);
   });
@@ -263,7 +315,9 @@ describe("runInstallProof", () => {
   it("installs each consumer by itself, in its own folder under the temporary root", async () => {
     const commands = commandsReturning(EXITED_PASSING);
 
-    await runInstallProof(proofRequest({ commands, proofCases: [EXPECTING_PASS, SECOND_CONSUMER] }));
+    await runInstallProof(
+      proofRequest({ commands, scratch: scratchPort({ realPathOf: realPathsOfTwoConsumers() }), proofCases: [EXPECTING_PASS, SECOND_CONSUMER] }),
+    );
 
     expect(commands.run).toHaveBeenNthCalledWith(7, {
       command: "pnpm",
@@ -493,6 +547,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
         [
           {
             text: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(REPORT_OF_FINDINGS)}, got exit 1 and output ${JSON.stringify(altered)}\n`,
@@ -512,6 +567,7 @@ describe("runInstallProof", () => {
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
         [{ text: "ok: audit runs the package from node_modules/.pnpm/hone/node_modules/@hailstails/hone\n" }],
+        [{ text: "ok: audit resolves zod 4.4.3 beside the package, where pnpm installed it\n" }],
         [{ text: 'FAIL: audit check: expected exit 1 and output "verdict: fail\\n", got exit 0 and output "verdict: pass\\n"\n' }],
       ],
       exits: [[{ code: 1 }]],

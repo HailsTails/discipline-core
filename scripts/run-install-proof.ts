@@ -5,6 +5,7 @@ import type { Result } from "../core/values/result.ts";
 import {
   type CommandScript,
   consumerSettingsOf,
+  installedVersionOf,
   judgedStep,
   minimumReleaseAgeOf,
   packageManagerPinOf,
@@ -17,6 +18,7 @@ import {
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
+import { type DependencyPins, dependencyPinsOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 
 export type InstallProofRequest = {
@@ -58,6 +60,8 @@ const PLATFORM_LINE_END = "\r\n";
 const PNPM_SETTINGS = ".npmrc";
 const LINT_SCRIPT = "lint";
 const END_OF_OPTIONS = "--";
+const PACKAGE_MANIFEST = "package.json";
+const PACKAGE_NAME_SEPARATOR = "/";
 const inOrder = (request: { readonly steps: readonly Step[] }): Result<null, string> =>
   request.steps.reduce<Result<null, string>>((sofar, step) => (sofar.outcome === "failed" ? sofar : step()), SUCCEEDED);
 
@@ -293,7 +297,7 @@ const writtenFile = (request: {
 
 type ConsumerFile = { readonly name: string; readonly text: string };
 
-type InstallSettings = { readonly packageManager: string; readonly minimumReleaseAge: number };
+type InstallSettings = { readonly packageManager: string; readonly minimumReleaseAge: number; readonly dependencyPins: DependencyPins };
 
 const consumerFiles = (request: {
   readonly devDependencies: Readonly<Record<string, string>>;
@@ -429,6 +433,62 @@ const installedLocationOf = (request: { readonly context: ProofContext; readonly
   return installed;
 };
 
+const folderAbove = (request: { readonly context: ProofContext; readonly folder: string; readonly levels: number }): string =>
+  request.levels === 0
+    ? request.folder
+    : folderAbove({ ...request, folder: request.context.path.directoryOf({ path: request.folder }), levels: request.levels - 1 });
+
+const installedDependencyOf = (request: {
+  readonly context: ProofContext;
+  readonly besideInstall: string;
+  readonly name: string;
+  readonly pin: string;
+}): Result<string, string> => {
+  const folder = request.context.path.join({ segments: [request.besideInstall, ...request.name.split(PACKAGE_NAME_SEPARATOR)] });
+  const manifest = request.context.fileText.read({ path: request.context.path.join({ segments: [folder, PACKAGE_MANIFEST] }) });
+  if (manifest.outcome === "failed") {
+    return { outcome: "failed", error: `${request.name} is not installed at ${folder}: ${manifest.error.detail}` };
+  }
+  const version = installedVersionOf({ manifestText: manifest.value });
+  if (version.outcome === "failed") {
+    return { outcome: "failed", error: `${request.name} at ${folder}: ${version.error.detail}` };
+  }
+  return version.value === request.pin
+    ? { outcome: "ok", value: `${request.name} ${version.value}` }
+    : { outcome: "failed", error: `${request.name} is ${version.value} at ${folder}, not the pinned ${request.pin}` };
+};
+
+const dependenciesBesideInstall = (request: {
+  readonly context: ProofContext;
+  readonly repo: string;
+  readonly consumer: string;
+  readonly installed: string;
+  readonly pins: DependencyPins;
+}): Result<null, string> => {
+  const besideInstall = folderAbove({
+    context: request.context,
+    folder: request.context.path.join({ segments: [request.repo, request.installed] }),
+    levels: TOOL_IDENTITY.packageName.split(PACKAGE_NAME_SEPARATOR).length,
+  });
+  const resolved = Object.entries(request.pins).reduce<Result<readonly string[], string>>(
+    (sofar, [name, pin]) => {
+      if (sofar.outcome === "failed") {
+        return sofar;
+      }
+      const installed = installedDependencyOf({ context: request.context, besideInstall, name, pin });
+      return installed.outcome === "failed" ? installed : { outcome: "ok", value: [...sofar.value, installed.value] };
+    },
+    { outcome: "ok", value: [] },
+  );
+  if (resolved.outcome === "failed") {
+    return { outcome: "failed", error: `FAIL: ${request.consumer} resolves each dependency beside the package: ${resolved.error}` };
+  }
+  request.context.process.writeOut({
+    text: `ok: ${request.consumer} resolves ${resolved.value.join(", ")} beside the package, where pnpm installed it\n`,
+  });
+  return SUCCEEDED;
+};
+
 const installedConsumer = (request: CaseRequest & { readonly repo: string }): Result<null, string> => {
   const devDependencies = consumerDependenciesOf(request);
   if (devDependencies.outcome === "failed") {
@@ -472,6 +532,7 @@ const provenCase = (request: CaseRequest): Result<null, string> => {
   }
   return inOrder({
     steps: [
+      () => dependenciesBesideInstall({ context, repo, consumer, installed: location.value, pins: request.settings.dependencyPins }),
       () => git({ context, repo, consumer, arguments: ["init", "-q"] }),
       () => commitAll({ context, repo, consumer, message: "consumer" }),
       ...request.proofCase.actions.map(
@@ -554,9 +615,16 @@ const installSettingsOf = (request: { readonly context: ProofContext; readonly p
     return workspaceSettings;
   }
   const minimumReleaseAge = labelled({ label: "pnpm-workspace.yaml", result: minimumReleaseAgeOf({ workspaceSettings: workspaceSettings.value }) });
-  return minimumReleaseAge.outcome === "failed"
-    ? minimumReleaseAge
-    : { outcome: "ok", value: { packageManager: packageManager.value, minimumReleaseAge: minimumReleaseAge.value } };
+  if (minimumReleaseAge.outcome === "failed") {
+    return minimumReleaseAge;
+  }
+  const dependencyPins = labelled({ label: "package.json", result: dependencyPinsOf({ developmentManifest: request.packageManifest }) });
+  return dependencyPins.outcome === "failed"
+    ? dependencyPins
+    : {
+        outcome: "ok",
+        value: { packageManager: packageManager.value, minimumReleaseAge: minimumReleaseAge.value, dependencyPins: dependencyPins.value },
+      };
 };
 
 const proof = (request: {

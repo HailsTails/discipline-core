@@ -329,6 +329,17 @@ export const minimumReleaseAgeOf = (request: { readonly workspaceSettings: strin
     : { outcome: "ok", value: Number(setting[1]) };
 };
 
+const installedManifestSchema = z.object({ version: z.string().min(1) });
+
+export const installedVersionOf = (request: { readonly manifestText: string }): Result<string, ManifestFailure> => {
+  const parsed = parsedJson({ text: request.manifestText });
+  if (parsed.outcome === "failed") {
+    return manifestInvalid({ detail: parsed.error });
+  }
+  const manifest = installedManifestSchema.safeParse(parsed.value);
+  return manifest.success ? { outcome: "ok", value: manifest.data.version } : manifestInvalid({ detail: "its package.json names no version" });
+};
+
 export const environmentWithoutGit = (request: {
   readonly environment: Readonly<Record<string, string | undefined>>;
 }): Readonly<Record<string, string | undefined>> =>

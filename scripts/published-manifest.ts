@@ -17,6 +17,7 @@ const publishedSectionsSchema = z.object({
   keywords: z.array(z.string()),
   license: z.string(),
   author: z.string(),
+  dependencies: versionsSchema,
   peerDependencies: versionsSchema,
   peerDependenciesMeta: z.record(z.string(), z.object({ optional: z.boolean() })),
 });
@@ -28,7 +29,7 @@ const peerKindSectionsSchema = z.object({
   peerDependenciesMeta: publishedSectionsSchema.shape.peerDependenciesMeta.default({}),
 });
 
-const dependencySectionsSchema = z.object({ dependencies: versionsSchema });
+const dependencySectionsSchema = publishedSectionsSchema.pick({ dependencies: true });
 
 const versionSectionSchema = publishedSectionsSchema.pick({ version: true });
 
@@ -97,11 +98,13 @@ export const peerKindsOf = (request: {
       };
 };
 
-export const dependencyNamesOf = (request: {
+export type DependencyPins = Readonly<Record<string, string>>;
+
+export const dependencyPinsOf = (request: {
   readonly developmentManifest: string;
-}): Result<readonly string[], ManifestFailure> => {
+}): Result<DependencyPins, ManifestFailure> => {
   const sections = sectionsOf({ developmentManifest: request.developmentManifest, schema: dependencySectionsSchema });
-  return sections.outcome === "failed" ? sections : { outcome: "ok", value: Object.keys(sections.value.dependencies) };
+  return sections.outcome === "failed" ? sections : { outcome: "ok", value: sections.value.dependencies };
 };
 
 export const packageVersionOf = (request: { readonly developmentManifest: string }): Result<string, ManifestFailure> => {
@@ -143,6 +146,7 @@ export const publishManifestOf = (request: {
         ]),
         files: request.files,
         engines: { node: request.nodeRange },
+        dependencies: published.value.dependencies,
         peerDependencies: published.value.peerDependencies,
         peerDependenciesMeta: published.value.peerDependenciesMeta,
       },

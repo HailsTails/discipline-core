@@ -1,29 +1,31 @@
-import { z } from "zod";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
-import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import { CHANGELOG_FILE } from "./changelog.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
 import { type DeclarationPort, declarationFilesOf, PUBLIC_TYPE_ENTRIES, typedExportOf } from "./package-declarations.ts";
-import { deadLinksOf, misplacedEntriesOf, unbundledImportsOf, unlockedPackagesOf, versionMentionsOf } from "./package-guards.ts";
-import { type InstalledPackage, installedPackagesOf } from "./installed-packages.ts";
-import { type ClosureMember, productionClosureOf } from "./pnpm-lock.ts";
-import { dependencyNamesOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
+import {
+  bundledPackageCodeOf,
+  deadLinksOf,
+  misplacedEntriesOf,
+  undeclaredImportsOf,
+  unlockedPinsOf,
+  versionMentionsOf,
+} from "./package-guards.ts";
+import { lockedDependenciesOf } from "./pnpm-lock.ts";
+import { type DependencyPins, dependencyPinsOf, packageVersionOf, peerKindsOf, peerNamesOf, publishManifestOf } from "./published-manifest.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
 import {
-  type BundledPackage,
   documentAuthorOf,
-  externalPeersOf,
+  externalPackagesOf,
   type PackagePlan,
   type PieceText,
   packagePlanOf,
   piecePathsIn,
   SHIPPED_NODE_RANGE,
   SHIPPED_NODE_TARGET,
-  thirdPartyNoticesOf,
 } from "./package-plan.ts";
 
 export type PackageBuildPorts = {
@@ -39,16 +41,11 @@ export type BuiltPackage = { readonly outputRoot: string; readonly files: readon
 type BuildContext = PackageBuildPorts & {
   readonly packageRoot: string;
   readonly outputRoot: string;
-  readonly dependencies: string;
 };
 
 type Built<Value> = Result<Value, string>;
 
 type OutputFile = { readonly path: string; readonly text: string };
-
-type BundledPackageAt = BundledPackage & { readonly root: string };
-
-type StagedBundle = { readonly bundle: Bundle; readonly packages: readonly BundledPackageAt[] };
 
 const SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms", "rules", "methods", "docs"];
 
@@ -66,21 +63,11 @@ const MANIFEST = "package.json";
 
 const INSTALL_LOCK: readonly string[] = ["pnpm-lock.yaml"];
 
-const NODE_MODULES = "node_modules";
-
 const PACKAGE_FILE_STEM = packageFileStemOf({ packageName: TOOL_IDENTITY.packageName });
 
 const STAGE_PREFIX = `${PACKAGE_FILE_STEM}-package-stage-`;
 
 const STAGED_SOURCE = "source";
-
-const NOTICES = "THIRD-PARTY-NOTICES.md";
-
-const LICENSE_FILES: readonly string[] = ["LICENSE", "LICENSE.md", "LICENSE.txt", "license", "LICENCE"];
-
-const NOTICE_FILES: readonly string[] = ["NOTICE", "NOTICE.md", "NOTICE.txt"];
-
-const bundledManifestSchema = z.object({ name: z.string(), version: z.string(), license: z.string() });
 
 const failedWith = (request: { readonly label: string; readonly detail: string }): Built<never> => ({
   outcome: "failed",
@@ -190,22 +177,9 @@ const stagedFile = (request: { readonly context: BuildContext; readonly sourceRo
   return written.outcome === "failed" ? failedWith({ label: `stage ${request.name}`, detail: written.error.detail }) : { outcome: "ok", value: null };
 };
 
-const stagedPackage = (request: {
-  readonly context: BuildContext;
-  readonly sourceRoot: string;
-  readonly installed: InstalledPackage;
-}): Built<null> =>
-  stagedTree({
-    context: request.context,
-    from: request.installed.folder,
-    to: request.context.path.join({ segments: [request.sourceRoot, NODE_MODULES, ...request.installed.name.split("/")] }),
-    disposition: () => "kept",
-  });
-
 const stagedSource = (request: {
   readonly context: BuildContext;
   readonly sourceRoot: string;
-  readonly installed: readonly InstalledPackage[];
 }): Built<readonly null[]> =>
   allOk({
     results: [
@@ -218,7 +192,6 @@ const stagedSource = (request: {
         }),
       ),
       ...BUNDLED_SOURCE_FILES.map((name) => stagedFile({ context: request.context, sourceRoot: request.sourceRoot, name })),
-      ...request.installed.map((installed) => stagedPackage({ context: request.context, sourceRoot: request.sourceRoot, installed })),
     ],
   });
 
@@ -227,166 +200,83 @@ const failedOnProblems = (request: { readonly label: string; readonly problems: 
     ? { outcome: "ok", value: null }
     : failedWith({ label: request.label, detail: request.problems.join("; ") });
 
+type Declared = { readonly peers: readonly string[]; readonly pins: DependencyPins };
+
+const declaredPackagesOf = (request: Declared): readonly string[] => [...request.peers, ...Object.keys(request.pins)];
+
+const checkedBundle = (request: { readonly plan: PackagePlan; readonly declared: readonly string[]; readonly bundle: Bundle }): Built<Bundle> => {
+  const undeclared = failedOnProblems({
+    label: "bundle: an output imports what is neither a node: builtin, a declared peer nor a declared dependency",
+    problems: undeclaredImportsOf({ outputs: request.bundle.outputs, declared: request.declared }),
+  });
+  if (undeclared.outcome === "failed") {
+    return undeclared;
+  }
+  const carried = failedOnProblems({
+    label: "bundle: an output carries an installed package's code, which the package imports by name instead",
+    problems: bundledPackageCodeOf({ packageRoots: request.bundle.packageRoots }),
+  });
+  if (carried.outcome === "failed") {
+    return carried;
+  }
+  const misplaced = failedOnProblems({
+    label: "bundle: an entry would not find the install root from its own module",
+    problems: misplacedEntriesOf({ entryPoints: request.plan.entryPoints, outputs: request.bundle.outputs }),
+  });
+  return misplaced.outcome === "failed" ? misplaced : { outcome: "ok", value: request.bundle };
+};
+
 const bundleOf = (request: {
   readonly context: BuildContext;
   readonly plan: PackagePlan;
-  readonly peers: readonly string[];
+  readonly declared: readonly string[];
   readonly sourceRoot: string;
 }): Promise<Built<Bundle>> =>
   request.context.bundler
     .bundle({
       sourceRoot: request.sourceRoot,
       entryPoints: request.plan.entryPoints,
-      external: externalPeersOf({ peers: request.peers }),
+      external: externalPackagesOf({ packages: request.declared }),
       target: SHIPPED_NODE_TARGET,
     })
-    .then((bundle): Built<Bundle> => {
-      if (bundle.outcome === "failed") {
-        return failedWith({ label: "bundle", detail: bundle.error.detail });
-      }
-      const unbundled = failedOnProblems({
-        label: "bundle: an output imports what is neither bundled, a node: builtin nor a declared peer",
-        problems: unbundledImportsOf({ outputs: bundle.value.outputs, peers: request.peers }),
-      });
-      if (unbundled.outcome === "failed") {
-        return unbundled;
-      }
-      const misplaced = failedOnProblems({
-        label: "bundle: an entry would not find the install root from its own module",
-        problems: misplacedEntriesOf({ entryPoints: request.plan.entryPoints, outputs: bundle.value.outputs }),
-      });
-      return misplaced.outcome === "failed" ? misplaced : bundle;
-    });
+    .then((bundle): Built<Bundle> =>
+      bundle.outcome === "failed"
+        ? failedWith({ label: "bundle", detail: bundle.error.detail })
+        : checkedBundle({ plan: request.plan, declared: request.declared, bundle: bundle.value }),
+    );
 
-const firstPresent = (request: {
-  readonly context: BuildContext;
-  readonly folder: string;
-  readonly names: readonly string[];
-}): string | undefined =>
-  request.names
-    .map((name) => request.context.path.join({ segments: [request.folder, name] }))
-    .find((path) => request.context.fileText.exists({ path }) === "present");
-
-const noticeTextOf = (request: { readonly context: BuildContext; readonly packageRoot: string }): Built<string | undefined> => {
-  const notice = firstPresent({ context: request.context, folder: request.packageRoot, names: NOTICE_FILES });
-  return notice === undefined ? { outcome: "ok", value: undefined } : readText({ context: request.context, path: notice });
-};
-
-const bundledManifestOf = (request: {
-  readonly context: BuildContext;
-  readonly packageRoot: string;
-}): Built<z.infer<typeof bundledManifestSchema>> => {
-  const manifestPath = request.context.path.join({ segments: [request.packageRoot, MANIFEST] });
-  const text = readText({ context: request.context, path: manifestPath });
-  if (text.outcome === "failed") {
-    return text;
-  }
-  const document = parsedJson({ text: text.value });
-  if (document.outcome === "failed") {
-    return failedWith({ label: `read the bundled package ${manifestPath}`, detail: document.error });
-  }
-  const manifest = bundledManifestSchema.safeParse(document.value);
-  return manifest.success
-    ? { outcome: "ok", value: manifest.data }
-    : failedWith({ label: `read the bundled package ${manifestPath}`, detail: "it names no name, version and license" });
-};
-
-const bundledPackageOf = (request: {
-  readonly context: BuildContext;
-  readonly sourceRoot: string;
-  readonly root: string;
-}): Built<BundledPackageAt> => {
-  const packageRoot = request.context.path.join({ segments: [request.sourceRoot, ...request.root.split("/")] });
-  const manifest = bundledManifestOf({ context: request.context, packageRoot });
-  if (manifest.outcome === "failed") {
-    return manifest;
-  }
-  const licenseFile = firstPresent({ context: request.context, folder: packageRoot, names: LICENSE_FILES });
-  if (licenseFile === undefined) {
-    return failedWith({ label: `bundle ${manifest.value.name}`, detail: "it ships no licence file to reproduce" });
-  }
-  const licenseText = readText({ context: request.context, path: licenseFile });
-  if (licenseText.outcome === "failed") {
-    return licenseText;
-  }
-  const noticeText = noticeTextOf({ context: request.context, packageRoot });
-  return noticeText.outcome === "failed"
-    ? noticeText
-    : {
-        outcome: "ok",
-        value: { ...manifest.value, root: request.root, licenseText: licenseText.value, noticeText: noticeText.value },
-      };
-};
-
-const lockedClosureOf = (request: {
-  readonly context: BuildContext;
-  readonly dependencies: readonly string[];
-}): Built<readonly ClosureMember[]> => {
+const lockedPinsOf = (request: { readonly context: BuildContext; readonly pins: DependencyPins }): Built<DependencyPins> => {
   const lockPath = sourceFile({ context: request.context, path: INSTALL_LOCK.join("/") });
   const lockText = readText({ context: request.context, path: lockPath });
   if (lockText.outcome === "failed") {
     return lockText;
   }
-  const closure = productionClosureOf({ lockText: lockText.value, dependencies: request.dependencies });
-  return closure.outcome === "failed" ? failedWith({ label: `read ${lockPath}`, detail: closure.error }) : closure;
-};
-
-const lockedPackagesOf = (request: {
-  readonly packages: readonly BundledPackageAt[];
-  readonly closure: readonly ClosureMember[];
-}): Built<readonly BundledPackageAt[]> => {
+  const locked = lockedDependenciesOf({ lockText: lockText.value, dependencies: Object.keys(request.pins) });
+  if (locked.outcome === "failed") {
+    return failedWith({ label: `read ${lockPath}`, detail: locked.error });
+  }
   const checked = failedOnProblems({
-    label: `bundle: a bundled package is not the one ${INSTALL_LOCK.join("/")} locks`,
-    problems: unlockedPackagesOf({ bundled: request.packages, closure: request.closure }),
+    label: `the published dependencies are not the versions ${INSTALL_LOCK.join("/")} locks`,
+    problems: unlockedPinsOf({ pins: request.pins, locked: locked.value }),
   });
-  return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.packages };
+  return checked.outcome === "failed" ? checked : { outcome: "ok", value: request.pins };
 };
 
-const bundledInStage = async (request: {
+const bundledInStage = (request: {
   readonly context: BuildContext;
   readonly plan: PackagePlan;
-  readonly peers: readonly string[];
-  readonly dependencies: readonly string[];
+  readonly declared: readonly string[];
   readonly sourceRoot: string;
-}): Promise<Built<StagedBundle>> => {
-  const closure = lockedClosureOf({ context: request.context, dependencies: request.dependencies });
-  if (closure.outcome === "failed") {
-    return closure;
-  }
-  const installed = installedPackagesOf({
-    closure: closure.value,
-    direct: request.dependencies,
-    nodeModules: request.context.dependencies,
-    path: request.context.path,
-    scratch: request.context.scratch,
-  });
-  if (installed.outcome === "failed") {
-    return failedWith({ label: "locate the installed packages", detail: installed.error });
-  }
-  const staged = stagedSource({ ...request, installed: installed.value });
-  if (staged.outcome === "failed") {
-    return staged;
-  }
-  const bundle = await bundleOf(request);
-  if (bundle.outcome === "failed") {
-    return bundle;
-  }
-  const packages = allOk({
-    results: bundle.value.packageRoots.map((root) => bundledPackageOf({ context: request.context, sourceRoot: request.sourceRoot, root })),
-  });
-  if (packages.outcome === "failed") {
-    return packages;
-  }
-  const locked = lockedPackagesOf({ packages: packages.value, closure: closure.value });
-  return locked.outcome === "failed" ? locked : { outcome: "ok", value: { bundle: bundle.value, packages: locked.value } };
+}): Promise<Built<Bundle>> => {
+  const staged = stagedSource(request);
+  return staged.outcome === "failed" ? Promise.resolve(staged) : bundleOf(request);
 };
 
 const stagedBundleOf = async (request: {
   readonly context: BuildContext;
   readonly plan: PackagePlan;
-  readonly peers: readonly string[];
-  readonly dependencies: readonly string[];
-}): Promise<Built<StagedBundle>> => {
+  readonly declared: readonly string[];
+}): Promise<Built<Bundle>> => {
   const stage = request.context.scratch.createTemporaryDirectory({ prefix: STAGE_PREFIX });
   if (stage.outcome === "failed") {
     return failedWith({ label: "create the bundling stage", detail: stage.error.detail });
@@ -415,7 +305,7 @@ const topLevelNames = (request: { readonly files: readonly OutputFile[] }): read
 const contentFilesOf = (request: {
   readonly context: BuildContext;
   readonly plan: PackagePlan;
-  readonly staged: StagedBundle;
+  readonly bundle: Bundle;
 }): Built<readonly OutputFile[]> => {
   const copied = copiedFilesOf(request);
   if (copied.outcome === "failed") {
@@ -424,10 +314,9 @@ const contentFilesOf = (request: {
   return {
     outcome: "ok",
     value: [
-      ...request.staged.bundle.outputs.map(({ path, text }) => ({ path, text })),
+      ...request.bundle.outputs.map(({ path, text }) => ({ path, text })),
       ...copied.value,
       ...request.plan.pieces,
-      { path: NOTICES, text: thirdPartyNoticesOf({ packages: request.staged.packages }) },
     ],
   };
 };
@@ -518,19 +407,27 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   if (peers.outcome === "failed") {
     return failedWith({ label: MANIFEST, detail: peers.error.detail });
   }
-  const dependencies = dependencyNamesOf({ developmentManifest: developmentManifest.value });
-  if (dependencies.outcome === "failed") {
-    return failedWith({ label: MANIFEST, detail: dependencies.error.detail });
+  const pins = dependencyPinsOf({ developmentManifest: developmentManifest.value });
+  if (pins.outcome === "failed") {
+    return failedWith({ label: MANIFEST, detail: pins.error.detail });
+  }
+  const locked = lockedPinsOf({ context: request.context, pins: pins.value });
+  if (locked.outcome === "failed") {
+    return locked;
   }
   const version = packageVersionOf({ developmentManifest: developmentManifest.value });
   if (version.outcome === "failed") {
     return failedWith({ label: MANIFEST, detail: version.error.detail });
   }
-  const staged = await stagedBundleOf({ context: request.context, plan: plan.value, peers: peers.value, dependencies: dependencies.value });
-  if (staged.outcome === "failed") {
-    return staged;
+  const bundle = await stagedBundleOf({
+    context: request.context,
+    plan: plan.value,
+    declared: declaredPackagesOf({ peers: peers.value, pins: locked.value }),
+  });
+  if (bundle.outcome === "failed") {
+    return bundle;
   }
-  const files = contentFilesOf({ context: request.context, plan: plan.value, staged: staged.value });
+  const files = contentFilesOf({ context: request.context, plan: plan.value, bundle: bundle.value });
   if (files.outcome === "failed") {
     return files;
   }
@@ -546,14 +443,8 @@ export const buildPackage = async (request: {
   readonly ports: PackageBuildPorts;
   readonly packageRoot: string;
   readonly outputRoot: string;
-  readonly dependencies: string;
 }): Promise<Built<BuiltPackage>> => {
-  const context: BuildContext = {
-    ...request.ports,
-    packageRoot: request.packageRoot,
-    outputRoot: request.outputRoot,
-    dependencies: request.dependencies,
-  };
+  const context: BuildContext = { ...request.ports, packageRoot: request.packageRoot, outputRoot: request.outputRoot };
   const files = await packageFilesOf({ context });
   return files.outcome === "failed" ? files : writtenPackage({ context, files: files.value });
 };
