@@ -14,6 +14,24 @@ const BANNED_THIRD_PARTY_IMPORTS: readonly string[] = [
   "zod-to-json-schema", "uuid",
 ];
 
+const escapedSpecifier = (request: { readonly specifier: string }): string =>
+  request.specifier.replace(/[/.]/g, "\\$&");
+
+const bannedImportPattern = (request: { readonly specifiers: readonly string[] }): RegExp =>
+  new RegExp(`from\\s+["'](?:${request.specifiers.map((specifier) => escapedSpecifier({ specifier })).join("|")})["']`);
+
+const BANNED_IMPORT_ANYWHERE = bannedImportPattern({ specifiers: BANNED_THIRD_PARTY_IMPORTS });
+
+const BANNED_IMPORT_PATTERNS: readonly { readonly specifier: string; readonly pattern: RegExp }[] =
+  BANNED_THIRD_PARTY_IMPORTS.map((specifier) => ({ specifier, pattern: bannedImportPattern({ specifiers: [specifier] }) }));
+
+const bannedImportsIn = (request: { readonly text: string }): readonly { readonly line: number; readonly specifier: string }[] => {
+  if (!BANNED_IMPORT_ANYWHERE.test(request.text)) return [];
+  return request.text.split("\n").flatMap((text, index) =>
+    BANNED_IMPORT_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ specifier }) => ({ line: index + 1, specifier })),
+  );
+};
+
 export const check: WalkerPiece = {
   prepare: ({ clauses, syntaxApi }) => ({
     outcome: "ok",
@@ -25,14 +43,12 @@ export const check: WalkerPiece = {
           value: {
             kind: "syntax",
             begin: ({ sourceFile, anchorAt }) => {
-              const rawHits = sourceFile.text.split("\n").flatMap((line, index) =>
-                BANNED_THIRD_PARTY_IMPORTS.filter((specifier) =>
-                  new RegExp(`from\\s+["']${specifier.replace(/[/.]/g, "\\$&")}["']`).test(line),
-                ).flatMap((specifier) => clauses.map((clause) => ({
+              const rawHits = bannedImportsIn({ text: sourceFile.text }).flatMap(({ line, specifier }) =>
+                clauses.map((clause) => ({
                   clause: clause.address,
-                  anchor: { line: index + 1, column: 0 },
+                  anchor: { line, column: 0 },
                   snippet: `banned third-party import: ${specifier} — use its recorded wrapping boundary`,
-                }))),
+                })),
               );
               const nodeHits: PieceHit[] = [];
               const record = (specifier: SyntaxNode | undefined): void => {

@@ -62,6 +62,21 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     expect(observed.anchorAt).not.toHaveBeenCalled();
   });
 
+  it("compiles no pattern while beginning a file with no banned third-party import", () => {
+    const prepared = preparedFor({ file: FILE });
+    const file = prepared.prepareFile({ file: FILE, readText: vi.fn<WalkerFile["readText"]>() });
+    assert(file.outcome === "ok");
+    assert(file.value.kind === "syntax");
+    const tree = SYNTAX_API.createSourceFile(FILE, `const text = "${FROM} nothing";
+`, SYNTAX_API.ScriptTarget.Latest, true);
+    const compiled = vi.spyOn(globalThis, "RegExp");
+
+    const observers = file.value.begin({ sourceFile: tree, anchorAt: vi.fn<(request: { readonly position: number }) => Anchor>() });
+    compiled.mockRestore();
+
+    expect({ compiledPatterns: compiled.mock.calls.length, hits: observers.finish() }).toEqual({ compiledPatterns: 0, hits: [] });
+  });
+
   it("returns every raw hit before earlier and later observed stdlib imports under the CD19 clause", () => {
     const observed = sourceObservations({ source: `import fs ${FROM} "node:fs";\r\nimport logger ${FROM} "winston";\r\nexport * ${FROM} "node:path";\r\n` });
     const imported = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree);

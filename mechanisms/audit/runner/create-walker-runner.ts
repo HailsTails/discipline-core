@@ -54,15 +54,14 @@ const thrownDetail = (request: { readonly thrown: unknown }): string =>
 
 const gathered = <Value>(request: {
   readonly outcomes: readonly Outcome<readonly Value[]>[];
-}): Outcome<readonly Value[]> =>
-  request.outcomes.reduce<Outcome<readonly Value[]>>(
-    (collected, next) => {
-      if (collected.outcome === "failed") return collected;
-      if (next.outcome === "failed") return next;
-      return { outcome: "ok", value: [...collected.value, ...next.value] };
-    },
-    { outcome: "ok", value: [] },
-  );
+}): Outcome<readonly Value[]> => {
+  const failed = request.outcomes.find((outcome) => outcome.outcome === "failed");
+  if (failed !== undefined) return failed;
+  return {
+    outcome: "ok",
+    value: request.outcomes.flatMap((outcome) => (outcome.outcome === "ok" ? outcome.value : [])),
+  };
+};
 
 const selectedClause = (request: {
   readonly clause: RunnerClause;
@@ -145,15 +144,23 @@ const walkedHits = (request: {
   readonly clauses: readonly RunnerClause[];
   readonly files: readonly WalkerFile[];
 }): Outcome<readonly Hit[]> => {
-  const fromFiles = request.files.reduce<Outcome<readonly Hit[]>>(
-    (collected, file) =>
-      collected.outcome === "failed"
-        ? collected
-        : gathered({ outcomes: [collected, observedHits({ ...request, file })] }),
-    { outcome: "ok", value: [] },
-  );
-  if (fromFiles.outcome === "failed") return fromFiles;
-  return gathered({ outcomes: [fromFiles, ...request.pieces.map((piece) => finishedPiece({ piece }))] });
+  const fromFiles: Hit[] = [];
+  let failure: Outcome<readonly Hit[]> | undefined;
+  request.files.forEach((file) => {
+    if (failure !== undefined) return;
+    const observed = observedHits({ ...request, file });
+    if (observed.outcome === "failed") {
+      failure = observed;
+      return;
+    }
+    observed.value.forEach((hit) => {
+      fromFiles.push(hit);
+    });
+  });
+  if (failure !== undefined) return failure;
+  return gathered({
+    outcomes: [{ outcome: "ok", value: fromFiles }, ...request.pieces.map((piece) => finishedPiece({ piece }))],
+  });
 };
 
 const repositoryFile = (request: {

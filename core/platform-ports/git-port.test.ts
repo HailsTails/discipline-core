@@ -63,6 +63,21 @@ describe("createGitPort trackedPaths", () => {
     expect(trackedListing).toEqual({ outcome: "ok", value: ["c.ts", "src/a.ts"] });
   });
 
+  it("names the first path that is not a repo path when several are refused", () => {
+    const trackedListing = gitOver(
+      vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_WITH_LISTING, stdout: "a.ts\0../first.ts\0b.ts\0../second.ts\0" }),
+    ).trackedPaths({ repoRoot: REPO_ROOT });
+
+    expect(trackedListing).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo ls-files -z",
+        detail: "git listed a path that is not a repo path: ../first.ts",
+      },
+    });
+  });
+
   it("lists no paths for empty output", () => {
     const trackedListing = gitOver(vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY)).trackedPaths({
       repoRoot: REPO_ROOT,

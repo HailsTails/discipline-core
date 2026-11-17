@@ -116,26 +116,18 @@ const pieceInvalid = (request: {
   error: { kind: "piece-invalid", pieceRoot: request.pieceRoot, detail: request.detail },
 });
 
-const appendedOutcome = <Value>(request: {
-  readonly gathered: Outcome<readonly Value[]>;
-  readonly next: Outcome<readonly Value[]>;
-}): Outcome<readonly Value[]> => {
-  if (request.gathered.outcome === "failed") {
-    return request.gathered;
-  }
-  if (request.next.outcome === "failed") {
-    return request.next;
-  }
-  return { outcome: "ok", value: [...request.gathered.value, ...request.next.value] };
-};
-
 const collectOutcomes = <Value>(request: {
   readonly outcomes: readonly Outcome<readonly Value[]>[];
-}): Outcome<readonly Value[]> =>
-  request.outcomes.reduce<Outcome<readonly Value[]>>((gathered, next) => appendedOutcome({ gathered, next }), {
+}): Outcome<readonly Value[]> => {
+  const failed = request.outcomes.find((outcome) => outcome.outcome === "failed");
+  if (failed !== undefined) {
+    return failed;
+  }
+  return {
     outcome: "ok",
-    value: [],
-  });
+    value: request.outcomes.flatMap((outcome) => (outcome.outcome === "ok" ? outcome.value : [])),
+  };
+};
 
 const mappedOutcome = <Value, Mapped>(request: {
   readonly outcome: Outcome<Value>;
@@ -650,13 +642,27 @@ const inlineException = (request: {
   };
 };
 
-const sourceLineOf = (request: {
+type SourceLines = () => Outcome<readonly string[]>;
+
+const sourceLinesOnce = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly file: RepoPath;
-  readonly line: number;
-}): Outcome<string> => {
+}): SourceLines => {
+  let lines: Outcome<readonly string[]> | undefined;
+  return () => {
+    lines ??= linesOf(request);
+    return lines;
+  };
+};
+
+const linesOf = (request: {
+  readonly fileText: FileTextPort;
+  readonly path: PathPort;
+  readonly repoRoot: AbsolutePath;
+  readonly file: RepoPath;
+}): Outcome<readonly string[]> => {
   const text = request.fileText.read({
     path: request.path.join({ segments: [request.repoRoot, request.file] }),
   });
@@ -666,8 +672,17 @@ const sourceLineOf = (request: {
       error: { kind: "file-unreadable", file: request.file, detail: text.error.detail },
     };
   }
-  return { outcome: "ok", value: (text.value.split(LINE_BREAK)[request.line - 1] ?? "").trim() };
+  return { outcome: "ok", value: text.value.split(LINE_BREAK) };
 };
+
+const sourceLineOf = (request: {
+  readonly sourceLines: SourceLines;
+  readonly line: number;
+}): Outcome<string> =>
+  mappedOutcome({
+    outcome: request.sourceLines(),
+    map: (lines) => (lines[request.line - 1] ?? "").trim(),
+  });
 
 type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
 
@@ -715,17 +730,10 @@ const ruleFindings = (request: {
   readonly message: LintedMessage;
   readonly file: RepoPath;
   readonly clause: SelectedClause;
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
+  readonly sourceLines: SourceLines;
 }): Outcome<readonly LintFindings[]> =>
   mappedOutcome({
-    outcome: sourceLineOf({
-      fileText: request.ports.fileText,
-      path: request.ports.path,
-      repoRoot: request.repoRoot,
-      file: request.file,
-      line: request.message.line,
-    }),
+    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line }),
     map: (snippet): readonly LintFindings[] => [
       {
         hits: [
@@ -745,8 +753,7 @@ const messageFindings = (request: {
   readonly message: LintedMessage;
   readonly file: RepoPath;
   readonly selected: readonly SelectedClause[];
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
+  readonly sourceLines: SourceLines;
 }): Outcome<readonly LintFindings[]> => {
   if (request.message.ruleId === INLINE_CONFIG_RULE_ID) {
     return mappedOutcome({
@@ -771,15 +778,15 @@ const lintedFindings = (request: {
   if (file.outcome === "failed") {
     return file;
   }
+  const sourceLines = sourceLinesOnce({
+    fileText: request.ports.fileText,
+    path: request.ports.path,
+    repoRoot: request.repoRoot,
+    file: file.value,
+  });
   return collectOutcomes({
     outcomes: request.linted.messages.map((message) =>
-      messageFindings({
-        message,
-        file: file.value,
-        selected: request.selected,
-        ports: request.ports,
-        repoRoot: request.repoRoot,
-      }),
+      messageFindings({ message, file: file.value, selected: request.selected, sourceLines }),
     ),
   });
 };
