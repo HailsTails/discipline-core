@@ -36,7 +36,7 @@ const [FIRST_WHY, SECOND_WHY] = CAUSAL_WHY_CHAIN.whys;
 
 const SHORT_CHAIN = { ...CAUSAL_WHY_CHAIN, whys: [FIRST_WHY, SECOND_WHY] };
 
-const CLASS_SYNTAX = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
+const CLASS_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
 
 const LOCATION = {
   kind: "authorised-location",
@@ -252,7 +252,7 @@ describe("parseExceptionEntries invalid records", () => {
       invalid: [
         {
           index: 0,
-          problem: { kind: "clause-not-selected", clause: { ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" } },
+          problem: { kind: "clause-not-selected", clause: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" } },
         },
       ],
     });
@@ -292,6 +292,18 @@ describe("parseExceptionEntries invalid records", () => {
       records: [{ kind: "authorised-location", file: "src/factory.ts", reason: LOCATION.reason }],
       invalid: [{ index: 1, problem: { kind: "duplicate", ofIndex: 0 } }],
     });
+  });
+
+  it("is a duplicate of an earlier bare entry when written with the hone prefix", () => {
+    expect(
+      parseExceptionEntries({ entries: [LOCATION, { ...LOCATION, clause: "hone/CD-14#class-syntax" }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }).invalid,
+    ).toEqual([{ index: 1, problem: { kind: "duplicate", ofIndex: 0 } }]);
+  });
+
+  it("is a record for the bare clause when written with the hone prefix", () => {
+    expect(
+      parseExceptionEntries({ entries: [{ ...LOCATION, clause: "hone/CD-14#class-syntax" }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }).records,
+    ).toMatchObject([{ clause: CLASS_SYNTAX }]);
   });
 
   it("is a duplicate of an earlier clause-wide carve-out for the same clause", () => {
@@ -500,7 +512,7 @@ describe("non-exemptibility at the canonical boundary, for a clause whose discip
       text: JSON.stringify({ version: 1, exceptions: [entry] }),
       selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [] },
     })).toEqual({ outcome: "ok", value: { records: [], invalid: [
-      { index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "shared", discipline: "CD-1", clause: "any-cast" } } },
+      { index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } } },
     ] } });
   });
 });
@@ -671,7 +683,7 @@ describe("parseExceptionEntries imported records against the base revision", () 
       }),
     ).toEqual({
       records: [],
-      invalid: [{ index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "shared", discipline: "CD-1", clause: "any-cast" } } }],
+      invalid: [{ index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } } }],
     });
   });
 
@@ -799,7 +811,7 @@ describe("parseExceptionEntries when file exception why-chains are optional", ()
         fileExceptionWhyChains: "optional",
         baseline: UNMEASURED_EXCEPTION_BASELINE,
       }).invalid,
-    ).toEqual([{ index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "shared", discipline: "CD-1", clause: "any-cast" } } }]);
+    ).toEqual([{ index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } } }]);
   });
 
   it("refuses the same reason-only records as evidence-refused while file exception why-chains are required", () => {

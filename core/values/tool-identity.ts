@@ -2,21 +2,25 @@ export type ToolIdentity = {
   readonly name: string;
   readonly packageName: string;
   readonly command: string;
+  readonly ownRuleSet: string;
   readonly reservedEslintNamespace: string;
   readonly description: string;
   readonly repository: string;
   readonly unrelatedNpmPackage: string;
 };
 
-export const TOOL_IDENTITY: ToolIdentity = {
+const identified = <Identity extends ToolIdentity>(identity: Identity): Identity => identity;
+
+export const TOOL_IDENTITY = identified({
   name: "Hone",
   packageName: "@hailstails/hone",
   command: "hone",
+  ownRuleSet: "hone",
   reservedEslintNamespace: "hone-core",
   description: "Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.",
   repository: "https://github.com/HailsTails/hone",
   unrelatedNpmPackage: "hone",
-};
+} as const);
 
 const SCOPE_MARKER = "@";
 

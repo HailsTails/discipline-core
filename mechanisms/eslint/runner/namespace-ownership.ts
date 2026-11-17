@@ -3,9 +3,13 @@ import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 
 const NAMESPACE_SEPARATOR = "-";
 
-const claimedBy = (request: { readonly owner: string; readonly pluginNamespace: string }): boolean =>
+type NamespaceClaim = "claimed" | "unclaimed";
+
+const claimOf = (request: { readonly owner: string; readonly pluginNamespace: string }): NamespaceClaim =>
   request.pluginNamespace === request.owner ||
-  request.pluginNamespace.startsWith(`${request.owner}${NAMESPACE_SEPARATOR}`);
+  request.pluginNamespace.startsWith(`${request.owner}${NAMESPACE_SEPARATOR}`)
+    ? "claimed"
+    : "unclaimed";
 
 export const namespaceOwnershipRefusal = (request: {
   readonly address: ClauseAddress;
@@ -16,10 +20,10 @@ export const namespaceOwnershipRefusal = (request: {
   }
   const ruleSetName = request.address.ruleSet.name;
   const permitted = `${ruleSetName} or ${ruleSetName}${NAMESPACE_SEPARATOR}<name>`;
-  if (claimedBy({ owner: TOOL_IDENTITY.command, pluginNamespace: request.pluginNamespace })) {
+  if (claimOf({ owner: TOOL_IDENTITY.ownRuleSet, pluginNamespace: request.pluginNamespace }) === "claimed") {
     return `the plugin namespace ${request.pluginNamespace} belongs to ${TOOL_IDENTITY.name}; the rule set ${ruleSetName} must use ${permitted}`;
   }
-  return claimedBy({ owner: ruleSetName, pluginNamespace: request.pluginNamespace })
+  return claimOf({ owner: ruleSetName, pluginNamespace: request.pluginNamespace }) === "claimed"
     ? undefined
     : `the plugin namespace ${request.pluginNamespace} is not owned by the rule set ${ruleSetName}; use ${permitted}`;
 };

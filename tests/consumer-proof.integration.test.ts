@@ -152,7 +152,7 @@ const ESLINT_CLASS_TRACKED: readonly RepoPath[] = [
 ];
 
 const UNSIBLINGED_FINDING = {
-  clause: { ruleSet: "shared", discipline: "CD-23", clause: "export-test-sibling" },
+  clause: { ruleSet: "hone", discipline: "CD-23", clause: "export-test-sibling" },
   file: "src/kept.ts",
   anchor: { line: 1, column: 0 },
   snippet: "missing co-located *.test.ts(x) sibling",
@@ -160,7 +160,7 @@ const UNSIBLINGED_FINDING = {
 };
 
 const CLASS_FINDING = {
-  clause: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+  clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
   file: "src/kept.ts",
   anchor: { line: 1, column: 7 },
   snippet: "export class Kept {}",

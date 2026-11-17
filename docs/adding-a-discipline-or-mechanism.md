@@ -7,7 +7,7 @@ Terms used below:
 - A **discipline** is a rule a repository can adopt, with an id such as `CD-14`, made of one or more **clauses**.
 - A **mechanism** is a tool that checks clauses, such as the TypeScript `audit` or `eslint`. Each mechanism has one **runner**.
 - A **piece** is one discipline's code for one mechanism, written in that mechanism's own extension format.
-- A **rule set** is a directory holding `rules/` and `mechanisms/` folders. The rule set shipped with core is `shared`; a repository can add its own and name them in `disciplines.json`.
+- A **rule set** is a directory holding `rules/` and `mechanisms/` folders. The rule set shipped with the tool is `hone`, which a bare address also names, so no rule-set name may be `hone` or start with `hone-`, and no declared name may be another declared name plus `-<suffix>`; a repository can add its own and name them in `disciplines.json`.
 - A **native channel** is a way the tool itself lets a team exempt or weaken a rule, outside core's exception records.
 
 ## Adding a discipline
