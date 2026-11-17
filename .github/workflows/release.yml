@@ -8,7 +8,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           git fetch --no-tags --depth=1 origin "$PREVIOUS_REVISION"
           previous_manifest="$(git show "$PREVIOUS_REVISION:package.json")"
           remote_tags="$(git ls-remote --tags --refs origin 'refs/tags/v*')"
-          node scripts/release-state-command.ts "$(cat package.json)" "$previous_manifest" "$remote_tags" >> "$GITHUB_OUTPUT"
+          node scripts/release-state-command.ts "$GITHUB_SHA" "$(cat package.json)" "$previous_manifest" "$remote_tags" >> "$GITHUB_OUTPUT"
 
   release:
     name: Release the package tarball

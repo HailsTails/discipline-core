@@ -8,36 +8,51 @@ export type ReleaseStateName = "version-unchanged" | "already-released" | "unrel
 
 export type ReleaseState = { readonly tag: string; readonly state: ReleaseStateName };
 
-type ReleaseStateRequest = { readonly manifest: string; readonly previousManifest: string; readonly remoteTags: string };
+type ReleaseStateRequest = { readonly commit: string; readonly manifest: string; readonly previousManifest: string; readonly remoteTags: string };
 
 type VersionChange = { readonly version: string; readonly previousVersion: string };
 
+type RemoteTag = { readonly commit: string; readonly name: string };
+
 const COMMAND = "release-state";
 
-const USAGE = `usage: ${COMMAND} <package.json> <previous package.json> <git ls-remote tags>\n`;
+const USAGE = `usage: ${COMMAND} <commit> <package.json> <previous package.json> <git ls-remote tags>\n`;
 
-const releaseStateArgumentsSchema = z.tuple([z.string(), z.string(), z.string()]);
+const releaseStateArgumentsSchema = z.tuple([z.string().min(1), z.string(), z.string(), z.string()]);
 
-const REMOTE_TAG_LINE = /^[0-9a-f]+\trefs\/tags\/(?<tag>.+)$/;
+const REMOTE_TAG_LINE = /^(?<commit>[0-9a-f]+)\trefs\/tags\/(?<name>.+)$/;
 
-const remoteTagNamesOf = (request: { readonly remoteTags: string }): Result<readonly string[], string> =>
+const remoteTagsOf = (request: { readonly remoteTags: string }): Result<readonly RemoteTag[], string> =>
   request.remoteTags
     .split("\n")
     .filter((line) => line !== "")
-    .reduce<Result<readonly string[], string>>((soFar, line) => {
+    .reduce<Result<readonly RemoteTag[], string>>((soFar, line) => {
       if (soFar.outcome === "failed") {
         return soFar;
       }
-      const tag = REMOTE_TAG_LINE.exec(line)?.groups?.tag;
-      return tag === undefined
+      const groups = REMOTE_TAG_LINE.exec(line)?.groups;
+      return groups?.commit === undefined || groups.name === undefined
         ? { outcome: "failed", error: `cannot read the remote's tags: ${JSON.stringify(line)} is not a git ls-remote tag line` }
-        : { outcome: "ok", value: [...soFar.value, tag] };
+        : { outcome: "ok", value: [...soFar.value, { commit: groups.commit, name: groups.name }] };
     }, { outcome: "ok", value: [] });
 
-const versionChangeOf = (request: ReleaseStateRequest): Result<VersionChange, string> => {
+const releasableVersionOf = (request: { readonly manifest: string }): Result<string, string> => {
   const version = packageVersionOf({ developmentManifest: request.manifest });
   if (version.outcome === "failed") {
     return { outcome: "failed", error: `package.json has no readable version: ${version.error.detail}` };
+  }
+  return versionOf({ text: version.value }).outcome === "failed"
+    ? {
+        outcome: "failed",
+        error: `package.json's version ${version.value} is not one this workflow releases: major.minor.patch, optionally followed by -<identifier>.<number>`,
+      }
+    : version;
+};
+
+const versionChangeOf = (request: ReleaseStateRequest): Result<VersionChange, string> => {
+  const version = releasableVersionOf({ manifest: request.manifest });
+  if (version.outcome === "failed") {
+    return version;
   }
   const previousVersion = packageVersionOf({ developmentManifest: request.previousManifest });
   return previousVersion.outcome === "failed"
@@ -45,18 +60,26 @@ const versionChangeOf = (request: ReleaseStateRequest): Result<VersionChange, st
     : { outcome: "ok", value: { version: version.value, previousVersion: previousVersion.value } };
 };
 
-const changedVersionStateOf = (request: { readonly version: string; readonly tag: string; readonly remoteTags: string }): Result<ReleaseState, string> => {
-  if (versionOf({ text: request.version }).outcome === "failed") {
-    return {
-      outcome: "failed",
-      error: `package.json's version ${request.version} is not one this workflow releases: major.minor.patch, optionally followed by -<identifier>.<number>`,
-    };
+const changedVersionStateOf = (request: {
+  readonly commit: string;
+  readonly version: string;
+  readonly tag: string;
+  readonly remoteTags: string;
+}): Result<ReleaseState, string> => {
+  const remoteTags = remoteTagsOf({ remoteTags: request.remoteTags });
+  if (remoteTags.outcome === "failed") {
+    return remoteTags;
   }
-  const remoteTagNames = remoteTagNamesOf({ remoteTags: request.remoteTags });
-  if (remoteTagNames.outcome === "failed") {
-    return remoteTagNames;
+  const existing = remoteTags.value.find((remoteTag) => remoteTag.name === request.tag);
+  if (existing === undefined) {
+    return { outcome: "ok", value: { tag: request.tag, state: "unreleased" } };
   }
-  return { outcome: "ok", value: { tag: request.tag, state: remoteTagNames.value.includes(request.tag) ? "already-released" : "unreleased" } };
+  return existing.commit === request.commit
+    ? { outcome: "ok", value: { tag: request.tag, state: "already-released" } }
+    : {
+        outcome: "failed",
+        error: `the remote's tag ${request.tag} names ${existing.commit}, not this push's commit ${request.commit}, so this push cannot release ${request.version}: delete the tag if this workflow did not make it, or set package.json to a version with no tag.`,
+      };
 };
 
 export const releaseStateOf = (request: ReleaseStateRequest): Result<ReleaseState, string> => {
@@ -67,7 +90,7 @@ export const releaseStateOf = (request: ReleaseStateRequest): Result<ReleaseStat
   const tag = `${RELEASE_TAG_PREFIX}${change.value.version}`;
   return change.value.version === change.value.previousVersion
     ? { outcome: "ok", value: { tag, state: "version-unchanged" } }
-    : changedVersionStateOf({ version: change.value.version, tag, remoteTags: request.remoteTags });
+    : changedVersionStateOf({ commit: request.commit, version: change.value.version, tag, remoteTags: request.remoteTags });
 };
 
 const versionOfTag = (request: { readonly tag: string }): string => request.tag.slice(RELEASE_TAG_PREFIX.length);
@@ -78,7 +101,7 @@ const explanationOf = (request: { readonly state: ReleaseState }): string => {
     case "version-unchanged":
       return `this push leaves the version at ${version}, so it releases nothing.`;
     case "already-released":
-      return `the remote already has the tag ${request.state.tag}, so ${version} is released and this push releases nothing.`;
+      return `the remote's tag ${request.state.tag} already names this push's commit, so ${version} is released and this push releases nothing.`;
     case "unreleased":
       return `this push changes the version to ${version} and the remote has no tag ${request.state.tag}, so it releases it.`;
   }
@@ -91,8 +114,8 @@ export const runReleaseState = (request: { readonly process: ProcessPort }): voi
     request.process.exitWith({ code: 2 });
     return;
   }
-  const [manifest, previousManifest, remoteTags] = parsed.data;
-  const state = releaseStateOf({ manifest, previousManifest, remoteTags });
+  const [commit, manifest, previousManifest, remoteTags] = parsed.data;
+  const state = releaseStateOf({ commit, manifest, previousManifest, remoteTags });
   if (state.outcome === "failed") {
     request.process.writeError({ text: `${COMMAND}: ${state.error}\n` });
     request.process.exitWith({ code: 1 });

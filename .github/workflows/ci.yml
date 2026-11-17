@@ -80,15 +80,15 @@ jobs:
         run: pnpm run install-proof
 
   supported-node:
-    name: Package on Node ${{ matrix.node-version }} on ${{ matrix.platform }}
+    name: Package on Node ${{ matrix.node-label }} on ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { platform: macOS, runner: macos-26, node-version: 22.18.0, run-tests: false }
-          - { platform: Linux, runner: ubuntu-24.04, node-version: 24, run-tests: true }
+          - { platform: macOS, runner: macos-26, node-label: 22.18.0, node-version: 22.18.0, run-tests: false }
+          - { platform: Linux, runner: ubuntu-24.04, node-label: 24, node-version: 24.22.2, run-tests: true }
     defaults:
       run:
         shell: bash

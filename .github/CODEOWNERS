@@ -1,0 +1,8 @@
+/package.json @HailsTails
+/CHANGELOG.md @HailsTails
+/.github/workflows/ @HailsTails
+/.github/CODEOWNERS @HailsTails
+/scripts/release-* @HailsTails
+/scripts/published-manifest.ts @HailsTails
+/core/values/tool-identity.ts @HailsTails
+/pnpm-workspace.yaml @HailsTails
