@@ -4,57 +4,26 @@
 
 An orchestrator's body composes helper calls and assembles their results — nothing else. Inline branching or computation inside an orchestrator mixes two altitudes: the coordination it owns and the logic that belongs in a named helper. Keep orchestrators pure coordination so each level reads at one altitude.
 
-The sections below describe what the ESLint check covers.
+Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-41#cognitive-complexity` | eslint | a function whose cognitive complexity is above 15 |
-| `CD-41#function-length` | eslint | a function body longer than 50 lines |
-| `CD-41#orchestration-only` | review | an orchestrator only composes helper calls and assembles their results |
+**What the friction is for.** A function that coordinates and computes at once has to be read at two levels of detail at once. The friction makes small named steps the easy shape, so each level reads as one idea.
 
-Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *Logic that never got a name.* A block of branching or computation sits inside a coordinator. Extract it into a named helper; the name says what it decides.
+- *One function with several jobs.* It validates, decides and performs, so it grows long and tangled. Split it by job.
+- *Failures checked inline.* Nesting deepens because each failure is handled in place. Return early on failure, or let helpers return results the coordinator only routes.
+- *Shapes that do not meet.* The coordinator reshapes data between calls because its helpers disagree. Align the helpers' inputs and outputs.
 
-## What the check flags
-- The ESLint piece lints whatever files the team's ESLint run includes. It needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-41/README.md).
-- `hone-cd41/cognitive-complexity`: each function's cognitive complexity must be at most 15.
-  - An `if`, `else if`, `switch`, ternary, `catch` and each loop adds 1 plus the current nesting depth.
-  - An `else`, a `finally`, a labelled `break` or `continue`, and each run of the same logical operator add 1.
-  - Nesting deepens inside `if`, loops, `switch`, `catch` and ternaries.
-  - A nested function is scored on its own, starting one level deeper, and its score is not added to its parent.
-  - Reported at the function's name.
-- `hone-cd41/function-length`: a function body may span at most 50 lines. Blank and comment lines count; lines holding only `{` or `}` do not. Getters and setters are not checked. Reported at the function.
-- `orchestration-only` is a judgement clause. It cannot be selected and is enforced by review.
+**Where to go.** Coordinators read as a short list of named steps. Each helper does one thing at one level of detail.
 
-## Example violation
-```ts
-const settle = (orders: Order[]) => {
-  for (const order of orders) {
-    if (order.paid) {
-      for (const line of order.lines) {
-        if (line.refundable && line.quantity > 0) {
-          refund(line);
-        }
-      }
-    }
-  }
-};
-```
+**Reactions to distrust.**
+- "Raise the threshold." The threshold is the alarm, not the fire. The extraction is the fix.
+- "Splitting makes it harder to follow." Named steps read faster than inline logic once the names are honest.
+- "It's only a little over." Length and complexity point at a second job. Find it.
 
-## How to fix
-```ts
-const settle = (orders: Order[]) => orders.filter(isPaid).forEach(refundEligibleLines);
-```
-Move each branch into a named helper so the orchestrator only composes calls.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file holds a function whose shape is fixed by an external contract. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. Judgement clauses cannot be selected and need no exception record. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-41#cognitive-complexity", "file": "src/legacy/tax-engine.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Composed Method* (Kent Beck, *Smalltalk Best Practice Patterns*). A method is a sequence of calls to other methods, all at the same level of abstraction.
+- *One level of abstraction per function* (Robert C. Martin, *Clean Code*). Mixing coordination with detail forces the reader to switch levels mid-function.
+- *Single Responsibility Principle* (Robert C. Martin, SOLID). A function with one reason to change stays short without trying.

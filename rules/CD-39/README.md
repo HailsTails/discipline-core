@@ -4,16 +4,21 @@
 
 Reviews and rationale cite specific rules by their identifier, not vague appeals to "the standards". A citation anchors a finding to the named rule and its intent, so remediation is precise and the disagreement, if any, is about the rule rather than about taste.
 
-The sections below describe how the rule is checked.
+Review lens: none. A reviewer applies the rule text directly. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-39#cite-by-id` | review | reviews and rationale cite principles and rules by identifier |
+**What the friction is for.** "This doesn't meet our standards" cannot be acted on or argued with. Citing the rule by its identifier turns a finding into something precise.
 
-Review lens: none. A reviewer applies the rule text directly.
+**What a finding points at.** Match the reviews against these causes.
+- *Findings argued from taste.* No rule is cited, so the disagreement is personal. Cite the rule, or say none applies.
+- *Rules nobody can find.* Reviewers cannot cite because the rules are not known. Point at the rule pages.
 
-## How it is checked
+**Where to go.** Every finding and rationale names the rule it rests on.
 
-Every clause of this discipline is a judgement clause. It cannot be selected in `disciplines.json` and no mechanism checks it; a reviewer applies the rule above with its review lens, as [ADOPTING.md](../../ADOPTING.md#9-apply-the-judgement-rules) describes. Selecting no clause of this discipline leaves nothing uncovered.
+**Reactions to distrust.**
+- "Everyone knows the rule." Then citing it costs nothing, and newcomers learn it.
+
+**Principles behind it.**
+- *Traceability.* Each decision links to the rule that justifies it, so it can be checked and challenged.
+- *Architecture decision records* (Michael Nygard). Decisions are written down with their reasons, so later readers can follow them.

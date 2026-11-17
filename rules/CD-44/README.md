@@ -4,51 +4,24 @@
 
 A function never mutates the fields of the parameters it receives — no assigning to a parameter's property, no pushing into a parameter's array, no sorting it in place. It returns new data instead. Mutating an input makes the function's effect invisible at the call site and couples the caller to an order of operations it cannot see.
 
-The sections below describe what the audit and ESLint checks cover.
+Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-44#parameter-mutation` | audit | assignment to, deletion from or in-place methods on a parameter's fields |
-| `CD-44#parameter-reassignment` | eslint | assigning to, incrementing or destructuring into a parameter itself |
+**What the friction is for.** A function that changes its inputs has an effect the call site cannot see. The friction makes returning new data the easy path, so every change is visible where it is used.
 
-Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A function that both answers and changes.* It returns something and also edits what it was given. Return the new value; leave the input alone.
+- *Ownership nobody decided.* Several functions edit one shared object in turn. Decide who builds the value, and pass results forward instead.
+- *In-place sorting or pushing for convenience.* A library call mutates by default. Use the copying form, or copy first.
+- *Accumulators passed in.* A collection is handed in to be filled. Return the items and let the caller combine them.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- Inside a function declaration, function expression, arrow function or method, where the root name is one of its parameters (including destructured and outer-function parameters):
-  - `parameter.field = value` and `parameter.a[0].b = value`
-  - `delete parameter.field`
-  - `parameter.push(...)`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`, `fill`, `copyWithin`
-- Not detected: reassigning the parameter, `+=` and `++`, `Map.set`, and mutation through an alias (`const copy = input; copy.x = 1`).
+**Where to go.** Inputs are read-only. Functions return new values, and the caller decides what to keep.
 
-## What the ESLint check flags
-Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-44/README.md).
-- `hone-cd44/no-param-reassign` is ESLint's `no-param-reassign` with `{ "props": false }`.
-- It flags assigning to a parameter, incrementing or decrementing it, and destructuring-assigning into it.
-- A parameter's fields are not checked here; the audit's `parameter-mutation` clause covers them.
+**Reactions to distrust.**
+- "Copying is slow." Usually unmeasured, and the rule makes no performance carve-out.
+- "The caller wants the change." Then return it, and the caller can see it.
 
-## Example violation
-```ts
-const addTotal = (order: Order) => {
-  order.total = 10;
-};
-```
-
-## How to fix
-```ts
-const withTotal = (order: Order): Order => ({ ...order, total: 10 });
-```
-Copy before sorting or reversing: `[...items].sort()`.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file must fill an output object supplied by an external API. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-44#parameter-mutation", "file": "src/adapters/legacy-writer.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Command–query separation* (Bertrand Meyer). A function either answers a question or changes state, not both.
+- *Functional core, imperative shell* (Gary Bernhardt). The core takes values and returns values; changes happen at the edge.

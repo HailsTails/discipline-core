@@ -4,52 +4,26 @@
 
 Every dependency on code the project does not own — a third-party library or the runtime's own standard library alike — is confined to a single wrapping port at the boundary; the rest of the codebase depends on that port, never the vendor or platform surface, runtime or type-only. A dependency swap then touches one file, the vendor's types never leak inward, and each confined capability is nameable and fakeable in tests. There is no inline carve-out: a stdlib call in the middle of business logic is as much a violation as a scattered library import. Opening a new wrapping site for a new dependency is a deliberate, recorded decision.
 
-The sections below describe what the audit check covers.
+Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-19#import-boundaries` | audit | imports of the packages the repository confines, and any `node:` import |
+**What the friction is for.** Depending on code you do not own hands that code a say in the shape of yours. The friction makes depending on your own port the easy path, so a swap touches one file, vendor types stay out, and every capability has a name and a fake.
 
-Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A capability with no name.* Many files import the same library or runtime module. Name the capability, wrap it once, inject it.
+- *A port that leaks.* A wrapper exists but passes vendor types or objects through, so callers import the vendor anyway. Make the port speak your types.
+- *Decisions doing I/O.* A runtime call sits in the middle of business logic. Separate the decision from the effect; the effect arrives through a port.
+- *Construction spread everywhere.* Each module builds its own dependencies. Move construction to one composition root that passes ports in.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A line with `from "<specifier>"` where the specifier is a package listed in the clause's `confinedPackages` setting (see [Settings](#settings)) or a subpath of one: `hono` covers `hono` and `hono/cors`, and `@scope/name` covers `@scope/name` and `@scope/name/client`. A longer name is a different package, so `hono` does not cover `honox` or `hono-extra`. With no packages listed, which is the default, no library import is flagged. Type-only imports and matches inside strings are flagged too.
-- A `node:` specifier in an import, `export ... from`, `import("node:...")`, `import type`, `import x = require(...)` or `require("node:...")`. Unprefixed `fs` is not detected.
-- The source rule covers every third-party dependency; the check covers only the listed packages. The rest is left to review.
+**Where to go.** Each external capability has one wrapping file, recorded as its authorised location. Everything else imports your port. Opening a new wrapper is a recorded decision, not an inline one.
 
-## Settings
-List each package the repository confines behind a wrapping port in `disciplines.json`, then record each wrapping file as an `authorised-location`:
+**Reactions to distrust.**
+- "It's only the standard library." The same reasons apply: it cannot be faked and it ties logic to a platform. The rule makes no stdlib carve-out.
+- "Wrapping is boilerplate." One small file per capability, against the whole codebase knowing a vendor's surface.
+- "Exclude that folder." An excluded folder is a boundary nobody designed. Design it, then authorise the one file.
 
-```json
-"clauseSettings": {
-  "CD-19#import-boundaries": { "confinedPackages": ["winston", "uuid"] }
-}
-```
-
-## Example violation
-With `"confinedPackages": ["uuid"]`, both lines are flagged; with the default, only the first.
-```ts
-import { readFileSync } from "node:fs";
-import { v4 } from "uuid";
-```
-
-## How to fix
-```ts
-import { createFileReader } from "./file-reader.ts";
-import { createIdGenerator } from "./id-generator.ts";
-```
-Import your own port. Only the wrapping file imports the library.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` for the file that is the wrapping boundary for that dependency. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-19#import-boundaries", "file": "src/adapters/file-reader.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Dependency Inversion Principle* (Robert C. Martin, SOLID). Your code depends on an abstraction you own; the vendor detail depends on it, not the other way round.
+- *Ports and adapters* (Alistair Cockburn, hexagonal architecture). The application talks through ports; one adapter per outside system translates. Swapping the system means swapping the adapter.
+- *Functional core, imperative shell* (Gary Bernhardt). Decisions stay pure; effects live at the edge and arrive through ports.

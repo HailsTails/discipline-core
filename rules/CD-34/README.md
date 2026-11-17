@@ -4,16 +4,20 @@
 
 Secrets live only in the environment or a secrets manager — never in source, never in logs, never in URL query parameters. A committed secret is compromised the moment it lands in history, whatever happens to it later; the repository is not a place a secret can safely exist.
 
-The sections below describe how the rule is checked.
+Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-34#no-repo-secrets` | review | secrets never enter source, history, logs or URLs |
+**What the friction is for.** A secret in history is compromised for good. The friction keeps secrets out of the repository entirely, so there is nothing to leak.
 
-Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *Configuration mixed with code.* Credentials sit in source because config has no other home. Read them from the environment or a secrets manager.
+- *Test credentials that are real.* Tests use live keys. Use fakes or generated test values.
 
-## How it is checked
+**Where to go.** Source holds no secrets. Secrets arrive at runtime from the environment or a secrets manager.
 
-Every clause of this discipline is a judgement clause. It cannot be selected in `disciplines.json` and no mechanism checks it; a reviewer applies the rule above with its review lens, as [ADOPTING.md](../../ADOPTING.md#9-apply-the-judgement-rules) describes. Selecting no clause of this discipline leaves nothing uncovered.
+**Reactions to distrust.**
+- "It's a private repository." Access changes, history stays.
+
+**Principles behind it.**
+- *Config in the environment* (The Twelve-Factor App). Configuration that varies by deploy, credentials included, lives outside the code.

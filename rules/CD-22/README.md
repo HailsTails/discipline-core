@@ -4,16 +4,21 @@
 
 Middleware carries the context it consumes through a constrained generic that each layer widens, not an open property bag — so a capability the middleware reads from context (time, logging, correlation) is guaranteed present by the type rather than defensively re-checked or defaulted. A middleware that reads a context field but leaves its context generic unbounded is the violation.
 
-The sections below describe how the rule is checked.
+Review lens: [di-discipline](../../methods/lenses/di-discipline.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-22#middleware-context` | review | middleware reads its context through a constrained generic, not an open property bag |
+**What the friction is for.** Middleware that reads from an open property bag has to check whether what it needs is there. The friction makes the type guarantee it, so capabilities are present by construction.
 
-Review lens: [di-discipline](../../methods/lenses/di-discipline.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *Context read defensively.* Middleware checks or defaults a field like the clock or logger. Constrain its context type so the field must exist.
+- *Layers that add capabilities untyped.* Earlier layers add fields the type never records. Widen the generic at each layer.
 
-## How it is checked
+**Where to go.** Each middleware declares the context it needs through a constrained generic. A missing capability is a compile error.
 
-Every clause of this discipline is a judgement clause. It cannot be selected in `disciplines.json` and no mechanism checks it; a reviewer applies the rule above with its review lens, as [ADOPTING.md](../../ADOPTING.md#9-apply-the-judgement-rules) describes. Selecting no clause of this discipline leaves nothing uncovered.
+**Reactions to distrust.**
+- "A default is safer." A default hides wiring mistakes until they matter.
+
+**Principles behind it.**
+- *Make illegal states unrepresentable* (Yaron Minsky). A context type that requires the field cannot be built without it.
+- *Explicit dependencies.* A unit states what it needs in its signature, not by reaching into a shared bag.

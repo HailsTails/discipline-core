@@ -8,40 +8,24 @@ A test fakes the real subsystem. Spawning it is permitted in exactly one closed 
 
 Real git is the mechanically checked class: a test that spawns a real `git` subprocess passes an explicit hermetic environment at that call site, and never inherits the ambient one.
 
-The sections below describe what the audit check covers.
+Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-47#hermetic-git-spawns` | audit | a git spawn in a test without a hermetic `env` |
+**What the friction is for.** A test that touches real things can damage them, and can pass or fail depending on the machine. The friction makes faking the subsystem the easy path, so tests are safe to run anywhere and give the same answer every time.
 
-Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A subsystem reached directly.* The code under test calls the real process, network, or filesystem. Inject a port and fake it.
+- *Environment inherited by accident.* A spawned process picks up the developer's settings. Pass an explicit, created environment, or fake the process.
+- *Setup that borrows the machine.* The test uses shared paths, home configuration, or the system clock. Create what it needs and remove it afterwards, or fake it.
+- *A real call used for convenience.* Realism or setup speed is the reason. Those never qualify; fake it.
 
-## What the check flags
-- Test files: `*.test.ts`, `*.test.tsx`, `*.test.mjs`, `*.test.js`, `*.spec.ts`, `*.spec.mjs`. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped; any other folder can be left out with `exclude` in disciplines.json.
-- A line calling `spawnSync`, `spawn`, `execFileSync`, `execFile`, `execSync`, `exec`, `execa` or `execaSync` with `"git"` (or `'git'`, or a template literal) as the first argument.
-- Allowed when, within that line and the next seven, an `env:` names `hermeticGitEnvironment`, `withoutInheritedGitBindings` or `environment`, and no nearby `env:` uses `process.env`. The helper is yours to provide.
-- Not detected: a command string such as `execSync("git status")`, a split call, or a non-literal command. Whether the spawn is warranted at all is left to review.
+**Where to go.** Tests fake every real subsystem. The rare test whose subject is a subsystem's own behaviour brings its own instance and removes it.
 
-## Example violation
-```ts
-spawnSync("git", ["init"], { cwd: directory });
-```
+**Reactions to distrust.**
+- "It works on my machine." That is the problem: it depends on your machine.
+- "Faking it is more work." Once per subsystem, against every developer's environment being at risk.
 
-## How to fix
-```ts
-spawnSync("git", ["init"], { cwd: directory, env: hermeticGitEnvironment() });
-```
-Build the environment without inherited git variables or the user's configuration, and run in a temporary directory.
-
-## Exceptions
-Record exemptions only in `discipline-exceptions.json` at the repository root; core reads no other allowance file. Use `authorised-location` when a test file legitimately builds its environment another way. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-47#hermetic-git-spawns", "file": "test/git-fixture.test.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Hermetic tests.* A test depends only on what it creates, so its result is the same on every machine.
+- *Erratic Test* (a test smell in Gerard Meszaros, *xUnit Test Patterns*). Tests that share or leak real resources pass or fail by circumstance.
