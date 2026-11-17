@@ -116,6 +116,28 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     expect(sourceObservations({ source }).observers.finish()).toEqual(hits);
   });
 
+  it.each([
+    { specifier: "eslint" },
+    { specifier: "winston" },
+    { specifier: "winston-transport" },
+    { specifier: "better-sqlite3" },
+    { specifier: "pino" },
+    { specifier: "hono" },
+    { specifier: "@hono/node-server" },
+    { specifier: "hono/cors" },
+    { specifier: "hono/cookie" },
+    { specifier: "hono/types" },
+    { specifier: "hono/utils/http-status" },
+    { specifier: "jose" },
+    { specifier: "@modelcontextprotocol/sdk" },
+    { specifier: "zod-to-json-schema" },
+    { specifier: "uuid" },
+  ])("flags $specifier imported alone in a file", ({ specifier }) => {
+    const source = `${IMPORT} a ${FROM} "${specifier}";\n`;
+
+    expect(sourceObservations({ source }).observers.finish()).toEqual([bannedHit({ line: 1, specifier })]);
+  });
+
   it("returns every raw hit before earlier and later observed stdlib imports under the CD19 clause", () => {
     const observed = sourceObservations({ source: `import fs ${FROM} "node:fs";\r\nimport logger ${FROM} "winston";\r\nexport * ${FROM} "node:path";\r\n` });
     const imported = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree);
