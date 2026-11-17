@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "ACME-2",
+  "clauses": [
+    {
+      "kind": "mechanical",
+      "id": "scratch-files",
+      "summary": "no scratch file is committed",
+      "mechanisms": ["audit"],
+      "anchor": { "kind": "file" },
+      "cases": {
+        "flag": [
+          { "name": "scratch file", "fileName": "src/draft.scratch.ts", "source": "export const draft = 1;\n", "expectedLines": [1] }
+        ],
+        "allow": [
+          { "name": "ordinary file", "fileName": "src/kept.ts", "source": "export const kept = 1;\n", "expectedLines": [] }
+        ]
+      }
+    }
+  ]
+}

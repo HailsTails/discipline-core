@@ -18,7 +18,7 @@ const sourceEligibility = (request: { readonly file: string }): "eligible" | "ex
 const TODO_PATTERN = /\/\/\s*TODO\b/;
 const LINE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-(?:expect-error|ignore)/;
 const BLOCK_SUPPRESSION_PATTERN = /^\s*[/*]*\s*@ts-(?:expect-error|ignore)/;
-const FILE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-nocheck(?=\s|$)/;
+const FILE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-nocheck(?=[\s:]|$)/i;
 const LINTER_DIRECTIVE_PATTERN =
   /^(?:\/\/|\/\*)\s*((?:biome-ignore(?:-all|-start|-end)?|(?:eslint|oxlint)-(?:disable(?:-line|-next-line)?|enable)|eslint(?=\s)))\b/;
 const TRACKED_REFERENCE_PATTERN = /\([^()\s]*\d[^()\s]*\)/g;

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.pieces.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  }
+}
