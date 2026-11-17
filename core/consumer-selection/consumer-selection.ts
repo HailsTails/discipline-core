@@ -1,3 +1,4 @@
+import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
@@ -7,6 +8,7 @@ import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import {
   type ClauseExceptions,
+  type ClauseSettingDeclarations,
   type DisciplineFile,
   disciplineFilePath,
   type PieceFile,
@@ -31,6 +33,8 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
+import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
+import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import type { ClauseBinding, SelectionReading } from "./selection.ts";
 
 export type { SelectedClause, Selection, ClauseBinding, SelectionReading } from "./selection.ts";
@@ -65,6 +69,7 @@ type ResolvedClause = {
   readonly piece: PieceFile;
   readonly binding: ClauseBinding;
   readonly exceptions: ClauseExceptions;
+  readonly declarations: ClauseSettingDeclarations;
 };
 
 const RULE_SET_SUFFIX_SEPARATOR = "-";
@@ -110,6 +115,32 @@ const consumerSelectionFileSchema = z.strictObject({
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
   reportOutput: reportOutputSchema.default("full"),
+  assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
+  clauseSettings: clauseSettingsSchema.default([]),
+}).superRefine((file, context) => {
+  const settingsAddresses = file.clauseSettings.map(([address]) => address);
+  settingsAddresses
+    .filter((address) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
+    .forEach((address) => {
+      const text = clauseAddressText({ address });
+      context.addIssue({
+        code: "custom",
+        path: ["clauseSettings", text],
+        message: `clauseSettings for ${text}: clauses does not select it`,
+      });
+    });
+  settingsAddresses
+    .filter((address, index) =>
+      settingsAddresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
+    )
+    .forEach((address) => {
+      const text = clauseAddressText({ address });
+      context.addIssue({
+        code: "custom",
+        path: ["clauseSettings", text],
+        message: `clauseSettings for ${text}: given twice, also as ${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${text}`,
+      });
+    });
 });
 
 type ConsumerSelectionFile = z.infer<typeof consumerSelectionFileSchema>;
@@ -230,7 +261,11 @@ const pieceOf = (request: PieceRequest): Result<PieceFile, LoadFailure> => {
   return readPieceFile({ ...location, fileText: request.fileText, discipline: request.discipline });
 };
 
-type PieceEntry = { readonly piece: PieceFile; readonly settings: unknown };
+type PieceEntry = {
+  readonly piece: PieceFile;
+  readonly settings: unknown;
+  readonly declarations: ClauseSettingDeclarations;
+};
 
 const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
   const runnerPath = request.path.join({
@@ -251,7 +286,7 @@ const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
       mechanism: request.mechanism,
     });
   }
-  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings } };
+  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings, declarations: entry.clauseSettings } };
 };
 
 const resolvedClauseOf = (request: {
@@ -265,6 +300,7 @@ const resolvedClauseOf = (request: {
     discipline: defined.discipline,
     piece: entry.piece,
     exceptions: defined.definition.exceptions,
+    declarations: entry.declarations,
     binding: {
       mechanism: clauseRequest.mechanism,
       clause: {
@@ -274,6 +310,7 @@ const resolvedClauseOf = (request: {
           segments: [clauseRequest.ruleSetRoot, "mechanisms", clauseRequest.mechanism, clauseRequest.address.discipline],
         }),
         settings: entry.settings,
+        clauseSettings: defaultClauseSettings({ declarations: entry.declarations }),
       },
     },
   };
@@ -447,19 +484,62 @@ const selectionReadingOf = (request: {
   fileExceptionWhyChains: request.file.fileExceptionWhyChains,
 });
 
+const givenClauseSettings = (request: {
+  readonly file: ConsumerSelectionFile;
+  readonly address: ClauseAddress;
+}): ClauseSettingValues | undefined =>
+  request.file.clauseSettings.find(([address]) => sameClauseAddress({ left: address, right: request.address }) === "same")?.[1];
+
+const settledClause = (request: {
+  readonly clause: ResolvedClause;
+  readonly file: ConsumerSelectionFile;
+  readonly path: string;
+}): Result<ResolvedClause, LoadFailure> => {
+  const address = addressOf({ resolved: request.clause });
+  const clauseSettings = settledClauseSettings({
+    address,
+    declarations: request.clause.declarations,
+    given: givenClauseSettings({ file: request.file, address }),
+  });
+  if (clauseSettings.outcome === "failed") {
+    return failed({ kind: "file-malformed", path: request.path, detail: clauseSettings.error });
+  }
+  const { binding } = request.clause;
+  return {
+    outcome: "ok",
+    value: { ...request.clause, binding: { ...binding, clause: { ...binding.clause, clauseSettings: clauseSettings.value } } },
+  };
+};
+
+const withClauseSettings = (request: {
+  readonly resolved: readonly ResolvedClause[];
+  readonly file: ConsumerSelectionFile;
+  readonly path: string;
+}): Result<readonly ResolvedClause[], LoadFailure> =>
+  request.resolved.reduce<Result<readonly ResolvedClause[], LoadFailure>>(
+    (sofar, clause) =>
+      appendedClause({ sofar, resolve: () => settledClause({ clause, file: request.file, path: request.path }) }),
+    { outcome: "ok", value: [] },
+  );
+
 const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
 
-export const readReportOutput = (request: {
+export type RunSettings = {
+  readonly reportOutput: ReportOutput;
+  readonly assessment: Assessment;
+};
+
+export const readRunSettings = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-}): Result<ReportOutput, LoadFailure> => {
+}): Result<RunSettings, LoadFailure> => {
   const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
   if (file.outcome === "failed") {
     return file;
   }
-  return { outcome: "ok", value: file.value.reportOutput };
+  return { outcome: "ok", value: { reportOutput: file.value.reportOutput, assessment: file.value.assessment } };
 };
 
 export const readSelection = (request: {
@@ -477,5 +557,9 @@ export const readSelection = (request: {
   if (resolved.outcome === "failed") {
     return resolved;
   }
-  return { outcome: "ok", value: selectionReadingOf({ resolved: resolved.value, file: file.value }) };
+  const settled = withClauseSettings({ resolved: resolved.value, file: file.value, path: selectionFilePath(request) });
+  if (settled.outcome === "failed") {
+    return settled;
+  }
+  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, file: file.value }) };
 };

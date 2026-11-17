@@ -70,6 +70,45 @@
         "kind": "existing-authorisation",
         "source": ".constitution-authorised-locations/cd-19.json#6"
       }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-19#import-boundaries",
+      "file": "mechanisms/eslint/runner/native-rules.ts",
+      "reason": "Structural CD-19 location: native-rules.ts is the single wrapper of the rule implementations that ship inside eslint and @typescript-eslint/eslint-plugin. It value-imports builtinRules from eslint/use-at-your-own-risk, the only runtime entry point at which eslint exposes its core rule objects, and hands the ESLint pieces plain NativeRuleSources and NativeRules records through defaultNativeRuleSources, eslintCoreRules and typescriptEslintRules. No other shipped file imports ESLint's core rules. This record authorises this one wrapping site for eslint and grants no tolerated debt or any other location.",
+      "whyChain": {
+        "whys": [
+          {
+            "why": "Why does native-rules.ts import builtinRules from eslint/use-at-your-own-risk?",
+            "because": "Hone's ESLint pieces reuse rule implementations that ship inside eslint itself, such as no-param-reassign for CD-44, and eslint exposes those core rule objects at run time only through its use-at-your-own-risk entry point; its rules export carries types alone.",
+            "evidence": "mechanisms/eslint/runner/native-rules.ts:2; mechanisms/eslint/CD-44/cd44/cd44.eslint-plugin.ts:5 calls eslintCoreRules for no-param-reassign; node_modules/eslint/package.json exports ./use-at-your-own-risk, and its ./rules export holds only types, on 9.28.0, 9.39.5, 10.0.0 and 10.11.0."
+          },
+          {
+            "why": "Why do the ESLint pieces reuse the rule implementations shipped inside eslint instead of writing their own?",
+            "because": "A clause checked through the ESLint mechanism must report exactly what the team's installed ESLint reports for that rule, so the piece wraps the installed rule object; a copied implementation would drift from the version the repository runs.",
+            "evidence": "rules/CD-44/README.md:28 says hone-cd44/no-param-reassign is ESLint's no-param-reassign with { \"props\": false }; mechanisms/eslint/CD-44/cd44/cd44.eslint-plugin.ts."
+          },
+          {
+            "why": "Why must the installed rule objects the pieces wrap arrive through one file rather than each piece importing eslint?",
+            "because": "Five pieces wrap native rules, and Hone's vendor-confinement design lets a value import of eslint/use-at-your-own-risk or @typescript-eslint/eslint-plugin appear in native-rules.ts alone, so the pieces receive plain NativeRuleSources from it and never touch either package.",
+            "evidence": "core/check/vendor-imports.test.ts, test \"finds native-rules.ts the only file importing ESLint's core rules and @typescript-eslint/eslint-plugin by value\"; mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.ts:2, CD-6, CD-14, CD-40 and CD-44 import from ../../runner/native-rules.ts."
+          },
+          {
+            "why": "Why does the vendor-confinement design put that value import in native-rules.ts rather than in eslint-instance.ts, the recorded eslint wrapper?",
+            "because": "eslint-instance.ts builds the EslintPort over the team's ESLint class and is held to type-only eslint imports, while the rule objects are plain values the pieces need when ESLint loads their plugins, so eslint's two runtime surfaces have two wrapping files with separate jobs.",
+            "evidence": "core/check/vendor-imports.test.ts, test \"finds eslint-instance.ts taking only types from eslint and @typescript-eslint/parser\"; discipline-exceptions.json authorises eslint-instance.ts with provenance .constitution-authorised-locations/cd-19.json#4."
+          },
+          {
+            "why": "Why was only one of the two separate eslint wrapping files ever recorded?",
+            "because": "The CD-19 audit used to match the exact specifier eslint, which native-rules.ts never imports, so the imported record set authorised only the files that exact list flagged; the audit now confines the eslint package with its subpaths and reports this import.",
+            "evidence": "mechanisms/audit/CD-19/import-boundaries.ts confinedPackages; disciplines.json clauseSettings for CD-19#import-boundaries; .constitution-authorised-locations/cd-19.json holds seven entries and none for native-rules.ts."
+          }
+        ],
+        "rootCause": "The earlier exact-specifier audit hid eslint's second wrapping file, so the imported records never authorised native-rules.ts, the one file the vendor-confinement design names for ESLint's core rules.",
+        "rootCheck": "On 2026-11-17, git grep -n use-at-your-own-risk over *.ts outside tests/ and *.test.ts returned only mechanisms/eslint/runner/native-rules.ts:2, and .constitution-authorised-locations/cd-19.json lists no native-rules.ts entry.",
+        "readback": "The earlier exact-specifier audit hid eslint's second wrapping file, therefore the imported records never authorised native-rules.ts, therefore the package-wide CD-19 audit now reports native-rules.ts, which must import builtinRules from eslint/use-at-your-own-risk as the single wrapper the vendor-confinement design names.",
+        "owner": "owner decision on HailsTails/hone#66"
+      }
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { assert, vi } from "vitest";
+import { defaultClauseSettings } from "../core/consumer-selection/clause-settings.ts";
 import type { RunnerClause } from "../core/mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
@@ -79,6 +80,7 @@ const rowsOf = (request: {
         anchor: definition.anchor,
         pieceRoot: `${request.mechanismRoot}/${request.discipline}`,
         settings: entry.settings,
+        clauseSettings: defaultClauseSettings({ declarations: entry.clauseSettings }),
       },
       cases: [...definition.cases.flag, ...definition.cases.allow],
     };

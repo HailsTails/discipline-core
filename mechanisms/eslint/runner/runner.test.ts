@@ -19,6 +19,7 @@ describe("runner", () => {
           address: clauseAddressSchema.parse("XX-1#first-check"),
           anchor: { kind: "file" },
           pieceRoot: "/install/mechanisms/eslint/XX-1",
+          clauseSettings: {},
           settings: { pluginNamespace: "xx", pluginModule: "../x.ts", rule: "first-check" },
         },
         cases: [

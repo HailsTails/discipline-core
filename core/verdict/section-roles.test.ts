@@ -15,12 +15,13 @@ describe("SECTION_NAMES", () => {
       "invalidRecords",
       "unmeasured",
       "projectionProblems",
+      "assessment",
     ]);
   });
 });
 
 describe("sectionRoleOf", () => {
-  it.each<SectionName>(["excluded", "exempted"])("is informational for %s, which never fails the run", (section) => {
+  it.each<SectionName>(["excluded", "exempted", "assessment"])("is informational for %s, which never fails the run", (section) => {
     expect(sectionRoleOf({ section })).toBe("informational");
   });
 
@@ -54,7 +55,7 @@ describe("sectionsWithRole", () => {
     ]);
   });
 
-  it("lists the two informational sections in print order", () => {
-    expect(sectionsWithRole({ role: "informational" })).toEqual(["excluded", "exempted"]);
+  it("lists the three informational sections in print order", () => {
+    expect(sectionsWithRole({ role: "informational" })).toEqual(["excluded", "exempted", "assessment"]);
   });
 });

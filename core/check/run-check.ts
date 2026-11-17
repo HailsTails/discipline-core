@@ -28,12 +28,13 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import type { ForfeitureAssessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
-import type { CheckReport, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
+import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "../verdict/check-report.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
 
@@ -42,6 +43,7 @@ export type CheckRequest = {
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
   readonly baseRevision: string | undefined;
+  readonly forfeiture: ForfeitureAssessment;
   readonly fileText: FileTextPort;
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
@@ -52,7 +54,7 @@ export type ExceptionBaselineReader = (request: {
   readonly entries: readonly StructuralExceptionEntry[];
 }) => ExceptionBaseline;
 
-export type LoadRequest = Omit<CheckRequest, "baseRevision" | "git"> & {
+export type LoadRequest = Omit<CheckRequest, "baseRevision" | "forfeiture" | "git"> & {
   readonly exceptionBaselineOf: ExceptionBaselineReader;
 };
 
@@ -207,13 +209,26 @@ const forfeitureUnmeasured = (request: {
     ? [{ kind: "forfeiture-unmeasured" }]
     : [];
 
+const fileCarveOutsIn = (request: { readonly records: readonly ExceptionRecord[] }): number =>
+  request.records.filter((record) => record.kind === "file-carve-out").length;
+
 const touchedSetFor = (request: {
   readonly check: CheckRequest;
   readonly records: readonly ExceptionRecord[];
-}): TouchedSet =>
-  request.records.some((record) => record.kind === "file-carve-out")
-    ? computeTouchedSet(request.check)
-    : { measured: "yes", paths: new Set() };
+}): TouchedSet => {
+  if (request.check.forfeiture === "elsewhere") {
+    return { measured: "elsewhere" };
+  }
+  return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
+};
+
+const partialAssessmentsOf = (request: {
+  readonly forfeiture: ForfeitureAssessment;
+  readonly records: readonly ExceptionRecord[];
+}): readonly PartialAssessment[] =>
+  request.forfeiture === "elsewhere"
+    ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request) }]
+    : [];
 
 const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
   request.records.some((record) => recordImportOf({ record }).imported === "yes")
@@ -384,6 +399,7 @@ const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readon
   request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
 
 const checkReportOf = (request: {
+  readonly forfeiture: ForfeitureAssessment;
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
   readonly touched: TouchedSet;
@@ -407,6 +423,7 @@ const checkReportOf = (request: {
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
     projectionProblems: projections.flatMap((projection) => projection.problems),
+    assessment: partialAssessmentsOf({ forfeiture: request.forfeiture, records: request.inputs.records }),
   };
 };
 
@@ -429,6 +446,7 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   return {
     outcome: "ok",
     value: checkReportOf({
+      forfeiture: request.forfeiture,
       inputs: inputs.value,
       runs: runs.value,
       touched: touchedSetFor({ check: request, records: inputs.value.records }),

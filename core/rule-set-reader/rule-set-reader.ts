@@ -10,13 +10,22 @@ import {
   type MechanismId,
   mechanismIdSchema,
 } from "../values/identifiers.ts";
+import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import type { AuthoredDisciplineFile, AuthoredPieceFile, AuthoredSourceCase } from "./authored-rule-set-types.ts";
 import type { DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
 
-export type { ClauseDefinition, ClauseExceptions, DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
+export type {
+  ClauseDefinition,
+  ClauseExceptions,
+  ClauseSettingDeclaration,
+  ClauseSettingDeclarations,
+  DisciplineFile,
+  PieceFile,
+  SourceCase,
+} from "./rule-set-types.ts";
 
 const SUPPORTED_VERSION = 1;
 
@@ -132,12 +141,34 @@ const disciplineFileSchema = z.object({
     }),
 });
 
+const clauseSettingDeclarationSchema = z
+  .strictObject({
+    default: z.json(),
+    choices: z.array(z.json()).min(1).optional(),
+  })
+  .superRefine((declaration, context) => {
+    if (declaration.choices === undefined) return;
+    const defaultKind = jsonKindOf({ value: declaration.default });
+    if (declaration.choices.some((choice) => jsonKindOf({ value: choice }) !== defaultKind)) {
+      context.addIssue({ code: "custom", path: ["choices"], message: `every choice must be ${JSON_KIND_NAMES[defaultKind]}, as the default is` });
+    }
+    if (!declaration.choices.some((choice) => sameJsonValue({ left: choice, right: declaration.default }) === "same")) {
+      context.addIssue({ code: "custom", path: ["default"], message: "the default must be one of the choices" });
+    }
+  });
+
 const pieceFileSchema = z.object({
   version: z.literal(SUPPORTED_VERSION),
   discipline: disciplineIdSchema,
   mechanism: mechanismIdSchema,
   clauses: z
-    .array(z.object({ clause: clauseIdSchema, settings: z.unknown() }))
+    .array(
+      z.object({
+        clause: clauseIdSchema,
+        settings: z.unknown(),
+        clauseSettings: z.record(z.string().min(1), clauseSettingDeclarationSchema).default({}),
+      }),
+    )
     .refine((entries) => textDistinctness(entries.map((entry) => entry.clause)) === "distinct", {
       error: "two entries name the same clause",
     }),

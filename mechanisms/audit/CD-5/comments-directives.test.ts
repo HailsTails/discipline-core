@@ -16,6 +16,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-5",
+  clauseSettings: {},
   settings: { module: "comments-directives.ts" },
 };
 
