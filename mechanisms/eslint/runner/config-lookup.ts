@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
@@ -32,7 +33,7 @@ const NEAREST_LOOKUP_FLAGS: ReadonlySet<string> = new Set([
   "unstable_config_lookup_from_file",
 ]);
 
-const ROOT_CONFIG_NAMES: readonly string[] = [
+export const CONFIG_FILE_NAMES: readonly string[] = [
   "eslint.config.js",
   "eslint.config.mjs",
   "eslint.config.cjs",
@@ -91,15 +92,19 @@ const lintScriptsSelectNearest = (request: LookupRequest): "selects-nearest" | "
     : "selects-root";
 
 const rootConfigFile = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): string | undefined =>
-  ROOT_CONFIG_NAMES.map((name) => request.path.join({ segments: [request.repoRoot, name] })).find(
+  CONFIG_FILE_NAMES.map((name) => request.path.join({ segments: [request.repoRoot, name] })).find(
     (candidate) => request.fileText.exists({ path: candidate }) === "present",
   );
 
-const declaredLookup = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): EslintConfigLookup | undefined => {
+export type SelectionSettings = z.output<typeof selectionLookupSchema>;
+
+const UNDECLARED: SelectionSettings = { eslintConfigRoots: [] };
+
+export const selectionSettingsOf = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): SelectionSettings => {
   const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, SELECTION_FILE] }) });
   const json = text.outcome === "ok" ? parsedJson({ text: text.value }) : undefined;
   const parsed = json?.outcome === "ok" ? selectionLookupSchema.safeParse(json.value) : undefined;
-  return parsed?.success ? parsed.data.eslintConfigLookup : undefined;
+  return parsed?.success ? parsed.data : UNDECLARED;
 };
 
 const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
@@ -107,8 +112,10 @@ const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
     ? "nearest-to-file"
     : "repository-root";
 
-export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, RunnerFailure> => {
-  if ((declaredLookup(request) ?? detectedLookup(request)) === "nearest-to-file") {
+export const teamConfigLookup = (
+  request: LookupRequest & { readonly settings: SelectionSettings },
+): Result<ConfigLookup, RunnerFailure> => {
+  if ((request.settings.eslintConfigLookup ?? detectedLookup(request)) === "nearest-to-file") {
     return { outcome: "ok", value: NEAREST };
   }
   const configFile = rootConfigFile(request);

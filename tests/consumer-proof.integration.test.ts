@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, type MockInstance, vi } from "vitest";
 import { runCheck } from "../core/check/run-check.ts";
 import { runProject } from "../core/check/run-project.ts";
+import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
@@ -73,7 +74,7 @@ const observedPorts = (): ObservedPorts => {
       runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse: defaultParsePort }),
     },
     [resolvedPath({ path: `${INSTALL_ROOT}/mechanisms/eslint/runner/runner.ts` })]: {
-      runner: createEslintRunner({ fileText, modules: pieceModules, path, eslint: defaultEslintPort, moduleExtension: ".ts" }),
+      runner: createEslintRunner({ fileText, fileRemoval: createDefaultFileRemovalPort({}), modules: pieceModules, path, eslint: defaultEslintPort, moduleExtension: ".ts" }),
     },
   };
   const runnerModules: ModuleLoaderPort = {

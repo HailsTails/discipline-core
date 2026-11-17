@@ -322,8 +322,13 @@ const projectionOutcome = (request: {
   }
 };
 
+const sliceProblemsOf = (request: { readonly run: MechanismRun }): readonly ProjectionProblem[] =>
+  request.run.slices.map((slice) => ({ mechanism: request.run.mechanism, state: slice.state, slice: slice.slice }));
+
+type TreeRequest = Pick<CheckRequest, "git" | "repoRoot" | "path" | "fileText">;
+
 const workingTreePaths = (request: {
-  readonly check: CheckRequest;
+  readonly check: TreeRequest;
   readonly tracked: readonly RepoPath[];
 }): readonly RepoPath[] =>
   request.tracked.filter(
@@ -343,8 +348,8 @@ const exclusion = (request: {
     ? "excluded"
     : "checked";
 
-const presentTrackedPaths = (request: {
-  readonly check: CheckRequest;
+export const presentTrackedPaths = (request: {
+  readonly check: TreeRequest;
   readonly excluded: readonly RepoPath[];
 }): Result<readonly RepoPath[], LoadFailure> => {
   const tracked = request.check.git.trackedPaths({ repoRoot: request.check.repoRoot });
@@ -422,7 +427,10 @@ const checkReportOf = (request: {
       ...legacyChainUnmeasured({ exceptionBaseline: request.inputs.exceptionBaseline, records: request.inputs.records }),
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
-    projectionProblems: projections.flatMap((projection) => projection.problems),
+    projectionProblems: [
+      ...projections.flatMap((projection) => projection.problems),
+      ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
+    ],
     assessment: partialAssessmentsOf({ forfeiture: request.forfeiture, records: request.inputs.records }),
   };
 };

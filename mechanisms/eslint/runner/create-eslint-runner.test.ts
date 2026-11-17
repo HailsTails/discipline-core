@@ -4,6 +4,7 @@ import type { ExceptionRecord } from "../../../core/exception-records/exception-
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { CaseVerdict } from "../../../core/mechanism-port/runner-result-schema.ts";
+import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import {
@@ -328,6 +329,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
 const runnerOver = (overrides: Partial<EslintRunnerPorts>) =>
   createEslintRunner({
     fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+    fileRemoval: { remove: vi.fn<FileRemovalPort["remove"]>() },
     modules: modulesOver(PLUGIN_MODULES),
     path: createPathPort({ flavour: "posix", workingDirectory: () => "/elsewhere" }),
     eslint: eslintOver({}),
@@ -422,7 +424,7 @@ const inlineMessageInA = (request: {
     }),
   });
 
-const NOT_INCLUDED = { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "not-included" } };
+const NOT_INCLUDED = { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "not-included", slices: [] } };
 
 const CLASS_CASE: SourceCase = {
   name: "class",
@@ -521,7 +523,7 @@ describe("the governance run, step 1: selected pieces", () => {
     }).run(SHARED_MODULE_RUN);
     expect({ loads: load.mock.calls, report }).toEqual({
       loads: [[{ path: PLUGIN_MODULE_PATH }]],
-      report: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current" } },
+      report: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current", slices: [] } },
     });
   });
 
@@ -544,7 +546,7 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
       queryInstances: vi.mocked(eslint.createQueryInstance).mock.calls,
       governanceInstances: vi.mocked(eslint.createGovernanceInstance).mock.calls,
     }).toEqual({
-      report: { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "missing" } },
+      report: { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "missing", slices: [] } },
       queryInstances: [],
       governanceInstances: [],
     });
@@ -556,7 +558,7 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
         fileText: projectionHolding({ text: `// hand edited\n${ENABLING_PROJECTION}` }),
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
       }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [] } });
   });
 
   it("is current for a committed projection that differs from the generation only by CRLF line endings", async () => {
@@ -565,7 +567,7 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
         fileText: projectionHolding({ text: ENABLING_PROJECTION_CRLF }),
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
       }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current", slices: [] } });
   });
 
   it("is out-of-date when the projection lacks the block of a record the run was given", async () => {
@@ -801,7 +803,7 @@ describe("the governance run, step 5: messages", () => {
       runnerOver({
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
       }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "current", slices: [] } });
   });
 
   it("maps each message back to its clause by rule id across two pieces", async () => {
@@ -839,6 +841,7 @@ describe("the governance run, step 5: messages", () => {
         ],
         nativeExceptions: [],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -853,7 +856,7 @@ describe("the governance run, step 5: messages", () => {
           }),
         }),
       }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current", slices: [] } });
   });
 
   it("is file-unparseable for a file ESLint could not parse", async () => {
@@ -899,6 +902,7 @@ describe("the governance run, step 5: messages", () => {
         ],
         nativeExceptions: [],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -978,6 +982,7 @@ describe("the governance run, step 5: messages", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1016,6 +1021,7 @@ describe("the governance run, step 5: messages", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1122,11 +1128,12 @@ describe("project", () => {
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [FACTORY_LOCATION],
     });
     expect({ write, fileWrites: vi.mocked(fileText.write).mock.calls }).toEqual({
-      write: { outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } },
+      write: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
       fileWrites: [[{ path: PROJECTION_PATH, text: FACTORY_LOCATION_PROJECTION }]],
     });
   });
@@ -1137,7 +1144,7 @@ describe("project", () => {
       [PROJECTION_PATH]: ABSENT_FILE,
       "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
-    await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
+    await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
       [
         {
@@ -1154,7 +1161,7 @@ describe("project", () => {
       [PROJECTION_PATH]: ABSENT_FILE,
       "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
-    await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_CLAUSE], records: [] });
+    await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
   });
 
@@ -1167,6 +1174,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
     });
@@ -1191,6 +1199,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
     });
@@ -1211,11 +1220,12 @@ describe("project", () => {
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
     });
     expect({ write, fileWrites: vi.mocked(fileText.write).mock.calls }).toEqual({
-      write: { outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "unchanged" } },
+      write: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "unchanged" }] },
       fileWrites: [],
     });
   });
@@ -1248,6 +1258,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
           { kind: "ignore", clause: FOR_OF_OBJECT, file: "src/factory.ts" },
         ],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -1268,6 +1279,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
         hits: [],
         nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1288,6 +1300,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
         hits: [],
         nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1309,6 +1322,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
         hits: [],
         nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1335,6 +1349,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           { kind: "suppression-entry", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", location: "eslint-suppressions.json" },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1364,6 +1379,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1407,6 +1423,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1439,6 +1456,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1471,6 +1489,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1508,7 +1527,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
   it("reads no tracked path whose name only ends in package.json", async () => {
     await expect(
       runnerOver({}).run(trackedRun({ tracked: "docs/my-package.json" })),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current", slices: [] } });
   });
 });
 
@@ -1539,6 +1558,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           },
         ],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -1576,6 +1596,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           },
         ],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -1598,6 +1619,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           { kind: "inline-disable", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: "/* eslint-disable */" },
         ],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -1625,6 +1647,7 @@ describe("native exceptions: inline directives with several selected clauses", (
           },
         ],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
@@ -1674,6 +1697,7 @@ describe("the governance run, settled message handling", () => {
           },
         ],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -1716,6 +1740,7 @@ describe("the governance run with nothing to lint", () => {
             },
           ],
           projection: "current",
+          slices: [],
         },
       },
       governanceInstances: [],
@@ -1780,7 +1805,7 @@ describe("the governance run on Windows paths", () => {
           }),
         }),
       }).run(windowsRun({ pieceRoot: WINDOWS_PIECE_ROOT })),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date" } });
+    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [] } });
   });
 
   it("reads the projection and a tracked suppressions file at their Windows forms under the repo root", async () => {
@@ -1889,5 +1914,153 @@ describe("plugin namespace ownership", () => {
 
   it("still accepts Hone's own namespaces for the shared rule set", async () => {
     await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({ outcome: "ok" });
+  });
+});
+
+const PACKAGE_A_CONFIG = repoPathSchema.parse("packages/a/eslint.config.mjs");
+const PACKAGE_A_SLICE_PATH = "/repo/packages/a/disciplines.eslint.mjs";
+const PACKAGE_FILE_A = repoPathSchema.parse("packages/a/src/a.ts");
+const PACKAGE_FACTORY = repoPathSchema.parse("packages/a/src/factory.ts");
+
+const PACKAGE_FACTORY_LOCATION: ExceptionRecord = { ...FACTORY_LOCATION, file: PACKAGE_FACTORY };
+
+const ROOT_PROJECTION_WITH_PACKAGE_LOCATION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+
+export default [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "packages/a/src/factory.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const PACKAGE_A_SLICE = `import piece0 from "../../node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+
+export default [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/factory.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const PACKAGE_RUN = {
+  ...runRequest({ clauses: [CLASS_CLAUSE], records: [PACKAGE_FACTORY_LOCATION] }),
+  files: [PACKAGE_FILE_A, PACKAGE_FACTORY],
+  trackedPaths: [PACKAGE_FILE_A, PACKAGE_FACTORY, PACKAGE_A_CONFIG],
+};
+
+const PACKAGE_LOCATION_LOST = queryOver({
+  ignored: { "packages/a/src/a.ts": "checked", "packages/a/src/factory.ts": "checked" },
+  states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: ERROR },
+});
+
+const packageRepo = (request: { readonly files: Readonly<Record<string, FakeFile>> }): FileTextPort =>
+  repoHolding({
+    projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION,
+    files: { [PACKAGE_A_SLICE_PATH]: presentFile({ text: PACKAGE_A_SLICE }), ...request.files },
+  });
+
+describe("package projection slices, their bytes", () => {
+  it("names a package slice that is missing beside a current root projection, still reporting the run's hits", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
+      }).run({ ...CLASS_RUN, trackedPaths: [...FILES, PACKAGE_A_CONFIG] }),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        hits: [HIT_IN_A],
+        nativeExceptions: [],
+        projection: "current",
+        slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }],
+      },
+    });
+  });
+
+  it("names a package slice that is out of date for the records under its folder", async () => {
+    await expect(
+      runnerOver({
+        fileText: packageRepo({ files: { [PACKAGE_A_SLICE_PATH]: presentFile({ text: ENABLING_PROJECTION }) } }),
+        eslint: eslintOver({
+          query: queryOver({
+            ignored: { "packages/a/src/a.ts": "checked", "packages/a/src/factory.ts": "checked" },
+            states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: OFF },
+          }),
+        }),
+      }).run(PACKAGE_RUN),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { projection: "current", slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" }] },
+    });
+  });
+});
+
+describe("package projection slices, applied by the team's config", () => {
+  it("names the package slice as not applied when ESLint resolves per file and the package's carve-outs are not in effect", async () => {
+    await expect(
+      runnerOver({ fileText: packageRepo({ files: {} }), eslint: eslintOver({ query: PACKAGE_LOCATION_LOST }) }).run(PACKAGE_RUN),
+    ).resolves.toEqual({
+      ...NOT_INCLUDED,
+      value: { ...NOT_INCLUDED.value, slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" }] },
+    });
+  });
+
+  it("names no slice as not applied when ESLint resolves every file from the repository root config", async () => {
+    await expect(
+      runnerOver({
+        fileText: packageRepo({
+          files: {
+            "/repo/node_modules/eslint/package.json": presentFile({ text: '{ "version": "9.28.0" }' }),
+            "/repo/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+          },
+        }),
+        eslint: eslintOver({ query: PACKAGE_LOCATION_LOST }),
+      }).run(PACKAGE_RUN),
+    ).resolves.toEqual(NOT_INCLUDED);
+  });
+});
+
+describe("package projection slices, projected", () => {
+  it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
+    const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
+    const write = await runnerOver({ fileText }).project({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      trackedPaths: [PACKAGE_A_CONFIG],
+      clauses: [CLASS_CLAUSE],
+      records: [PACKAGE_FACTORY_LOCATION],
+    });
+    expect({ write, fileWrites: vi.mocked(fileText.write).mock.calls }).toEqual({
+      write: {
+        outcome: "ok",
+        value: [
+          { path: "disciplines.eslint.mjs", effect: "written" },
+          { path: "packages/a/disciplines.eslint.mjs", effect: "written" },
+        ],
+      },
+      fileWrites: [
+        [{ path: PROJECTION_PATH, text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }],
+        [{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }],
+      ],
+    });
   });
 });

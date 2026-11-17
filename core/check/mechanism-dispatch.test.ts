@@ -71,6 +71,7 @@ describe("runMechanism with a standalone runner", () => {
         nativeExceptions: [],
         projectedKinds: [],
         projection: "none",
+        slices: [],
       },
     });
   });
@@ -80,7 +81,7 @@ describe("runMechanism with a standalone runner", () => {
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [], projectedKinds: [], projection: "none" },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [], projectedKinds: [], projection: "none", slices: [] },
     });
   });
 
@@ -170,7 +171,7 @@ describe("projectMechanism with a standalone runner", () => {
     const runner = standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) });
     const writes = await projectMechanism({
       runner,
-      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
+      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
     });
     expect({ writes, runCalls: vi.mocked(runner.run).mock.calls, conformCalls: vi.mocked(runner.conform).mock.calls }).toEqual({
       writes: { outcome: "ok", value: [] },
@@ -193,9 +194,17 @@ const ESLINT_LOCATION: ExceptionRecord = {
 
 const IGNORED_B = { kind: "ignore", clause: CLASS_SYNTAX_OBJECT, file: "src/b.ts" };
 
+const SLICE_WRITES = [
+  { path: "disciplines.eslint.mjs", effect: "unchanged" },
+  { path: "packages/a/disciplines.eslint.mjs", effect: "written" },
+  { path: "packages/old/disciplines.eslint.mjs", effect: "removed" },
+  { path: "packages/hand/disciplines.eslint.mjs", effect: "left-in-place" },
+];
+
 const PROJECTION_REQUEST = {
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
+  trackedPaths: [],
   clauses: [CLASS_SYNTAX_CLAUSE],
   records: [ESLINT_LOCATION],
 };
@@ -213,7 +222,7 @@ const embeddedRunner = (request: { readonly run: EmbeddedCall; readonly project:
     project: request.project,
   });
 
-const UNCALLED_PROJECT = embeddedResolving({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } });
+const UNCALLED_PROJECT = embeddedResolving({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] });
 
 const dispatchEmbeddedRun = (request: { readonly run: EmbeddedCall }) =>
   runMechanism({
@@ -248,6 +257,7 @@ describe("runMechanism with an embedded runner", () => {
         nativeExceptions: [IGNORED_B],
         projectedKinds: ["config-override"],
         projection: "current",
+        slices: [],
       },
     });
   });
@@ -259,7 +269,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "not-included" },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "not-included", slices: [] },
     });
   });
 
@@ -270,7 +280,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "missing" },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], projectedKinds: ["config-override"], projection: "missing", slices: [] },
     });
   });
 
@@ -287,13 +297,14 @@ describe("runMechanism with an embedded runner", () => {
         nativeExceptions: [],
         projectedKinds: ["config-override"],
         projection: "out-of-date",
+        slices: [],
       },
     });
   });
 
   it("calls run once with the run request and the mechanism's records, and never calls project", async () => {
     const run = embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } });
-    const project = embeddedResolving({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } });
+    const project = embeddedResolving({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] });
     await runMechanism({
       runner: embeddedRunner({ run, project }),
       mechanism: ESLINT,
@@ -379,17 +390,15 @@ describe("runMechanism with an embedded runner", () => {
 });
 
 describe("projectMechanism with an embedded runner", () => {
-  it("returns the runner's one projection write as a one-entry list", async () => {
+  it("returns the runner's projection writes, one per slice it wrote, kept or removed", async () => {
     await expect(
-      dispatchEmbeddedProject({
-        project: embeddedResolving({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "unchanged" } }),
-      }),
-    ).resolves.toEqual({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "unchanged" }] });
+      dispatchEmbeddedProject({ project: embeddedResolving({ outcome: "ok", value: SLICE_WRITES }) }),
+    ).resolves.toEqual({ outcome: "ok", value: SLICE_WRITES });
   });
 
   it("calls project once with the projection request and never calls run", async () => {
     const run = embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } });
-    const project = embeddedResolving({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } });
+    const project = embeddedResolving({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] });
     await projectMechanism({ runner: embeddedRunner({ run, project }), request: PROJECTION_REQUEST });
     expect({ projectCalls: project.mock.calls, runCalls: run.mock.calls }).toEqual({
       projectCalls: [[PROJECTION_REQUEST]],
@@ -426,15 +435,15 @@ describe("projectMechanism with an embedded runner", () => {
   it("is runner-invalid-output when the write's path is not a repo path", async () => {
     await expect(
       dispatchEmbeddedProject({
-        project: embeddedResolving({ outcome: "ok", value: { path: "/repo/disciplines.eslint.mjs", effect: "written" } }),
+        project: embeddedResolving({ outcome: "ok", value: [{ path: "/repo/disciplines.eslint.mjs", effect: "written" }] }),
       }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("→ at value.path") } });
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("→ at value[0].path") } });
   });
 
-  it("is runner-invalid-output when project returns a list of writes instead of one", async () => {
+  it("is runner-invalid-output when project returns one write instead of a list", async () => {
     await expect(
       dispatchEmbeddedProject({
-        project: embeddedResolving({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
+        project: embeddedResolving({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("Invalid input") } });
   });
@@ -475,6 +484,7 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         nativeExceptions: [suppression],
         projectedKinds: ["config-override"],
         projection: "current",
+        slices: [],
       },
     });
   });

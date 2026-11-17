@@ -434,6 +434,20 @@ exceptions[4] why-chain-refused why 2\nis empty\r
       }),
     ).toContain("\neslint out-of-date\n");
   });
+
+  it("renders a package slice problem as its mechanism, state and the slice it names", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          projectionProblems: [
+            { mechanism: eslint, state: "not-applied", slice: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") },
+          ],
+        },
+      }),
+    ).toContain("\neslint not-applied packages/a/disciplines.eslint.mjs\n");
+  });
 });
 
 describe("renderReportText sections", () => {

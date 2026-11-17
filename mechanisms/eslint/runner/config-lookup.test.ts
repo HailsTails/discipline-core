@@ -4,7 +4,7 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
-import { teamConfigLookup } from "./config-lookup.ts";
+import { selectionSettingsOf, teamConfigLookup } from "./config-lookup.ts";
 
 const REPO = absolutePathSchema.parse("/repo");
 
@@ -32,13 +32,20 @@ const declaredLookup = (request: { readonly lookup: string }) => ({
   "/repo/disciplines.json": JSON.stringify({ eslintConfigLookup: request.lookup }),
 });
 
-const lookupOver = (request: { readonly files: Readonly<Record<string, string>> }) =>
+const lookupIn = (request: { readonly fileText: FileTextPort }) =>
   teamConfigLookup({
-    fileText: overlaidFileText({ base: noFiles, files: request.files }),
+    fileText: request.fileText,
     path,
     repoRoot: REPO,
     trackedPaths: [repoPathSchema.parse("package.json")],
+    settings: selectionSettingsOf({ fileText: request.fileText, path, repoRoot: REPO }),
   });
+
+const lookupOver = (request: { readonly files: Readonly<Record<string, string>> }) =>
+  lookupIn({ fileText: overlaidFileText({ base: noFiles, files: request.files }) });
+
+const settingsOver = (request: { readonly files: Readonly<Record<string, string>> }) =>
+  selectionSettingsOf({ fileText: overlaidFileText({ base: noFiles, files: request.files }), path, repoRoot: REPO });
 
 describe("teamConfigLookup", () => {
   it.each([
@@ -113,5 +120,37 @@ describe("teamConfigLookup", () => {
     expect(
       lookupOver({ files: { ...eslintInstalled({ version: "10.11.0" }), ...declaredLookup({ lookup: "anywhere" }), ...ROOT_CONFIG } }),
     ).toEqual(NEAREST);
+  });
+});
+
+describe("selectionSettingsOf", () => {
+  it("reads the declared config roots and lookup from disciplines.json", () => {
+    expect(
+      settingsOver({
+        files: {
+          "/repo/disciplines.json": JSON.stringify({
+            eslintConfigLookup: "nearest-to-file",
+            eslintConfigRoots: ["packages/a", "apps/web"],
+          }),
+        },
+      }),
+    ).toEqual({ eslintConfigLookup: "nearest-to-file", eslintConfigRoots: ["packages/a", "apps/web"] });
+  });
+
+  it("declares no config roots and no lookup when disciplines.json names neither", () => {
+    expect(settingsOver({ files: { "/repo/disciplines.json": JSON.stringify({ version: 1 }) } })).toEqual({
+      version: 1,
+      eslintConfigRoots: [],
+    });
+  });
+
+  it("declares nothing when disciplines.json is absent", () => {
+    expect(settingsOver({ files: {} })).toEqual({ eslintConfigRoots: [] });
+  });
+
+  it("declares nothing when a config root is not a repository path", () => {
+    expect(
+      settingsOver({ files: { "/repo/disciplines.json": JSON.stringify({ eslintConfigRoots: ["/abs/packages/a"] }) } }),
+    ).toEqual({ eslintConfigRoots: [] });
   });
 });

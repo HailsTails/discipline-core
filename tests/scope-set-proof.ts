@@ -7,6 +7,7 @@ import type { EmbeddedRunner } from "../core/mechanism-port/embedded-runner-modu
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause, RunRequest } from "../core/mechanism-port/runner-module-schema.ts";
 import { toolchainBoundEmbeddedRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
@@ -226,6 +227,7 @@ const recordingRunner = (request: RecordedSetUp): EmbeddedRunner => {
     runnerOf: (toolchain: EslintToolchain) =>
       createEslintRunner({
         fileText: request.set.subject.fileText,
+        fileRemoval: createDefaultFileRemovalPort({}),
         modules: request.set.pieceModules,
         path: request.set.subject.path,
         eslint: createEslintPort({ toolchain: { ...toolchain, createEslint: recordingCreateEslint(request) } }),

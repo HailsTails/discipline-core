@@ -2,7 +2,7 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, PartialAssessment, Unmeasured } from "./check-report.ts";
+import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -92,6 +92,11 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
   }
 };
 
+const projectionProblemLine = (request: { readonly problem: ProjectionProblem }): string =>
+  "slice" in request.problem
+    ? `${request.problem.mechanism} ${request.problem.state} ${request.problem.slice}`
+    : `${request.problem.mechanism} ${request.problem.state}`;
+
 type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
@@ -112,7 +117,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     ),
   unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ unmeasured })),
   projectionProblems: (request) =>
-    request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
+    request.report.projectionProblems.map((problem) => projectionProblemLine({ problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
 };
 

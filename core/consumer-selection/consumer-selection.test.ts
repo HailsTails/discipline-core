@@ -312,6 +312,31 @@ describe("createSelectionRepository", () => {
     ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: SELECTION_PATH } });
   });
 
+  it("accepts package folders disciplines.json declares as ESLint config roots", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/a", "apps/web"] }),
+    ).toMatchObject({ outcome: "ok" });
+  });
+
+  it("is file-malformed when an ESLint config root is not a repository path", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["../outside"] }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: SELECTION_PATH } });
+  });
+
+  it("is file-malformed, naming the folder rule, when an ESLint config root is a glob", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/*"] }),
+    ).toMatchObject({
+      outcome: "failed",
+      error: {
+        kind: "file-malformed",
+        path: SELECTION_PATH,
+        detail: expect.stringContaining("an eslintConfigRoots entry is a repository folder, not a glob"),
+      },
+    });
+  });
+
   it("is file-malformed when disciplines.json excludes a path that is not a repository path", () => {
     const repository = createSelectionRepository({
       repoRoot: REPO_ROOT,

@@ -68,7 +68,7 @@ verdict: pass (partial assessment)
 
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
 
-`hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
+`hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file: `written`, `unchanged`, `removed` for a package slice Hone wrote whose folder is no longer a config root, or `left-in-place` for such a file whose bytes are not what Hone would write there. The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
 ## Adopting the ESLint mechanism
 
@@ -85,6 +85,24 @@ export default [
 
 This is the only supported way to adopt the rules. On every check, Hone reads the team's resolved configuration for each checked file and fails the run if the projection is missing (`mechanism-not-run eslint missing`), not in effect (`mechanism-not-run eslint not-included`), or differs from what `hone project` would write now (`eslint out-of-date`). Re-run `hone project` after changing the selection or the exceptions.
 
+### Package slices
+
+A package that runs ESLint from its own folder resolves the `files` of its config against that folder, so spreading the root projection there loses every carve-out written with a root-relative path. `hone project` therefore writes one projection per config root. The repository root gets `disciplines.eslint.mjs` as above. Each package folder with a tracked `eslint.config.*`, and each folder `disciplines.json` lists under `eslintConfigRoots`, gets its own `disciplines.eslint.mjs` beside it: the same pieces, imported by a path relative to that folder, and only the records for files under it, with paths relative to it; clause-wide carve-outs go in every slice. Each package config spreads its own slice:
+
+```js
+import disciplines from "./disciplines.eslint.mjs";
+
+export default [
+  // the package's own blocks
+  ...disciplines,
+];
+```
+
+A package with no `eslint.config.*` of its own is linted by the nearest config above it, so its records stay in that config's slice. A file is governed by the deepest config root that contains it. A folder with its own `disciplines.json` is another Hone repository, so it and everything under it are left out. A repository with only a root config gets exactly the projection it had before.
+
+The check reports each package slice under the mechanism, naming the slice: `eslint out-of-date packages/a/disciplines.eslint.mjs`, `eslint missing packages/a/disciplines.eslint.mjs`, or, when ESLint resolves each file from its nearest config and a package's carve-outs are not in effect, for example because its config spreads the root projection instead of its slice, `eslint not-applied packages/a/disciplines.eslint.mjs` beside `mechanism-not-run eslint not-included`. A slice is not-applied only when a recorded file under check in that package is not excepted.
+
+`hone project` removes a tracked `disciplines.eslint.mjs` whose folder is no longer a config root only when its bytes are exactly what Hone would write for that folder now, so a file Hone did not write is never deleted; any other such file is reported `left-in-place`.
 A file carve-out stays in the projection after it is forfeited, so the team's own ESLint run keeps ignoring that file; Hone's check is what fails it, as `forfeited`.
 
 Hone's own ESLint run uses only the runner's configuration, with ignores, suppressions and inline configuration off, so nothing in the team's setup can change a finding. Every way the team's setup can weaken a selected rule (a native channel) is reported instead, and only an override that matches an exception record is accepted. The guide has the table.
@@ -111,6 +129,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - Selecting a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not selected are reported as uncovered, and fail the run.
 - A judgement clause cannot be selected; it is enforced by review.
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
+- `eslintConfigRoots`, optional, lists repository folders that get their own projection slice although they track no `eslint.config.*`, such as a package whose config a tool generates and ignores; see [Package slices](#package-slices). Globs are refused.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
 - `clauseSettings`, optional, maps a selected clause address to an object of that clause's settings, for a clause whose rules page lists settings. Each key must be one the clause's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `disciplines.json` malformed, naming the clause, the key and what is accepted: settings for a clause the file does not select or names twice, for a clause that takes none, under an undeclared key, or of the wrong kind or choice.
@@ -188,7 +207,7 @@ Hone loads the toolchain by Node's own resolution, upward from the install direc
 
 A peer that is missing, cannot load, or is outside its range stops the mechanism before any piece loads, with one line such as `load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root`. A `typescript` that is not installed at all is reported the same way, with the line saying that `typescript` is a required peer of `@hailstails/hone` and the install is incomplete, since a supported install always has it; one that is installed but out of range or unloadable gets the plain line. A peer that resolves from inside the installed package, such as an `eslint` left in `node_modules/@hailstails/hone/node_modules`, stops it as `toolchain-shadowed`, naming where it resolved and the folder to delete before reinstalling core. A source checkout of Hone is its own development install, so its development toolchain in its own `node_modules` is not a shadow.
 
-A repository can hold one `eslint.config.*` at its root or one per package. Hone resolves the team's configuration the way the team's own ESLint run does. ESLint 10, and ESLint 9 started with `--flag v10_config_lookup_from_file` (or `unstable_config_lookup_from_file`), use the `eslint.config.*` nearest each checked file. Plain ESLint 9 uses only the one in the directory it runs from, so for a repository whose `eslint` resolves to 9.x at `node_modules/eslint` and whose lint scripts carry no such flag, Hone reads the root `eslint.config.*` for every file, and fails the run as `team-config-unloadable` if there is none. When Hone cannot read an installed `eslint` at the repository root it assumes the nearest-to-file lookup. Each config that applies to a file must spread the projection. Detection cannot see how a task runner starts ESLint, so `disciplines.json` can state the lookup: `"eslintConfigLookup": "nearest-to-file"` or `"repository-root"`, which overrides detection. Both lookups are tested against monorepo fixtures with a config per package.
+A repository can hold one `eslint.config.*` at its root or one per package. Hone resolves the team's configuration the way the team's own ESLint run does. ESLint 10, and ESLint 9 started with `--flag v10_config_lookup_from_file` (or `unstable_config_lookup_from_file`), use the `eslint.config.*` nearest each checked file. Plain ESLint 9 uses only the one in the directory it runs from, so for a repository whose `eslint` resolves to 9.x at `node_modules/eslint` and whose lint scripts carry no such flag, Hone reads the root `eslint.config.*` for every file, and fails the run as `team-config-unloadable` if there is none. When Hone cannot read an installed `eslint` at the repository root it assumes the nearest-to-file lookup. Each config that applies to a file must spread its projection: the root config the root projection, each package config its own slice; see [Package slices](#package-slices). Detection cannot see how a task runner starts ESLint, so `disciplines.json` can state the lookup: `"eslintConfigLookup": "nearest-to-file"` or `"repository-root"`, which overrides detection. Both lookups are tested against monorepo fixtures with a config per package.
 
 ## Compatibility
 

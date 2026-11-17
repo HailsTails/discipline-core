@@ -21,7 +21,7 @@ export type EmbeddedRunner = {
   readonly conform: StandaloneRunner["conform"];
   readonly project: (
     request: ProjectionRequest,
-  ) => Promise<Result<ProjectionWrite, RunnerFailure>>;
+  ) => Promise<Result<readonly ProjectionWrite[], RunnerFailure>>;
 };
 
 export const isEmbeddedKeySetEqual: Equal<

@@ -1,11 +1,13 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
+import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import {
   type LoadedRunner,
   type RunnerClause,
   runnerModuleSchema,
 } from "../../../core/mechanism-port/runner-module-schema.ts";
+import { createDefaultFileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../../../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
@@ -13,8 +15,9 @@ import { createDefaultPathPort, createPathPort } from "../../../core/platform-po
 import { type ClauseDefinition, readDisciplineFile } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
-import { disciplineIdSchema } from "../../../core/values/identifiers.ts";
+import { disciplineIdSchema, mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
+import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
 import cd14Discipline from "../../../rules/CD-14/discipline.json" with { type: "json" };
 import { runner as walkerRunner } from "../../audit/runner/runner.ts";
@@ -22,6 +25,7 @@ import { createEslintRunner } from "./create-eslint-runner.ts";
 import {
   ESLINT_LINES,
   type EslintLine,
+  eslintClassOn,
   eslintPortOn,
   eslintRunnerOn,
   pieceModulesOn,
@@ -463,7 +467,7 @@ describe.each(ESLINT_LINES)("FR-3 over real files: the ESLint runner on real %s 
     const eslintRun = await eslintRunnerOn({ line }).run({ ...SHARED_CASES_RUN, records: [], clauses: [ESLINT_CLAUSE] });
     const walkerRun = await walkerRunner.run({ ...SHARED_CASES_RUN, clauses: [WALKER_CLAUSE] });
     expect({ eslint: eslintRun, audit: walkerRun }).toEqual({
-      eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current" } },
+      eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current", slices: [] } },
       audit: { outcome: "ok", value: EXPECTED_SHARED_HITS },
     });
   });
@@ -536,6 +540,7 @@ const monorepoRun = async (request: {
   readonly name: string;
   readonly version: string;
   readonly lintCommand: string;
+  readonly records: readonly ExceptionRecord[];
 }) =>
   createEslintRunner({
     fileText: overlaidFileText({
@@ -545,6 +550,7 @@ const monorepoRun = async (request: {
         [`${consumerRepo({ name: request.name })}/${LINT_SCRIPT_PACKAGE_JSON}`]: lintScript({ command: request.lintCommand }),
       },
     }),
+    fileRemoval: createDefaultFileRemovalPort({}),
     modules: pieceModulesOn({ line: request.line, base: modules }),
     path,
     eslint: await eslintPortOn({ line: request.line }),
@@ -553,12 +559,29 @@ const monorepoRun = async (request: {
     repoRoot: consumerRepo({ name: request.name }),
     installRoot: INSTALL_ROOT,
     files: [repoPathSchema.parse("packages/a/x.ts")],
-    trackedPaths: [repoPathSchema.parse("packages/a/x.ts"), repoPathSchema.parse("package.json")],
+    trackedPaths: [
+      repoPathSchema.parse("packages/a/x.ts"),
+      repoPathSchema.parse("package.json"),
+      repoPathSchema.parse("packages/a/eslint.config.mjs"),
+    ],
     clauses: [ESLINT_CLAUSE],
-    records: [],
+    records: request.records,
   });
 
 const PACKAGE_HIT = { file: "packages/a/x.ts" };
+
+const PACKAGE_LEGACY_CARVE_OUT: ExceptionRecord = {
+  kind: "file-carve-out",
+  clause: CLAUSE,
+  mechanism: mechanismIdSchema.parse("eslint"),
+  file: repoPathSchema.parse("packages/a/legacy.ts"),
+  reason: "Inherited class awaiting paydown",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const PACKAGE_CONFIG_REPO = { name: "monorepo-package-config", records: [PACKAGE_LEGACY_CARVE_OUT] };
+
+const ROOT_CONFIG_REPO = { name: "monorepo-root-config", records: [] };
 
 const NEAREST_LOOKUP_FLAG = "--flag v10_config_lookup_from_file";
 
@@ -569,7 +592,7 @@ const NEAREST_LOOKUP_TEAMS = [
 
 describe.each(ESLINT_LINES)("the ESLint runner on %s follows the config lookup the team's own ESLint run uses, over a monorepo with a config per package", (line) => {
   it.each(NEAREST_LOOKUP_TEAMS)("applies a package config's projection under ESLint $version running `$lintCommand`", async (team) => {
-    await expect(monorepoRun({ line, name: "monorepo-package-config", ...team })).resolves.toMatchObject({
+    await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, ...team })).resolves.toMatchObject({
       outcome: "ok",
       value: { hits: [PACKAGE_HIT], projection: "current" },
     });
@@ -577,12 +600,12 @@ describe.each(ESLINT_LINES)("the ESLint runner on %s follows the config lookup t
 
   it("finds no projection in effect under ESLint 9 run from the root, which loads only the root config", async () => {
     await expect(
-      monorepoRun({ line, name: "monorepo-package-config", version: "9.39.5", lintCommand: "eslint ." }),
+      monorepoRun({ line, ...PACKAGE_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
     ).resolves.toMatchObject({ outcome: "ok", value: { hits: [], projection: "not-included" } });
   });
 
   it.each(NEAREST_LOOKUP_TEAMS)("finds no projection in effect where a package config drops it under ESLint $version running `$lintCommand`", async (team) => {
-    await expect(monorepoRun({ line, name: "monorepo-root-config", ...team })).resolves.toMatchObject({
+    await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, ...team })).resolves.toMatchObject({
       outcome: "ok",
       value: { hits: [], projection: "not-included" },
     });
@@ -590,7 +613,61 @@ describe.each(ESLINT_LINES)("the ESLint runner on %s follows the config lookup t
 
   it("applies the root config's projection to every package under ESLint 9 run from the root", async () => {
     await expect(
-      monorepoRun({ line, name: "monorepo-root-config", version: "9.39.5", lintCommand: "eslint ." }),
+      monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
     ).resolves.toMatchObject({ outcome: "ok", value: { hits: [PACKAGE_HIT], projection: "current" } });
+  });
+});
+
+const PACKAGE_A = `${consumerRepo({ name: "monorepo-package-config" })}/packages/a`;
+
+const lintedFromPackage = async (request: { readonly line: EslintLine; readonly file: string }) => {
+  const Eslint = await eslintClassOn({ line: request.line });
+  return new Eslint({ cwd: PACKAGE_A }).lintText("export class Inherited {}\n", { filePath: `${PACKAGE_A}/${request.file}` });
+};
+
+describe.each(ESLINT_LINES)("a package that spreads its own projection slice, on real %s", (line) => {
+  it("lints from its own folder against its own config, honouring its carve-out", async () => {
+    await expect(lintedFromPackage({ line, file: "legacy.ts" })).resolves.toMatchObject([{ messages: [] }]);
+  });
+
+  it("lints from its own folder against its own config, still flagging a file its carve-outs do not name", async () => {
+    await expect(lintedFromPackage({ line, file: "fresh.ts" })).resolves.toMatchObject([
+      { messages: [{ ruleId: "hone/no-class-authoring" }] },
+    ]);
+  });
+
+  it.each(NEAREST_LOOKUP_TEAMS)(
+    "is judged the same by the check from the root under ESLint $version running `$lintCommand`: slice current and applied, the uncarved file flagged",
+    async (team) => {
+      await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, ...team })).resolves.toMatchObject({
+        outcome: "ok",
+        value: { hits: [PACKAGE_HIT], projection: "current", slices: [] },
+      });
+    },
+  );
+
+  it.each(NEAREST_LOOKUP_TEAMS)(
+    "names the slice of a package whose config spreads no slice as missing and not applied under ESLint $version running `$lintCommand`",
+    async (team) => {
+      await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, ...team })).resolves.toMatchObject({
+        outcome: "ok",
+        value: {
+          projection: "not-included",
+          slices: [
+            { slice: "packages/a/disciplines.eslint.mjs", state: "missing" },
+            { slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" },
+          ],
+        },
+      });
+    },
+  );
+
+  it("names the missing slice but attributes nothing when ESLint 9 resolves every file from the root config", async () => {
+    await expect(
+      monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { projection: "current", slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }] },
+    });
   });
 });

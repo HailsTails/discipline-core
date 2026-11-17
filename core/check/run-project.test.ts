@@ -43,6 +43,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
@@ -103,6 +104,7 @@ const INSTALL: Readonly<Record<string, FakeFile>> = {
   [DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE }),
   [PIECE_PATH]: presentFile({ text: PIECE }),
   [RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
+  "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
 const TWO_MECHANISM_DISCIPLINE = JSON.stringify({
@@ -163,6 +165,7 @@ const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
   [LINT_PIECE_PATH]: presentFile({ text: LINT_PIECE }),
   [RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
   [LINT_RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
+  "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
 const WALKER_RECORD = {
@@ -291,7 +294,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const writes = await runProject(projectRequest({ modules: modulesLoading({ runner }) }));
     expect({ writes, runCalls: runner.run.mock.calls }).toEqual({
@@ -308,7 +311,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const writes = await runProject(
       projectRequest({
@@ -330,7 +333,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const legacyLocation = { kind: "authorised-location", clause: "CD-14#class-syntax", file: "src/walker.ts", reason: "audit location", whyChain: LEGACY_WHY_CHAIN };
     const writes = await runProject(

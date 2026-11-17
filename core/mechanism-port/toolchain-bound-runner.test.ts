@@ -29,7 +29,7 @@ const CLAUSE: RunnerClause = {
 
 const RUN: RunRequest = { repoRoot: REPO, installRoot: REPO, files: [], trackedPaths: [], clauses: [CLAUSE] };
 
-const PROJECTION: ProjectionRequest = { repoRoot: REPO, installRoot: REPO, clauses: [CLAUSE], records: [] };
+const PROJECTION: ProjectionRequest = { repoRoot: REPO, installRoot: REPO, trackedPaths: [], clauses: [CLAUSE], records: [] };
 
 const standaloneOver = (): StandaloneRunner => ({
   exceptionPath: "standalone",
@@ -42,12 +42,12 @@ const embeddedOver = (): EmbeddedRunner => ({
   projectedKinds: ["config-override"],
   run: vi.fn<EmbeddedRunner["run"]>().mockResolvedValue({
     outcome: "ok",
-    value: { hits: [], nativeExceptions: [], projection: "current" },
+    value: { hits: [], nativeExceptions: [], projection: "current", slices: [] },
   }),
   conform: vi.fn<EmbeddedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
   project: vi.fn<EmbeddedRunner["project"]>().mockResolvedValue({
     outcome: "ok",
-    value: { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "written" },
+    value: [{ path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "written" }],
   }),
 });
 
@@ -102,9 +102,9 @@ describe("toolchainBoundEmbeddedRunner", () => {
     }).toEqual({
       exceptionPath: "embedded",
       projectedKinds: ["config-override"],
-      run: { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current" } },
+      run: { outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current", slices: [] } },
       conform: { outcome: "ok", value: [] },
-      project: { outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } },
+      project: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
       built: 1,
     });
   });

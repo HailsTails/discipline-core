@@ -9,28 +9,30 @@ import {
   type CheckRequest,
   type LoadedMechanism,
   loadInputs,
+  presentTrackedPaths,
   recordsOf,
   runnerFailed,
 } from "./run-check.ts";
+import type { RepoPath } from "../values/repo-path.ts";
 
 export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "forfeiture">;
 
-const projectionRequestOf = (request: {
+type ProjectionInputs = {
   readonly project: ProjectRequest;
   readonly records: readonly ExceptionRecord[];
+  readonly tracked: readonly RepoPath[];
   readonly loaded: LoadedMechanism;
-}): ProjectionRequest => ({
+};
+
+const projectionRequestOf = (request: ProjectionInputs): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
+  trackedPaths: request.tracked,
   clauses: request.loaded.clauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
 
-const projectionWritesOf = (request: {
-  readonly project: ProjectRequest;
-  readonly records: readonly ExceptionRecord[];
-  readonly loaded: LoadedMechanism;
-}): Promise<Result<readonly ProjectionWrite[], LoadFailure>> =>
+const projectionWritesOf = (request: ProjectionInputs): Promise<Result<readonly ProjectionWrite[], LoadFailure>> =>
   projectMechanism({ runner: request.loaded.runner, request: projectionRequestOf(request) }).then(
     (runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }),
   );
@@ -42,10 +44,14 @@ export const runProject = async (
   if (inputs.outcome === "failed") {
     return inputs;
   }
+  const tracked = presentTrackedPaths({ check: request, excluded: inputs.value.excluded });
+  if (tracked.outcome === "failed") {
+    return tracked;
+  }
   const writes = allOk({
     results: await Promise.all(
       inputs.value.mechanisms.map((loaded) =>
-        projectionWritesOf({ project: request, records: inputs.value.records, loaded }),
+        projectionWritesOf({ project: request, records: inputs.value.records, tracked: tracked.value, loaded }),
       ),
     ),
   });

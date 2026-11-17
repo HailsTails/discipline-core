@@ -28,6 +28,7 @@ export type RunRequest = {
 export type ProjectionRequest = {
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
+  readonly trackedPaths: readonly RepoPath[];
   readonly clauses: readonly RunnerClause[];
   readonly records: readonly ExceptionRecord[];
 };

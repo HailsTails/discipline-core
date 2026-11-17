@@ -28,10 +28,13 @@ export type PartialAssessment = {
   readonly fileCarveOuts: number;
 };
 
-export type ProjectionProblem = {
-  readonly mechanism: MechanismId;
-  readonly state: "out-of-date";
-};
+export type ProjectionProblem =
+  | { readonly mechanism: MechanismId; readonly state: "out-of-date" }
+  | {
+      readonly mechanism: MechanismId;
+      readonly state: "out-of-date" | "missing" | "not-applied";
+      readonly slice: RepoPath;
+    };
 
 export type CheckReport = {
   readonly excluded: readonly RepoPath[];

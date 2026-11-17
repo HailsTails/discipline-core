@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { embeddedRunReportSchema } from "../mechanism-port/embedded-run-report-schema.ts";
+import { embeddedRunReportSchema, type SliceProblem } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import {
   type RunnerFailure,
@@ -31,6 +31,7 @@ export type MechanismRun = {
   readonly nativeExceptions: readonly NativeException[];
   readonly projectedKinds: readonly NativeException["kind"][];
   readonly projection: "none" | ProjectionState;
+  readonly slices: readonly SliceProblem[];
 };
 
 export type MechanismRequest = {
@@ -86,13 +87,14 @@ const standaloneRun = (request: {
       nativeExceptions: [],
       projectedKinds: [],
       projection: "none",
+      slices: [],
     },
   };
 };
 
 const reportResultSchema = runnerResultSchema({ value: embeddedRunReportSchema });
 
-const projectionWriteResultSchema = runnerResultSchema({ value: projectionWriteSchema });
+const projectionWriteResultSchema = runnerResultSchema({ value: z.array(projectionWriteSchema).readonly() });
 
 const unrequestedNativeException = (request: {
   readonly nativeExceptions: readonly NativeException[];
@@ -143,6 +145,7 @@ const embeddedRun = (request: {
       nativeExceptions: report.nativeExceptions,
       projectedKinds: request.projectedKinds,
       projection: report.projection,
+      slices: report.slices,
     },
   };
 };
@@ -157,7 +160,7 @@ const embeddedProjection = (request: {
   if (parsed.data.outcome === "failed") {
     return parsed.data;
   }
-  return { outcome: "ok", value: [parsed.data.value] };
+  return parsed.data;
 };
 
 export const runMechanism = (

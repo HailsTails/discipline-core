@@ -151,7 +151,32 @@ export default [
 ];
 ```
 
-In a monorepo, every `eslint.config.*` that applies to checked files spreads the projection last. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
+In a monorepo, `hone:project` also writes a `disciplines.eslint.mjs` slice beside each package's tracked `eslint.config.*`, holding only that package's exceptions with paths relative to the package. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
+
+```js
+import projection from "./disciplines.eslint.mjs";
+
+export default [
+  { files: ["**/*.{ts,tsx,mts,cts}"] },
+  ...projection,
+];
+```
+
+A package whose `eslint.config.*` is generated and not tracked, as sku writes one into each project and adds it to `.gitignore`, needs its folder listed so Hone writes its slice, and the slice spread where the tool takes extra configuration. For sku, list the package in `disciplines.json` and spread the slice in `sku.config.ts`:
+
+```json
+{ "eslintConfigRoots": ["packages/web"] }
+```
+
+```ts
+import projection from "./disciplines.eslint.mjs";
+
+export default {
+  dangerouslySetESLintConfig: (skuEslintConfig) => [...skuEslintConfig, ...projection],
+};
+```
+
+The check names a slice that is missing, out of date, or not applied to that package's files. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
 
 ```json
 { "eslintConfigLookup": "nearest-to-file" }
@@ -159,7 +184,7 @@ In a monorepo, every `eslint.config.*` that applies to checked files spreads the
 
 Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.28 and 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
 
-Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
+Commit the projection, every slice and the configs. Hone's check reads this configuration and fails if the projection or a slice is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
 
 ## 5. Run the check
 

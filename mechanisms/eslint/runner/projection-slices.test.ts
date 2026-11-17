@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
+import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
+import { repoPathSchema } from "../../../core/values/repo-path.ts";
+import {
+  type ConfigRoot,
+  configRootsOf,
+  governingRootOf,
+  orphanedSliceDirectoriesOf,
+  sliceRecordsOf,
+  slicePathOf,
+} from "./projection-slices.ts";
+
+const classSyntax = clauseAddressSchema.parse("CD-14#class-syntax");
+const eslint = mechanismIdSchema.parse("eslint");
+
+const tracked = (paths: readonly string[]) => repoPathSchema.array().parse(paths);
+
+const REPOSITORY: ConfigRoot = { placement: "repository" };
+const PACKAGE_A: ConfigRoot = { placement: "package", directory: repoPathSchema.parse("packages/a") };
+const PACKAGE_B: ConfigRoot = { placement: "package", directory: repoPathSchema.parse("packages/b") };
+const NESTED_IN_A: ConfigRoot = { placement: "package", directory: repoPathSchema.parse("packages/a/tools") };
+
+const carveOutIn = (file: string): ExceptionRecord => ({
+  kind: "file-carve-out",
+  clause: classSyntax,
+  mechanism: eslint,
+  file: repoPathSchema.parse(file),
+  reason: "Inherited class awaiting paydown",
+  whyChain: CAUSAL_WHY_CHAIN,
+});
+
+const clauseWide: ExceptionRecord = {
+  kind: "clause-wide-carve-out",
+  clause: classSyntax,
+  mechanism: eslint,
+  reason: "Class syntax carved out during migration",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+describe("configRootsOf", () => {
+  it("is only the repository root when no package carries its own eslint.config", () => {
+    expect(
+      configRootsOf({ trackedPaths: tracked(["eslint.config.mjs", "src/a.ts", "package.json"]), declared: [] }),
+    ).toEqual([REPOSITORY]);
+  });
+
+  it("adds each folder holding a tracked eslint.config file of any name ESLint looks up, in code-unit order", () => {
+    expect(
+      configRootsOf({
+        trackedPaths: tracked([
+          "packages/b/eslint.config.ts",
+          "packages/a/eslint.config.mjs",
+          "packages/a/tools/eslint.config.cjs",
+          "packages/c/eslint.config.json",
+        ]),
+        declared: [],
+      }),
+    ).toEqual([REPOSITORY, PACKAGE_A, NESTED_IN_A, PACKAGE_B]);
+  });
+
+  it("adds a declared folder whose eslint.config a wrapper generates and git does not track, once", () => {
+    expect(
+      configRootsOf({
+        trackedPaths: tracked(["packages/a/eslint.config.mjs", "packages/b/sku.config.ts"]),
+        declared: tracked(["packages/b", "packages/a"]),
+      }),
+    ).toEqual([REPOSITORY, PACKAGE_A, PACKAGE_B]);
+  });
+
+  it("leaves out a folder inside another repository that has its own disciplines.json", () => {
+    expect(
+      configRootsOf({
+        trackedPaths: tracked([
+          "fixtures/consumer/disciplines.json",
+          "fixtures/consumer/eslint.config.mjs",
+          "fixtures/consumer/packages/a/eslint.config.mjs",
+          "packages/a/eslint.config.mjs",
+        ]),
+        declared: tracked(["fixtures/consumer/packages/b"]),
+      }),
+    ).toEqual([REPOSITORY, PACKAGE_A]);
+  });
+});
+
+describe("slicePathOf", () => {
+  it("keeps the repository root's projection at disciplines.eslint.mjs", () => {
+    expect(slicePathOf({ root: REPOSITORY })).toBe("disciplines.eslint.mjs");
+  });
+
+  it("writes a package's slice beside its eslint.config", () => {
+    expect(slicePathOf({ root: PACKAGE_A })).toBe("packages/a/disciplines.eslint.mjs");
+  });
+});
+
+describe("sliceRecordsOf", () => {
+  it("gives the repository root every record unchanged", () => {
+    expect(
+      sliceRecordsOf({ root: REPOSITORY, records: [carveOutIn("packages/a/src/old.ts"), carveOutIn("src/old.ts"), clauseWide] }),
+    ).toEqual([carveOutIn("packages/a/src/old.ts"), carveOutIn("src/old.ts"), clauseWide]);
+  });
+
+  it("gives a package only the file records under it, with paths relative to the package, and every clause-wide record", () => {
+    expect(
+      sliceRecordsOf({
+        root: PACKAGE_A,
+        records: [
+          carveOutIn("packages/a/src/old.ts"),
+          carveOutIn("packages/ab/src/old.ts"),
+          carveOutIn("src/old.ts"),
+          carveOutIn("packages/a/route/[id].ts"),
+          clauseWide,
+        ],
+      }),
+    ).toEqual([carveOutIn("src/old.ts"), carveOutIn("route/[id].ts"), clauseWide]);
+  });
+
+  it("keeps a record under a nested package in the enclosing package's slice too", () => {
+    expect(sliceRecordsOf({ root: PACKAGE_A, records: [carveOutIn("packages/a/tools/old.ts")] })).toEqual([
+      carveOutIn("tools/old.ts"),
+    ]);
+  });
+});
+
+describe("governingRootOf", () => {
+  const roots = [REPOSITORY, PACKAGE_A, NESTED_IN_A, PACKAGE_B];
+
+  it("is the deepest config root holding the file", () => {
+    expect(governingRootOf({ file: repoPathSchema.parse("packages/a/tools/run.ts"), roots })).toEqual(NESTED_IN_A);
+  });
+
+  it("is the package root for a file directly under it", () => {
+    expect(governingRootOf({ file: repoPathSchema.parse("packages/a/src/x.ts"), roots })).toEqual(PACKAGE_A);
+  });
+
+  it("is the repository root for a file outside every package, even one whose name starts like a package", () => {
+    expect(governingRootOf({ file: repoPathSchema.parse("packages/ab/x.ts"), roots })).toEqual(REPOSITORY);
+  });
+});
+
+describe("orphanedSliceDirectoriesOf", () => {
+  it("names each tracked slice outside every config root and outside nested repositories", () => {
+    expect(
+      orphanedSliceDirectoriesOf({
+        trackedPaths: tracked([
+          "disciplines.eslint.mjs",
+          "packages/a/disciplines.eslint.mjs",
+          "packages/old/disciplines.eslint.mjs",
+          "fixtures/consumer/disciplines.json",
+          "fixtures/consumer/disciplines.eslint.mjs",
+        ]),
+        roots: [REPOSITORY, PACKAGE_A],
+      }),
+    ).toEqual(["packages/old"]);
+  });
+});

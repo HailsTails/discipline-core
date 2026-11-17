@@ -1372,6 +1372,62 @@ describe("runCheck with an embedded runner", () => {
     });
   });
 
+  it("lists each package slice problem under the mechanism, naming the slice, beside a current root projection", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [],
+                projection: "current",
+                slices: [
+                  { slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" },
+                  { slice: "packages/b/disciplines.eslint.mjs", state: "missing" },
+                ],
+              },
+            }),
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        projectionProblems: [
+          { mechanism: "audit", state: "out-of-date", slice: "packages/a/disciplines.eslint.mjs" },
+          { mechanism: "audit", state: "missing", slice: "packages/b/disciplines.eslint.mjs" },
+        ],
+      },
+    });
+  });
+
+  it("names a package slice no package config applies beside the mechanism it left unmeasured", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [],
+                projection: "not-included",
+                slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" }],
+              },
+            }),
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included" }],
+        projectionProblems: [{ mechanism: "audit", state: "not-applied", slice: "packages/a/disciplines.eslint.mjs" }],
+      },
+    });
+  });
   it("lists a native exception of a kind its projection does not write as unrecorded", async () => {
     await expect(
       runCheck(

@@ -81,10 +81,10 @@ export const escapedGlobPath = (request: { readonly path: string }): string =>
 
 const relativeImportOf = (request: {
   readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+  readonly importingDirectory: AbsolutePath;
   readonly modulePath: string;
 }): PluginImport => {
-  const location = request.path.relative({ from: request.repoRoot, to: request.modulePath });
+  const location = request.path.relative({ from: request.importingDirectory, to: request.modulePath });
   if (location.relation === "different-root") {
     return { placement: "piece-on-another-root" };
   }
@@ -114,7 +114,7 @@ const packageImportOf = (request: {
 
 export const pluginImportOf = (request: {
   readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+  readonly importingDirectory: AbsolutePath;
   readonly install: CoreInstall;
   readonly pieceRoot: string;
   readonly pluginModule: string;
@@ -122,7 +122,7 @@ export const pluginImportOf = (request: {
   const modulePath = request.path.join({ segments: [request.pieceRoot, request.pluginModule] });
   const packaged =
     request.install.form === "package" ? packageImportOf({ path: request.path, install: request.install, modulePath }) : undefined;
-  return packaged ?? relativeImportOf({ path: request.path, repoRoot: request.repoRoot, modulePath });
+  return packaged ?? relativeImportOf({ path: request.path, importingDirectory: request.importingDirectory, modulePath });
 };
 
 const rulesLine = (request: { readonly rules: readonly RuleLine[] }): string =>
@@ -287,12 +287,15 @@ export const projectionState = (request: {
   return request.current.text === request.generated ? "current" : "out-of-date";
 };
 
-export const currentProjection = (request: {
+type ProjectionFile = {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-}): Result<CurrentProjection, RunnerFailure> => {
-  const projectionFile = request.path.join({ segments: [request.repoRoot, PROJECTION_PATH] });
+  readonly file: RepoPath;
+};
+
+export const currentProjection = (request: ProjectionFile): Result<CurrentProjection, RunnerFailure> => {
+  const projectionFile = request.path.join({ segments: [request.repoRoot, request.file] });
   if (request.fileText.exists({ path: projectionFile }) === "absent") {
     return { outcome: "ok", value: { presence: "absent" } };
   }
@@ -300,40 +303,30 @@ export const currentProjection = (request: {
   if (text.outcome === "failed") {
     return {
       outcome: "failed",
-      error: { kind: "file-unreadable", file: PROJECTION_PATH, detail: text.error.detail },
+      error: { kind: "file-unreadable", file: request.file, detail: text.error.detail },
     };
   }
   return { outcome: "ok", value: { presence: "present", text: text.value.replaceAll("\r\n", "\n") } };
 };
 
-const writtenProjection = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly text: string;
-}): Result<ProjectionWrite, RunnerFailure> => {
+const writtenProjection = (request: ProjectionFile & { readonly text: string }): Result<ProjectionWrite, RunnerFailure> => {
   const written = request.fileText.write({
-    path: request.path.join({ segments: [request.repoRoot, PROJECTION_PATH] }),
+    path: request.path.join({ segments: [request.repoRoot, request.file] }),
     text: request.text,
   });
   if (written.outcome === "failed") {
     return { outcome: "failed", error: { kind: "tool-failed", detail: written.error.detail } };
   }
-  return { outcome: "ok", value: { path: PROJECTION_PATH, effect: "written" } };
+  return { outcome: "ok", value: { path: request.file, effect: "written" } };
 };
 
-export const writeProjection = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly text: string;
-}): Result<ProjectionWrite, RunnerFailure> => {
-  const current = currentProjection({ fileText: request.fileText, path: request.path, repoRoot: request.repoRoot });
+export const writeProjection = (request: ProjectionFile & { readonly text: string }): Result<ProjectionWrite, RunnerFailure> => {
+  const current = currentProjection(request);
   if (current.outcome === "failed") {
     return current;
   }
   if (projectionState({ current: current.value, generated: request.text }) === "current") {
-    return { outcome: "ok", value: { path: PROJECTION_PATH, effect: "unchanged" } };
+    return { outcome: "ok", value: { path: request.file, effect: "unchanged" } };
   }
   return writtenProjection(request);
 };
