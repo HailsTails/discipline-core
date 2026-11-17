@@ -12,7 +12,7 @@ const DEVELOPMENT_MANIFEST = {
   engines: { node: ">=22.18.0" },
   scripts: { test: "vitest run" },
   dependencies: { zod: "4.4.3" },
-  peerDependencies: { eslint: "^9.12.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
+  peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
   peerDependenciesMeta: { eslint: { optional: true } },
   devDependencies: { vitest: "4.1.11" },
 };
@@ -66,7 +66,7 @@ describe("publishManifestOf", () => {
           },
           files: ["LICENSE", "chunks", "core", "mechanisms"],
           engines: { node: "^22.18.0 || >=24" },
-          peerDependencies: { eslint: "^9.12.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
+          peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
           peerDependenciesMeta: { eslint: { optional: true } },
         },
         null,

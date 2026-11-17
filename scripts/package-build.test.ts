@@ -21,7 +21,7 @@ const DEVELOPMENT_MANIFEST = JSON.stringify({
   author: "Example Author",
   engines: { node: ">=22.18.0" },
   dependencies: { zod: "4.4.3" },
-  peerDependencies: { eslint: "^9.12.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
+  peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
   peerDependenciesMeta: { eslint: { optional: true }, typescript: { optional: true } },
   devDependencies: { esbuild: "0.25.12" },
 });

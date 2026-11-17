@@ -134,7 +134,7 @@ describe("toolchainManifest, over this package's own package.json read as a buil
   });
 
   it.each([
-    { toolchain: "eslint-9-floor", eslint: "9.12.0" },
+    { toolchain: "eslint-9-floor", eslint: "9.28.0" },
     { toolchain: "eslint-10-floor", eslint: "10.0.0" },
   ] as const)("gives the $toolchain root every peer at its floor pin, ESLint at $eslint", ({ toolchain, eslint }) => {
     expect(toolchainManifest({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
@@ -217,7 +217,7 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 2,
       output:
-        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.12.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
     },
   },
 ];

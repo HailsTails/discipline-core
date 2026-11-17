@@ -59,14 +59,14 @@ describe("loadEslintToolchain when a peer is missing, unsupported or shadowed", 
     const locate = vi.fn<PackageLocationPort["locate"]>().mockThrow(notInstalled({ packageName: "eslint" }));
     await expect(loadEslintToolchain({ peers: locatedBy(locate) })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: "not installed" },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
     });
   });
 
   it.each(["8.57.1", "9.11.1", "11.0.0"])("names the installed eslint %s as outside the supported range", async (version) => {
     await expect(loadEslintToolchain({ peers: withEslintVersion({ version }) })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.12.0 || ^10.0.0", found: version },
+      error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: version },
     });
   });
 
