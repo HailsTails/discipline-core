@@ -8,5 +8,5 @@
     "skipLibCheck": false,
     "types": []
   },
-  "files": ["src/team-piece.mts", "src/team-rule-set.mts"]
+  "files": ["commonjs-consumer.cts"]
 }

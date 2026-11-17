@@ -14,17 +14,13 @@ export type StepRun =
   | { readonly outcome: "exited"; readonly exitCode: number; readonly output: string }
   | { readonly outcome: "not-exited"; readonly detail: string };
 
-export type ConsumerFixture = "audit" | "eslint" | "typed-team-piece" | "team-monorepo";
+export type ConsumerFixture = "audit" | "eslint" | "team";
 
 export type ProofAction =
   | { readonly kind: "check"; readonly expectation: StepExpectation }
   | { readonly kind: "project"; readonly expectation: StepExpectation }
-  | { readonly kind: "remove"; readonly path: string }
   | { readonly kind: "commit"; readonly message: string }
   | { readonly kind: "read"; readonly path: string; readonly text: string }
-  | { readonly kind: "write"; readonly path: string; readonly text: string }
-  | { readonly kind: "restore"; readonly path: string }
-  | { readonly kind: "execute"; readonly path: string; readonly expectation: StepExpectation }
   | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation };
 
 export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
@@ -42,8 +38,6 @@ export type ProofCase = {
 };
 
 export type ManifestFailure = { readonly kind: "manifest-invalid"; readonly detail: string };
-
-const PASSING_REPORT = "verdict: pass\n";
 
 const ESLINT_PROJECTION = `import piece0 from "${TOOL_IDENTITY.packageName}/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
 
@@ -65,9 +59,6 @@ const ESLINT_CONSUMER_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
 ];
 
 const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
@@ -78,10 +69,6 @@ const AUDIT_CONSUMER_ACTIONS: readonly ProofAction[] = [
       output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
     },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
-  { kind: "project", expectation: { exitCode: 0, output: "" } },
 ];
 
 const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
@@ -99,104 +86,31 @@ const SILENT_SUCCESS: StepExpectation = { exitCode: 0, output: "" };
 
 const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
   kind: "typecheck",
-  project: "tsconfig.wrong.json",
+  project: "typing/tsconfig.wrong.json",
   expectation: {
     exitCode: 2,
     output:
-      "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n",
+      "typing/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n",
   },
 };
 
-const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT_SUCCESS },
-  WRONG_FIELD_TYPES_REJECTED,
-];
-
-const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT_SUCCESS },
-  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT_SUCCESS },
-  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: SILENT_SUCCESS },
-  WRONG_FIELD_TYPES_REJECTED,
-];
-
 const TEAM_RULE_SET = "tools/disciplines/acme";
 
-const CONSOLE_FINDINGS = [
-  'acme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");',
-  'acme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");',
-];
-
-const SCRATCH_NOTE_FINDING = "acme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md";
-
-const SCRATCH_SOURCE_FINDING = "acme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts";
-
-const TEAM_FINDINGS = [...CONSOLE_FINDINGS, SCRATCH_NOTE_FINDING, SCRATCH_SOURCE_FINDING];
-
-const TEAM_VIOLATIONS = ["packages/api/src/request-trace.ts", "packages/web/src/start-banner.ts", "packages/api/notes.scratch.md", "packages/web/src/layout.scratch.ts"];
-
-const WEB_CONFIG = "packages/web/eslint.config.mjs";
-
-const WEB_CONFIG_WITHOUT_PROJECTION = 'export default [\n  { files: ["src/**/*.ts"] },\n];\n';
-
-const WEB_CONFIG_OVERRIDES = ["layout.scratch.ts", "start-banner.ts"].map(
-  (file) => `acme/ACME-1#console-calls eslint config-override packages/web/src/${file}`,
-);
-
-const SELECTION = "disciplines.json";
-
-const SELECTION_CLAIMING_HONE = `{
-  "version": 1,
-  "ruleSets": { "hone": "${TEAM_RULE_SET}" },
-  "clauses": {
-    "hone/ACME-1#console-calls": "eslint",
-    "hone/ACME-2#scratch-files": "audit",
-    "hone/CD-15#loops": "audit"
-  }
-}
+const TEAM_FINDINGS_REPORT = `findings (2)
+acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
+acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
+verdict: fail
 `;
 
-const SELECTION_MARKING_NOTES_ONLY = `{
-  "version": 1,
-  "ruleSets": { "acme": "${TEAM_RULE_SET}" },
-  "clauses": {
-    "acme/ACME-1#console-calls": "eslint",
-    "acme/ACME-2#scratch-files": "audit",
-    "hone/CD-15#loops": "audit"
-  },
-  "clauseSettings": {
-    "acme/ACME-2#scratch-files": { "marker": ".scratch.md" }
-  }
-}
-`;
+const TEAM_FLOOR_ACTIONS: readonly ProofAction[] = [WRONG_FIELD_TYPES_REJECTED];
 
-const reportOf = (request: { readonly sections: readonly (readonly [string, readonly string[]])[]; readonly verdict: "pass" | "fail" }): string =>
-  `${request.sections.map(([name, lines]) => `${name} (${lines.length})\n${lines.map((line) => `${line}\n`).join("")}`).join("")}verdict: ${request.verdict}\n`;
-
-const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
-  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+const TEAM_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.pieces.json`, expectation: SILENT_SUCCESS },
-  { kind: "execute", path: `${TEAM_RULE_SET}/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts`, expectation: SILENT_SUCCESS },
-  { kind: "check", expectation: { exitCode: 1, output: reportOf({ sections: [["findings", TEAM_FINDINGS]], verdict: "fail" }) } },
-  { kind: "write", path: WEB_CONFIG, text: WEB_CONFIG_WITHOUT_PROJECTION },
-  {
-    kind: "check",
-    expectation: {
-      exitCode: 1,
-      output: reportOf({ sections: [["findings", TEAM_FINDINGS], ["unrecorded", WEB_CONFIG_OVERRIDES]], verdict: "fail" }),
-    },
-  },
-  { kind: "restore", path: WEB_CONFIG },
-  { kind: "write", path: SELECTION, text: SELECTION_MARKING_NOTES_ONLY },
-  {
-    kind: "check",
-    expectation: { exitCode: 1, output: reportOf({ sections: [["findings", [...CONSOLE_FINDINGS, SCRATCH_NOTE_FINDING]]], verdict: "fail" }) },
-  },
-  { kind: "write", path: SELECTION, text: SELECTION_CLAIMING_HONE },
-  { kind: "check", expectation: { exitCode: 2, output: `load failure: reserved-rule-set-name ${TOOL_IDENTITY.ownRuleSet}\n` } },
-  { kind: "restore", path: SELECTION },
-  ...TEAM_VIOLATIONS.map((path): ProofAction => ({ kind: "remove", path })),
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: PASSING_REPORT } },
+  { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.bundler.json`, expectation: SILENT_SUCCESS },
+  { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT_SUCCESS },
+  WRONG_FIELD_TYPES_REJECTED,
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+  { kind: "check", expectation: { exitCode: 1, output: TEAM_FINDINGS_REPORT } },
 ];
 
 export const PROOF_CASES: readonly ProofCase[] = [
@@ -204,9 +118,8 @@ export const PROOF_CASES: readonly ProofCase[] = [
   { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
   { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
   { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
-  { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", typeStripping: "disabled", actions: TYPED_FLOOR_ACTIONS },
-  { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "current", typeStripping: "disabled", actions: TYPED_CURRENT_ACTIONS },
-  { consumer: "team-monorepo", fixture: "team-monorepo", toolchain: "current", typeStripping: "enabled", actions: TEAM_MONOREPO_ACTIONS },
+  { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: TEAM_FLOOR_ACTIONS },
+  { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({

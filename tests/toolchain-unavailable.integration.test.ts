@@ -1,4 +1,4 @@
-import { afterAll, assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import { runCheck } from "../core/check/run-check.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
@@ -7,7 +7,7 @@ import type { GitPort } from "../core/platform-ports/git-port.ts";
 import type { PackageLocationPort } from "../core/platform-ports/package-location-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
-import { type AbsolutePath, absolutePathSchema } from "../core/values/absolute-path.ts";
+import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-runner.ts";
 import { defaultTypeScriptModules } from "../mechanisms/audit/runner/typescript-parse.ts";
@@ -16,25 +16,8 @@ import { createEslintRunner, ESLINT_PROJECTED_KINDS } from "../mechanisms/eslint
 import { createEslintPort } from "../mechanisms/eslint/runner/eslint-instance.ts";
 import { loadEslintToolchain } from "../mechanisms/eslint/runner/eslint-toolchain.ts";
 import { eslintPeersOn, modulesServingRunner } from "./eslint-toolchains.ts";
-import { materialisedConsumerFixture, removedMaterialisedConsumers } from "./materialised-consumer.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/..`);
-
-const MATERIALISED_OWNER = "toolchain-unavailable";
-
-const materialisedConsumerAt = (request: { readonly fixture: string }): AbsolutePath => {
-  const materialised = materialisedConsumerFixture({ owner: MATERIALISED_OWNER, fixture: request.fixture });
-  assert(materialised.outcome === "ok", `the ${request.fixture} consumer fixture materialises`);
-  return materialised.value;
-};
-
-const ESLINT_CONSUMER = materialisedConsumerAt({ fixture: "eslint" });
-
-const AUDIT_CONSUMER = materialisedConsumerAt({ fixture: "audit" });
-
-afterAll(() => {
-  expect(removedMaterialisedConsumers({ owner: MATERIALISED_OWNER })).toEqual({ outcome: "ok", value: null });
-});
 
 const fileText = createDefaultFileTextPort({});
 
@@ -82,9 +65,9 @@ const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPo
     runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse }),
   });
 
-const checkWith = (request: { readonly repo: AbsolutePath; readonly runner: unknown; readonly tracked: readonly RepoPath[] }) =>
+const checkWith = (request: { readonly fixture: string; readonly runner: unknown; readonly tracked: readonly RepoPath[] }) =>
   runCheck({
-    repoRoot: request.repo,
+    repoRoot: absolutePathSchema.parse(`${INSTALL_ROOT}/${request.fixture}`),
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
@@ -99,7 +82,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("fails the ESLint mechanism as toolchain-unavailable naming eslint and its supported range, before loading any piece", async () => {
     const pieces = pieceLoads();
     const checked = await checkWith({
-      repo: ESLINT_CONSUMER,
+      fixture: "tests/test-fixtures/consumer-proof/eslint",
       runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ packageName: "eslint" }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
@@ -118,7 +101,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
 
   it("prints that failure as one load-failure line telling the adopter what to add, never a stack trace", async () => {
     const checked = await checkWith({
-      repo: ESLINT_CONSUMER,
+      fixture: "tests/test-fixtures/consumer-proof/eslint",
       runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ packageName: "eslint" }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
@@ -131,7 +114,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("fails the audit mechanism as toolchain-unavailable naming typescript, before loading any piece", async () => {
     const pieces = pieceLoads();
     const checked = await checkWith({
-      repo: AUDIT_CONSUMER,
+      fixture: "tests/test-fixtures/consumer-proof/audit",
       runner: auditRunnerWithoutTypescript({ pieces }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
@@ -151,7 +134,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("fails the ESLint mechanism as toolchain-shadowed when eslint resolves from inside the core install, and prints what to delete", async () => {
     const pieces = pieceLoads();
     const checked = await checkWith({
-      repo: ESLINT_CONSUMER,
+      fixture: "tests/test-fixtures/consumer-proof/eslint",
       runner: eslintRunnerLocatingBy({ pieces, location: shadowedEslint }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
@@ -166,7 +149,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
 describe("a check whose adopter's install is missing the required peer typescript", () => {
   it("prints a missing typescript as an incomplete install, since typescript is a required peer", async () => {
     const checked = await checkWith({
-      repo: AUDIT_CONSUMER,
+      fixture: "tests/test-fixtures/consumer-proof/audit",
       runner: auditRunnerWithoutTypescript({ pieces: pieceLoads() }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });

@@ -2,7 +2,7 @@
 
 A team can add its own disciplines beside the ones Hone ships, without forking Hone. They live in the team's repository as a **rule set**: a folder of discipline files and the pieces that check them. `hone check` loads them from the repository, runs them, reports them and applies exceptions to them the same way as Hone's own; the differences are listed under [What is stable](#what-is-stable).
 
-This guide follows one tested example. `install-proof` installs the packed package into a small monorepo, stored in Hone's source repository under `tests/test-fixtures/consumer-proof/team-monorepo/` with a `.fixture` suffix on every file, and runs the steps below against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism.
+This guide follows one tested example. `install-proof` installs the packed package into a small repository, stored in Hone's source repository under `tests/test-fixtures/consumer-proof/team/`, type-checks its rule set and runs `hone project` and `hone check` against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism. Every file sample below is a file of that repository, apart from the rule pages, the per-package ESLint config, the settings override and the exception record, which are described rather than tested there.
 
 Read [ADOPTING.md](../ADOPTING.md) first: this guide assumes Hone is installed and `disciplines.json` exists.
 
@@ -17,7 +17,6 @@ Read [ADOPTING.md](../ADOPTING.md) first: this guide assumes Hone is installed a
 disciplines.json
 eslint.config.mjs
 disciplines.eslint.mjs
-packages/web/eslint.config.mjs
 tools/disciplines/acme/
   package.json
   tsconfig.pieces.json
@@ -27,7 +26,6 @@ tools/disciplines/acme/
   rules/ACME-2/README.md
   mechanisms/eslint/ACME-1/piece.json
   mechanisms/eslint/ACME-1/acme.eslint-plugin.ts
-  mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts
   mechanisms/eslint/ACME-1/piece-settings.ts
   mechanisms/audit/ACME-2/piece.json
   mechanisms/audit/ACME-2/scratch-files.ts
@@ -45,25 +43,22 @@ Name the folder in `disciplines.json` under `ruleSets`, then select its clauses 
   "ruleSets": { "acme": "tools/disciplines/acme" },
   "clauses": {
     "acme/ACME-1#console-calls": "eslint",
-    "acme/ACME-2#scratch-files": "audit",
-    "hone/CD-15#loops": "audit"
+    "acme/ACME-2#scratch-files": "audit"
   }
 }
 ```
 
 - The path is relative to the repository root and must stay inside it.
-- `hone` is Hone's own rule set. `hone/CD-15#loops` and `CD-15#loops` are the same clause, and the report prints the short form.
+- `hone` is Hone's own rule set, and its clauses can be selected beside the team's. `hone/CD-15#loops` and `CD-15#loops` are the same clause, and the report prints the short form.
 - A rule set may not be called `hone` or start with `hone-`, and no declared name may be another declared name plus `-<suffix>`.
 - Discipline IDs only need to be unique inside one rule set: `acme/CD-1` and `CD-1` can both exist.
 
 The report names team clauses with their rule set:
 
 ```text
-findings (4)
-acme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");
-acme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");
-acme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md
-acme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts
+findings (2)
+acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
+acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
 verdict: fail
 ```
 
@@ -164,18 +159,18 @@ export default [
 ];
 ```
 
-Every `eslint.config.*` that applies to checked files spreads the projection last, in a monorepo each package's own config too. `packages/web/eslint.config.mjs`:
+Every `eslint.config.*` that applies to checked files spreads the projection last. The example's `eslint.config.mjs`:
 
 ```js
-import projection from "../../disciplines.eslint.mjs";
+import projection from "./disciplines.eslint.mjs";
 
 export default [
-  { files: ["src/**/*.ts"] },
+  { files: ["**/*.{ts,tsx,mts,cts}"] },
   ...projection,
 ];
 ```
 
-A package config that leaves the projection out fails the check, listing each of its files under `unrecorded` as `acme/ACME-1#console-calls eslint config-override <file>`. [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) step 4a says which config ESLint applies to a file and how to state it in `disciplines.json` when detection cannot tell.
+In a monorepo each package's own config does the same, importing the projection by its relative path, such as `../../disciplines.eslint.mjs`. A package config that leaves the projection out fails the check, listing each of its files under `unrecorded` as `acme/ACME-1#console-calls eslint config-override <file>`. [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) step 4a says which config ESLint applies to a file and how to state it in `disciplines.json` when detection cannot tell.
 
 ## An audit piece
 
@@ -253,7 +248,7 @@ A clause entry in `piece.json` may declare `clauseSettings`: each key with its `
 }
 ```
 
-Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`. The value is typed as any JSON value, so the piece narrows it, as `scratch-files.ts` does with `typeof`. Name the settings on the discipline's page under a Settings heading. With this override the example reports `packages/api/notes.scratch.md` and no longer `packages/web/src/layout.scratch.ts`.
+Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`. The value is typed as any JSON value, so the piece narrows it, as `scratch-files.ts` does with `typeof`. Name the settings on the discipline's page under a Settings heading. With this override the example still reports `notes.scratch.md`, and would no longer report a file such as `src/layout.scratch.ts`.
 
 ## TypeScript pieces under Node
 
@@ -318,19 +313,7 @@ A wrong field then fails the type check, for example `Type 'number' is not assig
 
 ## Test a piece
 
-Test an ESLint rule with ESLint's own `RuleTester`. `mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts`:
-
-```ts
-import { RuleTester } from "eslint";
-import { noConsoleCalls } from "./acme.eslint-plugin.ts";
-
-new RuleTester().run("no-console-calls", noConsoleCalls, {
-  valid: ["export const greeting = 'hi';"],
-  invalid: [{ code: "console.log(1);", errors: [{ messageId: "console" }] }],
-});
-```
-
-`node tools/disciplines/acme/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts` prints nothing and exits `0` when the cases hold, and throws on the first that does not. Under a test runner that defines `describe` and `it`, `RuleTester` reports each case as a test.
+Test an ESLint rule with ESLint's own `RuleTester`, importing the rule the plugin exports, such as `noConsoleCalls`, and giving it the clause's `flag` cases as `invalid` and its `allow` cases as `valid`. Run on its own with `node`, `RuleTester` prints nothing when the cases hold and throws on the first that does not; under a test runner that defines `describe` and `it`, it reports each case as a test.
 
 Test an audit piece end to end: commit a file that breaks the rule, run `hone check` and expect its finding, then remove the file and expect a pass. A unit test of `check` itself is harder today: clause addresses and file paths are types that only Hone creates, so a test cannot build them without a cast.
 
@@ -342,8 +325,8 @@ Exception records in `discipline-exceptions.json` name team clauses by their ful
 {
   "kind": "authorised-location",
   "clause": "acme/ACME-1#console-calls",
-  "file": "packages/api/src/request-trace.ts",
-  "reason": "The request tracer is the one place that writes to the terminal."
+  "file": "src/start-banner.ts",
+  "reason": "The start banner is the one place that writes to the terminal."
 }
 ```
 

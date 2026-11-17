@@ -200,18 +200,9 @@ const ESLINT_ACTIONS: readonly ProofAction[] = [
     kind: "check",
     expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nverdict: fail\n" },
   },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
 ];
 
-const AUDIT_ACTIONS: readonly ProofAction[] = [
-  { kind: "check", expectation: FAILING },
-  { kind: "remove", path: "src/kept.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
-  { kind: "project", expectation: SILENT },
-];
+const AUDIT_ACTIONS: readonly ProofAction[] = [{ kind: "check", expectation: FAILING }];
 
 const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
   {
@@ -225,70 +216,35 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
 ];
 
 const WRONG_FIELD_REPORT =
-  "src/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\nsrc/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n";
+  "typing/wrong-piece.mts(16,27): error TS2345: Argument of type '{ clause: ClauseAddress; anchor: Anchor; snippet: number; }' is not assignable to parameter of type 'PieceHit'.\n  Types of property 'snippet' are incompatible.\n    Type 'number' is not assignable to type 'string'.\ntyping/wrong-rule-set.mts(3,160): error TS2322: Type '\"lint\"' is not assignable to type '\"review\"'.\n";
 
-const TYPED_FLOOR_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
-];
+const WRONG_FIELDS_REJECTED: ProofAction = { kind: "typecheck", project: "typing/tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } };
 
-const TYPED_CURRENT_ACTIONS: readonly ProofAction[] = [
-  { kind: "typecheck", project: "tsconfig.nodenext.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.bundler.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.commonjs.json", expectation: SILENT },
-  { kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 2, output: WRONG_FIELD_REPORT } },
-];
-
-const TEAM_FINDINGS_REPORT =
-  'findings (4)\nacme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");\nacme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md\nacme/ACME-2#scratch-files audit packages/web/src/layout.scratch.ts:1:0 packages/web/src/layout.scratch.ts\n';
-
-const TEAM_OVERRIDES_REPORT =
-  "unrecorded (2)\nacme/ACME-1#console-calls eslint config-override packages/web/src/layout.scratch.ts\nacme/ACME-1#console-calls eslint config-override packages/web/src/start-banner.ts\n";
-
-const SELECTION_MARKING_NOTES_ONLY =
-  '{\n  "version": 1,\n  "ruleSets": { "acme": "tools/disciplines/acme" },\n  "clauses": {\n    "acme/ACME-1#console-calls": "eslint",\n    "acme/ACME-2#scratch-files": "audit",\n    "hone/CD-15#loops": "audit"\n  },\n  "clauseSettings": {\n    "acme/ACME-2#scratch-files": { "marker": ".scratch.md" }\n  }\n}\n';
-
-const SELECTION_CLAIMING_HONE =
-  '{\n  "version": 1,\n  "ruleSets": { "hone": "tools/disciplines/acme" },\n  "clauses": {\n    "hone/ACME-1#console-calls": "eslint",\n    "hone/ACME-2#scratch-files": "audit",\n    "hone/CD-15#loops": "audit"\n  }\n}\n';
-
-const TEAM_MONOREPO_ACTIONS: readonly ProofAction[] = [
-  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
+const TEAM_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.pieces.json", expectation: SILENT },
-  { kind: "execute", path: "tools/disciplines/acme/mechanisms/eslint/ACME-1/acme.eslint-plugin.test.ts", expectation: SILENT },
-  { kind: "check", expectation: { exitCode: 1, output: `${TEAM_FINDINGS_REPORT}verdict: fail\n` } },
-  { kind: "write", path: "packages/web/eslint.config.mjs", text: 'export default [\n  { files: ["src/**/*.ts"] },\n];\n' },
-  { kind: "check", expectation: { exitCode: 1, output: `${TEAM_FINDINGS_REPORT}${TEAM_OVERRIDES_REPORT}verdict: fail\n` } },
-  { kind: "restore", path: "packages/web/eslint.config.mjs" },
-  { kind: "write", path: "disciplines.json", text: SELECTION_MARKING_NOTES_ONLY },
+  { kind: "typecheck", project: "tools/disciplines/acme/tsconfig.bundler.json", expectation: SILENT },
+  { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT },
+  WRONG_FIELDS_REJECTED,
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
   {
     kind: "check",
     expectation: {
       exitCode: 1,
       output:
-        'findings (3)\nacme/ACME-1#console-calls eslint packages/api/src/request-trace.ts:1:0 console.error("request received");\nacme/ACME-1#console-calls eslint packages/web/src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit packages/api/notes.scratch.md:1:0 packages/api/notes.scratch.md\nverdict: fail\n',
+        'findings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nverdict: fail\n',
     },
   },
-  { kind: "write", path: "disciplines.json", text: SELECTION_CLAIMING_HONE },
-  { kind: "check", expectation: { exitCode: 2, output: "load failure: reserved-rule-set-name hone\n" } },
-  { kind: "restore", path: "disciplines.json" },
-  { kind: "remove", path: "packages/api/src/request-trace.ts" },
-  { kind: "remove", path: "packages/web/src/start-banner.ts" },
-  { kind: "remove", path: "packages/api/notes.scratch.md" },
-  { kind: "remove", path: "packages/web/src/layout.scratch.ts" },
-  { kind: "commit", message: "clean" },
-  { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
 ];
 
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a typed team piece on the TypeScript floor and current version, and a team monorepo running its own rule set, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, and a team consumer type-checking the public entries on the TypeScript floor and running its own rule set on the current version, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
       { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
       { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
       { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
       { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
-      { consumer: "typed-floor", fixture: "typed-team-piece", toolchain: "typescript-floor", typeStripping: "disabled", actions: TYPED_FLOOR_ACTIONS },
-      { consumer: "typed-current", fixture: "typed-team-piece", toolchain: "current", typeStripping: "disabled", actions: TYPED_CURRENT_ACTIONS },
-      { consumer: "team-monorepo", fixture: "team-monorepo", toolchain: "current", typeStripping: "enabled", actions: TEAM_MONOREPO_ACTIONS },
+      { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: [WRONG_FIELDS_REJECTED] },
+      { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

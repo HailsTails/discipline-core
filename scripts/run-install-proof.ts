@@ -14,12 +14,10 @@ import {
   type ProofCase,
   type ProofToolchain,
   requiredPeerPinsOf,
-  type StepExpectation,
   type StepRun,
   type TypeStripping,
   toolchainManifest,
 } from "./install-proof-plan.ts";
-import { materialisedConsumer } from "./consumer-fixture.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
 import { packageFileStemOf, TOOL_IDENTITY } from "../core/values/tool-identity.ts";
@@ -160,18 +158,21 @@ const withLineFeeds = (request: { readonly run: StepRun }): StepRun =>
     ? { ...request.run, output: request.run.output.replaceAll(PLATFORM_LINE_END, "\n") }
     : request.run;
 
-const judgedNodeRun = (request: {
+const typeCheckedProject = (request: {
   readonly context: ProofContext;
   readonly repo: string;
-  readonly label: string;
-  readonly arguments: readonly string[];
-  readonly expectation: StepExpectation;
+  readonly consumer: string;
+  readonly action: Extract<ProofAction, { readonly kind: "typecheck" }>;
 }): Result<null, string> => {
   const judged = judgedStep({
-    label: request.label,
-    expectation: request.expectation,
+    label: `${request.consumer} tsc -p ${request.action.project}`,
+    expectation: request.action.expectation,
     run: withLineFeeds({
-      run: request.context.commands.run({ command: "node", arguments: request.arguments, directory: request.repo }),
+      run: request.context.commands.run({
+        command: "node",
+        arguments: [INSTALLED_TYPESCRIPT_COMPILER, ...TYPECHECK_ONLY, request.action.project],
+        directory: request.repo,
+      }),
     }),
   });
   if (judged.outcome === "failed") {
@@ -180,13 +181,6 @@ const judgedNodeRun = (request: {
   request.context.process.writeOut({ text: `${judged.value}\n` });
   return SUCCEEDED;
 };
-
-const removedPath = (request: {
-  readonly context: ProofContext;
-  readonly label: string;
-  readonly path: string;
-}): Result<null, string> =>
-  labelled({ label: request.label, result: request.context.scratch.removeFile({ path: request.path }) });
 
 const readExactly = (request: {
   readonly context: ProofContext;
@@ -226,12 +220,6 @@ const performedAction = (request: {
       });
     case "project":
       return installedCommand({ ...request, label: `${request.consumer} project`, script: "project", arguments: [], action });
-    case "remove":
-      return removedPath({
-        context: request.context,
-        label: `remove ${action.path} in ${request.consumer}`,
-        path: request.context.path.join({ segments: [request.repo, action.path] }),
-      });
     case "commit":
       return commitAll({ context: request.context, repo: request.repo, consumer: request.consumer, message: action.message });
     case "read":
@@ -241,31 +229,8 @@ const performedAction = (request: {
         path: request.context.path.join({ segments: [request.repo, action.path] }),
         text: action.text,
       });
-    case "write":
-      return writtenFile({
-        context: request.context,
-        label: `write ${action.path} in ${request.consumer}`,
-        path: request.context.path.join({ segments: [request.repo, action.path] }),
-        text: action.text,
-      });
-    case "restore":
-      return git({ context: request.context, repo: request.repo, consumer: request.consumer, arguments: ["checkout", "-q", "--", action.path] });
-    case "execute":
-      return judgedNodeRun({
-        context: request.context,
-        repo: request.repo,
-        label: `${request.consumer} node ${action.path}`,
-        arguments: [action.path],
-        expectation: action.expectation,
-      });
     case "typecheck":
-      return judgedNodeRun({
-        context: request.context,
-        repo: request.repo,
-        label: `${request.consumer} tsc -p ${action.project}`,
-        arguments: [INSTALLED_TYPESCRIPT_COMPILER, ...TYPECHECK_ONLY, action.project],
-        expectation: action.expectation,
-      });
+      return typeCheckedProject({ context: request.context, repo: request.repo, consumer: request.consumer, action });
   }
 };
 
@@ -305,16 +270,11 @@ const preparedConsumer = (request: {
   const label = `prepare the consumer ${request.repo}`;
   return inOrder({
     steps: [
-      () => {
-        const materialised = materialisedConsumer({
-          scratch: request.context.scratch,
-          fileText: request.context.fileText,
-          path: request.context.path,
-          from: request.fixture,
-          to: request.repo,
-        });
-        return materialised.outcome === "failed" ? { outcome: "failed", error: `FAIL: ${label}: ${materialised.error}` } : materialised;
-      },
+      () =>
+        labelled({
+          label,
+          result: request.context.scratch.copyTree({ from: request.fixture, to: request.repo, disposition: () => "kept" }),
+        }),
       ...request.files.map(
         (file): Step =>
           () =>

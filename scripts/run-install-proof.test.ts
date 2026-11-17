@@ -36,12 +36,8 @@ const TARBALL = "/scratch/package-tarball/hailstails-hone-0.0.0.tgz";
 
 const PROJECTION = 'import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";\n';
 
-const FIXTURE_ROOT = "/package/tests/test-fixtures/consumer-proof";
-
 const PACKAGE_FILES: Readonly<Record<string, string>> = {
   "/package/package.json": PACKAGE_MANIFEST,
-  [`${FIXTURE_ROOT}/audit/disciplines.json.fixture`]: "{}\n",
-  [`${FIXTURE_ROOT}/typed-team-piece/disciplines.json.fixture`]: "{}\n",
   [`${CONSUMER}/disciplines.eslint.mjs`]: PROJECTION,
   [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "4.8.4" }',
   "/scratch/typescript-floor/second/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }',
@@ -86,7 +82,7 @@ const INSTALLED_PACKAGE_WITH_DECLARATIONS: readonly ListedEntry[] = [
 
 const EXPECTING_TYPES: ProofCase = {
   consumer: "typed",
-  fixture: "typed-team-piece",
+  fixture: "team",
   toolchain: "typescript-floor",
   typeStripping: "disabled",
   actions: [{ kind: "typecheck", project: "tsconfig.nodenext.json", expectation: { exitCode: 0, output: "" } }],
@@ -96,20 +92,6 @@ const INSTALLED_PACKAGE_WITH_SOURCE: readonly ListedEntry[] = [
   ...INSTALLED_PACKAGE,
   { path: "core/check/run-check.ts", name: "run-check.ts", entryKind: "file" },
 ];
-
-const FIXTURE_LISTING: readonly ListedEntry[] = [{ path: "disciplines.json.fixture", name: "disciplines.json.fixture", entryKind: "file" }];
-
-const listingsWith = (request: { readonly installed: readonly ListedEntry[] }): Readonly<Record<string, readonly ListedEntry[]>> => ({
-  [`${FIXTURE_ROOT}/audit`]: FIXTURE_LISTING,
-  [`${FIXTURE_ROOT}/typed-team-piece`]: FIXTURE_LISTING,
-  [`${CONSUMER}/node_modules/@hailstails/hone`]: request.installed,
-  "/scratch/typescript-floor/second/node_modules/@hailstails/hone": request.installed,
-  "/scratch/typescript-floor/typed/node_modules/@hailstails/hone": request.installed,
-});
-
-const listingOf =
-  (request: { readonly installed: readonly ListedEntry[] }): ScratchFilesPort["listTree"] =>
-  ({ path }) => ({ outcome: "ok", value: requiredEntry({ table: listingsWith(request), key: path }) });
 
 const EXITED_PASSING: StepRun = { outcome: "exited", exitCode: 0, output: "verdict: pass\n" };
 
@@ -136,10 +118,9 @@ const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTex
 const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => ({
   createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>().mockReturnValue({ outcome: "ok", value: "/scratch" }),
   removeTree: vi.fn<ScratchFilesPort["removeTree"]>().mockReturnValue({ outcome: "ok", value: null }),
-  removeFile: vi.fn<ScratchFilesPort["removeFile"]>().mockReturnValue({ outcome: "ok", value: null }),
   makeDirectory: vi.fn<ScratchFilesPort["makeDirectory"]>().mockReturnValue({ outcome: "ok", value: null }),
   copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue({ outcome: "ok", value: null }),
-  listTree: listingOf({ installed: INSTALLED_PACKAGE }),
+  listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE }),
   digestOf: vi.fn<ScratchFilesPort["digestOf"]>().mockReturnValue({ outcome: "ok", value: "digest" }),
   realPathOf: vi.fn<ScratchFilesPort["realPathOf"]>().mockReturnValue({ outcome: "ok", value: "/real" }),
   ...overrides,
@@ -212,26 +193,37 @@ describe("runInstallProof", () => {
     expect(vi.mocked(packer.pack).mock.calls).toEqual([[{ packageRoot: "/package", workRoot: "/scratch" }]]);
   });
 
-  it("writes the toolchain root's manifest at the peers' floors, then the consumer's fixture files without their suffix, its manifest with scripts calling the installed bins, its ignore file and npm config running scripts without type stripping", async () => {
+  it("writes the toolchain root's manifest at the peers' floors, then the consumer's manifest with scripts calling the installed bins, its ignore file and npm config running scripts without type stripping", async () => {
     const fileText = fileTextPort();
 
     await runInstallProof(proofRequest({ fileText }));
 
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
       [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
-      [{ path: `${CONSUMER}/disciplines.json`, text: "{}\n" }],
       [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
       [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
       [{ path: `${CONSUMER}/.npmrc`, text: "node-options=--no-experimental-strip-types\n" }],
     ]);
   });
 
-  it("makes the toolchain root before writing its manifest, then the consumer's folder for its fixture files", async () => {
+  it("writes no npm config for a consumer that runs its own TypeScript through Node's type stripping", async () => {
+    const fileText = fileTextPort();
+
+    await runInstallProof(proofRequest({ fileText, proofCases: [{ ...EXPECTING_PASS, typeStripping: "enabled" }] }));
+
+    expect(vi.mocked(fileText.write).mock.calls).toEqual([
+      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
+      [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
+      [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
+    ]);
+  });
+
+  it("makes the toolchain root before writing its manifest", async () => {
     const scratch = scratchPort({});
 
     await runInstallProof(proofRequest({ scratch }));
 
-    expect(vi.mocked(scratch.makeDirectory).mock.calls).toEqual([[{ path: "/scratch/typescript-floor" }], [{ path: CONSUMER }]]);
+    expect(vi.mocked(scratch.makeDirectory).mock.calls).toEqual([[{ path: "/scratch/typescript-floor" }]]);
   });
 
   it("installs the toolchain in its root, then installs the packed tarball offline and runs git and both commands through npm scripts in the consumer", async () => {
@@ -269,32 +261,14 @@ describe("runInstallProof", () => {
     expect(commands.run).toHaveBeenCalledTimes(11);
   });
 
-  it("exits 1 naming the file when the consumer fixture holds a file without the fixture suffix, writing none of its files", async () => {
-    const proofProcess = processPort();
-    const fileText = fileTextPort();
-    const unsuffixed: readonly ListedEntry[] = [{ path: "src/kept.ts", name: "kept.ts", entryKind: "file" }];
+  it("copies only the consumer fixture: the package manager installs core", async () => {
+    const scratch = scratchPort({});
 
-    await runInstallProof(
-      proofRequest({
-        process: proofProcess,
-        fileText,
-        scratch: scratchPort({ listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: unsuffixed }) }),
-      }),
-    );
+    await runInstallProof(proofRequest({ scratch }));
 
-    expect({ report: reportOf({ process: proofProcess }), writes: vi.mocked(fileText.write).mock.calls }).toEqual({
-      report: {
-        writes: [
-          [
-            {
-              text: `FAIL: prepare the consumer ${CONSUMER}: src/kept.ts does not end in .fixture: a consumer fixture holds another repository's files, which this repository must not check as its own\n`,
-            },
-          ],
-        ],
-        exits: [[{ code: 1 }]],
-      },
-      writes: [[{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }]],
-    });
+    expect(vi.mocked(scratch.copyTree).mock.calls).toEqual([
+      [expect.objectContaining({ from: "/package/tests/test-fixtures/consumer-proof/audit", to: CONSUMER })],
+    ]);
   });
 
   it("creates its temporary directory under the package's file stem, which holds no path separator", async () => {
@@ -305,16 +279,12 @@ describe("runInstallProof", () => {
     expect(vi.mocked(scratch.createTemporaryDirectory).mock.calls).toEqual([[{ prefix: "hailstails-hone-install-proof-" }]]);
   });
 
-  it("lists only the consumer fixture to write it out, copying no tree since the package manager installs core, then the installed package under the consumer's node_modules for the source check", async () => {
+  it("lists the installed package under the consumer's node_modules for the source check", async () => {
     const scratch = scratchPort({});
-    const listed = vi.spyOn(scratch, "listTree");
 
     await runInstallProof(proofRequest({ scratch }));
 
-    expect({ listed: listed.mock.calls, copied: vi.mocked(scratch.copyTree).mock.calls }).toEqual({
-      listed: [[{ path: `${FIXTURE_ROOT}/audit` }], [{ path: `${CONSUMER}/node_modules/@hailstails/hone` }]],
-      copied: [],
-    });
+    expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/@hailstails/hone` }]]);
   });
 
   it("passes the source check when the installed package ships declaration files beside its modules", async () => {
@@ -324,7 +294,7 @@ describe("runInstallProof", () => {
       proofRequest({
         process: proofProcess,
         scratch: scratchPort({
-          listTree: listingOf({ installed: INSTALLED_PACKAGE_WITH_DECLARATIONS }),
+          listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE_WITH_DECLARATIONS }),
         }),
       }),
     );
@@ -373,90 +343,6 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.wrong.json -> exit 0, output exactly as expected\n" }]);
   });
 
-  it("writes no npm config for a consumer that runs its own TypeScript through Node's type stripping", async () => {
-    const fileText = fileTextPort();
-
-    await runInstallProof(proofRequest({ fileText, proofCases: [{ ...EXPECTING_PASS, typeStripping: "enabled" }] }));
-
-    expect(vi.mocked(fileText.write).mock.calls).toEqual([
-      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
-      [{ path: `${CONSUMER}/disciplines.json`, text: "{}\n" }],
-      [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
-      [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
-    ]);
-  });
-
-  it("writes a consumer file at its path inside the consumer, then restores it from the consumer's last commit", async () => {
-    const fileText = fileTextPort();
-    const commands = commandsReturning(EXITED_PASSING);
-
-    await runInstallProof(
-      proofRequest({
-        fileText,
-        commands,
-        proofCases: [
-          {
-            ...EXPECTING_PASS,
-            actions: [
-              { kind: "write", path: "packages/web/eslint.config.mjs", text: "export default [];\n" },
-              { kind: "restore", path: "packages/web/eslint.config.mjs" },
-            ],
-          },
-        ],
-      }),
-    );
-
-    expect(fileText.write).toHaveBeenLastCalledWith({ path: `${CONSUMER}/packages/web/eslint.config.mjs`, text: "export default [];\n" });
-    expect(commands.run).toHaveBeenLastCalledWith({
-      command: "git",
-      arguments: expect.arrayContaining(["checkout", "-q", "--", "packages/web/eslint.config.mjs"]),
-      directory: CONSUMER,
-    });
-  });
-
-  it("executes a consumer script with node from the consumer, judging its exit and output like a command", async () => {
-    const proofProcess = processPort();
-    const commands = commandsReturning({ outcome: "exited", exitCode: 0, output: "" });
-
-    await runInstallProof(
-      proofRequest({
-        process: proofProcess,
-        commands,
-        proofCases: [{ ...EXPECTING_PASS, actions: [{ kind: "execute", path: "rules/plugin.test.ts", expectation: { exitCode: 0, output: "" } }] }],
-      }),
-    );
-
-    expect(commands.run).toHaveBeenLastCalledWith({ command: "node", arguments: ["rules/plugin.test.ts"], directory: CONSUMER });
-    expect(reportOf({ process: proofProcess }).writes).toContainEqual([
-      { text: "ok: audit node rules/plugin.test.ts -> exit 0, output exactly as expected\n" },
-    ]);
-  });
-
-  it("exits 1 naming the script when an executed consumer script fails", async () => {
-    const proofProcess = processPort();
-
-    await runInstallProof(
-      proofRequest({
-        process: proofProcess,
-        commands: {
-          run: vi
-            .fn<CommandRunPort["run"]>()
-            .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValueOnce(EXITED_PASSING)
-            .mockReturnValue({ outcome: "exited", exitCode: 1, output: "AssertionError\n" }),
-        },
-        proofCases: [{ ...EXPECTING_PASS, actions: [{ kind: "execute", path: "rules/plugin.test.ts", expectation: { exitCode: 0, output: "" } }] }],
-      }),
-    );
-
-    expect(proofProcess.writeOut).toHaveBeenLastCalledWith({
-      text: 'FAIL: audit node rules/plugin.test.ts: expected exit 0 and output "", got exit 1 and output "AssertionError\\n"\n',
-    });
-  });
-
   it("exits 1 naming the count when the installed package holds a .ts file", async () => {
     const proofProcess = processPort();
 
@@ -464,7 +350,7 @@ describe("runInstallProof", () => {
       proofRequest({
         process: proofProcess,
         scratch: scratchPort({
-          listTree: listingOf({ installed: INSTALLED_PACKAGE_WITH_SOURCE }),
+          listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE_WITH_SOURCE }),
         }),
       }),
     );
