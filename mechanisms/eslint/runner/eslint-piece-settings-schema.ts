@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { moduleFileForm } from "../../../core/values/install-layout.ts";
 import { isRepoPathText } from "../../../core/values/repo-path.ts";
+import type { Equal } from "../../../core/values/type-equality.ts";
+import type { EslintPieceSettings, RuleOptions } from "./eslint-piece-settings-types.ts";
+
+export type { EslintPieceSettings, RuleOptions } from "./eslint-piece-settings-types.ts";
 
 const pieceModulePathSchema = z.string().superRefine((text, context) => {
   if (isRepoPathText({ text }) === "not-repo-path" || moduleFileForm({ text }) === "not-module-file") {
@@ -22,9 +26,7 @@ export const eslintPieceSettingsSchema = z
   })
   .readonly();
 
-export type EslintPieceSettings = z.infer<typeof eslintPieceSettingsSchema>;
-
-export type RuleOptions = NonNullable<EslintPieceSettings["options"]>;
+export const isEslintPieceSettingsSchemaEqual: Equal<z.output<typeof eslintPieceSettingsSchema>, EslintPieceSettings> = true;
 
 export const ruleOptionsOf = (request: { readonly settings: EslintPieceSettings }): RuleOptions =>
   request.settings.options ?? [];

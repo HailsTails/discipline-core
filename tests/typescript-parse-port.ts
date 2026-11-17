@@ -8,13 +8,8 @@ import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loa
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { Result } from "../core/values/result.ts";
 import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-runner.ts";
-import {
-  defaultTypeScriptPeers,
-  loadParsePort,
-  type SyntaxApi,
-  type TypeScriptParsePort,
-  type TypeScriptPeers,
-} from "../mechanisms/audit/runner/typescript-parse.ts";
+import type { SyntaxApi, TypeScriptParsePort } from "../mechanisms/audit/runner/typescript-parse.ts";
+import { defaultTypeScriptPeers, loadParsePort, type TypeScriptPeers } from "../mechanisms/audit/runner/typescript-toolchain.ts";
 
 export type TypeScriptLine = "typescript" | "typescript-floor";
 
