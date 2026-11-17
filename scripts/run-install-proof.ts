@@ -53,6 +53,10 @@ const PASS_LINE = "install proof: pass\n";
 const NPM_INSTALL_TARBALL = ["install", "--offline", "--no-audit", "--no-fund", "--ignore-scripts", "--save-dev"];
 const NPM_RUN_SILENT = ["run", "--silent"];
 const SOURCE_MODULE_SUFFIX = ".ts";
+const DECLARATION_SUFFIX = ".d.ts";
+const INSTALLED_TYPESCRIPT_COMPILER = "node_modules/typescript/bin/tsc";
+const TYPECHECK_ONLY = ["--noEmit", "-p"];
+const PLATFORM_LINE_END = "\r\n";
 const NPM_CONFIG = ".npmrc";
 const inOrder = (request: { readonly steps: readonly Step[] }): Result<null, string> =>
   request.steps.reduce<Result<null, string>>((sofar, step) => (sofar.outcome === "failed" ? sofar : step()), SUCCEEDED);
@@ -148,6 +152,35 @@ const installedCommand = (request: {
   return SUCCEEDED;
 };
 
+const withLineFeeds = (request: { readonly run: StepRun }): StepRun =>
+  request.run.outcome === "exited"
+    ? { ...request.run, output: request.run.output.replaceAll(PLATFORM_LINE_END, "\n") }
+    : request.run;
+
+const typeCheckedProject = (request: {
+  readonly context: ProofContext;
+  readonly repo: string;
+  readonly consumer: string;
+  readonly action: Extract<ProofAction, { readonly kind: "typecheck" }>;
+}): Result<null, string> => {
+  const judged = judgedStep({
+    label: `${request.consumer} tsc -p ${request.action.project}`,
+    expectation: request.action.expectation,
+    run: withLineFeeds({
+      run: request.context.commands.run({
+        command: "node",
+        arguments: [INSTALLED_TYPESCRIPT_COMPILER, ...TYPECHECK_ONLY, request.action.project],
+        directory: request.repo,
+      }),
+    }),
+  });
+  if (judged.outcome === "failed") {
+    return judged;
+  }
+  request.context.process.writeOut({ text: `${judged.value}\n` });
+  return SUCCEEDED;
+};
+
 const removedPath = (request: {
   readonly context: ProofContext;
   readonly label: string;
@@ -208,6 +241,8 @@ const performedAction = (request: {
         path: request.context.path.join({ segments: [request.repo, action.path] }),
         text: action.text,
       });
+    case "typecheck":
+      return typeCheckedProject({ context: request.context, repo: request.repo, consumer: request.consumer, action });
   }
 };
 
@@ -305,7 +340,7 @@ const consumerRepo = (request: CaseRequest): string =>
 
 const consumerFixture = (request: CaseRequest): string =>
   request.context.path.join({
-    segments: [request.context.packageRoot, "tests", "test-fixtures", "consumer-proof", request.proofCase.mechanism],
+    segments: [request.context.packageRoot, "tests", "test-fixtures", "consumer-proof", request.proofCase.fixture],
   });
 const packageShipsNoSource = (request: {
   readonly context: ProofContext;
@@ -317,7 +352,9 @@ const packageShipsNoSource = (request: {
   if (listed.outcome === "failed") {
     return listed;
   }
-  const sources = listed.value.filter((entry) => entry.entryKind === "file" && entry.name.endsWith(SOURCE_MODULE_SUFFIX));
+  const sources = listed.value.filter(
+    (entry) => entry.entryKind === "file" && entry.name.endsWith(SOURCE_MODULE_SUFFIX) && !entry.name.endsWith(DECLARATION_SUFFIX),
+  );
   const modules = listed.value.filter((entry) => entry.entryKind === "file" && entry.name.endsWith(".js"));
   if (sources.length > 0 || modules.length === 0) {
     return {
@@ -346,7 +383,7 @@ const requiredPeerAtFloor = (request: {
   readonly peer: string;
   readonly floor: string;
 }): Result<null, string> => {
-  const label = `${request.consumer} resolves the required peer ${request.peer} at its pinned floor ${request.floor}`;
+  const label = `${request.consumer} resolves the required peer ${request.peer} at its pinned version ${request.floor}`;
   const manifest = request.context.path.join({ segments: [request.repo, NODE_MODULES, ...request.peer.split("/"), "package.json"] });
   const installed = installedVersionOf({ context: request.context, manifest });
   if (installed.outcome === "failed") {

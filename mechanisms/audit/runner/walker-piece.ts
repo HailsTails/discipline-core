@@ -1,4 +1,4 @@
-import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
+import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { Hit } from "../../../core/mechanism-port/runner-result-types.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";

@@ -45,7 +45,7 @@ const PACKAGE_FILES: Readonly<Record<string, string>> = {
 
 const EXPECTING_PASS: ProofCase = {
   consumer: "audit",
-  mechanism: "audit",
+  fixture: "audit",
   toolchain: "typescript-floor",
   actions: [
     { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
@@ -72,6 +72,19 @@ const INSTALLED_PACKAGE: readonly ListedEntry[] = [
   { path: "core", name: "core", entryKind: "folder" },
   { path: "core/check/tool-command.js", name: "tool-command.js", entryKind: "file" },
 ];
+
+const INSTALLED_PACKAGE_WITH_DECLARATIONS: readonly ListedEntry[] = [
+  ...INSTALLED_PACKAGE,
+  { path: "api/audit.d.ts", name: "audit.d.ts", entryKind: "file" },
+  { path: "api/audit.js", name: "audit.js", entryKind: "file" },
+];
+
+const EXPECTING_TYPES: ProofCase = {
+  consumer: "typed",
+  fixture: "typed-team-piece",
+  toolchain: "typescript-floor",
+  actions: [{ kind: "typecheck", project: "tsconfig.nodenext.json", expectation: { exitCode: 0, output: "" } }],
+};
 
 const INSTALLED_PACKAGE_WITH_SOURCE: readonly ListedEntry[] = [
   ...INSTALLED_PACKAGE,
@@ -146,7 +159,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
         [{ text: "ok: audit check -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit project -> exit 0, output exactly as expected\n" }],
         [{ text: "ok: audit disciplines.eslint.mjs reads exactly as expected\n" }],
@@ -156,7 +169,7 @@ describe("runInstallProof", () => {
     });
   });
 
-  it("exits 1 naming the version found when a required peer does not resolve at its pinned floor", async () => {
+  it("exits 1 naming the version found when a required peer does not resolve at its pinned version", async () => {
     const proofProcess = processPort();
     const fileText = fileTextPort({ [`${CONSUMER}/node_modules/typescript/package.json`]: '{ "name": "typescript", "version": "6.0.3" }' });
 
@@ -165,7 +178,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "FAIL: audit resolves the required peer typescript at its pinned floor 4.8.4: found 6.0.3\n" }],
+        [{ text: "FAIL: audit resolves the required peer typescript at its pinned version 4.8.4: found 6.0.3\n" }],
       ],
       exits: [[{ code: 1 }]],
     });
@@ -261,6 +274,62 @@ describe("runInstallProof", () => {
     expect(vi.mocked(scratch.listTree).mock.calls).toEqual([[{ path: `${CONSUMER}/node_modules/@hailstails/hone` }]]);
   });
 
+  it("passes the source check when the installed package ships declaration files beside its modules", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        scratch: scratchPort({
+          listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE_WITH_DECLARATIONS }),
+        }),
+      }),
+    );
+
+    expect(reportOf({ process: proofProcess }).exits).toEqual([[{ code: 0 }]]);
+  });
+
+  it("type-checks a consumer project with the consumer's own installed tsc, judging its exit and output like a command", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning({ outcome: "exited", exitCode: 0, output: "" });
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        fileText: fileTextPort({ "/scratch/typescript-floor/typed/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }' }),
+        proofCases: [EXPECTING_TYPES],
+      }),
+    );
+
+    expect(commands.run).toHaveBeenLastCalledWith({
+      command: "node",
+      arguments: ["node_modules/typescript/bin/tsc", "--noEmit", "-p", "tsconfig.nodenext.json"],
+      directory: "/scratch/typescript-floor/typed",
+    });
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.nodenext.json -> exit 0, output exactly as expected\n" }]);
+  });
+
+  it("judges the compiler's report with the platform's carriage returns read as plain line feeds", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands: commandsReturning({ outcome: "exited", exitCode: 0, output: "src/team.mts: reported\r\n  detail\r\n" }),
+        fileText: fileTextPort({ "/scratch/typescript-floor/typed/node_modules/typescript/package.json": '{ "name": "typescript", "version": "4.8.4" }' }),
+        proofCases: [
+          {
+            ...EXPECTING_TYPES,
+            actions: [{ kind: "typecheck", project: "tsconfig.wrong.json", expectation: { exitCode: 0, output: "src/team.mts: reported\n  detail\n" } }],
+          },
+        ],
+      }),
+    );
+
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.wrong.json -> exit 0, output exactly as expected\n" }]);
+  });
+
   it("exits 1 naming the count when the installed package holds a .ts file", async () => {
     const proofProcess = processPort();
 
@@ -325,7 +394,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
         [
           {
             text: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(REPORT_OF_FINDINGS)}, got exit 1 and output ${JSON.stringify(altered)}\n`,
@@ -344,7 +413,7 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess })).toEqual({
       writes: [
         [{ text: "ok: audit installed package holds no TypeScript source to strip\n" }],
-        [{ text: "ok: audit resolves the required peer typescript at its pinned floor 4.8.4\n" }],
+        [{ text: "ok: audit resolves the required peer typescript at its pinned version 4.8.4\n" }],
         [{ text: 'FAIL: audit check: expected exit 1 and output "verdict: fail\\n", got exit 0 and output "verdict: pass\\n"\n' }],
       ],
       exits: [[{ code: 1 }]],

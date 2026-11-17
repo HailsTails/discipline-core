@@ -14,18 +14,3 @@ export type TypeScriptParsePort = {
 export type TypeScriptModules = { readonly typescript: () => Promise<{ readonly default: SyntaxApi }> };
 
 export const defaultTypeScriptModules: TypeScriptModules = { typescript: () => import("typescript") };
-
-const directChildren = (request: { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode }): readonly SyntaxNode[] => {
-  const collected: SyntaxNode[] = [];
-  request.syntaxApi.forEachChild(request.node, (child) => {
-    collected.push(child);
-  });
-  return collected;
-};
-
-export const createParsePort = (options: { readonly syntaxApi: SyntaxApi }): TypeScriptParsePort => ({
-  syntaxApi: options.syntaxApi,
-  parse: (request) =>
-    options.syntaxApi.createSourceFile(request.fileName, request.source, options.syntaxApi.ScriptTarget.Latest, true),
-  children: (request) => directChildren({ syntaxApi: options.syntaxApi, node: request.node }),
-});
