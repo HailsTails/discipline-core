@@ -1449,9 +1449,9 @@ describe("readSelection refusing a clause not adopted", () => {
   it.each([
     { name: "a clause its discipline does not declare", clause: "CD-14#no-such-clause", error: { kind: "unknown-clause", address: "CD-14#no-such-clause" } },
     { name: "a discipline the rule set does not hold", clause: "CD-99#class-syntax", error: { kind: "unknown-discipline", address: "CD-99#class-syntax" } },
-    { name: "a judgement clause", clause: "CD-14#library-construction", error: { kind: "judgement-clause-selected", address: "CD-14#library-construction" } },
+    { name: "a judgement clause", clause: "CD-14#library-construction", error: { kind: "judgement-clause-listed", address: "CD-14#library-construction" } },
     { name: "a rule set the file does not declare", clause: "team/TM-1#no-tmp-files", error: { kind: "unknown-rule-set", name: "team" } },
-  ])("refuses not adopting $name, as it refuses selecting it", ({ clause, error }) => {
+  ])("refuses not adopting $name", ({ clause, error }) => {
     expect(selectingWithoutAudit({ version: 1, ruleSets: {}, clauses: { [clause]: "not-adopted" } })).toEqual({
       outcome: "failed",
       error,
@@ -1475,7 +1475,7 @@ describe("readSelection refusing a clause not adopted", () => {
         clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
         clauseSettings: { "CD-14#class-syntax": { style: "strict" } },
       }),
-    ).toEqual(malformedWith({ detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: clauses does not adopt it") }));
+    ).toEqual(malformedWith({ detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: clauses does not adopt it, so remove its settings") }));
   });
 
   it("names both accepted forms when a clauses value is neither a mechanism id nor not-adopted", () => {

@@ -36,6 +36,12 @@ describe("loadFailureText", () => {
     ).toBe("load failure: mechanism-not-allowed CD-14#class-syntax audit\n");
   });
 
+  it("prints judgement-clause-listed with its address and that judgement clauses are left out of clauses", () => {
+    expect(loadFailureText({ failure: { kind: "judgement-clause-listed", address: "CD-14#library-construction" } })).toBe(
+      "load failure: judgement-clause-listed CD-14#library-construction: a judgement clause is enforced by review and is left out of clauses, adopted or not; remove it\n",
+    );
+  });
+
   it("prints runner-missing with its mechanism", () => {
     expect(loadFailureText({ failure: { kind: "runner-missing", mechanism: WALKER } })).toBe(
       "load failure: runner-missing audit\n",
