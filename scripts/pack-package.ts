@@ -4,6 +4,7 @@ import { createDefaultProcessPort } from "../core/platform-ports/process-port.ts
 import { createEsbuildBundlerPort } from "./esbuild-bundler-port.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "./install-proof-ports.ts";
 import { runPackPackage } from "./package-commands.ts";
+import { createDefaultTypeScriptDeclarationPort } from "./typescript-declaration-port.ts";
 
 await runPackPackage({
   process: createDefaultProcessPort({}),
@@ -11,6 +12,7 @@ await runPackPackage({
   fileText: createDefaultFileTextPort({}),
   scratch: createDefaultScratchFilesPort({}),
   bundler: createEsbuildBundlerPort({ path: createDefaultPathPort({}) }),
+  declarations: createDefaultTypeScriptDeclarationPort({}),
   commands: createDefaultCommandRunPort({}),
   moduleUrl: import.meta.url,
 });

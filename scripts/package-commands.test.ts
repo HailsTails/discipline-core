@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
+import { ENTRY_DECLARATIONS, emittingDeclarations } from "../tests/emitting-declarations.ts";
 import { type InMemoryFiles, inMemoryFiles } from "../tests/in-memory-files.ts";
 import { type NpmPacking, npmPacking } from "../tests/npm-packing.ts";
 import type { Bundle, BundledOutput, BundlerPort } from "./esbuild-bundler-port.ts";
@@ -99,6 +100,7 @@ const commandRequest = (request: {
   fileText: request.files.fileText,
   scratch: request.files.scratch,
   bundler: request.bundler,
+  declarations: emittingDeclarations({ declarations: ENTRY_DECLARATIONS }),
   commands: request.commands,
   moduleUrl: "file:///package/scripts/build-package.ts",
 });
@@ -113,7 +115,13 @@ describe("createTarballPacker", () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const npm = npmFaking({ files, tarballText: SAME_TARBALL });
     const packer = createTarballPacker({
-      ports: { path: posixPath, fileText: files.fileText, scratch: files.scratch, bundler: steadyBundler() },
+      ports: {
+        path: posixPath,
+        fileText: files.fileText,
+        scratch: files.scratch,
+        bundler: steadyBundler(),
+        declarations: emittingDeclarations({ declarations: ENTRY_DECLARATIONS }),
+      },
       commands: npm.commands,
     });
 
@@ -135,7 +143,13 @@ describe("createTarballPacker", () => {
   it("fails with npm's output when npm pack does not succeed", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const packer = createTarballPacker({
-      ports: { path: posixPath, fileText: files.fileText, scratch: files.scratch, bundler: steadyBundler() },
+      ports: {
+        path: posixPath,
+        fileText: files.fileText,
+        scratch: files.scratch,
+        bundler: steadyBundler(),
+        declarations: emittingDeclarations({ declarations: ENTRY_DECLARATIONS }),
+      },
       commands: { run: vi.fn<CommandRunPort["run"]>().mockReturnValue({ outcome: "exited", exitCode: 1, output: "npm ERR! pack" }) },
     });
 
@@ -155,7 +169,7 @@ describe("runBuildPackage", () => {
     await runBuildPackage(request);
 
     expect({ report: reportOf(request), runs: npm.runs(), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
-      report: { writes: [[{ text: "build package: wrote 5 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "build package: wrote 10 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
       runs: [],
       left: [],
     });
@@ -204,7 +218,7 @@ describe("runPackageDeterminism", () => {
 
     expect({ report: reportOf(request), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
       report: {
-        writes: [[{ text: "package determinism: pass, 5 files and the packed tarball byte-identical across two builds\n" }]],
+        writes: [[{ text: "package determinism: pass, 10 files and the packed tarball byte-identical across two builds\n" }]],
         exits: [[{ code: 0 }]],
       },
       left: [],
