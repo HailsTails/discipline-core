@@ -231,7 +231,7 @@
         {
           "why": "Why does scripts/install-proof-ports.ts import or touch a platform runtime surface at all?",
           "because": "The install proof's subject is a real install: it must create and remove an OS temporary directory, copy the consumer fixtures, list and digest the installed package, and spawn real git, npm and node with a GIT_-free environment, which only node:fs, node:os, node:path, node:crypto, node:child_process and process.platform, process.execPath and process.env provide.",
-          "evidence": "README.md § Developing Hone, install-proof row; scripts/install-proof-ports.ts:1-5, defaultScratchFilesSurface, defaultCommandSpawn and createDefaultCommandRunPort; bun run install-proof ends with `install proof: pass`."
+          "evidence": "README.md § Developing Hone, install-proof row; scripts/install-proof-ports.ts:1-5, defaultScratchFilesSurface, defaultCommandSpawn and createDefaultCommandRunPort; pnpm run install-proof ends with `install proof: pass`."
         },
         {
           "why": "Why is that runtime access not confined somewhere else, away from the proof's logic?",

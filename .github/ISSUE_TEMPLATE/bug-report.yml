@@ -1,0 +1,40 @@
+name: Bug report
+description: Hone did something wrong or reported something that is not true.
+body:
+  - type: markdown
+    attributes:
+      value: For a security problem, do not open an issue. Use the private report described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Hone version
+      description: Run `npm ls @hailstails/hone` in the repository.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Node version and operating system
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Paste the whole output, including the last line.
+      render: text
+    validations:
+      required: true
