@@ -8,6 +8,7 @@ import type { PackageLocationPort } from "../core/platform-ports/package-locatio
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../core/values/assessment.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-runner.ts";
 import { defaultTypeScriptModules } from "../mechanisms/audit/runner/typescript-parse.ts";
@@ -71,7 +72,7 @@ const checkWith = (request: { readonly fixture: string; readonly runner: unknown
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText,
     modules: modulesServingRunner({ runnerSuffix: "/runner/runner.ts", runner: request.runner, base: createDefaultModuleLoaderPort({}) }),
     path,

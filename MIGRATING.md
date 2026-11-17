@@ -31,7 +31,7 @@ Old code often holds CD-1 `any` the old route never checked. Hone flags it in st
 
 Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`: create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. Leave the old files in place until step 6.
 
-Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`.
+Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. To adopt a discipline through one mechanism only, waive the other clauses and leave them unrun as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 shows.
 
 | Old CD | Clauses to select in `disciplines.json` |
 | --- | --- |

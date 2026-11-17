@@ -12,6 +12,7 @@ import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/modu
 import { createDefaultPathPort, createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { type ClauseDefinition, readDisciplineFile } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
+import { DEFAULT_ASSESSMENT } from "../../../core/values/assessment.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { disciplineIdSchema } from "../../../core/values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
@@ -70,7 +71,7 @@ const checkOf = (request: { readonly name: string; readonly tracked: readonly Re
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
-    forfeiture: "this-run",
+    assessment: DEFAULT_ASSESSMENT,
     fileText,
     modules: runnerModulesOn({ line: request.line, base: modules }),
     path,

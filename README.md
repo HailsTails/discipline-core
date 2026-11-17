@@ -27,7 +27,7 @@ Adding a discipline or a mechanism, and the full list of ESLint native channels,
 The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
 
 ```text
-hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>]
+hone check --repo <dir> [--base-revision <rev>] [--report-output <output>] [--forfeiture <this-run|elsewhere>] [--waived-clauses <run|not-run>]
 hone project --repo <dir>
 ```
 
@@ -67,6 +67,12 @@ verdict: pass (partial assessment)
 ```
 
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
+
+`--waived-clauses not-run` makes a run skip every selected clause a valid `clause-wide-carve-out` covers, overriding `assessment.waivedClauses` in `disciplines.json`; `--waived-clauses run`, the default, runs them as before. A mechanism left with nothing to run is not loaded at all, so a repository that waives every `eslint` clause needs no ESLint installed. A standalone mechanism such as the audit skips just the waived clauses; an embedded mechanism such as ESLint that still has another clause to run runs all of its clauses, since its projection is judged whole. Only the waived clauses' execution and the staleness of the records on them are skipped: `stale` is not judged for those records, while invalid records, forfeiture, doubly-held records and `uncovered` are reported as before, and `hone project` still writes the waived rules and their `"off"` blocks. The `assessment` section names each clause not run:
+
+```text
+waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming-convention eslint
+```
 
 `hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
@@ -113,7 +119,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
-- `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
+- `assessment`, optional, says which run assesses each concern. `forfeiture` is `"this-run"` (the default) or `"elsewhere"`, and `--forfeiture` overrides it for one run. `waivedClauses` is `"run"` (the default) or `"not-run"`, and `--waived-clauses` overrides it for one run. See [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
 - `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 
 ## discipline-exceptions.json

@@ -417,7 +417,7 @@ describe("readRunSettings", () => {
   it("is the full report and the default assessment when disciplines.json sets neither", () => {
     expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {} })).toEqual({
       outcome: "ok",
-      value: { reportOutput: "full", assessment: { forfeiture: "this-run" } },
+      value: { reportOutput: "full", assessment: { forfeiture: "this-run", waivedClauses: "run" } },
     });
   });
 
@@ -450,16 +450,23 @@ describe("readRunSettings assessment", () => {
     });
   });
 
+  it.each(["run", "not-run"])("reads the waived clauses assessment %s from disciplines.json", (waivedClauses) => {
+    expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: { waivedClauses } })).toMatchObject({
+      outcome: "ok",
+      value: { assessment: { waivedClauses } },
+    });
+  });
+
   it("is the default assessment for an empty assessment object", () => {
     expect(configuredSettings({ version: 1, ruleSets: {}, clauses: {}, assessment: {} })).toMatchObject({
       outcome: "ok",
-      value: { assessment: { forfeiture: "this-run" } },
+      value: { assessment: { forfeiture: "this-run", waivedClauses: "run" } },
     });
   });
 
   it.each([
     ["an eslint key, which is not built", { eslint: { evidence: "results-file", paths: ["reports/eslint.json"] } }],
-    ["a waivedClauses key, which is not built", { waivedClauses: "not-run" }],
+    ["a waived clauses value that is not one of the two", { waivedClauses: "skip" }],
     ["a forfeiture that is not one of the two", { forfeiture: "reported" }],
     ["a list", ["elsewhere"]],
   ])("is file-malformed when disciplines.json gives the assessment %s", (_shape, assessment) => {
@@ -485,7 +492,7 @@ describe("readRunSettings unbuilt assessment keys", () => {
       error: {
         kind: "file-malformed",
         path: SELECTION_PATH,
-        detail: '✖ not available in this version: "eslint", "waivedClauses"; assessment takes "forfeiture" only\n  → at assessment',
+        detail: '✖ not available in this version: "eslint"; assessment takes "forfeiture", "waivedClauses" only\n  → at assessment',
       },
     });
   });
@@ -517,14 +524,14 @@ describe("readRunSettings reading", () => {
               ruleSets: {},
               clauses: { "CD-99#missing": "audit" },
               reportOutput: "counts",
-              assessment: { forfeiture: "elsewhere" },
+              assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" },
             }),
           }),
         }),
         path: TABLE_PATH,
         repoRoot: REPO_ROOT,
       }),
-    ).toEqual({ outcome: "ok", value: { reportOutput: "counts", assessment: { forfeiture: "elsewhere" } } });
+    ).toEqual({ outcome: "ok", value: { reportOutput: "counts", assessment: { forfeiture: "elsewhere", waivedClauses: "not-run" } } });
   });
 });
 
