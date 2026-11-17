@@ -6,6 +6,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { assessmentInEffect } from "../values/assessment.ts";
+import { moduleExtensionOf } from "../values/install-layout.ts";
 import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
@@ -14,9 +15,9 @@ import { type CheckArguments, parseCheckArguments } from "./command-arguments.ts
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { projectCommandOf } from "./project-command.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "./shown-path.ts";
-import { moduleExtensionOf } from "../values/install-layout.ts";
 
 const SELECTION_FILE_NAME = "disciplines.json";
 
@@ -64,10 +65,14 @@ export const printOutcome = (request: {
 const checkRunOf = (request: {
   readonly report: Result<CheckReport, LoadFailure>;
   readonly output: ReportOutput;
+  readonly projectCommand: string;
 }): Result<CheckRun, LoadFailure> =>
   request.report.outcome === "failed"
     ? request.report
-    : { outcome: "ok", value: { report: request.report.value, output: request.output } };
+    : {
+        outcome: "ok",
+        value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand },
+      };
 
 const checkRunIn = async (
   request: CommandRequest & { readonly arguments: CheckArguments; readonly repoRoot: AbsolutePath },
@@ -75,6 +80,10 @@ const checkRunIn = async (
   const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
   if (installRoot.outcome === "failed") {
     return installRoot;
+  }
+  const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repoRoot: request.repoRoot });
+  if (projectCommand.outcome === "failed") {
+    return projectCommand;
   }
   const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: request.repoRoot });
   if (configured.outcome === "failed") {
@@ -98,6 +107,7 @@ const checkRunIn = async (
   return checkRunOf({
     report,
     output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: configured.value.reportOutput }),
+    projectCommand: projectCommand.value,
   });
 };
 

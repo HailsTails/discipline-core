@@ -16,6 +16,7 @@ export type CommandOutcome = {
 export type CheckRun = {
   readonly report: CheckReport;
   readonly output: ReportOutput;
+  readonly projectCommand: string;
 };
 
 const LOAD_FAILURE_CODE = 2;

@@ -12,6 +12,8 @@ import { repoPathSchema } from "../core/values/repo-path.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 import { runSelfCheck, selfCheckOutcomeOf } from "./self-check-gate.ts";
 
+const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
 const EMPTY_REPORT: CheckReport = {
   excluded: [],
   notAdopted: [],
@@ -40,7 +42,7 @@ const CLASS_IN_A: Finding = {
 
 describe("selfCheckOutcomeOf", () => {
   it("passes a clean run, printing the report and the gate line", () => {
-    expect(selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full" } } })).toEqual({
+    expect(selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND } } })).toEqual({
       code: 0,
       text: "verdict: pass\nself-check: pass, the selection, records and projection are sound; findings (0) and unrecorded (0) are reported above and not gated\n",
     });
@@ -48,7 +50,7 @@ describe("selfCheckOutcomeOf", () => {
 
   it("passes a run whose only failures are findings, printing them in full as not gated", () => {
     expect(
-      selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full" } } }),
+      selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND } } }),
     ).toEqual({
       code: 0,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\nself-check: pass, the selection, records and projection are sound; findings (1) and unrecorded (0) are reported above and not gated\n",
@@ -65,9 +67,9 @@ describe("selfCheckOutcomeOf", () => {
               ...EMPTY_REPORT,
               findings: [CLASS_IN_A],
               uncovered: [clauseAddressSchema.parse("CD-15#loops")],
-              unmeasured: [{ kind: "import-unmeasured" }],
+              unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
             },
-            output: "counts",
+            output: "counts", projectCommand: PROJECT_COMMAND,
           },
         },
       }),

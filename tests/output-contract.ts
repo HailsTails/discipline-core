@@ -105,6 +105,7 @@ const attributed =
 export const reportLinesOf = (request: {
   readonly report: CheckReport;
   readonly output: ReportOutput;
+  readonly projectCommand: string;
   readonly entryFills: EntryFills;
 }): readonly PrintedLine[] => {
   const lines = renderReportText(request).split("\n").slice(0, -1);

@@ -7,6 +7,8 @@ import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import { checkCommandOutcome, projectCommandOutcome, versionCommandOutcome } from "./command-outcome.ts";
 
+const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
 const WALKER = mechanismIdSchema.parse("audit");
 
 const EMPTY_REPORT: CheckReport = {
@@ -37,14 +39,14 @@ const CLASS_IN_A: Finding = {
 
 describe("checkCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full" } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND } } })).toEqual({
       code: 0,
       text: "verdict: pass\n",
     });
   });
 
   it("exits 1 and prints the report when the verdict is fail", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full" } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND } } })).toEqual({
       code: 1,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\n",
     });
@@ -55,15 +57,18 @@ describe("checkCommandOutcome", () => {
       checkCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured" }] }, output: "full" },
+          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full", projectCommand: PROJECT_COMMAND },
         },
       }),
-    ).toEqual({ code: 1, text: "unmeasured (1)\nforfeiture-unmeasured\nverdict: fail\n" });
+    ).toEqual({
+      code: 1,
+      text: "unmeasured (1)\nforfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with \"assessment\": { \"forfeiture\": \"elsewhere\" } in disciplines.json or --forfeiture elsewhere\nverdict: fail\n",
+    });
   });
 
   it.each(reportOutputSchema.options)("exits 1 for a failing report whatever the %s output prints", (output) => {
     expect(
-      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output } } })
+      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output, projectCommand: PROJECT_COMMAND } } })
         .code,
     ).toBe(1);
   });
@@ -71,7 +76,7 @@ describe("checkCommandOutcome", () => {
   it.each(reportOutputSchema.options)("exits 0 for a passing report whatever the %s output prints", (output) => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output, projectCommand: PROJECT_COMMAND } },
       }).code,
     ).toBe(0);
   });
@@ -83,7 +88,7 @@ describe("checkCommandOutcome", () => {
           outcome: "ok",
           value: {
             report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")], findings: [CLASS_IN_A] },
-            output: "failures-only",
+            output: "failures-only", projectCommand: PROJECT_COMMAND,
           },
         },
       }),
@@ -93,7 +98,7 @@ describe("checkCommandOutcome", () => {
   it("exits 1 printing only the verdict for the verdict-only output", () => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only" } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only", projectCommand: PROJECT_COMMAND } },
       }),
     ).toEqual({ code: 1, text: "verdict: fail\n" });
   });

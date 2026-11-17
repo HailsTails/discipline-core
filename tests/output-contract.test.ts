@@ -103,7 +103,7 @@ describe("contractGaps", () => {
 
 describe("reportLinesOf", () => {
   it("labels each heading with its section and count, each entry by its section and position, and the verdict", () => {
-    expect(reportLinesOf({ report: REPORT, output: "full", entryFills: positionFills })).toEqual([
+    expect(reportLinesOf({ report: REPORT, output: "full", projectCommand: "node hone.js project --repo /repo", entryFills: positionFills })).toEqual([
       { label: "heading", text: "excluded (1)", fills: { section: "excluded", count: "1" } },
       { label: "excluded", text: "generated", fills: { section: "excluded", position: "0" } },
       { label: "heading", text: "findings (1)", fills: { section: "findings", count: "1" } },
@@ -113,7 +113,7 @@ describe("reportLinesOf", () => {
   });
 
   it("labels each counts line as a heading", () => {
-    expect(reportLinesOf({ report: REPORT, output: "counts", entryFills: positionFills })).toEqual([
+    expect(reportLinesOf({ report: REPORT, output: "counts", projectCommand: "node hone.js project --repo /repo", entryFills: positionFills })).toEqual([
       { label: "heading", text: "excluded (1) informational", fills: { section: "excluded", count: "1" } },
       { label: "heading", text: "findings (1)", fills: { section: "findings", count: "1" } },
       { label: "verdict", text: "verdict: fail", fills: {} },

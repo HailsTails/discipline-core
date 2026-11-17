@@ -35,7 +35,7 @@ These are not stable, so a minor release may change them:
 - the wording after `load failure: arguments-invalid`, written for the person who typed the command;
 - the text after a load failure's values, which says what to do next: the repair text of `selection-absent`, `judgement-clause-listed` and `config-root-untracked`, and everything after the kind in `toolchain-unavailable` and `toolchain-shadowed`;
 - the `readFirst` lines and their leading note, written for a person;
-- the words of an `unmeasured` or `projectionProblems` line after its kind, mechanism, state and slice, which may gain the next step to take.
+- the words of an `unmeasured` or `projectionProblems` line after the `:` that ends its leading fields (its kind and reason, or its mechanism, state and slice), which say why and what to do next.
 
 A minor release may add a section, a kind of line in a section, a load failure kind, an option or a command. A tool reading the report should pass over a section heading or a line kind it does not know.
 
@@ -53,6 +53,9 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<version>` | the installed package's version | never |
 | `<file>`, `<path>`, `<slice>`, `<suppressions file>`, `<package file>`, `<config root>`, `<piece folder>`, `<location>`, `<install folder>`, `<rule page>`, `<adoption guide>` | a path, as described below | may hold a space |
 | `<folders>` | paths separated by `, ` | may hold a space |
+| `<folder>` | the folder that holds a `<slice>` | may hold a space |
+| `<project command>` | the command that runs `hone project` for this repository: `node`, the installed command's absolute path, `project --repo` and the repository's absolute path, each path with forward slashes and in double quotes when it holds a character other than a letter, digit or one of `_ . / @ : + -` | may hold a space |
+| `<revision>`, `<git message>` | the `--base-revision` value as given and what git said, each as a JSON string in double quotes | may hold a space |
 | `<dir>` | the `--repo` value as typed | may hold a space |
 | `<url>` | the module URL Hone could not resolve, as given | may hold a space |
 | `<snippet>` | the source text at a finding: at most 200 characters, or the first 200 followed by `…` when it is longer | may hold a space |
@@ -218,17 +221,22 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `invalidRecords` | `exceptions[<index>] import-unverified <detail>` |
 | `invalidRecords` | `exceptions[<index>] non-exemptible-clause <clause>` |
 | `invalidRecords` | `exceptions[<index>] duplicate of <earlier index>` |
-| `unmeasured` | `forfeiture-unmeasured` |
-| `unmeasured` | `import-unmeasured` |
-| `unmeasured` | `legacy-chain-unmeasured` |
-| `unmeasured` | `mechanism-not-run <mechanism> missing` |
-| `unmeasured` | `mechanism-not-run <mechanism> not-included` |
-| `unmeasured` | `mechanism-not-run <mechanism> not-included; not managed from this repository, each holding its own disciplines.json: <folders>; nested Hone configurations are not supported yet, see https://github.com/HailsTails/hone/issues/72` |
-| `projectionProblems` | `<mechanism> out-of-date` |
-| `projectionProblems` | `<mechanism> out-of-date <slice>` |
-| `projectionProblems` | `<mechanism> missing <slice>` |
-| `projectionProblems` | `<mechanism> not-applied <slice>` |
-| `projectionProblems` | `<mechanism> unconfigured <slice>` |
+| `unmeasured` | `forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere` |
+| `unmeasured` | `forfeiture-unmeasured base-git-failed <revision>: git could not list the files changed since that revision and said <git message>; Hone needs that revision and the history back to where this branch left it, or leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere` |
+| `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so imported records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
+| `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read the exception records at that revision and said <git message>; Hone needs the exception records as they were at that revision` |
+| `unmeasured` | `legacy-chain-unmeasured no-base-revision: no --base-revision was given, so legacy-chain records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
+| `unmeasured` | `legacy-chain-unmeasured base-git-failed <revision>: git could not read the exception records at that revision and said <git message>; Hone needs the exception records as they were at that revision` |
+| `unmeasured` | `mechanism-not-run <mechanism> missing: disciplines.<mechanism>.mjs is not written; run <project command> and commit every disciplines.<mechanism>.mjs it writes` |
+| `unmeasured` | `mechanism-not-run <mechanism> not-included: the <mechanism> configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.<mechanism>.mjs, or of a package's own disciplines.<mechanism>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
+| `unmeasured` | `mechanism-not-run <mechanism> not-included: the <mechanism> configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.<mechanism>.mjs, or of a package's own disciplines.<mechanism>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <mechanism> lines under projectionProblems name the package slices involved` |
+| `unmeasured` | `mechanism-not-run <mechanism> not-included: the <mechanism> configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.<mechanism>.mjs, or of a package's own disciplines.<mechanism>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; <folders> hold their own disciplines.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run <project command>, which writes its slice` |
+| `unmeasured` | `mechanism-not-run <mechanism> not-included: the <mechanism> configuration leaves the projection out of effect for a file under check; spread the default export of disciplines.<mechanism>.mjs, or of a package's own disciplines.<mechanism>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <mechanism> lines under projectionProblems name the package slices involved; <folders> hold their own disciplines.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run <project command>, which writes its slice` |
+| `projectionProblems` | `<mechanism> out-of-date: disciplines.<mechanism>.mjs differs from what hone project writes now; run <project command> and commit every disciplines.<mechanism>.mjs it writes` |
+| `projectionProblems` | `<mechanism> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every disciplines.<mechanism>.mjs it writes` |
+| `projectionProblems` | `<mechanism> missing <slice>: that slice is not written; run <project command> and commit every disciplines.<mechanism>.mjs it writes` |
+| `projectionProblems` | `<mechanism> not-applied <slice>: the <mechanism> configuration for <folder> leaves records of that slice out of effect; spread the default export of <slice> last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
+| `projectionProblems` | `<mechanism> unconfigured <slice>: <folder> has no <mechanism> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
 | `assessment` | `forfeiture elsewhere: 1 file carve-out not checked for decay in this run` |
 | `assessment` | `forfeiture elsewhere: <count> file carve-outs not checked for decay in this run` |
 | `readFirst` | `Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; <adoption guide>#5a-write-the-assessment says how to write it.` |

@@ -17,6 +17,7 @@ import type { ProjectionWrite } from "../core/mechanism-port/runner-result-schem
 import type { FilePresence, FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { WAIVED_CLAUSES_REPLACEMENT } from "../core/values/assessment.ts";
+import type { BaseRevisionAvailability } from "../core/values/base-revision-availability.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
@@ -54,6 +55,8 @@ const FILE = repoPathSchema.parse("src/basket.ts");
 const RULE_PAGE = "node_modules/@hailstails/hone/rules/CD-15/README.md";
 const ADOPTION_GUIDE = "node_modules/@hailstails/hone/ADOPTING.md";
 
+const PROJECT_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop";
+
 const SHARED_FILLS: Fills = {
   clause: "CD-15#loops",
   mechanism: "eslint",
@@ -63,6 +66,7 @@ const SHARED_FILLS: Fills = {
   snippet: "const total = 0;\\nreturn total;",
   "rule page": RULE_PAGE,
   "adoption guide": ADOPTION_GUIDE,
+  "project command": PROJECT_COMMAND,
 };
 
 const FINDING: Finding = { clause: LOOPS, mechanism: MECHANISM, file: FILE, anchor: { line: 15, column: 0 }, snippet: "const total = 0;\nreturn total;" };
@@ -132,16 +136,13 @@ const RECORD_PROBLEMS: { readonly [Kind in InvalidRecord["problem"]["kind"]]: Fi
   duplicate: { entry: { kind: "duplicate", ofIndex: 0 }, fills: { "earlier index": "0" } },
 };
 
-const UNRUN_PROJECTIONS: Readonly<Record<Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>["projection"], Unmeasured>> = {
+type MechanismNotRun = Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
+
+type BaseDependentKind = Extract<Unmeasured, { readonly base: BaseRevisionAvailability }>["kind"];
+
+const UNRUN_PROJECTIONS: Readonly<Record<MechanismNotRun["projection"], MechanismNotRun>> = {
   missing: { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "missing" },
   "not-included": { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "not-included", nestedConfigurations: [] },
-};
-
-const UNMEASURED: EveryKind<Unmeasured> = {
-  "forfeiture-unmeasured": { kind: "forfeiture-unmeasured" },
-  "import-unmeasured": { kind: "import-unmeasured" },
-  "legacy-chain-unmeasured": { kind: "legacy-chain-unmeasured" },
-  "mechanism-not-run": { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "missing" },
 };
 
 const NESTED_UNRUN: Filled<Unmeasured> = {
@@ -153,6 +154,27 @@ const NESTED_UNRUN: Filled<Unmeasured> = {
   },
   fills: { folders: "packages/legacy, packages/tools" },
 };
+
+const GIT_FAILED_BASE = { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad revision" } as const;
+
+const baseSamplesOf = (request: {
+  readonly kind: BaseDependentKind;
+}): Readonly<Record<BaseRevisionAvailability["state"], Filled<Unmeasured>>> => ({
+  "not-given": { entry: { kind: request.kind, base: { state: "not-given" } }, fills: {} },
+  "git-failed": {
+    entry: { kind: request.kind, base: GIT_FAILED_BASE },
+    fills: { revision: JSON.stringify(GIT_FAILED_BASE.revision), "git message": JSON.stringify(GIT_FAILED_BASE.gitMessage) },
+  },
+});
+
+const UNMEASURED: Readonly<Record<Unmeasured["kind"], readonly Filled<Unmeasured>[]>> = {
+  "forfeiture-unmeasured": Object.values(baseSamplesOf({ kind: "forfeiture-unmeasured" })),
+  "import-unmeasured": Object.values(baseSamplesOf({ kind: "import-unmeasured" })),
+  "legacy-chain-unmeasured": Object.values(baseSamplesOf({ kind: "legacy-chain-unmeasured" })),
+  "mechanism-not-run": [...Object.values(UNRUN_PROJECTIONS).map((entry) => ({ entry, fills: {} })), NESTED_UNRUN],
+};
+
+const UNSLICED_UNRUN: readonly Filled<Unmeasured>[] = [{ entry: UNRUN_PROJECTIONS["not-included"], fills: {} }, NESTED_UNRUN];
 
 const SLICE = repoPathSchema.parse("packages/web/disciplines.eslint.mjs");
 
@@ -204,8 +226,10 @@ const NOTES: Readonly<Record<AssessmentFileNote["state"], AssessmentFileNote>> =
   unreadable: { kind: "assessment-file", state: "unreadable", guide: ADOPTION_GUIDE },
 };
 
+const SLICE_FOLDER = "packages/web";
+
 const projectionFillsOf = (request: { readonly problem: ProjectionProblem }): Fills =>
-  request.problem.scope === "slice" ? { slice: request.problem.slice } : {};
+  request.problem.scope === "slice" ? { slice: request.problem.slice, folder: SLICE_FOLDER } : {};
 
 const unfilled = <Entry>(entries: readonly Entry[]): readonly Filled<Entry>[] => entries.map((entry) => ({ entry, fills: {} }));
 
@@ -227,7 +251,7 @@ const SECTION_SAMPLES: SectionSamples = {
     entry: { index, problem: problem.entry },
     fills: { ...problem.fills, index: String(index) },
   })),
-  unmeasured: [...unfilled([...Object.values(UNMEASURED), ...Object.values(UNRUN_PROJECTIONS)]), NESTED_UNRUN],
+  unmeasured: Object.values(UNMEASURED).flat(),
   projectionProblems: Object.values(PROJECTION_PROBLEMS)
     .flatMap((byState) => Object.values(byState))
     .map((problem) => ({ entry: problem, fills: projectionFillsOf({ problem }) })),
@@ -277,6 +301,8 @@ const sampleFills: EntryFills = ({ section, position }) => ({ ...SHARED_FILLS, .
 
 const sharedFills: EntryFills = () => SHARED_FILLS;
 
+const unslicedFills: EntryFills = ({ position }) => ({ ...SHARED_FILLS, ...UNSLICED_UNRUN[position]?.fills });
+
 const NOTED_REPORTS: readonly CheckReport[] = Object.values(NOTES).flatMap((note) => [
   { ...EMPTY_REPORT, findings: [FINDING], readFirst: [note, READINGS.unread.present] },
   { ...EMPTY_REPORT, findings: [FINDING], readFirst: [note, READINGS.unread.absent] },
@@ -290,9 +316,15 @@ const VERDICT_REPORTS: Readonly<Record<Verdict, Readonly<Record<"whole" | "parti
 const EVERY_OUTPUT: readonly ReportOutput[] = reportOutputSchema.options;
 
 const REPORT_LINES: readonly PrintedLine[] = [
-  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, entryFills: sampleFills })),
+  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, entryFills: sampleFills })),
+  ...reportLinesOf({
+    report: { ...EMPTY_REPORT, unmeasured: entriesOf(UNSLICED_UNRUN) },
+    output: "full",
+    projectCommand: PROJECT_COMMAND,
+    entryFills: unslicedFills,
+  }),
   ...[...NOTED_REPORTS, ...Object.values(VERDICT_REPORTS).flatMap((byPart) => Object.values(byPart))].flatMap((report) =>
-    reportLinesOf({ report, output: "full", entryFills: sharedFills }),
+    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, entryFills: sharedFills }),
   ),
 ];
 

@@ -12,7 +12,10 @@ describe("PRINTABLE_LINES", () => {
 
   it.each([
     { label: "findings", text: "CD-15#loops eslint src/basket.ts:15:0 const total = 0;\\nreturn total;" },
-    { label: "unmeasured", text: "mechanism-not-run eslint not-included" },
+    {
+      label: "unmeasured",
+      text: "import-unmeasured base-git-failed \"origin/main\": git could not read the exception records at that revision and said \"fatal: bad revision\"; Hone needs the exception records as they were at that revision",
+    },
     { label: "runner-failed", text: "load failure: runner-failed eslint tool-failed eslint exited 2" },
     {
       label: "selection-absent",
