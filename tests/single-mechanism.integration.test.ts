@@ -4,6 +4,7 @@ import {
   toolchainBoundEmbeddedRunner,
   toolchainBoundStandaloneRunner,
 } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import {
   createDefaultFileTextPort,
   type FileTextPort,
@@ -144,6 +145,7 @@ const eslintRunnerWithoutPeersOver = (request: {
     runnerOf: (toolchain) =>
       createEslintRunner({
         fileText: request.fileText,
+        fileRemoval: createDefaultFileRemovalPort({}),
         modules: createDefaultModuleLoaderPort({}),
         path,
         eslint: createEslintPort({ toolchain }),

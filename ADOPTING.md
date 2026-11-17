@@ -163,7 +163,32 @@ export default [
 
 To confirm it, run the repository's own `eslint` on one TypeScript file with a type annotation, for example `node_modules/.bin/eslint src/index.ts` with a file of your own; it must report findings or nothing, never `Parsing error`.
 
-In a monorepo, every `eslint.config.*` that applies to checked files spreads the projection last. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
+In a monorepo where ESLint resolves each file from its nearest config, `hone:project` also writes a `disciplines.eslint.mjs` slice beside each package's tracked `eslint.config.*`, holding only that package's exceptions with paths relative to the package. Where one ESLint 9 run applies the root config to every file, package configs are never loaded and get no slice. A package config keeps its slice even in a folder the root config ignores, since a lint run from that package loads its own config without the root's ignores. A folder holding its own `disciplines.json` gets no slice: its ESLint configuration is not managed from this repository, and nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)); when that leaves a carve-out recorded there out of effect, the check names the folder on its `mechanism-not-run eslint not-included` line. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
+
+```js
+import projection from "./disciplines.eslint.mjs";
+
+export default [
+  { files: ["**/*.{ts,tsx,mts,cts}"] },
+  ...projection,
+];
+```
+
+A package whose `eslint.config.*` is generated and not tracked needs its folder listed so Hone writes its slice, and the slice spread where the tool takes extra configuration. Each listed folder must be one git tracks files under, spelled exactly as git spells it, or the check stops with `config-root-untracked`. sku 16.6.1 is such a tool: its `packages/sku/src/utils/configureApp.ts` writes `eslint.config.mjs` into the project on every sku command and adds it to `.gitignore`, and that config applies the `dangerouslySetESLintConfig` function that `packages/sku/src/types/types.ts` declares as taking and returning `Linter.Config[]`. For sku, list the package in `disciplines.json` and spread the slice in `sku.config.ts`:
+
+```json
+{ "eslintConfigRoots": ["packages/web"] }
+```
+
+```ts
+import projection from "./disciplines.eslint.mjs";
+
+export default {
+  dangerouslySetESLintConfig: (skuEslintConfig) => [...skuEslintConfig, ...projection],
+};
+```
+
+The check names a slice that is missing, out of date, or not applied to that package's files, and names a listed folder whose `eslint.config.*` is not on disk as `unconfigured`: until the tool has written it, nothing loads the slice, so run the tool's configure step (for sku, any sku command or `sku configure`) before the check. A package that spreads nothing at all shows its files under `unrecorded` as `config-override` while it has no file exception of its own; once a file under check there has one, the package is also reported `not-applied`, since its config then leaves that exception out of effect. Hone sees which slice a package config spreads only through its effect: a package config that spreads the root projection by mistake is reported `not-applied` once a file under check in that package has a file exception the root projection cannot carry. Until then the check says nothing, because for a package with no file exceptions of its own the root projection and the slice switch on the same rules, and clause-wide carve-outs reach the package either way. To confirm the spread before adding an exception, run ESLint from the package folder on a file the check flags and see the same finding. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
 
 ```json
 { "eslintConfigLookup": "nearest-to-file" }
@@ -171,7 +196,7 @@ In a monorepo, every `eslint.config.*` that applies to checked files spreads the
 
 Use `"nearest-to-file"` when ESLint runs per package, with ESLint 10, or with ESLint 9 and `--flag v10_config_lookup_from_file` (on 9.28 and 9.29, `--flag unstable_config_lookup_from_file`). Use `"repository-root"` for one ESLint 9 run from the repository root, whose root `eslint.config.*` then applies to every file. To confirm the setting, lint a package file the way the team does (for example `pnpm exec eslint packages/a/src/x.ts` from where the lint script runs) and check that it reports the same finding the Hone check lists for that file.
 
-Commit both files. Hone's check reads this configuration and fails if the projection is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
+Commit the projection, every slice and the configs. Hone's check reads this configuration and fails if the projection or a slice is missing, not in effect, or out of date, so re-run `hone:project` whenever `disciplines.json` or `discipline-exceptions.json` changes or Hone is updated. The projection imports each piece from the package by name, for example `@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js`, so the repository's ESLint must resolve `@hailstails/hone` from the repository root. Hone's own ESLint run uses the repository's root `eslint` from step 2, the same copy the projection's pieces load; its verdict is the same on 9.x and 10.x. [README.md](README.md#adopting-the-eslint-mechanism) has the details.
 
 ## 5. Run the check
 
@@ -193,10 +218,11 @@ In CI, pass the branch's base so that debt recorded per file is forfeited once t
 npm run --silent hone:check -- --base-revision origin/main
 ```
 
-CI must fetch the history from that base to the checked commit, so git can find where the branch left it. `actions/checkout` fetches one commit by default; set `fetch-depth: 0` on it, or fetch the base branch with enough depth to reach the branch point. Without that history the report says so and the run fails:
+CI must hold the base and the commit it shares with the checked commit, so git can tell which files the branch changed. A shallow clone holds neither: `actions/checkout` fetches one commit by default. Fetching the base branch, at any depth, is not enough, because the shared commit is missing from the checked commit's side. Fetch the base, then deepen the clone until the two share a commit, with `git fetch --deepen=<commits>`, or fetch all of its history with `git fetch --unshallow`; git refuses `--unshallow` in a complete clone, so use it only in a shallow one. With `actions/checkout`, `fetch-depth: 0` fetches the whole history up front. The report says which of these is missing, and the run fails:
 
 ```text
-forfeiture-unmeasured base-unreachable origin/main: git could not list the files changed since origin/main; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists
+forfeiture-unmeasured base-not-found "origin/main": this clone holds no commit by that name; fetch it, or pass --base-revision with a revision this clone holds
+forfeiture-unmeasured no-merge-base "origin/main": this shallow clone holds no commit that revision and HEAD share; deepen it with git fetch --deepen=<commits> until they share one, or fetch the whole history with git fetch --unshallow (with actions/checkout, set fetch-depth: 0)
 ```
 
 Add the command to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
@@ -213,7 +239,7 @@ CI leaves decay to the hook. A repository with no imported records and no legacy
 npm run --silent hone:check
 ```
 
-A repository with imported records (`provenance`) or legacy-chain records still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` or `legacy-chain-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and nothing is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history; a base that is not fetched is listed as `import-unmeasured base-unreachable <base-commit>` or `legacy-chain-unmeasured base-unreachable <base-commit>`:
+A repository with imported records (`provenance`) or legacy-chain records still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` or `legacy-chain-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and nothing is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history; a base that is not fetched is listed as `import-unmeasured base-not-found` or `legacy-chain-unmeasured base-not-found`, as [README.md](README.md#commands) shows:
 
 ```bash
 npm run --silent hone:check -- --base-revision <base-commit>
@@ -293,8 +319,8 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
 | `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-run` or `clause-not-adopted` for an entry on a clause listed as `"not-run"` or `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
-| `unmeasured` | something could not be measured; each line says why and what to do, for example `forfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay` |
-| `projectionProblems` | a projection that differs from what `hone project` writes now, for example `eslint out-of-date: run hone project --repo . at the repository root and commit the files it writes` |
+| `unmeasured` | something could not be measured; each line says what, why and what to do, for example `forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main` |
+| `projectionProblems` | a projection or package slice that differs from what `hone project` writes now, is not written, is not applied, or has no configuration to load it, each with what to do, for example `eslint out-of-date: disciplines.eslint.mjs differs from what hone project writes now; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes` |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 | `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; a clause the file does not assess reads `CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause`; before the file is written, one line first says so and names step 5a, and each clause line names its rule page only, as in the walkthrough below; the README lists every line exactly; paths are relative to the `--repo` folder; guidance, it never fails the run |
 

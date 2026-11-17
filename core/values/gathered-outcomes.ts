@@ -10,3 +10,8 @@ export const gatheredOutcomes = <Value, Failure>(request: {
     value: request.outcomes.flatMap((outcome) => (outcome.outcome === "ok" ? outcome.value : [])),
   };
 };
+
+export const listedOutcome = <Value, Failure>(request: {
+  readonly outcome: Result<Value, Failure>;
+}): Result<readonly Value[], Failure> =>
+  request.outcome.outcome === "failed" ? request.outcome : { outcome: "ok", value: [request.outcome.value] };

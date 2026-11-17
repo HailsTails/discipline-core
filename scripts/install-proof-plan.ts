@@ -14,14 +14,15 @@ export type StepRun =
   | { readonly outcome: "exited"; readonly exitCode: number; readonly output: string }
   | { readonly outcome: "not-exited"; readonly detail: string };
 
-export type ConsumerFixture = "audit" | "eslint" | "team";
+export type ConsumerFixture = "audit" | "eslint" | "team" | "workspace";
 
 export type ProofAction =
   | { readonly kind: "check"; readonly expectation: StepExpectation }
   | { readonly kind: "project"; readonly expectation: StepExpectation }
   | { readonly kind: "commit"; readonly message: string }
   | { readonly kind: "read"; readonly path: string; readonly text: string }
-  | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation };
+  | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation }
+  | { readonly kind: "lint"; readonly directory: string; readonly expectation: StepExpectation };
 
 export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
 
@@ -82,6 +83,54 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
   },
 ];
 
+const WORKSPACE_SLICE = `import piece0 from "${TOOL_IDENTITY.packageName}/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
+
+export default [
+  {
+    name: "${TOOL_IDENTITY.reservedEslintNamespace}/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "${TOOL_IDENTITY.reservedEslintNamespace}/file-records/CD-14#class-syntax",
+    files: [
+      "src/legacy.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const WORKSPACE_REPORT = `findings (1)
+CD-14#class-syntax eslint packages/web/src/kept.ts:1:7 export class Kept {}
+exempted (1)
+CD-14#class-syntax eslint packages/web/src/legacy.ts:1:7 export class Legacy {} exempted by file-carve-out
+uncovered (1)
+CD-14#static-only-class
+readFirst (2)
+Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
+CD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit
+verdict: fail
+`;
+
+const WORKSPACE_ACTIONS: readonly ProofAction[] = [
+  {
+    kind: "project",
+    expectation: { exitCode: 0, output: "disciplines.eslint.mjs written\npackages/web/disciplines.eslint.mjs written\n" },
+  },
+  { kind: "read", path: "packages/web/disciplines.eslint.mjs", text: WORKSPACE_SLICE },
+  { kind: "commit", message: "project" },
+  {
+    kind: "check",
+    expectation: {
+      exitCode: 1,
+      output: WORKSPACE_REPORT,
+    },
+  },
+  { kind: "lint", directory: "packages/web", expectation: { exitCode: 1, output: "src/kept.ts:1:8 hone/no-class-authoring\n" } },
+];
+
 const SILENT_SUCCESS: StepExpectation = { exitCode: 0, output: "" };
 
 const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
@@ -124,6 +173,7 @@ export const PROOF_CASES: readonly ProofCase[] = [
   { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
   { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: TEAM_FLOOR_ACTIONS },
   { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
+  { consumer: "workspace", fixture: "workspace", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({

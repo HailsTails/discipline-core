@@ -112,13 +112,15 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
   "/install/core": "/install",
 };
 
+const WORKING_DIRECTORY_OF: Readonly<Record<string, string>> = { ".": "/work" };
+
 const TABLE_PATH: PathPort = {
   join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
   relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
   joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
   repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
-  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(path) }),
+  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(WORKING_DIRECTORY_OF[path] ?? path) }),
   fromFileUrl: ({ url }) => ({ outcome: "ok", value: absolutePathSchema.parse(FILE_PATHS[url]) }),
 };
 

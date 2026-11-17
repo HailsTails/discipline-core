@@ -3,7 +3,7 @@ import { requiredEntry } from "../../tests/required-entry.ts";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { BaseFileText, GitFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { BaseFileText, BaseReadFailure, ChangeSetFailure, GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
@@ -369,8 +369,8 @@ const presentAtBase = (request: { readonly text: string }): Result<BaseFileText,
 
 const gitReporting = (request: {
   readonly trackedPaths: Result<readonly RepoPath[], GitFailure>;
-  readonly changedSince: Result<readonly RepoPath[], GitFailure>;
-  readonly textInBase?: Result<BaseFileText, GitFailure>;
+  readonly changedSince: Result<readonly RepoPath[], ChangeSetFailure>;
+  readonly textInBase?: Result<BaseFileText, BaseReadFailure>;
 }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue(request.trackedPaths),
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
@@ -513,7 +513,50 @@ describe("runCheck forfeiture measurement", () => {
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "unreachable", revision: "main" } }] } });
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        unmeasured: [
+          { kind: "forfeiture-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "bad revision 'main'" } },
+        ],
+      },
+    });
+  });
+
+  it("reports forfeiture-unmeasured with the base not found when this clone does not hold it and a file carve-out exists", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
+          git: gitReporting({
+            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+            changedSince: { outcome: "failed", error: { kind: "base-absent" } },
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-found", revision: "main" } }] },
+    });
+  });
+
+  it("reports forfeiture-unmeasured with no merge base when a shallow clone holds no common ancestor and a file carve-out exists", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
+          git: gitReporting({
+            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+            changedSince: { outcome: "failed", error: { kind: "no-merge-base", clone: "shallow" } },
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "main", clone: "shallow" } }],
+      },
+    });
   });
 
   it("reports nothing unmeasured when no base revision is given and no file carve-out exists", async () => {
@@ -566,14 +609,21 @@ describe("runCheck forfeiture measurement", () => {
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
             changedSince: { outcome: "ok", value: [] },
-            textInBase: { outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad revision 'main'" } },
+            textInBase: { outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "fatal: not a tree object" } },
           }),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "unreachable", revision: "main" } }] } });
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        unmeasured: [
+          { kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } },
+        ],
+      },
+    });
   });
 
-  it("reports import-unmeasured with the unreachable base when git cannot read it and an imported authorised location exists", async () => {
+  it("reports import-unmeasured with the base not found when this clone does not hold it and an imported authorised location exists", async () => {
     await expect(
       runCheck(
         checkRequest({
@@ -581,13 +631,13 @@ describe("runCheck forfeiture measurement", () => {
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
             changedSince: { outcome: "ok", value: [] },
-            textInBase: { outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad revision 'main'" } },
+            textInBase: { outcome: "failed", error: { kind: "base-absent" } },
           }),
         }),
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "unreachable", revision: "main" } }] },
+      value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "not-found", revision: "main" } }] },
     });
   });
 
@@ -1374,7 +1424,7 @@ describe("runCheck with an embedded runner", () => {
       ),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { ...EMPTY_REPORT, unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included" }] },
+      value: { ...EMPTY_REPORT, unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: [] }] },
     });
   });
 
@@ -1408,10 +1458,92 @@ describe("runCheck with an embedded runner", () => {
         ...EMPTY_REPORT,
         findings: [{ ...HIT_IN_A, mechanism: "audit" }],
         readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING],
-        projectionProblems: [{ mechanism: "audit", state: "out-of-date" }],
+        projectionProblems: [{ scope: "projection", mechanism: "audit", state: "out-of-date" }],
       },
     });
   });
+
+  it("lists each package slice problem under the mechanism, naming the slice, beside a current root projection", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [],
+                projection: "current",
+                slices: [
+                  { slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" },
+                  { slice: "packages/b/disciplines.eslint.mjs", state: "missing" },
+                ],
+              },
+            }),
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        projectionProblems: [
+          { scope: "slice", mechanism: "audit", state: "out-of-date", slice: "packages/a/disciplines.eslint.mjs" },
+          { scope: "slice", mechanism: "audit", state: "missing", slice: "packages/b/disciplines.eslint.mjs" },
+        ],
+      },
+    });
+  });
+
+  it("names a package slice no package config applies beside the mechanism it left unmeasured", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [],
+                projection: "not-included",
+                slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" }],
+              },
+            }),
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: [] }],
+        projectionProblems: [{ scope: "slice", mechanism: "audit", state: "not-applied", slice: "packages/a/disciplines.eslint.mjs" }],
+      },
+    });
+  });
+  it("explains a not-included projection by each folder holding its own disciplines.json the runner names, leaving the assessment whole", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [],
+                projection: "not-included",
+                slices: [{ slice: "packages/b/disciplines.eslint.mjs", state: "nested-configuration" }],
+              },
+            }),
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included", nestedConfigurations: ["packages/b"] }],
+      },
+    });
+  });
+
 
   it("lists a native exception of a kind its projection does not write as unrecorded", async () => {
     await expect(
@@ -1574,6 +1706,57 @@ describe("runCheck clauses not adopted", () => {
         notAdopted: [CLASS_SYNTAX_OBJECT],
       },
     });
+  });
+});
+
+const SELECTION_DECLARING_ROOTS = (roots: readonly string[]): string =>
+  JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: roots });
+
+const CURRENT_REPORT = { hits: [], nativeExceptions: [], projection: "current" };
+
+const declaringCheck = (request: { readonly roots: readonly string[]; readonly runner: unknown }) =>
+  checkRequest({
+    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_DECLARING_ROOTS(request.roots) }) }),
+    modules: modulesLoading({ runner: request.runner }),
+  });
+
+describe("runCheck with ESLint config roots declared in disciplines.json", () => {
+  it("hands an embedded runner each declared folder git tracks, spelled as git spells it", async () => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    await runCheck(declaringCheck({ roots: ["src"], runner }));
+    expect(runner.run.mock.calls).toEqual([[expect.objectContaining({ declaredConfigRoots: ["src"] })]]);
+  });
+
+  it.each([
+    { name: "a folder git does not track", root: "packages/missing" },
+    { name: "a tracked file rather than a folder", root: "src/a.ts" },
+    { name: "a tracked folder spelled in another case", root: "SRC" },
+  ])("is the load failure config-root-untracked for $name, running nothing", async ({ root }) => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    await expect(runCheck(declaringCheck({ roots: [root], runner }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "config-root-untracked", root },
+    });
+    expect(runner.run).not.toHaveBeenCalled();
+  });
+
+  it("is the load failure config-root-untracked for a tracked folder the selection excludes", async () => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    const selection = JSON.stringify({
+      version: 1,
+      ruleSets: {},
+      clauses: { "CD-14#class-syntax": "audit" },
+      exclude: ["src"],
+      eslintConfigRoots: ["src"],
+    });
+    await expect(
+      runCheck(
+        checkRequest({
+          fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: selection }) }),
+          modules: modulesLoading({ runner }),
+        }),
+      ),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "config-root-untracked", root: "src" } });
   });
 });
 

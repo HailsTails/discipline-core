@@ -76,6 +76,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
+  '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
   '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",

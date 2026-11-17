@@ -54,11 +54,21 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
     .readonly(),
 ]);
 
+export const sliceProblemSchema = z
+  .object({
+    slice: repoPathSchema,
+    state: z.enum(["out-of-date", "missing", "not-applied", "unconfigured", "nested-configuration"]),
+  })
+  .readonly();
+
+export type SliceProblem = z.infer<typeof sliceProblemSchema>;
+
 export const embeddedRunReportSchema = z
   .object({
     hits: z.array(hitSchema).readonly(),
     nativeExceptions: z.array(nativeExceptionSchema).readonly(),
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
+    slices: z.array(sliceProblemSchema).readonly().default([]),
   })
   .readonly();
 

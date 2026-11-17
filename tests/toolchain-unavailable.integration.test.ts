@@ -2,6 +2,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 import { runCheck } from "../core/check/run-check.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import type { PackageLocationPort } from "../core/platform-ports/package-location-port.ts";
@@ -60,7 +61,7 @@ const eslintRunnerLocatingBy = (request: { readonly pieces: ModuleLoaderPort; re
     toolchain: loadEslintToolchain({ peers: { ...eslintPeersOn({ line: "eslint-10" }), location: request.location } }),
     projectedKinds: ESLINT_PROJECTED_KINDS,
     runnerOf: (toolchain) =>
-      createEslintRunner({ fileText, modules: request.pieces, path, eslint: createEslintPort({ toolchain }), moduleExtension: ".ts" }),
+      createEslintRunner({ fileText, fileRemoval: createDefaultFileRemovalPort({}), modules: request.pieces, path, eslint: createEslintPort({ toolchain }), moduleExtension: ".ts" }),
   });
 
 const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPort }) =>

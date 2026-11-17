@@ -236,8 +236,45 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
   },
 ];
 
+const WORKSPACE_SLICE = `import piece0 from "@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js";
+
+export default [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "src/legacy.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const WORKSPACE_ACTIONS: readonly ProofAction[] = [
+  {
+    kind: "project",
+    expectation: { exitCode: 0, output: "disciplines.eslint.mjs written\npackages/web/disciplines.eslint.mjs written\n" },
+  },
+  { kind: "read", path: "packages/web/disciplines.eslint.mjs", text: WORKSPACE_SLICE },
+  { kind: "commit", message: "project" },
+  {
+    kind: "check",
+    expectation: {
+      exitCode: 1,
+      output:
+        "findings (1)\nCD-14#class-syntax eslint packages/web/src/kept.ts:1:7 export class Kept {}\nexempted (1)\nCD-14#class-syntax eslint packages/web/src/legacy.ts:1:7 export class Legacy {} exempted by file-carve-out\nuncovered (1)\nCD-14#static-only-class\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n",
+    },
+  },
+  { kind: "lint", directory: "packages/web", expectation: { exitCode: 1, output: "src/kept.ts:1:8 hone/no-class-authoring\n" } },
+];
+
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, and a team consumer type-checking the public entries on the TypeScript floor and running its own rule set on the current version, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
       { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
       { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
@@ -245,6 +282,7 @@ describe("the proof cases", () => {
       { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
       { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: [WRONG_FIELDS_REJECTED] },
       { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
+      { consumer: "workspace", fixture: "workspace", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

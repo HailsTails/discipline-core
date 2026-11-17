@@ -9,6 +9,16 @@ export type GitFailure = {
   readonly detail: string;
 };
 
+export type BaseAbsent = { readonly kind: "base-absent" };
+
+export type CloneDepth = "shallow" | "complete";
+
+export type NoMergeBase = { readonly kind: "no-merge-base"; readonly clone: CloneDepth };
+
+export type BaseReadFailure = GitFailure | BaseAbsent;
+
+export type ChangeSetFailure = BaseReadFailure | NoMergeBase;
+
 export type BaseContentMembership = "present-in-base" | "absent-from-base";
 
 export type BaseFileText =
@@ -28,9 +38,9 @@ export type GitPort = {
   readonly changedSince: (request: {
     readonly repoRoot: AbsolutePath;
     readonly baseRevision: string;
-  }) => Result<readonly RepoPath[], GitFailure>;
+  }) => Result<readonly RepoPath[], ChangeSetFailure>;
   readonly contentInBase: (request: GitContentQuery) => Result<BaseContentMembership, GitFailure>;
-  readonly textInBase: (request: GitContentQuery) => Result<BaseFileText, GitFailure>;
+  readonly textInBase: (request: GitContentQuery) => Result<BaseFileText, BaseReadFailure>;
 };
 
 export type GitHistoryPort = {
@@ -172,15 +182,91 @@ type GitContext = {
   readonly repoRoot: AbsolutePath;
 };
 
-const changedPaths = (
-  request: GitContext & { readonly baseRevision: string },
-): Result<readonly RepoPath[], GitFailure> => {
+type BaseQuery = GitContext & { readonly baseRevision: string };
+
+type Answer<Value> = { readonly answered: "yes"; readonly value: Value } | { readonly answered: "no" };
+
+const exitStatusOf = (request: GitContext & { readonly gitArguments: readonly string[] }): GitRun =>
+  request.spawn({
+    file: "git",
+    arguments: ["-C", request.repoRoot, ...request.gitArguments],
+    maxBuffer: LARGEST_GIT_OUTPUT_BYTES,
+    environment: request.environment,
+  });
+
+const answerByStatus = <Value>(request: {
+  readonly run: GitRun;
+  readonly answers: ReadonlyMap<number, Value>;
+}): Answer<Value> => {
+  const known = request.run.outcome === "exited" ? request.answers.get(request.run.status) : undefined;
+  return known === undefined ? { answered: "no" } : { answered: "yes", value: known };
+};
+
+const BASE_PRESENCE_BY_STATUS: ReadonlyMap<number, "present" | "absent"> = new Map([
+  [0, "present"],
+  [1, "absent"],
+]);
+
+const MERGE_BASE_BY_STATUS: ReadonlyMap<number, "found" | "none"> = new Map([
+  [0, "found"],
+  [1, "none"],
+]);
+
+const CLONE_DEPTH_BY_ANSWER: ReadonlyMap<string, CloneDepth> = new Map([
+  ["true", "shallow"],
+  ["false", "complete"],
+]);
+
+const basePresenceOf = (request: BaseQuery): Answer<"present" | "absent"> =>
+  answerByStatus({
+    run: exitStatusOf({
+      ...request,
+      gitArguments: ["rev-parse", "--verify", "--quiet", "--end-of-options", `${request.baseRevision}^{commit}`],
+    }),
+    answers: BASE_PRESENCE_BY_STATUS,
+  });
+
+const mergeBaseOf = (request: BaseQuery): Answer<"found" | "none"> =>
+  answerByStatus({
+    run: exitStatusOf({ ...request, gitArguments: ["merge-base", "--end-of-options", request.baseRevision, "HEAD"] }),
+    answers: MERGE_BASE_BY_STATUS,
+  });
+
+const cloneDepthOf = (request: GitContext): Answer<CloneDepth> => {
+  const output = gitOutput({ ...request, gitArguments: ["rev-parse", "--is-shallow-repository"] });
+  const depth = output.outcome === "ok" ? CLONE_DEPTH_BY_ANSWER.get(output.value.stdout.trim()) : undefined;
+  return depth === undefined ? { answered: "no" } : { answered: "yes", value: depth };
+};
+
+const baseReadFailureOf = (request: BaseQuery & { readonly failure: GitFailure }): BaseReadFailure => {
+  const presence = basePresenceOf(request);
+  return presence.answered === "yes" && presence.value === "absent" ? { kind: "base-absent" } : request.failure;
+};
+
+const unrelatedHistoryFailureOf = (request: BaseQuery & { readonly failure: GitFailure }): ChangeSetFailure => {
+  const mergeBase = mergeBaseOf(request);
+  if (mergeBase.answered === "no" || mergeBase.value === "found") {
+    return request.failure;
+  }
+  const clone = cloneDepthOf(request);
+  return clone.answered === "yes" ? { kind: "no-merge-base", clone: clone.value } : request.failure;
+};
+
+const changeSetFailureOf = (request: BaseQuery & { readonly failure: GitFailure }): ChangeSetFailure => {
+  const presence = basePresenceOf(request);
+  if (presence.answered === "no") {
+    return request.failure;
+  }
+  return presence.value === "absent" ? { kind: "base-absent" } : unrelatedHistoryFailureOf(request);
+};
+
+const changedPaths = (request: BaseQuery): Result<readonly RepoPath[], ChangeSetFailure> => {
   const committed = gitPaths({
     ...request,
     gitArguments: ["diff", "--name-only", "-z", "--end-of-options", `${request.baseRevision}...HEAD`],
   });
   if (committed.outcome === "failed") {
-    return committed;
+    return { outcome: "failed", error: changeSetFailureOf({ ...request, failure: committed.error }) };
   }
   const uncommitted = gitPaths({ ...request, gitArguments: ["diff", "--name-only", "-z", "HEAD"] });
   if (uncommitted.outcome === "failed") {
@@ -244,20 +330,20 @@ const contentMembership = (
   return { outcome: "ok", value: treeHashes.includes(candidateHash) ? "present-in-base" : "absent-from-base" };
 };
 
-const fileTextInBase = (request: GitContext & GitContentQuery): Result<BaseFileText, GitFailure> => {
+const fileTextInBase = (request: GitContext & GitContentQuery): Result<BaseFileText, BaseReadFailure> => {
   const listed = gitPaths({
     ...request,
     gitArguments: ["ls-tree", "-z", "--name-only", "--end-of-options", request.baseRevision, request.file],
   });
   if (listed.outcome === "failed") {
-    return listed;
+    return { outcome: "failed", error: baseReadFailureOf({ ...request, failure: listed.error }) };
   }
   if (!listed.value.includes(request.file)) {
     return { outcome: "ok", value: { presence: "absent-from-base" } };
   }
   const blob = gitOutput({ ...request, gitArguments: ["cat-file", "blob", "--end-of-options", `${request.baseRevision}:${request.file}`] });
   if (blob.outcome === "failed") {
-    return blob;
+    return { outcome: "failed", error: baseReadFailureOf({ ...request, failure: blob.error }) };
   }
   return { outcome: "ok", value: { presence: "present-in-base", text: blob.value.stdout } };
 };

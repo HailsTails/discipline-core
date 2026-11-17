@@ -248,6 +248,7 @@ describe("createSelectionRepository", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         clauseRoots: [
           { clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" },
           { clause: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, ruleSetRoot: "/repo/team-rules" },
@@ -316,6 +317,31 @@ describe("createSelectionRepository", () => {
     expect(
       selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, fileExceptionWhyChains: "off" }),
     ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: SELECTION_PATH } });
+  });
+
+  it("accepts package folders disciplines.json declares as ESLint config roots", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/a", "apps/web"] }),
+    ).toMatchObject({ outcome: "ok", value: { eslintConfigRoots: ["packages/a", "apps/web"] } });
+  });
+
+  it("is file-malformed when an ESLint config root is not a repository path", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["../outside"] }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: SELECTION_PATH } });
+  });
+
+  it("is file-malformed, naming the folder rule, when an ESLint config root is a glob", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/*"] }),
+    ).toMatchObject({
+      outcome: "failed",
+      error: {
+        kind: "file-malformed",
+        path: SELECTION_PATH,
+        detail: expect.stringContaining("an eslintConfigRoots entry is a repository folder, not a glob"),
+      },
+    });
   });
 
   it("is file-malformed when disciplines.json excludes a path that is not a repository path", () => {
@@ -587,6 +613,7 @@ describe("readSelection", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         clauseRoots: [
           { clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" },
           { clause: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }, ruleSetRoot: "/install" },
@@ -627,6 +654,7 @@ describe("readSelection", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         clauseRoots: [{ clause: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, ruleSetRoot: "/repo/team-rules" }],
         excluded: [],
         fileExceptionWhyChains: "required",
@@ -649,6 +677,7 @@ describe("readSelection", () => {
           notRun: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
+        eslintConfigRoots: [],
         clauseRoots: [{ clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" }],
         excluded: [],
         fileExceptionWhyChains: "required",
@@ -1416,6 +1445,7 @@ describe("readSelection with clauses not adopted", () => {
       value: {
         selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX], notRun: [] },
         bindings: [],
+        eslintConfigRoots: [],
         clauseRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
@@ -1524,6 +1554,7 @@ describe("readSelection with clauses adopted but not run", () => {
       value: {
         selection: { selected: [], uncovered: [], notAdopted: [HONE_ABSTRACT_SYNTAX], notRun: [HONE_CLASS_SYNTAX] },
         bindings: [],
+        eslintConfigRoots: [],
         clauseRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",

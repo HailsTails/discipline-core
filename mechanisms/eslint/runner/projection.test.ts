@@ -16,6 +16,7 @@ import {
   currentProjection,
   type ProjectedPiece,
   pluginImportOf,
+  PROJECTION_PATH,
   projectionState,
   projectionText,
   writeProjection,
@@ -355,7 +356,7 @@ export default [
 });
 
 describe("pluginImportOf", () => {
-  it("joins the piece root and plugin module and makes the result relative to the repo root", () => {
+  it("joins the piece root and plugin module and makes the result relative to the importing directory", () => {
     const join = vi.fn().mockReturnValue("/repo/node_modules/dc/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts");
     const relative = vi.fn().mockReturnValue({
       relation: "within-root",
@@ -373,7 +374,7 @@ describe("pluginImportOf", () => {
 
     pluginImportOf({
       path,
-      repoRoot,
+      importingDirectory: repoRoot,
       install: SOURCE_INSTALL,
       pieceRoot: "/repo/node_modules/dc/mechanisms/eslint/CD-14",
       pluginModule: "cd14/cd14.eslint-plugin.ts",
@@ -405,7 +406,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path,
-        repoRoot,
+        importingDirectory: repoRoot,
         install: SOURCE_INSTALL,
         pieceRoot: "/repo/node_modules/dc/mechanisms/eslint/CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.ts",
@@ -430,7 +431,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path,
-        repoRoot,
+        importingDirectory: repoRoot,
         install: SOURCE_INSTALL,
         pieceRoot: "/team-rules/mechanisms/eslint/PD-1",
         pluginModule: "plugin.ts",
@@ -442,7 +443,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: windowsPath,
-        repoRoot: windowsRepoRoot,
+        importingDirectory: windowsRepoRoot,
         install: SOURCE_INSTALL,
         pieceRoot: "C:\\repo\\tools\\discipline\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.ts",
@@ -457,7 +458,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: windowsPath,
-        repoRoot: windowsRepoRoot,
+        importingDirectory: windowsRepoRoot,
         install: SOURCE_INSTALL,
         pieceRoot: "D:\\dc\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.ts",
@@ -469,7 +470,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: posixPath,
-        repoRoot,
+        importingDirectory: repoRoot,
         install: PACKAGED_INSTALL,
         pieceRoot: "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
@@ -481,7 +482,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: posixPath,
-        repoRoot,
+        importingDirectory: repoRoot,
         install: { form: "package", root: "/repo/node_modules/.pnpm/node_modules/@team/hone", name: "@team/hone" },
         pieceRoot: "/repo/node_modules/.pnpm/node_modules/@team/hone/mechanisms/eslint/CD-1",
         pluginModule: "cd1/cd1.eslint-plugin.js",
@@ -493,7 +494,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: windowsPath,
-        repoRoot: windowsRepoRoot,
+        importingDirectory: windowsRepoRoot,
         install: { form: "package", root: "C:\\repo\\node_modules\\team-hone", name: "team-hone" },
         pieceRoot: "C:\\repo\\node_modules\\team-hone\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
@@ -505,7 +506,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: windowsPath,
-        repoRoot: windowsRepoRoot,
+        importingDirectory: windowsRepoRoot,
         install: { form: "package", root: "C:\\repo\\node_modules\\@hailstails\\hone", name: "@hailstails/hone" },
         pieceRoot: "C:\\repo\\node_modules\\@hailstails\\hone\\mechanisms\\eslint\\CD-14",
         pluginModule: "cd14/cd14.eslint-plugin.js",
@@ -517,7 +518,7 @@ describe("pluginImportOf", () => {
     expect(
       pluginImportOf({
         path: posixPath,
-        repoRoot,
+        importingDirectory: repoRoot,
         install: PACKAGED_INSTALL,
         pieceRoot: "/repo/tools/team-rules/mechanisms/eslint/PD-1",
         pluginModule: "plugin.ts",
@@ -570,7 +571,7 @@ describe("currentProjection", () => {
       write: vi.fn(),
     };
 
-    expect(currentProjection({ fileText, path: posixPath, repoRoot })).toEqual({
+    expect(currentProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH })).toEqual({
       outcome: "ok",
       value: { presence: "present", text: "export default [\n];\n" },
     });
@@ -587,7 +588,7 @@ describe("writeProjection", () => {
     };
 
     expect({
-      result: writeProjection({ fileText, path: posixPath, repoRoot, text: "export default [\n];\n" }),
+      result: writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: "export default [\n];\n" }),
       writes: write.mock.calls,
     }).toEqual({
       result: { outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "unchanged" } },
@@ -603,7 +604,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "written" },
     });
@@ -621,7 +622,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "written" },
     });
@@ -639,7 +640,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "unchanged" },
     });
@@ -656,7 +657,7 @@ describe("writeProjection", () => {
       write: vi.fn(),
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
       outcome: "failed",
       error: { kind: "file-unreadable", file: "disciplines.eslint.mjs", detail: "EACCES" },
     });
@@ -672,7 +673,7 @@ describe("writeProjection", () => {
       }),
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
       outcome: "failed",
       error: { kind: "tool-failed", detail: "EROFS" },
     });
@@ -685,7 +686,7 @@ describe("projection file location on Windows", () => {
     const read = vi.fn().mockReturnValue({ outcome: "ok", value: enablingOnlyProjection });
     const fileText: FileTextPort = { read, exists, write: vi.fn() };
 
-    currentProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot });
+    currentProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: PROJECTION_PATH });
 
     expect({ exists: exists.mock.calls, read: read.mock.calls }).toEqual({
       exists: [[{ path: "C:\\repo\\disciplines.eslint.mjs" }]],
@@ -697,7 +698,7 @@ describe("projection file location on Windows", () => {
     const write = vi.fn().mockReturnValue({ outcome: "ok", value: undefined });
     const fileText: FileTextPort = { read: vi.fn(), exists: vi.fn().mockReturnValue("absent"), write };
 
-    writeProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, text: enablingOnlyProjection });
+    writeProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection });
 
     expect(write.mock.calls).toEqual([[{ path: "C:\\repo\\disciplines.eslint.mjs", text: enablingOnlyProjection }]]);
   });

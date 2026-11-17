@@ -9,23 +9,24 @@ import type {
   Finding,
 } from "../governance/governance.ts";
 import type { FilePresence } from "../platform-ports/file-text-port.ts";
+import type { BaseRevisionAvailability, ChangeSetBase } from "../values/base-revision-availability.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 
-export type BaseRevisionAvailability =
-  | { readonly state: "not-given" }
-  | { readonly state: "unreachable"; readonly revision: string };
-
 export type Unmeasured =
+  | { readonly kind: "forfeiture-unmeasured"; readonly base: ChangeSetBase }
+  | { readonly kind: "import-unmeasured" | "legacy-chain-unmeasured"; readonly base: BaseRevisionAvailability }
   | {
-      readonly kind: "forfeiture-unmeasured" | "import-unmeasured" | "legacy-chain-unmeasured";
-      readonly base: BaseRevisionAvailability;
+      readonly kind: "mechanism-not-run";
+      readonly mechanism: MechanismId;
+      readonly projection: "missing";
     }
   | {
       readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;
-      readonly projection: "missing" | "not-included";
+      readonly projection: "not-included";
+      readonly nestedConfigurations: readonly RepoPath[];
     };
 
 export type PartialAssessment = {
@@ -34,10 +35,14 @@ export type PartialAssessment = {
   readonly fileCarveOuts: number;
 };
 
-export type ProjectionProblem = {
-  readonly mechanism: MechanismId;
-  readonly state: "out-of-date";
-};
+export type ProjectionProblem =
+  | { readonly scope: "projection"; readonly mechanism: MechanismId; readonly state: "out-of-date" }
+  | {
+      readonly scope: "slice";
+      readonly mechanism: MechanismId;
+      readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured";
+      readonly slice: RepoPath;
+    };
 
 export type AssessmentSection = "present" | "not-assessed" | "unread";
 

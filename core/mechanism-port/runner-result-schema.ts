@@ -74,7 +74,7 @@ export type CaseVerdict = z.infer<typeof caseVerdictSchema>;
 export const projectionWriteSchema = z
   .object({
     path: repoPathSchema,
-    effect: z.enum(["written", "unchanged"]),
+    effect: z.enum(["written", "unchanged", "removed", "left-in-place"]),
   })
   .readonly();
 

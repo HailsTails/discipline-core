@@ -6,7 +6,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
-import type { CheckReport, ClauseReading, PartialAssessment, Unmeasured } from "./check-report.ts";
+import type { CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
 import { renderReportText } from "./report-text.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
@@ -16,6 +16,8 @@ const packageJson = repoPathSchema.parse("package.json");
 const suppressions = repoPathSchema.parse("eslint-suppressions.json");
 const audit = mechanismIdSchema.parse("audit");
 const eslint = mechanismIdSchema.parse("eslint");
+const SLICE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
+const PROJECT_COMMAND = "node node_modules/@hailstails/hone/core/check/tool-command.js project --repo .";
 
 const finding: Finding = {
   clause: noClass,
@@ -72,13 +74,14 @@ const emptyReport: CheckReport = {
 describe("renderReportText entry lines", () => {
   it("renders a finding as clause, mechanism, file:line:column and snippet", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, findings: [finding] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, findings: [finding] } }),
     ).toContain("\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\n");
   });
 
   it("renders the excluded paths first, one per line, before any finding", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated"), repoPathSchema.parse("src/legacy.ts")], findings: [finding] },
       }),
@@ -90,6 +93,7 @@ describe("renderReportText entry lines", () => {
   it("renders an exempted finding followed by the kind of each crediting record", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [carved, carvedEverywhere] }] },
       }),
@@ -100,31 +104,32 @@ describe("renderReportText entry lines", () => {
 
   it("renders an uncovered clause as its address text", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, uncovered: [probeNoTmp] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, uncovered: [probeNoTmp] } }),
     ).toContain("\nprobe/PD-1#no-tmp-files\n");
   });
 
   it("renders a stale authorised location as clause, mechanism, kind and file", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, stale: [located] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, stale: [located] } }),
     ).toContain("\nCD-14#no-class-syntax audit authorised-location src/a.ts\n");
   });
 
   it("renders a stale clause-wide carve-out with * for its file", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, stale: [carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, stale: [carvedEverywhere] } }),
     ).toContain("\nCD-14#no-class-syntax audit clause-wide-carve-out *\n");
   });
 
   it("renders a forfeited file carve-out as clause, mechanism, kind and file", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, forfeited: [carved] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, forfeited: [carved] } }),
     ).toContain("\nCD-14#no-class-syntax audit file-carve-out src/a.ts\n");
   });
 
   it("renders a doubly-held entry as clause, mechanism, doubly-held and file", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -137,6 +142,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded ignore as clause, mechanism, kind and file", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -149,6 +155,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded config override as clause, mechanism, kind and file", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -163,6 +170,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded suppression entry with its location", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -183,6 +191,7 @@ describe("renderReportText entry lines", () => {
   it("renders a finding whose snippet holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -197,6 +206,7 @@ CD-14#no-class-syntax audit src/a.ts:3:5 class A {\n}\r\nclass B {}
   it("renders an unrecorded inline disable whose text holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -220,6 +230,7 @@ CD-14#no-class-syntax eslint inline-disable src/a.ts:7 /* eslint-disable\nno-cla
   it("renders a command-line option whose script and option hold line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -243,6 +254,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint\r\nfix --rule
   it("renders an invalid record whose detail holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -262,6 +274,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded inline disable with its line and text", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -283,6 +296,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded inline rule config with its line and text", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -304,6 +318,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded command-line option as its location, script and option", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -325,6 +340,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an invalid record that carries a detail as its index, problem kind and detail", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -342,6 +358,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders a refused why chain as its index, problem kind and detail", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -359,6 +376,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders a clause-not-selected invalid record with the clause's address text", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -373,6 +391,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders a file-not-repo-path invalid record with the refused file", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -387,6 +406,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders a duplicate invalid record with the index it duplicates", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -399,65 +419,130 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it.each<readonly [Unmeasured, string]>([
     [
       { kind: "forfeiture-unmeasured", base: { state: "not-given" } },
-      "forfeiture-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so file carve-outs can be checked for decay",
+      "forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main",
     ],
     [
-      { kind: "forfeiture-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
-      "forfeiture-unmeasured base-unreachable origin/main: git could not list the files changed since origin/main; fetch it with the history back to where HEAD branched from it (with actions/checkout, set fetch-depth: 0), or pass a revision that exists",
+      { kind: "forfeiture-unmeasured", base: { state: "not-found", revision: "origin/main" } },
+      "forfeiture-unmeasured base-not-found \"origin/main\": this clone holds no commit by that name; fetch it, or pass --base-revision with a revision this clone holds",
+    ],
+    [
+      { kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "origin/main", clone: "shallow" } },
+      "forfeiture-unmeasured no-merge-base \"origin/main\": this shallow clone holds no commit that revision and HEAD share; deepen it with git fetch --deepen=<commits> until they share one, or fetch the whole history with git fetch --unshallow (with actions/checkout, set fetch-depth: 0)",
+    ],
+    [
+      { kind: "forfeiture-unmeasured", base: { state: "no-merge-base", revision: "origin/main", clone: "complete" } },
+      "forfeiture-unmeasured no-merge-base \"origin/main\": HEAD shares no history with that revision; pass --base-revision with the revision this branch started from",
+    ],
+    [
+      { kind: "forfeiture-unmeasured", base: { state: "git-failed", revision: "HEAD@{1 week ago}", gitMessage: "fatal: bad \"range\"" } },
+      "forfeiture-unmeasured base-git-failed \"HEAD@{1 week ago}\": git could not list the files changed since that revision and said \"fatal: bad \\\"range\\\"\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
     ],
     [
       { kind: "import-unmeasured", base: { state: "not-given" } },
-      "import-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so imported records can be checked against it",
+      "import-unmeasured no-base-revision: no --base-revision was given, so imported records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main",
     ],
     [
-      { kind: "import-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
-      "import-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists",
+      { kind: "import-unmeasured", base: { state: "not-found", revision: ":/fix: the base" } },
+      "import-unmeasured base-not-found \":/fix: the base\": this clone holds no commit by that name; fetch that one commit (a fetch of depth 1 is enough), or pass --base-revision with a revision this clone holds",
+    ],
+    [
+      { kind: "import-unmeasured", base: { state: "git-failed", revision: "HEAD", gitMessage: "fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'" } },
+      "import-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
     ],
     [
       { kind: "legacy-chain-unmeasured", base: { state: "not-given" } },
-      "legacy-chain-unmeasured no-base-revision: pass --base-revision with the branch's base, such as origin/main, so legacy-chain records can be checked against it",
+      "legacy-chain-unmeasured no-base-revision: no --base-revision was given, so legacy-chain records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main",
     ],
     [
-      { kind: "legacy-chain-unmeasured", base: { state: "unreachable", revision: "origin/main" } },
-      "legacy-chain-unmeasured base-unreachable origin/main: git could not read origin/main; fetch that commit (a fetch of depth 1 is enough), or pass a revision that exists",
+      { kind: "legacy-chain-unmeasured", base: { state: "not-found", revision: "origin/main" } },
+      "legacy-chain-unmeasured base-not-found \"origin/main\": this clone holds no commit by that name; fetch that one commit (a fetch of depth 1 is enough), or pass --base-revision with a revision this clone holds",
+    ],
+    [
+      { kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "HEAD", gitMessage: "fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'" } },
+      "legacy-chain-unmeasured base-git-failed \"HEAD\": git could not read the exception records at that revision and said \"fatal: path 'pkg/discipline-exceptions.json' does not exist in 'HEAD'\"; fix what git reports (Hone needs git 2.24 or later), then run the check again",
     ],
     [
       { kind: "mechanism-not-run", mechanism: eslint, projection: "missing" },
-      "mechanism-not-run eslint missing: run hone project --repo . at the repository root and commit the files it writes",
+      "mechanism-not-run eslint missing: disciplines.eslint.mjs is not written; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
     ],
     [
-      { kind: "mechanism-not-run", mechanism: eslint, projection: "not-included" },
-      "mechanism-not-run eslint not-included: the eslint configuration does not apply the projection; load the file hone project writes last in that configuration, so no other block overrides it",
+      { kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] },
+      "mechanism-not-run eslint not-included: the eslint configuration does not apply disciplines.eslint.mjs; spread its default export last in that configuration, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
     ],
   ])("renders the unmeasured entry %o as the line with its reason and next step", (unmeasured, line) => {
-    expect(renderReportText({ output: "full", report: { ...emptyReport, unmeasured: [unmeasured] } })).toContain(
-      `\n${line}\n`,
-    );
+    expect(
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, unmeasured: [unmeasured] } }),
+    ).toContain(`\n${line}\n`);
   });
 
-  it("renders a projection problem as its mechanism, out-of-date and the command that refreshes it", () => {
+  it.each<readonly [ProjectionProblem, string]>([
+    [
+      { scope: "projection", mechanism: eslint, state: "out-of-date" },
+      "eslint out-of-date: disciplines.eslint.mjs differs from what hone project writes now; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "out-of-date", slice: SLICE },
+      "eslint out-of-date packages/a/disciplines.eslint.mjs: that slice differs from what hone project writes now; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "missing", slice: SLICE },
+      "eslint missing packages/a/disciplines.eslint.mjs: that slice is not written; run node node_modules/@hailstails/hone/core/check/tool-command.js project --repo . and commit every disciplines.eslint.mjs it writes",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "not-applied", slice: SLICE },
+      "eslint not-applied packages/a/disciplines.eslint.mjs: the eslint configuration for packages/a leaves records of that slice out of effect; spread the default export of packages/a/disciplines.eslint.mjs last in that package's configuration, in place of the root disciplines.eslint.mjs, or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "unconfigured", slice: SLICE },
+      "eslint unconfigured packages/a/disciplines.eslint.mjs: packages/a has no eslint configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check",
+    ],
+  ])("renders the projection problem %o as the line with its reason and next step", (problem, line) => {
+    expect(
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, projectionProblems: [problem] } }),
+    ).toContain(`\n${line}\n`);
+  });
+
+  it("names the folders holding their own disciplines.json on a not-included line in the failures-only output, without marking the verdict partial", () => {
     expect(
       renderReportText({
-        output: "full",
+        projectCommand: PROJECT_COMMAND,
+        output: "failures-only",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          unmeasured: [
+            {
+              kind: "mechanism-not-run",
+              mechanism: eslint,
+              projection: "not-included",
+              nestedConfigurations: repoPathSchema.array().parse(["fixtures/a", "fixtures/b"]),
+            },
+          ],
         },
       }),
-    ).toContain("\neslint out-of-date: run hone project --repo . at the repository root and commit the files it writes\n");
+    ).toBe(`unmeasured (1)\n${"mechanism-not-run eslint not-included fixtures/a, fixtures/b: the eslint configuration of those folders is not managed from this repository, as each holds its own disciplines.json, and it leaves records there out of effect; exclude those folders in this repository's disciplines.json and record their exceptions in each folder's own discipline-exceptions.json, as nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72)"}\nverdict: fail\n`);
+  });
+
+  it("names the command it was given to refresh a projection", () => {
+    expect(
+      renderReportText({
+        projectCommand: "node core/check/tool-command.ts project --repo \"my repo\"",
+        output: "full",
+        report: { ...emptyReport, projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }] },
+      }),
+    ).toContain("; run node core/check/tool-command.ts project --repo \"my repo\" and commit every disciplines.eslint.mjs it writes\n");
   });
 });
 
 describe("renderReportText sections", () => {
   it("heads a section with its field name and its count", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
     ).toMatch(/^stale \(2\)$/m);
   });
 
   it("renders a section's entries in the list's order beneath its header", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
     ).toContain(
       "stale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\n",
     );
@@ -466,10 +551,11 @@ describe("renderReportText sections", () => {
   it("orders sections as the report's fields are ordered", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }],
           stale: [located],
           findings: [finding],
         },
@@ -479,13 +565,13 @@ describe("renderReportText sections", () => {
 
   it("leaves out the section of an empty list", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, findings: [finding] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, findings: [finding] } }),
     ).not.toMatch(/^stale \(/m);
   });
 
   it("renders a report with one finding and one stale record exactly, ending with verdict: fail", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, findings: [finding], stale: [located] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, findings: [finding], stale: [located] } }),
     ).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nstale (1)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nverdict: fail\n",
     );
@@ -494,6 +580,7 @@ describe("renderReportText sections", () => {
   it("renders a report whose only entries are exempted exactly, ending with verdict: pass", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [located] }] },
       }),
@@ -507,6 +594,7 @@ describe("renderReportText sections", () => {
 
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [reasoned] }] },
       }),
@@ -514,12 +602,13 @@ describe("renderReportText sections", () => {
   });
 
   it("renders an empty report as exactly the pass verdict line", () => {
-    expect(renderReportText({ output: "full", report: emptyReport })).toBe("verdict: pass\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: emptyReport })).toBe("verdict: pass\n");
   });
 
   it("renders a refused file holding a forged verdict line as one escaped line", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -545,30 +634,31 @@ const mixedReport: CheckReport = {
 
 describe("renderReportText outputs", () => {
   it("renders every section of a failing report for the full output", () => {
-    expect(renderReportText({ output: "full", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: mixedReport })).toBe(
       "excluded (1)\ngenerated\nfindings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nexempted (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {} exempted by file-carve-out\nstale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\nverdict: fail\n",
     );
   });
 
   it("renders the failing sections and the verdict without excluded or exempted for the failures-only output", () => {
-    expect(renderReportText({ output: "failures-only", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "failures-only", report: mixedReport })).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nstale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\nverdict: fail\n",
     );
   });
 
   it("renders one count line per non-empty section, marking the informational ones, and the verdict for the counts output", () => {
-    expect(renderReportText({ output: "counts", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "counts", report: mixedReport })).toBe(
       "excluded (1) informational\nfindings (1)\nexempted (1) informational\nstale (2)\nverdict: fail\n",
     );
   });
 
   it("renders only the verdict line for the verdict-only output", () => {
-    expect(renderReportText({ output: "verdict-only", report: mixedReport })).toBe("verdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "verdict-only", report: mixedReport })).toBe("verdict: fail\n");
   });
 
   it("renders only the pass verdict for the failures-only output of a report whose only entries are informational", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "failures-only",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated")], exempted: [{ finding, by: [carved] }] },
       }),
@@ -576,11 +666,11 @@ describe("renderReportText outputs", () => {
   });
 
   it.each(reportOutputSchema.options)("ends the %s output of a failing report with the fail verdict", (output) => {
-    expect(renderReportText({ output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
   });
 
   it.each(reportOutputSchema.options)("ends the %s output of a passing report with the pass verdict", (output) => {
-    expect(renderReportText({ output, report: { ...emptyReport, exempted: [{ finding, by: [carved] }] } })).toMatch(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output, report: { ...emptyReport, exempted: [{ finding, by: [carved] }] } })).toMatch(
       /(?:^|\n)verdict: pass\n$/,
     );
   });
@@ -595,6 +685,7 @@ describe("renderReportText assessment", () => {
   it("renders forfeiture elsewhere with its count of file carve-outs not checked for decay, last before the verdict", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [carved] }], assessment: [forfeitureElsewhere({ fileCarveOuts: 37 })] },
       }),
@@ -605,7 +696,7 @@ describe("renderReportText assessment", () => {
 
   it("names one file carve-out in the singular", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 1 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 1 })] } }),
     ).toBe(
       "assessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n",
     );
@@ -613,7 +704,7 @@ describe("renderReportText assessment", () => {
 
   it("still renders the section when no file carve-out exists, so the choice is never invisible", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 0 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 0 })] } }),
     ).toBe(
       "assessment (1)\nforfeiture elsewhere: 0 file carve-outs not checked for decay in this run\nverdict: pass (partial assessment)\n",
     );
@@ -621,7 +712,7 @@ describe("renderReportText assessment", () => {
 
   it("renders the assessment section and the marked fail verdict for a failing full report", () => {
     expect(
-      renderReportText({ output: "full", report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nassessment (1)\nforfeiture elsewhere: 2 file carve-outs not checked for decay in this run\nverdict: fail (partial assessment)\n",
     );
@@ -632,6 +723,7 @@ describe("renderReportText assessment outputs", () => {
   it("leaves the informational assessment section out of failures-only but keeps the marked verdict", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "failures-only",
         report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
       }),
@@ -641,6 +733,7 @@ describe("renderReportText assessment outputs", () => {
   it("counts the assessment section as informational and marks the verdict for the counts output", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "counts",
         report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
       }),
@@ -649,18 +742,18 @@ describe("renderReportText assessment outputs", () => {
 
   it("marks the verdict for the verdict-only output", () => {
     expect(
-      renderReportText({ output: "verdict-only", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "verdict-only", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toBe("verdict: pass (partial assessment)\n");
   });
 
   it.each(reportOutputSchema.options)("never prints a bare verdict for the %s output of a partial assessment", (output) => {
     expect(
-      renderReportText({ output, report: { ...mixedReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, output, report: { ...mixedReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toMatch(/(?:^|\n)verdict: fail \(partial assessment\)\n$/);
   });
 
   it.each(reportOutputSchema.options)("prints the bare verdict for the %s output of a full assessment", (output) => {
-    expect(renderReportText({ output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
   });
 });
 
@@ -670,6 +763,7 @@ describe("renderReportText clauses not adopted", () => {
   it("lists the not-adopted clauses after the excluded paths and before the findings", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated")], notAdopted: [namingConvention], findings: [finding] },
       }),
@@ -679,13 +773,13 @@ describe("renderReportText clauses not adopted", () => {
   });
 
   it("passes as a whole assessment when the report lists only not-adopted clauses", () => {
-    expect(renderReportText({ output: "full", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
       "notAdopted (1)\nCD-6#naming-convention\nverdict: pass\n",
     );
   });
 
   it("counts the not-adopted clauses as informational", () => {
-    expect(renderReportText({ output: "counts", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "counts", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
       "notAdopted (1) informational\nverdict: pass\n",
     );
   });
@@ -693,6 +787,7 @@ describe("renderReportText clauses not adopted", () => {
   it("renders a clause-not-adopted invalid record with the clause's address text", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, invalidRecords: [{ index: 2, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
       }),
@@ -704,6 +799,7 @@ describe("renderReportText clauses adopted but not run", () => {
   it("lists the not-run clauses after the not-adopted ones, each as adopted and owed to review", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, notAdopted: [namingConvention], notRun: [probeNoTmp], findings: [finding] },
       }),
@@ -713,7 +809,7 @@ describe("renderReportText clauses adopted but not run", () => {
   });
 
   it("passes as a whole assessment when the report lists only not-run clauses", () => {
-    expect(renderReportText({ output: "counts", report: { ...emptyReport, notRun: [probeNoTmp] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "counts", report: { ...emptyReport, notRun: [probeNoTmp] } })).toBe(
       "notRun (1) informational\nverdict: pass\n",
     );
   });
@@ -721,6 +817,7 @@ describe("renderReportText clauses adopted but not run", () => {
   it("renders a clause-not-run invalid record with the clause's address text", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: { ...emptyReport, invalidRecords: [{ index: 1, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
       }),
@@ -764,13 +861,13 @@ const unwrittenReport: CheckReport = {
 
 describe("renderReportText readFirst", () => {
   it("prints readFirst last, after the failures, so the report ends on where to read and then the verdict", () => {
-    expect(renderReportText({ output: "full", report: pointedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: pointedReport })).toBe(
       'findings (2)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nCD-15#loops audit src/a.ts:3:5 const total = 0;\nreadFirst (2)\nCD-14#no-class-syntax: read the "## CD-14#no-class-syntax" section of disciplines.assessment.md, then rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause\nverdict: fail\n',
     );
   });
 
   it("says once, first, that the assessment file is not written and where its guide is, then gives each clause its rule page", () => {
-    expect(renderReportText({ output: "full", report: unwrittenReport })).toContain(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "full", report: unwrittenReport })).toContain(
       "\nreadFirst (3)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#no-class-syntax: read rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit\nverdict: fail\n",
     );
   });
@@ -778,6 +875,7 @@ describe("renderReportText readFirst", () => {
   it("says once, first, that the assessment file could not be read", () => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -808,6 +906,7 @@ describe("renderReportText readFirst without a rule page", () => {
   ] as const)("says the rule set has no page when the section is $section", ({ section, line }) => {
     expect(
       renderReportText({
+        projectCommand: PROJECT_COMMAND,
         output: "full",
         report: {
           ...emptyReport,
@@ -821,14 +920,14 @@ describe("renderReportText readFirst without a rule page", () => {
 
 describe("renderReportText readFirst by output", () => {
   it("keeps readFirst in the failures-only output, after the findings", () => {
-    expect(renderReportText({ output: "failures-only", report: pointedReport })).toMatch(/^findings \(2\)\n(?:.*\n){2}readFirst \(2\)\n(?:.*\n){2}verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "failures-only", report: pointedReport })).toMatch(/^findings \(2\)\n(?:.*\n){2}readFirst \(2\)\n(?:.*\n){2}verdict: fail\n$/);
   });
 
   it("counts readFirst as guidance in the counts output, its note included", () => {
-    expect(renderReportText({ output: "counts", report: unwrittenReport })).toBe("findings (2)\nreadFirst (3) guidance\nverdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "counts", report: unwrittenReport })).toBe("findings (2)\nreadFirst (3) guidance\nverdict: fail\n");
   });
 
   it("prints only the verdict for the verdict-only output", () => {
-    expect(renderReportText({ output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
   });
 });

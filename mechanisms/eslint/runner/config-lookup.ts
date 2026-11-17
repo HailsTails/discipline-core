@@ -32,7 +32,7 @@ const NEAREST_LOOKUP_FLAGS: ReadonlySet<string> = new Set([
   "unstable_config_lookup_from_file",
 ]);
 
-const ROOT_CONFIG_NAMES: readonly string[] = [
+export const CONFIG_FILE_NAMES: readonly string[] = [
   "eslint.config.js",
   "eslint.config.mjs",
   "eslint.config.cjs",
@@ -91,7 +91,7 @@ const lintScriptsSelectNearest = (request: LookupRequest): "selects-nearest" | "
     : "selects-root";
 
 const rootConfigFile = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): string | undefined =>
-  ROOT_CONFIG_NAMES.map((name) => request.path.join({ segments: [request.repoRoot, name] })).find(
+  CONFIG_FILE_NAMES.map((name) => request.path.join({ segments: [request.repoRoot, name] })).find(
     (candidate) => request.fileText.exists({ path: candidate }) === "present",
   );
 
@@ -107,8 +107,11 @@ const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
     ? "nearest-to-file"
     : "repository-root";
 
+export const configLookupOf = (request: LookupRequest): EslintConfigLookup =>
+  declaredLookup(request) ?? detectedLookup(request);
+
 export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, RunnerFailure> => {
-  if ((declaredLookup(request) ?? detectedLookup(request)) === "nearest-to-file") {
+  if (configLookupOf(request) === "nearest-to-file") {
     return { outcome: "ok", value: NEAREST };
   }
   const configFile = rootConfigFile(request);

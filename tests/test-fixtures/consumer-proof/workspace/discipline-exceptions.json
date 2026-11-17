@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "packages/web/src/legacy.ts",
+      "reason": "existing debt in a legacy file, recorded at adoption",
+      "whyChain": {
+        "whys": [
+          {
+            "why": "Why does packages/web/src/legacy.ts still declare a class?",
+            "because": "It predates the disciplines and has not been edited since they were adopted.",
+            "evidence": "packages/web/src/legacy.ts:1"
+          },
+          {
+            "why": "Why has packages/web/src/legacy.ts not been edited since the disciplines were adopted?",
+            "because": "No change has needed it: nothing in the workspace imports it yet.",
+            "evidence": "git grep -n legacy packages: 0 importers"
+          },
+          {
+            "why": "Why does nothing in the workspace import it yet?",
+            "because": "It was kept for a report that is due back next quarter, and newer code was written as plain functions.",
+            "evidence": "docs/history.md:4"
+          },
+          {
+            "why": "Why was newer code written as plain functions while legacy.ts kept its class?",
+            "because": "The disciplines arrived with newer code, and paying down old files was queued, not done in the same change.",
+            "evidence": "record 261002, queue entry 3"
+          },
+          {
+            "why": "Why was paying down old files queued instead of done in the adoption change?",
+            "because": "The adoption's owner chose to carve out existing debt and pay it on touch, so adoption could land in one review.",
+            "evidence": "record 261002, decision 2"
+          }
+        ],
+        "rootCause": "The team decided at adoption to carve out existing debt and pay it when the file is next touched.",
+        "rootCheck": "record 261002 decision 2 still sets pay-on-touch for adoption debt, and packages/web/src/legacy.ts:1 is unchanged.",
+        "readback": "Adoption debt is paid on touch, therefore old files were queued, therefore legacy.ts was never edited, therefore legacy.ts still declares a class.",
+        "owner": "adoption owner"
+      }
+    }
+  ]
+}

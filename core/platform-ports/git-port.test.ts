@@ -31,6 +31,19 @@ const EXITED_NOT_A_REPOSITORY = {
 
 const ERRORED_ON_BUFFER = { outcome: "errored", detail: "spawnSync git ENOBUFS" } satisfies GitRun;
 
+const EXITED_ONE = { outcome: "exited", status: 1, stdout: "", stderr: "" } satisfies GitRun;
+
+const EXITED_BAD_RANGE = {
+  outcome: "exited",
+  status: 128,
+  stdout: "",
+  stderr: "fatal: origin/main...HEAD: no merge base",
+} satisfies GitRun;
+
+const EXITED_SHALLOW = { outcome: "exited", status: 0, stdout: "true\n", stderr: "" } satisfies GitRun;
+
+const EXITED_COMPLETE = { outcome: "exited", status: 0, stdout: "false\n", stderr: "" } satisfies GitRun;
+
 const gitOver = (spawn: GitSpawn) =>
   createGitPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT });
 
@@ -176,14 +189,100 @@ describe("createGitPort changedSince", () => {
     expect(changedListing).toHaveProperty("value.length", 3);
   });
 
-  it("returns git-failed when the committed diff fails", () => {
-    const changedListing = gitOver(
-      vi.fn<GitSpawn>().mockReturnValueOnce(EXITED_NOT_A_REPOSITORY).mockReturnValueOnce(EXITED_EMPTY),
-    ).changedSince({ repoRoot: REPO_ROOT, baseRevision: "no-such-revision" });
+  it("returns git-failed when the committed diff fails and git cannot tell whether the base exists", () => {
+    const changedListing = gitOver(vi.fn<GitSpawn>().mockReturnValue(EXITED_NOT_A_REPOSITORY)).changedSince({
+      repoRoot: REPO_ROOT,
+      baseRevision: "no-such-revision",
+    });
 
     expect(changedListing).toMatchObject({
       outcome: "failed",
       error: { kind: "git-failed", detail: "fatal: not a git repository" },
+    });
+  });
+
+  it("asks git whether the base names a commit, option-safely, once the committed diff fails", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValueOnce(EXITED_BAD_RANGE).mockReturnValueOnce(EXITED_ONE);
+
+    gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "-base" });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        arguments: ["-C", "/repo", "rev-parse", "--verify", "--quiet", "--end-of-options", "-base^{commit}"],
+      }),
+    );
+  });
+
+  it("returns base-absent when the committed diff fails and the base names no commit in this clone", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValueOnce(EXITED_BAD_RANGE).mockReturnValueOnce(EXITED_ONE);
+
+    expect(gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "origin/main" })).toEqual({
+      outcome: "failed",
+      error: { kind: "base-absent" },
+    });
+  });
+
+  it("returns no-merge-base in a shallow clone when the base exists but shares no ancestor with HEAD", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce(EXITED_BAD_RANGE)
+      .mockReturnValueOnce(EXITED_EMPTY)
+      .mockReturnValueOnce(EXITED_ONE)
+      .mockReturnValueOnce(EXITED_SHALLOW);
+
+    expect(gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "origin/main" })).toEqual({
+      outcome: "failed",
+      error: { kind: "no-merge-base", clone: "shallow" },
+    });
+    expect(spawn).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ arguments: ["-C", "/repo", "merge-base", "--end-of-options", "origin/main", "HEAD"] }),
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ arguments: ["-C", "/repo", "rev-parse", "--is-shallow-repository"] }),
+    );
+  });
+
+  it("returns no-merge-base in a complete clone when the base exists but shares no ancestor with HEAD", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce(EXITED_BAD_RANGE)
+      .mockReturnValueOnce(EXITED_EMPTY)
+      .mockReturnValueOnce(EXITED_ONE)
+      .mockReturnValueOnce(EXITED_COMPLETE);
+
+    expect(gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "origin/main" })).toEqual({
+      outcome: "failed",
+      error: { kind: "no-merge-base", clone: "complete" },
+    });
+  });
+
+  it("keeps the diff's own failure when the base exists and shares an ancestor with HEAD", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce(EXITED_BAD_RANGE)
+      .mockReturnValueOnce(EXITED_EMPTY)
+      .mockReturnValueOnce(EXITED_EMPTY);
+
+    expect(gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "origin/main" })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo diff --name-only -z --end-of-options origin/main...HEAD",
+        detail: "fatal: origin/main...HEAD: no merge base",
+      },
+    });
+  });
+
+  it("keeps the diff's own failure when git cannot tell whether the clone is shallow", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce(EXITED_BAD_RANGE)
+      .mockReturnValueOnce(EXITED_EMPTY)
+      .mockReturnValueOnce(EXITED_ONE)
+      .mockReturnValueOnce(EXITED_NOT_A_REPOSITORY);
+
+    expect(gitOver(spawn).changedSince({ repoRoot: REPO_ROOT, baseRevision: "origin/main" })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "git-failed", detail: "fatal: origin/main...HEAD: no merge base" },
     });
   });
 
@@ -341,10 +440,41 @@ describe("createGitPort textInBase", () => {
     expect(reading).toEqual({ outcome: "ok", value: { presence: "absent-from-base" } });
     expect(spawn).toHaveBeenCalledTimes(1);
   });
+});
 
-  it("preserves an invalid selected base as GitFailure rather than absent text", () => {
+describe("createGitPort textInBase failures", () => {
+  it("returns base-absent when the tree listing fails and the base names no commit in this clone", () => {
     const spawn = vi.fn<GitSpawn>()
-      .mockReturnValueOnce({ ...EXITED_NOT_A_REPOSITORY, stderr: "fatal: not a valid object name missing-base" });
+      .mockReturnValueOnce({ ...EXITED_NOT_A_REPOSITORY, stderr: "fatal: not a valid object name missing-base" })
+      .mockReturnValueOnce(EXITED_ONE);
+
+    const reading = gitOver(spawn).textInBase({ repoRoot: REPO_ROOT, baseRevision: "missing-base", file: CONTENT_FILE });
+
+    expect(reading).toEqual({ outcome: "failed", error: { kind: "base-absent" } });
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        arguments: ["-C", "/repo", "rev-parse", "--verify", "--quiet", "--end-of-options", "missing-base^{commit}"],
+      }),
+    );
+  });
+
+  it("returns base-absent when the blob read fails and the base names no commit in this clone", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce({ ...EXITED_EMPTY, stdout: "src/example.ts\0" })
+      .mockReturnValueOnce(EXITED_NOT_A_REPOSITORY)
+      .mockReturnValueOnce(EXITED_ONE);
+
+    expect(gitOver(spawn).textInBase({ repoRoot: REPO_ROOT, baseRevision: "base", file: CONTENT_FILE })).toEqual({
+      outcome: "failed",
+      error: { kind: "base-absent" },
+    });
+  });
+
+  it("preserves the listing's failure as GitFailure when the base names a commit", () => {
+    const spawn = vi.fn<GitSpawn>()
+      .mockReturnValueOnce({ ...EXITED_NOT_A_REPOSITORY, stderr: "fatal: not a valid object name missing-base" })
+      .mockReturnValueOnce(EXITED_EMPTY);
 
     const reading = gitOver(spawn).textInBase({ repoRoot: REPO_ROOT, baseRevision: "missing-base", file: CONTENT_FILE });
 

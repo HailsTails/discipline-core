@@ -1,4 +1,4 @@
-import { accessSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { accessSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 
@@ -103,6 +103,39 @@ export const defaultFileSystemSurface: FileSystemSurface = {
 export const createDefaultFileTextPort = (
   _options: Record<string, never>,
 ): FileTextPort => createFileTextPort({ fileSystem: defaultFileSystemSurface });
+
+export type FileRemovalPort = {
+  readonly remove: (request: {
+    readonly path: string;
+  }) => Result<void, { readonly kind: "unremovable"; readonly path: string; readonly detail: string }>;
+};
+
+export type FileRemovalSurface = {
+  readonly removeFile: (request: { readonly path: string }) => void;
+};
+
+export const createFileRemovalPort = (options: { readonly fileSystem: FileRemovalSurface }): FileRemovalPort => ({
+  remove: (request) => {
+    try {
+      options.fileSystem.removeFile({ path: request.path });
+      return { outcome: "ok", value: undefined };
+    } catch (thrown) {
+      return {
+        outcome: "failed",
+        error: { kind: "unremovable", path: request.path, detail: failureDetail({ thrown }) },
+      };
+    }
+  },
+});
+
+const defaultFileRemovalSurface: FileRemovalSurface = {
+  removeFile: (request) => {
+    rmSync(request.path);
+  },
+};
+
+export const createDefaultFileRemovalPort = (_options: Record<string, never>): FileRemovalPort =>
+  createFileRemovalPort({ fileSystem: defaultFileRemovalSurface });
 
 export type DirectoryEntry = {
   readonly name: string;
