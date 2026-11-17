@@ -218,6 +218,8 @@ export const check: WalkerPiece = {
 - `prepare` runs once with the selected clauses, the repository's file list and TypeScript's syntax API. `prepareFile` runs once per tracked file and returns `skipped`, `complete` with its hits, or `syntax` with observers that walk the file's syntax tree. `finish` returns hits that need the whole repository.
 - A hit passes back the clause's `address` unchanged, a 1-based line and 0-based column, and a short snippet.
 - When the piece cannot run, for example on settings it does not accept, return a failed result whose error is a `PieceFailure`: `kind` `piece-invalid`, the clause's `pieceRoot` and a `detail`. `hone check` then stops with a load failure naming the piece folder.
+- When the piece cannot parse a file, return a failed result whose error is `kind` `file-unparseable`, the `file` and a `detail`. `hone check` then stops with `load failure: runner-failed audit file-unparseable <file> <detail>`.
+- To read JSON with comments, such as a `tsconfig.json`, call TypeScript's own parser on the syntax API: `syntaxApi.parseConfigFileTextToJson(file, text)` returns the parsed value as `config` and sets `error` when it cannot parse the text. A piece does not import a JSON parser of its own; see [What is stable](#what-is-stable).
 
 ### Settings a repository can change
 

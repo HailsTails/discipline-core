@@ -19,7 +19,7 @@ The audit runner is Hone's standalone mechanism for checks that read a project's
 - `observe-walker-file.ts` offers one file to every prepared piece, parses it once if any piece asks for syntax, walks it, and collects the hits.
 - `create-walker-runner.ts` builds the runner from its ports: file text, module loading, paths and parsing.
 - `typescript-parse.ts` binds the parse port to TypeScript. It parses with parent pointers set, so a piece can walk a node's ancestors through `node.parent`.
-- `jsonc-parse.ts` parses JSON with comments, for pieces that read configuration such as `tsconfig.json`.
+- `jsonc-parse.ts` parses JSON with comments for Hone's own pieces, such as the one that reads `tsconfig.json`. It is not one of the package's public entries. A team's piece reads such a file with TypeScript's own parser on the syntax API `prepare` hands it, `syntaxApi.parseConfigFileTextToJson(file, text)`, which returns the parsed value as `config` and sets `error` when it cannot parse the text.
 - `runner.ts` is the runner core loads, wired to the default ports.
 - `piece-type-packages.json` lists the packages a piece may import types from. It is not the runtime list above.
 
@@ -37,4 +37,4 @@ After every file, the prepared check's `finish` may return repository-wide hits,
 
 `conform` runs each case of a clause's `discipline.json` as a one-file repository holding only that case.
 
-A piece that throws, or returns a value outside its schema, makes the run fail as `piece-invalid`.
+A piece that throws, or returns a value outside its schema, makes the run fail as `piece-invalid`. A piece that cannot parse a file returns a failed result whose error is `{ kind: "file-unparseable", file, detail }`, and the check stops with `load failure: runner-failed audit file-unparseable <file> <detail>`.
