@@ -7,6 +7,7 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 | Clause | Mechanism | Checks |
 | --- | --- | --- |
 | `CD-2#cast-expressions` | audit | a type assertion that is not on the permitted list |
+| `CD-2#non-null-assertions` | eslint | a non-null assertion, `x!`, or a definite assignment assertion, `let x!: T` or `field!: T` |
 
 ## What the check flags
 - `.ts` and `.tsx` files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
@@ -17,16 +18,27 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 - Test files, test helpers and scripts are checked like any other source; a test that needs a cast needs a typed stub or a narrower port.
 - There are no settings: a boundary that forces a cast is an exception record, as below.
 
+## What the ESLint check flags
+Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-2/README.md).
+- `hone-cd2/no-restricted-syntax` is ESLint's `no-restricted-syntax` with two selectors, one per form.
+- `TSNonNullExpression` flags every non-null assertion, `x!`, wherever it sits: a read such as `user.name!`, a call such as `totals.get(key)!.toFixed(2)`, an assignment target such as `basket.total! = 0`. It is the same node typescript-eslint's `no-non-null-assertion` reports.
+- `[definite=true]` flags every definite assignment assertion: `let total!: number` and a class field `balance!: number`.
+- Each finding sits on the line where the asserted expression or the declared name starts.
+- Allowed: logical not `!ready`, `!==`, an optional property `total?: number`, `??` fallbacks, and an initialised binding.
+- There are no settings. No `audit` mechanism checks this clause, so a repository without ESLint lists it as `"not-run"`, and review owes it.
+
 ## Example violation
 ```ts
 const user = response as User;
+const name = user.name!;
 ```
 
 ## How to fix
 ```ts
 const user = userSchema.parse(response);
+const name = user.name ?? "anonymous";
 ```
-Parse or narrow the value so the type follows from a check rather than from an assertion.
+Parse or narrow the value so the type follows from a check rather than from an assertion. For a value that may be absent, handle the absent case with a check, a fallback or an early return; for a binding assigned later, initialise it where it is declared or make it a `const` built from what it needs.
 
 When handing a value across a boundary truly forces a cast, such as a library that types its schemas loosely or a database driver that returns unparsed rows, put the cast in the one adapter file at that boundary and record that file as an `authorised-location` with a why-chain. With clean boundaries that is one file and one record; casts scattered across many files are the sign the boundary is missing.
 
@@ -38,5 +50,7 @@ Add an entry to `discipline-exceptions.json` at the repository root. Use `author
   { "kind": "authorised-location", "clause": "CD-2#cast-expressions", "file": "src/adapters/row-reader.ts", "reason": "..." }
 ] }
 ```
+
+Records on `CD-2#non-null-assertions` take the same kinds. Existing `!` debt is usually a `file-carve-out` per file, or one `clause-wide-carve-out` while an assessment's steps pay it down. An `eslint-disable` naming `hone-cd2/no-restricted-syntax`, or naming no rule, is held only by an `authorised-location` or `file-carve-out` on this clause and its file; a `clause-wide-carve-out` does not hold it. The projection carries every record for it, so run `hone project` after recording one.
 
 Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.

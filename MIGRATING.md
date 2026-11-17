@@ -271,3 +271,19 @@ Earlier releases reported an `eslint-disable` comment naming a selected rule as 
 5. **Fix lint-script options.** A `command-line-option` line that ends `weakens the script's whole run, so no record can cover it: remove it from the script` names an option to remove. One that ends `is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as "<invocation>"` names a script such as `tsc && eslint -c eslint.config.mjs .`: move the quoted command to a script of its own, then run the check again. One that ends `comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` quotes the first token Hone does not read, such as `env` or a runner flag like `-y`: rewrite the command so only package runners and `NAME=value` settings, including `cross-env NAME=value`, come before `eslint`. `-c` naming the config ESLint already finds, and `--ignore-pattern` that ignores no checked file, are not reported once `eslint` runs plainly.
 6. **Stale records may clear.** A record that holds a native exception it can cover now counts as used. An `authorised-location` or `file-carve-out` that held only a `config-override`, and was listed `stale` while dropping it left the override unrecorded, is no longer stale.
 7. **Standalone runners** written outside Hone return `{ hits, nativeExceptions }` from `run`, where `nativeExceptions` holds only `inline-disable` entries with `reach`, in place of a bare list of hits. A runner still returning the list fails with `runner-invalid-output` naming that shape.
+
+## 15. Adopting `CD-2#non-null-assertions`
+
+CD-2 gained a clause, `CD-2#non-null-assertions`, checked through `eslint` only. It flags non-null assertions, `x!`, and definite assignment assertions, `let x!: T` and `field!: T`; see [rules/CD-2/CHECKS.md](rules/CD-2/CHECKS.md). A repository that selects any CD-2 clause has adopted CD-2, so after refreshing Hone its check fails with this line under `uncovered` until `disciplines.json` lists the new clause:
+
+```text
+CD-2#non-null-assertions
+```
+
+Choose one state for it, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out:
+
+1. **The repository runs the ESLint mechanism.** Add `"CD-2#non-null-assertions": "eslint"` to `clauses`, then run `npm run --silent hone:project` and commit `disciplines.eslint.mjs`, and each package slice it writes. Run the check. Each existing `!` is a finding; fix it, or hold it as debt with a `file-carve-out` per file, or a `clause-wide-carve-out` with an owner, after the human approves, and re-run `hone:project` so the projection carries the records. An `eslint-disable` naming no rule now escapes this clause too, and is listed under `unrecorded` for it until a file record on this clause holds it, as section 14 says; naming the rule it means is the cheap fix.
+2. **The repository has no ESLint, or the rule binds but its check is not a true measure here.** Add `"CD-2#non-null-assertions": "not-run"`. The report lists it under `notRun`, and review owes the rule. Nothing is projected and ESLint is not loaded for it.
+3. **The rule does not apply to this codebase.** A tech lead says so in the open, and the clause is listed as `"not-adopted"`. The report lists it under `notAdopted`.
+
+Neither `"not-run"` nor `"not-adopted"` takes an exception record. Stop and ask the human before choosing `"not-adopted"`, or before recording carve-outs for existing `!` sites.
