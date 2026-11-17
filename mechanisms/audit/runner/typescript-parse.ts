@@ -4,6 +4,12 @@ export type SyntaxApi = typeof typescript;
 export type SyntaxTree = typescript.SourceFile;
 export type SyntaxNode = typescript.Node;
 export type CommentRange = typescript.CommentRange;
+export type Statement = typescript.Statement;
+export type ImportDeclaration = typescript.ImportDeclaration;
+export type ExportDeclaration = typescript.ExportDeclaration;
+export type Diagnostic = typescript.Diagnostic;
+export type CompilerOptions = typescript.CompilerOptions;
+export type CustomTransformers = typescript.CustomTransformers;
 
 export type TypeScriptParsePort = {
   readonly syntaxApi: SyntaxApi;

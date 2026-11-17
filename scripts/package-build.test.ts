@@ -203,9 +203,9 @@ describe("buildPackage", () => {
             "README.md",
             "THIRD-PARTY-NOTICES.md",
             "api/audit.d.ts",
-            "api/audit.js",
+            "api/audit.mjs",
             "api/rule-set.d.ts",
-            "api/rule-set.js",
+            "api/rule-set.mjs",
             "chunks/chunk-A.js",
             "core/check/tool-command.js",
             "core/values/result.d.ts",
@@ -224,9 +224,9 @@ describe("buildPackage", () => {
         "README.md",
         "THIRD-PARTY-NOTICES.md",
         "api/audit.d.ts",
-        "api/audit.js",
+        "api/audit.mjs",
         "api/rule-set.d.ts",
-        "api/rule-set.js",
+        "api/rule-set.mjs",
         "chunks/chunk-A.js",
         "core/check/tool-command.js",
         "core/values/result.d.ts",
@@ -262,11 +262,11 @@ describe("buildPackage", () => {
 
     expect(files.texts()).toMatchObject({
       "/out/api/audit.d.ts": 'export type { Result } from "../core/values/result.js";\n',
-      "/out/api/audit.js": "export {};\n",
-      "/out/api/rule-set.js": "export {};\n",
+      "/out/api/audit.mjs": "export {};\n",
+      "/out/api/rule-set.mjs": "export {};\n",
       "/out/core/values/result.d.ts": "export type Result = 1;\n",
       "/out/package.json": expect.stringContaining(
-        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.js"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.js"\n    }',
+        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.mjs"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.mjs"\n    }',
       ),
     });
   });
