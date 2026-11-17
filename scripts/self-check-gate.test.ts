@@ -14,6 +14,7 @@ import { runSelfCheck, selfCheckOutcomeOf } from "./self-check-gate.ts";
 
 const EMPTY_REPORT: CheckReport = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],

@@ -122,6 +122,7 @@ describe("a check selecting the probe rule set's PD-1 beside CD-23 through the a
       outcome: "ok",
       value: {
         excluded: [],
+        notAdopted: [],
         findings: [
           {
             clause: PROBE_ADDRESS,

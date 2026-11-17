@@ -98,10 +98,11 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 }
 ```
 
-- `clauses` keys are clause addresses from the rules pages; the value is a mechanism the clause's rules page lists, `audit` or `eslint`.
+- `clauses` keys are clause addresses from the rules pages; the value is a mechanism the clause's rules page lists, `audit` or `eslint`, or `"not-adopted"`.
 - Selecting one clause of a discipline adopts the whole discipline: any of its other mechanical clauses you leave out are reported as `uncovered` and fail the run. CD-3 has seven clauses; select all seven or none.
-- A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). To defer such a clause, still list it with its mechanism and record a `clause-wide-carve-out` for it (step 7).
-- To adopt a discipline through one mechanism only, for example CD-6's `identifier-names` through `audit` without its ESLint-only `naming-convention`, select both clauses, record a `clause-wide-carve-out` with its why-chain on the clause you do not adopt, and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`. The waived clause is then never run, and a mechanism left with nothing to run is not loaded, so this adopter needs no ESLint installed. `hone project` still writes the waived clause's `"off"` block to the projection, and whenever ESLint runs for another clause the projection is still checked against every selected clause. The trade: in those runs the waiver is not judged `stale`, so it stays in force until you remove it, and every report says so in its `assessment` section.
+- A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). To leave such a clause out, list it as `"not-adopted"`; to defer it as tracked debt, list it with its mechanism and record a `clause-wide-carve-out` for it (step 7).
+- To adopt a discipline through one mechanism only, for example CD-6's `identifier-names` through `audit` without its ESLint-only `naming-convention`, list the clause you do not adopt as `"not-adopted"`: `"CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-adopted"`. That clause is never run and never projected, not even as `"off"`, so this adopter needs no ESLint installed; the report lists it under `notAdopted` and the run stays a whole assessment. No exception record is needed, and one on that clause is invalid as `clause-not-adopted`.
+- To keep a clause adopted but defer it as tracked debt with an owner, select it, record a `clause-wide-carve-out` with its why-chain, and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`. The waived clause is then never run, and a mechanism left with nothing to run is not loaded, so this adopter needs no ESLint installed. `hone project` still writes the waived clause's `"off"` block to the projection, and whenever ESLint runs for another clause the projection is still checked against every selected clause. The trade: in those runs the waiver is not judged `stale`, so it stays in force until you remove it, and every report says so in its `assessment` section.
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
 - `clauseSettings` gives a clause the settings its rules page lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; see [README.md](README.md#disciplinesjson).
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/adding-a-discipline-or-mechanism.md](docs/adding-a-discipline-or-mechanism.md).
@@ -215,22 +216,23 @@ The report prints only the sections that have entries, each with its count, then
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 ```
 
-Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `exempted` and `assessment` is empty. The sections are:
+Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `exempted` and `assessment` is empty. The sections are:
 
 | Section | Meaning and what to do |
 | --- | --- |
 | `excluded` | the `exclude` entries from `disciplines.json` that were left out of the run; informational, check it is what you meant |
+| `notAdopted` | the clauses `disciplines.json` lists as `"not-adopted"`; informational, they were neither run nor projected |
 | `findings` | violations: fix the code, or record an exception (step 7) |
 | `exempted` | findings an exception covers; informational |
-| `uncovered` | a mechanical clause of an adopted discipline is not selected: add it to `disciplines.json` |
+| `uncovered` | a mechanical clause of an adopted discipline is not listed: add it to `disciplines.json` with a mechanism, or as `"not-adopted"` |
 | `stale` | an exception that no longer exempts anything: delete it |
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
-| `invalidRecords` | an exception entry that cannot be accepted, with the reason: correct it |
+| `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-adopted` for an entry on a clause listed as `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
 | `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
 | `assessment` | a concern this run left to another run or did not run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run` or `waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming-convention eslint`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 
-To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
+To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
 
 ## 7. Record exceptions
 
@@ -238,7 +240,7 @@ Fix findings where you can. Where a file legitimately needs what a clause forbid
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
 - `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`.
-- `clause-wide-carve-out`: the clause is waived everywhere. Not selecting the clause is not an alternative: it leaves the clause `uncovered`. A clause-wide carve-out that exempts no finding is `stale`, so record one only while the clause still has findings, unless the repository sets `waivedClauses` to `not-run` (step 4), which skips the clause and does not judge the carve-out stale.
+- `clause-wide-carve-out`: the clause is waived everywhere. Leaving the clause out of `clauses` is not an alternative: it leaves the clause `uncovered`. To not adopt the clause at all, list it as `"not-adopted"` (step 4) instead of recording a waiver. A clause-wide carve-out that exempts no finding is `stale`, so record one only while the clause still has findings, unless the repository sets `waivedClauses` to `not-run` (step 4), which skips the clause and does not judge the carve-out stale.
 
 Every entry needs a `reason`. By default every entry also needs a `whyChain` shaped like this, with exactly five steps in `whys`:
 

@@ -62,6 +62,7 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
     case "import-unverified":
       return escapedLineBreaks({ text: request.problem.detail });
     case "clause-not-selected":
+    case "clause-not-adopted":
     case "non-exemptible-clause":
       return clauseAddressText({ address: request.problem.clause });
     case "file-not-repo-path":
@@ -103,6 +104,7 @@ type ReportLines = (request: { readonly report: CheckReport }) => readonly strin
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
+  notAdopted: (request) => request.report.notAdopted.map((address) => clauseAddressText({ address })),
   findings: (request) => request.report.findings.map((finding) => findingLine({ finding })),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),

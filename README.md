@@ -43,7 +43,7 @@ hone project --repo <dir>
 
 A load failure prints one line, `load failure: <kind> <fields>`.
 
-The report lists the excluded paths, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems and any part of the assessment left to another run, each with its count. The verdict is `pass` only when every list except the excluded paths, exempted findings and assessment is empty.
+The report lists the excluded paths, the clauses not adopted, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems and any part of the assessment left to another run, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, exempted findings and assessment is empty.
 
 `--report-output` sets how much of the report is printed for one run, overriding `reportOutput` in `disciplines.json`; with neither, the output is `full`.
 
@@ -113,8 +113,9 @@ At the repository root. It selects clauses and the mechanism that checks each on
 ```
 
 - `ruleSets` names the repository's own rule sets, each a directory relative to the repository root. The name `hone` is reserved for the rule set shipped with the tool; `hone/CD-15#loops` and `CD-15#loops` are the same address. A rule-set name may not start with `hone-`, and no declared name may be another declared name plus `-<suffix>`.
-- `clauses` maps a clause address to a mechanism id. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the `hone` rule set. The mechanism must be one the clause lists.
-- Selecting a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not selected are reported as uncovered, and fail the run.
+- `clauses` maps a clause address to a mechanism id, or to `"not-adopted"`. An address is `[<ruleSet>/]<DisciplineId>#<clauseId>`; no prefix means the `hone` rule set. The mechanism must be one the clause lists.
+- Listing a clause adopts its discipline. Mechanical clauses of an adopted discipline that are not listed are reported as uncovered, and fail the run.
+- `"not-adopted"` states that the repository does not adopt that clause. It is never run and never projected, and its mechanism is not loaded unless another clause uses it. The report lists it under `notAdopted`, which is informational: the run is still a whole assessment. An exception record on it is invalid as `clause-not-adopted`, and `clauseSettings` for it make `disciplines.json` `file-malformed`. The clause must still exist and be mechanical, in any rule set.
 - A judgement clause cannot be selected; it is enforced by review.
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).

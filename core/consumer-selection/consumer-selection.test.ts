@@ -223,6 +223,7 @@ describe("createSelectionRepository", () => {
             { address: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, mechanism: "audit", exceptions: "allowed" },
           ],
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
+          notAdopted: [],
         },
         bindings: [
           {
@@ -562,6 +563,7 @@ describe("readSelection", () => {
             { address: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }, mechanism: "audit", exceptions: "allowed" },
           ],
           uncovered: [],
+          notAdopted: [],
         },
         bindings: [
           {
@@ -606,6 +608,7 @@ describe("readSelection", () => {
             { address: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, mechanism: "audit", exceptions: "allowed" },
           ],
           uncovered: [],
+          notAdopted: [],
         },
         bindings: [
           {
@@ -636,6 +639,7 @@ describe("readSelection", () => {
             { address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
           ],
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
+          notAdopted: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
         excluded: [],
@@ -1358,5 +1362,125 @@ describe("readSelection refusing clauseSettings for the wrong clause", () => {
       outcome: "failed",
       error: { kind: "file-malformed", path: SELECTION_PATH },
     });
+  });
+});
+
+const HONE_CLASS_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
+
+const HONE_ABSTRACT_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" };
+
+const INSTALL_WITHOUT_AUDIT: Readonly<Record<string, FakeFile>> = {
+  [SELECTION_PATH]: ABSENT_FILE,
+  "/install/rules/CD-14/discipline.json": presentFile({ text: CD_14 }),
+  "/install/rules/CD-99/discipline.json": ABSENT_FILE,
+  "/repo/team-rules/rules/TM-1/discipline.json": presentFile({ text: TM_1 }),
+};
+
+const selectingWithoutAudit = (selection: unknown) =>
+  select({ ...INSTALL_WITHOUT_AUDIT, [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }) });
+
+describe("readSelection with clauses not adopted", () => {
+  it("lists a not-adopted clause apart from the selected ones and binds no mechanism for it", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-adopted" } }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        selection: {
+          selected: [{ address: HONE_CLASS_SYNTAX, mechanism: "audit", exceptions: "allowed" }],
+          uncovered: [],
+          notAdopted: [HONE_ABSTRACT_SYNTAX],
+        },
+        bindings: [expect.objectContaining({ clause: expect.objectContaining({ address: HONE_CLASS_SYNTAX }) })],
+      },
+    });
+  });
+
+  it("reads no runner and no piece when no clause of a discipline is adopted", () => {
+    expect(
+      selectingWithoutAudit({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX] },
+        bindings: [],
+        excluded: [],
+        fileExceptionWhyChains: "required",
+      },
+    });
+  });
+
+  it("still lists a clause missing from the selection as uncovered beside a not-adopted one", () => {
+    expect(
+      select({
+        ...INSTALL_WITHOUT_AUDIT,
+        "/install/rules/CD-14/discipline.json": presentFile({ text: CD_14_WITH_THREE_MECHANICAL }),
+        [SELECTION_PATH]: presentFile({
+          text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-adopted" } }),
+        }),
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        selection: {
+          uncovered: [HONE_ABSTRACT_SYNTAX, { ruleSet: "hone", discipline: "CD-14", clause: "decorator-syntax" }],
+          notAdopted: [HONE_CLASS_SYNTAX],
+        },
+      },
+    });
+  });
+
+  it("reads a team rule set's not-adopted clause from its own discipline, reading no piece", () => {
+    expect(
+      selectingWithoutAudit({ version: 1, ruleSets: { team: "team-rules" }, clauses: { "team/TM-1#no-tmp-files": "not-adopted" } }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: { selection: { notAdopted: [{ ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }] }, bindings: [] },
+    });
+  });
+
+});
+
+describe("readSelection refusing a clause not adopted", () => {
+  it.each([
+    { name: "a clause its discipline does not declare", clause: "CD-14#no-such-clause", error: { kind: "unknown-clause", address: "CD-14#no-such-clause" } },
+    { name: "a discipline the rule set does not hold", clause: "CD-99#class-syntax", error: { kind: "unknown-discipline", address: "CD-99#class-syntax" } },
+    { name: "a judgement clause", clause: "CD-14#library-construction", error: { kind: "judgement-clause-selected", address: "CD-14#library-construction" } },
+    { name: "a rule set the file does not declare", clause: "team/TM-1#no-tmp-files", error: { kind: "unknown-rule-set", name: "team" } },
+  ])("refuses not adopting $name, as it refuses selecting it", ({ clause, error }) => {
+    expect(selectingWithoutAudit({ version: 1, ruleSets: {}, clauses: { [clause]: "not-adopted" } })).toEqual({
+      outcome: "failed",
+      error,
+    });
+  });
+
+  it("refuses a clause both adopted and not adopted, bare and hone-prefixed, as duplicate-clause", () => {
+    expect(
+      selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "hone/CD-14#class-syntax": "not-adopted" } }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "duplicate-clause", address: "CD-14#class-syntax", prefixedAddress: "hone/CD-14#class-syntax" },
+    });
+  });
+
+  it("refuses clauseSettings for a not-adopted clause as file-malformed, naming it not adopted", () => {
+    expect(
+      selectingSettable({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
+        clauseSettings: { "CD-14#class-syntax": { style: "strict" } },
+      }),
+    ).toEqual(malformedWith({ detail: expect.stringContaining("clauseSettings for CD-14#class-syntax: clauses does not adopt it") }));
+  });
+
+  it("names both accepted forms when a clauses value is neither a mechanism id nor not-adopted", () => {
+    expect(selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "Walker" } })).toEqual(
+      malformedWith({ detail: expect.stringContaining("a clause takes a mechanism id or \"not-adopted\"") }),
+    );
   });
 });

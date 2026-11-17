@@ -444,6 +444,7 @@ const checkReportOf = (request: {
   const projections = request.runs.map((run) => projectionOutcome({ run }));
   return {
     excluded: request.inputs.excluded,
+    notAdopted: request.inputs.selection.notAdopted,
     ...governed,
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
