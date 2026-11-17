@@ -2,7 +2,7 @@
 
 ## Rule
 
-`any` is the absence of a type: it tells the compiler to stop checking, and that hole propagates silently through every call site that consumes the value. The whole reason a type system exists — catching shape errors before runtime — is forfeited at each `any`. Reach for `unknown` and narrow at the read site, or a precise union. There are no carve-outs: every `any` is a violation regardless of stated reason.
+`any` is the absence of a type: it tells the compiler to stop checking, and that hole propagates silently through every call site that consumes the value. The whole reason a type system exists — catching shape errors before runtime — is forfeited at each `any`. Reach for `unknown` and narrow at the read site, or a precise union. Every `any` is a violation regardless of stated reason: no code form or setting permits one. Debt a repository carries while adopting the rule is held only in exception records.
 
 The sections below describe what the audit and ESLint checks cover.
 
@@ -33,7 +33,7 @@ See [the spirit of the rules](../SPIRIT.md) for the measure, ask, decide chain.
 
 | Clause | Mechanism | Checks |
 | --- | --- | --- |
-| `CD-1#any-cast` | audit | a type assertion whose text contains `any` |
+| `CD-1#any-cast` | audit | a type assertion whose type contains `any` |
 | `CD-1#explicit-any` | eslint | an `any` type anywhere in a type position |
 | `CD-1#implicit-any-let` | eslint | a `let` or `var` with neither a type annotation nor an initialiser |
 
@@ -41,9 +41,9 @@ Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens 
 
 ## What the check flags
 - `.ts` and `.tsx` files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A type assertion (`x as T` or `<T>x`) where the first 80 characters from the start of the assertion match `as any`, `: any` or `<any>`.
-- Allowed: `as unknown`. Other casts are reported by CD-2 instead.
-- A multi-argument generic such as `Map<string, any>` does not match and falls to CD-2. A bare annotation such as `let value: any` is not flagged; that part is left to review.
+- A type assertion (`x as T` or `<T>x`) whose type contains the `any` keyword at any depth: `as any`, `<any>x`, `as Array<any>`, `as Record<string, any>`, `as Map<string, any>` or `as { field: any }`. The check reads the syntax tree, so an `any` elsewhere on the line is not attributed to the cast.
+- CD-1 judges these before CD-2 and has no settings; every other assertion is CD-2's.
+- A bare annotation such as `let value: any` is not flagged by this clause; `CD-1#explicit-any` covers it.
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-1/README.md).

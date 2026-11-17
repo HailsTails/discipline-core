@@ -30,6 +30,7 @@ const SELECTION: Selection = {
     { address: clauseAddressSchema.parse("team/TM-1#no-tmp-files"), mechanism: mechanismIdSchema.parse("eslint"), exceptions: "allowed" },
   ],
   uncovered: [],
+  notAdopted: [],
 };
 
 const [FIRST_WHY, SECOND_WHY] = CAUSAL_WHY_CHAIN.whys;
@@ -253,6 +254,25 @@ describe("parseExceptionEntries invalid records", () => {
         {
           index: 0,
           problem: { kind: "clause-not-selected", clause: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" } },
+        },
+      ],
+    });
+  });
+
+  it("is clause-not-adopted for a clause the selection declares not adopted", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ ...LOCATION, clause: "CD-14#abstract-syntax" }],
+        selection: { ...SELECTION, notAdopted: [clauseAddressSchema.parse("CD-14#abstract-syntax")] },
+        fileExceptionWhyChains: "required",
+        baseline: UNMEASURED_EXCEPTION_BASELINE,
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          index: 0,
+          problem: { kind: "clause-not-adopted", clause: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" } },
         },
       ],
     });
@@ -510,7 +530,7 @@ describe("non-exemptibility at the canonical boundary, for a clause whose discip
   ])("refuses an adopted any clause for $kind", (entry) => {
     expect(readCanonicalExceptions({
       text: JSON.stringify({ version: 1, exceptions: [entry] }),
-      selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [] },
+      selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [] },
     })).toEqual({ outcome: "ok", value: { records: [], invalid: [
       { index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } } },
     ] } });
@@ -677,7 +697,7 @@ describe("parseExceptionEntries imported records against the base revision", () 
     expect(
       parseExceptionEntries({
         entries: [{ ...IMPORTED_CARVE_OUT, clause: "CD-1#any-cast" }],
-        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [] },
+        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [] },
         fileExceptionWhyChains: "required",
         baseline: baselineHolding({ entriesAtBase: [IMPORTED_CARVE_OUT], sourceTextsAtBase: new Map() }),
       }),
@@ -807,7 +827,7 @@ describe("parseExceptionEntries when file exception why-chains are optional", ()
     expect(
       parseExceptionEntries({
         entries: [{ ...REASONED_CARVE_OUT, clause: "CD-1#any-cast" }],
-        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [] },
+        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [] },
         fileExceptionWhyChains: "optional",
         baseline: UNMEASURED_EXCEPTION_BASELINE,
       }).invalid,

@@ -354,6 +354,14 @@ const judgedWhyChain = (request: {
 
 type ClauseSelection = { readonly clause: ClauseAddress; readonly mechanism: MechanismId };
 
+const unselectedKindOf = (request: {
+  readonly selection: Selection;
+  readonly clause: ClauseAddress;
+}): "clause-not-adopted" | "clause-not-selected" =>
+  request.selection.notAdopted.some((address) => sameClauseAddress({ left: address, right: request.clause }) === "same")
+    ? "clause-not-adopted"
+    : "clause-not-selected";
+
 const selectedClauseOf = (request: {
   readonly entry: StructuralExceptionEntry;
   readonly selection: Selection;
@@ -370,7 +378,7 @@ const selectedClauseOf = (request: {
     sameClauseAddress({ left: candidate.address, right: clause }) === "same",
   );
   if (selected === undefined) {
-    return { outcome: "failed", error: { kind: "clause-not-selected", clause } };
+    return { outcome: "failed", error: { kind: unselectedKindOf({ selection: request.selection, clause }), clause } };
   }
   if (selected.exceptions === "refused") {
     return { outcome: "failed", error: { kind: "non-exemptible-clause", clause } };

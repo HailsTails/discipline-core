@@ -31,6 +31,7 @@ const record: ExceptionRecord = {
 
 const emptyReport: CheckReport = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],

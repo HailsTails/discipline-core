@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": false,
     "types": []
   },
-  "files": ["src/team-piece.mts", "src/team-rule-set.mts"]
+  "files": ["commonjs-consumer.cts"]
 }

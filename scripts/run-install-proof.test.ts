@@ -47,6 +47,7 @@ const EXPECTING_PASS: ProofCase = {
   consumer: "audit",
   fixture: "audit",
   toolchain: "typescript-floor",
+  typeStripping: "disabled",
   actions: [
     { kind: "check", expectation: { exitCode: 0, output: "verdict: pass\n" } },
     { kind: "project", expectation: { exitCode: 0, output: "verdict: pass\n" } },
@@ -81,8 +82,9 @@ const INSTALLED_PACKAGE_WITH_DECLARATIONS: readonly ListedEntry[] = [
 
 const EXPECTING_TYPES: ProofCase = {
   consumer: "typed",
-  fixture: "typed-team-piece",
+  fixture: "team",
   toolchain: "typescript-floor",
+  typeStripping: "disabled",
   actions: [{ kind: "typecheck", project: "tsconfig.nodenext.json", expectation: { exitCode: 0, output: "" } }],
 };
 
@@ -116,7 +118,6 @@ const fileTextPort = (overrides: Readonly<Record<string, string>> = {}): FileTex
 const scratchPort = (overrides: Partial<ScratchFilesPort>): ScratchFilesPort => ({
   createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>().mockReturnValue({ outcome: "ok", value: "/scratch" }),
   removeTree: vi.fn<ScratchFilesPort["removeTree"]>().mockReturnValue({ outcome: "ok", value: null }),
-  removeFile: vi.fn<ScratchFilesPort["removeFile"]>().mockReturnValue({ outcome: "ok", value: null }),
   makeDirectory: vi.fn<ScratchFilesPort["makeDirectory"]>().mockReturnValue({ outcome: "ok", value: null }),
   copyTree: vi.fn<ScratchFilesPort["copyTree"]>().mockReturnValue({ outcome: "ok", value: null }),
   listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "ok", value: INSTALLED_PACKAGE }),
@@ -202,6 +203,18 @@ describe("runInstallProof", () => {
       [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
       [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
       [{ path: `${CONSUMER}/.npmrc`, text: "node-options=--no-experimental-strip-types\n" }],
+    ]);
+  });
+
+  it("writes no npm config for a consumer that runs its own TypeScript through Node's type stripping", async () => {
+    const fileText = fileTextPort();
+
+    await runInstallProof(proofRequest({ fileText, proofCases: [{ ...EXPECTING_PASS, typeStripping: "enabled" }] }));
+
+    expect(vi.mocked(fileText.write).mock.calls).toEqual([
+      [{ path: "/scratch/typescript-floor/package.json", text: TOOLCHAIN_MANIFEST }],
+      [{ path: `${CONSUMER}/package.json`, text: CONSUMER_MANIFEST }],
+      [{ path: `${CONSUMER}/.gitignore`, text: "node_modules/\n" }],
     ]);
   });
 

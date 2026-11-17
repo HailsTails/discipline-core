@@ -11,6 +11,7 @@ const WALKER = mechanismIdSchema.parse("audit");
 
 const EMPTY_REPORT: CheckReport = {
   excluded: [],
+  notAdopted: [],
   findings: [],
   exempted: [],
   uncovered: [],
