@@ -247,6 +247,7 @@ describe("createSelectionRepository", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -316,7 +317,7 @@ describe("createSelectionRepository", () => {
   it("accepts package folders disciplines.json declares as ESLint config roots", () => {
     expect(
       selecting({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/a", "apps/web"] }),
-    ).toMatchObject({ outcome: "ok" });
+    ).toMatchObject({ outcome: "ok", value: { eslintConfigRoots: ["packages/a", "apps/web"] } });
   });
 
   it("is file-malformed when an ESLint config root is not a repository path", () => {
@@ -612,6 +613,7 @@ describe("readSelection", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -647,6 +649,7 @@ describe("readSelection", () => {
             },
           },
         ],
+        eslintConfigRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -667,6 +670,7 @@ describe("readSelection", () => {
           notAdopted: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
+        eslintConfigRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -1433,6 +1437,7 @@ describe("readSelection with clauses not adopted", () => {
       value: {
         selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX] },
         bindings: [],
+        eslintConfigRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },

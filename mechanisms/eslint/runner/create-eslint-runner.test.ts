@@ -343,6 +343,7 @@ const runRequest = (request: {
 }) => ({
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
+  declaredConfigRoots: [],
   files: FILES,
   trackedPaths: FILES,
   clauses: request.clauses,
@@ -1130,6 +1131,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [FACTORY_LOCATION],
@@ -1146,7 +1148,7 @@ describe("project", () => {
       [PROJECTION_PATH]: ABSENT_FILE,
       "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
-    await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
+    await runnerOver({ fileText, moduleExtension: ".js" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([
       [
         {
@@ -1163,7 +1165,7 @@ describe("project", () => {
       [PROJECTION_PATH]: ABSENT_FILE,
       "/repo/node_modules/@hailstails/hone/package.json": presentFile({ text: '{ "name": "@hailstails/hone" }' }),
     });
-    await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
+    await runnerOver({ fileText, moduleExtension: ".ts" }).project({ repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], trackedPaths: [], clauses: [CLASS_CLAUSE], records: [] });
     expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
   });
 
@@ -1176,6 +1178,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
@@ -1201,6 +1204,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText, moduleExtension: ".js" }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
@@ -1222,6 +1226,7 @@ describe("project", () => {
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [],
       clauses: [CLASS_CLAUSE],
       records: [],
@@ -1769,6 +1774,7 @@ const EVERY_PATH_HOLDING_SOURCE_A: FileTextPort = {
 const windowsRun = (request: { readonly pieceRoot: string }) => ({
   repoRoot: WINDOWS_REPO_ROOT,
   installRoot: WINDOWS_INSTALL_ROOT,
+  declaredConfigRoots: [],
   files: FILES,
   trackedPaths: [],
   clauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
@@ -2161,12 +2167,66 @@ describe("package projection slices, applied by the team's config", () => {
   });
 });
 
-describe("package projection slices, projected", () => {
-  it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
+const PACKAGE_B_CONFIG = repoPathSchema.parse("packages/b/eslint.config.mjs");
+const PACKAGE_B_FACTORY = repoPathSchema.parse("packages/b/src/factory.ts");
+
+const ROOT_PROJECTION_WITH_TWO_PACKAGE_LOCATIONS = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+
+export default [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "packages/a/src/factory.ts",
+      "packages/b/src/factory.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
+];
+`;
+
+const TWO_PACKAGE_RUN = {
+  ...runRequest({ clauses: [CLASS_CLAUSE], records: [PACKAGE_FACTORY_LOCATION, { ...FACTORY_LOCATION, file: PACKAGE_B_FACTORY }] }),
+  files: [PACKAGE_FACTORY, PACKAGE_B_FACTORY],
+  trackedPaths: [PACKAGE_FACTORY, PACKAGE_B_FACTORY, PACKAGE_A_CONFIG, PACKAGE_B_CONFIG],
+};
+
+describe("package projection slices, not applied in one package of several", () => {
+  it("names only the package whose carve-out is lost, leaving a sibling whose carve-out holds", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ROOT_PROJECTION_WITH_TWO_PACKAGE_LOCATIONS,
+          files: {
+            [PACKAGE_A_SLICE_PATH]: presentFile({ text: PACKAGE_A_SLICE }),
+            "/repo/packages/b/disciplines.eslint.mjs": presentFile({ text: PACKAGE_A_SLICE }),
+          },
+        }),
+        eslint: eslintOver({
+          query: queryOver({
+            ignored: { "packages/a/src/factory.ts": "checked", "packages/b/src/factory.ts": "checked" },
+            states: { [`packages/a/src/factory.ts ${RULE_ID}`]: ERROR, [`packages/b/src/factory.ts ${RULE_ID}`]: OFF },
+          }),
+        }),
+      }).run(TWO_PACKAGE_RUN),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" }] },
+    });
+  });
+});
+
+describe("package projection slices, projected", () => {  it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
     const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [PACKAGE_A_CONFIG],
       clauses: [CLASS_CLAUSE],
       records: [PACKAGE_FACTORY_LOCATION],
@@ -2253,6 +2313,7 @@ describe("package projection slices with a waived clause", () => {
     await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
       trackedPaths: [PACKAGE_A_CONFIG],
       clauses: [CLASS_CLAUSE, LOOPS_CLAUSE],
       records: [LOOPS_WAIVER],
@@ -2261,5 +2322,168 @@ describe("package projection slices with a waived clause", () => {
       [{ path: PROJECTION_PATH, text: LOOPS_WAIVED_PROJECTION }],
       [{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_LOOPS_WAIVED_SLICE }],
     ]);
+  });
+});
+
+const ROOT_LOOKUP_FILES: Readonly<Record<string, FakeFile>> = {
+  "/repo/node_modules/eslint/package.json": presentFile({ text: '{ "version": "9.28.0" }' }),
+  "/repo/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+};
+
+const PACKAGE_WEB = repoPathSchema.parse("packages/web");
+
+describe("package projection slices, which roots they cover", () => {
+  it("requires no slice for a folder with a tracked config when ESLint resolves every file from the root config", async () => {
+    await expect(
+      runnerOver({ fileText: repoHolding({ projection: ENABLING_PROJECTION, files: ROOT_LOOKUP_FILES }) }).run({
+        ...CLASS_RUN,
+        trackedPaths: [...FILES, PACKAGE_A_CONFIG],
+      }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
+  });
+
+  it("still requires the slice of a root disciplines.json declares when ESLint resolves every file from the root config", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { ...ROOT_LOOKUP_FILES, "/repo/packages/web/eslint.config.mjs": presentFile({ text: "export default [];\n" }) },
+        }),
+      }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] }),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [{ slice: "packages/web/disciplines.eslint.mjs", state: "missing" }] },
+    });
+  });
+
+  it("takes declared roots from the request alone, never from disciplines.json", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({
+          projection: ENABLING_PROJECTION,
+          files: { "/repo/disciplines.json": presentFile({ text: JSON.stringify({ eslintConfigRoots: ["packages/web"] }) }) },
+        }),
+      }).run(CLASS_RUN),
+    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [] } });
+  });
+
+  it("names a declared root with no eslint.config on disk as unconfigured, since nothing there loads its slice", async () => {
+    await expect(
+      runnerOver({ fileText: repoHolding({ projection: ENABLING_PROJECTION, files: {} }) }).run({
+        ...CLASS_RUN,
+        declaredConfigRoots: [PACKAGE_WEB],
+      }),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        slices: [
+          { slice: "packages/web/disciplines.eslint.mjs", state: "missing" },
+          { slice: "packages/web/disciplines.eslint.mjs", state: "unconfigured" },
+        ],
+      },
+    });
+  });
+
+  it("projects only the root slice for a folder with a tracked config when ESLint resolves every file from the root config", async () => {
+    const fileText = fileTextOver({ ...SOURCE_FILES, ...ROOT_LOOKUP_FILES, [PROJECTION_PATH]: ABSENT_FILE });
+    await runnerOver({ fileText }).project({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
+      trackedPaths: [PACKAGE_A_CONFIG],
+      clauses: [CLASS_CLAUSE],
+      records: [],
+    });
+    expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
+  });
+});
+
+const FIXTURE_CONFIG = repoPathSchema.parse("fixtures/broken/eslint.config.mjs");
+
+const IGNORED_FIXTURE_FILES: Readonly<Record<string, FakeFile>> = {
+  "/repo/eslint.config.mjs": presentFile({ text: 'export default [{ ignores: ["fixtures/"] }];\n' }),
+  "/repo/fixtures/broken/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+};
+
+const fixtureQuery = (request: { readonly fixture: IgnoredState }) =>
+  queryOver({
+    ignored: { ...CHECKED, "fixtures/broken/eslint.config.mjs": request.fixture },
+    states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: ERROR },
+  });
+
+describe("package projection slices, under a folder the team's config ignores", () => {
+  it("requires no slice for a config root a governing config ignores, since the team's ESLint never loads it", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
+        eslint: eslintOver({ query: fixtureQuery({ fixture: "ignored" }) }),
+      }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
+  });
+
+  it("still requires the slice when the governing config checks that folder", async () => {
+    await expect(
+      runnerOver({
+        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
+        eslint: eslintOver({ query: fixtureQuery({ fixture: "checked" }) }),
+      }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { slices: [{ slice: "fixtures/broken/disciplines.eslint.mjs", state: "missing" }] },
+    });
+  });
+
+  it("projects no slice into a folder a governing config ignores", async () => {
+    const fileText = fileTextOver({ ...SOURCE_FILES, ...IGNORED_FIXTURE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
+    await runnerOver({ fileText, eslint: eslintOver({ query: fixtureQuery({ fixture: "ignored" }) }) }).project({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
+      trackedPaths: [FIXTURE_CONFIG],
+      clauses: [CLASS_CLAUSE],
+      records: [],
+    });
+    expect(vi.mocked(fileText.write).mock.calls).toEqual([[{ path: PROJECTION_PATH, text: ENABLING_PROJECTION }]]);
+  });
+
+  it("asks no governing config anything when every slice is current", async () => {
+    const eslint = eslintOver({
+      query: queryOver({
+        ignored: { "packages/a/src/a.ts": "checked", "packages/a/src/factory.ts": "checked" },
+        states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: OFF },
+      }),
+    });
+    await runnerOver({
+      fileText: packageRepo({
+        files: { ...IGNORED_FIXTURE_FILES, "/repo/packages/a/eslint.config.mjs": presentFile({ text: "export default [];\n" }) },
+      }),
+      eslint,
+    }).run(PACKAGE_RUN);
+    expect(eslint.createQueryInstance).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("package projection slices, a run that cannot finish", () => {
+  it("writes and removes nothing when one slice cannot be rendered", async () => {
+    const fileText = fileTextOver({
+      ...SOURCE_FILES,
+      [PROJECTION_PATH]: ABSENT_FILE,
+      "/repo/packages/old/disciplines.eslint.mjs": presentFile({ text: ENABLING_PROJECTION }),
+      "/repo/packages/a/disciplines.eslint.mjs": UNREADABLE_FILE,
+    });
+    const remove = vi.fn<FileRemovalPort["remove"]>();
+    const write = await runnerOver({ fileText, fileRemoval: { remove } }).project({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      declaredConfigRoots: [],
+      trackedPaths: [PACKAGE_A_CONFIG, repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
+      clauses: [CLASS_CLAUSE],
+      records: [],
+    });
+    expect({ write, writes: vi.mocked(fileText.write).mock.calls, removals: remove.mock.calls }).toEqual({
+      write: { outcome: "failed", error: { kind: "file-unreadable", file: "packages/a/disciplines.eslint.mjs", detail: expect.any(String) } },
+      writes: [],
+      removals: [],
+    });
   });
 });

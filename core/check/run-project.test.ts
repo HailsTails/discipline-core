@@ -473,3 +473,52 @@ describe("runProject for a repository with a package config and a clause it does
     ]);
   });
 });
+
+describe("runProject with an ESLint config root git does not track", () => {
+  it("is the load failure config-root-untracked and projects nothing", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    const outcome = await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/missing"] }),
+          }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect({ outcome, projectCalls: runner.project.mock.calls }).toEqual({
+      outcome: { outcome: "failed", error: { kind: "config-root-untracked", root: "packages/missing" } },
+      projectCalls: [],
+    });
+  });
+
+  it("hands the runner each declared folder git tracks", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["src"] }),
+          }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect(runner.project.mock.calls).toEqual([[expect.objectContaining({ declaredConfigRoots: ["src"] })]]);
+  });
+});

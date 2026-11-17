@@ -1,4 +1,3 @@
-import type { z } from "zod";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
@@ -96,15 +95,11 @@ const rootConfigFile = (request: Pick<LookupRequest, "fileText" | "path" | "repo
     (candidate) => request.fileText.exists({ path: candidate }) === "present",
   );
 
-export type SelectionSettings = z.output<typeof selectionLookupSchema>;
-
-const UNDECLARED: SelectionSettings = { eslintConfigRoots: [] };
-
-export const selectionSettingsOf = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): SelectionSettings => {
+const declaredLookup = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): EslintConfigLookup | undefined => {
   const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, SELECTION_FILE] }) });
   const json = text.outcome === "ok" ? parsedJson({ text: text.value }) : undefined;
   const parsed = json?.outcome === "ok" ? selectionLookupSchema.safeParse(json.value) : undefined;
-  return parsed?.success ? parsed.data : UNDECLARED;
+  return parsed?.success ? parsed.data.eslintConfigLookup : undefined;
 };
 
 const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
@@ -112,10 +107,11 @@ const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
     ? "nearest-to-file"
     : "repository-root";
 
-export const teamConfigLookup = (
-  request: LookupRequest & { readonly settings: SelectionSettings },
-): Result<ConfigLookup, RunnerFailure> => {
-  if ((request.settings.eslintConfigLookup ?? detectedLookup(request)) === "nearest-to-file") {
+export const configLookupOf = (request: LookupRequest): EslintConfigLookup =>
+  declaredLookup(request) ?? detectedLookup(request);
+
+export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, RunnerFailure> => {
+  if (configLookupOf(request) === "nearest-to-file") {
     return { outcome: "ok", value: NEAREST };
   }
   const configFile = rootConfigFile(request);

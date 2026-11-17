@@ -40,6 +40,7 @@ export type MechanismRequest = {
   readonly mechanism: MechanismId;
   readonly run: RunRequest;
   readonly projectedClauses: readonly RunnerClause[];
+  readonly declaredConfigRoots: readonly RepoPath[];
   readonly records: readonly ExceptionRecord[];
 };
 
@@ -183,7 +184,12 @@ export const runMechanism = (
       const runner = request.runner;
       return Promise.resolve()
         .then(() =>
-          runner.run({ ...request.run, projectedClauses: request.projectedClauses, records: request.records }),
+          runner.run({
+            ...request.run,
+            projectedClauses: request.projectedClauses,
+            declaredConfigRoots: request.declaredConfigRoots,
+            records: request.records,
+          }),
         )
         .then(
           (returned) =>

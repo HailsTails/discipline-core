@@ -73,6 +73,7 @@ export type LoadedInputs = {
   readonly invalidRecords: readonly InvalidRecord[];
   readonly mechanisms: readonly LoadedMechanism[];
   readonly excluded: readonly RepoPath[];
+  readonly eslintConfigRoots: readonly RepoPath[];
   readonly exceptionBaseline: ExceptionBaseline;
   readonly notRun: readonly NotRunClause[];
 };
@@ -206,6 +207,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
       invalidRecords: parsed.invalid,
       mechanisms: mechanisms.value,
       excluded: reading.value.excluded,
+      eslintConfigRoots: reading.value.eslintConfigRoots,
       exceptionBaseline,
       notRun: notRunClauses({ bindings: reading.value.bindings, ran: ranBindings({ mechanisms: mechanisms.value }) }),
     },
@@ -347,12 +349,12 @@ const projectionOutcome = (request: {
         problems: [],
       };
     case "out-of-date":
-      return { unmeasured: [], problems: [{ mechanism: request.run.mechanism, state: request.run.projection }] };
+      return { unmeasured: [], problems: [{ scope: "projection", mechanism: request.run.mechanism, state: request.run.projection }] };
   }
 };
 
 const sliceProblemsOf = (request: { readonly run: MechanismRun }): readonly ProjectionProblem[] =>
-  request.run.slices.map((slice) => ({ mechanism: request.run.mechanism, state: slice.state, slice: slice.slice }));
+  request.run.slices.map((slice) => ({ scope: "slice", mechanism: request.run.mechanism, state: slice.state, slice: slice.slice }));
 
 type TreeRequest = Pick<CheckRequest, "git" | "repoRoot" | "path" | "fileText">;
 
@@ -377,7 +379,7 @@ const exclusion = (request: {
     ? "excluded"
     : "checked";
 
-export const presentTrackedPaths = (request: {
+const presentTrackedPaths = (request: {
   readonly check: TreeRequest;
   readonly excluded: readonly RepoPath[];
 }): Result<readonly RepoPath[], LoadFailure> => {
@@ -389,6 +391,30 @@ export const presentTrackedPaths = (request: {
     (trackedPath) => exclusion({ trackedPath, excluded: request.excluded }) === "checked",
   );
   return { outcome: "ok", value: workingTreePaths({ check: request.check, tracked: checked }) };
+};
+
+export type CheckedTree = {
+  readonly tracked: readonly RepoPath[];
+  readonly declaredConfigRoots: readonly RepoPath[];
+};
+
+const trackedFolder = (request: { readonly folder: RepoPath; readonly tracked: readonly RepoPath[] }): "tracked" | "untracked" =>
+  request.tracked.some((trackedPath) => trackedPath.startsWith(`${request.folder}/`)) ? "tracked" : "untracked";
+
+export const checkedTreeOf = (request: {
+  readonly check: TreeRequest;
+  readonly inputs: Pick<LoadedInputs, "excluded" | "eslintConfigRoots">;
+}): Result<CheckedTree, LoadFailure> => {
+  const tracked = presentTrackedPaths({ check: request.check, excluded: request.inputs.excluded });
+  if (tracked.outcome === "failed") {
+    return tracked;
+  }
+  const untracked = request.inputs.eslintConfigRoots.find(
+    (folder) => trackedFolder({ folder, tracked: tracked.value }) === "untracked",
+  );
+  return untracked === undefined
+    ? { outcome: "ok", value: { tracked: tracked.value, declaredConfigRoots: request.inputs.eslintConfigRoots } }
+    : failed({ kind: "config-root-untracked", root: untracked });
 };
 
 const runRequestOf = (request: {
@@ -406,6 +432,7 @@ const runRequestOf = (request: {
 const mechanismRunOf = (request: {
   readonly check: CheckRequest;
   readonly tracked: readonly RepoPath[];
+  readonly declaredConfigRoots: readonly RepoPath[];
   readonly records: readonly ExceptionRecord[];
   readonly loaded: LoadedMechanism;
 }): Promise<Result<MechanismRun, LoadFailure>> =>
@@ -414,18 +441,19 @@ const mechanismRunOf = (request: {
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),
     projectedClauses: request.loaded.projectedClauses,
+    declaredConfigRoots: request.declaredConfigRoots,
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 
 const mechanismRuns = async (request: {
   readonly check: CheckRequest;
-  readonly tracked: readonly RepoPath[];
+  readonly tree: CheckedTree;
   readonly inputs: LoadedInputs;
 }): Promise<Result<readonly MechanismRun[], LoadFailure>> =>
   allOk({
     results: await Promise.all(
       request.inputs.mechanisms.map((loaded) =>
-        mechanismRunOf({ check: request.check, tracked: request.tracked, records: request.inputs.records, loaded }),
+        mechanismRunOf({ check: request.check, ...request.tree, records: request.inputs.records, loaded }),
       ),
     ),
   });
@@ -476,11 +504,11 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   if (inputs.outcome === "failed") {
     return inputs;
   }
-  const tracked = presentTrackedPaths({ check: request, excluded: inputs.value.excluded });
-  if (tracked.outcome === "failed") {
-    return tracked;
+  const tree = checkedTreeOf({ check: request, inputs: inputs.value });
+  if (tree.outcome === "failed") {
+    return tree;
   }
-  const runs = await mechanismRuns({ check: request, tracked: tracked.value, inputs: inputs.value });
+  const runs = await mechanismRuns({ check: request, tree: tree.value, inputs: inputs.value });
   if (runs.outcome === "failed") {
     return runs;
   }

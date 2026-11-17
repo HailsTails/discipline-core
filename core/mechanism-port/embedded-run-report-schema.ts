@@ -57,7 +57,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
 export const sliceProblemSchema = z
   .object({
     slice: repoPathSchema,
-    state: z.enum(["out-of-date", "missing", "not-applied"]),
+    state: z.enum(["out-of-date", "missing", "not-applied", "unconfigured"]),
   })
   .readonly();
 

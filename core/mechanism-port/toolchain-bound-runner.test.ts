@@ -29,7 +29,7 @@ const CLAUSE: RunnerClause = {
 
 const RUN: RunRequest = { repoRoot: REPO, installRoot: REPO, files: [], trackedPaths: [], clauses: [CLAUSE] };
 
-const PROJECTION: ProjectionRequest = { repoRoot: REPO, installRoot: REPO, trackedPaths: [], clauses: [CLAUSE], records: [] };
+const PROJECTION: ProjectionRequest = { repoRoot: REPO, installRoot: REPO, declaredConfigRoots: [], trackedPaths: [], clauses: [CLAUSE], records: [] };
 
 const standaloneOver = (): StandaloneRunner => ({
   exceptionPath: "standalone",
@@ -95,7 +95,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
     expect({
       exceptionPath: bound.exceptionPath,
       projectedKinds: bound.projectedKinds,
-      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, records: [] }),
+      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, declaredConfigRoots: [], records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,
@@ -117,7 +117,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
       runnerOf,
     });
     expect({
-      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, records: [] }),
+      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, declaredConfigRoots: [], records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,

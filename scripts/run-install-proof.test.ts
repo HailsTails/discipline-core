@@ -323,6 +323,34 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed tsc -p tsconfig.nodenext.json -> exit 0, output exactly as expected\n" }]);
   });
 
+  it("runs a workspace package's own lint script from the package folder, judging its exit and output like a command", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning(EXITED_PASSING);
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        proofCases: [
+          {
+            ...EXPECTING_PASS,
+            actions: [
+              { kind: "lint", directory: "packages/web", expectation: { exitCode: 0, output: "verdict: pass\n" } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(commands.run).toHaveBeenLastCalledWith({
+      command: "npm",
+      arguments: ["run", "--silent", "lint"],
+      directory: `${CONSUMER}/packages/web`,
+    });
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([
+      { text: "ok: audit lint in packages/web -> exit 0, output exactly as expected\n" },
+    ]);
+  });
   it("judges the compiler's report with the platform's carriage returns read as plain line feeds", async () => {
     const proofProcess = processPort();
 

@@ -26,5 +26,6 @@ export type SelectionReading = {
   readonly selection: Selection;
   readonly bindings: readonly ClauseBinding[];
   readonly excluded: readonly RepoPath[];
+  readonly eslintConfigRoots: readonly RepoPath[];
   readonly fileExceptionWhyChains: FileExceptionWhyChains;
 };

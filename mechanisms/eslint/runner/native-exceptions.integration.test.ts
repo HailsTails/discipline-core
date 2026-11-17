@@ -439,6 +439,7 @@ const SHARED_CASE_FILES: readonly RepoPath[] = [
 const SHARED_CASES_RUN = {
   repoRoot: consumerRepo({ name: "fr3-anchors" }),
   installRoot: INSTALL_ROOT,
+  declaredConfigRoots: [],
   files: SHARED_CASE_FILES,
   trackedPaths: SHARED_CASE_FILES,
 };
@@ -559,6 +560,7 @@ const monorepoRun = async (request: {
   }).run({
     repoRoot: consumerRepo({ name: request.name }),
     installRoot: INSTALL_ROOT,
+    declaredConfigRoots: [],
     files: [repoPathSchema.parse("packages/a/x.ts")],
     trackedPaths: [
       repoPathSchema.parse("packages/a/x.ts"),
@@ -664,12 +666,9 @@ describe.each(ESLINT_LINES)("a package that spreads its own projection slice, on
     },
   );
 
-  it("names the missing slice but attributes nothing when ESLint 9 resolves every file from the root config", async () => {
+  it("requires no slice for a package config ESLint 9 never loads, resolving every file from the root config", async () => {
     await expect(
       monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
-    ).resolves.toMatchObject({
-      outcome: "ok",
-      value: { projection: "current", slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }] },
-    });
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
   });
 });

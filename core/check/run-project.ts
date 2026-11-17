@@ -6,28 +6,29 @@ import type { LoadFailure } from "./load-failure.ts";
 import { projectMechanism } from "./mechanism-dispatch.ts";
 import {
   allOk,
+  type CheckedTree,
   type CheckRequest,
+  checkedTreeOf,
   type LoadedMechanism,
   loadInputs,
-  presentTrackedPaths,
   recordsOf,
   runnerFailed,
 } from "./run-check.ts";
-import type { RepoPath } from "../values/repo-path.ts";
 
 export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment">;
 
 type ProjectionInputs = {
   readonly project: ProjectRequest;
   readonly records: readonly ExceptionRecord[];
-  readonly tracked: readonly RepoPath[];
+  readonly tree: CheckedTree;
   readonly loaded: LoadedMechanism;
 };
 
 const projectionRequestOf = (request: ProjectionInputs): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
-  trackedPaths: request.tracked,
+  trackedPaths: request.tree.tracked,
+  declaredConfigRoots: request.tree.declaredConfigRoots,
   clauses: request.loaded.projectedClauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
@@ -48,14 +49,14 @@ export const runProject = async (
   if (inputs.outcome === "failed") {
     return inputs;
   }
-  const tracked = presentTrackedPaths({ check: request, excluded: inputs.value.excluded });
-  if (tracked.outcome === "failed") {
-    return tracked;
+  const tree = checkedTreeOf({ check: request, inputs: inputs.value });
+  if (tree.outcome === "failed") {
+    return tree;
   }
   const writes = allOk({
     results: await Promise.all(
       inputs.value.mechanisms.map((loaded) =>
-        projectionWritesOf({ project: request, records: inputs.value.records, tracked: tracked.value, loaded }),
+        projectionWritesOf({ project: request, records: inputs.value.records, tree: tree.value, loaded }),
       ),
     ),
   });

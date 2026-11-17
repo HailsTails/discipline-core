@@ -574,6 +574,7 @@ const selectionReadingOf = (request: {
   },
   bindings: request.resolved.map(({ binding }) => binding),
   excluded: request.file.exclude,
+  eslintConfigRoots: request.file.eslintConfigRoots,
   fileExceptionWhyChains: request.file.fileExceptionWhyChains,
 });
 

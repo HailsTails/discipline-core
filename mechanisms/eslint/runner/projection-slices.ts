@@ -1,4 +1,5 @@
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CONFIG_FILE_NAMES } from "./config-lookup.ts";
 import { PROJECTION_PATH } from "./projection.ts";
@@ -37,14 +38,20 @@ const codeUnitOrder = (left: string, right: string): number => {
   return left > right ? 1 : 0;
 };
 
-const packageDirectories = (request: {
+type RootsRequest = {
   readonly trackedPaths: readonly RepoPath[];
   readonly declared: readonly RepoPath[];
-}): readonly RepoPath[] => {
+  readonly lookup: EslintConfigLookup;
+};
+
+const configuredDirectories = (request: RootsRequest): readonly string[] =>
+  request.lookup === "nearest-to-file"
+    ? request.trackedPaths.filter((path) => CONFIG_FILE_NAMES.includes(fileNameOf({ path }))).map((path) => directoryOf({ path }))
+    : [];
+
+const packageDirectories = (request: RootsRequest): readonly RepoPath[] => {
   const nested = nestedRepositories(request);
-  const configured = request.trackedPaths
-    .filter((path) => CONFIG_FILE_NAMES.includes(fileNameOf({ path })))
-    .map((path) => directoryOf({ path }));
+  const configured = configuredDirectories(request);
   return [...new Set([...configured, ...request.declared])]
     .filter((directory) => directory !== "")
     .filter((directory) => insideNestedRepository({ directory, nested }) === "own")
@@ -52,10 +59,7 @@ const packageDirectories = (request: {
     .map((directory) => repoPathSchema.parse(directory));
 };
 
-export const configRootsOf = (request: {
-  readonly trackedPaths: readonly RepoPath[];
-  readonly declared: readonly RepoPath[];
-}): readonly ConfigRoot[] => [
+export const configRootsOf = (request: RootsRequest): readonly ConfigRoot[] => [
   REPOSITORY_ROOT,
   ...packageDirectories(request).map((directory): ConfigRoot => ({ placement: "package", directory })),
 ];
@@ -88,16 +92,18 @@ export const sliceRecordsOf = (request: {
     : request.records.flatMap((record) => packageRecord({ record, directory: root.directory }));
 };
 
-const depthOf = (request: { readonly root: ConfigRoot }): number =>
-  request.root.placement === "repository" ? 0 : request.root.directory.split("/").length;
+export const packageFoldersOf = (request: { readonly roots: readonly ConfigRoot[] }): ReadonlySet<string> =>
+  new Set(request.roots.flatMap((root) => (root.placement === "package" ? [root.directory] : [])));
 
-export const governingRootOf = (request: {
+export const governingPackageOf = (request: {
   readonly file: RepoPath;
-  readonly roots: readonly ConfigRoot[];
-}): ConfigRoot =>
-  request.roots
-    .filter((root) => root.placement === "repository" || within({ path: request.file, directory: root.directory }) === "within")
-    .reduce((deepest, root) => (depthOf({ root }) > depthOf({ root: deepest }) ? root : deepest), REPOSITORY_ROOT);
+  readonly packages: ReadonlySet<string>;
+}): string | undefined => {
+  const folders = request.file.split("/").slice(0, -1);
+  return folders
+    .map((_, index) => folders.slice(0, folders.length - index).join("/"))
+    .find((folder) => request.packages.has(folder));
+};
 
 export const orphanedSliceDirectoriesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];

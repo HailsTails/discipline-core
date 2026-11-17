@@ -1373,7 +1373,7 @@ describe("runCheck with an embedded runner", () => {
       value: {
         ...EMPTY_REPORT,
         findings: [{ ...HIT_IN_A, mechanism: "audit" }],
-        projectionProblems: [{ mechanism: "audit", state: "out-of-date" }],
+        projectionProblems: [{ scope: "projection", mechanism: "audit", state: "out-of-date" }],
       },
     });
   });
@@ -1402,8 +1402,8 @@ describe("runCheck with an embedded runner", () => {
       value: {
         ...EMPTY_REPORT,
         projectionProblems: [
-          { mechanism: "audit", state: "out-of-date", slice: "packages/a/disciplines.eslint.mjs" },
-          { mechanism: "audit", state: "missing", slice: "packages/b/disciplines.eslint.mjs" },
+          { scope: "slice", mechanism: "audit", state: "out-of-date", slice: "packages/a/disciplines.eslint.mjs" },
+          { scope: "slice", mechanism: "audit", state: "missing", slice: "packages/b/disciplines.eslint.mjs" },
         ],
       },
     });
@@ -1430,7 +1430,7 @@ describe("runCheck with an embedded runner", () => {
       value: {
         ...EMPTY_REPORT,
         unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "not-included" }],
-        projectionProblems: [{ mechanism: "audit", state: "not-applied", slice: "packages/a/disciplines.eslint.mjs" }],
+        projectionProblems: [{ scope: "slice", mechanism: "audit", state: "not-applied", slice: "packages/a/disciplines.eslint.mjs" }],
       },
     });
   });
@@ -1756,5 +1756,37 @@ describe("runCheck clauses not adopted", () => {
         assessment: [{ concern: "waivedClauses", clausesNotRun: [], recordsNotJudgedStale: 0 }],
       },
     });
+  });
+});
+
+const SELECTION_DECLARING_ROOTS = (roots: readonly string[]): string =>
+  JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: roots });
+
+const CURRENT_REPORT = { hits: [], nativeExceptions: [], projection: "current" };
+
+const declaringCheck = (request: { readonly roots: readonly string[]; readonly runner: unknown }) =>
+  checkRequest({
+    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_DECLARING_ROOTS(request.roots) }) }),
+    modules: modulesLoading({ runner: request.runner }),
+  });
+
+describe("runCheck with ESLint config roots declared in disciplines.json", () => {
+  it("hands an embedded runner each declared folder git tracks, spelled as git spells it", async () => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    await runCheck(declaringCheck({ roots: ["src"], runner }));
+    expect(runner.run.mock.calls).toEqual([[expect.objectContaining({ declaredConfigRoots: ["src"] })]]);
+  });
+
+  it.each([
+    { name: "a folder git does not track", root: "packages/missing" },
+    { name: "a tracked file rather than a folder", root: "src/a.ts" },
+    { name: "a tracked folder spelled in another case", root: "SRC" },
+  ])("is the load failure config-root-untracked for $name, running nothing", async ({ root }) => {
+    const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
+    await expect(runCheck(declaringCheck({ roots: [root], runner }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "config-root-untracked", root },
+    });
+    expect(runner.run).not.toHaveBeenCalled();
   });
 });

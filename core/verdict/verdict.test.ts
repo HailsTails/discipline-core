@@ -87,7 +87,7 @@ describe("verdictOf", () => {
     ["legacy-chain unmeasured", { ...emptyReport, unmeasured: [{ kind: "legacy-chain-unmeasured" }] }],
     [
       "projectionProblems",
-      { ...emptyReport, projectionProblems: [{ mechanism: eslint, state: "out-of-date" }] },
+      { ...emptyReport, projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }] },
     ],
   ])("fails a report with one %s entry", (_list, report) => {
     expect(verdictOf({ report })).toBe("fail");

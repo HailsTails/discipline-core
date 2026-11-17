@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gatheredOutcomes } from "./gathered-outcomes.ts";
+import { gatheredOutcomes, listedOutcome } from "./gathered-outcomes.ts";
 import type { Result } from "./result.ts";
 
 type Listed = Result<readonly number[], string>;
@@ -25,5 +25,18 @@ describe("gatheredOutcomes", () => {
       { outcome: "failed", error: "second" },
     ];
     expect(gatheredOutcomes({ outcomes })).toEqual({ outcome: "failed", error: "first" });
+  });
+});
+
+describe("listedOutcome", () => {
+  it("lists an ok value as a one-entry ok list", () => {
+    expect(listedOutcome<number, string>({ outcome: { outcome: "ok", value: 3 } })).toEqual({ outcome: "ok", value: [3] });
+  });
+
+  it("passes a failure through unchanged", () => {
+    expect(listedOutcome<number, string>({ outcome: { outcome: "failed", error: "unreadable" } })).toEqual({
+      outcome: "failed",
+      error: "unreadable",
+    });
   });
 });

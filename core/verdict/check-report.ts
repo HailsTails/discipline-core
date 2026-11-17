@@ -27,7 +27,6 @@ export type NotRunClause = {
   readonly mechanism: MechanismId;
 };
 
-
 export type PartialAssessment =
   | {
       readonly concern: "forfeiture";
@@ -42,10 +41,11 @@ export type PartialAssessment =
     };
 
 export type ProjectionProblem =
-  | { readonly mechanism: MechanismId; readonly state: "out-of-date" }
+  | { readonly scope: "projection"; readonly mechanism: MechanismId; readonly state: "out-of-date" }
   | {
+      readonly scope: "slice";
       readonly mechanism: MechanismId;
-      readonly state: "out-of-date" | "missing" | "not-applied";
+      readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured";
       readonly slice: RepoPath;
     };
 

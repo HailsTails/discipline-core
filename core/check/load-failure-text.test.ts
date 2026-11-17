@@ -6,6 +6,11 @@ import { loadFailureText } from "./load-failure-text.ts";
 const WALKER = mechanismIdSchema.parse("audit");
 
 describe("loadFailureText", () => {
+  it("prints an untracked ESLint config root with what the entry must be", () => {
+    expect(loadFailureText({ failure: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/Web") } })).toBe(
+      "load failure: config-root-untracked packages/Web: an eslintConfigRoots entry is a folder git tracks, spelled exactly as git spells it; fix or remove it in disciplines.json\n",
+    );
+  });
   it("prints one line naming the kind and its detail", () => {
     expect(loadFailureText({ failure: { kind: "git-failed", detail: "git ls-files: not a git repository" } })).toBe(
       "load failure: git-failed git ls-files: not a git repository\n",

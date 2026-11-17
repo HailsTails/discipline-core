@@ -101,7 +101,7 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
 };
 
 const projectionProblemLine = (request: { readonly problem: ProjectionProblem }): string =>
-  "slice" in request.problem
+  request.problem.scope === "slice"
     ? `${request.problem.mechanism} ${request.problem.state} ${request.problem.slice}`
     : `${request.problem.mechanism} ${request.problem.state}`;
 

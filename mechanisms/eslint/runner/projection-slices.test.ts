@@ -7,8 +7,9 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import {
   type ConfigRoot,
   configRootsOf,
-  governingRootOf,
+  governingPackageOf,
   orphanedSliceDirectoriesOf,
+  packageFoldersOf,
   sliceRecordsOf,
   slicePathOf,
 } from "./projection-slices.ts";
@@ -43,7 +44,7 @@ const clauseWide: ExceptionRecord = {
 describe("configRootsOf", () => {
   it("is only the repository root when no package carries its own eslint.config", () => {
     expect(
-      configRootsOf({ trackedPaths: tracked(["eslint.config.mjs", "src/a.ts", "package.json"]), declared: [] }),
+      configRootsOf({ trackedPaths: tracked(["eslint.config.mjs", "src/a.ts", "package.json"]), declared: [], lookup: "nearest-to-file" }),
     ).toEqual([REPOSITORY]);
   });
 
@@ -57,6 +58,7 @@ describe("configRootsOf", () => {
           "packages/c/eslint.config.json",
         ]),
         declared: [],
+        lookup: "nearest-to-file",
       }),
     ).toEqual([REPOSITORY, PACKAGE_A, NESTED_IN_A, PACKAGE_B]);
   });
@@ -66,6 +68,7 @@ describe("configRootsOf", () => {
       configRootsOf({
         trackedPaths: tracked(["packages/a/eslint.config.mjs", "packages/b/sku.config.ts"]),
         declared: tracked(["packages/b", "packages/a"]),
+        lookup: "nearest-to-file",
       }),
     ).toEqual([REPOSITORY, PACKAGE_A, PACKAGE_B]);
   });
@@ -80,8 +83,19 @@ describe("configRootsOf", () => {
           "packages/a/eslint.config.mjs",
         ]),
         declared: tracked(["fixtures/consumer/packages/b"]),
+        lookup: "nearest-to-file",
       }),
     ).toEqual([REPOSITORY, PACKAGE_A]);
+  });
+
+  it("counts only declared folders when ESLint resolves every file from the repository root's config", () => {
+    expect(
+      configRootsOf({
+        trackedPaths: tracked(["packages/a/eslint.config.mjs", "packages/b/sku.config.ts"]),
+        declared: tracked(["packages/b"]),
+        lookup: "repository-root",
+      }),
+    ).toEqual([REPOSITORY, PACKAGE_B]);
   });
 });
 
@@ -124,19 +138,29 @@ describe("sliceRecordsOf", () => {
   });
 });
 
-describe("governingRootOf", () => {
-  const roots = [REPOSITORY, PACKAGE_A, NESTED_IN_A, PACKAGE_B];
+describe("packageFoldersOf", () => {
+  it("is the folder of every package root, leaving out the repository root", () => {
+    expect([...packageFoldersOf({ roots: [REPOSITORY, PACKAGE_A, NESTED_IN_A] })]).toEqual(["packages/a", "packages/a/tools"]);
+  });
+});
 
-  it("is the deepest config root holding the file", () => {
-    expect(governingRootOf({ file: repoPathSchema.parse("packages/a/tools/run.ts"), roots })).toEqual(NESTED_IN_A);
+describe("governingPackageOf", () => {
+  const packages = packageFoldersOf({ roots: [REPOSITORY, PACKAGE_A, NESTED_IN_A, PACKAGE_B] });
+
+  it("is the deepest package folder holding the file", () => {
+    expect(governingPackageOf({ file: repoPathSchema.parse("packages/a/tools/run.ts"), packages })).toBe("packages/a/tools");
   });
 
-  it("is the package root for a file directly under it", () => {
-    expect(governingRootOf({ file: repoPathSchema.parse("packages/a/src/x.ts"), roots })).toEqual(PACKAGE_A);
+  it("is the package folder for a file directly under it", () => {
+    expect(governingPackageOf({ file: repoPathSchema.parse("packages/a/x.ts"), packages })).toBe("packages/a");
   });
 
-  it("is the repository root for a file outside every package, even one whose name starts like a package", () => {
-    expect(governingRootOf({ file: repoPathSchema.parse("packages/ab/x.ts"), roots })).toEqual(REPOSITORY);
+  it("is no package for a file outside every package, even one whose folder starts like a package", () => {
+    expect(governingPackageOf({ file: repoPathSchema.parse("packages/ab/x.ts"), packages })).toBeUndefined();
+  });
+
+  it("is no package for a file at the repository root", () => {
+    expect(governingPackageOf({ file: repoPathSchema.parse("x.ts"), packages })).toBeUndefined();
   });
 });
 

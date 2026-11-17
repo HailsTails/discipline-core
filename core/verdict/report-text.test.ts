@@ -430,7 +430,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
         output: "full",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }],
         },
       }),
     ).toContain("\neslint out-of-date\n");
@@ -443,7 +443,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
         report: {
           ...emptyReport,
           projectionProblems: [
-            { mechanism: eslint, state: "not-applied", slice: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") },
+            { scope: "slice", mechanism: eslint, state: "not-applied", slice: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") },
           ],
         },
       }),
@@ -472,7 +472,7 @@ describe("renderReportText sections", () => {
         output: "full",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }],
           stale: [located],
           findings: [finding],
         },

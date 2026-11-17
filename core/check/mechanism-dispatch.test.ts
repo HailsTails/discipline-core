@@ -62,6 +62,7 @@ const dispatchRun = (request: { readonly runner: LoadedRunner }) =>
     mechanism: WALKER,
     run: RUN_REQUEST,
     projectedClauses: RUN_REQUEST.clauses,
+    declaredConfigRoots: [],
     records: [CARVE_OUT],
   });
 
@@ -177,7 +178,7 @@ describe("projectMechanism with a standalone runner", () => {
     const runner = standaloneRunner({ run: runResolving({ outcome: "ok", value: [] }) });
     const writes = await projectMechanism({
       runner,
-      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
+      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
     });
     expect({ writes, runCalls: vi.mocked(runner.run).mock.calls, conformCalls: vi.mocked(runner.conform).mock.calls }).toEqual({
       writes: { outcome: "ok", value: [] },
@@ -210,6 +211,7 @@ const SLICE_WRITES = [
 const PROJECTION_REQUEST = {
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
+  declaredConfigRoots: [],
   trackedPaths: [],
   clauses: [CLASS_SYNTAX_CLAUSE],
   records: [ESLINT_LOCATION],
@@ -236,6 +238,7 @@ const dispatchEmbeddedRun = (request: { readonly run: EmbeddedCall }) =>
     mechanism: ESLINT,
     run: RUN_REQUEST,
     projectedClauses: RUN_REQUEST.clauses,
+    declaredConfigRoots: [],
     records: [ESLINT_LOCATION],
   });
 
@@ -317,10 +320,11 @@ describe("runMechanism with an embedded runner", () => {
       mechanism: ESLINT,
       run: RUN_REQUEST,
       projectedClauses: RUN_REQUEST.clauses,
+      declaredConfigRoots: [],
       records: [ESLINT_LOCATION],
     });
     expect({ runCalls: run.mock.calls, projectCalls: project.mock.calls }).toEqual({
-      runCalls: [[{ ...RUN_REQUEST, projectedClauses: RUN_REQUEST.clauses, records: [ESLINT_LOCATION] }]],
+      runCalls: [[{ ...RUN_REQUEST, projectedClauses: RUN_REQUEST.clauses, declaredConfigRoots: [], records: [ESLINT_LOCATION] }]],
       projectCalls: [],
     });
   });
@@ -509,6 +513,7 @@ const dispatchPartialRun = (request: { readonly run: EmbeddedCall }) =>
     mechanism: ESLINT,
     run: RUN_REQUEST,
     projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+    declaredConfigRoots: [],
     records: [ESLINT_LOCATION],
   });
 
@@ -520,6 +525,7 @@ describe("runMechanism with an embedded runner, a projected clause not run", () 
     expect(run).toHaveBeenCalledExactlyOnceWith({
       ...RUN_REQUEST,
       projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+      declaredConfigRoots: [],
       records: [ESLINT_LOCATION],
     });
   });
