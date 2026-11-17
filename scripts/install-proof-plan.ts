@@ -148,7 +148,7 @@ const TEAM_FINDINGS_REPORT = `findings (2)
 acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
 acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
 readFirst (3)
-Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
+disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
 acme/ACME-1#console-calls: its rule set has no rule page at tools/disciplines/acme/rules/ACME-1/README.md
 acme/ACME-2#scratch-files: its rule set has no rule page at tools/disciplines/acme/rules/ACME-2/README.md
 verdict: fail
