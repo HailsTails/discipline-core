@@ -180,15 +180,27 @@ In CI, pass the branch's base so that debt recorded per file is forfeited once t
 npm run --silent hone:check -- --base-revision origin/main
 ```
 
-To assess decay at push only, for example when CI checks out a single revision, set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI then runs the check with no base revision, and the pre-push hook assesses decay for its run:
+Add the command to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
+
+To assess decay at push only, for example so that a hotfix in a carved file is not blocked in CI, set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI and the pre-push hook then run different commands. The pre-push hook assesses decay for its run:
 
 ```bash
 npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main
 ```
 
-The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6).
+CI leaves decay to the hook. A repository with no imported records and no legacy-chain records runs the check with no base revision:
 
-Add the command to the repository's existing validation script, and run that same script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run. With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
+```bash
+npm run --silent hone:check
+```
+
+A repository with imported records (`provenance`) or legacy-chain records still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` or `legacy-chain-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and nothing is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history:
+
+```bash
+npm run --silent hone:check -- --base-revision <base-commit>
+```
+
+The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
 Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
 

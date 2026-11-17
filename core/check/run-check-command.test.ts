@@ -429,44 +429,23 @@ describe("runCheckCommand forfeiture assessment defaults and outputs", () => {
 });
 
 describe("runCheckCommand forfeiture elsewhere with a base revision", () => {
-  it("exits 2 refusing --base-revision together with --forfeiture elsewhere, and measures nothing", async () => {
+  it("runs with --forfeiture elsewhere and --base-revision, forfeiting nothing and asking git for no change set", async () => {
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--forfeiture", "elsewhere", "--base-revision", "main"],
         settings: {},
       }),
-    ).toEqual({
-      writes: [
-        [
-          {
-            text: "load failure: arguments-invalid --base-revision measures carve-out decay, but --forfeiture is elsewhere; give --forfeiture this-run to assess forfeiture in this run, or leave out --base-revision\n",
-          },
-        ],
-      ],
-      exits: [[{ code: 2 }]],
-      changedSince: [],
-    });
+    ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
   });
 
-  it("exits 2 refusing --base-revision when disciplines.json sets forfeiture elsewhere", async () => {
+  it("runs with --base-revision when disciplines.json sets forfeiture elsewhere, forfeiting nothing", async () => {
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--base-revision", "main"],
         settings: { assessment: { forfeiture: "elsewhere" } },
       }),
-    ).toEqual({
-      writes: [
-        [
-          {
-            text: "load failure: arguments-invalid --base-revision measures carve-out decay, but assessment.forfeiture in disciplines.json is elsewhere; give --forfeiture this-run to assess forfeiture in this run, or leave out --base-revision\n",
-          },
-        ],
-      ],
-      exits: [[{ code: 2 }]],
-      changedSince: [],
-    });
+    ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
   });
-
 });
 
 describe("runCheckCommand assessment configuration", () => {

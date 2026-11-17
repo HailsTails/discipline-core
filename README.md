@@ -58,7 +58,7 @@ The output changes only what is printed: the verdict and exit code always come f
 
 Without `--base-revision`, Hone cannot tell which files were touched, so a file carve-out cannot be forfeited; if any file carve-out exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot tell whether an entry with an earlier-contract why-chain is unchanged; if one exists the report lists `legacy-chain-unmeasured` and the run fails.
 
-`--forfeiture elsewhere` makes a run leave carve-out decay to another run, such as a pre-push hook given a base revision, overriding `assessment.forfeiture` in `disciplines.json`; `--forfeiture this-run`, the default, assesses it in this run. A run with forfeiture elsewhere asks git for no change set, forfeits no file carve-out and never reports `forfeiture-unmeasured`. It ends its report with an `assessment` section, printed whenever the run assesses less than the default, and marks its verdict line in every output:
+`--forfeiture elsewhere` makes a run leave carve-out decay to another run, such as a pre-push hook given a base revision, overriding `assessment.forfeiture` in `disciplines.json`; `--forfeiture this-run`, the default, assesses it in this run. A run with forfeiture elsewhere asks git for no change set, forfeits no file carve-out and never reports `forfeiture-unmeasured`, with or without `--base-revision`. It ends its report with an `assessment` section, printed whenever the run assesses less than the default, and marks its verdict line in every output:
 
 ```text
 assessment (1)
@@ -66,7 +66,7 @@ forfeiture elsewhere: 37 file carve-outs not checked for decay in this run
 verdict: pass (partial assessment)
 ```
 
-The `assessment` section is informational and the marker does not change the exit code. `--base-revision` with forfeiture elsewhere, from the option or from `disciplines.json`, is a load failure `arguments-invalid`: give `--forfeiture this-run` with it, or leave it out. A run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
+The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
 
 `hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file (`written` or `unchanged`). The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
 
@@ -113,7 +113,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
-- `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`.
+- `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). Any other key makes `disciplines.json` `file-malformed`, naming the key as not available in this version.
 - `exclude`, optional, lists repository folders or exact files that no mechanism checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `disciplines.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 
 ## discipline-exceptions.json

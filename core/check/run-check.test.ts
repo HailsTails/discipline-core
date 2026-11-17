@@ -216,6 +216,26 @@ const EXCEPTIONS_WITH_AUTHORISED_LOCATION = JSON.stringify({
   ],
 });
 
+const EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT = JSON.stringify({
+  version: 1,
+  exceptions: [
+    {
+      kind: "authorised-location",
+      clause: "CD-14#class-syntax",
+      file: "src/factory.ts",
+      reason: "the wrapping factory for the library",
+      provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" },
+    },
+    {
+      kind: "file-carve-out",
+      clause: "CD-14#class-syntax",
+      file: "src/legacy.ts",
+      reason: "legacy class awaiting paydown",
+      whyChain: CAUSAL_WHY_CHAIN,
+    },
+  ],
+});
+
 const SELECTION_WITH_OPTIONAL_WHY_CHAINS = JSON.stringify({
   version: 1,
   ruleSets: {},
@@ -681,6 +701,97 @@ describe("runCheck forfeiture assessed elsewhere", () => {
         }),
       ),
     ).resolves.toMatchObject({ outcome: "ok", value: { assessment: [] } });
+  });
+});
+
+describe("runCheck forfeiture elsewhere with a base revision", () => {
+  const gitHoldingImports = (): GitPort =>
+    gitReporting({
+      trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+      changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] },
+      textInBase: presentAtBase({ text: EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT }),
+    });
+
+  const importedAndCarved = (overrides: Partial<CheckRequest>): CheckRequest =>
+    checkRequest({
+      forfeiture: "elsewhere",
+      fileText: fileTextOver({
+        ...INSTALL,
+        [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT }),
+      }),
+      ...overrides,
+    });
+
+  it("reads the base only for the imported records and the tracked paths, never the change set", async () => {
+    const git = gitHoldingImports();
+
+    await runCheck(importedAndCarved({ git }));
+
+    expect({
+      trackedPaths: vi.mocked(git.trackedPaths).mock.calls,
+      changedSince: vi.mocked(git.changedSince).mock.calls,
+      contentInBase: vi.mocked(git.contentInBase).mock.calls,
+      textInBase: vi.mocked(git.textInBase).mock.calls,
+    }).toEqual({
+      trackedPaths: [[{ repoRoot: REPO_ROOT }]],
+      changedSince: [],
+      contentInBase: [],
+      textInBase: [[{ repoRoot: REPO_ROOT, baseRevision: "main", file: "discipline-exceptions.json" }]],
+    });
+  });
+
+  it("verifies the imported record against the base, keeps the touched carve-out and reports the partial assessment", async () => {
+    await expect(runCheck(importedAndCarved({ git: gitHoldingImports() }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        invalidRecords: [],
+        unmeasured: [],
+        forfeited: [],
+        stale: [{ kind: "authorised-location" }, { kind: "file-carve-out", file: "src/legacy.ts" }],
+        assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 }],
+      },
+    });
+  });
+
+  it("reports import-unmeasured as today, beside the partial assessment, when no base revision is given", async () => {
+    await expect(runCheck(importedAndCarved({ baseRevision: undefined }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        unmeasured: [{ kind: "import-unmeasured" }],
+        forfeited: [],
+        assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 }],
+      },
+    });
+  });
+});
+
+describe("runCheck forfeiture elsewhere with legacy chains", () => {
+  const legacyChain = (overrides: Partial<CheckRequest>): CheckRequest =>
+    checkRequest({
+      forfeiture: "elsewhere",
+      fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }) }),
+      ...overrides,
+    });
+
+  it("accepts a legacy chain the base revision holds unchanged", async () => {
+    await expect(
+      runCheck(
+        legacyChain({
+          git: gitReporting({
+            trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
+            changedSince: { outcome: "ok", value: [] },
+            textInBase: presentAtBase({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }),
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], unmeasured: [] } });
+  });
+
+  it("reports legacy-chain-unmeasured as today when no base revision is given", async () => {
+    await expect(runCheck(legacyChain({ baseRevision: undefined }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { unmeasured: [{ kind: "legacy-chain-unmeasured" }] },
+    });
   });
 });
 

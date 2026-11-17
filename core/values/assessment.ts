@@ -4,8 +4,18 @@ export const forfeitureAssessmentSchema = z.enum(["this-run", "elsewhere"]);
 
 export type ForfeitureAssessment = z.infer<typeof forfeitureAssessmentSchema>;
 
-export const assessmentSchema = z.strictObject({
+const ASSESSMENT_CONCERNS = {
   forfeiture: forfeitureAssessmentSchema.default("this-run"),
+};
+
+const quotedKeys = (request: { readonly keys: readonly string[] }): string =>
+  request.keys.map((key) => JSON.stringify(key)).join(", ");
+
+export const assessmentSchema = z.strictObject(ASSESSMENT_CONCERNS, {
+  error: (issue) =>
+    issue.code === "unrecognized_keys"
+      ? `not available in this version: ${quotedKeys({ keys: issue.keys })}; assessment takes ${quotedKeys({ keys: Object.keys(ASSESSMENT_CONCERNS) })} only`
+      : undefined,
 });
 
 export type Assessment = z.infer<typeof assessmentSchema>;

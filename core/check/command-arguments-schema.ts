@@ -17,9 +17,9 @@ export type ProjectArguments = {
 };
 
 const REPO_OPTION = "--repo";
-export const BASE_REVISION_OPTION = "--base-revision";
+const BASE_REVISION_OPTION = "--base-revision";
 const REPORT_OUTPUT_OPTION = "--report-output";
-export const FORFEITURE_OPTION = "--forfeiture";
+const FORFEITURE_OPTION = "--forfeiture";
 
 const optionPairs = (request: { readonly arguments: readonly string[] }): readonly unknown[] =>
   Array.from({ length: Math.ceil(request.arguments.length / 2) }, (_, index) => [

@@ -471,6 +471,26 @@ describe("readRunSettings assessment", () => {
 
 });
 
+describe("readRunSettings unbuilt assessment keys", () => {
+  it("names each unbuilt key as not available in this version and the keys assessment takes", () => {
+    expect(
+      configuredSettings({
+        version: 1,
+        ruleSets: {},
+        clauses: {},
+        assessment: { eslint: { evidence: "hone" }, waivedClauses: "not-run" },
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "file-malformed",
+        path: SELECTION_PATH,
+        detail: '✖ not available in this version: "eslint", "waivedClauses"; assessment takes "forfeiture" only\n  → at assessment',
+      },
+    });
+  });
+});
+
 describe("readRunSettings reading", () => {
   it("is file-unreadable when disciplines.json cannot be read, so no default output is guessed", () => {
     expect(
