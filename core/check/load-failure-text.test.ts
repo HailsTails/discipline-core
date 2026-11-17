@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { loadFailureText } from "./load-failure-text.ts";
+import { loadFailureDetail, loadFailureText } from "./load-failure-text.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
 
@@ -217,6 +217,14 @@ describe("loadFailureText for a run that cannot start", () => {
   it("prints unexpected-error with what was thrown", () => {
     expect(loadFailureText({ failure: { kind: "unexpected-error", detail: "Cannot read properties of undefined" } })).toBe(
       "load failure: unexpected-error Cannot read properties of undefined\n",
+    );
+  });
+});
+
+describe("loadFailureDetail", () => {
+  it("names the kind and its fields on one line, without the load failure prefix", () => {
+    expect(loadFailureDetail({ failure: { kind: "rule-set-invalid", path: "/repo/rules/ACME-2/discipline.json", detail: "first\nsecond" } })).toBe(
+      "rule-set-invalid /repo/rules/ACME-2/discipline.json first\\nsecond",
     );
   });
 });

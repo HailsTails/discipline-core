@@ -33,6 +33,9 @@ const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
   "/package/README.md": "# Discipline core\n",
+  "/package/api/audit.ts": "export {};\n",
+  "/package/api/rule-set.ts": "export {};\n",
+  "/package/api/testing.ts": "export {};\n",
   "/package/core/check/tool-command.ts": "await run();\n",
   "/package/mechanisms/audit/runner/runner.ts": "await project();\n",
 };
@@ -55,14 +58,20 @@ const entryOutput = (request: { readonly source: string; readonly path: string; 
 
 const RUNNER_OUTPUT = entryOutput({ source: "mechanisms/audit/runner/runner.ts", path: "mechanisms/audit/runner/runner.js", text: "await project();\n" });
 
+const API_OUTPUTS = [
+  entryOutput({ source: "api/audit.ts", path: "api/audit.js", text: "export {};\n" }),
+  entryOutput({ source: "api/rule-set.ts", path: "api/rule-set.js", text: "export {};\n" }),
+  entryOutput({ source: "api/testing.ts", path: "api/testing.js", text: "export {};\n" }),
+];
+
 const BUNDLE: Bundle = {
-  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "await run();\n" }), RUNNER_OUTPUT],
+  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "await run();\n" }), ...API_OUTPUTS, RUNNER_OUTPUT],
   packageRoots: [],
 };
 
 const DRIFTED: Bundle = {
   ...BUNDLE,
-  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "drifted\n" }), RUNNER_OUTPUT],
+  outputs: [entryOutput({ source: "core/check/tool-command.ts", path: "core/check/tool-command.js", text: "drifted\n" }), ...API_OUTPUTS, RUNNER_OUTPUT],
 };
 
 const steadyBundler = (): BundlerPort => ({ bundle: vi.fn<BundlerPort["bundle"]>().mockResolvedValue({ outcome: "ok", value: BUNDLE }) });
@@ -169,7 +178,7 @@ describe("runBuildPackage", () => {
     await runBuildPackage(request);
 
     expect({ report: reportOf(request), runs: npm.runs(), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
-      report: { writes: [[{ text: "build package: wrote 10 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "build package: wrote 12 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
       runs: [],
       left: [],
     });
@@ -218,7 +227,7 @@ describe("runPackageDeterminism", () => {
 
     expect({ report: reportOf(request), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
       report: {
-        writes: [[{ text: "package determinism: pass, 10 files and the packed tarball byte-identical across two builds\n" }]],
+        writes: [[{ text: "package determinism: pass, 12 files and the packed tarball byte-identical across two builds\n" }]],
         exits: [[{ code: 0 }]],
       },
       left: [],

@@ -13,22 +13,23 @@ const ENTRIES = [
 const EMIT: DeclarationEmit = {
   diagnostics: [],
   declarations: [
-    { path: "api/audit.d.ts", text: 'export type { Tree } from "../core/tree.js";\n', specifiers: ["../core/tree.js"] },
-    { path: "api/rule-set.d.ts", text: "export declare const ruleSet: 1;\n", specifiers: [] },
-    { path: "core/tree.d.ts", text: 'import type typescript from "typescript";\nexport type Tree = typescript.Node;\n', specifiers: ["typescript"] },
-    { path: "core/schema.d.ts", text: 'import { z } from "zod";\n', specifiers: ["zod"] },
+    { path: "api/audit.d.ts", text: 'export type { Tree } from "../core/tree.js";\n', specifiers: ["../core/tree.js"], refusals: [] },
+    { path: "api/rule-set.d.ts", text: "export declare const ruleSet: 1;\n", specifiers: [], refusals: [] },
+    { path: "core/tree.d.ts", text: 'import type typescript from "typescript";\nexport type Tree = typescript.Node;\nexport declare const tree: Tree;\n', specifiers: ["typescript"], refusals: [] },
+    { path: "core/schema.d.ts", text: 'import { z } from "zod";\n', specifiers: ["zod"], refusals: [] },
   ],
 };
 
 describe("publicTypeReachOf", () => {
-  it("names each entry's reached declarations and the packages they import, and the shipped declarations that claim a value", () => {
+  it("names each entry's reached declarations and the packages they import, the values each entry declares, and the other shipped declarations that claim a value", () => {
     expect(publicTypeReachOf({ syntaxApi, emitted: { outcome: "ok", value: EMIT }, entries: ENTRIES, requiredPeers: ["typescript"] })).toEqual({
       problems: [],
       entries: {
         audit: { reached: ["api/audit.d.ts", "core/tree.d.ts"], packageImports: ["typescript"] },
         "rule-set": { reached: ["api/rule-set.d.ts"], packageImports: [] },
       },
-      valueDeclaring: ["api/rule-set.d.ts: ruleSet"],
+      valueDeclaring: ["core/tree.d.ts: tree"],
+      entryValues: { audit: [], "rule-set": ["ruleSet"] },
       zodMentioning: [],
     });
   });
@@ -39,7 +40,7 @@ describe("publicTypeReachOf", () => {
         syntaxApi,
         emitted: {
           outcome: "ok",
-          value: { diagnostics: [], declarations: [{ path: "api/audit.d.ts", text: "export type Schema = 'zod';\n", specifiers: [] }] },
+          value: { diagnostics: [], declarations: [{ path: "api/audit.d.ts", text: "export type Schema = 'zod';\n", specifiers: [], refusals: [] }] },
         },
         entries: [{ subpath: "audit", source: "api/audit.ts" }],
         requiredPeers: [],
@@ -57,7 +58,7 @@ describe("publicTypeReachOf", () => {
   it("names the port's failure as the only problem", () => {
     expect(
       publicTypeReachOf({ syntaxApi, emitted: { outcome: "failed", error: { kind: "declarations-failed", detail: "no tsconfig.json" } }, entries: ENTRIES, requiredPeers: [] }),
-    ).toEqual({ problems: ["no tsconfig.json"], entries: {}, valueDeclaring: [], zodMentioning: [] });
+    ).toEqual({ problems: ["no tsconfig.json"], entries: {}, valueDeclaring: [], entryValues: {}, zodMentioning: [] });
   });
 });
 

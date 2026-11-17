@@ -21,7 +21,8 @@ export type ProofAction =
   | { readonly kind: "commit"; readonly message: string }
   | { readonly kind: "read"; readonly path: string; readonly text: string }
   | { readonly kind: "typecheck"; readonly project: string; readonly expectation: StepExpectation }
-  | { readonly kind: "lint"; readonly directory: string; readonly expectation: StepExpectation };
+  | { readonly kind: "lint"; readonly directory: string; readonly expectation: StepExpectation }
+  | { readonly kind: "run"; readonly script: string; readonly expectation: StepExpectation };
 
 export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
 
@@ -161,6 +162,7 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
   { kind: "typecheck", project: `${TEAM_RULE_SET}/tsconfig.bundler.json`, expectation: SILENT_SUCCESS },
   { kind: "typecheck", project: "typing/tsconfig.commonjs.json", expectation: SILENT_SUCCESS },
   WRONG_FIELD_TYPES_REJECTED,
+  { kind: "run", script: `${TEAM_RULE_SET}/proof/testing-proof.ts`, expectation: SILENT_SUCCESS },
   { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mjs unchanged\n" } },
   { kind: "check", expectation: { exitCode: 1, output: TEAM_FINDINGS_REPORT } },
 ];

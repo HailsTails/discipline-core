@@ -61,6 +61,9 @@ const SOURCE_WITHOUT_INSTALLED_ZOD: Readonly<Record<string, string>> = {
   "/package/README.md": "# Hone\n\n[Rules](rules/CD-15/README.md)\n",
   "/package/LICENSE": "MIT No Attribution\n",
   "/package/pnpm-lock.yaml": LOCK,
+  "/package/api/audit.ts": "export const folderScope = 1;\n",
+  "/package/api/rule-set.ts": "export {};\n",
+  "/package/api/testing.ts": "export const repoPathOf = 1;\n",
   "/package/core/check/tool-command.ts": "await run();\n",
   "/package/core/check/run-check.test.ts": "test\n",
   "/package/core/tests/helper.ts": "export const helper = 1;\n",
@@ -101,13 +104,18 @@ const TOOL_COMMAND = entryOutput({
   text: "#!/usr/bin/env node\nawait run();\n",
 });
 
+const API_AUDIT = entryOutput({ source: "api/audit.ts", path: "api/audit.js", text: "export const folderScope = 1;\n" });
+
+const API_RULE_SET = entryOutput({ source: "api/rule-set.ts", path: "api/rule-set.js", text: "export {};\n" });
+
+const API_TESTING = entryOutput({ source: "api/testing.ts", path: "api/testing.js", text: "export const repoPathOf = 1;\n" });
 
 const RUNNER = entryOutput({ source: "mechanisms/audit/runner/runner.ts", path: "mechanisms/audit/runner/runner.js", text: "export const runner = {};\n" });
 
 const LOOPS = entryOutput({ source: "mechanisms/audit/CD-15/loops.ts", path: "mechanisms/audit/CD-15/loops.js", text: "export const check = {};\n" });
 
 const BUNDLE: Bundle = {
-  outputs: [TOOL_COMMAND, RUNNER, LOOPS, CHUNK],
+  outputs: [TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, CHUNK],
   packageRoots: ["node_modules/zod"],
 };
 
@@ -136,10 +144,32 @@ const builtWith = (request: { readonly source: Readonly<Record<string, string>>;
   };
 };
 
+const SHIPPED_FILES = [
+  "LICENSE",
+  "README.md",
+  "THIRD-PARTY-NOTICES.md",
+  "api/audit.d.ts",
+  "api/audit.js",
+  "api/rule-set.d.ts",
+  "api/rule-set.js",
+  "api/testing.d.ts",
+  "api/testing.js",
+  "chunks/chunk-A.js",
+  "core/check/tool-command.js",
+  "core/values/result.d.ts",
+  "docs/why-chain-contract.md",
+  "mechanisms/audit/CD-15/loops.js",
+  "mechanisms/audit/CD-15/piece.json",
+  "mechanisms/audit/runner/runner.js",
+  "package.json",
+  "rules/CD-15/README.md",
+  "rules/CD-15/discipline.json",
+];
+
 const NOTHING_WRITTEN = { "/out/stale.js": "stale\n" };
 
 describe("buildPackage", () => {
-  it("bundles the commands, runners and shipped piece modules from a stage holding core's code and core's own installed packages, with each peer external", async () => {
+  it("bundles the command, the public entries, the runners and the shipped piece modules from a stage holding core's code and core's own installed packages, with each peer external", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const recording = recordingBundler({ files, stage: STAGE_SOURCE, bundle: { outcome: "ok", value: BUNDLE } });
 
@@ -166,6 +196,9 @@ describe("buildPackage", () => {
           sourceRoot: STAGE_SOURCE,
           entryPoints: [
             "core/check/tool-command.ts",
+            "api/audit.ts",
+            "api/rule-set.ts",
+            "api/testing.ts",
             "mechanisms/audit/runner/runner.ts",
             "mechanisms/audit/CD-15/loops.ts",
           ],
@@ -174,6 +207,9 @@ describe("buildPackage", () => {
         },
       ],
       staged: [
+        "api/audit.ts",
+        "api/rule-set.ts",
+        "api/testing.ts",
         "core/check/tool-command.ts",
         "mechanisms/audit/CD-15/loops.ts",
         "mechanisms/audit/CD-15/piece.json",
@@ -194,50 +230,8 @@ describe("buildPackage", () => {
     const packaged = await built;
 
     expect({ packaged, written: files.pathsUnder({ folder: "/out" }) }).toEqual({
-      packaged: {
-        outcome: "ok",
-        value: {
-          outputRoot: "/out",
-          files: [
-            "LICENSE",
-            "README.md",
-            "THIRD-PARTY-NOTICES.md",
-            "api/audit.d.ts",
-            "api/audit.mjs",
-            "api/rule-set.d.ts",
-            "api/rule-set.mjs",
-            "chunks/chunk-A.js",
-            "core/check/tool-command.js",
-            "core/values/result.d.ts",
-            "docs/why-chain-contract.md",
-            "mechanisms/audit/CD-15/loops.js",
-            "mechanisms/audit/CD-15/piece.json",
-            "mechanisms/audit/runner/runner.js",
-            "package.json",
-            "rules/CD-15/README.md",
-            "rules/CD-15/discipline.json",
-          ],
-        },
-      },
-      written: [
-        "LICENSE",
-        "README.md",
-        "THIRD-PARTY-NOTICES.md",
-        "api/audit.d.ts",
-        "api/audit.mjs",
-        "api/rule-set.d.ts",
-        "api/rule-set.mjs",
-        "chunks/chunk-A.js",
-        "core/check/tool-command.js",
-        "core/values/result.d.ts",
-        "docs/why-chain-contract.md",
-        "mechanisms/audit/CD-15/loops.js",
-        "mechanisms/audit/CD-15/piece.json",
-        "mechanisms/audit/runner/runner.js",
-        "package.json",
-        "rules/CD-15/README.md",
-        "rules/CD-15/discipline.json",
-      ],
+      packaged: { outcome: "ok", value: { outputRoot: "/out", files: SHIPPED_FILES } },
+      written: SHIPPED_FILES,
     });
   });
 
@@ -255,18 +249,18 @@ describe("buildPackage", () => {
     });
   });
 
-  it("ships the declarations the typed entries reach with an empty module per entry, and exports each entry under the types and default conditions", async () => {
+  it("ships the declarations the typed entries reach beside each entry's bundled module, and exports each entry under the types and default conditions", async () => {
     const { files, built } = builtWith({ source: SOURCE, bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }) });
 
     await built;
 
     expect(files.texts()).toMatchObject({
       "/out/api/audit.d.ts": 'export type { Result } from "../core/values/result.js";\n',
-      "/out/api/audit.mjs": "export {};\n",
-      "/out/api/rule-set.mjs": "export {};\n",
+      "/out/api/audit.js": "export const folderScope = 1;\n",
+      "/out/api/testing.d.ts": "export declare const repoPathOf: 1;\n",
       "/out/core/values/result.d.ts": "export type Result = 1;\n",
       "/out/package.json": expect.stringContaining(
-        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.mjs"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.mjs"\n    }',
+        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.js"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.js"\n    },\n    "./testing": {\n      "types": "./api/testing.d.ts",\n      "default": "./api/testing.js"\n    }',
       ),
     });
   });
@@ -274,7 +268,7 @@ describe("buildPackage", () => {
   it("fails naming each output that imports a package it neither bundles nor declares as a peer, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([TOOL_COMMAND, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
+      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
@@ -289,7 +283,7 @@ describe("buildPackage", () => {
   it("fails naming an entry whose code was moved into a shared chunk, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([TOOL_COMMAND, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
+      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({

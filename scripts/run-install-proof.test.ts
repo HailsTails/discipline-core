@@ -76,7 +76,7 @@ const INSTALLED_PACKAGE: readonly ListedEntry[] = [
 const INSTALLED_PACKAGE_WITH_DECLARATIONS: readonly ListedEntry[] = [
   ...INSTALLED_PACKAGE,
   { path: "api/audit.d.ts", name: "audit.d.ts", entryKind: "file" },
-  { path: "api/audit.mjs", name: "audit.mjs", entryKind: "file" },
+  { path: "api/audit.js", name: "audit.js", entryKind: "file" },
 ];
 
 const EXPECTING_TYPES: ProofCase = {
@@ -376,6 +376,36 @@ describe("runInstallProof", () => {
     expect(reportOf({ process: proofProcess }).writes).toContainEqual([
       { text: "ok: audit lint in packages/web -> exit 0, output exactly as expected\n" },
     ]);
+  });
+
+  it("runs a consumer's own script with node from the consumer repo, judging its exit and output like a command", async () => {
+    const proofProcess = processPort();
+    const commands = commandsReturning({ outcome: "exited", exitCode: 0, output: "" });
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands,
+        proofCases: [{ ...EXPECTING_TYPES, actions: [{ kind: "run", script: "tools/proof.ts", expectation: { exitCode: 0, output: "" } }] }],
+      }),
+    );
+
+    expect(commands.run).toHaveBeenLastCalledWith({ command: "node", arguments: ["tools/proof.ts"], directory: "/scratch/typed" });
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed node tools/proof.ts -> exit 0, output exactly as expected\n" }]);
+  });
+
+  it("judges a consumer script's report with the platform's carriage returns read as plain line feeds", async () => {
+    const proofProcess = processPort();
+
+    await runInstallProof(
+      proofRequest({
+        process: proofProcess,
+        commands: commandsReturning({ outcome: "exited", exitCode: 0, output: "proved\r\n" }),
+        proofCases: [{ ...EXPECTING_TYPES, actions: [{ kind: "run", script: "tools/proof.ts", expectation: { exitCode: 0, output: "proved\n" } }] }],
+      }),
+    );
+
+    expect(reportOf({ process: proofProcess }).writes).toContainEqual([{ text: "ok: typed node tools/proof.ts -> exit 0, output exactly as expected\n" }]);
   });
   it("judges the compiler's report with the platform's carriage returns read as plain line feeds", async () => {
     const proofProcess = processPort();

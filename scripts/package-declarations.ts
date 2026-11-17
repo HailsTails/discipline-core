@@ -3,7 +3,12 @@ import type { TypedExport } from "./published-manifest.ts";
 
 export type PublicTypeEntry = { readonly subpath: string; readonly source: string };
 
-export type EmittedDeclaration = { readonly path: string; readonly text: string; readonly specifiers: readonly string[] };
+export type EmittedDeclaration = {
+  readonly path: string;
+  readonly text: string;
+  readonly specifiers: readonly string[];
+  readonly refusals: readonly string[];
+};
 
 export type DeclarationEmit = { readonly declarations: readonly EmittedDeclaration[]; readonly diagnostics: readonly string[] };
 
@@ -21,9 +26,8 @@ export type PublishedFile = { readonly path: string; readonly text: string };
 export const PUBLIC_TYPE_ENTRIES: readonly PublicTypeEntry[] = [
   { subpath: "audit", source: "api/audit.ts" },
   { subpath: "rule-set", source: "api/rule-set.ts" },
+  { subpath: "testing", source: "api/testing.ts" },
 ];
-
-export const ENTRY_MODULE_TEXT = "export {};\n";
 
 const SOURCE_EXTENSION = /\.ts$/;
 
@@ -31,13 +35,13 @@ const MODULE_EXTENSION = /\.js$/;
 
 const DECLARATION_EXTENSION = ".d.ts";
 
-const ENTRY_MODULE_EXTENSION = ".mjs";
+const BUILT_ENTRY_EXTENSION = ".js";
 
 const RELATIVE_SPECIFIER = /^\.\.?\//;
 
 const declarationPathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, DECLARATION_EXTENSION);
 
-const modulePathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, ENTRY_MODULE_EXTENSION);
+const modulePathOf = (request: { readonly source: string }): string => request.source.replace(SOURCE_EXTENSION, BUILT_ENTRY_EXTENSION);
 
 export const typedExportOf = (request: { readonly entry: PublicTypeEntry }): TypedExport => ({
   subpath: request.entry.subpath,
@@ -103,6 +107,7 @@ const publicationProblems = (request: {
   readonly requiredPeers: readonly string[];
 }): readonly string[] => [
   ...request.emit.diagnostics.map((diagnostic) => `declaration emit reported: ${diagnostic}`),
+  ...request.reached.flatMap((path) => (request.declarations.get(path)?.refusals ?? []).map((refusal) => `declaration emit reported: ${refusal}`)),
   ...request.reached.filter((path) => !request.declarations.has(path)).map((path) => `${path} is reached but was not emitted`),
   ...packageImportProblems(request),
 ];
@@ -122,13 +127,10 @@ export const publishedDeclarationsOf = (request: {
     ? { outcome: "failed", error: problems }
     : {
         outcome: "ok",
-        value: [
-          ...reached.flatMap((path) => {
-            const shipped = declarations.get(path);
-            return shipped === undefined ? [] : [{ path, text: shipped.text }];
-          }),
-          ...request.entries.map((entry) => ({ path: modulePathOf(entry), text: ENTRY_MODULE_TEXT })),
-        ],
+        value: reached.flatMap((path) => {
+          const shipped = declarations.get(path);
+          return shipped === undefined ? [] : [{ path, text: shipped.text }];
+        }),
       };
 };
 

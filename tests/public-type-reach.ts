@@ -16,6 +16,7 @@ export type PublicTypeReach = {
   readonly problems: readonly string[];
   readonly entries: Readonly<Record<string, EntryReach>>;
   readonly valueDeclaring: readonly string[];
+  readonly entryValues: Readonly<Record<string, readonly string[]>>;
   readonly zodMentioning: readonly string[];
 };
 
@@ -101,10 +102,17 @@ const reachOfEmit = (request: {
 }): PublicTypeReach => {
   const published = publishedDeclarationsOf({ emit: request.emit, entries: request.entries, requiredPeers: request.requiredPeers });
   const shipped = published.outcome === "ok" ? published.value.filter((file) => DECLARATION_FILE.test(file.path)) : [];
+  const entryDeclarations = new Set(request.entries.map((entry) => typedExportOf({ entry }).declaration));
   return {
     problems: published.outcome === "failed" ? published.error : [],
     entries: Object.fromEntries(request.entries.map((entry) => [entry.subpath, entryReachOf({ declarations: request.emit.declarations, entry })])),
-    valueDeclaring: shipped.flatMap((file) => valueClaimsIn({ syntaxApi: request.syntaxApi, text: file.text }).map((claim) => `${file.path}: ${claim}`)),
+    valueDeclaring: shipped.filter((file) => !entryDeclarations.has(file.path)).flatMap((file) => valueClaimsIn({ syntaxApi: request.syntaxApi, text: file.text }).map((claim) => `${file.path}: ${claim}`)),
+    entryValues: Object.fromEntries(
+      request.entries.map((entry) => [
+        entry.subpath,
+        valueClaimsIn({ syntaxApi: request.syntaxApi, text: shipped.find((file) => file.path === typedExportOf({ entry }).declaration)?.text ?? "" }),
+      ]),
+    ),
     zodMentioning: shipped.filter((file) => file.text.includes("zod")).map((file) => file.path),
   };
 };
@@ -116,5 +124,5 @@ export const publicTypeReachOf = (request: {
   readonly requiredPeers: readonly string[];
 }): PublicTypeReach =>
   request.emitted.outcome === "failed"
-    ? { problems: [request.emitted.error.detail], entries: {}, valueDeclaring: [], zodMentioning: [] }
+    ? { problems: [request.emitted.error.detail], entries: {}, valueDeclaring: [], entryValues: {}, zodMentioning: [] }
     : reachOfEmit({ syntaxApi: request.syntaxApi, emit: request.emitted.value, entries: request.entries, requiredPeers: request.requiredPeers });

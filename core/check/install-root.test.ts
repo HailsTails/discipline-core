@@ -3,9 +3,10 @@ import { requiredEntry } from "../../tests/required-entry.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
-import { installRootOf } from "./install-root.ts";
+import { installRootOf, installRootOfApiEntry } from "./install-root.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
+const API_ENTRY_URL = "file:///install/api/testing.js";
 const NOT_A_FILE_URL = "https://example.invalid/core/check/tool-command.ts";
 const WINDOWS_ENTRY_URL = "file:///C:/repo/packages/hone/core/check/tool-command.ts";
 
@@ -16,6 +17,7 @@ type FileUrlResult = Result<
 
 const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
   [ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/core/check/tool-command.ts") },
+  [API_ENTRY_URL]: { outcome: "ok", value: absolutePathSchema.parse("/install/api/testing.js") },
   [WINDOWS_ENTRY_URL]: {
     outcome: "ok",
     value: absolutePathSchema.parse("C:\\repo\\packages\\hone\\core\\check\\tool-command.ts"),
@@ -30,6 +32,8 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
   "/install/core/check/tool-command.ts": "/install/core/check",
   "/install/core/check": "/install/core",
   "/install/core": "/install",
+  "/install/api/testing.js": "/install/api",
+  "/install/api": "/install",
   "C:\\repo\\packages\\hone\\core\\check\\tool-command.ts": "C:\\repo\\packages\\hone\\core\\check",
   "C:\\repo\\packages\\hone\\core\\check": "C:\\repo\\packages\\hone\\core",
   "C:\\repo\\packages\\hone\\core": "C:\\repo\\packages\\hone",
@@ -83,6 +87,23 @@ describe("installRootOf", () => {
         kind: "install-root-unresolvable",
         url: ENTRY_URL,
         detail: "the install root three directories above the entry file is not an absolute path",
+      },
+    });
+  });
+});
+
+describe("installRootOfApiEntry", () => {
+  it("is the directory two levels above a public entry file under api/", () => {
+    expect(installRootOfApiEntry({ path: TABLE_PATH, moduleUrl: API_ENTRY_URL })).toEqual({ outcome: "ok", value: "/install" });
+  });
+
+  it("is install-root-unresolvable with the module URL when the directory above the entry file resolves to no absolute path", () => {
+    expect(installRootOfApiEntry({ path: UNRESOLVABLE_PATH, moduleUrl: API_ENTRY_URL })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "install-root-unresolvable",
+        url: API_ENTRY_URL,
+        detail: "the install root two directories above the entry file is not an absolute path",
       },
     });
   });

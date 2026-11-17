@@ -19,6 +19,10 @@ describe("installRootAboveEntry", () => {
     );
   });
 
+  it("is the folder holding api/ for a public entry under api/", () => {
+    expect(installRootAboveEntry({ entryFile: "/install/api/testing.js", entry: "api", directoryOf })).toBe("/install");
+  });
+
   it("is the folder holding mechanisms/ for a runner entry under mechanisms/<mechanism>/runner/", () => {
     expect(
       installRootAboveEntry({ entryFile: "/install/mechanisms/eslint/runner/runner.ts", entry: "runner", directoryOf }),
