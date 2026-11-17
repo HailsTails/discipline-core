@@ -6,6 +6,9 @@ import type { LoadFailure } from "./load-failure.ts";
 const escapedLineBreaks = (request: { readonly text: string }): string =>
   request.text.replaceAll("\n", "\\n").replaceAll("\r", "\\r");
 
+const JUDGEMENT_CLAUSE_LISTED_REPAIR =
+  "a judgement clause is enforced by review and is left out of clauses, adopted or not; remove it";
+
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
@@ -73,6 +76,8 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
     case "unknown-clause":
     case "judgement-clause-selected":
       return [request.failure.address];
+    case "judgement-clause-listed":
+      return [`${request.failure.address}:`, JUDGEMENT_CLAUSE_LISTED_REPAIR];
     case "mechanism-not-allowed":
     case "piece-missing":
       return [request.failure.address, request.failure.mechanism];

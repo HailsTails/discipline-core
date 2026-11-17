@@ -12,10 +12,14 @@ const MECHANISM_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 const NOT_AN_IDENTIFIER = "not an identifier of its kind";
 
+export const NOT_ADOPTED = "not-adopted";
+
+const RESERVED_MECHANISM_ID = `"${NOT_ADOPTED}" is reserved for a clause a repository does not adopt, so it cannot name a mechanism`;
+
 const isRuleSetName = (text: string): text is RuleSetName => RULE_SET_NAME_PATTERN.test(text);
 const isDisciplineId = (text: string): text is DisciplineId => DISCIPLINE_ID_PATTERN.test(text);
 const isClauseId = (text: string): text is ClauseId => CLAUSE_ID_PATTERN.test(text);
-const isMechanismId = (text: string): text is MechanismId => MECHANISM_ID_PATTERN.test(text);
+const isMechanismId = (text: string): text is MechanismId => MECHANISM_ID_PATTERN.test(text) && text !== NOT_ADOPTED;
 
 export const ruleSetNameSchema = brandedTextSchema({
   text: z.string().regex(RULE_SET_NAME_PATTERN),
@@ -33,7 +37,10 @@ export const clauseIdSchema = brandedTextSchema({
   refusal: NOT_AN_IDENTIFIER,
 });
 export const mechanismIdSchema = brandedTextSchema({
-  text: z.string().regex(MECHANISM_ID_PATTERN),
+  text: z
+    .string()
+    .regex(MECHANISM_ID_PATTERN)
+    .refine((text) => text !== NOT_ADOPTED, { error: RESERVED_MECHANISM_ID }),
   isBranded: isMechanismId,
   refusal: NOT_AN_IDENTIFIER,
 });
