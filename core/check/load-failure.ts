@@ -8,6 +8,8 @@ export type LoadFailure =
   | { readonly kind: "file-malformed"; readonly path: string; readonly detail: string }
   | { readonly kind: "unsupported-version"; readonly path: string; readonly found: unknown }
   | { readonly kind: "reserved-rule-set-name"; readonly name: string }
+  | { readonly kind: "rule-set-name-collision"; readonly name: string; readonly other: string }
+  | { readonly kind: "duplicate-clause"; readonly address: string }
   | { readonly kind: "unknown-rule-set"; readonly name: string }
   | { readonly kind: "unknown-discipline"; readonly address: string }
   | { readonly kind: "unknown-clause"; readonly address: string }

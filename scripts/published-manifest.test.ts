@@ -24,6 +24,7 @@ describe("publishManifestOf", () => {
         packageName: "provisional-core",
         reservedEslintNamespace: "provisional-core",
         command: "provisional",
+        ownRuleSet: "provisional",
         description: "Checks a repository against its disciplines.",
         repository: "https://github.com/example/provisional",
         unrelatedNpmPackage: "provisional",

@@ -792,6 +792,49 @@ describe("readSelection", () => {
     });
   });
 
+  it.each(["hone-extras", "hone-"])("refuses the rule-set name %s as reserved-rule-set-name", (name) => {
+    expect(
+      selecting({ version: 1, ruleSets: { [name]: "team-rules" }, clauses: {} }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "reserved-rule-set-name", name },
+    });
+  });
+
+  it("accepts a team rule-set name that only starts with the letters hone", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { honeycomb: "team-rules" }, clauses: {} }),
+    ).toMatchObject({ outcome: "ok" });
+  });
+
+  it("refuses one declared rule-set name that is another plus a suffix, naming both", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { "acme-x": "x-rules", acme: "acme-rules" }, clauses: {} }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "rule-set-name-collision", name: "acme", other: "acme-x" },
+    });
+  });
+
+  it("accepts declared rule-set names that merely share leading letters", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { acme: "acme-rules", acmeco: "co-rules" }, clauses: {} }),
+    ).toMatchObject({ outcome: "ok" });
+  });
+
+  it("refuses a clause selected twice, once bare and once with the hone prefix", () => {
+    expect(
+      selecting({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "audit", "hone/CD-14#class-syntax": "eslint" },
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "duplicate-clause", address: "CD-14#class-syntax" },
+    });
+  });
+
   it("accepts the rule-set name shared as a team's own", () => {
     expect(
       selecting({ version: 1, ruleSets: { shared: "team-rules" }, clauses: {} }),

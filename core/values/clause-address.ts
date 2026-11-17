@@ -10,12 +10,12 @@ import {
 import { TOOL_IDENTITY } from "./tool-identity.ts";
 
 export type ClauseAddress = {
-  readonly ruleSet: "hone" | { readonly name: RuleSetName };
+  readonly ruleSet: typeof TOOL_RULE_SET | { readonly name: RuleSetName };
   readonly discipline: DisciplineId;
   readonly clause: ClauseId;
 };
 
-export const TOOL_RULE_SET = TOOL_IDENTITY.command;
+export const TOOL_RULE_SET = TOOL_IDENTITY.ownRuleSet;
 
 const CLAUSE_ADDRESS_TEXT = /^(?:(?<ruleSet>[^/#]+)\/)?(?<discipline>[^/#]+)#(?<clause>[^/#]+)$/;
 

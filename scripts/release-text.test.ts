@@ -6,6 +6,7 @@ const IDENTITY = {
   name: "Tool",
   packageName: "tooled",
   command: "tool",
+  ownRuleSet: "tool",
   reservedEslintNamespace: "tooled",
   description: "Checks.",
   repository: "https://github.com/example/tool",

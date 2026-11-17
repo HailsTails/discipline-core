@@ -18,6 +18,18 @@ describe("loadFailureText", () => {
     ).toBe("load failure: file-unreadable /repo/disciplines.json EACCES\n");
   });
 
+  it("prints a duplicate-clause failure's address", () => {
+    expect(
+      loadFailureText({ failure: { kind: "duplicate-clause", address: "CD-14#class-syntax" } }),
+    ).toBe("load failure: duplicate-clause CD-14#class-syntax\n");
+  });
+
+  it("prints a rule-set-name-collision failure's two names", () => {
+    expect(
+      loadFailureText({ failure: { kind: "rule-set-name-collision", name: "acme", other: "acme-x" } }),
+    ).toBe("load failure: rule-set-name-collision acme acme-x\n");
+  });
+
   it("prints a mechanism-not-allowed failure's address then its mechanism", () => {
     expect(
       loadFailureText({ failure: { kind: "mechanism-not-allowed", address: "CD-14#class-syntax", mechanism: WALKER } }),
