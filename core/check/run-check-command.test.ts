@@ -64,6 +64,8 @@ const classSyntaxSelectedWith = (settings: Readonly<Record<string, unknown>>): R
   }),
   "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
+  "/repo/disciplines.assessment.md": ABSENT_FILE,
+  "/install/rules/CD-14/README.md": presentFile({ text: "# CD-14\n" }),
 });
 
 const CLASS_SYNTAX_SELECTED = classSyntaxSelectedWith({});
@@ -77,6 +79,9 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
+  '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
+  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
+  '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
   '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
@@ -109,7 +114,7 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
 
 const TABLE_PATH: PathPort = {
   join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
-  relative: vi.fn<PathPort["relative"]>(),
+  relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
   joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
   repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
@@ -199,7 +204,7 @@ describe("runCheckCommand", () => {
     );
 
     expect(outputOf({ process: processPort })).toEqual({
-      writes: [[{ text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\n" }]],
+      writes: [[{ text: `findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n` }]],
       exits: [[{ code: 1 }]],
     });
   });
@@ -250,7 +255,7 @@ const checkedWith = async (request: {
   return outputOf({ process: processPort });
 };
 
-const FAILING_FULL_REPORT = "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\n";
+const FAILING_FULL_REPORT = "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
 
 describe("runCheckCommand report output", () => {
   it("prints the full report when neither --report-output nor disciplines.json sets an output", async () => {
@@ -262,7 +267,7 @@ describe("runCheckCommand report output", () => {
 
   it("prints the output disciplines.json sets when --report-output is not given", async () => {
     expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: { reportOutput: "counts" } })).toEqual({
-      writes: [[{ text: "findings (1)\nverdict: fail\n" }]],
+      writes: [[{ text: "findings (1)\nreadFirst (2) guidance\nverdict: fail\n" }]],
       exits: [[{ code: 1 }]],
     });
   });
@@ -364,7 +369,7 @@ const carvedRunWith = async (request: {
 };
 
 const FORFEITED_FULL_REPORT =
-  "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nforfeited (1)\nCD-14#class-syntax audit file-carve-out src/a.ts\nverdict: fail\n";
+  "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nforfeited (1)\nCD-14#class-syntax audit file-carve-out src/a.ts\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; /install/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read /install/rules/CD-14/README.md#spirit\nverdict: fail\n";
 
 const ELSEWHERE_FULL_REPORT =
   "exempted (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} exempted by file-carve-out\nassessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n";

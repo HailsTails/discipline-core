@@ -16,6 +16,8 @@ const REPO_ROOT = absolutePathSchema.parse("/repo");
 const INSTALL_ROOT = absolutePathSchema.parse("/install");
 const SELECTION_PATH = "/repo/disciplines.json";
 const EXCEPTIONS_PATH = "/repo/discipline-exceptions.json";
+const ASSESSMENT_PATH = "/repo/disciplines.assessment.md";
+const RULE_PAGE_PATH = "/install/rules/CD-14/README.md";
 const DISCIPLINE_PATH = "/install/rules/CD-14/discipline.json";
 const PIECE_PATH = "/install/mechanisms/audit/CD-14/piece.json";
 const RUNNER_PATH = "/install/mechanisms/audit/runner/runner.ts";
@@ -58,6 +60,9 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","disciplines.assessment.md"]': ASSESSMENT_PATH,
+  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
+  '["/install","rules","CD-14","README.md"]': RULE_PAGE_PATH,
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
@@ -94,7 +99,7 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
 
 const TABLE_PATH: PathPort = {
   join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
-  relative: vi.fn<PathPort["relative"]>(),
+  relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
   joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
   repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
@@ -281,6 +286,8 @@ const INSTALL: Readonly<Record<string, FakeFile>> = {
   [DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE }),
   [PIECE_PATH]: presentFile({ text: PIECE }),
   [RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
+  [ASSESSMENT_PATH]: ABSENT_FILE,
+  [RULE_PAGE_PATH]: presentFile({ text: "# CD-14\n" }),
 };
 
 const TEAM_INSTALL: Readonly<Record<string, FakeFile>> = {
@@ -309,6 +316,15 @@ const CHANGED_PATHS: readonly RepoPath[] = [repoPathSchema.parse("src/a.ts")];
 
 const FORFEITURE_ELSEWHERE: Assessment = { ...DEFAULT_ASSESSMENT, forfeiture: "elsewhere" };
 
+const CLASS_SYNTAX_READING = {
+  kind: "clause",
+  clause: CLASS_SYNTAX_OBJECT,
+  assessmentSection: "unread",
+  rulePage: { path: RULE_PAGE_PATH, presence: "present" },
+};
+
+const ASSESSMENT_NOT_WRITTEN = { kind: "assessment-file", state: "not-written", guide: "/install/ADOPTING.md" };
+
 const HIT_IN_A = {
   clause: CLASS_SYNTAX_OBJECT,
   file: "src/a.ts",
@@ -331,6 +347,7 @@ const EMPTY_REPORT = {
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
+  readFirst: [],
 };
 
 const standaloneRunner = (request: { readonly runReturns: unknown }): LoadedRunner => ({
@@ -393,7 +410,7 @@ describe("runCheck reports", () => {
       ),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { ...EMPTY_REPORT, findings: [{ ...HIT_IN_A, mechanism: "audit" }] },
+      value: { ...EMPTY_REPORT, findings: [{ ...HIT_IN_A, mechanism: "audit" }], readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING] },
     });
   });
 
@@ -1372,6 +1389,7 @@ describe("runCheck with an embedded runner", () => {
       value: {
         ...EMPTY_REPORT,
         findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+        readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING],
         projectionProblems: [{ mechanism: "audit", state: "out-of-date" }],
       },
     });
@@ -1572,6 +1590,31 @@ describe("runCheck clauses adopted but not run", () => {
     ).resolves.toMatchObject({
       outcome: "ok",
       value: { invalidRecords: [{ index: 0, problem: { kind: "clause-not-run", clause: CLASS_SYNTAX_OBJECT } }], notRun: [CLASS_SYNTAX_OBJECT] },
+    });
+  });
+});
+
+const hitRunner = () => standaloneRunner({ runReturns: { outcome: "ok", value: [HIT_IN_A, { ...HIT_IN_A, anchor: { line: 9, column: 0 } }] } });
+
+describe("runCheck pointing a failing clause at where to read first", () => {
+  it("points once at the clause's assessment section and its rule page, however many findings it has", async () => {
+    const report = await runCheck(
+      checkRequest({
+        modules: modulesLoading({ runner: hitRunner() }),
+        fileText: fileTextOver({ ...INSTALL, [ASSESSMENT_PATH]: presentFile({ text: "# Disciplines assessment\n\n## CD-14#class-syntax\n" }) }),
+      }),
+    );
+    expect(report).toMatchObject({ outcome: "ok", value: { readFirst: [{ ...CLASS_SYNTAX_READING, assessmentSection: "present" }] } });
+  });
+
+  it("reads neither the assessment file nor the rule page when there are no findings", async () => {
+    const fileText = fileTextOver(INSTALL);
+    const reads = vi.spyOn(fileText, "read");
+    const checks = vi.spyOn(fileText, "exists");
+    await runCheck(checkRequest({ fileText }));
+    expect({ reads: reads.mock.calls, checks: checks.mock.calls }).toEqual({
+      reads: expect.not.arrayContaining([[{ path: ASSESSMENT_PATH }]]),
+      checks: expect.not.arrayContaining([[{ path: ASSESSMENT_PATH }]]),
     });
   });
 });

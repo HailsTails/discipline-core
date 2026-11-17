@@ -27,6 +27,7 @@ const EMPTY_REPORT: CheckReport = {
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
+  readFirst: [],
 };
 
 const CLASS_IN_A: Finding = {

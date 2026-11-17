@@ -15,10 +15,12 @@ const headedEntries = (request: { readonly section: ReportSection }): readonly s
 ];
 
 const failingEntries = (request: { readonly section: ReportSection }): readonly string[] =>
-  sectionRoleOf({ section: request.section.name }) === "failing" ? headedEntries(request) : [];
+  sectionRoleOf({ section: request.section.name }) === "informational" ? [] : headedEntries(request);
 
-const countLine = (request: { readonly section: ReportSection }): string =>
-  sectionRoleOf({ section: request.section.name }) === "failing" ? heading(request) : `${heading(request)} informational`;
+const countLine = (request: { readonly section: ReportSection }): string => {
+  const role = sectionRoleOf({ section: request.section.name });
+  return role === "failing" ? heading(request) : `${heading(request)} ${role}`;
+};
 
 export const printedSectionLines = (request: {
   readonly output: ReportOutput;

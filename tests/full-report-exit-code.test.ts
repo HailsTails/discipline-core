@@ -20,6 +20,7 @@ const EMPTY_REPORT: CheckReport = {
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
+  readFirst: [],
 };
 
 describe("fullReportExitCode", () => {

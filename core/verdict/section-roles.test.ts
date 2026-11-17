@@ -18,6 +18,7 @@ describe("SECTION_NAMES", () => {
       "unmeasured",
       "projectionProblems",
       "assessment",
+      "readFirst",
     ]);
   });
 });
@@ -39,6 +40,10 @@ describe("sectionRoleOf", () => {
     "projectionProblems",
   ])("is failing for %s, which fails the run when it has an entry", (section) => {
     expect(sectionRoleOf({ section })).toBe("failing");
+  });
+
+  it("is guidance for readFirst, which never fails the run and is printed beside the failures", () => {
+    expect(sectionRoleOf({ section: "readFirst" })).toBe("guidance");
   });
 });
 

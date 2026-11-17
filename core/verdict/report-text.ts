@@ -2,7 +2,8 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, PartialAssessment, Unmeasured } from "./check-report.ts";
+import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
+import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ReadFirstEntry, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -94,6 +95,40 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
   }
 };
 
+const sectionRead = (request: { readonly reading: ClauseReading }): string =>
+  `read the ${JSON.stringify(assessmentSectionHeading(request.reading))} section of ${ASSESSMENT_FILE_NAME}`;
+
+const pointedReading = (request: { readonly reading: ClauseReading }): string => {
+  const page = request.reading.rulePage.path;
+  const sectioned = request.reading.assessmentSection === "present";
+  if (request.reading.rulePage.presence === "absent") {
+    const missingPage = `its rule set has no rule page at ${page}`;
+    return sectioned ? `${sectionRead(request)}; ${missingPage}` : missingPage;
+  }
+  return sectioned ? `${sectionRead(request)}, then ${page}#spirit` : `read ${page}#spirit`;
+};
+
+const assessmentContext = (request: { readonly reading: ClauseReading }): string =>
+  request.reading.assessmentSection === "not-assessed" ? `; ${ASSESSMENT_FILE_NAME} does not assess this clause` : "";
+
+const assessmentFileLine = (request: { readonly note: AssessmentFileNote }): string => {
+  switch (request.note.state) {
+    case "not-written":
+      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME}, where this repository records its own causes, forward goal and steps for a clause, is not written yet; ${request.note.guide}#5a-write-the-assessment says how to write it.`;
+    case "unreadable":
+      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME} could not be read.`;
+  }
+};
+
+const readFirstLine = (request: { readonly entry: ReadFirstEntry }): string => {
+  switch (request.entry.kind) {
+    case "assessment-file":
+      return assessmentFileLine({ note: request.entry });
+    case "clause":
+      return `${clauseAddressText({ address: request.entry.clause })}: ${pointedReading({ reading: request.entry })}${assessmentContext({ reading: request.entry })}`;
+  }
+};
+
 type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
@@ -119,6 +154,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   projectionProblems: (request) =>
     request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
+  readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
 };
 
 const reportSections = (request: { readonly report: CheckReport }): readonly ReportSection[] =>

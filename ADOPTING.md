@@ -250,7 +250,7 @@ Exclusions, exceptions, settings and not adopting a clause are never a cause, a 
 Stop when every such clause has a section. Report the sections for review before changing code or recording exceptions.
 ```
 
-Review the draft as you would a design: the causes and the goals are the decisions in it. Commit it beside `disciplines.json`. Record exceptions (step 7) only after the assessment, and note each in the clause's Debt line. Keep the file current: when steps land or a count changes, update the section; when a clause has no findings left, delete its section.
+Review the draft as you would a design: the causes and the goals are the decisions in it. Commit it beside `disciplines.json`. Every failing check then ends with a `readFirst` line per failing clause that names its section before the rule page's Spirit (step 6); a clause the file does not assess is pointed at the Spirit alone. Record exceptions (step 7) only after the assessment, and note each in the clause's Debt line. Keep the file current: when steps land or a count changes, update the section; when a clause has no findings left, delete its section.
 
 A finished section reads like this:
 
@@ -273,7 +273,7 @@ The report prints only the sections that have entries, each with its count, then
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 ```
 
-Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` is empty. The sections are:
+Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `notRun`, `exempted`, `assessment` and `readFirst` is empty. The sections are:
 
 | Section | Meaning and what to do |
 | --- | --- |
@@ -289,8 +289,9 @@ Lines are 1-based and columns 0-based. The run passes only when every section ex
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
 | `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
+| `readFirst` | printed last, one line per clause with findings: where to read before changing code, the clause's section in `disciplines.assessment.md` (step 5a) and then the Spirit section of its rule page, for example `CD-15#loops: read the "## CD-15#loops" section of disciplines.assessment.md, then node_modules/@hailstails/hone/rules/CD-15/README.md#spirit`; a clause the file does not assess reads `CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause`; before the file is written, one line first says so and names step 5a, and each clause line names its rule page only, as in the walkthrough below; the README lists every line exactly; paths are relative to the `--repo` folder; guidance, it never fails the run |
 
-To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
+To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment`, and keeps `readFirst`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` and `guidance` after `readFirst` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
 
 ## 7. Record exceptions
 
@@ -363,7 +364,7 @@ To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts,
 
 ## Worked example
 
-In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly.
+In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, selecting CD-2, CD-15, CD-17 and CD-23 through the audit, with a `generated/` folder excluded. `tests/walkthrough.integration.test.ts` pins both reports exactly, apart from where the rule pages are (see below).
 
 Before, `npm run --silent hone:check` prints, and exits `1`:
 
@@ -376,8 +377,16 @@ CD-2#cast-expressions audit src/basket.ts:10:20 entry as Line);   }    total(): 
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 CD-17#clock-sources audit src/basket.ts:22:0 return Date.now() - this.openedAt;
 CD-23#export-test-sibling audit src/utils/format.ts:1:0 missing co-located *.test.ts(x) sibling
+readFirst (5)
+Start from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.
+CD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit
+CD-2#cast-expressions: read node_modules/@hailstails/hone/rules/CD-2/README.md#spirit
+CD-15#loops: read node_modules/@hailstails/hone/rules/CD-15/README.md#spirit
+CD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit
 verdict: fail
 ```
+
+The test runs against the source repository rather than an install, so the report it pins names the rule pages and the adoption guide from there: `../../../../rules/CD-17/README.md` and `../../../../ADOPTING.md` where an installed package prints `node_modules/@hailstails/hone/rules/CD-17/README.md` and `node_modules/@hailstails/hone/ADOPTING.md`.
 
 The fix replaces the `Basket` class with functions over a readonly `Basket` value, sums with `reduce`, takes the time from an injected `Clock`, types the input instead of casting it, moves `src/utils/format.ts` to `src/format.ts` with a `src/format.test.ts` sibling, and records `src/clock.ts`, the one adapter that reads `Date.now()`, as an authorised location. After, the same command prints, and exits `0`:
 

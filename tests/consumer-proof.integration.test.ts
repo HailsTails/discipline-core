@@ -161,6 +161,15 @@ const UNSIBLINGED_FINDING = {
   mechanism: "audit",
 };
 
+const readingOf = (request: { readonly clause: { readonly discipline: string } }) => ({
+  kind: "clause",
+  clause: request.clause,
+  assessmentSection: "unread",
+  rulePage: { path: `../../../../rules/${request.clause.discipline}/README.md`, presence: "present" },
+});
+
+const ASSESSMENT_NOT_WRITTEN = { kind: "assessment-file", state: "not-written", guide: "../../../../ADOPTING.md" };
+
 const CLASS_FINDING = {
   clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
   file: "src/kept.ts",
@@ -184,6 +193,7 @@ const CLEAN_REPORT = {
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
+  readFirst: [],
 };
 
 describe("a consumer with no harness directory selecting CD-23 through the audit, run against the install", () => {
@@ -199,7 +209,7 @@ describe("a consumer with no harness directory selecting CD-23 through the audit
     const checked = await checkOf({ repo: WALKER_CONSUMER, tracked: UNSIBLINGED_TRACKED, ports });
     expect(checked).toEqual({
       outcome: "ok",
-      value: { ...CLEAN_REPORT, findings: [UNSIBLINGED_FINDING] },
+      value: { ...CLEAN_REPORT, findings: [UNSIBLINGED_FINDING], readFirst: [ASSESSMENT_NOT_WRITTEN, readingOf({ clause: UNSIBLINGED_FINDING.clause })] },
     });
     expect(fullReportExitCode({ checked })).toBe(1);
   });
@@ -245,7 +255,7 @@ describe("a consumer with no harness directory selecting CD-14 through ESLint, r
     const checked = await checkOf({ repo: ESLINT_CONSUMER, tracked: ESLINT_CLASS_TRACKED, ports });
     expect(checked).toEqual({
       outcome: "ok",
-      value: { ...CLEAN_REPORT, findings: [CLASS_FINDING] },
+      value: { ...CLEAN_REPORT, findings: [CLASS_FINDING], readFirst: [ASSESSMENT_NOT_WRITTEN, readingOf({ clause: CLASS_FINDING.clause })] },
     });
     expect(fullReportExitCode({ checked })).toBe(1);
   });

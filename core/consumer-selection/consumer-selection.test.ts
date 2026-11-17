@@ -248,6 +248,10 @@ describe("createSelectionRepository", () => {
             },
           },
         ],
+        clauseRoots: [
+          { clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" },
+          { clause: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, ruleSetRoot: "/repo/team-rules" },
+        ],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -583,6 +587,10 @@ describe("readSelection", () => {
             },
           },
         ],
+        clauseRoots: [
+          { clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" },
+          { clause: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }, ruleSetRoot: "/install" },
+        ],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -619,6 +627,7 @@ describe("readSelection", () => {
             },
           },
         ],
+        clauseRoots: [{ clause: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, ruleSetRoot: "/repo/team-rules" }],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -640,6 +649,7 @@ describe("readSelection", () => {
           notRun: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
+        clauseRoots: [{ clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, ruleSetRoot: "/install" }],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -1406,6 +1416,7 @@ describe("readSelection with clauses not adopted", () => {
       value: {
         selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX], notRun: [] },
         bindings: [],
+        clauseRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
@@ -1513,6 +1524,7 @@ describe("readSelection with clauses adopted but not run", () => {
       value: {
         selection: { selected: [], uncovered: [], notAdopted: [HONE_ABSTRACT_SYNTAX], notRun: [HONE_CLASS_SYNTAX] },
         bindings: [],
+        clauseRoots: [],
         excluded: [],
         fileExceptionWhyChains: "required",
       },
