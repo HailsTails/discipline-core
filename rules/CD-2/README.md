@@ -18,7 +18,7 @@ Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens 
 - `.ts` and `.tsx` files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
 - Every `x as T` and `<T>x` assertion except a const assertion, `as const` or `<const>x`. Assertions whose type contains `any` are CD-1's and are not repeated here.
 - `as unknown` and `<unknown>x` are flagged. Widening never needs an assertion: annotate instead, `const parsed: unknown = JSON.parse(text)`.
-- A cast through `unknown`, such as `raw as unknown as User` or `(<unknown>raw) as User`, is flagged with its own message, and so is its `unknown` half. It is the escape hatch that turns any value into any type; check the value's shape at runtime at the boundary instead.
+- A cast through `unknown`, such as `raw as unknown as User`, `(<unknown>raw) as User` or one wrapped in `!` or `satisfies`, is flagged with its own message, and so is its `unknown` half. It is the escape hatch that turns any value into any type; check the value's shape at runtime at the boundary instead.
 - Test files, test helpers and scripts are checked like any other source; a test that needs a cast needs a typed fake or a narrower port.
 - There are no settings: a boundary that forces a cast is an exception record, as below.
 

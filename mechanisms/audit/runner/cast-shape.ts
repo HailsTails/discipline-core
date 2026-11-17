@@ -36,10 +36,22 @@ export const anyBearingOf = (request: { readonly typeNode: SyntaxNode; readonly 
   return syntaxApi.forEachChild(typeNode, (child) => anyBearingFound({ typeNode: child, syntaxApi })) ?? "any-free";
 };
 
-const unwrappedExpression = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode =>
-  request.syntaxApi.isParenthesizedExpression(request.node)
-    ? unwrappedExpression({ node: request.node.expression, syntaxApi: request.syntaxApi })
-    : request.node;
+const satisfiesOperand = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode | undefined => {
+  const { node, syntaxApi } = request;
+  if (node.kind !== syntaxApi.SyntaxKind.SatisfiesExpression) return undefined;
+  return syntaxApi.isSatisfiesExpression(node) ? node.expression : undefined;
+};
+
+const wrappedOperand = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode | undefined => {
+  const { node, syntaxApi } = request;
+  if (syntaxApi.isParenthesizedExpression(node) || syntaxApi.isNonNullExpression(node)) return node.expression;
+  return satisfiesOperand({ node, syntaxApi });
+};
+
+const unwrappedExpression = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode => {
+  const operand = wrappedOperand(request);
+  return operand === undefined ? request.node : unwrappedExpression({ node: operand, syntaxApi: request.syntaxApi });
+};
 
 const unknownTypeOf = (request: { readonly typeNode: SyntaxNode; readonly syntaxApi: SyntaxApi }): "unknown" | "other" =>
   request.typeNode.kind === request.syntaxApi.SyntaxKind.UnknownKeyword ? "unknown" : "other";

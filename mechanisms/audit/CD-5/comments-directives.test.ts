@@ -5,6 +5,7 @@ import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
+import type { Diagnostic } from "../runner/typescript-parse.ts";
 import type { PreparedWalkerCheck, SourceObservers } from "../runner/walker-piece.ts";
 import { check } from "./comments-directives.ts";
 
@@ -167,6 +168,61 @@ describe("CD-5 type directives", () => {
   it("leaves a type-check opt-in and prose mentioning a directive alone", () => {
     expect(singleCommentHits({ comment: "// @ts-check" })).toEqual([]);
     expect(singleCommentHits({ comment: `// avoid ${TYPE_IGNORE} here` })).toEqual([]);
+  });
+});
+
+const COMPILED_FILE = "/virtual/directive.ts";
+const TYPE_ERROR_LINE = 'export const broken: number = "text";';
+
+const compiledDiagnostics = (request: { readonly source: string }): readonly Diagnostic[] => {
+  const sourceFile = SYNTAX_API.createSourceFile(COMPILED_FILE, request.source, SYNTAX_API.ScriptTarget.Latest, true);
+  const program = SYNTAX_API.createProgram({
+    rootNames: [COMPILED_FILE],
+    options: { noEmit: true, strict: true, noLib: true, types: [] },
+    host: {
+      getSourceFile: () => sourceFile,
+      getDefaultLibFileName: () => "lib.d.ts",
+      writeFile: () => undefined,
+      getCurrentDirectory: () => "/",
+      getCanonicalFileName: (fileName) => fileName,
+      useCaseSensitiveFileNames: () => true,
+      getNewLine: () => "\n",
+      fileExists: () => true,
+      readFile: () => request.source,
+    },
+  });
+  return program.getSemanticDiagnostics(sourceFile);
+};
+
+const directiveCommentHits = (request: { readonly source: string; readonly commentAt: number }): ReturnType<SourceObservers["finish"]> => {
+  const observed = sourceObservations({ source: request.source });
+  const [range] = SYNTAX_API.getLeadingCommentRanges(request.source, request.commentAt) ?? [];
+  assert(range !== undefined);
+  observed.observers.comment?.({ range });
+  return observed.observers.finish();
+};
+
+describe("CD-5 type directives, read as the installed TypeScript honours them", () => {
+  it.each<{ readonly name: string; readonly directive: string; readonly before?: string; readonly commentAt?: number; readonly diagnostics: number; readonly hits: number }>([
+    { name: "an ignore in a line comment", directive: `// ${TYPE_IGNORE}`, diagnostics: 0, hits: 1 },
+    { name: "an expectation in a triple-slash comment", directive: `/// ${TYPE_EXPECTATION} legacy`, diagnostics: 0, hits: 1 },
+    { name: "a nocheck in a triple-slash comment", directive: `/// ${TYPE_NOCHECK}`, diagnostics: 0, hits: 1 },
+    { name: "an ignore on the last line of a block comment", directive: `/*\n * reason\n * ${TYPE_IGNORE} */`, diagnostics: 0, hits: 1 },
+    { name: "an expectation after slashes on the last line of a block comment", directive: `/* reason\n//// ${TYPE_EXPECTATION} */`, diagnostics: 0, hits: 1 },
+    { name: "an ignore on a one-line doc comment", directive: `/** ${TYPE_IGNORE} */`, diagnostics: 0, hits: 1 },
+    { name: "a nocheck after a leading block comment", directive: `// ${TYPE_NOCHECK}`, before: "/* header */\n", commentAt: 12, diagnostics: 0, hits: 1 },
+    { name: "an ignore on the first line of a longer block comment", directive: `/* ${TYPE_IGNORE}\n * reason\n */`, diagnostics: 1, hits: 0 },
+    { name: "an ignore above the closing line of a block comment", directive: `/*\n * ${TYPE_IGNORE}\n */`, diagnostics: 1, hits: 0 },
+    { name: "an ignore after four slashes", directive: `//// ${TYPE_IGNORE}`, diagnostics: 1, hits: 0 },
+    { name: "a nocheck in a block comment", directive: `/* ${TYPE_NOCHECK} */`, diagnostics: 1, hits: 0 },
+    { name: "a nocheck in a doc comment", directive: `/** ${TYPE_NOCHECK} */`, diagnostics: 1, hits: 0 },
+    { name: "a nocheck after code", directive: `// ${TYPE_NOCHECK}`, before: "const first = 1;\n", commentAt: 16, diagnostics: 1, hits: 0 },
+  ])("reads $name the way the compiler does", ({ directive, before, commentAt, diagnostics, hits }) => {
+    const prefix = before ?? "";
+    const source = `${prefix}${directive}\n${TYPE_ERROR_LINE}\n`;
+
+    expect(compiledDiagnostics({ source })).toHaveLength(diagnostics);
+    expect(directiveCommentHits({ source, commentAt: commentAt ?? 0 })).toHaveLength(hits);
   });
 });
 

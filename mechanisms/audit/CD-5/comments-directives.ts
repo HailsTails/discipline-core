@@ -2,9 +2,11 @@ import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-ty
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
 import { clauseAddressText } from "../../../core/values/clause-address.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
+import type { Anchor } from "../../../core/values/anchor.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { stringListClauseSettings } from "../runner/piece-clause-settings.ts";
-import type { PieceHit, WalkerPiece } from "../runner/walker-piece.ts";
+import type { CommentRange, SyntaxApi, SyntaxTree } from "../runner/typescript-parse.ts";
+import type { PieceHit, SourceObservers, WalkerPiece } from "../runner/walker-piece.ts";
 import { folderScope } from "../runner/source-scope.ts";
 
 const sourceEligibility = (request: { readonly file: string }): "eligible" | "excluded" => {
@@ -14,7 +16,9 @@ const sourceEligibility = (request: { readonly file: string }): "eligible" | "ex
 };
 
 const TODO_PATTERN = /\/\/\s*TODO\b/;
-const TYPE_DIRECTIVE_PATTERN = /^(?:\/\/|\/\*+)\s*@ts-(?:expect-error|ignore|nocheck)\b/;
+const LINE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-(?:expect-error|ignore)/;
+const BLOCK_SUPPRESSION_PATTERN = /^\s*[/*]*\s*@ts-(?:expect-error|ignore)/;
+const FILE_SUPPRESSION_PATTERN = /^\/\/\/?\s*@ts-nocheck(?=\s|$)/;
 const LINTER_DIRECTIVE_PATTERN =
   /^(?:\/\/|\/\*)\s*((?:biome-ignore(?:-all|-start|-end)?|(?:eslint|oxlint)-(?:disable(?:-line|-next-line)?|enable)|eslint(?=\s)))\b/;
 const TRACKED_REFERENCE_PATTERN = /\([^()\s]*\d[^()\s]*\)/g;
@@ -81,6 +85,21 @@ const textAfter = (request: { readonly pattern: RegExp; readonly text: string })
   return marker === null ? undefined : request.text.slice(marker.index + marker[0].length);
 };
 
+type CommentPlacement = {
+  readonly form: "line" | "block";
+  readonly region: "file-header" | "body";
+};
+
+const typeDirectiveTail = (request: { readonly comment: string; readonly placement: CommentPlacement }): string | undefined => {
+  const { comment, placement } = request;
+  if (placement.form === "block") {
+    return textAfter({ pattern: BLOCK_SUPPRESSION_PATTERN, text: comment.slice(comment.lastIndexOf("\n") + 1) });
+  }
+  const suppression = textAfter({ pattern: LINE_SUPPRESSION_PATTERN, text: comment });
+  if (suppression !== undefined || placement.region === "body") return suppression;
+  return textAfter({ pattern: FILE_SUPPRESSION_PATTERN, text: comment });
+};
+
 const untrackedClauses = (request: {
   readonly trackedClauses: readonly TrackedClause[];
   readonly text: string;
@@ -88,8 +107,83 @@ const untrackedClauses = (request: {
 }): readonly TrackedClause[] =>
   request.trackedClauses.filter((tracked) => request.tracking({ text: request.text, tracked }) === "untracked");
 
+type AnchorAt = (request: { readonly position: number }) => Anchor;
+
+type FileContext = {
+  readonly sourceFile: SyntaxTree;
+  readonly anchorAt: AnchorAt;
+  readonly trackedClauses: readonly TrackedClause[];
+};
+
+const hitsFor = (request: {
+  readonly untracked: readonly TrackedClause[];
+  readonly anchorAt: AnchorAt;
+  readonly position: number;
+  readonly snippet: string;
+}): readonly PieceHit[] => {
+  if (request.untracked.length === 0) return [];
+  const anchor = request.anchorAt({ position: request.position });
+  return request.untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: request.snippet }));
+};
+
+const taskHits = (request: FileContext): readonly PieceHit[] => {
+  let lineStart = 0;
+  return request.sourceFile.text.split("\n").flatMap((line) => {
+    const position = lineStart;
+    lineStart += line.length + 1;
+    const afterTodo = textAfter({ pattern: TODO_PATTERN, text: line });
+    if (afterTodo === undefined) return [];
+    return hitsFor({
+      untracked: untrackedClauses({ trackedClauses: request.trackedClauses, text: afterTodo, tracking: trackingAtStart }),
+      anchorAt: request.anchorAt,
+      position,
+      snippet: line.trim(),
+    });
+  });
+};
+
+const commentPlacementOf = (request: {
+  readonly range: CommentRange;
+  readonly fileHeaderPositions: ReadonlySet<number>;
+  readonly syntaxApi: SyntaxApi;
+}): CommentPlacement => ({
+  form: request.range.kind === request.syntaxApi.SyntaxKind.MultiLineCommentTrivia ? "block" : "line",
+  region: request.fileHeaderPositions.has(request.range.pos) ? "file-header" : "body",
+});
+
+const sourceObserversFor = (request: FileContext & { readonly syntaxApi: SyntaxApi }): SourceObservers => {
+  const { sourceFile, anchorAt, trackedClauses, syntaxApi } = request;
+  const fileHeaderPositions = new Set(
+    (syntaxApi.getLeadingCommentRanges(sourceFile.text, 0) ?? []).map((headerRange) => headerRange.pos),
+  );
+  const todoHits = taskHits(request);
+  const directiveHits: PieceHit[] = [];
+  const typeDirectiveHits: PieceHit[] = [];
+  const commentHits = (comment: { readonly text: string; readonly whole: string; readonly position: number }): readonly PieceHit[] =>
+    hitsFor({
+      untracked: untrackedClauses({ trackedClauses, text: comment.text, tracking: trackingAnywhere }),
+      anchorAt,
+      position: comment.position,
+      snippet: comment.whole.trim(),
+    });
+  return {
+    comment: ({ range }) => {
+      const whole = sourceFile.text.slice(range.pos, range.end);
+      const placement = commentPlacementOf({ range, fileHeaderPositions, syntaxApi });
+      const afterTypeDirective = typeDirectiveTail({ comment: whole, placement });
+      if (afterTypeDirective !== undefined) {
+        typeDirectiveHits.push(...commentHits({ text: afterTypeDirective, whole, position: range.pos }));
+        return;
+      }
+      if (LINTER_DIRECTIVE_PATTERN.exec(whole)?.[1] === undefined) return;
+      directiveHits.push(...commentHits({ text: whole, whole, position: range.pos }));
+    },
+    finish: () => [...todoHits, ...directiveHits, ...typeDirectiveHits],
+  };
+};
+
 export const check: WalkerPiece = {
-  prepare: ({ clauses }) => {
+  prepare: ({ clauses, syntaxApi }) => {
     const settled = trackedClausesOf({ clauses });
     if (settled.outcome === "failed") return settled;
     const trackedClauses = settled.value;
@@ -104,46 +198,7 @@ export const check: WalkerPiece = {
             outcome: "ok",
             value: {
               kind: "syntax",
-              begin: ({ sourceFile, anchorAt }) => {
-                const todoHits: PieceHit[] = [];
-                const directiveHits: PieceHit[] = [];
-                const typeDirectiveHits: PieceHit[] = [];
-                let linePosition = 0;
-                sourceFile.text.split("\n").forEach((line) => {
-                  const afterTodo = textAfter({ pattern: TODO_PATTERN, text: line });
-                  const untracked = afterTodo === undefined
-                    ? []
-                    : untrackedClauses({ trackedClauses, text: afterTodo, tracking: trackingAtStart });
-                  if (untracked.length > 0) {
-                    const anchor = anchorAt({ position: linePosition });
-                    todoHits.push(...untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: line.trim() })));
-                  }
-                  linePosition += line.length + 1;
-                });
-                const untrackedHits = (request: {
-                  readonly text: string;
-                  readonly comment: string;
-                  readonly position: number;
-                }): readonly PieceHit[] => {
-                  const untracked = untrackedClauses({ trackedClauses, text: request.text, tracking: trackingAnywhere });
-                  if (untracked.length === 0) return [];
-                  const anchor = anchorAt({ position: request.position });
-                  return untracked.map((tracked) => ({ clause: tracked.clause.address, anchor, snippet: request.comment.trim() }));
-                };
-                return {
-                  comment: ({ range }) => {
-                    const comment = sourceFile.text.slice(range.pos, range.end);
-                    const afterTypeDirective = textAfter({ pattern: TYPE_DIRECTIVE_PATTERN, text: comment });
-                    if (afterTypeDirective !== undefined) {
-                      typeDirectiveHits.push(...untrackedHits({ text: afterTypeDirective, comment, position: range.pos }));
-                      return;
-                    }
-                    if (LINTER_DIRECTIVE_PATTERN.exec(comment)?.[1] === undefined) return;
-                    directiveHits.push(...untrackedHits({ text: comment, comment, position: range.pos }));
-                  },
-                  finish: () => [...todoHits, ...directiveHits, ...typeDirectiveHits],
-                };
-              },
+              begin: ({ sourceFile, anchorAt }) => sourceObserversFor({ sourceFile, anchorAt, trackedClauses, syntaxApi }),
             },
           };
         },

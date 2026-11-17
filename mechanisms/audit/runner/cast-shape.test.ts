@@ -95,6 +95,14 @@ describe("cast shapes", () => {
     },
     { name: "an as cast over an angle-bracket widening", source: "<unknown>candidate as Profile;\n", text: "<unknown>candidate as Profile", shape: "through-unknown" },
     { name: "an angle-bracket cast over an angle-bracket widening", source: "<Profile><unknown>candidate;\n", text: "<Profile><unknown>candidate", shape: "through-unknown" },
+    { name: "a double cast through a non-null assertion", source: "(candidate as unknown)! as Profile;\n", text: "(candidate as unknown)! as Profile", shape: "through-unknown" },
+    { name: "a double cast through repeated non-null assertions", source: "((candidate as unknown)!)! as Profile;\n", text: "((candidate as unknown)!)! as Profile", shape: "through-unknown" },
+    {
+      name: "a double cast through a satisfies check",
+      source: "(candidate as unknown satisfies unknown) as Profile;\n",
+      text: "(candidate as unknown satisfies unknown) as Profile",
+      shape: "through-unknown",
+    },
     { name: "a const assertion through unknown", source: "<const>(<unknown>candidate);\n", text: "<const>(<unknown>candidate)", shape: "through-unknown" },
   ])("reads $name as $shape", ({ source, nodeAt, text, shape }) => {
     expect(shapeAt({ source, nodeAt })).toEqual({ text, shape });

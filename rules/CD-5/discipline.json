@@ -71,9 +71,17 @@
             ]
           },
           {
-            "name": "ts-nocheck in a block comment without tracker",
+            "name": "ts-nocheck in a triple-slash comment without tracker",
             "fileName": "ts-nocheck.ts",
-            "source": "/* @ts-nocheck */\nexport const broken: number = \"text\";\n",
+            "source": "/// @ts-nocheck\nexport const broken: number = \"text\";\n",
+            "expectedLines": [
+              1
+            ]
+          },
+          {
+            "name": "ts-ignore on the last line of a block comment without tracker",
+            "fileName": "block-ts-ignore.ts",
+            "source": "/*\n * legacy shape\n * @ts-ignore */\nexport const broken: number = \"text\";\n",
             "expectedLines": [
               1
             ]
@@ -102,6 +110,12 @@
             "name": "ts-expect-error with ticket reference",
             "fileName": "tracked-expect-error.ts",
             "source": "// @ts-expect-error legacy shape (PROJ-7)\nexport const broken: number = \"text\";\n",
+            "expectedLines": []
+          },
+          {
+            "name": "ts-nocheck in a block comment, which TypeScript does not honour",
+            "fileName": "block-ts-nocheck.ts",
+            "source": "/* @ts-nocheck */\nexport const checked: number = 1;\n",
             "expectedLines": []
           },
           {
