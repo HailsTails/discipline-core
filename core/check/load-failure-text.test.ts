@@ -18,10 +18,10 @@ describe("loadFailureText", () => {
     ).toBe("load failure: file-unreadable /repo/disciplines.json EACCES\n");
   });
 
-  it("prints a duplicate-clause failure's address", () => {
+  it("prints a duplicate-clause failure's bare then prefixed address", () => {
     expect(
-      loadFailureText({ failure: { kind: "duplicate-clause", address: "CD-14#class-syntax" } }),
-    ).toBe("load failure: duplicate-clause CD-14#class-syntax\n");
+      loadFailureText({ failure: { kind: "duplicate-clause", address: "CD-14#class-syntax", prefixedAddress: "hone/CD-14#class-syntax" } }),
+    ).toBe("load failure: duplicate-clause CD-14#class-syntax hone/CD-14#class-syntax\n");
   });
 
   it("prints a rule-set-name-collision failure's two names", () => {

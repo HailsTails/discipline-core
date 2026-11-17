@@ -69,6 +69,8 @@ type ResolvedClause = {
 
 const RULE_SET_SUFFIX_SEPARATOR = "-";
 
+const CLAUSE_ADDRESS_RULE_SET_SEPARATOR = "/";
+
 export type RuleSetLocation =
   | { readonly location: "repo-root" }
   | { readonly location: "folder"; readonly path: RepoPath };
@@ -393,23 +395,21 @@ const parsedSelectionFile = (request: {
   return refusal === undefined ? { outcome: "ok", value: parsed.data } : failed(refusal);
 };
 
-const isReservedRuleSetName = (request: { readonly name: string }): boolean =>
-  request.name === TOOL_RULE_SET || request.name.startsWith(`${TOOL_RULE_SET}${RULE_SET_SUFFIX_SEPARATOR}`);
-
 const reservedRuleSetNameRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
-  const reserved = request.file.ruleSets.find(([name]) => isReservedRuleSetName({ name }));
+  const reserved = request.file.ruleSets.find(
+    ([name]) => name === TOOL_RULE_SET || name.startsWith(`${TOOL_RULE_SET}${RULE_SET_SUFFIX_SEPARATOR}`),
+  );
   return reserved === undefined ? undefined : { kind: "reserved-rule-set-name", name: reserved[0] };
 };
 
 const ruleSetNameCollisionRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
   const names = request.file.ruleSets.map(([name]) => name);
-  for (const name of names) {
-    const other = names.find((candidate) => candidate.startsWith(`${name}${RULE_SET_SUFFIX_SEPARATOR}`));
-    if (other !== undefined) {
-      return { kind: "rule-set-name-collision", name, other };
-    }
-  }
-  return undefined;
+  const collisions = names.flatMap((name) =>
+    names
+      .filter((candidate) => candidate.startsWith(`${name}${RULE_SET_SUFFIX_SEPARATOR}`))
+      .map((other) => ({ kind: "rule-set-name-collision" as const, name, other })),
+  );
+  return collisions[0];
 };
 
 const duplicateClauseRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
@@ -418,7 +418,11 @@ const duplicateClauseRefusalOf = (request: { readonly file: ConsumerSelectionFil
     (address, index) =>
       addresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
   );
-  return repeated === undefined ? undefined : { kind: "duplicate-clause", address: clauseAddressText({ address: repeated }) };
+  if (repeated === undefined) {
+    return undefined;
+  }
+  const address = clauseAddressText({ address: repeated });
+  return { kind: "duplicate-clause", address, prefixedAddress: `${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${address}` };
 };
 
 const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined =>

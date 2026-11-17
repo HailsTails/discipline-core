@@ -831,7 +831,7 @@ describe("readSelection", () => {
       }),
     ).toEqual({
       outcome: "failed",
-      error: { kind: "duplicate-clause", address: "CD-14#class-syntax" },
+      error: { kind: "duplicate-clause", address: "CD-14#class-syntax", prefixedAddress: "hone/CD-14#class-syntax" },
     });
   });
 
