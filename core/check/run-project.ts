@@ -22,7 +22,7 @@ const projectionRequestOf = (request: {
 }): ProjectionRequest => ({
   repoRoot: request.project.repoRoot,
   installRoot: request.project.installRoot,
-  clauses: request.loaded.clauses,
+  clauses: request.loaded.projectedClauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });
 

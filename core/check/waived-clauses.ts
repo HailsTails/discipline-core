@@ -1,6 +1,5 @@
 import type { ClauseBinding } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
-import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { WaivedClausesAssessment } from "../values/assessment.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
 import type { NotRunClause, PartialAssessment } from "../verdict/check-report.ts";
@@ -22,7 +21,9 @@ const waivedClauseKeys = (request: { readonly records: readonly ExceptionRecord[
 const waivingOf = (request: { readonly binding: ClauseBinding; readonly waived: ReadonlySet<string> }): "waived" | "in-force" =>
   request.waived.has(clauseKey({ address: request.binding.clause.address })) ? "waived" : "in-force";
 
-const bindingsInForce = (request: WaiverRequest & { readonly bindings: readonly ClauseBinding[] }): readonly ClauseBinding[] => {
+export const bindingsToRun = (
+  request: WaiverRequest & { readonly bindings: readonly ClauseBinding[] },
+): readonly ClauseBinding[] => {
   if (request.waivedClauses === "run") {
     return request.bindings;
   }
@@ -33,19 +34,8 @@ const bindingsInForce = (request: WaiverRequest & { readonly bindings: readonly 
 export const bindingsToLoad = (
   request: WaiverRequest & { readonly bindings: readonly ClauseBinding[] },
 ): readonly ClauseBinding[] => {
-  const mechanismsWithWork = new Set(bindingsInForce(request).map((binding) => binding.mechanism));
+  const mechanismsWithWork = new Set(bindingsToRun(request).map((binding) => binding.mechanism));
   return request.bindings.filter((binding) => mechanismsWithWork.has(binding.mechanism));
-};
-
-export const bindingsToRun = (
-  request: WaiverRequest & { readonly bindings: readonly ClauseBinding[]; readonly runner: LoadedRunner },
-): readonly ClauseBinding[] => {
-  switch (request.runner.exceptionPath) {
-    case "standalone":
-      return bindingsInForce(request);
-    case "embedded":
-      return request.bindings;
-  }
 };
 
 const ranIn = (request: {

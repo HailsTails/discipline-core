@@ -64,6 +64,7 @@ export type LoadedMechanism = {
   readonly mechanism: MechanismId;
   readonly runner: LoadedRunner;
   readonly clauses: readonly RunnerClause[];
+  readonly projectedClauses: readonly RunnerClause[];
 };
 
 export type LoadedInputs = {
@@ -148,15 +149,14 @@ const loadedMechanism = (request: {
   if (request.runner.outcome === "failed") {
     return request.runner;
   }
-  const bindings = bindingsToRun({
-    waivedClauses: request.waivedClauses,
-    records: request.records,
-    runner: request.runner.value,
-    bindings: request.bindings.filter((binding) => binding.mechanism === request.mechanism),
-  });
   return {
     outcome: "ok",
-    value: { mechanism: request.mechanism, runner: request.runner.value, clauses: clausesOf({ bindings, mechanism: request.mechanism }) },
+    value: {
+      mechanism: request.mechanism,
+      runner: request.runner.value,
+      clauses: clausesOf({ bindings: bindingsToRun(request), mechanism: request.mechanism }),
+      projectedClauses: clausesOf(request),
+    },
   };
 };
 
@@ -408,6 +408,7 @@ const mechanismRunOf = (request: {
     runner: request.loaded.runner,
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),
+    projectedClauses: request.loaded.projectedClauses,
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 

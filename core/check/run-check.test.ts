@@ -1488,6 +1488,10 @@ const TWO_CLAUSE_INSTALL: Readonly<Record<string, FakeFile>> = {
   [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WAIVING_CLASS_SYNTAX }),
 };
 
+const CLASS_SYNTAX_CLAUSE = expect.objectContaining({ address: CLASS_SYNTAX_OBJECT });
+
+const ABSTRACT_SYNTAX_CLAUSE = expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT });
+
 const waivedClassSyntax = (request: { readonly recordsNotJudgedStale: number }) => ({
   concern: "waivedClauses",
   assessedBy: "not-run",
@@ -1557,25 +1561,34 @@ describe("runCheck waived clauses not run", () => {
   });
 });
 
-describe("runCheck waived clauses not run across mechanisms", () => {
-  it("runs every clause of an embedded mechanism that still has a clause to run, and judges its waiver as today", async () => {
+describe("runCheck waived clauses not run within an embedded mechanism", () => {
+  it("runs only the in-force clause of an embedded mechanism, still projecting both, and does not judge the waiver stale", async () => {
     const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
     const report = await runCheck(
       checkRequest({ assessment: WAIVED_NOT_RUN, modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }),
     );
-    expect({ report, runs: runner.run.mock.calls.length }).toEqual({
-      report: {
-        outcome: "ok",
-        value: {
-          ...EMPTY_REPORT,
-          stale: [WAIVER_RECORD],
-          assessment: [{ concern: "waivedClauses", assessedBy: "not-run", clausesNotRun: [], recordsNotJudgedStale: 0 }],
-        },
-      },
-      runs: 1,
+    expect({ report, runCalls: runner.run.mock.calls }).toEqual({
+      report: { outcome: "ok", value: { ...EMPTY_REPORT, assessment: [waivedClassSyntax({ recordsNotJudgedStale: 1 })] } },
+      runCalls: [[expect.objectContaining({ clauses: [ABSTRACT_SYNTAX_CLAUSE], projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE] })]],
     });
   });
 
+  it("hands an embedded runner the same clauses to run and to project when waived clauses run", async () => {
+    const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
+    await runCheck(checkRequest({ modules: modulesLoading({ runner }), fileText: fileTextOver(TWO_CLAUSE_INSTALL) }));
+    expect(runner.run.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          clauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+          projectedClauses: [CLASS_SYNTAX_CLAUSE, ABSTRACT_SYNTAX_CLAUSE],
+        }),
+      ],
+    ]);
+  });
+
+});
+
+describe("runCheck waived clauses not run across mechanisms", () => {
   it("never loads a second mechanism whose only clause is waived", async () => {
     const report = await runCheck(
       checkRequest({

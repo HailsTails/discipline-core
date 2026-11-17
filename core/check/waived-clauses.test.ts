@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { ClauseBinding } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
-import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -16,7 +15,7 @@ const functionLength = clauseAddressSchema.parse("CD-41#function-length");
 
 const bindingOf = (request: { readonly address: typeof identifierNames; readonly mechanism: typeof audit }): ClauseBinding => ({
   mechanism: request.mechanism,
-  clause: { address: request.address, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms", settings: {} },
+  clause: { address: request.address, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms", settings: {}, clauseSettings: {} },
 });
 
 const auditNames = bindingOf({ address: identifierNames, mechanism: audit });
@@ -41,20 +40,6 @@ const namingCarveOut: ExceptionRecord = {
   file: repoPathSchema.parse("src/a.ts"),
   reason: "legacy names",
   whyChain: CAUSAL_WHY_CHAIN,
-};
-
-const standalone: LoadedRunner = {
-  exceptionPath: "standalone",
-  run: vi.fn<LoadedRunner["run"]>(),
-  conform: vi.fn<LoadedRunner["conform"]>(),
-};
-
-const embedded: LoadedRunner = {
-  exceptionPath: "embedded",
-  projectedKinds: ["config-override"],
-  run: vi.fn<LoadedRunner["run"]>(),
-  conform: vi.fn<LoadedRunner["conform"]>(),
-  project: vi.fn<(request: unknown) => Promise<unknown>>(),
 };
 
 describe("bindingsToLoad", () => {
@@ -85,26 +70,27 @@ describe("bindingsToLoad", () => {
 });
 
 describe("bindingsToRun", () => {
-  it("hands a standalone runner only the clauses in force when waived clauses are not run", () => {
+  it("runs only the clauses in force when waived clauses are not run", () => {
     const waiver = waiverOf({ clause: identifierNames, mechanism: audit });
 
-    expect(
-      bindingsToRun({ waivedClauses: "not-run", records: [waiver], runner: standalone, bindings: [auditNames, auditLength] }),
-    ).toEqual([auditLength]);
+    expect(bindingsToRun({ waivedClauses: "not-run", records: [waiver], bindings: [auditNames, auditLength] })).toEqual([
+      auditLength,
+    ]);
   });
 
-  it("hands a standalone runner every clause when waived clauses run", () => {
+  it("runs every clause when waived clauses run", () => {
     const waiver = waiverOf({ clause: identifierNames, mechanism: audit });
 
-    expect(
-      bindingsToRun({ waivedClauses: "run", records: [waiver], runner: standalone, bindings: [auditNames, auditLength] }),
-    ).toEqual([auditNames, auditLength]);
+    expect(bindingsToRun({ waivedClauses: "run", records: [waiver], bindings: [auditNames, auditLength] })).toEqual([
+      auditNames,
+      auditLength,
+    ]);
   });
 
-  it("hands an embedded runner every clause, so its projection is judged whole", () => {
+  it("leaves a waived clause of an embedded mechanism unrun while its sibling runs", () => {
     expect(
-      bindingsToRun({ waivedClauses: "not-run", records: [namingWaiver], runner: embedded, bindings: [eslintNaming, eslintLength] }),
-    ).toEqual([eslintNaming, eslintLength]);
+      bindingsToRun({ waivedClauses: "not-run", records: [namingWaiver], bindings: [eslintNaming, eslintLength] }),
+    ).toEqual([eslintLength]);
   });
 });
 
