@@ -14,6 +14,7 @@ export type LoadFailure =
   | { readonly kind: "unknown-discipline"; readonly address: string }
   | { readonly kind: "unknown-clause"; readonly address: string }
   | { readonly kind: "judgement-clause-selected"; readonly address: string }
+  | { readonly kind: "judgement-clause-listed"; readonly address: string }
   | { readonly kind: "mechanism-not-allowed"; readonly address: string; readonly mechanism: MechanismId }
   | { readonly kind: "runner-missing"; readonly mechanism: MechanismId }
   | { readonly kind: "runner-invalid"; readonly mechanism: MechanismId; readonly detail: string }

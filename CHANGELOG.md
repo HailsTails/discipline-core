@@ -2,6 +2,27 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 0.1.0-pre.5
+
+### Breaking changes
+
+- raise the ESLint 9 peer floor to 9.28.0, the first with every bulk-suppressions option (#63)
+- make the public type entries safe to call stable (#62)
+- let a repository list the packages CD-19 confines, confining none by default (#66)
+- permit only const assertions, read any from the type, and require tracked references on type directives (#76)
+
+### Features
+
+- let a run leave carve-out forfeiture to another run with assessment.forfeiture and --forfeiture (#64)
+- eslint: group the projection's file records by clause set; run hone project and commit the result (#74)
+- let a run leave waived clauses unrun with assessment.waivedClauses and --waived-clauses (#73)
+- let disciplines.json mark a clause not-adopted, so it is neither run nor projected (#81)
+
+### Other changes
+
+- add the ESLint runner's internal scope set, proven to leave the report unchanged (#68)
+- add the team rule set guide and prove it from a packed install (#69)
+
 ## 0.1.0-pre.4
 
 ### Breaking changes

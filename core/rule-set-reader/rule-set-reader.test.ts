@@ -223,6 +223,15 @@ describe("readDisciplineFile", () => {
     });
   });
 
+  it("refuses a mechanical clause listing not-adopted as a mechanism, naming the word as reserved", () => {
+    expect(
+      readDiscipline({ ...DISCIPLINE, clauses: [{ ...CLASS_SYNTAX, mechanisms: ["audit", "not-adopted"] }] }),
+    ).toMatchObject({
+      outcome: "failed",
+      error: { kind: "rule-set-invalid", path: DISCIPLINE_PATH, detail: expect.stringContaining("reserved for a clause a repository does not adopt") },
+    });
+  });
+
   it("refuses a mechanical clause with no mechanism as rule-set-invalid", () => {
     expect(
       readDiscipline({ ...DISCIPLINE, clauses: [{ ...CLASS_SYNTAX, mechanisms: [] }] }),
@@ -304,6 +313,13 @@ describe("readPieceFile", () => {
     expect(readPiece(PIECE)).toEqual({
       outcome: "ok",
       value: { ...PIECE, clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {} }] },
+    });
+  });
+
+  it("refuses a piece declaring not-adopted as its mechanism, naming the word as reserved", () => {
+    expect(readPiece({ ...PIECE, mechanism: "not-adopted" })).toMatchObject({
+      outcome: "failed",
+      error: { detail: expect.stringContaining("reserved for a clause a repository does not adopt") },
     });
   });
 

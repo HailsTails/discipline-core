@@ -29,6 +29,7 @@ import {
 import {
   type MechanismId,
   mechanismIdSchema,
+  NOT_ADOPTED,
   ruleSetNameSchema,
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
@@ -82,8 +83,6 @@ export type RuleSetLocation =
 
 const LEADING_CURRENT_DIRECTORY = "./";
 
-const NOT_ADOPTED = "not-adopted";
-
 type ClauseChoice =
   | { readonly adoption: "adopted"; readonly mechanism: MechanismId }
   | { readonly adoption: "not-adopted" };
@@ -100,7 +99,7 @@ type ClauseListing = ClauseChoice["adoption"] | "unlisted";
 
 const UNSETTABLE_LISTING_REFUSALS: Readonly<Record<Exclude<ClauseListing, "adopted">, string>> = {
   unlisted: "clauses does not select it",
-  "not-adopted": "clauses does not adopt it",
+  "not-adopted": "clauses does not adopt it, so remove its settings",
 };
 
 const clauseListingOf = (request: {
@@ -254,7 +253,11 @@ const disciplineOf = (request: Omit<ClauseRequest, "mechanism">): Result<Discipl
   return readDisciplineFile({ ...location, fileText: request.fileText });
 };
 
-const mechanicalClause = (request: Omit<ClauseRequest, "mechanism">): Result<DefinedClause, LoadFailure> => {
+type JudgementRefusal = "judgement-clause-selected" | "judgement-clause-listed";
+
+const mechanicalClause = (
+  request: Omit<ClauseRequest, "mechanism"> & { readonly judgementRefusal: JudgementRefusal },
+): Result<DefinedClause, LoadFailure> => {
   const address = clauseAddressText({ address: request.address });
   const discipline = disciplineOf(request);
   if (discipline.outcome === "failed") {
@@ -265,13 +268,13 @@ const mechanicalClause = (request: Omit<ClauseRequest, "mechanism">): Result<Def
     return failed({ kind: "unknown-clause", address });
   }
   if (definition.kind === "judgement") {
-    return failed({ kind: "judgement-clause-selected", address });
+    return failed({ kind: request.judgementRefusal, address });
   }
   return { outcome: "ok", value: { discipline: discipline.value, definition } };
 };
 
 const definedClause = (request: ClauseRequest): Result<DefinedClause, LoadFailure> => {
-  const defined = mechanicalClause(request);
+  const defined = mechanicalClause({ ...request, judgementRefusal: "judgement-clause-selected" });
   if (defined.outcome === "failed") {
     return defined;
   }
@@ -472,7 +475,12 @@ const notAdoptedClause = (request: NotAdoptedRequest & { readonly address: Claus
   if (root.outcome === "failed") {
     return root;
   }
-  const defined = mechanicalClause({ ...request, ruleSetRoot: root.value, earlier: request.adopted });
+  const defined = mechanicalClause({
+    ...request,
+    ruleSetRoot: root.value,
+    earlier: request.adopted,
+    judgementRefusal: "judgement-clause-listed",
+  });
   return defined.outcome === "failed" ? defined : { outcome: "ok", value: { discipline: defined.value.discipline, address: request.address } };
 };
 
