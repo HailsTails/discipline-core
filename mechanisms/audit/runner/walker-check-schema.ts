@@ -1,5 +1,5 @@
 import { moduleFileForm } from "../../../core/values/install-layout.ts";
-import { isRepoPathText } from "../../../core/values/repo-path-types.ts";
+import { isRepoPathText } from "../../../core/values/repo-path.ts";
 import { z } from "zod";
 
 export const walkerPieceSettingsSchema = z

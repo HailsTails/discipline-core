@@ -5,8 +5,12 @@ export type Equal<A, B> =
     ? true
     : false;
 
-type Writable<Value> = Value extends string | number | boolean | bigint | symbol | null | undefined
-  ? Value
-  : { -readonly [Key in keyof Value]: Writable<Value[Key]> };
+type Primitive = string | number | boolean | bigint | symbol | null | undefined;
 
-export type EqualIgnoringReadonly<A, B> = Equal<Writable<A>, Writable<B>>;
+export type DeepReadonly<Value> = unknown extends Value
+  ? Value
+  : Value extends Primitive | ((...callArguments: never[]) => unknown)
+    ? Value
+    : Value extends readonly (infer Item)[]
+      ? readonly DeepReadonly<Item>[]
+      : { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> };

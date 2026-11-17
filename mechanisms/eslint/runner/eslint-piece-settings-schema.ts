@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { moduleFileForm } from "../../../core/values/install-layout.ts";
-import { isRepoPathText } from "../../../core/values/repo-path-types.ts";
+import { isRepoPathText } from "../../../core/values/repo-path.ts";
 import type { Equal } from "../../../core/values/type-equality.ts";
 import type { EslintPieceSettings, RuleOptions } from "./eslint-piece-settings-types.ts";
 

@@ -12,7 +12,7 @@ import {
 } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { EqualIgnoringReadonly } from "../values/type-equality.ts";
+import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import type { DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
 
 export type { ClauseDefinition, ClauseExceptions, DisciplineFile, PieceFile, SourceCase } from "./rule-set-types.ts";
@@ -142,11 +142,11 @@ const pieceFileSchema = z.object({
     }),
 });
 
-export const isSourceCaseSchemaEqual: EqualIgnoringReadonly<z.output<typeof sourceCaseSchema>, SourceCase> = true;
+export const isSourceCaseSchemaEqual: Equal<DeepReadonly<z.output<typeof sourceCaseSchema>>, SourceCase> = true;
 
-export const isDisciplineFileSchemaEqual: EqualIgnoringReadonly<z.output<typeof disciplineFileSchema>, DisciplineFile> = true;
+export const isDisciplineFileSchemaEqual: Equal<DeepReadonly<z.output<typeof disciplineFileSchema>>, DisciplineFile> = true;
 
-export const isPieceFileSchemaEqual: EqualIgnoringReadonly<z.output<typeof pieceFileSchema>, PieceFile> = true;
+export const isPieceFileSchemaEqual: Equal<DeepReadonly<z.output<typeof pieceFileSchema>>, PieceFile> = true;
 
 const isContentRefusal = (
   issue: z.core.$ZodIssue,

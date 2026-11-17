@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repoPathSchema } from "./repo-path.ts";
-import { isRepoPathText } from "./repo-path-types.ts";
+import { isRepoPathText, repoPathSchema } from "./repo-path.ts";
 
 const ACCEPTED = [
   "a.ts",

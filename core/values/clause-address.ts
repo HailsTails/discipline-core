@@ -1,12 +1,14 @@
 import { z } from "zod";
-import type { ClauseAddress } from "./clause-address-types.ts";
+import type { ClauseAddress, ToolRuleSet } from "./clause-address-types.ts";
 import { clauseIdSchema, disciplineIdSchema, ruleSetNameSchema } from "./identifiers.ts";
 import { TOOL_IDENTITY } from "./tool-identity.ts";
-import type { EqualIgnoringReadonly } from "./type-equality.ts";
+import type { DeepReadonly, Equal } from "./type-equality.ts";
 
 export type { ClauseAddress } from "./clause-address-types.ts";
 
 export const TOOL_RULE_SET = TOOL_IDENTITY.ownRuleSet;
+
+export const isToolRuleSetEqual: Equal<typeof TOOL_RULE_SET, ToolRuleSet> = true;
 
 const CLAUSE_ADDRESS_TEXT = /^(?:(?<ruleSet>[^/#]+)\/)?(?<discipline>[^/#]+)#(?<clause>[^/#]+)$/;
 
@@ -21,8 +23,8 @@ export const clauseAddressObjectSchema = z.object({
   clause: clauseIdSchema,
 });
 
-export const isClauseAddressObjectSchemaEqual: EqualIgnoringReadonly<
-  z.output<typeof clauseAddressObjectSchema>,
+export const isClauseAddressObjectSchemaEqual: Equal<
+  DeepReadonly<z.output<typeof clauseAddressObjectSchema>>,
   ClauseAddress
 > = true;
 

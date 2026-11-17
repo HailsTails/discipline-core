@@ -2,7 +2,7 @@ import { z } from "zod";
 import { anchorSchema } from "../values/anchor-schema.ts";
 import { type ClauseAddress, clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
-import type { EqualIgnoringReadonly } from "../values/type-equality.ts";
+import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import { runnerFailureSchema } from "./runner-failure-schema.ts";
 import type { Hit } from "./runner-result-types.ts";
 
@@ -59,7 +59,7 @@ export const hitSchema = z
   })
   .readonly();
 
-export const isHitSchemaEqual: EqualIgnoringReadonly<z.output<typeof hitSchema>, Hit> = true;
+export const isHitSchemaEqual: Equal<DeepReadonly<z.output<typeof hitSchema>>, Hit> = true;
 
 export const caseVerdictSchema = z
   .object({

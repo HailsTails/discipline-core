@@ -1,24 +1,21 @@
 import { z } from "zod";
 import { brandedTextSchema } from "./branded-schema.ts";
-import {
-  CLAUSE_ID_PATTERN,
-  type ClauseId,
-  DISCIPLINE_ID_PATTERN,
-  type DisciplineId,
-  isClauseId,
-  isDisciplineId,
-  isMechanismId,
-  isRuleSetName,
-  MECHANISM_ID_PATTERN,
-  type MechanismId,
-  RULE_SET_NAME_PATTERN,
-  type RuleSetName,
-} from "./identifier-types.ts";
+import type { ClauseId, DisciplineId, MechanismId, RuleSetName } from "./identifier-types.ts";
 import type { Equal } from "./type-equality.ts";
 
 export type { ClauseId, DisciplineId, MechanismId, RuleSetName } from "./identifier-types.ts";
 
+const RULE_SET_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+const DISCIPLINE_ID_PATTERN = /^[A-Z]{2,4}-[0-9]+[a-z]?$/;
+const CLAUSE_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
+const MECHANISM_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
+
 const NOT_AN_IDENTIFIER = "not an identifier of its kind";
+
+const isRuleSetName = (text: string): text is RuleSetName => RULE_SET_NAME_PATTERN.test(text);
+const isDisciplineId = (text: string): text is DisciplineId => DISCIPLINE_ID_PATTERN.test(text);
+const isClauseId = (text: string): text is ClauseId => CLAUSE_ID_PATTERN.test(text);
+const isMechanismId = (text: string): text is MechanismId => MECHANISM_ID_PATTERN.test(text);
 
 export const ruleSetNameSchema = brandedTextSchema({
   text: z.string().regex(RULE_SET_NAME_PATTERN),

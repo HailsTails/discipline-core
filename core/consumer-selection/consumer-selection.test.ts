@@ -343,6 +343,32 @@ describe("createSelectionRepository", () => {
     expect(repository.read({})).toMatchObject({ outcome: "failed", error: { kind: "file-malformed" } });
   });
 
+  it("reports both the repository-path and the glob refusal when an exclude entry is an absolute glob", () => {
+    const repository = createSelectionRepository({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      moduleExtension: ".ts",
+      path: TABLE_PATH,
+      fileText: fileTextOver({
+        ...INSTALL,
+        [SELECTION_PATH]: presentFile({ text: JSON.stringify({
+          version: 1,
+          ruleSets: {},
+          clauses: { "CD-14#class-syntax": "audit" },
+          exclude: ["/a*"],
+        }) }),
+      }),
+    });
+
+    expect(repository.read({})).toMatchObject({
+      outcome: "failed",
+      error: {
+        kind: "file-malformed",
+        detail: expect.stringMatching(/not a repo-relative path[\s\S]*an exclude entry is a repository path, not a glob/),
+      },
+    });
+  });
+
   it("preserves the canonical selection read failure at the captured repository root", () => {
     const repository = createSelectionRepository({
       repoRoot: REPO_ROOT,
