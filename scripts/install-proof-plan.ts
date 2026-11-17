@@ -2,7 +2,6 @@ import { z } from "zod";
 import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import { TOOL_IDENTITY, type ToolIdentity } from "../core/values/tool-identity.ts";
-import { peerKindsOf } from "./published-manifest.ts";
 
 export type EntryKind = "folder" | "file";
 
@@ -181,21 +180,29 @@ export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }):
   project: `${request.identity.command}:project`,
 });
 
-export const PACKAGED_CONSUMER_NPMRC = "node-options=--no-experimental-strip-types\n";
+const TYPE_STRIPPING_OFF = "node-options=--no-experimental-strip-types\n";
+
+export const consumerSettingsOf = (request: {
+  readonly minimumReleaseAge: number;
+  readonly typeStripping: TypeStripping;
+}): string =>
+  `minimum-release-age=${request.minimumReleaseAge}\n${request.typeStripping === "disabled" ? TYPE_STRIPPING_OFF : ""}`;
 
 export const packagedConsumerManifest = (request: {
   readonly identity: ToolIdentity;
-  readonly requiredPeers: Readonly<Record<string, string>>;
+  readonly devDependencies: Readonly<Record<string, string>>;
+  readonly packageManager: string;
 }): string =>
   `${JSON.stringify(
     {
       private: true,
       type: "commonjs",
+      packageManager: request.packageManager,
       scripts: {
         [packagedScriptsOf(request).check]: `${request.identity.command} check --repo .`,
         [packagedScriptsOf(request).project]: `${request.identity.command} project --repo .`,
       },
-      devDependencies: request.requiredPeers,
+      devDependencies: request.devDependencies,
     },
     null,
     2,
@@ -284,7 +291,7 @@ const floorVersions = (request: {
     return version.outcome === "failed" ? version : { outcome: "ok", value: { ...sofar.value, [peer]: version.value } };
   }, { outcome: "ok", value: {} });
 
-const floorPinsOf = (request: {
+export const toolchainPinsOf = (request: {
   readonly developmentManifest: string;
   readonly toolchain: ProofToolchain;
 }): Result<FloorPins, ManifestFailure> => {
@@ -298,28 +305,26 @@ const floorPinsOf = (request: {
     : manifestInvalid({ detail: manifest.error.message });
 };
 
-export const requiredPeerPinsOf = (request: {
-  readonly developmentManifest: string;
-  readonly toolchain: ProofToolchain;
-}): Result<FloorPins, ManifestFailure> => {
-  const pins = floorPinsOf(request);
-  if (pins.outcome === "failed") {
-    return pins;
+const packageManagerPinSchema = z.object({ packageManager: z.string().min(1) });
+
+export const packageManagerPinOf = (request: { readonly developmentManifest: string }): Result<string, ManifestFailure> => {
+  const parsed = parsedJson({ text: request.developmentManifest });
+  if (parsed.outcome === "failed") {
+    return manifestInvalid({ detail: parsed.error });
   }
-  const kinds = peerKindsOf({ developmentManifest: request.developmentManifest });
-  return kinds.outcome === "failed"
-    ? kinds
-    : { outcome: "ok", value: Object.fromEntries(Object.entries(pins.value).filter(([peer]) => kinds.value[peer] === "required")) };
+  const manifest = packageManagerPinSchema.safeParse(parsed.value);
+  return manifest.success
+    ? { outcome: "ok", value: manifest.data.packageManager }
+    : manifestInvalid({ detail: "the package pins no packageManager for a consumer to install with" });
 };
 
-export const toolchainManifest = (request: {
-  readonly developmentManifest: string;
-  readonly toolchain: ProofToolchain;
-}): Result<string, ManifestFailure> => {
-  const versions = floorPinsOf(request);
-  return versions.outcome === "failed"
-    ? versions
-    : { outcome: "ok", value: `${JSON.stringify({ private: true, devDependencies: versions.value }, null, 2)}\n` };
+const MINIMUM_RELEASE_AGE_SETTING = /^minimumReleaseAge: (\d+)$/m;
+
+export const minimumReleaseAgeOf = (request: { readonly workspaceSettings: string }): Result<number, ManifestFailure> => {
+  const setting = MINIMUM_RELEASE_AGE_SETTING.exec(request.workspaceSettings);
+  return setting === null
+    ? manifestInvalid({ detail: "pnpm-workspace.yaml sets no minimumReleaseAge for a consumer to install under" })
+    : { outcome: "ok", value: Number(setting[1]) };
 };
 
 export const environmentWithoutGit = (request: {

@@ -1,22 +1,20 @@
-import { z } from "zod";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
-import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import {
   type CommandScript,
+  consumerSettingsOf,
   judgedStep,
-  PACKAGED_CONSUMER_NPMRC,
+  minimumReleaseAgeOf,
+  packageManagerPinOf,
   packagedScriptsOf,
   packagedConsumerManifest,
   type ProofAction,
   type ProofCase,
-  type ProofToolchain,
-  requiredPeerPinsOf,
+  type StepExpectation,
   type StepRun,
-  type TypeStripping,
-  toolchainManifest,
+  toolchainPinsOf,
 } from "./install-proof-plan.ts";
 import type { CommandRunPort, ProofCommand, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { TarballPackerPort } from "./package-commands.ts";
@@ -48,17 +46,17 @@ const SUCCEEDED: Result<null, string> = { outcome: "ok", value: null };
 const IGNORED_INSTALLS = "node_modules/\n";
 const TEMPORARY_PREFIX = `${packageFileStemOf({ packageName: TOOL_IDENTITY.packageName })}-install-proof-`;
 const GIT_IDENTITY = ["-c", "user.name=proof", "-c", "user.email=proof@invalid", "-c", "commit.gpgsign=false"];
-const NPM_INSTALL = ["install", "--no-audit", "--no-fund", "--ignore-scripts"];
+const PNPM_INSTALL = ["install", "--ignore-scripts", "--prefer-offline", "--no-frozen-lockfile"];
 const NODE_MODULES = "node_modules";
+const LINKED_INSTALL = `${NODE_MODULES}/${TOOL_IDENTITY.packageName}`;
 const PASS_LINE = "install proof: pass\n";
-const NPM_INSTALL_TARBALL = ["install", "--offline", "--no-audit", "--no-fund", "--ignore-scripts", "--save-dev"];
-const NPM_RUN_SILENT = ["run", "--silent"];
+const PNPM_RUN_SILENT = ["run", "--silent"];
 const SOURCE_MODULE_SUFFIX = ".ts";
 const DECLARATION_SUFFIX = ".d.ts";
 const INSTALLED_TYPESCRIPT_COMPILER = "node_modules/typescript/bin/tsc";
 const TYPECHECK_ONLY = ["--noEmit", "-p"];
 const PLATFORM_LINE_END = "\r\n";
-const NPM_CONFIG = ".npmrc";
+const PNPM_SETTINGS = ".npmrc";
 const LINT_SCRIPT = "lint";
 const inOrder = (request: { readonly steps: readonly Step[] }): Result<null, string> =>
   request.steps.reduce<Result<null, string>>((sofar, step) => (sofar.outcome === "failed" ? sofar : step()), SUCCEEDED);
@@ -133,8 +131,8 @@ const commandRun = (request: {
   readonly arguments: readonly string[];
 }): StepRun =>
   request.context.commands.run({
-    command: "npm",
-    arguments: [...NPM_RUN_SILENT, packagedScriptsOf({ identity: TOOL_IDENTITY })[request.script], ...(request.arguments.length === 0 ? [] : ["--", ...request.arguments])],
+    command: "pnpm",
+    arguments: [...PNPM_RUN_SILENT, packagedScriptsOf({ identity: TOOL_IDENTITY })[request.script], ...request.arguments],
     directory: request.repo,
   });
 
@@ -194,8 +192,8 @@ const packageLint = (request: {
     expectation: request.action.expectation,
     run: withLineFeeds({
       run: request.context.commands.run({
-        command: "npm",
-        arguments: [...NPM_RUN_SILENT, LINT_SCRIPT],
+        command: "pnpm",
+        arguments: [...PNPM_RUN_SILENT, LINT_SCRIPT],
         directory: request.context.path.join({ segments: [request.repo, request.action.directory] }),
       }),
     }),
@@ -225,6 +223,25 @@ const readExactly = (request: {
   }
   request.context.process.writeOut({ text: `ok: ${request.label} reads exactly as expected\n` });
   return SUCCEEDED;
+};
+
+const expectationAt = (request: { readonly expectation: StepExpectation; readonly installed: string }): StepExpectation => ({
+  exitCode: request.expectation.exitCode,
+  output: request.expectation.output.replaceAll(`${LINKED_INSTALL}/`, `${request.installed}/`),
+});
+
+const actionAt = (request: { readonly action: ProofAction; readonly installed: string }): ProofAction => {
+  const action = request.action;
+  switch (action.kind) {
+    case "check":
+    case "project":
+    case "typecheck":
+    case "lint":
+      return { ...action, expectation: expectationAt({ expectation: action.expectation, installed: request.installed }) };
+    case "commit":
+    case "read":
+      return action;
+  }
 };
 
 const performedAction = (request: {
@@ -273,21 +290,28 @@ const writtenFile = (request: {
 
 type ConsumerFile = { readonly name: string; readonly text: string };
 
-const NPM_CONFIG_FILES: Readonly<Record<TypeStripping, readonly ConsumerFile[]>> = {
-  disabled: [{ name: NPM_CONFIG, text: PACKAGED_CONSUMER_NPMRC }],
-  enabled: [],
-};
+type InstallSettings = { readonly packageManager: string; readonly minimumReleaseAge: number };
 
 const consumerFiles = (request: {
-  readonly requiredPeers: Readonly<Record<string, string>>;
-  readonly typeStripping: TypeStripping;
+  readonly devDependencies: Readonly<Record<string, string>>;
+  readonly settings: InstallSettings;
+  readonly proofCase: ProofCase;
 }): readonly ConsumerFile[] => [
-  { name: "package.json", text: packagedConsumerManifest({ identity: TOOL_IDENTITY, requiredPeers: request.requiredPeers }) },
+  {
+    name: "package.json",
+    text: packagedConsumerManifest({
+      identity: TOOL_IDENTITY,
+      devDependencies: request.devDependencies,
+      packageManager: request.settings.packageManager,
+    }),
+  },
   { name: ".gitignore", text: IGNORED_INSTALLS },
-  ...NPM_CONFIG_FILES[request.typeStripping],
+  {
+    name: PNPM_SETTINGS,
+    text: consumerSettingsOf({ minimumReleaseAge: request.settings.minimumReleaseAge, typeStripping: request.proofCase.typeStripping }),
+  },
 ];
 
-const installedVersionSchema = z.object({ version: z.string() });
 const preparedConsumer = (request: {
   readonly context: ProofContext;
   readonly fixture: string;
@@ -316,50 +340,18 @@ const preparedConsumer = (request: {
   });
 };
 
-const installedToolchain = (request: {
+type ProofInputs = {
   readonly context: ProofContext;
   readonly temporaryRoot: string;
   readonly packageManifest: string;
-  readonly toolchain: ProofToolchain;
-}): Result<null, string> => {
-  const manifest = toolchainManifest({ developmentManifest: request.packageManifest, toolchain: request.toolchain });
-  if (manifest.outcome === "failed") {
-    return { outcome: "failed", error: `FAIL: package.json: ${manifest.error.detail}` };
-  }
-  const directory = request.context.path.join({ segments: [request.temporaryRoot, request.toolchain] });
-  const label = `prepare the ${request.toolchain} toolchain`;
-  return inOrder({
-    steps: [
-      () => emptied({ result: labelled({ label, result: request.context.scratch.makeDirectory({ path: directory }) }) }),
-      () =>
-        writtenFile({
-          context: request.context,
-          label,
-          path: request.context.path.join({ segments: [directory, "package.json"] }),
-          text: manifest.value,
-        }),
-      () =>
-        ranCommand({
-          context: request.context,
-          label: `npm install the ${request.toolchain} toolchain`,
-          command: "npm",
-          arguments: NPM_INSTALL,
-          directory,
-        }),
-    ],
-  });
+  readonly settings: InstallSettings;
+  readonly tarball: string;
 };
 
-type CaseRequest = {
-  readonly context: ProofContext;
-  readonly temporaryRoot: string;
-  readonly packageManifest: string;
-  readonly tarball: string;
-  readonly proofCase: ProofCase;
-};
+type CaseRequest = ProofInputs & { readonly proofCase: ProofCase };
 
 const consumerRepo = (request: CaseRequest): string =>
-  request.context.path.join({ segments: [request.temporaryRoot, request.proofCase.toolchain, request.proofCase.consumer] });
+  request.context.path.join({ segments: [request.temporaryRoot, request.proofCase.consumer] });
 
 const consumerFixture = (request: CaseRequest): string =>
   request.context.path.join({
@@ -389,107 +381,112 @@ const packageShipsNoSource = (request: {
   return SUCCEEDED;
 };
 
-const installedVersionOf = (request: { readonly context: ProofContext; readonly manifest: string }): Result<string, string> => {
-  const text = request.context.fileText.read({ path: request.manifest });
-  if (text.outcome === "failed") {
-    return { outcome: "failed", error: text.error.detail };
-  }
-  const parsed = parsedJson({ text: text.value });
-  const installed = parsed.outcome === "failed" ? undefined : installedVersionSchema.safeParse(parsed.value);
-  return installed?.success === true ? { outcome: "ok", value: installed.data.version } : { outcome: "failed", error: `${request.manifest} names no version` };
+const pathFrom = (request: { readonly context: ProofContext; readonly repo: string; readonly path: string }): Result<string, string> => {
+  const placed = request.context.path.relative({ from: request.repo, to: request.path });
+  return placed.relation === "within-root"
+    ? { outcome: "ok", value: placed.path }
+    : { outcome: "failed", error: `${request.path} shares no root with ${request.repo}` };
 };
 
-const requiredPeerAtFloor = (request: {
-  readonly context: ProofContext;
-  readonly consumer: string;
-  readonly repo: string;
-  readonly peer: string;
-  readonly floor: string;
-}): Result<null, string> => {
-  const label = `${request.consumer} resolves the required peer ${request.peer} at its pinned version ${request.floor}`;
-  const manifest = request.context.path.join({ segments: [request.repo, NODE_MODULES, ...request.peer.split("/"), "package.json"] });
-  const installed = installedVersionOf({ context: request.context, manifest });
-  if (installed.outcome === "failed") {
-    return { outcome: "failed", error: `FAIL: ${label}: ${installed.error}` };
-  }
-  if (installed.value !== request.floor) {
-    return { outcome: "failed", error: `FAIL: ${label}: found ${installed.value}` };
-  }
-  request.context.process.writeOut({ text: `ok: ${label}\n` });
-  return SUCCEEDED;
+const PARENT_FOLDER = "..";
+
+const containedPathOf = (request: { readonly context: ProofContext; readonly repo: string; readonly path: string }): Result<string, string> => {
+  const placed = pathFrom(request);
+  return placed.outcome === "ok" && placed.value !== PARENT_FOLDER && !placed.value.startsWith(`${PARENT_FOLDER}/`)
+    ? placed
+    : { outcome: "failed", error: `${request.path} lies outside ${request.repo}` };
 };
 
-const provenCase = (request: CaseRequest): Result<null, string> => {
-  const pins = requiredPeerPinsOf({ developmentManifest: request.packageManifest, toolchain: request.proofCase.toolchain });
+const consumerDependenciesOf = (request: CaseRequest & { readonly repo: string }): Result<Readonly<Record<string, string>>, string> => {
+  const pins = toolchainPinsOf({ developmentManifest: request.packageManifest, toolchain: request.proofCase.toolchain });
   if (pins.outcome === "failed") {
     return { outcome: "failed", error: `FAIL: package.json: ${pins.error.detail}` };
   }
+  const tarball = pathFrom({ context: request.context, repo: request.repo, path: request.tarball });
+  return tarball.outcome === "failed"
+    ? { outcome: "failed", error: `FAIL: locate the packed tarball from ${request.proofCase.consumer}: ${tarball.error}` }
+    : { outcome: "ok", value: { ...pins.value, [TOOL_IDENTITY.packageName]: `file:${tarball.value}` } };
+};
+
+const installedLocationOf = (request: { readonly context: ProofContext; readonly repo: string; readonly consumer: string }): Result<string, string> => {
+  const label = `${request.consumer} runs the package from where pnpm put it`;
+  const realRepo = labelled({ label, result: request.context.scratch.realPathOf({ path: request.repo }) });
+  if (realRepo.outcome === "failed") {
+    return realRepo;
+  }
+  const real = labelled({ label, result: request.context.scratch.realPathOf({ path: request.context.path.join({ segments: [request.repo, LINKED_INSTALL] }) }) });
+  if (real.outcome === "failed") {
+    return real;
+  }
+  const installed = containedPathOf({ context: request.context, repo: realRepo.value, path: real.value });
+  if (installed.outcome === "failed") {
+    return { outcome: "failed", error: `FAIL: ${label}: ${installed.error}` };
+  }
+  request.context.process.writeOut({ text: `ok: ${request.consumer} runs the package from ${installed.value}\n` });
+  return installed;
+};
+
+const installedConsumer = (request: CaseRequest & { readonly repo: string }): Result<null, string> => {
+  const devDependencies = consumerDependenciesOf(request);
+  if (devDependencies.outcome === "failed") {
+    return devDependencies;
+  }
   const context = request.context;
   const consumer = request.proofCase.consumer;
-  const repo = consumerRepo(request);
   return inOrder({
     steps: [
       () =>
         preparedConsumer({
           context,
           fixture: consumerFixture(request),
-          repo,
-          files: consumerFiles({ requiredPeers: pins.value, typeStripping: request.proofCase.typeStripping }),
+          repo: request.repo,
+          files: consumerFiles({ devDependencies: devDependencies.value, settings: request.settings, proofCase: request.proofCase }),
         }),
       () =>
         ranCommand({
           context,
-          label: `npm install the packed tarball into ${consumer}`,
-          command: "npm",
-          arguments: [...NPM_INSTALL_TARBALL, request.tarball],
-          directory: repo,
+          label: `pnpm install the packed tarball into ${consumer}`,
+          command: "pnpm",
+          arguments: PNPM_INSTALL,
+          directory: request.repo,
         }),
-      () =>
-        packageShipsNoSource({
-          context,
-          consumer,
-          installedPackage: context.path.join({ segments: [repo, NODE_MODULES, ...TOOL_IDENTITY.packageName.split("/")] }),
-        }),
-      ...Object.entries(pins.value).map(
-        ([peer, floor]): Step =>
-          () =>
-            requiredPeerAtFloor({ context, consumer, repo, peer, floor }),
-      ),
+      () => packageShipsNoSource({ context, consumer, installedPackage: context.path.join({ segments: [request.repo, LINKED_INSTALL] }) }),
+    ],
+  });
+};
+
+const provenCase = (request: CaseRequest): Result<null, string> => {
+  const context = request.context;
+  const consumer = request.proofCase.consumer;
+  const repo = consumerRepo(request);
+  const installed = installedConsumer({ ...request, repo });
+  if (installed.outcome === "failed") {
+    return installed;
+  }
+  const location = installedLocationOf({ context, repo, consumer });
+  if (location.outcome === "failed") {
+    return location;
+  }
+  return inOrder({
+    steps: [
       () => git({ context, repo, consumer, arguments: ["init", "-q"] }),
       () => commitAll({ context, repo, consumer, message: "consumer" }),
       ...request.proofCase.actions.map(
         (action): Step =>
           () =>
-            performedAction({ context, repo, consumer, action }),
+            performedAction({ context, repo, consumer, action: actionAt({ action, installed: location.value }) }),
       ),
     ],
   });
 };
 
-const toolchainsOf = (request: { readonly proofCases: readonly ProofCase[] }): readonly ProofToolchain[] => [
-  ...new Set(request.proofCases.map((proofCase) => proofCase.toolchain)),
-];
-
-const provenInside = (request: {
-  readonly context: ProofContext;
-  readonly temporaryRoot: string;
-  readonly packageManifest: string;
-  readonly tarball: string;
-  readonly proofCases: readonly ProofCase[];
-}): Result<null, string> =>
+const provenInside = (request: ProofInputs & { readonly proofCases: readonly ProofCase[] }): Result<null, string> =>
   inOrder({
-    steps: [
-      ...toolchainsOf(request).map(
-        (toolchain): Step =>
-          () =>
-            installedToolchain({ ...request, toolchain }),
-      ),
-      ...request.proofCases.map(
-        (proofCase): Step =>
-          () =>
-            provenCase({ ...request, proofCase }),
-      ),
-    ],
+    steps: request.proofCases.map(
+      (proofCase): Step =>
+        () =>
+          provenCase({ ...request, proofCase }),
+    ),
   });
 
 const provenWithTarball = async (request: {
@@ -497,6 +494,7 @@ const provenWithTarball = async (request: {
   readonly packer: TarballPackerPort;
   readonly temporaryRoot: string;
   readonly packageManifest: string;
+  readonly settings: InstallSettings;
   readonly proofCases: readonly ProofCase[];
 }): Promise<Result<null, string>> => {
   const tarball = await request.packer.pack({ packageRoot: request.context.packageRoot, workRoot: request.temporaryRoot });
@@ -507,6 +505,7 @@ const provenWithin = async (request: {
   readonly context: ProofContext;
   readonly packer: TarballPackerPort;
   readonly packageManifest: string;
+  readonly settings: InstallSettings;
   readonly proofCases: readonly ProofCase[];
 }): Promise<Result<null, string>> => {
   const temporaryRoot = labelled({
@@ -542,6 +541,21 @@ const readPackageFile = (request: { readonly context: ProofContext; readonly nam
     }),
   });
 
+const installSettingsOf = (request: { readonly context: ProofContext; readonly packageManifest: string }): Result<InstallSettings, string> => {
+  const packageManager = labelled({ label: "package.json", result: packageManagerPinOf({ developmentManifest: request.packageManifest }) });
+  if (packageManager.outcome === "failed") {
+    return packageManager;
+  }
+  const workspaceSettings = readPackageFile({ context: request.context, name: "pnpm-workspace.yaml" });
+  if (workspaceSettings.outcome === "failed") {
+    return workspaceSettings;
+  }
+  const minimumReleaseAge = labelled({ label: "pnpm-workspace.yaml", result: minimumReleaseAgeOf({ workspaceSettings: workspaceSettings.value }) });
+  return minimumReleaseAge.outcome === "failed"
+    ? minimumReleaseAge
+    : { outcome: "ok", value: { packageManager: packageManager.value, minimumReleaseAge: minimumReleaseAge.value } };
+};
+
 const proof = (request: {
   readonly context: ProofContext;
   readonly packer: TarballPackerPort;
@@ -551,10 +565,15 @@ const proof = (request: {
   if (packageManifest.outcome === "failed") {
     return Promise.resolve(packageManifest);
   }
+  const settings = installSettingsOf({ context: request.context, packageManifest: packageManifest.value });
+  if (settings.outcome === "failed") {
+    return Promise.resolve(settings);
+  }
   return provenWithin({
     context: request.context,
     packer: request.packer,
     packageManifest: packageManifest.value,
+    settings: settings.value,
     proofCases: request.proofCases,
   });
 };
