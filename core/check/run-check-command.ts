@@ -13,6 +13,7 @@ import { parseCheckArguments } from "./command-arguments-schema.ts";
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { projectCommandOf } from "./project-command.ts";
 import { runCheck } from "./run-check.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 
@@ -50,10 +51,14 @@ export const printOutcome = (request: {
 const checkRunOf = (request: {
   readonly report: Result<CheckReport, LoadFailure>;
   readonly output: ReportOutput;
+  readonly projectCommand: string;
 }): Result<CheckRun, LoadFailure> =>
   request.report.outcome === "failed"
     ? request.report
-    : { outcome: "ok", value: { report: request.report.value, output: request.output } };
+    : {
+        outcome: "ok",
+        value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand },
+      };
 
 export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
   const parsed = parseCheckArguments({ arguments: request.process.arguments });
@@ -67,6 +72,10 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
   if (installRoot.outcome === "failed") {
     return installRoot;
+  }
+  const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repoRoot: repoRoot.value });
+  if (projectCommand.outcome === "failed") {
+    return projectCommand;
   }
   const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: repoRoot.value });
   if (configured.outcome === "failed") {
@@ -90,6 +99,7 @@ export const checkRunFor = async (request: CommandRequest): Promise<Result<Check
   return checkRunOf({
     report,
     output: reportOutputInEffect({ requested: parsed.value.reportOutput, configured: configured.value.reportOutput }),
+    projectCommand: projectCommand.value,
   });
 };
 

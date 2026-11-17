@@ -240,9 +240,11 @@ const recordingRunner = (request: RecordedSetUp): EmbeddedRunner => {
   };
 };
 
+const SOURCE_PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
 const reportTextOf = (request: { readonly report: Result<CheckReport, LoadFailure> }): string =>
   request.report.outcome === "ok"
-    ? renderReportText({ report: request.report.value, output: "full" })
+    ? renderReportText({ report: request.report.value, output: "full", projectCommand: SOURCE_PROJECT_COMMAND })
     : JSON.stringify(request.report.error);
 
 const checkedText = (request: RecordedSetUp): Promise<string> =>

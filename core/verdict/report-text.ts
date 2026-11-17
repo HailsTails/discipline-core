@@ -2,10 +2,21 @@ import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exc
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import type { InlineReach } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
+import type { MechanismId } from "../values/identifiers.ts";
+import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
-import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, ReadFirstEntry, Unmeasured } from "./check-report.ts";
+import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
+import type {
+  AssessmentFileNote,
+  CheckReport,
+  ClauseReading,
+  PartialAssessment,
+  ProjectionProblem,
+  ReadFirstEntry,
+  Unmeasured,
+} from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -88,23 +99,135 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
   }
 };
 
+type BaseDependentUnmeasured = Extract<Unmeasured, { readonly base: BaseRevisionAvailability }>;
+
+type MechanismNotRun = Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
+
+const PASS_A_BASE = "pass --base-revision with the branch's base, such as origin/main";
+
+const LEAVE_DECAY_ELSEWHERE =
+  'leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere';
+
+const RECORDS_AT_BASE = "Hone needs the exception records as they were at that revision";
+
+type BaseNeeds = {
+  readonly unchecked: string;
+  readonly nextStep: string;
+  readonly gitAttempt: string;
+  readonly needs: string;
+};
+
+const BASE_NEEDS: Readonly<Record<BaseDependentUnmeasured["kind"], BaseNeeds>> = {
+  "forfeiture-unmeasured": {
+    unchecked: "file carve-outs cannot be checked for decay",
+    nextStep: `${PASS_A_BASE}, or ${LEAVE_DECAY_ELSEWHERE}`,
+    gitAttempt: "list the files changed since that revision",
+    needs: `Hone needs that revision and the history back to where this branch left it, or ${LEAVE_DECAY_ELSEWHERE}`,
+  },
+  "import-unmeasured": {
+    unchecked: "imported records cannot be checked against it",
+    nextStep: PASS_A_BASE,
+    gitAttempt: "read the exception records at that revision",
+    needs: RECORDS_AT_BASE,
+  },
+  "legacy-chain-unmeasured": {
+    unchecked: "legacy-chain records cannot be checked against it",
+    nextStep: PASS_A_BASE,
+    gitAttempt: "read the exception records at that revision",
+    needs: RECORDS_AT_BASE,
+  },
+};
+
+const quoted = (request: { readonly text: string }): string => JSON.stringify(request.text);
+
+const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasured }): string => {
+  const { kind, base } = request.unmeasured;
+  const needs = BASE_NEEDS[kind];
+  switch (base.state) {
+    case "not-given":
+      return `${kind} no-base-revision: no --base-revision was given, so ${needs.unchecked}; ${needs.nextStep}`;
+    case "git-failed":
+      return `${kind} base-git-failed ${quoted({ text: base.revision })}: git could not ${needs.gitAttempt} and said ${quoted({ text: base.gitMessage })}; ${needs.needs}`;
+  }
+};
+
 const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
-const nestedConfigurationNote = (request: {
-  readonly unmeasured: Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
-}): string =>
-  request.unmeasured.projection === "missing" || request.unmeasured.nestedConfigurations.length === 0
-    ? ""
-    : `; not managed from this repository, each holding its own disciplines.json: ${request.unmeasured.nestedConfigurations.join(", ")}; nested Hone configurations are not supported yet, see ${NESTED_CONFIGURATION_ISSUE}`;
+type ProjectionRequest = { readonly projectCommand: string };
 
-const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string => {
+const projectionFileOf = (request: { readonly mechanism: MechanismId }): string => `disciplines.${request.mechanism}.mjs`;
+
+const refreshStep = (request: ProjectionRequest & { readonly mechanism: MechanismId }): string =>
+  `run ${request.projectCommand} and commit every ${projectionFileOf(request)} it writes`;
+
+const GENERATED_CONFIGURATION = "or, where a tool such as sku generates the configuration, last in the configuration the tool takes";
+
+type ReportRequest = ProjectionRequest & { readonly report: CheckReport };
+
+const sliceNote = (request: ReportRequest & { readonly mechanism: MechanismId }): string =>
+  request.report.projectionProblems.some((problem) => problem.scope === "slice" && problem.mechanism === request.mechanism)
+    ? `; the ${request.mechanism} lines under projectionProblems name the package slices involved`
+    : "";
+
+const nestedNote = (request: ProjectionRequest & { readonly folders: readonly RepoPath[] }): string =>
+  request.folders.length === 0
+    ? ""
+    : `; ${request.folders.join(", ")} hold their own disciplines.json, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run ${request.projectCommand}, which writes its slice`;
+
+const notIncludedLine = (
+  request: ReportRequest & { readonly unmeasured: Extract<MechanismNotRun, { readonly projection: "not-included" }> },
+): string => {
+  const { mechanism, nestedConfigurations } = request.unmeasured;
+  const file = projectionFileOf({ mechanism });
+  return `mechanism-not-run ${mechanism} not-included: the ${mechanism} configuration leaves the projection out of effect for a file under check; spread the default export of ${file}, or of a package's own ${file} in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}${sliceNote({ ...request, mechanism })}${nestedNote({ ...request, folders: nestedConfigurations })}`;
+};
+
+const mechanismNotRunLine = (request: ReportRequest & { readonly unmeasured: MechanismNotRun }): string => {
+  switch (request.unmeasured.projection) {
+    case "missing":
+      return `mechanism-not-run ${request.unmeasured.mechanism} missing: ${projectionFileOf(request.unmeasured)} is not written; ${refreshStep({ ...request, mechanism: request.unmeasured.mechanism })}`;
+    case "not-included":
+      return notIncludedLine({ ...request, unmeasured: request.unmeasured });
+  }
+};
+
+type SliceProblem = Extract<ProjectionProblem, { readonly scope: "slice" }>;
+
+const folderOf = (request: { readonly slice: RepoPath }): string => request.slice.split("/").slice(0, -1).join("/");
+
+const sliceProblemReason = (request: ProjectionRequest & { readonly problem: SliceProblem }): string => {
+  const { mechanism, slice } = request.problem;
+  const folder = folderOf({ slice });
+  switch (request.problem.state) {
+    case "out-of-date":
+      return `that slice differs from what hone project writes now; ${refreshStep({ ...request, mechanism })}`;
+    case "missing":
+      return `that slice is not written; ${refreshStep({ ...request, mechanism })}`;
+    case "not-applied":
+      return `the ${mechanism} configuration for ${folder} leaves records of that slice out of effect; spread the default export of ${slice} last in that package's configuration, in place of any other projection it spreads, ${GENERATED_CONFIGURATION}`;
+    case "unconfigured":
+      return `${folder} has no ${mechanism} configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check`;
+  }
+};
+
+const projectionProblemLine = (request: ProjectionRequest & { readonly problem: ProjectionProblem }): string => {
+  const { problem } = request;
+  switch (problem.scope) {
+    case "projection":
+      return `${problem.mechanism} ${problem.state}: ${projectionFileOf(problem)} differs from what hone project writes now; ${refreshStep({ ...request, mechanism: problem.mechanism })}`;
+    case "slice":
+      return `${problem.mechanism} ${problem.state} ${problem.slice}: ${sliceProblemReason({ ...request, problem })}`;
+  }
+};
+
+const unmeasuredLine = (request: ReportRequest & { readonly unmeasured: Unmeasured }): string => {
   switch (request.unmeasured.kind) {
     case "forfeiture-unmeasured":
     case "import-unmeasured":
     case "legacy-chain-unmeasured":
-      return request.unmeasured.kind;
+      return baseDependentLine({ unmeasured: request.unmeasured });
     case "mechanism-not-run":
-      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}${nestedConfigurationNote({ unmeasured: request.unmeasured })}`;
+      return mechanismNotRunLine({ ...request, unmeasured: request.unmeasured });
   }
 };
 
@@ -117,11 +240,6 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
       return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.fileCarveOuts, noun: "file carve-out" })} not checked for decay in this run`;
   }
 };
-
-const projectionProblemLine = (request: { readonly problem: ProjectionProblem }): string =>
-  request.problem.scope === "slice"
-    ? `${request.problem.mechanism} ${request.problem.state} ${request.problem.slice}`
-    : `${request.problem.mechanism} ${request.problem.state}`;
 
 const sectionRead = (request: { readonly reading: ClauseReading }): string =>
   `read the ${JSON.stringify(assessmentSectionHeading(request.reading))} section of ${ASSESSMENT_FILE_NAME}`;
@@ -157,7 +275,7 @@ const readFirstLine = (request: { readonly entry: ReadFirstEntry }): string => {
   }
 };
 
-type ReportLines = (request: { readonly report: CheckReport }) => readonly string[];
+type ReportLines = (request: ProjectionRequest & { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
@@ -178,14 +296,14 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     request.report.invalidRecords.map(
       (invalid) => `exceptions[${invalid.index}] ${invalid.problem.kind} ${invalidDetail(invalid)}`,
     ),
-  unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ unmeasured })),
+  unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ ...request, unmeasured })),
   projectionProblems: (request) =>
-    request.report.projectionProblems.map((problem) => projectionProblemLine({ problem })),
+    request.report.projectionProblems.map((problem) => projectionProblemLine({ ...request, problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
 };
 
-const reportSections = (request: { readonly report: CheckReport }): readonly ReportSection[] =>
+const reportSections = (request: ProjectionRequest & { readonly report: CheckReport }): readonly ReportSection[] =>
   SECTION_NAMES.map((name) => ({ name, lines: SECTION_LINES[name](request) }));
 
 const verdictLine = (request: { readonly report: CheckReport }): string =>
@@ -193,7 +311,9 @@ const verdictLine = (request: { readonly report: CheckReport }): string =>
     ? `verdict: ${verdictOf(request)}`
     : `verdict: ${verdictOf(request)} (partial assessment)`;
 
-export const renderReportText = (request: { readonly report: CheckReport; readonly output: ReportOutput }): string => {
+export const renderReportText = (
+  request: ProjectionRequest & { readonly report: CheckReport; readonly output: ReportOutput },
+): string => {
   const sectionLines = reportSections(request)
     .filter((section) => section.lines.length > 0)
     .flatMap((section) => printedSectionLines({ output: request.output, section }));
