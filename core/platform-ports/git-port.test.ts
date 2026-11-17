@@ -363,41 +363,60 @@ describe("createGitHistoryPort mergedTags", () => {
   });
 });
 
-describe("createGitHistoryPort messagesAfter", () => {
-  it("lists the first-parent commit messages after the revision up to HEAD, oldest first, without their trailing newlines", () => {
-    const spawn = vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "fix: one (#1)\n\0feat: two (#2)\n\nBREAKING CHANGE: renamed\n\0" });
+describe("createGitHistoryPort commitsAfter", () => {
+  it("lists every commit after the revision up to HEAD, oldest first, with its parent count and its message without trailing newlines", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue({
+      ...EXITED_EMPTY,
+      stdout: "aaa\nfix: one (#1)\n\0aaa bbb\nMerge branch 'main'\n\0ccc\nfeat: two (#2)\n\nBREAKING CHANGE: renamed\n\0",
+    });
 
-    const messages = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).messagesAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
+    const commits = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
 
-    expect(messages).toEqual({ outcome: "ok", value: ["fix: one (#1)", "feat: two (#2)\n\nBREAKING CHANGE: renamed"] });
+    expect(commits).toEqual({
+      outcome: "ok",
+      value: [
+        { parentCount: 1, message: "fix: one (#1)" },
+        { parentCount: 2, message: "Merge branch 'main'" },
+        { parentCount: 1, message: "feat: two (#2)\n\nBREAKING CHANGE: renamed" },
+      ],
+    });
     expect(spawn).toHaveBeenCalledWith(
       expect.objectContaining({
         file: "git",
-        arguments: ["-C", "/repo", "log", "--first-parent", "--reverse", "-z", "--format=%B", "--end-of-options", "v0.1.0-pre.3..HEAD"],
+        arguments: ["-C", "/repo", "log", "--reverse", "-z", "--format=%P%n%B", "--end-of-options", "v0.1.0-pre.3..HEAD"],
       }),
     );
   });
 
-  it("lists no messages for empty output", () => {
-    const messages = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY), ambientEnvironment: AMBIENT_ENVIRONMENT }).messagesAfter({
+  it("counts no parents for a root commit", () => {
+    const commits = createGitHistoryPort({
+      spawn: vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "\nfeat: start\n\0" }),
+      ambientEnvironment: AMBIENT_ENVIRONMENT,
+    }).commitsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
+
+    expect(commits).toEqual({ outcome: "ok", value: [{ parentCount: 0, message: "feat: start" }] });
+  });
+
+  it("lists no commits for empty output", () => {
+    const commits = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY), ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({
       repoRoot: REPO_ROOT,
       revision: "v0.1.0-pre.3",
     });
 
-    expect(messages).toEqual({ outcome: "ok", value: [] });
+    expect(commits).toEqual({ outcome: "ok", value: [] });
   });
 
   it("returns git-failed with the spawn's detail when git cannot run", () => {
-    const messages = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(ERRORED_ON_BUFFER), ambientEnvironment: AMBIENT_ENVIRONMENT }).messagesAfter({
+    const commits = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(ERRORED_ON_BUFFER), ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({
       repoRoot: REPO_ROOT,
       revision: "v0.1.0-pre.3",
     });
 
-    expect(messages).toEqual({
+    expect(commits).toEqual({
       outcome: "failed",
       error: {
         kind: "git-failed",
-        command: "git -C /repo log --first-parent --reverse -z --format=%B --end-of-options v0.1.0-pre.3..HEAD",
+        command: "git -C /repo log --reverse -z --format=%P%n%B --end-of-options v0.1.0-pre.3..HEAD",
         detail: "spawnSync git ENOBUFS",
       },
     });

@@ -13,7 +13,10 @@ const MANIFEST = '{\n  "version": "0.1.0-pre.3",\n  "private": true\n}\n';
 
 const TAGS = ["v0.1.0-pre.1", "v0.1.0-pre.3", "v0.1.0-pre.2", "backup-pre1-before-rewrite"];
 
-const MESSAGES = ["feat(release): prepare release pull requests (#33)\n\nBody.", "Keep versions out of the docs (#20)"];
+const COMMITS = [
+  { parentCount: 1, message: "feat(release): prepare release pull requests (#33)\n\nBody." },
+  { parentCount: 1, message: "Keep versions out of the docs (#20)" },
+];
 
 const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
   arguments: request.arguments,
@@ -24,17 +27,17 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
 
 const historyWith = (request: {
   readonly tags: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly messages: ReturnType<GitHistoryPort["messagesAfter"]>;
+  readonly commits: ReturnType<GitHistoryPort["commitsAfter"]>;
 }): GitHistoryPort => ({
   mergedTags: vi.fn<GitHistoryPort["mergedTags"]>().mockReturnValue(request.tags),
-  messagesAfter: vi.fn<GitHistoryPort["messagesAfter"]>().mockReturnValue(request.messages),
+  commitsAfter: vi.fn<GitHistoryPort["commitsAfter"]>().mockReturnValue(request.commits),
 });
 
 const runWith = (request: {
   readonly arguments?: readonly string[];
   readonly files?: Readonly<Record<string, string>>;
   readonly tags?: ReturnType<GitHistoryPort["mergedTags"]>;
-  readonly messages?: ReturnType<GitHistoryPort["messagesAfter"]>;
+  readonly commits?: ReturnType<GitHistoryPort["commitsAfter"]>;
   readonly unwritablePaths?: readonly string[];
 }) => {
   const processPort = processWith({ arguments: request.arguments ?? [] });
@@ -44,7 +47,7 @@ const runWith = (request: {
   });
   const history = historyWith({
     tags: request.tags ?? { outcome: "ok", value: TAGS },
-    messages: request.messages ?? { outcome: "ok", value: MESSAGES },
+    commits: request.commits ?? { outcome: "ok", value: COMMITS },
   });
   runReleasePullRequest({
     process: processPort,
@@ -69,7 +72,7 @@ describe("runReleasePullRequest preparing a release", () => {
     const run = runWith({});
 
     expect(vi.mocked(run.history.mergedTags).mock.calls).toEqual([[{ repoRoot: "/repo", pattern: "v*" }]]);
-    expect(vi.mocked(run.history.messagesAfter).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }]]);
+    expect(vi.mocked(run.history.commitsAfter).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "v0.1.0-pre.3" }]]);
   });
 
   it("writes the next pre-release's section into the changelog and its version into package.json, and says it made no tag", () => {
@@ -97,16 +100,16 @@ describe("runReleasePullRequest preparing a release", () => {
   });
 
   it("warns that a subject that is not conventional but carries a breaking footer counts as a major", () => {
-    const run = runWith({ messages: { outcome: "ok", value: ["Merge pull request #7\n\nBREAKING CHANGE: renamed a key"] } });
+    const run = runWith({ commits: { outcome: "ok", value: [{ parentCount: 1, message: "Squashed without a conventional title\n\nBREAKING CHANGE: renamed a key" }] } });
 
     expect(run.errors).toEqual([
-      [{ text: 'release-pull-request: "Merge pull request #7" is not a conventional subject; it is listed under Breaking changes and counted as a major.\n' }],
+      [{ text: 'release-pull-request: "Squashed without a conventional title" is not a conventional subject; it is listed under Breaking changes and counted as a major.\n' }],
     ]);
     expect(run.texts["/repo/package.json"]).toBe('{\n  "version": "0.1.0-pre.4",\n  "private": true\n}\n');
   });
 
   it("counts a single subject in the singular", () => {
-    expect(runWith({ messages: { outcome: "ok", value: ["fix: one"] } }).writes).toEqual([
+    expect(runWith({ commits: { outcome: "ok", value: [{ parentCount: 1, message: "fix: one" }] } }).writes).toEqual([
       [
         {
           text: "release-pull-request: 0.1.0-pre.3 to 0.1.0-pre.4, a patch change on the pre-release channel, from 1 subject since v0.1.0-pre.3. CHANGELOG.md and package.json are updated in the working tree; no tag was made and nothing was published.\n",
@@ -125,12 +128,37 @@ describe("runReleasePullRequest preparing a release", () => {
 
 describe("runReleasePullRequest refusing on the repository's state", () => {
   it("refuses to prepare a release with no subjects since the tag", () => {
-    const run = runWith({ messages: { outcome: "ok", value: [] } });
+    const run = runWith({ commits: { outcome: "ok", value: [] } });
 
     expect(run).toMatchObject({
       texts: UNCHANGED,
       writes: [],
       errors: [[{ text: "release-pull-request: nothing is merged since v0.1.0-pre.3, so there is nothing to release.\n" }]],
+      exits: [[{ code: 1 }]],
+    });
+  });
+
+  it("refuses, naming each merge commit, when the history since the tag is not linear", () => {
+    const run = runWith({
+      commits: {
+        outcome: "ok",
+        value: [
+          { parentCount: 1, message: "fix: one (#41)" },
+          { parentCount: 2, message: "Merge remote-tracking branch 'origin/main' into a-branch" },
+        ],
+      },
+    });
+
+    expect(run).toMatchObject({
+      texts: UNCHANGED,
+      writes: [],
+      errors: [
+        [
+          {
+            text: "release-pull-request: the commits since v0.1.0-pre.3 include a merge commit, \"Merge remote-tracking branch 'origin/main' into a-branch\", and a merge's other parent brings in changes this script cannot size from one line of subjects. Run it on a new branch at the tip of main, before anything is committed to it; if main itself holds a merge since the tag, prepare this release by hand.\n",
+          },
+        ],
+      ],
       exits: [[{ code: 1 }]],
     });
   });
@@ -176,7 +204,7 @@ describe("runReleasePullRequest refusing on the repository's state", () => {
 describe("runReleasePullRequest refusing on failures and usage", () => {
   it("refuses when git fails", () => {
     const run = runWith({
-      messages: { outcome: "failed", error: { kind: "git-failed", command: "git log", detail: "fatal: bad revision" } },
+      commits: { outcome: "failed", error: { kind: "git-failed", command: "git log", detail: "fatal: bad revision" } },
     });
 
     expect(run).toMatchObject({

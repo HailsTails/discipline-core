@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
-import type { GitFailure, GitHistoryPort } from "../core/platform-ports/git-port.ts";
+import type { CommitRecord, GitFailure, GitHistoryPort } from "../core/platform-ports/git-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
@@ -89,6 +89,25 @@ const repositoryFilesOf = (request: ReleasePullRequestPorts & { readonly repoRoo
   return changelog.outcome === "failed" ? changelog : { outcome: "ok", value: { changelog: changelog.value, manifest: manifest.value } };
 };
 
+const SINGLE_PARENT = 1;
+
+const firstLineOf = (request: { readonly message: string }): string => request.message.split("\n", 1).join("");
+
+const mergeCountText = (request: { readonly count: number }): string =>
+  request.count === 1 ? "a merge commit" : `${request.count} merge commits`;
+
+const linearMessagesOf = (request: { readonly commits: readonly CommitRecord[]; readonly release: Release }): Prepared<readonly string[]> => {
+  const merges = request.commits.filter((commit) => commit.parentCount > SINGLE_PARENT);
+  if (merges.length === 0) {
+    return { outcome: "ok", value: request.commits.map((commit) => commit.message) };
+  }
+  const named = merges.map((merge) => JSON.stringify(firstLineOf({ message: merge.message }))).join(", ");
+  return {
+    outcome: "failed",
+    error: `the commits since ${request.release.tag} include ${mergeCountText({ count: merges.length })}, ${named}, and a merge's other parent brings in changes this script cannot size from one line of subjects. Run it on a new branch at the tip of main, before anything is committed to it; if main itself holds a merge since the tag, prepare this release by hand.`,
+  };
+};
+
 const mergedHistoryOf = (request: { readonly history: GitHistoryPort; readonly repoRoot: AbsolutePath }): Prepared<MergedHistory> => {
   const tags = request.history.mergedTags({ repoRoot: request.repoRoot, pattern: `${RELEASE_TAG_PREFIX}*` });
   if (tags.outcome === "failed") {
@@ -98,9 +117,13 @@ const mergedHistoryOf = (request: { readonly history: GitHistoryPort; readonly r
   if (release.outcome === "failed") {
     return release;
   }
-  const messages = request.history.messagesAfter({ repoRoot: request.repoRoot, revision: release.value.tag });
+  const commits = request.history.commitsAfter({ repoRoot: request.repoRoot, revision: release.value.tag });
+  if (commits.outcome === "failed") {
+    return { outcome: "failed", error: gitFailureText({ failure: commits.error }) };
+  }
+  const messages = linearMessagesOf({ commits: commits.value, release: release.value });
   return messages.outcome === "failed"
-    ? { outcome: "failed", error: gitFailureText({ failure: messages.error }) }
+    ? messages
     : { outcome: "ok", value: { release: release.value, entries: messages.value.map((message) => changeEntryOf({ message })) } };
 };
 

@@ -38,11 +38,13 @@ export type GitHistoryPort = {
     readonly repoRoot: AbsolutePath;
     readonly pattern: string;
   }) => Result<readonly string[], GitFailure>;
-  readonly messagesAfter: (request: {
+  readonly commitsAfter: (request: {
     readonly repoRoot: AbsolutePath;
     readonly revision: string;
-  }) => Result<readonly string[], GitFailure>;
+  }) => Result<readonly CommitRecord[], GitFailure>;
 };
+
+export type CommitRecord = { readonly parentCount: number; readonly message: string };
 
 export type GitEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -306,6 +308,29 @@ const gitListing = (
   };
 };
 
+const PARENT_SEPARATOR = " ";
+
+const LINE_BREAK = "\n";
+
+const commitRecordOf = (request: { readonly entry: string }): CommitRecord => {
+  const [parents, ...messageLines] = request.entry.split(LINE_BREAK);
+  return {
+    parentCount: parents.split(PARENT_SEPARATOR).filter((parent) => parent.length > 0).length,
+    message: messageLines.join(LINE_BREAK),
+  };
+};
+
+const commitsAfterRevision = (
+  request: GitContext & { readonly revision: string },
+): Result<readonly CommitRecord[], GitFailure> => {
+  const entries = gitListing({
+    ...request,
+    gitArguments: ["log", "--reverse", "-z", "--format=%P%n%B", "--end-of-options", `${request.revision}..HEAD`],
+    separator: "\0",
+  });
+  return entries.outcome === "failed" ? entries : { outcome: "ok", value: entries.value.map((entry) => commitRecordOf({ entry })) };
+};
+
 export const createGitHistoryPort = (options: {
   readonly spawn: GitSpawn;
   readonly ambientEnvironment: GitEnvironment;
@@ -322,14 +347,8 @@ export const createGitHistoryPort = (options: {
         gitArguments: ["tag", "--list", "--merged", "HEAD", request.pattern],
         separator: "\n",
       }),
-    messagesAfter: (request) =>
-      gitListing({
-        spawn: options.spawn,
-        environment,
-        repoRoot: request.repoRoot,
-        gitArguments: ["log", "--first-parent", "--reverse", "-z", "--format=%B", "--end-of-options", `${request.revision}..HEAD`],
-        separator: "\0",
-      }),
+    commitsAfter: (request) =>
+      commitsAfterRevision({ spawn: options.spawn, environment, repoRoot: request.repoRoot, revision: request.revision }),
   };
 };
 
