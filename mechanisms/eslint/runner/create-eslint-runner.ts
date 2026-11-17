@@ -37,7 +37,7 @@ import {
 } from "./eslint-instance.ts";
 import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
-import { brokenConfigVerdict, cachedGoverningQueries, type GoverningQueries } from "./governing-config.ts";
+import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 import { teamConfigLookup } from "./config-lookup.ts";
@@ -403,7 +403,7 @@ const queriedFileOf = (request: {
 type ConfigLocation = {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-  readonly governingQueryOf: GoverningQueries;
+  readonly governingIgnoreOf: GoverningIgnores;
 };
 
 const FULL_STOP = ".";
@@ -471,7 +471,7 @@ const searchedQueryFailure = (request: {
   return brokenConfigVerdict({
     lookup: {
       query: request.query,
-      governingQueryOf: request.location.governingQueryOf,
+      governingIgnoreOf: request.location.governingIgnoreOf,
       path: request.location.path,
       repoRoot: request.location.repoRoot,
     },
@@ -1163,7 +1163,7 @@ const governedRun = (request: {
     location: {
       path: request.ports.path,
       repoRoot: request.run.repoRoot,
-      governingQueryOf: cachedGoverningQueries({ eslint: request.ports.eslint }),
+      governingIgnoreOf: cachedGoverningIgnores({ eslint: request.ports.eslint }),
     },
   }).then((queried) => queriedReport({ ...request, queried }));
 };

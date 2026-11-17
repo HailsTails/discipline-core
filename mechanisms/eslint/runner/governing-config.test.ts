@@ -7,16 +7,17 @@ import type { Result } from "../../../core/values/result.ts";
 import type { ConfigFileSearch, EslintPort, IgnoredState, QueryInstance } from "./eslint-instance.ts";
 import {
   brokenConfigVerdict,
-  cachedGoverningQueries,
+  cachedGoverningIgnores,
+  type GoverningIgnores,
   type GoverningLookup,
-  type GoverningQueries,
+  governingConfigIgnores,
 } from "./governing-config.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
+const PACKAGE_FOLDER = absolutePathSchema.parse("/repo/packages/a");
 const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/elsewhere" });
 
 const FIXTURE_FILE = repoPathSchema.parse("fixtures/bad/b.ts");
-const DEEP_FIXTURE_FILE = repoPathSchema.parse("fixtures/bad/deep/d.ts");
 const PACKAGE_FIXTURE_FILE = repoPathSchema.parse("packages/a/fixtures/bad/p.ts");
 
 const BROKEN_FIXTURE_CONFIG = "/repo/fixtures/bad/eslint.config.mjs";
@@ -25,8 +26,8 @@ const BROKEN_PACKAGE_FIXTURE_CONFIG = "/repo/packages/a/fixtures/bad/eslint.conf
 const ROOT_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/eslint.config.mjs" };
 const PACKAGE_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/packages/a/eslint.config.mjs" };
 
-const ROOT_GOVERNING = { governing: { configFile: "/repo/eslint.config.mjs", folder: REPO_ROOT } };
-const PACKAGE_GOVERNING = { governing: { configFile: "/repo/packages/a/eslint.config.mjs", folder: absolutePathSchema.parse("/repo/packages/a") } };
+const ROOT_GOVERNING = { configFile: "/repo/eslint.config.mjs", folder: REPO_ROOT };
+const PACKAGE_GOVERNING = { configFile: "/repo/packages/a/eslint.config.mjs", folder: PACKAGE_FOLDER };
 
 const FILE_CHECKED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "checked" };
 const FILE_IGNORED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "ignored" };
@@ -41,13 +42,14 @@ const teamQuery = (configs: Readonly<Record<string, ConfigFileSearch>>): QueryIn
   configFileOf: ({ file }) => Promise.resolve(configs[file]),
 });
 
-const governingQuery = (ignored: Result<IgnoredState, RunnerFailure>): QueryInstance => ({
-  ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValue(ignored),
-  ruleState: vi.fn<QueryInstance["ruleState"]>(),
-  configFileOf: vi.fn<QueryInstance["configFileOf"]>(),
+const portOver = (ignoredByConfig: EslintPort["ignoredByConfig"]): EslintPort => ({
+  createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>(),
+  createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>(),
+  lintSourceCases: vi.fn<EslintPort["lintSourceCases"]>(),
+  ignoredByConfig,
 });
 
-const lookupOver = (request: { readonly query: QueryInstance; readonly governingQueryOf: GoverningQueries }): GoverningLookup => ({
+const lookupOver = (request: { readonly query: QueryInstance; readonly governingIgnoreOf: GoverningIgnores }): GoverningLookup => ({
   ...request,
   path: PATH,
   repoRoot: REPO_ROOT,
@@ -57,96 +59,163 @@ const FIXTURE_TEAM = teamQuery({ "fixtures/bad": ROOT_CONFIG });
 
 const PACKAGE_FIXTURE_TEAM = teamQuery({ "packages/a/fixtures/bad": PACKAGE_CONFIG, "packages/a": ROOT_CONFIG });
 
+describe("governingConfigIgnores, whether a governing config really ignores a path", () => {
+  it("asks about a folder through a probe file in it that the question itself matches, so only a real ignore answers ignored", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    const answer = await governingConfigIgnores({
+      eslint: portOver(ignoredByConfig),
+      governing: ROOT_GOVERNING,
+      target: { kind: "folder", path: repoPathSchema.parse("fixtures/bad") },
+    });
+    expect({ answer, asked: ignoredByConfig.mock.calls }).toEqual({
+      answer: "ignored",
+      asked: [[{ configFile: "/repo/eslint.config.mjs", cwd: "/repo", path: "fixtures/bad/hone-folder-probe" }]],
+    });
+  });
+
+  it("asks about a file by its own path", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_CHECKED);
+    const answer = await governingConfigIgnores({
+      eslint: portOver(ignoredByConfig),
+      governing: PACKAGE_GOVERNING,
+      target: { kind: "file", path: repoPathSchema.parse("src/w.ts") },
+    });
+    expect({ answer, asked: ignoredByConfig.mock.calls }).toEqual({
+      answer: "not-ignored",
+      asked: [[{ configFile: "/repo/packages/a/eslint.config.mjs", cwd: "/repo/packages/a", path: "src/w.ts" }]],
+    });
+  });
+
+  it("is unanswered when the governing config itself fails to load", async () => {
+    await expect(
+      governingConfigIgnores({
+        eslint: portOver(vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(CONFIG_UNLOADABLE)),
+        governing: ROOT_GOVERNING,
+        target: { kind: "file", path: FIXTURE_FILE },
+      }),
+    ).resolves.toBe("unanswered");
+  });
+});
+
+describe("cachedGoverningIgnores", () => {
+  it("asks each governing config about each path once and reuses the answer", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    const governingIgnoreOf = cachedGoverningIgnores({ eslint: portOver(ignoredByConfig) });
+    const folder = { kind: "folder", path: repoPathSchema.parse("fixtures/bad") } as const;
+    await governingIgnoreOf({ governing: ROOT_GOVERNING, target: folder });
+    await governingIgnoreOf({ governing: PACKAGE_GOVERNING, target: folder });
+    await governingIgnoreOf({ governing: ROOT_GOVERNING, target: folder });
+    expect(ignoredByConfig.mock.calls).toEqual([
+      [{ configFile: "/repo/eslint.config.mjs", cwd: "/repo", path: "fixtures/bad/hone-folder-probe" }],
+      [{ configFile: "/repo/packages/a/eslint.config.mjs", cwd: "/repo/packages/a", path: "fixtures/bad/hone-folder-probe" }],
+    ]);
+  });
+
+  it("asks nothing until a question comes", () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>();
+    cachedGoverningIgnores({ eslint: portOver(ignoredByConfig) });
+    expect(ignoredByConfig.mock.calls).toEqual([]);
+  });
+});
+
 describe("brokenConfigVerdict for a broken config whose folder the root config governs", () => {
-  it("is ignored-by-governing-config when the root config, built on its own folder, ignores the file", async () => {
-    const root = governingQuery(FILE_IGNORED);
-    const governingQueryOf = vi.fn<GoverningQueries>().mockReturnValue(root);
+  it("is ignored-by-governing-config when the root config ignores both the broken config's folder and the file", async () => {
+    const governingIgnoreOf = vi.fn<GoverningIgnores>().mockResolvedValue("ignored");
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: FIXTURE_TEAM, governingQueryOf }),
+      lookup: lookupOver({ query: FIXTURE_TEAM, governingIgnoreOf }),
       brokenConfig: BROKEN_FIXTURE_CONFIG,
       file: FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls, probes: vi.mocked(root.ignoredState).mock.calls }).toEqual({
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({
       verdict: "ignored-by-governing-config",
-      governing: [[ROOT_GOVERNING]],
-      probes: [[{ file: "fixtures/bad/b.ts" }]],
+      asked: [
+        [{ governing: ROOT_GOVERNING, target: { kind: "folder", path: "fixtures/bad" } }],
+        [{ governing: ROOT_GOVERNING, target: { kind: "file", path: "fixtures/bad/b.ts" } }],
+      ],
     });
   });
 
-  it("is not-ignored when the root config does not ignore the file", async () => {
-    await expect(
-      brokenConfigVerdict({
-        lookup: lookupOver({ query: FIXTURE_TEAM, governingQueryOf: vi.fn<GoverningQueries>().mockReturnValue(governingQuery(FILE_CHECKED)) }),
-        brokenConfig: BROKEN_FIXTURE_CONFIG,
-        file: FIXTURE_FILE,
-      }),
-    ).resolves.toBe("not-ignored");
-  });
-
-  it("asks about a file of the same name directly in the broken config's folder, where ESLint decides whether to enter it", async () => {
-    const root = governingQuery(FILE_CHECKED);
-    await brokenConfigVerdict({
-      lookup: lookupOver({ query: FIXTURE_TEAM, governingQueryOf: vi.fn<GoverningQueries>().mockReturnValue(root) }),
+  it("is not-ignored, asking nothing about the file, when the root config does not ignore the folder", async () => {
+    const governingIgnoreOf = vi.fn<GoverningIgnores>().mockResolvedValue("not-ignored");
+    const verdict = await brokenConfigVerdict({
+      lookup: lookupOver({ query: FIXTURE_TEAM, governingIgnoreOf }),
       brokenConfig: BROKEN_FIXTURE_CONFIG,
-      file: DEEP_FIXTURE_FILE,
+      file: FIXTURE_FILE,
     });
-    expect(vi.mocked(root.ignoredState).mock.calls).toEqual([[{ file: "fixtures/bad/d.ts" }]]);
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({
+      verdict: "not-ignored",
+      asked: [[{ governing: ROOT_GOVERNING, target: { kind: "folder", path: "fixtures/bad" } }]],
+    });
+  });
+
+  it("is not-ignored when the root config ignores the folder's probe but not the file itself", async () => {
+    const governingIgnoreOf = vi.fn<GoverningIgnores>().mockResolvedValueOnce("ignored").mockResolvedValueOnce("not-ignored");
+    await expect(
+      brokenConfigVerdict({ lookup: lookupOver({ query: FIXTURE_TEAM, governingIgnoreOf }), brokenConfig: BROKEN_FIXTURE_CONFIG, file: FIXTURE_FILE }),
+    ).resolves.toBe("not-ignored");
   });
 });
 
 describe("brokenConfigVerdict for a broken config below an intermediate config", () => {
-  it("asks the intermediate config on its own folder and stops when it ignores the file", async () => {
-    const intermediate = governingQuery(FILE_IGNORED);
-    const governingQueryOf = vi.fn<GoverningQueries>().mockReturnValueOnce(intermediate);
+  it("asks the intermediate config with paths relative to its own folder and stops when it ignores both", async () => {
+    const governingIgnoreOf = vi.fn<GoverningIgnores>().mockResolvedValue("ignored");
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingQueryOf }),
+      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf }),
       brokenConfig: BROKEN_PACKAGE_FIXTURE_CONFIG,
       file: PACKAGE_FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls, probes: vi.mocked(intermediate.ignoredState).mock.calls }).toEqual({
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({
       verdict: "ignored-by-governing-config",
-      governing: [[PACKAGE_GOVERNING]],
-      probes: [[{ file: "fixtures/bad/p.ts" }]],
+      asked: [
+        [{ governing: PACKAGE_GOVERNING, target: { kind: "folder", path: "fixtures/bad" } }],
+        [{ governing: PACKAGE_GOVERNING, target: { kind: "file", path: "fixtures/bad/p.ts" } }],
+      ],
     });
   });
 
-  it("asks the root config about the intermediate config's folder when the intermediate config does not ignore the file", async () => {
-    const root = governingQuery(FILE_IGNORED);
-    const governingQueryOf = vi.fn<GoverningQueries>().mockReturnValueOnce(governingQuery(FILE_CHECKED)).mockReturnValueOnce(root);
+  it("asks the root config about the intermediate config's folder when the intermediate config does not ignore the broken one's", async () => {
+    const governingIgnoreOf = vi
+      .fn<GoverningIgnores>()
+      .mockResolvedValueOnce("not-ignored")
+      .mockResolvedValueOnce("ignored")
+      .mockResolvedValueOnce("ignored");
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingQueryOf }),
+      lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf }),
       brokenConfig: BROKEN_PACKAGE_FIXTURE_CONFIG,
       file: PACKAGE_FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls, probes: vi.mocked(root.ignoredState).mock.calls }).toEqual({
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({
       verdict: "ignored-by-governing-config",
-      governing: [[PACKAGE_GOVERNING], [ROOT_GOVERNING]],
-      probes: [[{ file: "packages/a/p.ts" }]],
+      asked: [
+        [{ governing: PACKAGE_GOVERNING, target: { kind: "folder", path: "fixtures/bad" } }],
+        [{ governing: ROOT_GOVERNING, target: { kind: "folder", path: "packages/a" } }],
+        [{ governing: ROOT_GOVERNING, target: { kind: "file", path: "packages/a/fixtures/bad/p.ts" } }],
+      ],
     });
   });
+});
 
-  it("reads past an intermediate config that itself fails to load, to the config governing its folder", async () => {
-    const governingQueryOf = vi
-      .fn<GoverningQueries>()
-      .mockReturnValueOnce(governingQuery(CONFIG_UNLOADABLE))
-      .mockReturnValueOnce(governingQuery(FILE_IGNORED));
+describe("brokenConfigVerdict for a broken config below an intermediate config that itself fails to load", () => {
+  it("reads past the intermediate config to the config governing its folder", async () => {
+    const governingIgnoreOf = vi
+      .fn<GoverningIgnores>()
+      .mockResolvedValueOnce("unanswered")
+      .mockResolvedValueOnce("ignored")
+      .mockResolvedValueOnce("ignored");
     await expect(
       brokenConfigVerdict({
-        lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingQueryOf }),
+        lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf }),
         brokenConfig: BROKEN_PACKAGE_FIXTURE_CONFIG,
         file: PACKAGE_FIXTURE_FILE,
       }),
     ).resolves.toBe("ignored-by-governing-config");
   });
 
-  it("is not-ignored when neither the intermediate nor the root config ignores the file", async () => {
-    const governingQueryOf = vi
-      .fn<GoverningQueries>()
-      .mockReturnValueOnce(governingQuery(CONFIG_UNLOADABLE))
-      .mockReturnValueOnce(governingQuery(FILE_CHECKED));
+  it("is not-ignored when neither the intermediate nor the root config ignores the folder", async () => {
+    const governingIgnoreOf = vi.fn<GoverningIgnores>().mockResolvedValueOnce("unanswered").mockResolvedValueOnce("not-ignored");
     await expect(
       brokenConfigVerdict({
-        lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingQueryOf }),
+        lookup: lookupOver({ query: PACKAGE_FIXTURE_TEAM, governingIgnoreOf }),
         brokenConfig: BROKEN_PACKAGE_FIXTURE_CONFIG,
         file: PACKAGE_FIXTURE_FILE,
       }),
@@ -157,71 +226,46 @@ describe("brokenConfigVerdict for a broken config below an intermediate config",
 describe("brokenConfigVerdict where no config governs above the broken one", () => {
   it("asks nothing when the broken config is the repository root's", async () => {
     const query = { ...teamQuery({}), configFileOf: vi.fn<QueryInstance["configFileOf"]>() };
-    const governingQueryOf = vi.fn<GoverningQueries>();
+    const governingIgnoreOf = vi.fn<GoverningIgnores>();
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query, governingQueryOf }),
+      lookup: lookupOver({ query, governingIgnoreOf }),
       brokenConfig: "/repo/eslint.config.mjs",
       file: repoPathSchema.parse("src/a.ts"),
     });
-    expect({ verdict, lookups: query.configFileOf.mock.calls, governing: governingQueryOf.mock.calls }).toEqual({
+    expect({ verdict, lookups: query.configFileOf.mock.calls, asked: governingIgnoreOf.mock.calls }).toEqual({
       verdict: "not-ignored",
       lookups: [],
-      governing: [],
+      asked: [],
     });
   });
 
   it("never asks a config above the repository root", async () => {
-    const governingQueryOf = vi.fn<GoverningQueries>();
+    const governingIgnoreOf = vi.fn<GoverningIgnores>();
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "found", path: "/eslint.config.mjs" } }), governingQueryOf }),
+      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "found", path: "/eslint.config.mjs" } }), governingIgnoreOf }),
       brokenConfig: BROKEN_FIXTURE_CONFIG,
       file: FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls }).toEqual({ verdict: "not-ignored", governing: [] });
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({ verdict: "not-ignored", asked: [] });
   });
 
   it("never asks the broken config itself, as a lookup on one fixed config returns", async () => {
-    const governingQueryOf = vi.fn<GoverningQueries>();
+    const governingIgnoreOf = vi.fn<GoverningIgnores>();
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "found", path: BROKEN_FIXTURE_CONFIG } }), governingQueryOf }),
+      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "found", path: BROKEN_FIXTURE_CONFIG } }), governingIgnoreOf }),
       brokenConfig: BROKEN_FIXTURE_CONFIG,
       file: FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls }).toEqual({ verdict: "not-ignored", governing: [] });
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({ verdict: "not-ignored", asked: [] });
   });
 
   it("is not-ignored when no config governs the broken config's folder", async () => {
-    const governingQueryOf = vi.fn<GoverningQueries>();
+    const governingIgnoreOf = vi.fn<GoverningIgnores>();
     const verdict = await brokenConfigVerdict({
-      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "none" } }), governingQueryOf }),
+      lookup: lookupOver({ query: teamQuery({ "fixtures/bad": { kind: "none" } }), governingIgnoreOf }),
       brokenConfig: BROKEN_FIXTURE_CONFIG,
       file: FIXTURE_FILE,
     });
-    expect({ verdict, governing: governingQueryOf.mock.calls }).toEqual({ verdict: "not-ignored", governing: [] });
-  });
-});
-
-describe("cachedGoverningQueries", () => {
-  it("builds one query instance per governing config, on that config's folder, and reuses it", () => {
-    const root = governingQuery(FILE_IGNORED);
-    const intermediate = governingQuery(FILE_IGNORED);
-    const createQueryInstance = vi.fn<EslintPort["createQueryInstance"]>().mockReturnValueOnce(root).mockReturnValueOnce(intermediate);
-    const governingQueryOf = cachedGoverningQueries({
-      eslint: { createQueryInstance, createGovernanceInstance: vi.fn(), lintSourceCases: vi.fn() },
-    });
-    const queries = [governingQueryOf(ROOT_GOVERNING), governingQueryOf(PACKAGE_GOVERNING), governingQueryOf(ROOT_GOVERNING)];
-    expect({ queries, built: createQueryInstance.mock.calls }).toEqual({
-      queries: [root, intermediate, root],
-      built: [
-        [{ repoRoot: "/repo", configFile: "/repo/eslint.config.mjs" }],
-        [{ repoRoot: "/repo/packages/a", configFile: "/repo/packages/a/eslint.config.mjs" }],
-      ],
-    });
-  });
-
-  it("builds nothing until a governing config is asked for", () => {
-    const createQueryInstance = vi.fn<EslintPort["createQueryInstance"]>();
-    cachedGoverningQueries({ eslint: { createQueryInstance, createGovernanceInstance: vi.fn(), lintSourceCases: vi.fn() } });
-    expect(createQueryInstance.mock.calls).toEqual([]);
+    expect({ verdict, asked: governingIgnoreOf.mock.calls }).toEqual({ verdict: "not-ignored", asked: [] });
   });
 });

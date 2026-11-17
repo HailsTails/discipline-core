@@ -7,13 +7,19 @@ import type { ConfigFileSearch, EslintPort, IgnoredState, QueryInstance } from "
 
 export type GoverningConfig = { readonly configFile: string; readonly folder: AbsolutePath };
 
-export type GoverningQueries = (request: { readonly governing: GoverningConfig }) => QueryInstance;
+export type IgnoreTarget = { readonly kind: "file" | "folder"; readonly path: RepoPath };
+
+export type GoverningIgnore = "ignored" | "not-ignored" | "unanswered";
+
+export type GoverningIgnoreQuestion = { readonly governing: GoverningConfig; readonly target: IgnoreTarget };
+
+export type GoverningIgnores = (question: GoverningIgnoreQuestion) => Promise<GoverningIgnore>;
 
 export type GoverningVerdict = "ignored-by-governing-config" | "not-ignored";
 
 export type GoverningLookup = {
   readonly query: QueryInstance;
-  readonly governingQueryOf: GoverningQueries;
+  readonly governingIgnoreOf: GoverningIgnores;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
 };
@@ -22,19 +28,38 @@ type PlacedGoverningConfig = GoverningConfig & { readonly repositoryFolder: Repo
 
 const REPOSITORY_ROOT_FOLDER = ".";
 
-export const cachedGoverningQueries = (request: { readonly eslint: EslintPort }): GoverningQueries => {
-  const built = new Map<string, QueryInstance>();
-  return (query) => {
-    const known = built.get(query.governing.configFile);
+const FOLDER_PROBE_NAME = "hone-folder-probe";
+
+const askedPathOf = (request: { readonly target: IgnoreTarget }): string =>
+  request.target.kind === "file" ? request.target.path : `${request.target.path}/${FOLDER_PROBE_NAME}`;
+
+const governingIgnoreOf = (request: { readonly state: Result<IgnoredState, RunnerFailure> }): GoverningIgnore => {
+  if (request.state.outcome === "failed") {
+    return "unanswered";
+  }
+  return request.state.value === "ignored" ? "ignored" : "not-ignored";
+};
+
+export const governingConfigIgnores = (request: GoverningIgnoreQuestion & { readonly eslint: EslintPort }): Promise<GoverningIgnore> =>
+  request.eslint
+    .ignoredByConfig({
+      configFile: request.governing.configFile,
+      cwd: request.governing.folder,
+      path: askedPathOf({ target: request.target }),
+    })
+    .then((state) => governingIgnoreOf({ state }));
+
+export const cachedGoverningIgnores = (request: { readonly eslint: EslintPort }): GoverningIgnores => {
+  const answered = new Map<string, Promise<GoverningIgnore>>();
+  return (question) => {
+    const key = `${question.governing.configFile}\n${askedPathOf({ target: question.target })}`;
+    const known = answered.get(key);
     if (known !== undefined) {
       return known;
     }
-    const created = request.eslint.createQueryInstance({
-      repoRoot: query.governing.folder,
-      configFile: query.governing.configFile,
-    });
-    built.set(query.governing.configFile, created);
-    return created;
+    const answer = governingConfigIgnores({ ...question, eslint: request.eslint });
+    answered.set(key, answer);
+    return answer;
   };
 };
 
@@ -76,57 +101,65 @@ const placedGoverningConfig = (request: {
     : undefined;
 };
 
-const probeOf = (request: {
+const targetOf = (request: {
   readonly lookup: GoverningLookup;
   readonly governing: GoverningConfig;
-  readonly boundary: RepoPath;
-  readonly fileName: string;
-}): RepoPath | undefined => {
-  const probe = request.lookup.path.relative({
+  readonly kind: IgnoreTarget["kind"];
+  readonly path: RepoPath;
+}): IgnoreTarget | undefined => {
+  const placed = request.lookup.path.relative({
     from: request.governing.folder,
-    to: request.lookup.path.join({ segments: [request.lookup.repoRoot, request.boundary, request.fileName] }),
+    to: request.lookup.path.join({ segments: [request.lookup.repoRoot, request.path] }),
   });
-  if (probe.relation === "different-root") {
+  if (placed.relation === "different-root") {
     return undefined;
   }
-  const parsed = repoPathSchema.safeParse(probe.path);
-  return parsed.success ? parsed.data : undefined;
+  const parsed = repoPathSchema.safeParse(placed.path);
+  return parsed.success ? { kind: request.kind, path: parsed.data } : undefined;
 };
-
-const answeredIgnore = (request: { readonly state: Result<IgnoredState, RunnerFailure> }): IgnoredState | "unanswered" =>
-  request.state.outcome === "ok" ? request.state.value : "unanswered";
 
 const verdictAbove = (request: {
   readonly lookup: GoverningLookup;
   readonly governing: PlacedGoverningConfig;
-  readonly fileName: string;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> =>
   request.governing.repositoryFolder === "repository-root"
     ? Promise.resolve("not-ignored")
-    : governingVerdict({ lookup: request.lookup, boundary: request.governing.repositoryFolder, fileName: request.fileName });
+    : governingVerdict({ lookup: request.lookup, boundary: request.governing.repositoryFolder, file: request.file });
+
+const fileVerdict = (request: {
+  readonly lookup: GoverningLookup;
+  readonly governing: PlacedGoverningConfig;
+  readonly file: RepoPath;
+}): Promise<GoverningVerdict> => {
+  const target = targetOf({ ...request, kind: "file", path: request.file });
+  if (target === undefined) {
+    return Promise.resolve("not-ignored");
+  }
+  return request.lookup
+    .governingIgnoreOf({ governing: { configFile: request.governing.configFile, folder: request.governing.folder }, target })
+    .then((answer): GoverningVerdict => (answer === "ignored" ? "ignored-by-governing-config" : "not-ignored"));
+};
 
 const verdictOfGoverning = (request: {
   readonly lookup: GoverningLookup;
   readonly governing: PlacedGoverningConfig;
   readonly boundary: RepoPath;
-  readonly fileName: string;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> => {
-  const probe = probeOf(request);
-  if (probe === undefined) {
+  const target = targetOf({ ...request, kind: "folder", path: request.boundary });
+  if (target === undefined) {
     return Promise.resolve("not-ignored");
   }
   return request.lookup
-    .governingQueryOf({ governing: { configFile: request.governing.configFile, folder: request.governing.folder } })
-    .ignoredState({ file: probe })
-    .then((state): GoverningVerdict | Promise<GoverningVerdict> =>
-      answeredIgnore({ state }) === "ignored" ? "ignored-by-governing-config" : verdictAbove(request),
-    );
+    .governingIgnoreOf({ governing: { configFile: request.governing.configFile, folder: request.governing.folder }, target })
+    .then((answer): Promise<GoverningVerdict> => (answer === "ignored" ? fileVerdict(request) : verdictAbove(request)));
 };
 
 const governingVerdict = (request: {
   readonly lookup: GoverningLookup;
   readonly boundary: RepoPath;
-  readonly fileName: string;
+  readonly file: RepoPath;
 }): Promise<GoverningVerdict> =>
   request.lookup.query.configFileOf({ file: request.boundary }).then((search): GoverningVerdict | Promise<GoverningVerdict> => {
     const governing = placedGoverningConfig({ lookup: request.lookup, search, boundary: request.boundary });
@@ -143,14 +176,7 @@ export const brokenConfigVerdict = (request: {
     return Promise.resolve("not-ignored");
   }
   const boundary = repositoryFolderOf({ folder: request.lookup.path.repositoryDirectoryOf({ path: placed.path }) });
-  if (boundary === "repository-root" || boundary === "outside-repository") {
-    return Promise.resolve("not-ignored");
-  }
-  const fileName = request.lookup.path.relative({
-    from: request.lookup.path.repositoryDirectoryOf({ path: request.file }),
-    to: request.file,
-  });
-  return fileName.relation === "different-root"
+  return boundary === "repository-root" || boundary === "outside-repository"
     ? Promise.resolve("not-ignored")
-    : governingVerdict({ lookup: request.lookup, boundary, fileName: fileName.path });
+    : governingVerdict({ lookup: request.lookup, boundary, file: request.file });
 };

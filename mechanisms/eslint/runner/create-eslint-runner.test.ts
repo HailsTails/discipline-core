@@ -334,6 +334,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
   };
   return {
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(parts.query),
+    ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
     createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>().mockReturnValue({
       lintFiles: parts.lintFiles,
     }),
@@ -630,14 +631,15 @@ const lookupQuery = (request: {
   configFileOf: ({ file }) => Promise.resolve(request.configs[file]),
 });
 
-const governingRoot = (ignored: Result<IgnoredState, RunnerFailure>): QueryInstance => ({
-  ...lookupQuery({ ignored: {}, configs: {} }),
-  ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValue(ignored),
-});
-
-const eslintQuerying = (createQueryInstance: EslintPort["createQueryInstance"]): EslintPort => ({
-  ...eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: [{ filePath: "/repo/src/a.ts", messages: [] }] }) }),
-  createQueryInstance,
+const eslintAsking = (request: {
+  readonly query: QueryInstance;
+  readonly ignoredByConfig: EslintPort["ignoredByConfig"];
+}): EslintPort => ({
+  ...eslintOver({
+    query: request.query,
+    lintFiles: lintResolving({ outcome: "ok", value: [{ filePath: "/repo/src/a.ts", messages: [] }] }),
+  }),
+  ignoredByConfig: request.ignoredByConfig,
 });
 
 const runOver = (request: { readonly files: readonly RepoPath[] }) => ({ ...CLASS_RUN, files: request.files, trackedPaths: request.files });
@@ -649,17 +651,13 @@ const TEAM_WITH_BROKEN_FIXTURE = lookupQuery({
   configs: { "fixtures/bad/b.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad/c.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad": ROOT_CONFIG },
 });
 
-const ROOT_GOVERNING_INSTANCE = [{ repoRoot: "/repo", configFile: "/repo/eslint.config.mjs" }];
+const ROOT_ASKED = { configFile: "/repo/eslint.config.mjs", cwd: "/repo" };
 
 describe("the governance run, step 3: a broken nested ESLint config in a folder the root config ignores", () => {
   it("reports the file as an ignore native exception, the way the team's ESLint never loads that config", async () => {
-    const root = governingRoot(FILE_IGNORED);
-    const createQueryInstance = vi
-      .fn<EslintPort["createQueryInstance"]>()
-      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
-      .mockReturnValueOnce(root);
-    const report = await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(FIXTURE_RUN);
-    expect({ report, instances: createQueryInstance.mock.calls, probes: vi.mocked(root.ignoredState).mock.calls }).toEqual({
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    const report = await runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(FIXTURE_RUN);
+    expect({ report, asked: ignoredByConfig.mock.calls }).toEqual({
       report: {
         outcome: "ok",
         value: {
@@ -668,28 +666,29 @@ describe("the governance run, step 3: a broken nested ESLint config in a folder 
           projection: "current",
         },
       },
-      instances: [[{ repoRoot: "/repo" }], ROOT_GOVERNING_INSTANCE],
-      probes: [[{ file: "fixtures/bad/b.ts" }]],
+      asked: [[{ ...ROOT_ASKED, path: "fixtures/bad/hone-folder-probe" }], [{ ...ROOT_ASKED, path: "fixtures/bad/b.ts" }]],
     });
   });
 
-  it("builds the root config's instance once for every file under the broken config", async () => {
-    const createQueryInstance = vi
-      .fn<EslintPort["createQueryInstance"]>()
-      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
-      .mockReturnValue(governingRoot(FILE_IGNORED));
-    await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(runOver({ files: [FILE_A, FIXTURE_B, FIXTURE_C] }));
-    expect(createQueryInstance.mock.calls).toEqual([[{ repoRoot: "/repo" }], ROOT_GOVERNING_INSTANCE]);
+  it("asks the root config about the broken config's folder once for every file under it", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    await runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(
+      runOver({ files: [FILE_A, FIXTURE_B, FIXTURE_C] }),
+    );
+    expect(ignoredByConfig.mock.calls).toEqual([
+      [{ ...ROOT_ASKED, path: "fixtures/bad/hone-folder-probe" }],
+      [{ ...ROOT_ASKED, path: "fixtures/bad/b.ts" }],
+      [{ ...ROOT_ASKED, path: "fixtures/bad/c.ts" }],
+    ]);
   });
 });
 
 describe("the governance run, step 3: a broken ESLint config the team's ESLint does load", () => {
-  it("stays team-config-unloadable, asking for the fix first, when the root config does not ignore the file", async () => {
-    const createQueryInstance = vi
-      .fn<EslintPort["createQueryInstance"]>()
-      .mockReturnValueOnce(TEAM_WITH_BROKEN_FIXTURE)
-      .mockReturnValueOnce(governingRoot(FILE_CHECKED));
-    await expect(runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(FIXTURE_RUN)).resolves.toEqual({
+  it("stays team-config-unloadable, asking for the fix first, when the root config does not ignore the folder", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_CHECKED);
+    await expect(
+      runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(FIXTURE_RUN),
+    ).resolves.toEqual({
       outcome: "failed",
       error: {
         kind: "team-config-unloadable",
@@ -704,15 +703,14 @@ describe("the governance run, step 3: a broken ESLint config the team's ESLint d
       ...lookupQuery({ ignored: { "src/a.ts": CONFIG_UNLOADABLE, "src/factory.ts": CONFIG_UNLOADABLE }, configs: {} }),
       configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(ROOT_CONFIG),
     };
-    const createQueryInstance = vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(team);
-    await runnerOver({ eslint: eslintQuerying(createQueryInstance) }).run(CLASS_RUN);
-    expect({ instances: createQueryInstance.mock.calls, lookups: vi.mocked(team.configFileOf).mock.calls }).toEqual({
-      instances: [[{ repoRoot: "/repo" }]],
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>();
+    await runnerOver({ eslint: eslintAsking({ query: team, ignoredByConfig }) }).run(CLASS_RUN);
+    expect({ asked: ignoredByConfig.mock.calls, lookups: vi.mocked(team.configFileOf).mock.calls }).toEqual({
+      asked: [],
       lookups: [[{ file: "src/a.ts" }], [{ file: "src/factory.ts" }]],
     });
   });
 });
-
 describe("the governance run, step 3: the projection in effect", () => {
   it("builds the query instance on the repository root", async () => {
     const eslint = eslintOver({});

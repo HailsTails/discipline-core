@@ -763,3 +763,62 @@ describe("eslintOptionsOf, which asks every supported ESLint for the configurati
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: true, ignore: false, allowInlineConfig: false });
   });
 });
+
+describe("ignoredByConfig, whether one named config really ignores a path", () => {
+  it("builds ESLint on that config from its own folder, matching the asked path so an unconfigured path is not taken for an ignored one", async () => {
+    const isPathIgnored = vi.fn<EslintSurface["isPathIgnored"]>().mockResolvedValue(true);
+    const createEslint = vi.fn<CreateEslint>().mockReturnValue({ ...idleSurface, isPathIgnored });
+    const ignored = await portWith({ createEslint }).ignoredByConfig({
+      configFile: "/repo/eslint.config.mjs",
+      cwd: repoRoot,
+      path: "fixtures/bad/hone-folder-probe",
+    });
+    expect({ ignored, built: createEslint.mock.calls, asked: isPathIgnored.mock.calls }).toEqual({
+      ignored: { outcome: "ok", value: "ignored" },
+      built: [
+        [
+          {
+            options: {
+              cwd: "/repo",
+              overrideConfigFile: "/repo/eslint.config.mjs",
+              matchedFiles: ["fixtures/bad/hone-folder-probe"],
+            },
+          },
+        ],
+      ],
+      asked: [[{ filePath: "fixtures/bad/hone-folder-probe" }]],
+    });
+  });
+
+  it("answers checked for a path the config does not ignore", async () => {
+    await expect(
+      portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue(idleSurface) }).ignoredByConfig({
+        configFile: "/repo/eslint.config.mjs",
+        cwd: repoRoot,
+        path: "src/a.ts",
+      }),
+    ).resolves.toEqual({ outcome: "ok", value: "checked" });
+  });
+
+  it("reports the config failing to load as team-config-unloadable", async () => {
+    await expect(
+      portWith({
+        createEslint: vi.fn<CreateEslint>().mockReturnValue({
+          ...idleSurface,
+          isPathIgnored: vi.fn<EslintSurface["isPathIgnored"]>().mockRejectedValue(new Error("Unexpected token ';'")),
+        }),
+      }).ignoredByConfig({ configFile: "/repo/eslint.config.mjs", cwd: repoRoot, path: "src/a.ts" }),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "Unexpected token ';'" } });
+  });
+});
+
+describe("eslintOptionsOf for a question about one path", () => {
+  it.each(["9.28.0", "9.39.5", "10.11.0"])("matches the named paths with a files-only override block on ESLint %s", (version) => {
+    expect(
+      eslintOptionsOf({
+        version,
+        options: { cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", matchedFiles: ["src/a.ts"] },
+      }),
+    ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", overrideConfig: { files: ["src/a.ts"] } });
+  });
+});

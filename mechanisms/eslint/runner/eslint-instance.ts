@@ -86,6 +86,7 @@ export type EslintSurfaceOptions = {
   readonly ignore?: false;
   readonly allowInlineConfig?: false;
   readonly overrideConfig?: GovernanceBlock;
+  readonly matchedFiles?: readonly string[];
 };
 
 export type LintedMessage = {
@@ -167,6 +168,11 @@ export type EslintPort = {
     readonly rules: readonly GovernedRule[];
     readonly watchedRuleIds: readonly string[];
   }) => GovernanceInstance;
+  readonly ignoredByConfig: (request: {
+    readonly configFile: string;
+    readonly cwd: AbsolutePath;
+    readonly path: string;
+  }) => Promise<Result<IgnoredState, RunnerFailure>>;
   readonly lintSourceCases: (request: {
     readonly cwd: AbsolutePath;
     readonly plugin: LoadedEslintPlugin;
@@ -364,7 +370,7 @@ const onSurface = <T>(request: {
       : actedOn({ surface: built.value, act: request.act, onRejected: request.onRejected }),
   );
 
-const ignoredStateOf = (request: { readonly eslint: EslintSurface; readonly file: RepoPath }): Promise<IgnoredState> =>
+const ignoredStateOf = (request: { readonly eslint: EslintSurface; readonly file: string }): Promise<IgnoredState> =>
   request.eslint
     .isPathIgnored({ filePath: request.file })
     .then((ignored): IgnoredState => (ignored ? "ignored" : "checked"));
@@ -533,6 +539,15 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
         onSurface({ surface, act: (eslint) => eslint.lintFiles({ filePaths: lint.files }), onRejected: toolFailed }),
     };
   },
+  ignoredByConfig: (request) =>
+    onSurface({
+      surface: builtSurface({
+        createEslint: options.toolchain.createEslint,
+        options: { cwd: request.cwd, overrideConfigFile: request.configFile, matchedFiles: [request.path] },
+      }),
+      act: (eslint) => ignoredStateOf({ eslint, file: request.path }),
+      onRejected: queryFailed,
+    }),
   lintSourceCases: (request) => sourceCaseVerdicts({ ...request, toolchain: options.toolchain }),
 });
 
@@ -590,11 +605,12 @@ export const eslintOptionsOf = (request: {
   readonly version: string;
   readonly options: EslintSurfaceOptions;
 }): ESLint.Options => {
-  const { overrideConfig, ...sharedOptions } = request.options;
+  const { overrideConfig, matchedFiles, ...sharedOptions } = request.options;
   return {
     ...sharedOptions,
     ...lookupOptionsOf(request),
     ...(overrideConfig === undefined ? {} : { overrideConfig: overrideConfigOf({ overrideConfig }) }),
+    ...(matchedFiles === undefined ? {} : { overrideConfig: { files: [...matchedFiles] } }),
   };
 };
 
