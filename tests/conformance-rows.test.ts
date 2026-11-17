@@ -49,7 +49,7 @@ describe("conformanceRows", () => {
       {
         name: "XX-1#first-check",
         clause: {
-          address: { ruleSet: "shared", discipline: "XX-1", clause: "first-check" },
+          address: { ruleSet: "hone", discipline: "XX-1", clause: "first-check" },
           anchor: { kind: "file" },
           pieceRoot: "/install/mechanisms/audit/XX-1",
           settings: { module: "first.ts" },

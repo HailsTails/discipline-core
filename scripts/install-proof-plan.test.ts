@@ -217,7 +217,7 @@ describe("the proof cases", () => {
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {
-    expect(packagedScriptsOf({ identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" } })).toEqual({
+    expect(packagedScriptsOf({ identity: { name: "Core", packageName: "core-package", command: "core", ownRuleSet: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" } })).toEqual({
       check: "core:check",
       project: "core:project",
     });
@@ -225,7 +225,7 @@ describe("the proof cases", () => {
   it("give a packaged consumer scripts calling the command's two subcommands on the repository root, and its required peers as development dependencies at the given pins", () => {
     expect(
       packagedConsumerManifest({
-        identity: { name: "Core", packageName: "core-package", command: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" },
+        identity: { name: "Core", packageName: "core-package", command: "core", ownRuleSet: "core", reservedEslintNamespace: "core-package", description: "Core.", repository: "https://github.com/example/core", unrelatedNpmPackage: "core" },
         requiredPeers: { typescript: "4.8.4" },
       }),
     ).toBe(

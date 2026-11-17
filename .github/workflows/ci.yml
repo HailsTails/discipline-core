@@ -80,3 +80,36 @@ jobs:
         run: bun run package-determinism
       - name: Prove a package install
         run: bun run install-proof
+
+  supported-node:
+    name: Package on Node ${{ matrix.node-version }} on ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: macOS, runner: macos-latest, node-version: 22.18.0, run-tests: false }
+          - { platform: Linux, runner: ubuntu-latest, node-version: 24, run-tests: true }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: '1.4.2'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the package
+        run: bun run build-package
+      - name: Prove a package install
+        run: bun run install-proof
+      - name: Run the tests
+        if: ${{ matrix.run-tests }}
+        run: bun run test

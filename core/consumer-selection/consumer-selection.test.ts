@@ -211,16 +211,16 @@ describe("createSelectionRepository", () => {
       value: {
         selection: {
           selected: [
-            { address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
+            { address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
             { address: { ruleSet: { name: "team" }, discipline: "TM-1", clause: "no-tmp-files" }, mechanism: "audit", exceptions: "allowed" },
           ],
-          uncovered: [{ ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" }],
+          uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
         },
         bindings: [
           {
             mechanism: "audit",
             clause: {
-              address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+              address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
@@ -238,6 +238,34 @@ describe("createSelectionRepository", () => {
         ],
         excluded: [],
         fileExceptionWhyChains: "required",
+      },
+    });
+  });
+
+  it("selects a hone-prefixed clause as the same bare-addressed hone clause", () => {
+    const repository = createSelectionRepository({
+      repoRoot: REPO_ROOT,
+      installRoot: INSTALL_ROOT,
+      moduleExtension: ".ts",
+      path: TABLE_PATH,
+      fileText: fileTextOver({
+        ...INSTALL,
+        [SELECTION_PATH]: presentFile({ text: JSON.stringify({
+          version: 1,
+          ruleSets: {},
+          clauses: { "hone/CD-14#class-syntax": "audit" },
+        }) }),
+      }),
+    });
+
+    expect(repository.read({})).toMatchObject({
+      outcome: "ok",
+      value: {
+        selection: {
+          selected: [
+            { address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
+          ],
+        },
       },
     });
   });
@@ -426,8 +454,8 @@ describe("readSelection", () => {
       value: {
         selection: {
           selected: [
-            { address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
-            { address: { ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" }, mechanism: "audit", exceptions: "allowed" },
+            { address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
+            { address: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }, mechanism: "audit", exceptions: "allowed" },
           ],
           uncovered: [],
         },
@@ -435,7 +463,7 @@ describe("readSelection", () => {
           {
             mechanism: "audit",
             clause: {
-              address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+              address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
@@ -444,7 +472,7 @@ describe("readSelection", () => {
           {
             mechanism: "audit",
             clause: {
-              address: { ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" },
+              address: { ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" },
               anchor: { kind: "keyword", keyword: "class" },
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "abstract-syntax.ts" },
@@ -498,9 +526,9 @@ describe("readSelection", () => {
       value: {
         selection: {
           selected: [
-            { address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
+            { address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" }, mechanism: "audit", exceptions: "allowed" },
           ],
-          uncovered: [{ ruleSet: "shared", discipline: "CD-14", clause: "abstract-syntax" }],
+          uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
         excluded: [],
@@ -524,7 +552,7 @@ describe("readSelection", () => {
       }),
     ).toMatchObject({
       outcome: "ok",
-      value: { selection: { uncovered: [{ ruleSet: "shared", discipline: "CD-14", clause: "decorator-syntax" }] } },
+      value: { selection: { uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "decorator-syntax" }] } },
     });
   });
 
@@ -626,7 +654,7 @@ describe("readSelection", () => {
           {
             mechanism: "audit",
             clause: {
-              address: { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" },
+              address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
               anchor: { kind: "keyword", keyword: "class" },
               settings: { module: "class-syntax.ts" },
             },
@@ -755,13 +783,62 @@ describe("readSelection", () => {
     });
   });
 
-  it("refuses the rule-set name shared as reserved-rule-set-name", () => {
+  it("refuses the rule-set name hone as reserved-rule-set-name", () => {
     expect(
-      selecting({ version: 1, ruleSets: { shared: "team-rules" }, clauses: {} }),
+      selecting({ version: 1, ruleSets: { hone: "team-rules" }, clauses: {} }),
     ).toEqual({
       outcome: "failed",
-      error: { kind: "reserved-rule-set-name", name: "shared" },
+      error: { kind: "reserved-rule-set-name", name: "hone" },
     });
+  });
+
+  it.each(["hone-extras", "hone-"])("refuses the rule-set name %s as reserved-rule-set-name", (name) => {
+    expect(
+      selecting({ version: 1, ruleSets: { [name]: "team-rules" }, clauses: {} }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "reserved-rule-set-name", name },
+    });
+  });
+
+  it("accepts a team rule-set name that only starts with the letters hone", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { honeycomb: "team-rules" }, clauses: {} }),
+    ).toMatchObject({ outcome: "ok" });
+  });
+
+  it("refuses one declared rule-set name that is another plus a suffix, naming both", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { "acme-x": "x-rules", acme: "acme-rules" }, clauses: {} }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "rule-set-name-collision", name: "acme", other: "acme-x" },
+    });
+  });
+
+  it("accepts declared rule-set names that merely share leading letters", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { acme: "acme-rules", acmeco: "co-rules" }, clauses: {} }),
+    ).toMatchObject({ outcome: "ok" });
+  });
+
+  it("refuses a clause selected twice, once bare and once with the hone prefix", () => {
+    expect(
+      selecting({
+        version: 1,
+        ruleSets: {},
+        clauses: { "CD-14#class-syntax": "audit", "hone/CD-14#class-syntax": "eslint" },
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "duplicate-clause", address: "CD-14#class-syntax", prefixedAddress: "hone/CD-14#class-syntax" },
+    });
+  });
+
+  it("accepts the rule-set name shared as a team's own", () => {
+    expect(
+      selecting({ version: 1, ruleSets: { shared: "team-rules" }, clauses: {} }),
+    ).toMatchObject({ outcome: "ok" });
   });
 
   it("is unknown-rule-set for a clause naming a rule set the file does not declare", () => {
@@ -907,10 +984,10 @@ const TEAM_RULE_SETS: Readonly<Record<string, RuleSetLocation>> = {
 };
 
 describe("ruleSetRootOf", () => {
-  it("roots the shared rule set at the install root", () => {
+  it("roots the hone rule set at the install root", () => {
     expect(
       ruleSetRootOf({
-        ruleSet: "shared",
+        ruleSet: "hone",
         ruleSets: TEAM_RULE_SETS,
         repoRoot: REPO_ROOT,
         installRoot: INSTALL_ROOT,

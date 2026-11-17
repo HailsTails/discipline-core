@@ -5,7 +5,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { checkConformance } from "./conformance.ts";
 
-const CLASS_SYNTAX_OBJECT = { ruleSet: "shared", discipline: "CD-14", clause: "class-syntax" };
+const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
 
 const CLASS_SYNTAX_CLAUSE: RunnerClause = {
   address: clauseAddressSchema.parse("CD-14#class-syntax"),

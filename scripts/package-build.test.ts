@@ -125,7 +125,7 @@ describe("buildPackage", () => {
             "mechanisms/audit/CD-15/loops.ts",
           ],
           external: ["eslint", "eslint/*", "typescript", "typescript/*"],
-          target: "node22.13",
+          target: "node22.18",
         },
       ],
       staged: [

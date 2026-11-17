@@ -56,6 +56,10 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
     case "reserved-rule-set-name":
     case "unknown-rule-set":
       return [request.failure.name];
+    case "duplicate-clause":
+      return [request.failure.address, request.failure.prefixedAddress];
+    case "rule-set-name-collision":
+      return [request.failure.name, request.failure.other];
     case "unknown-discipline":
     case "unknown-clause":
     case "judgement-clause-selected":

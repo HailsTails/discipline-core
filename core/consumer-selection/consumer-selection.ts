@@ -22,6 +22,7 @@ import {
   clauseAddressSchema,
   clauseAddressText,
   sameClauseAddress,
+  TOOL_RULE_SET,
 } from "../values/clause-address.ts";
 import {
   type MechanismId,
@@ -66,7 +67,9 @@ type ResolvedClause = {
   readonly exceptions: ClauseExceptions;
 };
 
-const SHARED_RULE_SET = "shared";
+const RULE_SET_SUFFIX_SEPARATOR = "-";
+
+const CLAUSE_ADDRESS_RULE_SET_SEPARATOR = "/";
 
 export type RuleSetLocation =
   | { readonly location: "repo-root" }
@@ -122,7 +125,7 @@ export const ruleSetRootOf = (request: {
   readonly path: PathPort;
 }): Result<AbsolutePath, LoadFailure> => {
   const ruleSet = request.ruleSet;
-  if (ruleSet === SHARED_RULE_SET) {
+  if (ruleSet === TOOL_RULE_SET) {
     return { outcome: "ok", value: request.installRoot };
   }
   const declared = Object.entries(request.ruleSets).find(([name]) => name === ruleSet.name);
@@ -388,12 +391,42 @@ const parsedSelectionFile = (request: {
   if (!parsed.success) {
     return failed({ kind: "file-malformed", path: request.path, detail: z.prettifyError(parsed.error) });
   }
-  const reserved = parsed.data.ruleSets.find(([name]) => name === SHARED_RULE_SET);
-  if (reserved !== undefined) {
-    return failed({ kind: "reserved-rule-set-name", name: reserved[0] });
-  }
-  return { outcome: "ok", value: parsed.data };
+  const refusal = selectionFileRefusalOf({ file: parsed.data });
+  return refusal === undefined ? { outcome: "ok", value: parsed.data } : failed(refusal);
 };
+
+const reservedRuleSetNameRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
+  const reserved = request.file.ruleSets.find(
+    ([name]) => name === TOOL_RULE_SET || name.startsWith(`${TOOL_RULE_SET}${RULE_SET_SUFFIX_SEPARATOR}`),
+  );
+  return reserved === undefined ? undefined : { kind: "reserved-rule-set-name", name: reserved[0] };
+};
+
+const ruleSetNameCollisionRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
+  const names = request.file.ruleSets.map(([name]) => name);
+  const collisions = names.flatMap((name) =>
+    names
+      .filter((candidate) => candidate.startsWith(`${name}${RULE_SET_SUFFIX_SEPARATOR}`))
+      .map((other) => ({ kind: "rule-set-name-collision" as const, name, other })),
+  );
+  return collisions[0];
+};
+
+const duplicateClauseRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
+  const addresses = request.file.clauses.map(([address]) => address);
+  const repeated = addresses.find(
+    (address, index) =>
+      addresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
+  );
+  if (repeated === undefined) {
+    return undefined;
+  }
+  const address = clauseAddressText({ address: repeated });
+  return { kind: "duplicate-clause", address, prefixedAddress: `${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${address}` };
+};
+
+const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined =>
+  reservedRuleSetNameRefusalOf(request) ?? ruleSetNameCollisionRefusalOf(request) ?? duplicateClauseRefusalOf(request);
 
 const selectionReadingOf = (request: {
   readonly resolved: readonly ResolvedClause[];
