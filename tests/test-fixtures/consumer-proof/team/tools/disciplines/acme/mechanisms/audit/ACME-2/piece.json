@@ -5,8 +5,7 @@
   "clauses": [
     {
       "clause": "scratch-files",
-      "settings": { "module": "scratch-files.ts" },
-      "clauseSettings": { "marker": { "default": ".scratch." } }
+      "settings": { "module": "scratch-files.ts" }
     }
   ]
 }

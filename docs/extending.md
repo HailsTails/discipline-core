@@ -2,7 +2,7 @@
 
 A team can add its own disciplines beside the ones Hone ships, without forking Hone. They live in the team's repository as a **rule set**: a folder of discipline files and the pieces that check them. `hone check` loads them from the repository, runs them, reports them and applies exceptions to them the same way as Hone's own; the differences are listed under [What is stable](#what-is-stable).
 
-This guide follows one tested example. `install-proof` installs the packed package into a small repository, stored in Hone's source repository under `tests/test-fixtures/consumer-proof/team/`, type-checks its rule set and runs `hone project` and `hone check` against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism. Every file sample below is a file of that repository, apart from the rule pages, the per-package ESLint config, the settings override and the exception record, which are described rather than tested there.
+This guide follows one tested example. `install-proof` installs the packed package into a small repository, stored in Hone's source repository under `tests/test-fixtures/consumer-proof/team/`, type-checks its rule set and runs `hone project` and `hone check` against it. Its rule set is `acme`, with two disciplines: `ACME-1` checked by ESLint and `ACME-2` checked by the audit mechanism. Every file sample below is a file of that repository, apart from the rule pages, the per-package ESLint config, the settings samples and the exception record, which are described rather than tested there.
 
 Read [ADOPTING.md](../ADOPTING.md) first: this guide assumes Hone is installed and `disciplines.json` exists.
 
@@ -184,8 +184,7 @@ In a monorepo each package's own config does the same, importing the projection 
   "clauses": [
     {
       "clause": "scratch-files",
-      "settings": { "module": "scratch-files.ts" },
-      "clauseSettings": { "marker": { "default": ".scratch." } }
+      "settings": { "module": "scratch-files.ts" }
     }
   ]
 }
@@ -194,42 +193,23 @@ In a monorepo each package's own config does the same, importing the projection 
 `mechanisms/audit/ACME-2/scratch-files.ts`:
 
 ```ts
-import type { PieceFailure, PieceHit, RunnerClause, WalkerPiece } from "@hailstails/hone/audit";
+import type { PieceHit, RunnerClause, WalkerPiece } from "@hailstails/hone/audit";
 
-type MarkedClause = { readonly clause: RunnerClause; readonly marker: string };
+const SCRATCH_MARKER = ".scratch.";
 
-const markedClauses = (request: { readonly clauses: readonly RunnerClause[] }): readonly MarkedClause[] =>
-  request.clauses.flatMap((clause) => {
-    const marker = clause.clauseSettings.marker;
-    return typeof marker === "string" ? [{ clause, marker }] : [];
-  });
-
-const markerRefused = (request: { readonly clause: RunnerClause }): PieceFailure => ({
-  kind: "piece-invalid",
-  pieceRoot: request.clause.pieceRoot,
-  detail: "the marker setting must be a string",
-});
-
-const scratchHits = (request: { readonly marked: readonly MarkedClause[]; readonly file: string }): readonly PieceHit[] =>
-  request.marked
-    .filter((entry) => request.file.includes(entry.marker))
-    .map((entry) => ({ clause: entry.clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }));
+const scratchHits = (request: { readonly clauses: readonly RunnerClause[]; readonly file: string }): readonly PieceHit[] =>
+  request.file.includes(SCRATCH_MARKER)
+    ? request.clauses.map((clause) => ({ clause: clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }))
+    : [];
 
 export const check: WalkerPiece = {
-  prepare: ({ clauses }) => {
-    const unmarked = clauses.find((clause) => typeof clause.clauseSettings.marker !== "string");
-    if (unmarked !== undefined) {
-      return { outcome: "failed", error: markerRefused({ clause: unmarked }) };
-    }
-    const marked = markedClauses({ clauses });
-    return {
-      outcome: "ok",
-      value: {
-        prepareFile: ({ file }) => ({ outcome: "ok", value: { kind: "complete", hits: scratchHits({ marked, file }) } }),
-        finish: () => ({ outcome: "ok", value: [] }),
-      },
-    };
-  },
+  prepare: ({ clauses }) => ({
+    outcome: "ok",
+    value: {
+      prepareFile: ({ file }) => ({ outcome: "ok", value: { kind: "complete", hits: scratchHits({ clauses, file }) } }),
+      finish: () => ({ outcome: "ok", value: [] }),
+    },
+  }),
 };
 ```
 
@@ -240,7 +220,17 @@ export const check: WalkerPiece = {
 
 ### Settings a repository can change
 
-A clause entry in `piece.json` may declare `clauseSettings`: each key with its `default`, and optionally `choices`, a list of the values allowed. ACME-2 declares `marker`, default `".scratch."`. A repository that selects the clause can override it in `disciplines.json`, keyed by the clause's address:
+The example's marker is fixed. To let a repository change it, a clause entry in `piece.json` declares `clauseSettings`: each key with its `default`, and optionally `choices`, a list of the values allowed. For a `marker` setting with default `".scratch."`, the clause entry would read:
+
+```json
+{
+  "clause": "scratch-files",
+  "settings": { "module": "scratch-files.ts" },
+  "clauseSettings": { "marker": { "default": ".scratch." } }
+}
+```
+
+A repository that selects the clause can then override it in `disciplines.json`, keyed by the clause's address:
 
 ```json
 "clauseSettings": {
@@ -248,7 +238,7 @@ A clause entry in `piece.json` may declare `clauseSettings`: each key with its `
 }
 ```
 
-Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`. The value is typed as any JSON value, so the piece narrows it, as `scratch-files.ts` does with `typeof`. Name the settings on the discipline's page under a Settings heading. With this override the example still reports `notes.scratch.md`, and would no longer report a file such as `src/layout.scratch.ts`.
+Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`, in place of the fixed `SCRATCH_MARKER`. The value is typed as any JSON value, so the piece narrows it, for example with `typeof marker === "string"`, and returns a `piece-invalid` failure when it is not what it accepts. Name the settings on the discipline's page under a Settings heading. This section is described, not run by the example: Hone's unit tests cover reading, refusing and overriding settings.
 
 ## TypeScript pieces under Node
 
@@ -309,7 +299,7 @@ type Settled<Settings extends EslintPieceSettings> = Settings;
 export type PieceSettings = Settled<(typeof piece)["clauses"][number]["settings"]>;
 ```
 
-A wrong field then fails the type check, for example `Type 'number' is not assignable to type 'string'` for a numeric `rule`. TypeScript reads string values in a JSON file as `string`, so this works for `settings` but not for `discipline.json` or the rest of `piece.json`, whose types name exact values such as `"mechanical"`. Hone checks those files when it reads them.
+A wrong field then fails the type check, for example `Type 'number' is not assignable to type 'string'` for a numeric `rule`; `install-proof` checks this on TypeScript 4.8.4 and 6.0.3 with the same `Settled` type over settings typed as a JSON file types them. TypeScript reads string values in a JSON file as `string`, so this works for `settings` but not for `discipline.json` or the rest of `piece.json`, whose types name exact values such as `"mechanical"`. Hone checks those files when it reads them.
 
 ## Test a piece
 
