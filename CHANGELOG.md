@@ -2,6 +2,35 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 0.1.0-pre.6
+
+### Breaking changes
+
+- let a clause be adopted with its mechanism not run, and remove assessment.waivedClauses and --waived-clauses (#92)
+- eslint: write a projection slice per config root, with core-validated eslintConfigRoots (#86)
+- cli: add --help and --version, word argument errors for the person typing, and document every printed line in a tested output contract (#96)
+- let file records hold inline disables and TypeScript directives, and judge lint-script options by effect (#97)
+- eslint: add CD-2#non-null-assertions for non-null and definite assignment assertions (#109)
+
+### Features
+
+- point each failing clause at its assessment section and its rule's Spirit at the end of a red check (#93)
+
+### Fixes
+
+- reserve not-adopted from mechanism ids and make its refusals say what to do (#85)
+- name every missing ESLint peer, the broken ESLint config and its fix, and cap report snippets (#83)
+- eslint: treat files under a broken nested ESLint config that a governing config ignores as ignored, as the team's ESLint does (#91)
+- say why a check could not measure and what to run next (#94)
+
+### Other changes
+
+- deps: bump zod from 4.4.3 to 4.6.6 in the npm_and_yarn group across 1 directory (#54)
+- give every rule a spirit page and move check mechanics to CHECKS.md (#87)
+- an assessment of what each high-count clause means, written at adoption (#90)
+- state how config files and clause mechanisms change across versions (#108)
+- install every install-proof consumer with pnpm (#105)
+
 ## 0.1.0-pre.5
 
 ### Breaking changes
