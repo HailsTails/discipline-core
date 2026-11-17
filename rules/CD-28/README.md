@@ -21,5 +21,5 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 - "Testing through gives more confidence." It gives confidence about the collaborator, and blame in the wrong place when it fails.
 
 **Principles behind it.**
-- *Law of Demeter.* A unit talks to its immediate collaborators; a test of it should too.
+- *Defect localisation.* A test that can fail only when its own unit is wrong points straight at the fault.
 - *Fragile Test* (a test smell in Gerard Meszaros, *xUnit Test Patterns*). Tests that depend on more than the unit break for reasons unrelated to it.

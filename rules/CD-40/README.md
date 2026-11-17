@@ -19,7 +19,7 @@ Review lens: [function-first](../../methods/lenses/function-first.md). The lens 
 **Where to go.** Every function takes one object whose fields are named and minimal. Adding a field breaks no caller.
 
 **Reactions to distrust.**
-- "Two parameters is fine; the check allows it." The check stops at two. The rule asks for one named object.
+- "Two parameters is fine." The rule asks for one named object. Two positional values already have an order to get wrong.
 - "The library dictates this callback." Then the callback is the boundary. Hand off to a single-object function on its first line.
 - "An object is more typing." It is a few characters at the call site, against every reader guessing the order.
 

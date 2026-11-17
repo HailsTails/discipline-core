@@ -84,5 +84,5 @@ Produce the counts the review asks for (e.g. throws by
 classification, authored-error-classes by classification, under-enumerated error
 types, superseded-discriminator accesses). Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`). State the rule-page paths you resolved and
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). State the rule-page paths you resolved and
 which rule ids you loaded under this lens.

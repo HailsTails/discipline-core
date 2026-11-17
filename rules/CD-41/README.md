@@ -19,11 +19,11 @@ Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens re
 **Where to go.** Coordinators read as a short list of named steps. Each helper does one thing at one level of detail.
 
 **Reactions to distrust.**
-- "Raise the threshold." The threshold is the alarm, not the fire. The extraction is the fix.
+- "It's only a little logic." A little logic in a coordinator is still a second level of detail to read. Give it a name.
 - "Splitting makes it harder to follow." Named steps read faster than inline logic once the names are honest.
-- "It's only a little over." Length and complexity point at a second job. Find it.
+- "This branch is just plumbing." If it decides anything, it is logic. Name what it decides.
 
 **Principles behind it.**
 - *Composed Method* (Kent Beck, *Smalltalk Best Practice Patterns*). A method is a sequence of calls to other methods, all at the same level of abstraction.
 - *One level of abstraction per function* (Robert C. Martin, *Clean Code*). Mixing coordination with detail forces the reader to switch levels mid-function.
-- *Single Responsibility Principle* (Robert C. Martin, SOLID). A function with one reason to change stays short without trying.
+- *Functions should do one thing* (Robert C. Martin, *Clean Code*). A coordinator's one thing is coordinating; computing is a second thing.

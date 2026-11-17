@@ -11,7 +11,7 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 **What the friction is for.** A unit nobody can test alone is a unit nobody understands alone. The friction makes "write the test beside it" part of writing the unit, so every unit has a stated purpose and the two change together.
 
 **What a finding points at.** Match the files against these causes.
-- *A unit too tangled to test.* The test was skipped because the unit reaches its dependencies directly. Inject them; the test then writes itself.
+- *A unit too tangled to test.* The test was skipped because the unit reaches its dependencies directly. Inject them, and the unit can be tested alone.
 - *A file that is not a unit.* It holds loose pieces with no single purpose. Split it into units that each have one.
 - *Tests in a parallel tree.* The tests exist but live elsewhere and drift. Move each beside its unit.
 - *Tested only through something bigger.* The unit is covered only by an integration test. Give it its own.
@@ -24,4 +24,3 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 
 **Principles behind it.**
 - *Listen to the tests* (Steve Freeman and Nat Pryce, *Growing Object-Oriented Software, Guided by Tests*). Difficulty testing a unit is feedback about its design.
-- *Common Closure Principle* (Robert C. Martin). Things that change together belong together; a unit and its test change together.

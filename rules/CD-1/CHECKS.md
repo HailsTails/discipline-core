@@ -29,7 +29,7 @@ const parsed = JSON.parse(text) as any;
 
 ## How to fix
 ```ts
-const parsed: unknown = JSON.parse(text);
+const order = orderSchema.parse(JSON.parse(text));
 ```
 Give it a concrete type where it enters: parse it with a schema or a type guard at the boundary, checked at runtime.
 

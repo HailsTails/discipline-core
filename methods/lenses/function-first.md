@@ -186,7 +186,7 @@ declarations by classification (justified / closure-candidate / pure-fn-candidat
 raw-library-import and `new X(...)` sites by in-factory vs out-of-factory, and
 multi-argument authored signatures by carve-out vs finding. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`), plus the bucket or the named-field/composition
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), plus the bucket or the named-field/composition
 replacement. Where a finding touches another lens's rule (the context-generic
 binding, the port/boundary discipline), name that as a cross-reference — do not
 re-tag or re-own it. State the rule-page paths you resolved and which rule

@@ -8,7 +8,7 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 
 ## Spirit
 
-**What the friction is for.** A coverage target rewards running code, not checking it. Without the target, the incentive is to write tests that state what each unit is for.
+**What the friction is for.** A coverage target rewards running code, not checking it. Without the target, nothing rewards a test that moves the number and checks nothing. The floor comes from every unit having its own test, and coverage stays something to read.
 
 **What a finding points at.** Match the configuration against these causes.
 - *A number standing in for a floor.* The threshold exists because nothing guaranteed every unit a test. The every-file sibling rule is that floor.
@@ -20,4 +20,4 @@ Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The len
 - "Without a target, coverage will drop." The sibling rule holds the floor; the number is for reading.
 
 **Principles behind it.**
-- *Goodhart's law* (Charles Goodhart). When a measure becomes a target, it stops being a good measure.
+- *Goodhart's law*, in Marilyn Strathern's phrasing: "When a measure becomes a target, it ceases to be a good measure."

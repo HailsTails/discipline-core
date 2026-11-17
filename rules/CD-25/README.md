@@ -26,6 +26,6 @@ Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-disci
 - "A fixture file is easier." Easier once. Each one ties the test to real I/O and to data the reader cannot see in the test.
 
 **Principles behind it.**
-- *Test doubles* (Gerard Meszaros, *xUnit Test Patterns*). Doubles come in kinds; the stub, which returns a canned answer, is the simplest, and it keeps the test about the unit rather than about the double.
+- *Test doubles* (Gerard Meszaros, *xUnit Test Patterns*). Doubles come in kinds; the stub is the simplest double that answers, and a canned answer keeps the test about the unit rather than about the double.
 - *Interface Segregation Principle* (Robert C. Martin, SOLID). A port shaped to one consumer's needs is trivial to stub; a stub that needs logic is reporting a port that serves too many needs.
 - *The test pyramid* (Mike Cohn). Many fast isolated unit tests, few integration tests. Real backings and fixtures belong to the thin upper layer.

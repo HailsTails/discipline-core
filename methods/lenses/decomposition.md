@@ -154,6 +154,6 @@ inspected, complexity/length ceilings crossed by type, orchestrator-purity
 violations, early-return inversions, parameter-mutation findings (split by
 script-confirmed vs code-review category), and untracked suppressions. Every
 finding is `file:line | quoted code | <rule-id> | defect-named`, citing the
-loaded rule by the discipline id and clause address on the rule page (for example `CD-9#result-failures`), and — where extraction is
+loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and — where extraction is
 recommended — the suggested split per the four questions above. State the
 rule-page paths you resolved and which rule ids you loaded under this lens.

@@ -23,5 +23,4 @@ Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens re
 - "The caller wants the change." Then return it, and the caller can see it.
 
 **Principles behind it.**
-- *Command–query separation* (Bertrand Meyer). A function either answers a question or changes state, not both.
 - *Functional core, imperative shell* (Gary Bernhardt). The core takes values and returns values; changes happen at the edge.

@@ -151,7 +151,7 @@ is mandatory and so are the counts it yields: crossings inspected / validated /
 typeless; library returns inspected / validated / accepted-at-face-value;
 internal validation-library imports; seam ambiguities. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`). For any missing-schema finding whose observable
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). For any missing-schema finding whose observable
 symptom is a cast, name the cast as the symptom and the missing schema as the
 defect (the cast itself belongs to the type-soundness lens). For any seam
 ambiguity, name the upstream architectural cause. State the code-discipline path

@@ -163,5 +163,5 @@ outward-arrow / cross-layer violations, inner-code-importing-driver violations,
 ambient-global call sites, unannotated-PII log emissions, unbranded-secret
 declarations, secret-at-forbidden-surface hits, minimal-surface cap breaches).
 Every finding is `file:line | quoted code | <rule-id> | defect-named`, citing the
-loaded rule by the discipline id and clause address on the rule page (for example `CD-9#result-failures`). State the code-discipline path you
+loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). State the code-discipline path you
 resolved and which rule ids you loaded under this lens.

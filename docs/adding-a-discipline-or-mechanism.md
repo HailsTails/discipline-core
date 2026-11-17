@@ -108,7 +108,7 @@ A repository selects it by naming the rule set and the clause:
 
 ### 1. The runner
 
-Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-adopted`, which `disciplines.json` reserves for a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with fakes. The ESLint runner's `runner.ts`:
+Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-adopted`, which `disciplines.json` reserves for a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with test doubles. The ESLint runner's `runner.ts`:
 
 ```ts
 export const runner = toolchainBoundEmbeddedRunner({

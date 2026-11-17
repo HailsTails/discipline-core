@@ -21,5 +21,5 @@ Review lens: [errors-as-data](../../methods/lenses/errors-as-data.md). The lens 
 - "Stack traces need the error class." Operational failures are expected outcomes, not bugs; they need context, not a trace.
 
 **Principles behind it.**
-- *Favour composition over inheritance* (Gamma, Helm, Johnson and Vlissides, *Design Patterns*). Variants of a union compose; a class hierarchy fixes one axis of variation.
+- *Make illegal states unrepresentable* (Yaron Minsky). A closed union lists exactly the failures that exist; an open class hierarchy admits any subclass.
 - *Algebraic data types.* A tagged union of error variants is checked for exhaustiveness wherever it is handled.

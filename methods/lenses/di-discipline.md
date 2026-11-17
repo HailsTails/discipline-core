@@ -120,9 +120,11 @@ reached for through the module system). Walk the diff for both.
   constructs a stub or spy as an object literal, a factory-built stub, a shared
   in-memory fake of a port, or a recording spy function, and delivers it through
   the unit's constructor or argument, is the exact pattern the discipline
-  channels toward — not a finding. "Mock" in common speech covers both shapes;
-  the rules treat them as opposites. The affordance is the port's type; no
-  library wraps it.
+  channels toward — not a finding. In common speech "mock" covers both a double
+  passed through the seam and module interception. In the taxonomy a mock is only
+  a double that verifies expectations set on it, and module interception is not a
+  double at all: the rules permit doubles through the seam and forbid
+  interception. The affordance is the port's type; no library wraps it.
 - **Boundary gap that forces module interception.** If a dependency the test
   needs to control is *not in the unit's signature*, that is a structural finding
   even before any interception appears: the unit needs a port added before
@@ -161,6 +163,6 @@ threading gaps, unbound context generics) and a test-side block
 (module-interception violations by mechanism, spy classifications, structural
 boundary gaps). Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address on the rule page (for example `CD-9#result-failures`), and — for a test-side mock — naming the port
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and — for a test-side mock — naming the port
 shape the remediating refactor would lift into the unit's signature. State the
 rule-page paths you resolved and which rule ids you loaded under this lens.
