@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import {
   ESLINT_LINES,
+  eslintClassOn,
   eslintPeersOn,
   eslintRunnerOn,
   loadedEslintToolchain,
@@ -31,6 +32,15 @@ describe("the ESLint lines of the development install", () => {
 
   it("locates each line's peers from the development install, the way core locates them from its own", () => {
     expect(eslintPeersOn({ line: "eslint-9-floor" }).location.installRoot).toBe(`${import.meta.dirname}/..`);
+  });
+
+  it.each([
+    { line: "eslint-10", version: /^10\./ },
+    { line: "eslint-10-floor", version: /^10\.0\.0$/ },
+    { line: "eslint-9", version: /^9\./ },
+    { line: "eslint-9-floor", version: /^9\.28\.0$/ },
+  ] as const)("hands out the ESLint class of $line", async ({ line, version }) => {
+    expect((await eslintClassOn({ line })).version).toMatch(version);
   });
 
   it("builds the embedded ESLint runner over a line", () => {

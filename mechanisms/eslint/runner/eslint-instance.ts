@@ -541,7 +541,7 @@ const lintedMessageOf = (message: ESLint.LintResult["messages"][number]): Linted
   ...(message.fatal === true ? { fatal: true } : {}),
 });
 
-const lintedFileOf = (lintResult: ESLint.LintResult): LintedFile => ({
+export const lintedFileOf = (lintResult: ESLint.LintResult): LintedFile => ({
   filePath: lintResult.filePath,
   messages: lintResult.messages.map(lintedMessageOf),
 });
