@@ -4,14 +4,22 @@ import type { CheckReport } from "../core/verdict/check-report.ts";
 import { renderReportText } from "../core/verdict/report-text.ts";
 import { SECTION_NAMES, type SectionName } from "../core/verdict/section-roles.ts";
 
-export type ContractLine = {
+export type Fills = Readonly<Record<string, string>>;
+
+export type DocumentedLine = {
+  readonly label: string;
+  readonly template: string;
+};
+
+export type PrintedLine = {
   readonly label: string;
   readonly text: string;
+  readonly fills: Fills;
 };
 
 export type ContractGaps = {
-  readonly undocumented: readonly ContractLine[];
-  readonly unprinted: readonly ContractLine[];
+  readonly undocumented: readonly PrintedLine[];
+  readonly unprinted: readonly DocumentedLine[];
 };
 
 export type DocumentedRole = {
@@ -19,15 +27,13 @@ export type DocumentedRole = {
   readonly role: string;
 };
 
+export type EntryFills = (request: { readonly section: SectionName; readonly position: number }) => Fills;
+
 const TEMPLATE_ROW = /^\| `([^`]+)` \| `([^`]+)` \|$/;
 
 const ROLE_ROW = /^\| `([^`]+)` \| (failing|informational|guidance) \|/;
 
-const PLACEHOLDER = /<[^<>]+>/g;
-
-const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
-
-const ANY_VALUE = "(?:.+?)";
+const PLACEHOLDER = /<([^<>]+)>/g;
 
 const HEADING_LABEL = "heading";
 
@@ -36,10 +42,10 @@ const VERDICT_LABEL = "verdict";
 const docLines = (request: { readonly text: string }): readonly string[] =>
   request.text.split("\n").map((line) => line.trimEnd());
 
-export const documentedLinesIn = (request: { readonly text: string }): readonly ContractLine[] =>
+export const documentedLinesIn = (request: { readonly text: string }): readonly DocumentedLine[] =>
   docLines(request).flatMap((line) => {
     const row = TEMPLATE_ROW.exec(line);
-    return row === null ? [] : [{ label: row[1], text: row[2] }];
+    return row === null ? [] : [{ label: row[1], template: row[2] }];
   });
 
 export const documentedRolesIn = (request: { readonly text: string }): readonly DocumentedRole[] =>
@@ -48,25 +54,20 @@ export const documentedRolesIn = (request: { readonly text: string }): readonly 
     return row === null ? [] : [{ section: row[1], role: row[2] }];
   });
 
-const templatePattern = (request: { readonly template: string }): RegExp =>
-  new RegExp(
-    `^${request.template
-      .split(PLACEHOLDER)
-      .map((literal) => literal.replace(REGEX_SPECIAL, "\\$&"))
-      .join(ANY_VALUE)}$`,
-    "u",
-  );
+export const filledTemplate = (request: { readonly template: string; readonly fills: Fills }): string =>
+  request.template.replace(PLACEHOLDER, (placeholder: string, name: string) => request.fills[name] ?? placeholder);
 
 type Fit = "fits" | "misfits";
 
-const fitOf = (request: { readonly printed: ContractLine; readonly documented: ContractLine }): Fit =>
-  request.printed.label === request.documented.label && templatePattern({ template: request.documented.text }).test(request.printed.text)
+const fitOf = (request: { readonly printed: PrintedLine; readonly documented: DocumentedLine }): Fit =>
+  request.printed.label === request.documented.label &&
+  filledTemplate({ template: request.documented.template, fills: request.printed.fills }) === request.printed.text
     ? "fits"
     : "misfits";
 
 export const contractGaps = (request: {
-  readonly documented: readonly ContractLine[];
-  readonly printed: readonly ContractLine[];
+  readonly documented: readonly DocumentedLine[];
+  readonly printed: readonly PrintedLine[];
 }): ContractGaps => ({
   undocumented: request.printed.filter((printed) =>
     request.documented.every((documented) => fitOf({ printed, documented }) === "misfits"),
@@ -78,7 +79,8 @@ export const contractGaps = (request: {
 
 type Attribution = {
   readonly section: SectionName | undefined;
-  readonly lines: readonly ContractLine[];
+  readonly position: number;
+  readonly lines: readonly PrintedLine[];
 };
 
 const headedSection = (request: { readonly report: CheckReport; readonly line: string }): SectionName | undefined =>
@@ -87,18 +89,27 @@ const headedSection = (request: { readonly report: CheckReport; readonly line: s
     return request.line === heading || request.line.startsWith(`${heading} `);
   });
 
-const attributed = (request: { readonly report: CheckReport }) => (sofar: Attribution, line: string): Attribution => {
-  const heading = headedSection({ report: request.report, line });
-  if (heading !== undefined) {
-    return { section: heading, lines: [...sofar.lines, { label: HEADING_LABEL, text: line }] };
-  }
-  return { ...sofar, lines: [...sofar.lines, { label: sofar.section ?? HEADING_LABEL, text: line }] };
-};
+const attributed =
+  (request: { readonly report: CheckReport; readonly entryFills: EntryFills }) =>
+  (sofar: Attribution, line: string): Attribution => {
+    const heading = headedSection({ report: request.report, line });
+    if (heading !== undefined) {
+      const fills = { section: heading, count: String(request.report[heading].length) };
+      return { section: heading, position: 0, lines: [...sofar.lines, { label: HEADING_LABEL, text: line, fills }] };
+    }
+    const section = sofar.section ?? SECTION_NAMES[0];
+    const fills = request.entryFills({ section, position: sofar.position });
+    return { ...sofar, position: sofar.position + 1, lines: [...sofar.lines, { label: section, text: line, fills }] };
+  };
 
-export const reportLinesOf = (request: { readonly report: CheckReport; readonly output: ReportOutput }): readonly ContractLine[] => {
+export const reportLinesOf = (request: {
+  readonly report: CheckReport;
+  readonly output: ReportOutput;
+  readonly entryFills: EntryFills;
+}): readonly PrintedLine[] => {
   const lines = renderReportText(request).split("\n").slice(0, -1);
-  const entries = lines.slice(0, -1).reduce<Attribution>(attributed(request), { section: undefined, lines: [] });
-  return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "" }];
+  const entries = lines.slice(0, -1).reduce<Attribution>(attributed(request), { section: undefined, position: 0, lines: [] });
+  return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "", fills: {} }];
 };
 
 export const contractTextAt = (request: { readonly path: string }): string => {

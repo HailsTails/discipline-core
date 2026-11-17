@@ -29,6 +29,9 @@ const usageTerm = (request: { readonly option: CommandOption }): string => {
   return request.option.need === "required" ? term : `[${term}]`;
 };
 
+const commandUsage = (request: { readonly subcommand: Subcommand; readonly spec: CommandSpec }): string =>
+  `${COMMAND} ${request.subcommand} ${request.spec.options.map((option) => usageTerm({ option })).join(" ")}`;
+
 const helpLines = (request: { readonly blocks: readonly (readonly string[])[] }): string =>
   `${request.blocks.map((block) => block.join("\n")).join("\n\n")}\n`;
 
@@ -54,7 +57,7 @@ const toolHelp = (): string =>
 const subcommandHelp = (request: { readonly subcommand: Subcommand; readonly spec: CommandSpec }): string =>
   helpLines({
     blocks: [
-      [`usage: ${COMMAND} ${request.subcommand} ${request.spec.options.map((option) => usageTerm({ option })).join(" ")}`],
+      [`usage: ${commandUsage(request)}`],
       [request.spec.summary],
       [
         "options:",
@@ -71,3 +74,11 @@ const subcommandHelp = (request: { readonly subcommand: Subcommand; readonly spe
 
 export const helpText = (request: { readonly topic: HelpTopic }): string =>
   request.topic === "tool" ? toolHelp() : subcommandHelp({ subcommand: request.topic, spec: COMMANDS[request.topic] });
+
+const SYNOPSIS_LINES: readonly string[] = [
+  ...SUBCOMMANDS.map((subcommand) => commandUsage({ subcommand, spec: COMMANDS[subcommand] })),
+  `${COMMAND} ${HELP_FLAGS[0]}`,
+  `${COMMAND} ${VERSION_FLAG}`,
+];
+
+export const SYNOPSIS = `${SYNOPSIS_LINES.join("\n")}\n`;

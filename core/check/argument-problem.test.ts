@@ -14,6 +14,14 @@ describe("argumentProblemText", () => {
       text: 'hone check takes options, not "src" on its own; give each option and its value as two arguments, as in --repo <dir>; run hone check --help for its options',
     },
     {
+      problem: { kind: "flag-extra", flag: "--version", given: "extra" },
+      text: 'hone --version takes nothing after it, not "extra"; run hone --help for usage',
+    },
+    {
+      problem: { kind: "argument-unexpected", subcommand: "project", given: "src" },
+      text: 'hone project takes options, not "src" on its own; give each option and its value as two arguments, as in --repo <dir>; run hone project --help for its options',
+    },
+    {
       problem: { kind: "option-unknown", subcommand: "project", given: "--base-revision" },
       text: 'hone project has no option "--base-revision"; run hone project --help for its options',
     },
@@ -43,10 +51,6 @@ describe("argumentProblemText for values and the repository folder", () => {
       text: 'removed: "--waived-clauses"; mark the clause not-run',
     },
     { problem: { kind: "repo-unresolvable", given: "src" }, text: "--repo src resolves to no absolute path" },
-    {
-      problem: { kind: "selection-absent", given: "src" },
-      text: "--repo src holds no disciplines.json; give the folder that holds it, usually the repository root",
-    },
   ] as const)("words $problem.kind for the person who typed the command", ({ problem, text }) => {
     expect(argumentProblemText({ problem })).toBe(text);
   });

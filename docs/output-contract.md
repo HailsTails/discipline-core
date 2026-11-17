@@ -1,40 +1,65 @@
 # Output contract
 
-This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures and the `hone project` lines. Hooks, CI jobs and agents can rely on what it marks stable. [Compatibility](../README.md#compatibility) says which releases may change it.
+This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures and the `hone project` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
 
-A test renders every kind of line the command can print and checks each against the lines on this page, both ways: a line Hone can print that is not listed here fails the build, and so does a line listed here that Hone cannot print.
+A test renders every kind of line the command can print, fills each template below with that line's own sample values, and requires the result to equal the printed line exactly: a line Hone can print that is not listed here fails the build, and so does a line listed here that Hone cannot print. The synopsis and help blocks below are compared with what the command prints, character for character.
 
-## Stable and not stable
+## Streams and exit codes
 
-Stable, so changing it is a major release:
+Hone prints everything to standard output: the report, the help, the version, `hone project` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
 
-- the command names, option names, option values and exit codes;
-- the report's section names, their order and roles, the heading and count lines, the output modes and the verdict lines;
-- in every line below, the fixed words, the order of the values and what separates them, except where this page says the text is not stable;
-- the load failure kinds, and the values before each `<detail>`.
+The exit code is the signal a hook should act on:
 
-Not stable, so a minor release may change it:
+- `0`: `hone check` printed `verdict: pass`, `hone project` wrote or confirmed every projection, or help or the version was printed;
+- `1`: `hone check` printed `verdict: fail` as its last line. Exit `1` always comes with that line, and with nothing else;
+- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, and an error Hone did not expect, which prints as `unexpected-error`.
 
-- the help text;
-- the text in a `<detail>`, which comes from Node, git, ESLint or a schema check;
-- the wording after `load failure: arguments-invalid`, which is written for the person who typed the command;
-- the `readFirst` lines and their leading note, which are guidance for a person: a tool can read the clause address before the first `: ` of a clause line and nothing more;
-- a snippet, which is the source text at the finding;
-- the words of an `unmeasured` or `projectionProblems` line after its kind, mechanism and path, which may gain the next step to take.
+A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
+
+## What a tool can parse
+
+A tool can rely on these, and a change to any of them is a major release:
+
+- the command names, option names, option values, exit codes and streams above;
+- the verdict line, which is always the last line of a `hone check` report and is one of the four lines under [The report](#the-report);
+- the section names, their order and roles, the heading and count lines, and the output modes;
+- the first word of a load failure after `load failure: `, its kind;
+- in each line below, the fixed words and values up to the first value that may hold a space, and the single spaces between them.
+
+The values in the [table of values](#values) marked "may hold a space" can contain spaces, and Hone does not quote or escape them. Everything from the first such value to the end of the line is one piece of text: a tool cannot split it into fields, and should not try. For a finding, a tool can read the clause and the mechanism; the file, position and snippet that follow are for a person. Hone has no machine-readable report yet, so a tool that needs each finding's file and position has nothing stable to read them from.
+
+These are not stable, so a minor release may change them:
+
+- the help text, though the synopsis and the exit codes it lists are stable;
+- the text of a `<detail>`, which comes from Node, git, ESLint or a schema check;
+- the wording after `load failure: arguments-invalid`, written for the person who typed the command;
+- the text after a load failure's values, which says what to do next: the repair text of `selection-absent`, `judgement-clause-listed` and `config-root-untracked`, and everything after the kind in `toolchain-unavailable` and `toolchain-shadowed`;
+- the `readFirst` lines and their leading note, written for a person;
+- the words of an `unmeasured` or `projectionProblems` line after its kind, mechanism, state and slice, which may gain the next step to take.
 
 A minor release may add a section, a kind of line in a section, a load failure kind, an option or a command. A tool reading the report should pass over a section heading or a line kind it does not know.
 
-## Reading the lines
+## Values
 
-In the tables below, a word in angle brackets, such as `<clause>`, stands for a value; everything else is printed as shown. Every line ends with a line feed. A value that holds a line break, such as a snippet, prints it as `\n` or `\r`, so each entry stays on one line. Paths are printed relative to the `--repo` folder, with forward slashes, unless they are on another drive.
+In the tables below, a word in angle brackets, such as `<clause>`, stands for a value; everything else is printed as shown. Every line ends with a line feed. A value that holds a line break prints it as `\n` or `\r`, so each entry and each load failure stays on one line.
 
-| Value | Printed as |
-| --- | --- |
-| `<clause>` | a clause address: `CD-15#loops` for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's |
-| `<mechanism>` | a mechanism id, such as `audit` or `eslint` |
-| `<file>`, `<path>` | a path |
-| `<line>`, `<column>` | a 1-based line and a 0-based column |
-| `<count>`, `<index>` | a whole number; an `<index>` counts from 0 |
+| Value | Printed as | Space |
+| --- | --- | --- |
+| `<clause>` | in the report, a clause address: `CD-15#loops` for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's; in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
+| `<mechanism>` | a mechanism id, such as `audit` or `eslint` | never |
+| `<record kind>`, `<section>`, `<package>` | a word from the lines below, a section name, or an npm package name | never |
+| `<line>`, `<column>` | a 1-based line and a 0-based column | never |
+| `<count>`, `<index>`, `<earlier index>` | a whole number; an index counts from 0 | never |
+| `<version>` | the installed package's version | never |
+| `<file>`, `<path>`, `<slice>`, `<suppressions file>`, `<package file>`, `<config root>`, `<piece folder>`, `<location>`, `<install folder>`, `<rule page>`, `<adoption guide>` | a path, as described below | may hold a space |
+| `<folders>` | paths separated by `, ` | may hold a space |
+| `<dir>` | the `--repo` value as typed | may hold a space |
+| `<url>` | the module URL Hone could not resolve, as given | may hold a space |
+| `<snippet>` | the source text at a finding: at most 200 characters, or the first 200 followed by `…` when it is longer | may hold a space |
+| `<comment>`, `<script>`, `<option>`, `<source>` | the native exception's comment, the `package.json` script name and the option in it, or where an imported record came from | may hold a space |
+| `<detail>`, `<given>`, `<values>`, `<rule set>`, `<other rule set>`, `<clause with its rule set>`, `<version found>`, `<other package>`, `<range>` | text from the input, a tool or the command as typed | may hold a space |
+
+Paths are printed with forward slashes. A path inside the `--repo` folder is printed relative to it, in the report and in load failures alike. A path outside it is printed absolute, such as `C:/Users/me/shared/rule.json` on Windows. A load failure from before `--repo` is resolved names the folder as typed (`<dir>`). A load failure reading the installed package's own `package.json`, which only `hone --version` reads, prints its absolute path. A path inside a `<detail>` is printed however the tool that wrote the detail printed it.
 
 ## Commands
 
@@ -45,13 +70,7 @@ hone --help
 hone --version
 ```
 
-Each option is followed by its value as the next argument. `--help` or `-h` anywhere after a command prints that command's help instead of running it. Help and the version go to standard output and exit `0`.
-
-| Exit | `hone check` | `hone project` |
-| --- | --- | --- |
-| `0` | the verdict is `pass`, or help or the version was printed | every projection was written or already current, or help was printed |
-| `1` | the verdict is `fail` | not used |
-| `2` | a load failure: an input could not be loaded, or a mechanism failed or returned invalid output | a load failure |
+Each option is followed by its value as the next argument; a value that starts with `-` is read as a missing value. `--help` or `-h` after a command prints that command's help instead of running it, and `hone --help <command>` prints the same. `hone --help` and `hone --version` take nothing else after them.
 
 `hone --help` prints:
 
@@ -93,7 +112,7 @@ options:
 exit codes:
   0  the verdict is pass
   1  the verdict is fail
-  2  an input could not be loaded, or a mechanism failed or returned invalid output
+  2  a load failure: an input could not be loaded, a mechanism failed, or Hone failed unexpectedly
 ```
 
 `hone project --help` prints:
@@ -114,7 +133,7 @@ exit codes:
   2  any failure
 ```
 
-`hone --version` prints the version of the installed package, read from its `package.json`:
+`hone --version` prints the version of the installed package, read from its `package.json`, and exits `0`:
 
 | Output | Line |
 | --- | --- |
@@ -167,7 +186,7 @@ The verdict line reads `(partial assessment)` whenever the report has an `assess
 
 ## Report lines
 
-Each section's entries take one of these shapes. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`. `<folders>` lists folders separated by `, `.
+Each section's entries take one of these shapes. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
 
 | Section | Line |
 | --- | --- |
@@ -198,7 +217,7 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `invalidRecords` | `exceptions[<index>] evidence-refused <detail>` |
 | `invalidRecords` | `exceptions[<index>] import-unverified <detail>` |
 | `invalidRecords` | `exceptions[<index>] non-exemptible-clause <clause>` |
-| `invalidRecords` | `exceptions[<index>] duplicate of <index>` |
+| `invalidRecords` | `exceptions[<index>] duplicate of <earlier index>` |
 | `unmeasured` | `forfeiture-unmeasured` |
 | `unmeasured` | `import-unmeasured` |
 | `unmeasured` | `legacy-chain-unmeasured` |
@@ -223,15 +242,16 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `readFirst` | `<clause>: its rule set has no rule page at <rule page>; disciplines.assessment.md does not assess this clause` |
 | `readFirst` | `<clause>: its rule set has no rule page at <rule page>` |
 
-`readFirst` has one clause line per clause with findings, in the order the findings first name them. When `disciplines.assessment.md` is not written yet, or cannot be read, one note line comes first; it starts with `Start from each rule's Spirit below.` only when at least one clause line names a rule page. The `<adoption guide>` is `ADOPTING.md` in the installed package, such as `node_modules/@hailstails/hone/ADOPTING.md`. A clause line names the clause's section in `disciplines.assessment.md` when the file has one, says `does not assess this clause` when the file is there without that section, and says neither when the file is not read. [The README](../README.md#commands) says how a section is matched.
+`readFirst` has one clause line per clause with findings, in the order the findings first name them. When `disciplines.assessment.md` is not written yet, or cannot be read, one note line comes first; it starts with `Start from each rule's Spirit below.` only when at least one clause line names a rule page. A clause line's first word is a clause address, which holds a `#`, followed by `:`; a note line's first word holds no `#`, which is how a tool tells them apart. The `<adoption guide>` is `ADOPTING.md` in the installed package, such as `node_modules/@hailstails/hone/ADOPTING.md`. A clause line names the clause's section in `disciplines.assessment.md` when the file has one, says `does not assess this clause` when the file is there without that section, and says neither when the file is not read. [The README](../README.md#commands) says how a section is matched.
 
 ## Load failures
 
-A run that cannot load its inputs, or whose mechanism fails, prints one line and exits `2`. It prints the same line in every output.
+A run that cannot decide prints one line and exits `2`. It prints the same line in every output. The line starts with `load failure: ` and its kind; the values follow in the order shown, and any text after the values is not stable.
 
 | Kind | Line |
 | --- | --- |
 | `arguments-invalid` | `load failure: arguments-invalid <detail>` |
+| `selection-absent` | `load failure: selection-absent <dir> holds no disciplines.json; give the folder that holds it, usually the repository root` |
 | `install-root-unresolvable` | `load failure: install-root-unresolvable <url> <detail>` |
 | `file-unreadable` | `load failure: file-unreadable <path> <detail>` |
 | `file-malformed` | `load failure: file-malformed <path> <detail>` |
@@ -251,6 +271,7 @@ A run that cannot load its inputs, or whose mechanism fails, prints one line and
 | `rule-set-invalid` | `load failure: rule-set-invalid <path> <detail>` |
 | `git-failed` | `load failure: git-failed <detail>` |
 | `config-root-untracked` | `load failure: config-root-untracked <config root>: an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json` |
+| `unexpected-error` | `load failure: unexpected-error <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> piece-invalid <piece folder> <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> file-unreadable <file> <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> file-unparseable <file> <detail>` |
@@ -260,10 +281,10 @@ A run that cannot load its inputs, or whose mechanism fails, prints one line and
 | `runner-failed` | `load failure: runner-failed <mechanism> runner-invalid-output <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found <version found>, supported <range>: add a supported version to the devDependencies of the repository root` |
 | `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found not installed, supported <range>: <package> is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall` |
-| `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found <version found>, supported <range>; <package> found <version found>, supported <range>: add a supported version of each to the devDependencies of the repository root` |
+| `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found <version found>, supported <range>; <other package> found <version found>, supported <range>: add a supported version of each to the devDependencies of the repository root` |
 | `runner-failed` | `load failure: runner-failed <mechanism> toolchain-shadowed <package> resolved from <location> inside the core install <install folder>: delete <install folder>/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used` |
 
-The last `toolchain-unavailable` line lists every unavailable package, separated by `; `.
+The last `toolchain-unavailable` line lists every unavailable package, separated by `; `. An `unexpected-error` is a fault in Hone, not in the repository; its `<detail>` is the error's message.
 
 An `arguments-invalid` line says what was wrong with the command as typed. Its wording is not stable.
 
@@ -271,7 +292,8 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | --- | --- |
 | `command-missing` | `load failure: arguments-invalid hone needs a command, check or project; run hone --help for usage` |
 | `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check and project; run hone --help for usage` |
-| `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in --repo <dir>; run hone <command> --help for its options` |
+| `flag-extra` | `load failure: arguments-invalid hone <flag> takes nothing after it, not "<given>"; run hone --help for usage` |
+| `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in <option> <value>; run hone <command> --help for its options` |
 | `option-unknown` | `load failure: arguments-invalid hone <command> has no option "<given>"; run hone <command> --help for its options` |
 | `option-joined` | `load failure: arguments-invalid give <option> and its value as two arguments, as in <option> <value>, not "<given>"` |
 | `value-missing` | `load failure: arguments-invalid <option> needs a value, as in <option> <value>` |
@@ -280,7 +302,6 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `choice-invalid` | `load failure: arguments-invalid <option> takes <values>, not "<given>"` |
 | `option-removed` | `load failure: arguments-invalid removed: "--waived-clauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12` |
 | `repo-unresolvable` | `load failure: arguments-invalid --repo <dir> resolves to no absolute path` |
-| `selection-absent` | `load failure: arguments-invalid --repo <dir> holds no disciplines.json; give the folder that holds it, usually the repository root` |
 
 ## hone project
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { helpText } from "./command-help.ts";
+import { helpText, SYNOPSIS } from "./command-help.ts";
 
 const TOOL_HELP = `usage: hone <command> [options]
 
@@ -48,7 +48,15 @@ describe("helpText", () => {
 
   it("names the check exit codes", () => {
     expect(helpText({ topic: "check" })).toContain(
-      "\nexit codes:\n  0  the verdict is pass\n  1  the verdict is fail\n  2  an input could not be loaded, or a mechanism failed or returned invalid output\n",
+      "\nexit codes:\n  0  the verdict is pass\n  1  the verdict is fail\n  2  a load failure: an input could not be loaded, a mechanism failed, or Hone failed unexpectedly\n",
+    );
+  });
+});
+
+describe("SYNOPSIS", () => {
+  it("lists each command's usage, then the tool's own flags", () => {
+    expect(SYNOPSIS).toBe(
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone --help\nhone --version\n",
     );
   });
 });

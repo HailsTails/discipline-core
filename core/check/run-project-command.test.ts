@@ -192,7 +192,7 @@ describe("runProjectCommand", () => {
     });
   });
 
-  it("exits 2 with the arguments-invalid line when --repo holds no disciplines.json", async () => {
+  it("exits 2 with the selection-absent line when --repo holds no disciplines.json", async () => {
     const processPort = processWith({ arguments: ["--repo", "/repo"] });
 
     await runProjectCommand(
@@ -201,8 +201,25 @@ describe("runProjectCommand", () => {
 
     expect(outputOf({ process: processPort })).toEqual({
       writes: [
-        [{ text: "load failure: arguments-invalid --repo /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
+        [{ text: "load failure: selection-absent /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
       ],
+      exits: [[{ code: 2 }]],
+    });
+  });
+
+  it("names a file inside --repo relative to it in the load failure line", async () => {
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+
+    await runProjectCommand(
+      commandRequest({
+        process: processPort,
+        path: { ...TABLE_PATH, relative: () => ({ relation: "within-root", path: "disciplines.json" }) },
+        fileText: fileTextOver({ ...NOTHING_SELECTED, "/repo/disciplines.json": presentFile({ text: "{" }) }),
+      }),
+    );
+
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [[{ text: expect.stringMatching(/^load failure: file-malformed disciplines\.json /) }]],
       exits: [[{ code: 2 }]],
     });
   });

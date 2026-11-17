@@ -69,7 +69,7 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     exits: [
       { code: 0, meaning: "the verdict is pass" },
       { code: 1, meaning: "the verdict is fail" },
-      { code: 2, meaning: "an input could not be loaded, or a mechanism failed or returned invalid output" },
+      { code: 2, meaning: "a load failure: an input could not be loaded, a mechanism failed, or Hone failed unexpectedly" },
     ],
   },
   project: {

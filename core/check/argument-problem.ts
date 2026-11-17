@@ -1,11 +1,12 @@
 import { removedText } from "../values/assessment.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
-import { type CommandOption, SUBCOMMANDS, type Subcommand } from "./command-line.ts";
+import { COMMANDS, type CommandOption, REPO_OPTION, SUBCOMMANDS, type Subcommand } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
 
 export type ArgumentProblem =
   | { readonly kind: "command-missing" }
   | { readonly kind: "command-unknown"; readonly given: string }
+  | { readonly kind: "flag-extra"; readonly flag: string; readonly given: string }
   | { readonly kind: "argument-unexpected"; readonly subcommand: Subcommand; readonly given: string }
   | { readonly kind: "option-unknown"; readonly subcommand: Subcommand; readonly given: string }
   | { readonly kind: "option-joined"; readonly option: CommandOption; readonly given: string }
@@ -19,8 +20,7 @@ export type ArgumentProblem =
       readonly given: string;
     }
   | { readonly kind: "option-removed"; readonly given: string; readonly instead: string }
-  | { readonly kind: "repo-unresolvable"; readonly given: string }
-  | { readonly kind: "selection-absent"; readonly given: string };
+  | { readonly kind: "repo-unresolvable"; readonly given: string };
 
 const COMMAND = TOOL_IDENTITY.command;
 
@@ -45,6 +45,9 @@ const commandProblemText = (request: { readonly given: string | undefined }): st
 const optionUsage = (request: { readonly option: CommandOption }): string =>
   `${request.option.name} ${request.option.value}`;
 
+const exampleOption = (request: { readonly subcommand: Subcommand }): CommandOption =>
+  COMMANDS[request.subcommand].options.find((option) => option.need === "required") ?? REPO_OPTION;
+
 export const argumentProblemText = (request: { readonly problem: ArgumentProblem }): string => {
   const { problem } = request;
   switch (problem.kind) {
@@ -52,8 +55,10 @@ export const argumentProblemText = (request: { readonly problem: ArgumentProblem
       return commandProblemText({ given: undefined });
     case "command-unknown":
       return commandProblemText(problem);
+    case "flag-extra":
+      return `${COMMAND} ${problem.flag} takes nothing after it, not ${JSON.stringify(problem.given)}; ${TOOL_HELP_POINTER}`;
     case "argument-unexpected":
-      return `${COMMAND} ${problem.subcommand} takes options, not ${JSON.stringify(problem.given)} on its own; give each option and its value as two arguments, as in --repo <dir>; ${optionsHelp(problem)}`;
+      return `${COMMAND} ${problem.subcommand} takes options, not ${JSON.stringify(problem.given)} on its own; give each option and its value as two arguments, as in ${optionUsage({ option: exampleOption(problem) })}; ${optionsHelp(problem)}`;
     case "option-unknown":
       return `${COMMAND} ${problem.subcommand} has no option ${JSON.stringify(problem.given)}; ${optionsHelp(problem)}`;
     case "option-joined":
@@ -70,8 +75,6 @@ export const argumentProblemText = (request: { readonly problem: ArgumentProblem
       return removedText({ removed: problem.given, instead: problem.instead });
     case "repo-unresolvable":
       return `--repo ${problem.given} resolves to no absolute path`;
-    case "selection-absent":
-      return `--repo ${problem.given} holds no disciplines.json; give the folder that holds it, usually the repository root`;
   }
 };
 

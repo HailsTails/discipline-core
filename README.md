@@ -29,9 +29,11 @@ The package ships one command, `hone`, with two subcommands, run through a `pack
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
+hone --help
+hone --version
 ```
 
-`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help` and `hone project --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly, or a `--repo` folder with no `disciplines.json`, is a load failure `arguments-invalid` that says what was wrong, and exits `2`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
+`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help` and `hone project --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
 [docs/output-contract.md](docs/output-contract.md) lists every line `hone` prints, exactly as it prints it, with the exit codes and which parts are stable for hooks, CI and agents to rely on. A test renders every kind of line and checks it against that page, both ways.
 
@@ -211,7 +213,7 @@ Hone's version numbers follow semantic versioning under these rules:
 - A new or tightened check ships off by default in a minor release and becomes a default only in a major release.
 - A change to the ESLint config that `hone project` generates, which an adopter must regenerate, is a minor release, with a clear message telling the adopter to regenerate: its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
 - A change to a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag is a major release.
-- A change to what [the output contract](docs/output-contract.md) marks stable is a major release: the command and option names, the exit codes, the report's sections, outputs and verdict lines, the shape of each line, and the load failure kinds. What it marks not stable, such as the help text and the wording of `arguments-invalid` and `readFirst` lines, may change in a minor release, and a minor release may add a section, a kind of line or an option.
+- A change to what [the output contract](docs/output-contract.md) says a tool can parse is a major release: the command and option names, the exit codes and streams, the report's sections, outputs and verdict lines, the load failure kinds, and each line's leading fields up to its first value that may hold a space. What it marks not stable, such as the help text, the wording of `arguments-invalid` and `readFirst` lines and the repair text after a load failure's values, may change in a minor release, and a minor release may add a section, a kind of line or an option.
 - A breaking change to a type in `@hailstails/hone/rule-set` is a major release. `@hailstails/hone/audit` is experimental: its types may change in a minor release until it is marked stable.
 - Before the first stable release, a change that would need a major release ships in a minor release instead.
 - A pre-release previews the release it is numbered towards and is published under the `next` dist-tag. A change of any size can land between two pre-releases of the same release, and the changelog lists it.

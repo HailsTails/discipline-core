@@ -2,23 +2,32 @@ import { z } from "zod";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { Result } from "../values/result.ts";
-import { parsedJson } from "../rule-set-reader/rule-set-reader.ts";
+import { parsedJson } from "../values/parsed-json.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { shownFailureOf } from "./shown-path.ts";
 
 const PACKAGE_MANIFEST = "package.json";
 
 const versionedManifestSchema = z.looseObject({ version: z.string() });
 
+const malformed = (request: { readonly path: string; readonly detail: string }): Result<string, LoadFailure> => ({
+  outcome: "failed",
+  error: { kind: "file-malformed", path: request.path, detail: request.detail },
+});
+
 const versionIn = (request: { readonly path: string; readonly text: string }): Result<string, LoadFailure> => {
   const json = parsedJson(request);
-  const manifest = versionedManifestSchema.safeParse(json.outcome === "ok" ? json.value : undefined);
+  if (json.outcome === "failed") {
+    return malformed({ path: request.path, detail: `${PACKAGE_MANIFEST} is not valid JSON: ${json.error}` });
+  }
+  const manifest = versionedManifestSchema.safeParse(json.value);
   return manifest.success
     ? { outcome: "ok", value: manifest.data.version }
-    : { outcome: "failed", error: { kind: "file-malformed", path: request.path, detail: `${PACKAGE_MANIFEST} holds no version` } };
+    : malformed({ path: request.path, detail: `${PACKAGE_MANIFEST} holds no version` });
 };
 
-export const installedVersionOf = (request: {
+const versionAt = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly moduleUrl: string;
@@ -32,4 +41,15 @@ export const installedVersionOf = (request: {
   return text.outcome === "failed"
     ? { outcome: "failed", error: { kind: "file-unreadable", path: manifestPath, detail: text.error.detail } }
     : versionIn({ path: manifestPath, text: text.value });
+};
+
+export const installedVersionOf = (request: {
+  readonly fileText: FileTextPort;
+  readonly path: PathPort;
+  readonly moduleUrl: string;
+}): Result<string, LoadFailure> => {
+  const version = versionAt(request);
+  return version.outcome === "failed"
+    ? { outcome: "failed", error: shownFailureOf({ failure: version.error, path: request.path, repoRoot: undefined }) }
+    : version;
 };

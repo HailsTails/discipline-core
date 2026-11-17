@@ -36,7 +36,7 @@ export type Invocation =
 
 type OptionValues = ReadonlyMap<OptionName, string>;
 
-const OPTION_MARKER = "--";
+const FLAG_MARKER = "-";
 
 const JOINED_VALUE_MARKER = "=";
 
@@ -49,7 +49,7 @@ const optionNamed = (request: { readonly subcommand: Subcommand; readonly given:
   COMMANDS[request.subcommand].options.find((option) => option.name === request.given);
 
 const unknownArgumentProblem = (request: { readonly subcommand: Subcommand; readonly given: string }): ArgumentProblem => {
-  if (!request.given.startsWith(OPTION_MARKER)) {
+  if (!request.given.startsWith(FLAG_MARKER)) {
     return { kind: "argument-unexpected", ...request };
   }
   const joined = optionNamed({ subcommand: request.subcommand, given: request.given.split(JOINED_VALUE_MARKER)[0] });
@@ -75,7 +75,7 @@ const optionValuesFrom = (request: {
   if (option === undefined) {
     return failedWith({ problem: unknownArgumentProblem({ subcommand: request.subcommand, given: name }) });
   }
-  if (given === undefined || given.startsWith(OPTION_MARKER)) {
+  if (given === undefined || given.startsWith(FLAG_MARKER)) {
     return failedWith({ problem: { kind: "value-missing", option } });
   }
   if (request.given.has(option.name)) {
@@ -157,21 +157,39 @@ export const parseProjectArguments = (request: {
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
 };
 
-const asksForHelp = (request: { readonly arguments: readonly string[] }): "help" | "no-help" =>
-  request.arguments.some((argument) => HELP_FLAGS.includes(argument)) ? "help" : "no-help";
+const optionNamePositions = (request: { readonly arguments: readonly string[] }): readonly string[] =>
+  request.arguments.filter((_, position) => position % 2 === 0);
 
-const toolFlagInvocation = (request: { readonly given: string | undefined }): Invocation | undefined => {
+const asksForHelp = (request: { readonly arguments: readonly string[] }): "help" | "no-help" =>
+  optionNamePositions(request).some((argument) => HELP_FLAGS.includes(argument)) ? "help" : "no-help";
+
+const toolFlagOf = (request: { readonly given: string | undefined }): "help" | "version" | undefined => {
   if (request.given !== undefined && HELP_FLAGS.includes(request.given)) {
-    return { kind: "help", topic: "tool" };
+    return "help";
   }
-  return request.given === VERSION_FLAG ? { kind: "version" } : undefined;
+  return request.given === VERSION_FLAG ? "version" : undefined;
+};
+
+const toolFlagInvocation = (request: {
+  readonly flag: "help" | "version";
+  readonly given: string;
+  readonly rest: readonly string[];
+}): Result<Invocation, LoadFailure> => {
+  const [after, ...beyond] = request.rest;
+  if (after === undefined) {
+    return { outcome: "ok", value: request.flag === "help" ? { kind: "help", topic: "tool" } : { kind: "version" } };
+  }
+  const topic = request.flag === "help" && beyond.length === 0 ? subcommandOf({ given: after }) : undefined;
+  return topic === undefined
+    ? failedWith({ problem: { kind: "flag-extra", flag: request.given, given: after } })
+    : { outcome: "ok", value: { kind: "help", topic } };
 };
 
 export const parseInvocation = (request: { readonly arguments: readonly string[] }): Result<Invocation, LoadFailure> => {
   const [given, ...rest] = request.arguments;
-  const flagged = toolFlagInvocation({ given });
-  if (flagged !== undefined) {
-    return { outcome: "ok", value: flagged };
+  const flag = toolFlagOf({ given });
+  if (flag !== undefined && given !== undefined) {
+    return toolFlagInvocation({ flag, given, rest });
   }
   const subcommand = subcommandOf({ given });
   if (subcommand === undefined) {

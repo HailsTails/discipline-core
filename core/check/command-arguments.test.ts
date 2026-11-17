@@ -17,6 +17,7 @@ describe("parseInvocation", () => {
     { given: ["--version"], expected: { kind: "version" } },
     { given: ["check", "--help"], expected: { kind: "help", topic: "check" } },
     { given: ["project", "--repo", "/work/repo", "-h"], expected: { kind: "help", topic: "project" } },
+    { given: ["--help", "check"], expected: { kind: "help", topic: "check" } },
   ])("reads $given", ({ given, expected }) => {
     expect(parseInvocation({ arguments: given })).toEqual({ outcome: "ok", value: expected });
   });
@@ -25,6 +26,8 @@ describe("parseInvocation", () => {
     { given: [], problem: { kind: "command-missing" } },
     { given: ["lint", "--repo", "/work/repo"], problem: { kind: "command-unknown", given: "lint" } },
     { given: ["--repo", "/work/repo", "check"], problem: { kind: "command-unknown", given: "--repo" } },
+    { given: ["--version", "extra"], problem: { kind: "flag-extra", flag: "--version", given: "extra" } },
+    { given: ["--help", "lint"], problem: { kind: "flag-extra", flag: "--help", given: "lint" } },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
     expect(parseInvocation({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
   });
@@ -50,6 +53,8 @@ describe("parseCheckArguments refusing what it cannot read", () => {
     { given: ["--repo"], problem: { kind: "value-missing", option: REPO_OPTION } },
     { given: ["--repo", "--report-output", "full"], problem: { kind: "value-missing", option: REPO_OPTION } },
     { given: ["--repo", "/work/repo", "--fix"], problem: { kind: "option-unknown", subcommand: "check", given: "--fix" } },
+    { given: ["--repo", "/work/repo", "-x"], problem: { kind: "option-unknown", subcommand: "check", given: "-x" } },
+    { given: ["--repo", "-h"], problem: { kind: "value-missing", option: REPO_OPTION } },
     { given: ["--repo", "/work/repo", "src"], problem: { kind: "argument-unexpected", subcommand: "check", given: "src" } },
     { given: ["--repo=/work/repo"], problem: { kind: "option-joined", option: REPO_OPTION, given: "--repo=/work/repo" } },
     { given: ["--repo", "/a", "--repo", "/b"], problem: { kind: "option-repeated", option: REPO_OPTION } },

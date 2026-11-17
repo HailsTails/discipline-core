@@ -23,4 +23,6 @@ export type LoadFailure =
   | { readonly kind: "rule-set-invalid"; readonly path: string; readonly detail: string }
   | { readonly kind: "git-failed"; readonly detail: string }
   | { readonly kind: "config-root-untracked"; readonly root: RepoPath }
+  | { readonly kind: "selection-absent"; readonly repo: string }
+  | { readonly kind: "unexpected-error"; readonly detail: string }
   | { readonly kind: "runner-failed"; readonly mechanism: MechanismId; readonly failure: RunnerFailure };

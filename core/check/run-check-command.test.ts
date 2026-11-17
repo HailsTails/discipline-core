@@ -347,8 +347,32 @@ describe("runCheckCommand report output", () => {
   });
 });
 
+const WITHIN_REPO_PATH: PathPort = {
+  ...TABLE_PATH,
+  relative: () => ({ relation: "within-root", path: "disciplines.json" }),
+};
+
+describe("runCheckCommand naming a file in a load failure", () => {
+  it("names a file inside --repo relative to it, as the report names paths", async () => {
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+
+    await runCheckCommand(
+      commandRequest({
+        process: processPort,
+        path: WITHIN_REPO_PATH,
+        fileText: fileTextOver({ ...NOTHING_SELECTED, "/repo/disciplines.json": presentFile({ text: "{" }) }),
+      }),
+    );
+
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [[{ text: expect.stringMatching(/^load failure: file-malformed disciplines\.json /) }]],
+      exits: [[{ code: 2 }]],
+    });
+  });
+});
+
 describe("runCheckCommand given a folder that holds no disciplines.json", () => {
-  it("exits 2 with the arguments-invalid line naming --repo as given", async () => {
+  it("exits 2 with the selection-absent line naming --repo as given", async () => {
     const processPort = processWith({ arguments: ["--repo", "/repo"] });
 
     await runCheckCommand(
@@ -357,7 +381,7 @@ describe("runCheckCommand given a folder that holds no disciplines.json", () => 
 
     expect(outputOf({ process: processPort })).toEqual({
       writes: [
-        [{ text: "load failure: arguments-invalid --repo /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
+        [{ text: "load failure: selection-absent /repo holds no disciplines.json; give the folder that holds it, usually the repository root\n" }],
       ],
       exits: [[{ code: 2 }]],
     });

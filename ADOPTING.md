@@ -57,7 +57,7 @@ Add the two commands to the root `package.json` scripts:
 }
 ```
 
-`hone` is the package's one command, with two subcommands: `hone check` runs the check and `hone project` writes the ESLint projection. `hone` with no subcommand, or with any other, exits `2` with a `load failure: arguments-invalid` line that prints the usage.
+`hone` is the package's one command, with two subcommands: `hone check` runs the check and `hone project` writes the ESLint projection. `hone` with no subcommand, or with any other, exits `2` with one `load failure: arguments-invalid` line that names the commands and points at `hone --help`, which prints the usage.
 
 Hone runs on the toolchain the repository already uses, which the package declares as peer dependencies: `typescript` is a required peer, because every `audit` clause needs it, and the ESLint packages are optional peers, needed only for `eslint` clauses. npm 7 and later install a missing required peer on their own, and some other package managers only warn about one, so declare `typescript` yourself at the repository root, at the version the repository already uses, rather than let the package manager choose or skip it. Keep the versions you have; Hone supports these ranges:
 

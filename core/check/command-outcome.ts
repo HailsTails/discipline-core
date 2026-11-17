@@ -48,3 +48,8 @@ export const projectCommandOutcome = (request: {
     text: request.result.value.map((write) => `${write.path} ${write.effect}\n`).join(""),
   };
 };
+
+export const versionCommandOutcome = (request: { readonly result: Result<string, LoadFailure> }): CommandOutcome =>
+  request.result.outcome === "failed"
+    ? loadFailureOutcome({ failure: request.result.error })
+    : { code: 0, text: `${request.result.value}\n` };

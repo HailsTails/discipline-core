@@ -1,126 +1,193 @@
 import { type ArgumentProblem, argumentsInvalid } from "../core/check/argument-problem.ts";
-import { FORFEITURE_OPTION, REPO_OPTION } from "../core/check/command-line.ts";
-import { helpText } from "../core/check/command-help.ts";
-import { projectCommandOutcome } from "../core/check/command-outcome.ts";
+import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
+import { FORFEITURE_OPTION, type HelpTopic, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
+import { projectCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
+import { installedVersionOf } from "../core/check/installed-version.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
-import type { InvalidRecord } from "../core/exception-records/exception-records.ts";
 import type { ExceptionRecord } from "../core/exception-records/exception-record.ts";
+import type {
+  ExistingAuthorisationProvenance,
+  InheritedDebtProvenance,
+  InvalidRecord,
+} from "../core/exception-records/exception-records.ts";
 import type { AttributedNativeException, Finding } from "../core/governance/governance.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { ProjectionWrite } from "../core/mechanism-port/runner-result-schema.ts";
-import type { FilePresence } from "../core/platform-ports/file-text-port.ts";
+import type { FilePresence, FileTextPort } from "../core/platform-ports/file-text-port.ts";
+import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { WAIVED_CLAUSES_REPLACEMENT } from "../core/values/assessment.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
-import { reportOutputSchema } from "../core/values/report-output.ts";
+import { type ReportOutput, reportOutputSchema } from "../core/values/report-output.ts";
 import type {
   AssessmentFileNote,
   AssessmentSection,
   CheckReport,
   ClauseReading,
+  PartialAssessment,
   ProjectionProblem,
   Unmeasured,
 } from "../core/verdict/check-report.ts";
-import { SECTION_NAMES, sectionRoleOf } from "../core/verdict/section-roles.ts";
-import type { HelpTopic } from "../core/check/command-line.ts";
+import { SECTION_NAMES, type SectionName, sectionRoleOf } from "../core/verdict/section-roles.ts";
+import type { Verdict } from "../core/verdict/verdict.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
-import { type ContractLine, type DocumentedRole, reportLinesOf } from "./output-contract.ts";
+import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, reportLinesOf } from "./output-contract.ts";
 
 type EveryKind<Union extends { readonly kind: string }> = {
   readonly [Kind in Union["kind"]]: Extract<Union, { readonly kind: Kind }>;
 };
 
-const LOOPS = clauseAddressSchema.parse("CD-15#loops");
-const AUDIT = mechanismIdSchema.parse("audit");
-const ESLINT = mechanismIdSchema.parse("eslint");
-const FILE = repoPathSchema.parse("src/basket.ts");
+type Filled<Entry> = {
+  readonly entry: Entry;
+  readonly fills: Fills;
+};
 
-const FINDING: Finding = { clause: LOOPS, mechanism: AUDIT, file: FILE, anchor: { line: 15, column: 0 }, snippet: "const total = 0;\nreturn total;" };
+type SectionSamples = {
+  readonly [Name in SectionName]: readonly Filled<CheckReport[Name][number]>[];
+};
+
+const LOOPS = clauseAddressSchema.parse("CD-15#loops");
+const MECHANISM = mechanismIdSchema.parse("eslint");
+const FILE = repoPathSchema.parse("src/basket.ts");
+const RULE_PAGE = "node_modules/@hailstails/hone/rules/CD-15/README.md";
+const ADOPTION_GUIDE = "node_modules/@hailstails/hone/ADOPTING.md";
+
+const SHARED_FILLS: Fills = {
+  clause: "CD-15#loops",
+  mechanism: "eslint",
+  file: "src/basket.ts",
+  line: "15",
+  column: "0",
+  snippet: "const total = 0;\\nreturn total;",
+  "rule page": RULE_PAGE,
+  "adoption guide": ADOPTION_GUIDE,
+};
+
+const FINDING: Finding = { clause: LOOPS, mechanism: MECHANISM, file: FILE, anchor: { line: 15, column: 0 }, snippet: "const total = 0;\nreturn total;" };
 
 const RECORDS: EveryKind<ExceptionRecord> = {
-  "authorised-location": { kind: "authorised-location", clause: LOOPS, mechanism: AUDIT, file: FILE, reason: "the adapter" },
-  "file-carve-out": { kind: "file-carve-out", clause: LOOPS, mechanism: AUDIT, file: FILE, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
-  "clause-wide-carve-out": { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: AUDIT, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
+  "authorised-location": { kind: "authorised-location", clause: LOOPS, mechanism: MECHANISM, file: FILE, reason: "the adapter" },
+  "file-carve-out": { kind: "file-carve-out", clause: LOOPS, mechanism: MECHANISM, file: FILE, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
+  "clause-wide-carve-out": { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: MECHANISM, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
 };
 
-const IMPORTED: ExceptionRecord = {
-  kind: "file-carve-out",
-  clause: LOOPS,
-  mechanism: AUDIT,
-  file: FILE,
-  reason: "debt",
-  provenance: { kind: "inherited-debt", source: "legacy/exceptions.json#3", decision: "kept" },
-};
-
-const NATIVE_EXCEPTIONS: EveryKind<AttributedNativeException> = {
-  ignore: { kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: FILE },
-  "config-override": { kind: "config-override", clause: LOOPS, mechanism: ESLINT, file: FILE },
-  "suppression-entry": { kind: "suppression-entry", clause: LOOPS, mechanism: ESLINT, file: FILE, location: repoPathSchema.parse("eslint-suppressions.json") },
-  "inline-disable": { kind: "inline-disable", clause: LOOPS, mechanism: ESLINT, file: FILE, line: 4, text: "// eslint-disable-next-line" },
-  "inline-rule-config": { kind: "inline-rule-config", clause: LOOPS, mechanism: ESLINT, file: FILE, line: 1, text: "/* eslint no-x: off */" },
-  "command-line-option": {
-    kind: "command-line-option",
-    clause: LOOPS,
-    mechanism: ESLINT,
-    location: repoPathSchema.parse("package.json"),
-    script: "lint",
-    option: "--no-inline-config",
+const IMPORTED_RECORDS: Readonly<Record<(ExistingAuthorisationProvenance | InheritedDebtProvenance)["kind"], Filled<ExceptionRecord>>> = {
+  "existing-authorisation": {
+    entry: {
+      kind: "authorised-location",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      file: FILE,
+      reason: "the adapter",
+      provenance: { kind: "existing-authorisation", source: "legacy/authorisations.json#2" },
+    },
+    fills: { "record kind": "authorised-location", source: "legacy/authorisations.json#2" },
+  },
+  "inherited-debt": {
+    entry: {
+      kind: "file-carve-out",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      file: FILE,
+      reason: "debt",
+      provenance: { kind: "inherited-debt", source: "legacy/exceptions.json#3", decision: "kept" },
+    },
+    fills: { "record kind": "file-carve-out", source: "legacy/exceptions.json#3" },
   },
 };
 
-const RECORD_PROBLEMS: EveryKind<InvalidRecord["problem"]> = {
-  "clause-unparseable": { kind: "clause-unparseable", detail: "not a clause address" },
-  "clause-not-selected": { kind: "clause-not-selected", clause: LOOPS },
-  "clause-not-adopted": { kind: "clause-not-adopted", clause: LOOPS },
-  "clause-not-run": { kind: "clause-not-run", clause: LOOPS },
-  "file-not-repo-path": { kind: "file-not-repo-path", file: "../outside.ts" },
-  "why-chain-refused": { kind: "why-chain-refused", detail: "the chain stops at a symptom" },
-  "evidence-refused": { kind: "evidence-refused", detail: "no evidence" },
-  "import-unverified": { kind: "import-unverified", detail: "the source has no such entry" },
-  "non-exemptible-clause": { kind: "non-exemptible-clause", clause: LOOPS },
-  duplicate: { kind: "duplicate", ofIndex: 0 },
+const NATIVE_EXCEPTIONS: { readonly [Kind in AttributedNativeException["kind"]]: Filled<Extract<AttributedNativeException, { readonly kind: Kind }>> } = {
+  ignore: { entry: { kind: "ignore", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} },
+  "config-override": { entry: { kind: "config-override", clause: LOOPS, mechanism: MECHANISM, file: FILE }, fills: {} },
+  "suppression-entry": {
+    entry: { kind: "suppression-entry", clause: LOOPS, mechanism: MECHANISM, file: FILE, location: repoPathSchema.parse("eslint-suppressions.json") },
+    fills: { "suppressions file": "eslint-suppressions.json" },
+  },
+  "inline-disable": {
+    entry: { kind: "inline-disable", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 4, text: "// eslint-disable-next-line" },
+    fills: { line: "4", comment: "// eslint-disable-next-line" },
+  },
+  "inline-rule-config": {
+    entry: { kind: "inline-rule-config", clause: LOOPS, mechanism: MECHANISM, file: FILE, line: 1, text: "/* eslint no-x: off */" },
+    fills: { line: "1", comment: "/* eslint no-x: off */" },
+  },
+  "command-line-option": {
+    entry: { kind: "command-line-option", clause: LOOPS, mechanism: MECHANISM, location: repoPathSchema.parse("package.json"), script: "lint", option: "--no-inline-config" },
+    fills: { "package file": "package.json", script: "lint", option: "--no-inline-config" },
+  },
+};
+
+const RECORD_PROBLEMS: { readonly [Kind in InvalidRecord["problem"]["kind"]]: Filled<Extract<InvalidRecord["problem"], { readonly kind: Kind }>> } = {
+  "clause-unparseable": { entry: { kind: "clause-unparseable", detail: "not a clause address" }, fills: { detail: "not a clause address" } },
+  "clause-not-selected": { entry: { kind: "clause-not-selected", clause: LOOPS }, fills: {} },
+  "clause-not-adopted": { entry: { kind: "clause-not-adopted", clause: LOOPS }, fills: {} },
+  "clause-not-run": { entry: { kind: "clause-not-run", clause: LOOPS }, fills: {} },
+  "file-not-repo-path": { entry: { kind: "file-not-repo-path", file: "../outside.ts" }, fills: { file: "../outside.ts" } },
+  "why-chain-refused": { entry: { kind: "why-chain-refused", detail: "the chain stops at a symptom" }, fills: { detail: "the chain stops at a symptom" } },
+  "evidence-refused": { entry: { kind: "evidence-refused", detail: "no evidence" }, fills: { detail: "no evidence" } },
+  "import-unverified": { entry: { kind: "import-unverified", detail: "the source has no such entry" }, fills: { detail: "the source has no such entry" } },
+  "non-exemptible-clause": { entry: { kind: "non-exemptible-clause", clause: LOOPS }, fills: {} },
+  duplicate: { entry: { kind: "duplicate", ofIndex: 0 }, fills: { "earlier index": "0" } },
+};
+
+const UNRUN_PROJECTIONS: Readonly<Record<Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>["projection"], Unmeasured>> = {
+  missing: { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "missing" },
+  "not-included": { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "not-included", nestedConfigurations: [] },
 };
 
 const UNMEASURED: EveryKind<Unmeasured> = {
   "forfeiture-unmeasured": { kind: "forfeiture-unmeasured" },
   "import-unmeasured": { kind: "import-unmeasured" },
   "legacy-chain-unmeasured": { kind: "legacy-chain-unmeasured" },
-  "mechanism-not-run": { kind: "mechanism-not-run", mechanism: ESLINT, projection: "missing" },
+  "mechanism-not-run": { kind: "mechanism-not-run", mechanism: MECHANISM, projection: "missing" },
 };
 
-const UNRUN_PROJECTIONS: Readonly<Record<Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>["projection"], Unmeasured>> = {
-  missing: { kind: "mechanism-not-run", mechanism: ESLINT, projection: "missing" },
-  "not-included": { kind: "mechanism-not-run", mechanism: ESLINT, projection: "not-included", nestedConfigurations: [] },
+const NESTED_UNRUN: Filled<Unmeasured> = {
+  entry: {
+    kind: "mechanism-not-run",
+    mechanism: MECHANISM,
+    projection: "not-included",
+    nestedConfigurations: [repoPathSchema.parse("packages/legacy"), repoPathSchema.parse("packages/tools")],
+  },
+  fills: { folders: "packages/legacy, packages/tools" },
 };
 
-const NESTED_UNRUN: Unmeasured = {
-  kind: "mechanism-not-run",
-  mechanism: ESLINT,
-  projection: "not-included",
-  nestedConfigurations: [repoPathSchema.parse("packages/legacy"), repoPathSchema.parse("packages/tools")],
+const SLICE = repoPathSchema.parse("packages/web/disciplines.eslint.mjs");
+
+const PROJECTION_PROBLEMS: {
+  readonly [Scope in ProjectionProblem["scope"]]: Readonly<
+    Record<Extract<ProjectionProblem, { readonly scope: Scope }>["state"], ProjectionProblem>
+  >;
+} = {
+  projection: { "out-of-date": { scope: "projection", mechanism: MECHANISM, state: "out-of-date" } },
+  slice: {
+    "out-of-date": { scope: "slice", mechanism: MECHANISM, state: "out-of-date", slice: SLICE },
+    missing: { scope: "slice", mechanism: MECHANISM, state: "missing", slice: SLICE },
+    "not-applied": { scope: "slice", mechanism: MECHANISM, state: "not-applied", slice: SLICE },
+    unconfigured: { scope: "slice", mechanism: MECHANISM, state: "unconfigured", slice: SLICE },
+  },
 };
 
-const SLICE_PROBLEMS: Readonly<Record<Extract<ProjectionProblem, { readonly scope: "slice" }>["state"], ProjectionProblem>> = {
-  "out-of-date": { scope: "slice", mechanism: ESLINT, state: "out-of-date", slice: repoPathSchema.parse("packages/web/disciplines.eslint.mjs") },
-  missing: { scope: "slice", mechanism: ESLINT, state: "missing", slice: repoPathSchema.parse("packages/web/disciplines.eslint.mjs") },
-  "not-applied": { scope: "slice", mechanism: ESLINT, state: "not-applied", slice: repoPathSchema.parse("packages/web/disciplines.eslint.mjs") },
-  unconfigured: { scope: "slice", mechanism: ESLINT, state: "unconfigured", slice: repoPathSchema.parse("packages/api/disciplines.eslint.mjs") },
-};
+const ONE_CARVE_OUT_ELSEWHERE: PartialAssessment = { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 };
 
-const PROJECTION_EFFECTS: Readonly<Record<ProjectionWrite["effect"], ProjectionWrite>> = {
-  written: { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "written" },
-  unchanged: { path: repoPathSchema.parse("packages/web/disciplines.eslint.mjs"), effect: "unchanged" },
-  removed: { path: repoPathSchema.parse("packages/old/disciplines.eslint.mjs"), effect: "removed" },
-  "left-in-place": { path: repoPathSchema.parse("packages/kept/disciplines.eslint.mjs"), effect: "left-in-place" },
+const PARTIAL_ASSESSMENTS: {
+  readonly [Concern in PartialAssessment["concern"]]: Readonly<Record<PartialAssessment["assessedBy"], readonly Filled<PartialAssessment>[]>>;
+} = {
+  forfeiture: {
+    elsewhere: [
+      { entry: ONE_CARVE_OUT_ELSEWHERE, fills: {} },
+      { entry: { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 37 }, fills: { count: "37" } },
+    ],
+  },
 };
 
 const readingOf = (request: { readonly assessmentSection: AssessmentSection; readonly presence: FilePresence }): ClauseReading => ({
   kind: "clause",
   clause: LOOPS,
   assessmentSection: request.assessmentSection,
-  rulePage: { path: "node_modules/@hailstails/hone/rules/CD-15/README.md", presence: request.presence },
+  rulePage: { path: RULE_PAGE, presence: request.presence },
 });
 
 const READINGS: Readonly<Record<AssessmentSection, Readonly<Record<FilePresence, ClauseReading>>>> = {
@@ -133,8 +200,39 @@ const READINGS: Readonly<Record<AssessmentSection, Readonly<Record<FilePresence,
 };
 
 const NOTES: Readonly<Record<AssessmentFileNote["state"], AssessmentFileNote>> = {
-  "not-written": { kind: "assessment-file", state: "not-written", guide: "node_modules/@hailstails/hone/ADOPTING.md" },
-  unreadable: { kind: "assessment-file", state: "unreadable", guide: "node_modules/@hailstails/hone/ADOPTING.md" },
+  "not-written": { kind: "assessment-file", state: "not-written", guide: ADOPTION_GUIDE },
+  unreadable: { kind: "assessment-file", state: "unreadable", guide: ADOPTION_GUIDE },
+};
+
+const projectionFillsOf = (request: { readonly problem: ProjectionProblem }): Fills =>
+  request.problem.scope === "slice" ? { slice: request.problem.slice } : {};
+
+const unfilled = <Entry>(entries: readonly Entry[]): readonly Filled<Entry>[] => entries.map((entry) => ({ entry, fills: {} }));
+
+const SECTION_SAMPLES: SectionSamples = {
+  excluded: [{ entry: repoPathSchema.parse("generated"), fills: { path: "generated" } }],
+  notAdopted: unfilled([LOOPS]),
+  notRun: unfilled([LOOPS]),
+  findings: unfilled([FINDING]),
+  exempted: [
+    ...Object.values(RECORDS).map((record) => ({ entry: { finding: FINDING, by: [record] }, fills: { "record kind": record.kind } })),
+    ...Object.values(IMPORTED_RECORDS).map((imported) => ({ entry: { finding: FINDING, by: [imported.entry] }, fills: imported.fills })),
+  ],
+  uncovered: unfilled([LOOPS]),
+  stale: unfilled(Object.values(RECORDS)),
+  forfeited: unfilled([RECORDS["file-carve-out"]]),
+  unrecorded: Object.values(NATIVE_EXCEPTIONS),
+  doublyHeld: unfilled([{ clause: LOOPS, file: FILE, mechanism: MECHANISM }]),
+  invalidRecords: Object.values(RECORD_PROBLEMS).map((problem, index) => ({
+    entry: { index, problem: problem.entry },
+    fills: { ...problem.fills, index: String(index) },
+  })),
+  unmeasured: [...unfilled([...Object.values(UNMEASURED), ...Object.values(UNRUN_PROJECTIONS)]), NESTED_UNRUN],
+  projectionProblems: Object.values(PROJECTION_PROBLEMS)
+    .flatMap((byState) => Object.values(byState))
+    .map((problem) => ({ entry: problem, fills: projectionFillsOf({ problem }) })),
+  assessment: Object.values(PARTIAL_ASSESSMENTS).flatMap((byAssessor) => Object.values(byAssessor).flat()),
+  readFirst: unfilled(Object.values(READINGS).flatMap((byPresence) => Object.values(byPresence))),
 };
 
 const EMPTY_REPORT: CheckReport = {
@@ -155,130 +253,207 @@ const EMPTY_REPORT: CheckReport = {
   readFirst: [],
 };
 
+const entriesOf = <Entry>(samples: readonly Filled<Entry>[]): readonly Entry[] => samples.map((sample) => sample.entry);
+
 const EVERY_ENTRY: CheckReport = {
-  excluded: [repoPathSchema.parse("generated")],
-  notAdopted: [LOOPS],
-  notRun: [LOOPS],
-  findings: [FINDING],
-  exempted: [...Object.values(RECORDS).map((record) => ({ finding: FINDING, by: [record] })), { finding: FINDING, by: [IMPORTED] }],
-  uncovered: [LOOPS],
-  stale: Object.values(RECORDS),
-  forfeited: [RECORDS["file-carve-out"]],
-  unrecorded: Object.values(NATIVE_EXCEPTIONS),
-  doublyHeld: [{ clause: LOOPS, file: FILE, mechanism: AUDIT }],
-  invalidRecords: Object.values(RECORD_PROBLEMS).map((problem, index) => ({ index, problem })),
-  unmeasured: [...Object.values(UNMEASURED), ...Object.values(UNRUN_PROJECTIONS), NESTED_UNRUN],
-  projectionProblems: [{ scope: "projection", mechanism: ESLINT, state: "out-of-date" }, ...Object.values(SLICE_PROBLEMS)],
-  assessment: [
-    { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 1 },
-    { concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: 37 },
-  ],
-  readFirst: Object.values(READINGS).flatMap((byPresence) => Object.values(byPresence)),
+  excluded: entriesOf(SECTION_SAMPLES.excluded),
+  notAdopted: entriesOf(SECTION_SAMPLES.notAdopted),
+  notRun: entriesOf(SECTION_SAMPLES.notRun),
+  findings: entriesOf(SECTION_SAMPLES.findings),
+  exempted: entriesOf(SECTION_SAMPLES.exempted),
+  uncovered: entriesOf(SECTION_SAMPLES.uncovered),
+  stale: entriesOf(SECTION_SAMPLES.stale),
+  forfeited: entriesOf(SECTION_SAMPLES.forfeited),
+  unrecorded: entriesOf(SECTION_SAMPLES.unrecorded),
+  doublyHeld: entriesOf(SECTION_SAMPLES.doublyHeld),
+  invalidRecords: entriesOf(SECTION_SAMPLES.invalidRecords),
+  unmeasured: entriesOf(SECTION_SAMPLES.unmeasured),
+  projectionProblems: entriesOf(SECTION_SAMPLES.projectionProblems),
+  assessment: entriesOf(SECTION_SAMPLES.assessment),
+  readFirst: entriesOf(SECTION_SAMPLES.readFirst),
 };
+
+const sampleFills: EntryFills = ({ section, position }) => ({ ...SHARED_FILLS, ...SECTION_SAMPLES[section][position]?.fills });
+
+const sharedFills: EntryFills = () => SHARED_FILLS;
 
 const NOTED_REPORTS: readonly CheckReport[] = Object.values(NOTES).flatMap((note) => [
   { ...EMPTY_REPORT, findings: [FINDING], readFirst: [note, READINGS.unread.present] },
   { ...EMPTY_REPORT, findings: [FINDING], readFirst: [note, READINGS.unread.absent] },
 ]);
 
-const VERDICT_REPORTS: readonly CheckReport[] = [
-  EMPTY_REPORT,
-  { ...EMPTY_REPORT, assessment: EVERY_ENTRY.assessment },
-  { ...EVERY_ENTRY, assessment: [] },
-];
+const VERDICT_REPORTS: Readonly<Record<Verdict, Readonly<Record<"whole" | "partial", CheckReport>>>> = {
+  pass: { whole: EMPTY_REPORT, partial: { ...EMPTY_REPORT, assessment: [ONE_CARVE_OUT_ELSEWHERE] } },
+  fail: { whole: { ...EMPTY_REPORT, findings: [FINDING] }, partial: { ...EMPTY_REPORT, findings: [FINDING], assessment: [ONE_CARVE_OUT_ELSEWHERE] } },
+};
 
-const REPORT_LINES: readonly ContractLine[] = [
-  ...reportOutputSchema.options.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output })),
-  ...[...NOTED_REPORTS, ...VERDICT_REPORTS].flatMap((report) => reportLinesOf({ report, output: "full" })),
+const EVERY_OUTPUT: readonly ReportOutput[] = reportOutputSchema.options;
+
+const REPORT_LINES: readonly PrintedLine[] = [
+  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, entryFills: sampleFills })),
+  ...[...NOTED_REPORTS, ...Object.values(VERDICT_REPORTS).flatMap((byPart) => Object.values(byPart))].flatMap((report) =>
+    reportLinesOf({ report, output: "full", entryFills: sharedFills }),
+  ),
 ];
 
 const PEER = { packageName: "eslint", peer: "required", supported: "^9.0.0 || ^10.0.0", found: "8.57.0" } as const;
 
-const RUNNER_FAILURES: EveryKind<RunnerFailure> = {
-  "piece-invalid": { kind: "piece-invalid", pieceRoot: "mechanisms/eslint/CD-1", detail: "no module" },
-  "file-unreadable": { kind: "file-unreadable", file: FILE, detail: "EACCES" },
-  "file-unparseable": { kind: "file-unparseable", file: FILE, detail: "unexpected token" },
-  "tool-failed": { kind: "tool-failed", detail: "eslint exited 2" },
-  "plugin-conflict": { kind: "plugin-conflict", detail: "two copies of the plugin" },
-  "team-config-unloadable": { kind: "team-config-unloadable", detail: "eslint.config.mjs threw" },
-  "runner-invalid-output": { kind: "runner-invalid-output", detail: "not an array" },
-  "toolchain-unavailable": { kind: "toolchain-unavailable", peers: [PEER] },
-  "toolchain-shadowed": { kind: "toolchain-shadowed", packageName: "eslint", location: "/install/node_modules/eslint", installRoot: "/install" },
+const PEER_FILLS: Fills = { package: "eslint", "version found": "8.57.0", range: "^9.0.0 || ^10.0.0" };
+
+const RUNNER_FAILURES: { readonly [Kind in RunnerFailure["kind"]]: Filled<Extract<RunnerFailure, { readonly kind: Kind }>> } = {
+  "piece-invalid": {
+    entry: { kind: "piece-invalid", pieceRoot: "node_modules/@hailstails/hone/mechanisms/eslint/CD-1", detail: "no module" },
+    fills: { "piece folder": "node_modules/@hailstails/hone/mechanisms/eslint/CD-1", detail: "no module" },
+  },
+  "file-unreadable": { entry: { kind: "file-unreadable", file: FILE, detail: "EACCES" }, fills: { detail: "EACCES" } },
+  "file-unparseable": { entry: { kind: "file-unparseable", file: FILE, detail: "unexpected token" }, fills: { detail: "unexpected token" } },
+  "tool-failed": { entry: { kind: "tool-failed", detail: "eslint exited 2" }, fills: { detail: "eslint exited 2" } },
+  "plugin-conflict": { entry: { kind: "plugin-conflict", detail: "two copies of the plugin" }, fills: { detail: "two copies of the plugin" } },
+  "team-config-unloadable": { entry: { kind: "team-config-unloadable", detail: "eslint.config.mjs threw" }, fills: { detail: "eslint.config.mjs threw" } },
+  "runner-invalid-output": { entry: { kind: "runner-invalid-output", detail: "not an array" }, fills: { detail: "not an array" } },
+  "toolchain-unavailable": { entry: { kind: "toolchain-unavailable", peers: [PEER] }, fills: PEER_FILLS },
+  "toolchain-shadowed": {
+    entry: {
+      kind: "toolchain-shadowed",
+      packageName: "eslint",
+      location: "node_modules/@hailstails/hone/node_modules/eslint",
+      installRoot: "node_modules/@hailstails/hone",
+    },
+    fills: { package: "eslint", location: "node_modules/@hailstails/hone/node_modules/eslint", "install folder": "node_modules/@hailstails/hone" },
+  },
 };
 
-const UNAVAILABLE_TOOLCHAINS: readonly RunnerFailure[] = [
-  { kind: "toolchain-unavailable", peers: [{ ...PEER, found: "not installed" }] },
-  { kind: "toolchain-unavailable", peers: [PEER, { ...PEER, packageName: "typescript-eslint" }] },
+const UNAVAILABLE_TOOLCHAINS: readonly Filled<RunnerFailure>[] = [
+  { entry: { kind: "toolchain-unavailable", peers: [{ ...PEER, found: "not installed" }] }, fills: PEER_FILLS },
+  {
+    entry: { kind: "toolchain-unavailable", peers: [PEER, { ...PEER, packageName: "typescript-eslint" }] },
+    fills: { ...PEER_FILLS, "other package": "typescript-eslint" },
+  },
 ];
 
-const LOAD_FAILURES: EveryKind<LoadFailure> = {
-  "arguments-invalid": { kind: "arguments-invalid", detail: "--repo needs a value" },
-  "install-root-unresolvable": { kind: "install-root-unresolvable", url: "https://example.invalid/tool.js", detail: "not a file URL" },
-  "file-unreadable": { kind: "file-unreadable", path: "/repo/disciplines.json", detail: "EACCES" },
-  "file-malformed": { kind: "file-malformed", path: "/repo/disciplines.json", detail: "clauses is not an object" },
-  "unsupported-version": { kind: "unsupported-version", path: "/repo/disciplines.json", found: 2 },
-  "reserved-rule-set-name": { kind: "reserved-rule-set-name", name: "hone" },
-  "rule-set-name-collision": { kind: "rule-set-name-collision", name: "team", other: "team-web" },
-  "duplicate-clause": { kind: "duplicate-clause", address: "CD-15#loops", prefixedAddress: "hone/CD-15#loops" },
-  "unknown-rule-set": { kind: "unknown-rule-set", name: "team" },
-  "unknown-discipline": { kind: "unknown-discipline", address: "CD-99#loops" },
-  "unknown-clause": { kind: "unknown-clause", address: "CD-15#whiles" },
-  "judgement-clause-selected": { kind: "judgement-clause-selected", address: "CD-3#names" },
-  "judgement-clause-listed": { kind: "judgement-clause-listed", address: "CD-3#names" },
-  "mechanism-not-allowed": { kind: "mechanism-not-allowed", address: "CD-15#loops", mechanism: ESLINT },
-  "runner-missing": { kind: "runner-missing", mechanism: ESLINT },
-  "runner-invalid": { kind: "runner-invalid", mechanism: ESLINT, detail: "no runner export" },
-  "piece-missing": { kind: "piece-missing", address: "CD-15#loops", mechanism: ESLINT },
-  "rule-set-invalid": { kind: "rule-set-invalid", path: "/repo/team/rules/TM-1/discipline.json", detail: "no clauses" },
-  "git-failed": { kind: "git-failed", detail: "not a git repository" },
-  "config-root-untracked": { kind: "config-root-untracked", root: repoPathSchema.parse("packages/gone") },
-  "runner-failed": { kind: "runner-failed", mechanism: ESLINT, failure: RUNNER_FAILURES["tool-failed"] },
+const LOAD_FAILURES: { readonly [Kind in LoadFailure["kind"]]: Filled<Extract<LoadFailure, { readonly kind: Kind }>> } = {
+  "arguments-invalid": { entry: { kind: "arguments-invalid", detail: "--repo needs a value" }, fills: { detail: "--repo needs a value" } },
+  "install-root-unresolvable": {
+    entry: { kind: "install-root-unresolvable", url: "https://example.invalid/tool.js", detail: "not a file URL" },
+    fills: { url: "https://example.invalid/tool.js", detail: "not a file URL" },
+  },
+  "file-unreadable": { entry: { kind: "file-unreadable", path: "disciplines.json", detail: "EACCES" }, fills: { path: "disciplines.json", detail: "EACCES" } },
+  "file-malformed": {
+    entry: { kind: "file-malformed", path: "disciplines.json", detail: "clauses is not an object" },
+    fills: { path: "disciplines.json", detail: "clauses is not an object" },
+  },
+  "unsupported-version": { entry: { kind: "unsupported-version", path: "disciplines.json", found: 2 }, fills: { path: "disciplines.json", "version found": "2" } },
+  "reserved-rule-set-name": { entry: { kind: "reserved-rule-set-name", name: "hone" }, fills: { "rule set": "hone" } },
+  "rule-set-name-collision": { entry: { kind: "rule-set-name-collision", name: "team", other: "team-web" }, fills: { "rule set": "team", "other rule set": "team-web" } },
+  "duplicate-clause": {
+    entry: { kind: "duplicate-clause", address: "CD-15#loops", prefixedAddress: "hone/CD-15#loops" },
+    fills: { "clause with its rule set": "hone/CD-15#loops" },
+  },
+  "unknown-rule-set": { entry: { kind: "unknown-rule-set", name: "team" }, fills: { "rule set": "team" } },
+  "unknown-discipline": { entry: { kind: "unknown-discipline", address: "CD-99#loops" }, fills: { clause: "CD-99#loops" } },
+  "unknown-clause": { entry: { kind: "unknown-clause", address: "CD-15#whiles" }, fills: { clause: "CD-15#whiles" } },
+  "judgement-clause-selected": { entry: { kind: "judgement-clause-selected", address: "CD-3#names" }, fills: { clause: "CD-3#names" } },
+  "judgement-clause-listed": { entry: { kind: "judgement-clause-listed", address: "CD-3#names" }, fills: { clause: "CD-3#names" } },
+  "mechanism-not-allowed": { entry: { kind: "mechanism-not-allowed", address: "CD-15#loops", mechanism: MECHANISM }, fills: {} },
+  "runner-missing": { entry: { kind: "runner-missing", mechanism: MECHANISM }, fills: {} },
+  "runner-invalid": { entry: { kind: "runner-invalid", mechanism: MECHANISM, detail: "no runner export" }, fills: { detail: "no runner export" } },
+  "piece-missing": { entry: { kind: "piece-missing", address: "CD-15#loops", mechanism: MECHANISM }, fills: {} },
+  "rule-set-invalid": {
+    entry: { kind: "rule-set-invalid", path: "team/rules/TM-1/discipline.json", detail: "no clauses" },
+    fills: { path: "team/rules/TM-1/discipline.json", detail: "no clauses" },
+  },
+  "git-failed": { entry: { kind: "git-failed", detail: "not a git repository" }, fills: { detail: "not a git repository" } },
+  "config-root-untracked": { entry: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/gone") }, fills: { "config root": "packages/gone" } },
+  "selection-absent": { entry: { kind: "selection-absent", repo: "src" }, fills: { dir: "src" } },
+  "unexpected-error": {
+    entry: { kind: "unexpected-error", detail: "Cannot read properties of undefined" },
+    fills: { detail: "Cannot read properties of undefined" },
+  },
+  "runner-failed": { entry: { kind: "runner-failed", mechanism: MECHANISM, failure: RUNNER_FAILURES["tool-failed"].entry }, fills: RUNNER_FAILURES["tool-failed"].fills },
 };
 
-const ARGUMENT_PROBLEMS: EveryKind<ArgumentProblem> = {
-  "command-missing": { kind: "command-missing" },
-  "command-unknown": { kind: "command-unknown", given: "lint" },
-  "argument-unexpected": { kind: "argument-unexpected", subcommand: "check", given: "src" },
-  "option-unknown": { kind: "option-unknown", subcommand: "project", given: "--fix" },
-  "option-joined": { kind: "option-joined", option: REPO_OPTION, given: "--repo=src" },
-  "value-missing": { kind: "value-missing", option: REPO_OPTION },
-  "option-repeated": { kind: "option-repeated", option: FORFEITURE_OPTION },
-  "option-required": { kind: "option-required", subcommand: "check", option: REPO_OPTION },
-  "choice-invalid": { kind: "choice-invalid", option: FORFEITURE_OPTION, choices: ["this-run", "elsewhere"], given: "later" },
-  "option-removed": { kind: "option-removed", given: "--waived-clauses", instead: WAIVED_CLAUSES_REPLACEMENT },
-  "repo-unresolvable": { kind: "repo-unresolvable", given: "src" },
-  "selection-absent": { kind: "selection-absent", given: "src" },
+const ARGUMENT_PROBLEMS: { readonly [Kind in ArgumentProblem["kind"]]: Filled<Extract<ArgumentProblem, { readonly kind: Kind }>> } = {
+  "command-missing": { entry: { kind: "command-missing" }, fills: {} },
+  "command-unknown": { entry: { kind: "command-unknown", given: "lint" }, fills: { given: "lint" } },
+  "flag-extra": { entry: { kind: "flag-extra", flag: "--version", given: "extra" }, fills: { flag: "--version", given: "extra" } },
+  "argument-unexpected": {
+    entry: { kind: "argument-unexpected", subcommand: "check", given: "src" },
+    fills: { command: "check", given: "src", option: "--repo", value: "<dir>" },
+  },
+  "option-unknown": { entry: { kind: "option-unknown", subcommand: "project", given: "--fix" }, fills: { command: "project", given: "--fix" } },
+  "option-joined": { entry: { kind: "option-joined", option: REPO_OPTION, given: "--repo=src" }, fills: { option: "--repo", value: "<dir>", given: "--repo=src" } },
+  "value-missing": { entry: { kind: "value-missing", option: REPO_OPTION }, fills: { option: "--repo", value: "<dir>" } },
+  "option-repeated": { entry: { kind: "option-repeated", option: FORFEITURE_OPTION }, fills: { option: "--forfeiture" } },
+  "option-required": { entry: { kind: "option-required", subcommand: "check", option: REPO_OPTION }, fills: { command: "check" } },
+  "choice-invalid": {
+    entry: { kind: "choice-invalid", option: FORFEITURE_OPTION, choices: ["this-run", "elsewhere"], given: "later" },
+    fills: { option: "--forfeiture", values: "this-run or elsewhere", given: "later" },
+  },
+  "option-removed": { entry: { kind: "option-removed", given: "--waived-clauses", instead: WAIVED_CLAUSES_REPLACEMENT }, fills: {} },
+  "repo-unresolvable": { entry: { kind: "repo-unresolvable", given: "src" }, fills: { dir: "src" } },
 };
 
-const failureLine = (request: { readonly label: string; readonly failure: LoadFailure }): ContractLine => ({
+const failureLine = (request: { readonly label: string; readonly failure: LoadFailure; readonly fills: Fills }): PrintedLine => ({
   label: request.label,
   text: loadFailureText(request).trimEnd(),
+  fills: { ...SHARED_FILLS, ...request.fills },
 });
 
-const FAILURE_LINES: readonly ContractLine[] = [
-  ...Object.values(LOAD_FAILURES).map((failure) => failureLine({ label: failure.kind, failure })),
-  ...[...Object.values(RUNNER_FAILURES), ...UNAVAILABLE_TOOLCHAINS].map((failure) =>
-    failureLine({ label: "runner-failed", failure: { kind: "runner-failed", mechanism: ESLINT, failure } }),
+const FAILURE_LINES: readonly PrintedLine[] = [
+  ...Object.values(LOAD_FAILURES).map((sample) => failureLine({ label: sample.entry.kind, failure: sample.entry, fills: sample.fills })),
+  ...[...Object.values(RUNNER_FAILURES), ...UNAVAILABLE_TOOLCHAINS].map((sample) =>
+    failureLine({ label: "runner-failed", failure: { kind: "runner-failed", mechanism: MECHANISM, failure: sample.entry }, fills: sample.fills }),
   ),
-  ...Object.values(ARGUMENT_PROBLEMS).map((problem) => failureLine({ label: problem.kind, failure: argumentsInvalid({ problem }).error })),
+  ...Object.values(ARGUMENT_PROBLEMS).map((sample) =>
+    failureLine({ label: sample.entry.kind, failure: argumentsInvalid({ problem: sample.entry }).error, fills: sample.fills }),
+  ),
 ];
 
-const PROJECT_LINES: readonly ContractLine[] = projectCommandOutcome({
-  result: {
-    outcome: "ok",
-    value: Object.values(PROJECTION_EFFECTS),
-  },
-})
-  .text.trimEnd()
-  .split("\n")
-  .map((text) => ({ label: "project", text }));
+const PROJECTION_EFFECTS: Readonly<Record<ProjectionWrite["effect"], ProjectionWrite>> = {
+  written: { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "written" },
+  unchanged: { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "unchanged" },
+  removed: { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "removed" },
+  "left-in-place": { path: repoPathSchema.parse("disciplines.eslint.mjs"), effect: "left-in-place" },
+};
 
-export const PRINTABLE_LINES: readonly ContractLine[] = [...REPORT_LINES, ...FAILURE_LINES, ...PROJECT_LINES, { label: "version", text: "1.0.0" }];
+const linesOf = (request: { readonly label: string; readonly text: string; readonly fills: Fills }): readonly PrintedLine[] =>
+  request.text
+    .trimEnd()
+    .split("\n")
+    .map((text) => ({ label: request.label, text, fills: request.fills }));
+
+const PROJECT_LINES: readonly PrintedLine[] = linesOf({
+  label: "project",
+  text: projectCommandOutcome({ result: { outcome: "ok", value: Object.values(PROJECTION_EFFECTS) } }).text,
+  fills: { path: "disciplines.eslint.mjs" },
+});
+
+const VERSION_MANIFEST: FileTextPort = {
+  read: () => ({ outcome: "ok", value: JSON.stringify({ name: "@hailstails/hone", version: "1.0.0" }) }),
+  exists: () => "present",
+  write: () => ({ outcome: "ok", value: undefined }),
+};
+
+const VERSION_LINES: readonly PrintedLine[] = linesOf({
+  label: "version",
+  text: versionCommandOutcome({
+    result: installedVersionOf({
+      fileText: VERSION_MANIFEST,
+      path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
+      moduleUrl: "file:///install/core/check/tool-command.ts",
+    }),
+  }).text,
+  fills: { version: "1.0.0" },
+});
+
+export const PRINTABLE_LINES: readonly PrintedLine[] = [...REPORT_LINES, ...FAILURE_LINES, ...PROJECT_LINES, ...VERSION_LINES];
 
 export const PRINTED_SECTION_ROLES: readonly DocumentedRole[] = SECTION_NAMES.map((section) => ({ section, role: sectionRoleOf({ section }) }));
 
-const HELP_TOPICS: readonly HelpTopic[] = ["tool", "check", "project"];
+const HELP_TOPICS: readonly HelpTopic[] = ["tool", ...SUBCOMMANDS];
 
 const FENCE = "```";
 
-export const PRINTED_HELP_BLOCKS: readonly string[] = HELP_TOPICS.map((topic) => `${FENCE}text\n${helpText({ topic })}${FENCE}`);
+export const PRINTED_BLOCKS: readonly string[] = [SYNOPSIS, ...HELP_TOPICS.map((topic) => helpText({ topic }))].map(
+  (text) => `${FENCE}text\n${text}${FENCE}`,
+);

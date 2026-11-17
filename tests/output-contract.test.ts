@@ -3,10 +3,14 @@ import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
-import { contractGaps, documentedLinesIn, documentedRolesIn, reportLinesOf } from "./output-contract.ts";
+import { contractGaps, documentedLinesIn, documentedRolesIn, type EntryFills, filledTemplate, reportLinesOf } from "./output-contract.ts";
 
 const DOC =
   "| Section | Role |\n| --- | --- |\n| `findings` | failing | each place a clause is broken |\n\n| Section | Line |\n| --- | --- |\n| `findings` | `<clause> <mechanism> <file>:<line>:<column> <snippet>` |\n| `verdict` | `verdict: fail (partial assessment)` |\n| `<clause>` | a clause address |\n";
+
+const FINDING_FILLS = { clause: "CD-15#loops", mechanism: "audit", file: "src/a.ts", line: "2", column: "0", snippet: "const total = 0;" };
+
+const FINDING_TEMPLATE = { label: "findings", template: "<clause> <mechanism> <file>:<line>:<column> <snippet>" };
 
 const REPORT: CheckReport = {
   excluded: [repoPathSchema.parse("generated")],
@@ -34,12 +38,11 @@ const REPORT: CheckReport = {
   readFirst: [],
 };
 
+const positionFills: EntryFills = ({ section, position }) => ({ section, position: String(position) });
+
 describe("documentedLinesIn", () => {
   it("reads each table row whose two cells are both code as a label and a template", () => {
-    expect(documentedLinesIn({ text: DOC })).toEqual([
-      { label: "findings", text: "<clause> <mechanism> <file>:<line>:<column> <snippet>" },
-      { label: "verdict", text: "verdict: fail (partial assessment)" },
-    ]);
+    expect(documentedLinesIn({ text: DOC })).toEqual([FINDING_TEMPLATE, { label: "verdict", template: "verdict: fail (partial assessment)" }]);
   });
 });
 
@@ -49,51 +52,71 @@ describe("documentedRolesIn", () => {
   });
 });
 
+describe("filledTemplate", () => {
+  it("puts each placeholder's fill in its place and leaves a placeholder with no fill as written", () => {
+    expect(filledTemplate({ template: "<clause> <mechanism> <rest>", fills: { clause: "CD-15#loops", mechanism: "audit" } })).toBe(
+      "CD-15#loops audit <rest>",
+    );
+  });
+});
+
 describe("contractGaps", () => {
-  it("matches a printed line to a template under the same label, a placeholder standing for any text", () => {
+  it("matches a printed line whose text is its template filled with its own sample values", () => {
     expect(
       contractGaps({
-        documented: [{ label: "findings", text: "<clause> <mechanism> <file>:<line>:<column> <snippet>" }],
-        printed: [{ label: "findings", text: "CD-15#loops audit src/a.ts:2:0 const total = 0;" }],
+        documented: [FINDING_TEMPLATE],
+        printed: [{ label: "findings", text: "CD-15#loops audit src/a.ts:2:0 const total = 0;", fills: FINDING_FILLS }],
       }),
     ).toEqual({ undocumented: [], unprinted: [] });
+  });
+
+  it("refuses a printed line whose fields come in another order than the template's", () => {
+    expect(
+      contractGaps({
+        documented: [FINDING_TEMPLATE],
+        printed: [{ label: "findings", text: "audit CD-15#loops src/a.ts:2:0 const total = 0;", fills: FINDING_FILLS }],
+      }),
+    ).toMatchObject({ undocumented: [{ text: "audit CD-15#loops src/a.ts:2:0 const total = 0;" }], unprinted: [FINDING_TEMPLATE] });
+  });
+
+  it("refuses a printed line whose separators differ from the template's", () => {
+    expect(
+      contractGaps({
+        documented: [FINDING_TEMPLATE],
+        printed: [{ label: "findings", text: "CD-15#loops -- audit src/a.ts:2:0 const total = 0;", fills: FINDING_FILLS }],
+      }),
+    ).toMatchObject({ unprinted: [FINDING_TEMPLATE] });
   });
 
   it("names a printed line no template fits and a template no printed line fits", () => {
     expect(
       contractGaps({
-        documented: [{ label: "verdict", text: "verdict: pass (partial assessment)" }],
-        printed: [{ label: "verdict", text: "verdict: pass" }],
+        documented: [{ label: "verdict", template: "verdict: pass (partial assessment)" }],
+        printed: [{ label: "verdict", text: "verdict: pass", fills: {} }],
       }),
     ).toEqual({
-      undocumented: [{ label: "verdict", text: "verdict: pass" }],
-      unprinted: [{ label: "verdict", text: "verdict: pass (partial assessment)" }],
+      undocumented: [{ label: "verdict", text: "verdict: pass", fills: {} }],
+      unprinted: [{ label: "verdict", template: "verdict: pass (partial assessment)" }],
     });
-  });
-
-  it("reads the literal parts of a template literally", () => {
-    expect(
-      contractGaps({ documented: [{ label: "heading", text: "<section> (<count>)" }], printed: [{ label: "heading", text: "findings 1" }] }),
-    ).toMatchObject({ undocumented: [{ text: "findings 1" }] });
   });
 });
 
 describe("reportLinesOf", () => {
-  it("labels each heading, each entry by its section, and the verdict", () => {
-    expect(reportLinesOf({ report: REPORT, output: "full" })).toEqual([
-      { label: "heading", text: "excluded (1)" },
-      { label: "excluded", text: "generated" },
-      { label: "heading", text: "findings (1)" },
-      { label: "findings", text: "CD-15#loops audit src/a.ts:2:0 const total = 0;" },
-      { label: "verdict", text: "verdict: fail" },
+  it("labels each heading with its section and count, each entry by its section and position, and the verdict", () => {
+    expect(reportLinesOf({ report: REPORT, output: "full", entryFills: positionFills })).toEqual([
+      { label: "heading", text: "excluded (1)", fills: { section: "excluded", count: "1" } },
+      { label: "excluded", text: "generated", fills: { section: "excluded", position: "0" } },
+      { label: "heading", text: "findings (1)", fills: { section: "findings", count: "1" } },
+      { label: "findings", text: "CD-15#loops audit src/a.ts:2:0 const total = 0;", fills: { section: "findings", position: "0" } },
+      { label: "verdict", text: "verdict: fail", fills: {} },
     ]);
   });
 
   it("labels each counts line as a heading", () => {
-    expect(reportLinesOf({ report: REPORT, output: "counts" })).toEqual([
-      { label: "heading", text: "excluded (1) informational" },
-      { label: "heading", text: "findings (1)" },
-      { label: "verdict", text: "verdict: fail" },
+    expect(reportLinesOf({ report: REPORT, output: "counts", entryFills: positionFills })).toEqual([
+      { label: "heading", text: "excluded (1) informational", fills: { section: "excluded", count: "1" } },
+      { label: "heading", text: "findings (1)", fills: { section: "findings", count: "1" } },
+      { label: "verdict", text: "verdict: fail", fills: {} },
     ]);
   });
 });

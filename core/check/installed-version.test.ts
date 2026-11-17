@@ -35,13 +35,29 @@ describe("installedVersionOf", () => {
     });
   });
 
-  it.each([{ text: "{" }, { text: JSON.stringify({ name: "@hailstails/hone" }) }])(
-    "is file-malformed when the install's package.json holds no version, given $text",
-    ({ text }) => {
-      expect(versionFrom({ read: { outcome: "ok", value: text } })).toEqual({
-        outcome: "failed",
-        error: { kind: "file-malformed", path: PACKAGE_PATH, detail: "package.json holds no version" },
-      });
-    },
-  );
+  it("is file-malformed saying so when the install's package.json is not JSON", () => {
+    expect(versionFrom({ read: { outcome: "ok", value: "{" } })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: PACKAGE_PATH, detail: expect.stringMatching(/^package\.json is not valid JSON: /) },
+    });
+  });
+
+  it("is file-malformed when the install's package.json holds no version", () => {
+    expect(versionFrom({ read: { outcome: "ok", value: JSON.stringify({ name: "@hailstails/hone" }) } })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: PACKAGE_PATH, detail: "package.json holds no version" },
+    });
+  });
+});
+
+describe("installedVersionOf on Windows", () => {
+  it("names the install's package.json with forward slashes when it cannot be read", () => {
+    expect(
+      installedVersionOf({
+        fileText: filesWith({ read: { outcome: "ok", value: "{}" } }),
+        path: createPathPort({ flavour: "windows", workingDirectory: () => "C:/work" }),
+        moduleUrl: "file:///C:/hone/core/check/tool-command.ts",
+      }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "file-unreadable", path: "C:/hone/package.json" } });
+  });
 });

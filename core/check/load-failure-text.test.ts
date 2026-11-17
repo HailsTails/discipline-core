@@ -206,3 +206,17 @@ describe("loadFailureText for a missing required peer", () => {
     );
   });
 });
+
+describe("loadFailureText for a run that cannot start", () => {
+  it("prints selection-absent with the --repo folder as given and where disciplines.json belongs", () => {
+    expect(loadFailureText({ failure: { kind: "selection-absent", repo: "src" } })).toBe(
+      "load failure: selection-absent src holds no disciplines.json; give the folder that holds it, usually the repository root\n",
+    );
+  });
+
+  it("prints unexpected-error with what was thrown", () => {
+    expect(loadFailureText({ failure: { kind: "unexpected-error", detail: "Cannot read properties of undefined" } })).toBe(
+      "load failure: unexpected-error Cannot read properties of undefined\n",
+    );
+  });
+});

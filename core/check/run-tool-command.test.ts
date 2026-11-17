@@ -170,3 +170,20 @@ describe("toolCommandOf printing the version", () => {
     });
   });
 });
+
+const rejecting: CommandHandler = () => Promise.reject(new Error("Cannot read properties of undefined"));
+
+const throwing: CommandHandler = () => Promise.resolve(BigInt("one")).then(() => undefined);
+
+describe("toolCommandOf when a command fails unexpectedly", () => {
+  it.each([
+    { handler: rejecting, line: "load failure: unexpected-error Cannot read properties of undefined\n" },
+    { handler: throwing, line: "load failure: unexpected-error Cannot convert one to a BigInt\n" },
+  ])("exits 2 with an unexpected-error load failure line, so exit 1 always means a failing verdict: $line", async ({ handler, line }) => {
+    const processPort = processWith({ arguments: ["check", "--repo", "/repo"] });
+
+    await toolCommandOf({ subcommands: { check: handler, project: handler } })(commandRequest({ process: processPort }));
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
+  });
+});

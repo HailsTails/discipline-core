@@ -5,7 +5,7 @@ import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { checkCommandOutcome, projectCommandOutcome } from "./command-outcome.ts";
+import { checkCommandOutcome, projectCommandOutcome, versionCommandOutcome } from "./command-outcome.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
 
@@ -147,5 +147,17 @@ describe("projectCommandOutcome", () => {
     expect(
       projectCommandOutcome({ result: { outcome: "failed", error: { kind: "runner-missing", mechanism: WALKER } } }),
     ).toEqual({ code: 2, text: "load failure: runner-missing audit\n" });
+  });
+});
+
+describe("versionCommandOutcome", () => {
+  it("exits 0 printing the version on its own line", () => {
+    expect(versionCommandOutcome({ result: { outcome: "ok", value: "1.0.0" } })).toEqual({ code: 0, text: "1.0.0\n" });
+  });
+
+  it("exits 2 printing the load failure line when the version cannot be read", () => {
+    expect(
+      versionCommandOutcome({ result: { outcome: "failed", error: { kind: "file-unreadable", path: "package.json", detail: "EACCES" } } }),
+    ).toEqual({ code: 2, text: "load failure: file-unreadable package.json EACCES\n" });
   });
 });
