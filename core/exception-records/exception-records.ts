@@ -357,10 +357,15 @@ type ClauseSelection = { readonly clause: ClauseAddress; readonly mechanism: Mec
 const unselectedKindOf = (request: {
   readonly selection: Selection;
   readonly clause: ClauseAddress;
-}): "clause-not-adopted" | "clause-not-selected" =>
-  request.selection.notAdopted.some((address) => sameClauseAddress({ left: address, right: request.clause }) === "same")
-    ? "clause-not-adopted"
-    : "clause-not-selected";
+}): "clause-not-adopted" | "clause-not-run" | "clause-not-selected" =>
+  (
+    [
+      ["clause-not-adopted", request.selection.notAdopted],
+      ["clause-not-run", request.selection.notRun],
+    ] as const
+  ).find(([, addresses]) =>
+    addresses.some((address) => sameClauseAddress({ left: address, right: request.clause }) === "same"),
+  )?.[0] ?? "clause-not-selected";
 
 const selectedClauseOf = (request: {
   readonly entry: StructuralExceptionEntry;

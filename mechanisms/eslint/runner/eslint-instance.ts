@@ -86,6 +86,7 @@ export type EslintSurfaceOptions = {
   readonly ignore?: false;
   readonly allowInlineConfig?: false;
   readonly overrideConfig?: GovernanceBlock;
+  readonly matchedFiles?: readonly string[];
 };
 
 export type LintedMessage = {
@@ -112,6 +113,7 @@ export type EslintSurface = {
     readonly code: string;
     readonly filePath: string;
   }) => Promise<readonly LintedFile[]>;
+  readonly findConfigFile: (request: { readonly filePath: string }) => Promise<string | undefined>;
 };
 
 export type CreateEslint = (request: { readonly options: EslintSurfaceOptions }) => EslintSurface;
@@ -124,6 +126,20 @@ export type EslintToolchain = {
 
 export type IgnoredState = "ignored" | "checked";
 
+export type ConfigFileSearch =
+  | { readonly kind: "found"; readonly path: string }
+  | { readonly kind: "none" }
+  | { readonly kind: "unknown" };
+
+const CONFIG_UNKNOWN: ConfigFileSearch = { kind: "unknown" };
+
+const searchedConfigFile = (request: { readonly found: Result<string | undefined, RunnerFailure> }): ConfigFileSearch => {
+  if (request.found.outcome === "failed") {
+    return CONFIG_UNKNOWN;
+  }
+  return request.found.value === undefined ? { kind: "none" } : { kind: "found", path: request.found.value };
+};
+
 export type QueryInstance = {
   readonly ignoredState: (request: {
     readonly file: RepoPath;
@@ -132,6 +148,7 @@ export type QueryInstance = {
     readonly file: RepoPath;
     readonly ruleId: string;
   }) => Promise<Result<RuleState, RunnerFailure>>;
+  readonly configFileOf: (request: { readonly file: RepoPath }) => Promise<ConfigFileSearch>;
 };
 
 export type GovernanceInstance = {
@@ -149,8 +166,12 @@ export type EslintPort = {
     readonly repoRoot: AbsolutePath;
     readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
     readonly rules: readonly GovernedRule[];
-    readonly watchedRuleIds: readonly string[];
   }) => GovernanceInstance;
+  readonly ignoredByConfig: (request: {
+    readonly configFile: string;
+    readonly cwd: AbsolutePath;
+    readonly path: string;
+  }) => Promise<Result<IgnoredState, RunnerFailure>>;
   readonly lintSourceCases: (request: {
     readonly cwd: AbsolutePath;
     readonly plugin: LoadedEslintPlugin;
@@ -262,14 +283,13 @@ export const enabledRuleEntry = (request: { readonly options: RuleOptions }): En
 export const governanceConfig = (request: {
   readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
   readonly rules: readonly GovernedRule[];
-  readonly watchedRuleIds: readonly string[];
   readonly parser: TypescriptParser;
 }): GovernanceBlock => ({
   files: GOVERNED_FILES,
   languageOptions: { parser: request.parser },
   plugins: {
     ...request.plugins,
-    [reservedNamespace]: inlineConfigPlugin({ ruleIds: request.watchedRuleIds }),
+    [reservedNamespace]: inlineConfigPlugin({ ruleIds: request.rules.map((governed) => governed.ruleId) }),
   },
   rules: Object.fromEntries(
     [...request.rules, { ruleId: INLINE_CONFIG_RULE_ID, options: [] }].map(
@@ -282,19 +302,13 @@ const governanceOptions = (request: {
   readonly cwd: AbsolutePath;
   readonly plugins: Readonly<Record<string, LoadedEslintPlugin>>;
   readonly rules: readonly GovernedRule[];
-  readonly watchedRuleIds: readonly string[];
   readonly parser: TypescriptParser;
 }): EslintSurfaceOptions => ({
   cwd: request.cwd,
   overrideConfigFile: true,
   ignore: false,
   allowInlineConfig: false,
-  overrideConfig: governanceConfig({
-    plugins: request.plugins,
-    rules: request.rules,
-    watchedRuleIds: request.watchedRuleIds,
-    parser: request.parser,
-  }),
+  overrideConfig: governanceConfig({ plugins: request.plugins, rules: request.rules, parser: request.parser }),
 });
 
 const thrownDetail = (thrown: unknown): string =>
@@ -348,7 +362,7 @@ const onSurface = <T>(request: {
       : actedOn({ surface: built.value, act: request.act, onRejected: request.onRejected }),
   );
 
-const ignoredStateOf = (request: { readonly eslint: EslintSurface; readonly file: RepoPath }): Promise<IgnoredState> =>
+const ignoredStateOf = (request: { readonly eslint: EslintSurface; readonly file: string }): Promise<IgnoredState> =>
   request.eslint
     .isPathIgnored({ filePath: request.file })
     .then((ignored): IgnoredState => (ignored ? "ignored" : "checked"));
@@ -385,6 +399,12 @@ const queryInstanceOf = (request: {
       act: (eslint) => eslint.calculateConfigForFile({ filePath: query.file }),
       onRejected: queryFailed,
     }).then((resolved) => resolvedRuleState({ resolved, ruleId: query.ruleId })),
+  configFileOf: (query) =>
+    onSurface({
+      surface: request.surface,
+      act: (eslint) => eslint.findConfigFile({ filePath: query.file }),
+      onRejected: toolFailed,
+    }).then((found) => searchedConfigFile({ found })),
 });
 
 const lintedCaseOf = (request: {
@@ -476,7 +496,6 @@ const sourceCaseVerdicts = (request: {
         parser: request.toolchain.typescriptParser,
         plugins: { [request.pluginNamespace]: request.plugin },
         rules: [{ ruleId, options: request.options }],
-        watchedRuleIds: [ruleId],
       }),
     }),
     act: (eslint) => lintedCasesOf({ eslint, cases: request.cases }),
@@ -502,7 +521,6 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
         cwd: request.repoRoot,
         plugins: request.plugins,
         rules: request.rules,
-        watchedRuleIds: request.watchedRuleIds,
         parser: options.toolchain.typescriptParser,
       }),
     });
@@ -511,10 +529,19 @@ export const createEslintPort = (options: { readonly toolchain: EslintToolchain 
         onSurface({ surface, act: (eslint) => eslint.lintFiles({ filePaths: lint.files }), onRejected: toolFailed }),
     };
   },
+  ignoredByConfig: (request) =>
+    onSurface({
+      surface: builtSurface({
+        createEslint: options.toolchain.createEslint,
+        options: { cwd: request.cwd, overrideConfigFile: request.configFile, matchedFiles: [request.path] },
+      }),
+      act: (eslint) => ignoredStateOf({ eslint, file: request.path }),
+      onRejected: queryFailed,
+    }),
   lintSourceCases: (request) => sourceCaseVerdicts({ ...request, toolchain: options.toolchain }),
 });
 
-type EslintEngine = Pick<ESLint, "isPathIgnored" | "calculateConfigForFile" | "lintFiles" | "lintText">;
+type EslintEngine = Pick<ESLint, "isPathIgnored" | "calculateConfigForFile" | "lintFiles" | "lintText" | "findConfigFile">;
 
 export type EslintClass = Pick<typeof ESLint, "version"> &
   (new (...options: ConstructorParameters<typeof ESLint>) => EslintEngine);
@@ -568,11 +595,12 @@ export const eslintOptionsOf = (request: {
   readonly version: string;
   readonly options: EslintSurfaceOptions;
 }): ESLint.Options => {
-  const { overrideConfig, ...sharedOptions } = request.options;
+  const { overrideConfig, matchedFiles, ...sharedOptions } = request.options;
   return {
     ...sharedOptions,
     ...lookupOptionsOf(request),
     ...(overrideConfig === undefined ? {} : { overrideConfig: overrideConfigOf({ overrideConfig }) }),
+    ...(matchedFiles === undefined ? {} : { overrideConfig: { files: [...matchedFiles] } }),
   };
 };
 
@@ -581,6 +609,7 @@ export const createEslintOn = (request: { readonly eslintClass: EslintClass }): 
   return {
     isPathIgnored: (query) => eslint.isPathIgnored(query.filePath),
     calculateConfigForFile: (query) => eslint.calculateConfigForFile(query.filePath),
+    findConfigFile: (query) => eslint.findConfigFile(query.filePath),
     lintFiles: (lint) => eslint.lintFiles([...lint.filePaths]).then((results) => results.map(lintedFileOf)),
     lintText: (lint) =>
       eslint.lintText(lint.code, { filePath: lint.filePath }).then((results) => results.map(lintedFileOf)),

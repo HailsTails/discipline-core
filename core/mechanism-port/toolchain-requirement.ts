@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PackageLocationPort, PackageUnlocatable } from "../platform-ports/package-location-port.ts";
 import type { Result } from "../values/result.ts";
-import type { PeerKind, RunnerFailure } from "./runner-failure.ts";
+import type { PeerKind, RunnerFailure, UnavailablePeer } from "./runner-failure.ts";
 
 export type ReleaseLine = {
   readonly floor: string;
@@ -84,12 +84,28 @@ const toolchainUnavailable = (request: {
   outcome: "failed",
   error: {
     kind: "toolchain-unavailable",
-    packageName: request.requirement.packageName,
-    peer: request.requirement.peer,
-    supported: supportedRange({ requirement: request.requirement }),
-    found: request.found,
+    peers: [
+      {
+        packageName: request.requirement.packageName,
+        peer: request.requirement.peer,
+        supported: supportedRange({ requirement: request.requirement }),
+        found: request.found,
+      },
+    ],
   },
 });
+
+const unavailablePeersOf = (request: { readonly failure: RunnerFailure }): readonly UnavailablePeer[] =>
+  request.failure.kind === "toolchain-unavailable" ? request.failure.peers : [];
+
+export const gatheredPeerFailure = (request: { readonly failures: readonly [RunnerFailure, ...RunnerFailure[]] }): RunnerFailure => {
+  const otherFailure = request.failures.find((failure) => failure.kind !== "toolchain-unavailable");
+  if (otherFailure !== undefined) {
+    return otherFailure;
+  }
+  const [first, ...rest] = request.failures.flatMap((failure) => unavailablePeersOf({ failure }));
+  return first === undefined ? request.failures[0] : { kind: "toolchain-unavailable", peers: [first, ...rest] };
+};
 
 const thrownState = (request: { readonly thrown: unknown; readonly packageName: string }): string => {
   const parsed = moduleErrorSchema.safeParse(request.thrown);
@@ -143,30 +159,68 @@ const versionedPeer = <Module>(request: PeerRequest<Module>): Promise<Result<Mod
         }),
     );
 
+const shadowedPeer = (request: {
+  readonly requirement: ToolchainRequirement;
+  readonly location: PackageLocationPort;
+  readonly resolved: string;
+}): Result<never, RunnerFailure> => ({
+  outcome: "failed",
+  error: {
+    kind: "toolchain-shadowed",
+    packageName: request.requirement.packageName,
+    location: request.resolved,
+    installRoot: request.location.installRoot,
+  },
+});
+
 const placedPeer = <Module>(request: PeerRequest<Module> & { readonly resolved: string }): Promise<Result<Module, RunnerFailure>> =>
   shadowingOf({ resolved: request.resolved, location: request.location }) === "shadowed"
-    ? Promise.resolve({
-        outcome: "failed",
-        error: {
-          kind: "toolchain-shadowed",
-          packageName: request.requirement.packageName,
-          location: request.resolved,
-          installRoot: request.location.installRoot,
-        },
-      })
+    ? Promise.resolve(shadowedPeer(request))
     : versionedPeer(request);
+
+const unlocatedPeer = (request: {
+  readonly requirement: ToolchainRequirement;
+  readonly unlocatable: PackageUnlocatable;
+}): Result<never, RunnerFailure> =>
+  toolchainUnavailable({
+    requirement: request.requirement,
+    found: `unloadable: ${request.unlocatable.url} (${request.unlocatable.detail})`,
+  });
 
 const locatedPeer = <Module>(
   request: PeerRequest<Module> & { readonly located: Result<string, PackageUnlocatable> },
 ): Promise<Result<Module, RunnerFailure>> =>
   request.located.outcome === "ok"
     ? placedPeer({ ...request, resolved: request.located.value })
-    : Promise.resolve(
+    : Promise.resolve(unlocatedPeer({ requirement: request.requirement, unlocatable: request.located.error }));
+
+const installedAt = (request: {
+  readonly requirement: ToolchainRequirement;
+  readonly location: PackageLocationPort;
+  readonly located: Result<string, PackageUnlocatable>;
+}): Result<null, RunnerFailure> => {
+  if (request.located.outcome === "failed") {
+    return unlocatedPeer({ requirement: request.requirement, unlocatable: request.located.error });
+  }
+  return shadowingOf({ resolved: request.located.value, location: request.location }) === "shadowed"
+    ? shadowedPeer({ ...request, resolved: request.located.value })
+    : { outcome: "ok", value: null };
+};
+
+export const installedPeer = (request: {
+  readonly requirement: ToolchainRequirement;
+  readonly location: PackageLocationPort;
+}): Promise<Result<null, RunnerFailure>> =>
+  Promise.resolve()
+    .then(() => request.location.locate({ packageName: request.requirement.packageName }))
+    .then(
+      (located) => installedAt({ ...request, located }),
+      (thrown: unknown) =>
         toolchainUnavailable({
           requirement: request.requirement,
-          found: `unloadable: ${request.located.error.url} (${request.located.error.detail})`,
+          found: thrownState({ thrown, packageName: request.requirement.packageName }),
         }),
-      );
+    );
 
 export const loadedPeer = <Module>(request: PeerRequest<Module>): Promise<Result<Module, RunnerFailure>> =>
   Promise.resolve()

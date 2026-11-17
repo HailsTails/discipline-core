@@ -4,45 +4,23 @@
 
 A switch over a closed discriminated union carries no `default:` arm. Exhaustiveness is the type system's job: with no default, adding a variant surfaces as a compile error at every switch that has not handled it. A `default:` swallows that signal and lets the new variant slip through silently at runtime.
 
-The sections below describe what the audit check covers.
+Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-8#switch-defaults` | audit | a `default:` arm inside a `switch` |
+**What the friction is for.** When a new case is added, every place that must handle it should fail to compile until it does. A catch-all arm switches that off. The friction keeps the compiler finding those places for you.
 
-Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the sites against these causes.
+- *A catch-all kept "for safety".* The union is closed, so the arm can only hide future cases. Remove it and let the compiler check exhaustiveness.
+- *Input that was never parsed.* The value might be anything because it came from outside unchecked. Parse it at the boundary into the closed union; then the switch is closed.
+- *Several cases sharing one arm.* Default is used as "everything else does the same". List those cases by name.
 
-## What the check flags
-- `.ts` and `.tsx` files, including tests and declaration files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- A line matching `default:` while inside a `switch (`, tracked line by line by counting braces. One finding per line; comment lines are ignored.
-- Every `default:` is flagged. The check cannot tell whether the switch is over a closed union, so a switch over an open set (a plain string) needs an exception. Other `default:` text inside a switch, such as an object key, is flagged too.
+**Where to go.** Every switch over a closed union names every case. Adding a case lights up every place that must decide what to do with it.
 
-## Example violation
-```ts
-switch (event.kind) {
-  case "opened": return open();
-  default: return ignore();
-}
-```
+**Reactions to distrust.**
+- "What if a value we don't know arrives?" Then the value was not parsed. That is a boundary problem, not a switch problem.
+- "Listing every case is verbose." The list is what the compiler checks.
 
-## How to fix
-```ts
-switch (event.kind) {
-  case "opened": return open();
-  case "closed": return ignore();
-}
-```
-Name each remaining variant so the compiler checks exhaustiveness.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a switch is over an open set of values and needs a fallback. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-8#switch-defaults", "file": "src/parsing/token-reader.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Exhaustiveness checking.* The compiler proves every case is handled; a catch-all arm withdraws the proof.
+- *Make illegal states unrepresentable* (Yaron Minsky). Once the input is a closed union, an unknown case cannot exist to be defaulted.

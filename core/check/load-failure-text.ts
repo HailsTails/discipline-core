@@ -1,4 +1,4 @@
-import type { PeerKind, RunnerFailure } from "../mechanism-port/runner-failure.ts";
+import type { RunnerFailure, UnavailablePeer, UnavailablePeers } from "../mechanism-port/runner-failure.ts";
 import { NOT_INSTALLED } from "../mechanism-port/toolchain-requirement.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { LoadFailure } from "./load-failure.ts";
@@ -14,10 +14,20 @@ const CONFIG_ROOT_REPAIR =
 
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
-const unavailablePeerRepair = (request: { readonly packageName: string; readonly peer: PeerKind; readonly found: string }): string =>
-  request.peer === "required" && request.found === NOT_INSTALLED
-    ? `${request.packageName} is a required peer of ${TOOL_IDENTITY.packageName}, so this install is incomplete; ${SUPPORTED_VERSION_REPAIR} and reinstall`
+const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
+
+const unavailablePeerRepair = (request: { readonly peer: UnavailablePeer }): string =>
+  request.peer.peer === "required" && request.peer.found === NOT_INSTALLED
+    ? `${request.peer.packageName} is a required peer of ${TOOL_IDENTITY.packageName}, so this install is incomplete; ${SUPPORTED_VERSION_REPAIR} and reinstall`
     : SUPPORTED_VERSION_REPAIR;
+
+const unavailablePeersRepair = (request: { readonly peers: UnavailablePeers }): string => {
+  const [first, ...rest] = request.peers;
+  return rest.length === 0 ? unavailablePeerRepair({ peer: first }) : EACH_SUPPORTED_VERSION_REPAIR;
+};
+
+const unavailablePeerText = (request: { readonly peer: UnavailablePeer }): string =>
+  `${request.peer.packageName} found ${request.peer.found}, supported ${request.peer.supported}`;
 
 const runnerFailureFields = (request: { readonly failure: RunnerFailure }): readonly string[] => {
   switch (request.failure.kind) {
@@ -29,8 +39,7 @@ const runnerFailureFields = (request: { readonly failure: RunnerFailure }): read
     case "toolchain-unavailable":
       return [
         request.failure.kind,
-        request.failure.packageName,
-        `found ${request.failure.found}, supported ${request.failure.supported}: ${unavailablePeerRepair({ packageName: request.failure.packageName, peer: request.failure.peer, found: request.failure.found })}`,
+        `${request.failure.peers.map((peer) => unavailablePeerText({ peer })).join("; ")}: ${unavailablePeersRepair({ peers: request.failure.peers })}`,
       ];
     case "toolchain-shadowed":
       return [

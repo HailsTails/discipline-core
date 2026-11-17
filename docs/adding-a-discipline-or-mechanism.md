@@ -31,6 +31,20 @@ Each clause is either mechanical or judgement:
 
 Clause ids are lower-case words joined by hyphens, and are unique within the discipline.
 
+### 1a. The rule pages
+
+Each discipline has two pages beside its `discipline.json`, so a reader meets the rule's intent before any detail of how it is checked.
+
+`rules/<DisciplineId>/README.md` holds the rule and its spirit, and ends on the spirit:
+
+- `# <ID>: <title>`, then `## Rule` with the rule text.
+- One line that starts `Review lens:` and links the lens (the lenses find their pages by this line), then links `CHECKS.md` and [the spirit of the rules](../rules/SPIRIT.md).
+- `## Spirit`, in five fixed parts, each a bold lead: **What the friction is for**; **What a finding points at**, a short list of usual causes, each with the direction it points; **Where to go**, the forward goal; **Reactions to distrust**, each common reaction with what it usually hides; **Principles behind it**, established principles named with one line each on how they apply, attributed only where the attribution is certain.
+
+The Spirit section does not talk about syntax, detectors or linting. [rules/SPIRIT.md](../rules/SPIRIT.md) gives the approach for the whole set.
+
+`rules/<DisciplineId>/CHECKS.md` holds the mechanics. It opens by pointing back to the rule page, then gives the Clauses table, what each check flags and misses, any settings, a violation and its fix, and how to record an exception.
+
 ### 2. The shared cases
 
 A mechanical clause's `cases` hold `flag` and `allow` lists. Each case is `{ "name", "fileName", "source", "expectedLines" }`: a flag case lists the lines that must be flagged (at least one), and an allow case lists none. `fileName` is a repository path and may be a declaration file such as `x.d.ts`. There must be at least one of each.
@@ -94,7 +108,7 @@ A repository selects it by naming the rule set and the clause:
 
 ### 1. The runner
 
-Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-adopted`, which `disciplines.json` reserves for a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with fakes. The ESLint runner's `runner.ts`:
+Create `mechanisms/<MechanismId>/runner/runner.ts`. The id is lower-case words joined by hyphens, and never `not-run` or `not-adopted`, which `disciplines.json` reserves for a clause adopted with its mechanism not run and a clause a repository does not adopt. The module has one named export, `runner`, built by a factory in its own file so the runner's tests can call the factory with test doubles. The ESLint runner's `runner.ts`:
 
 ```ts
 export const runner = toolchainBoundEmbeddedRunner({
@@ -153,8 +167,7 @@ These hold for every discipline and mechanism. Tests under `core/check/` check t
 An embedded runner has the same `run` and `conform` as a standalone one, plus:
 
 - `projectedKinds`: the native exception kinds its own projection writes. Only these kinds can be matched by a record.
-- `run` also receives the repository's exception records for that mechanism, so it can regenerate the projection and compare it. It returns hits, the native exceptions it found, and the projection's state: `current`, `out-of-date`, `missing` or `not-included`. A projection that is missing or not included means the mechanism did not run: core lists `mechanism-not-run` and the check fails. An out-of-date one is a projection problem and also fails. It may also return `slices`, each a projection file other than the root one with its state, `missing`, `out-of-date`, `not-applied` or `unconfigured`; core lists each as a projection problem naming the file. A runner that returns none has none.
-- `run` also receives `projectedClauses`: every selected clause of the mechanism, while `clauses` holds only the clauses to run. The two differ only when `waivedClauses` is `not-run` and a waived clause shares its mechanism with a clause still to run. Judge the projection, its effect and every native exception against `projectedClauses`; run, and report hits for, `clauses` only. Core refuses a hit on a clause outside `clauses`, and a native exception on a clause outside `projectedClauses`, as `runner-invalid-output`. The ESLint runner registers every projected plugin and watches every projected rule for inline comments, but switches on only the rules in `clauses`, so ESLint never creates a waived rule.
+- `run` also receives the repository's exception records for that mechanism, so it can regenerate the projection and compare it. It returns hits, the native exceptions it found, and the projection's state: `current`, `out-of-date`, `missing` or `not-included`. A projection that is missing or not included means the mechanism did not run: core lists `mechanism-not-run` and the check fails. An out-of-date one is a projection problem and also fails. It may also return `slices`, each a projection file other than the root one with its state, `missing`, `out-of-date`, `not-applied`, `unconfigured` or `nested-configuration`; core lists `nested-configuration` under `assessment` and each other one as a projection problem naming the file. A runner that returns none has none.
 - `project`: writes the projection files and returns each path with `written`, `unchanged`, `removed` or `left-in-place`. `hone project` calls it.
 
 Core passes every record for the mechanism to both calls, forfeited or not, and never passes the touched set. A forfeited file carve-out therefore stays in the projection and still matches its native exception; core's check reports it as `forfeited` and fails the run. Keep it that way: a runner must not compute forfeiture or read the touched set itself, so that whether a forfeited carve-out stays pushed down remains core's decision. No test checks this; it is a rule for review.
@@ -178,12 +191,12 @@ The ESLint runner declares `projectedKinds: ["config-override"]`. A record cover
 
 How the runner finds each channel (`mechanisms/eslint/runner/`):
 
-- `ignore` and `config-override` come from a query instance of ESLint on the team's own configuration (`eslint-instance.ts`): `isPathIgnored` and `calculateConfigForFile` per checked file. A configuration that fails to load is `team-config-unloadable`; one that registers a different module under a selected piece's namespace is `plugin-conflict`.
+- `ignore` and `config-override` come from a query instance of ESLint on the team's own configuration (`eslint-instance.ts`): `isPathIgnored` and `calculateConfigForFile` per checked file. A configuration that fails to load is `team-config-unloadable`, whose detail names the config through ESLint's `findConfigFile` and the checked file it applies to. Before failing, `governing-config.ts` asks the config governing the broken config's folder, and each one above it up to the repository root, whether it ignores that folder and then the file. Each question is `governingConfigIgnores`: ESLint built on that one config from its folder, with a files-only override block matching the asked path, so `isPathIgnored` answers true only for a real ignore and never for a path no `files` block matches; a folder is asked through a probe file directly inside it. A yes for both makes the file `ignore`, because the team's ESLint never enters that folder. A configuration that registers a different module under a selected piece's namespace is `plugin-conflict`.
 - `inline-disable` and `inline-rule-config` come from a reserved rule, `<reservedNamespace>/inline-config` (currently `hone-core/inline-config`), that runs in core's governance lint and reads each file's inline configuration comments with `@eslint/plugin-kit` (`inline-config-parser.ts`). `eslint-enable` and other directives such as `/* global */` are not reported.
 - `suppression-entry` comes from `suppressions-scanner.ts`. Keys in a tracked `eslint-suppressions.json` are read relative to its folder; keys in a file named by `--suppressions-location` are read relative to the `package.json` that names it.
 - `command-line-option` comes from `package-script-scanner.ts`, which parses every tracked `package.json` and splits each script into commands. A command is an ESLint invocation when a token is `eslint`, starts `eslint@`, or ends `/eslint` or `/eslint.js`. A script with an unterminated quote is `tool-failed`.
 
-Hits come from a separate governance instance that uses only the runner's configuration: the rules of the clauses to run and the inline-config rule at `"error"` on `**/*.{ts,tsx,mts,cts}`, with every selected plugin registered and every selected rule watched by the inline-config rule, parsed with `@typescript-eslint/parser`, with the team's configuration file, ignores, suppressions and inline configuration all off. No native channel can change core's findings.
+Hits come from a separate governance instance that uses only the runner's configuration: the selected rules and the inline-config rule at `"error"` on `**/*.{ts,tsx,mts,cts}`, parsed with `@typescript-eslint/parser`, with the team's configuration file, ignores, suppressions and inline configuration all off. No native channel can change core's findings.
 
 Options passed outside a `package.json` script (a CI step, an editor setting, a wrapper script) are not found. They cannot change core's verdict, but core cannot check whether such a run honours the records.
 

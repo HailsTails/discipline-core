@@ -173,6 +173,7 @@ const CLASS_FINDING = {
 const CLEAN_REPORT = {
   excluded: [],
   notAdopted: [],
+  notRun: [],
   findings: [],
   exempted: [],
   uncovered: [],

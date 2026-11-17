@@ -54,6 +54,7 @@ const carvedEverywhere: ExceptionRecord = {
 const emptyReport: CheckReport = {
   excluded: [],
   notAdopted: [],
+  notRun: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -449,6 +450,28 @@ exceptions[4] why-chain-refused why 2\nis empty\r
       }),
     ).toContain("\neslint not-applied packages/a/disciplines.eslint.mjs\n");
   });
+
+  it("renders a folder skipped for holding its own disciplines.json as an assessment line saying no slice can be written there and pointing at the tracking issue", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          assessment: [
+            {
+              concern: "nestedConfiguration",
+              assessedBy: "not-supported",
+              mechanism: eslint,
+              folder: repoPathSchema.parse("packages/b"),
+              slice: repoPathSchema.parse("packages/b/disciplines.eslint.mjs"),
+            },
+          ],
+        },
+      }),
+    ).toBe(
+      "assessment (1)\nnested-configuration not-supported: eslint skips packages/b, which holds its own disciplines.json, so hone project cannot write packages/b/disciplines.eslint.mjs; nested Hone configurations are not supported yet, see https://github.com/HailsTails/hone/issues/72\nverdict: pass (partial assessment)\n",
+    );
+  });
 });
 
 describe("renderReportText sections", () => {
@@ -667,87 +690,6 @@ describe("renderReportText assessment outputs", () => {
   });
 });
 
-const waivedNotRun = (request: {
-  readonly clausesNotRun: Extract<PartialAssessment, { readonly concern: "waivedClauses" }>["clausesNotRun"];
-  readonly recordsNotJudgedStale: number;
-}): PartialAssessment => ({ concern: "waivedClauses", assessedBy: "not-run", ...request });
-
-describe("renderReportText waived clauses not run", () => {
-  it("names each clause not run with its mechanism and counts the records not judged stale", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: {
-          ...emptyReport,
-          assessment: [
-            waivedNotRun({
-              clausesNotRun: [
-                { clause: noClass, mechanism: eslint },
-                { clause: probeNoTmp, mechanism: audit },
-              ],
-              recordsNotJudgedStale: 3,
-            }),
-          ],
-        },
-      }),
-    ).toBe(
-      "assessment (1)\nwaived-clauses not-run: 2 clauses not run, 3 records not judged stale: CD-14#no-class-syntax eslint, probe/PD-1#no-tmp-files audit\nverdict: pass (partial assessment)\n",
-    );
-  });
-
-  it("names one clause and one record in the singular", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: {
-          ...emptyReport,
-          assessment: [waivedNotRun({ clausesNotRun: [{ clause: noClass, mechanism: eslint }], recordsNotJudgedStale: 1 })],
-        },
-      }),
-    ).toBe(
-      "assessment (1)\nwaived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-14#no-class-syntax eslint\nverdict: pass (partial assessment)\n",
-    );
-  });
-
-  it("still renders the line when no clause is waived, so the choice is never invisible", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: { ...emptyReport, assessment: [waivedNotRun({ clausesNotRun: [], recordsNotJudgedStale: 0 })] },
-      }),
-    ).toBe("assessment (1)\nwaived-clauses not-run: 0 clauses not run, 0 records not judged stale\nverdict: pass (partial assessment)\n");
-  });
-
-});
-
-describe("renderReportText waived clauses beside other assessment", () => {
-  it("renders forfeiture before waived clauses when both are partial", () => {
-    expect(
-      renderReportText({
-        output: "full",
-        report: {
-          ...emptyReport,
-          assessment: [
-            forfeitureElsewhere({ fileCarveOuts: 2 }),
-            waivedNotRun({ clausesNotRun: [{ clause: noClass, mechanism: eslint }], recordsNotJudgedStale: 1 }),
-          ],
-        },
-      }),
-    ).toBe(
-      "assessment (2)\nforfeiture elsewhere: 2 file carve-outs not checked for decay in this run\nwaived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-14#no-class-syntax eslint\nverdict: pass (partial assessment)\n",
-    );
-  });
-
-  it.each(reportOutputSchema.options)("marks the verdict for the %s output when only waived clauses are partial", (output) => {
-    expect(
-      renderReportText({
-        output,
-        report: { ...mixedReport, assessment: [waivedNotRun({ clausesNotRun: [], recordsNotJudgedStale: 0 })] },
-      }),
-    ).toMatch(/(?:^|\n)verdict: fail \(partial assessment\)\n$/);
-  });
-});
-
 const namingConvention = clauseAddressSchema.parse("CD-6#naming-convention");
 
 describe("renderReportText clauses not adopted", () => {
@@ -781,5 +723,33 @@ describe("renderReportText clauses not adopted", () => {
         report: { ...emptyReport, invalidRecords: [{ index: 2, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
       }),
     ).toContain("\nexceptions[2] clause-not-adopted CD-6#naming-convention\n");
+  });
+});
+
+describe("renderReportText clauses adopted but not run", () => {
+  it("lists the not-run clauses after the not-adopted ones, each as adopted and owed to review", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: { ...emptyReport, notAdopted: [namingConvention], notRun: [probeNoTmp], findings: [finding] },
+      }),
+    ).toBe(
+      "notAdopted (1)\nCD-6#naming-convention\nnotRun (1)\nprobe/PD-1#no-tmp-files adopted, mechanism not run: enforced by review\nfindings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nverdict: fail\n",
+    );
+  });
+
+  it("passes as a whole assessment when the report lists only not-run clauses", () => {
+    expect(renderReportText({ output: "counts", report: { ...emptyReport, notRun: [probeNoTmp] } })).toBe(
+      "notRun (1) informational\nverdict: pass\n",
+    );
+  });
+
+  it("renders a clause-not-run invalid record with the clause's address text", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: { ...emptyReport, invalidRecords: [{ index: 1, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
+      }),
+    ).toContain("\nexceptions[1] clause-not-run probe/PD-1#no-tmp-files\n");
   });
 });

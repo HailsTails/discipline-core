@@ -12,7 +12,7 @@ import {
   governanceConfig,
   type LintedFile,
 } from "./eslint-instance.ts";
-import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
+import { eslintPluginModuleSchema } from "./eslint-plugin-schema.ts";
 
 type ReportingContext = {
   readonly report: (descriptor: { readonly node: unknown; readonly messageId: string }) => void;
@@ -94,6 +94,7 @@ const idleSurface: EslintSurface = {
     .mockResolvedValue(undefined),
   lintFiles: vi.fn<EslintSurface["lintFiles"]>().mockResolvedValue([]),
   lintText: vi.fn<EslintSurface["lintText"]>().mockResolvedValue([]),
+  findConfigFile: vi.fn<EslintSurface["findConfigFile"]>().mockResolvedValue(undefined),
 };
 
 const throwsOnBuild = vi
@@ -122,7 +123,6 @@ const lintsGovernanceText = (request: { readonly code: string; readonly line: Es
       overrideConfig: governanceConfig({
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class"],
         parser: TOOLCHAINS[request.line].typescriptParser,
       }),
     },
@@ -131,12 +131,7 @@ const lintsGovernanceText = (request: { readonly code: string; readonly line: Es
 describe("governanceConfig", () => {
   it("builds one block for TypeScript files", () => {
     expect(
-      governanceConfig({
-        plugins: { cd: classAndFunctionPlugin },
-        rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class"],
-        parser: PARSER,
-      }),
+      governanceConfig({ plugins: { cd: classAndFunctionPlugin }, rules: [{ ruleId: "cd/no-class", options: [] }], parser: PARSER }),
     ).toMatchObject({ files: ["**/*.{ts,tsx,mts,cts}"] });
   });
 
@@ -145,7 +140,6 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin, pd: tmpFilePlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }, { ruleId: "pd/no-tmp", options: [] }],
-        watchedRuleIds: ["cd/no-class", "pd/no-tmp"],
         parser: PARSER,
       }).rules,
     ).toEqual({
@@ -160,7 +154,6 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [{ max: 2 }] }],
-        watchedRuleIds: ["cd/no-class"],
         parser: PARSER,
       }).rules,
     ).toEqual({
@@ -174,7 +167,6 @@ describe("governanceConfig", () => {
       governanceConfig({
         plugins: { cd: classAndFunctionPlugin, pd: tmpFilePlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }, { ruleId: "pd/no-tmp", options: [] }],
-        watchedRuleIds: ["cd/no-class", "pd/no-tmp"],
         parser: PARSER,
       }).plugins,
     ).toEqual({
@@ -328,54 +320,6 @@ describe.each(ESLINT_LINES)("the hone-core/inline-config rule over real %s", (es
   });
 });
 
-const unrunRuleSpy = () => {
-  const create = vi.fn<(context: unknown) => Readonly<Record<string, never>>>().mockReturnValue({});
-  const plugin = eslintPluginModuleSchema.parse({
-    default: { rules: { ...classAndFunctionPlugin.rules, "unrun": { meta: { type: "problem" }, create } } },
-  }).default;
-  return { create, plugin };
-};
-
-const lintsBesideUnrunRule = (request: {
-  readonly code: string;
-  readonly line: EslintLine;
-  readonly plugin: LoadedEslintPlugin;
-}) =>
-  TOOLCHAINS[request.line].createEslint({
-    options: {
-      cwd: inlineConfigCwd,
-      overrideConfigFile: true,
-      ignore: false,
-      allowInlineConfig: false,
-      overrideConfig: governanceConfig({
-        plugins: { cd: request.plugin },
-        rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class", "cd/unrun"],
-        parser: TOOLCHAINS[request.line].typescriptParser,
-      }),
-    },
-  }).lintText({ code: request.code, filePath: "src/a.ts" });
-
-describe.each(ESLINT_LINES)("a registered rule the governance configuration leaves off, over real %s", (eslintLine) => {
-  it("is never created while the rule switched on still reports", async () => {
-    const spy = unrunRuleSpy();
-    const linted = await lintsBesideUnrunRule({ code: "class A {}\n", line: eslintLine, plugin: spy.plugin });
-    expect({ linted, creates: spy.create.mock.calls.length }).toMatchObject({
-      linted: [{ messages: [{ ruleId: "cd/no-class", line: 1 }] }],
-      creates: 0,
-    });
-  });
-
-  it("is never created when a rule-config comment switches it on, the comment reported as inline-rule-config", async () => {
-    const spy = unrunRuleSpy();
-    const linted = await lintsBesideUnrunRule({ code: '/* eslint cd/unrun: "error" */\n', line: eslintLine, plugin: spy.plugin });
-    expect({ linted, creates: spy.create.mock.calls.length }).toMatchObject({
-      linted: [{ messages: [{ ruleId: "hone-core/inline-config", messageId: "inline-rule-config", line: 1 }] }],
-      creates: 0,
-    });
-  });
-});
-
 describe("createQueryInstance", () => {
   it("builds ESLint on the team's own configuration, with the repository root as its only option", async () => {
     const createEslint = vi.fn<CreateEslint>().mockReturnValue(idleSurface);
@@ -504,6 +448,39 @@ describe("createQueryInstance", () => {
     });
   });
 
+  it("names the config ESLint finds for a file, so a failure to load it can say which config it was", async () => {
+    const findConfigFile = vi.fn<EslintSurface["findConfigFile"]>().mockResolvedValue("/repo/fixtures/broken/eslint.config.mjs");
+    const configFile = await portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue({ ...idleSurface, findConfigFile }) })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect([configFile, findConfigFile.mock.calls]).toEqual([
+      { kind: "found", path: "/repo/fixtures/broken/eslint.config.mjs" },
+      [[{ filePath: fileA }]],
+    ]);
+  });
+
+  it("says no config applies when ESLint finds none for the file", async () => {
+    const configFile = await portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue(idleSurface) })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect(configFile).toEqual({ kind: "none" });
+  });
+
+  it("says the config is unknown when ESLint cannot search for one", async () => {
+    const configFile = await portWith({
+      createEslint: vi.fn<CreateEslint>().mockReturnValue({
+        ...idleSurface,
+        findConfigFile: vi.fn<EslintSurface["findConfigFile"]>().mockRejectedValue(new Error("ENOENT")),
+      }),
+    })
+      .createQueryInstance({ repoRoot })
+      .configFileOf({ file: fileA });
+
+    expect(configFile).toEqual({ kind: "unknown" });
+  });
+
   it("reports ESLint failing to build as tool-failed", async () => {
     const ignoredState = await portWith({ createEslint: throwsOnBuild })
       .createQueryInstance({ repoRoot })
@@ -525,7 +502,6 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA] });
 
@@ -553,7 +529,6 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA, fileB] });
 
@@ -576,7 +551,6 @@ describe("createGovernanceInstance", () => {
         repoRoot,
         plugins: { cd: classAndFunctionPlugin },
         rules: [{ ruleId: "cd/no-class", options: [] }],
-        watchedRuleIds: ["cd/no-class"],
       })
       .lintFiles({ files: [fileA] });
 
@@ -727,5 +701,64 @@ describe("eslintOptionsOf, which asks every supported ESLint for the configurati
         options: { cwd: OPTIONS_CWD, overrideConfigFile: true, ignore: false, allowInlineConfig: false },
       }),
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: true, ignore: false, allowInlineConfig: false });
+  });
+});
+
+describe("ignoredByConfig, whether one named config really ignores a path", () => {
+  it("builds ESLint on that config from its own folder, matching the asked path so an unconfigured path is not taken for an ignored one", async () => {
+    const isPathIgnored = vi.fn<EslintSurface["isPathIgnored"]>().mockResolvedValue(true);
+    const createEslint = vi.fn<CreateEslint>().mockReturnValue({ ...idleSurface, isPathIgnored });
+    const ignored = await portWith({ createEslint }).ignoredByConfig({
+      configFile: "/repo/eslint.config.mjs",
+      cwd: repoRoot,
+      path: "fixtures/bad/hone-folder-probe",
+    });
+    expect({ ignored, built: createEslint.mock.calls, asked: isPathIgnored.mock.calls }).toEqual({
+      ignored: { outcome: "ok", value: "ignored" },
+      built: [
+        [
+          {
+            options: {
+              cwd: "/repo",
+              overrideConfigFile: "/repo/eslint.config.mjs",
+              matchedFiles: ["fixtures/bad/hone-folder-probe"],
+            },
+          },
+        ],
+      ],
+      asked: [[{ filePath: "fixtures/bad/hone-folder-probe" }]],
+    });
+  });
+
+  it("answers checked for a path the config does not ignore", async () => {
+    await expect(
+      portWith({ createEslint: vi.fn<CreateEslint>().mockReturnValue(idleSurface) }).ignoredByConfig({
+        configFile: "/repo/eslint.config.mjs",
+        cwd: repoRoot,
+        path: "src/a.ts",
+      }),
+    ).resolves.toEqual({ outcome: "ok", value: "checked" });
+  });
+
+  it("reports the config failing to load as team-config-unloadable", async () => {
+    await expect(
+      portWith({
+        createEslint: vi.fn<CreateEslint>().mockReturnValue({
+          ...idleSurface,
+          isPathIgnored: vi.fn<EslintSurface["isPathIgnored"]>().mockRejectedValue(new Error("Unexpected token ';'")),
+        }),
+      }).ignoredByConfig({ configFile: "/repo/eslint.config.mjs", cwd: repoRoot, path: "src/a.ts" }),
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "Unexpected token ';'" } });
+  });
+});
+
+describe("eslintOptionsOf for a question about one path", () => {
+  it.each(["9.28.0", "9.39.5", "10.11.0"])("matches the named paths with a files-only override block on ESLint %s", (version) => {
+    expect(
+      eslintOptionsOf({
+        version,
+        options: { cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", matchedFiles: ["src/a.ts"] },
+      }),
+    ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", overrideConfig: { files: ["src/a.ts"] } });
   });
 });

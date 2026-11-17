@@ -466,7 +466,7 @@ const EXPECTED_SHARED_HITS = [
 
 describe.each(ESLINT_LINES)("FR-3 over real files: the ESLint runner on real %s and the audit runner on real TypeScript", (line) => {
   it("give the same whole anchors for every flagged CD-14 shared case", async () => {
-    const eslintRun = await eslintRunnerOn({ line }).run({ ...SHARED_CASES_RUN, records: [], clauses: [ESLINT_CLAUSE], projectedClauses: [ESLINT_CLAUSE] });
+    const eslintRun = await eslintRunnerOn({ line }).run({ ...SHARED_CASES_RUN, records: [], clauses: [ESLINT_CLAUSE] });
     const walkerRun = await walkerRunner.run({ ...SHARED_CASES_RUN, clauses: [WALKER_CLAUSE] });
     expect({ eslint: eslintRun, audit: walkerRun }).toEqual({
       eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current", slices: [] } },
@@ -568,7 +568,6 @@ const monorepoRun = async (request: {
       repoPathSchema.parse("packages/a/eslint.config.mjs"),
     ],
     clauses: [ESLINT_CLAUSE],
-    projectedClauses: [ESLINT_CLAUSE],
     records: request.records,
   });
 

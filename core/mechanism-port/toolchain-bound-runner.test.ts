@@ -14,7 +14,7 @@ const LOADED: Result<Toolchain, RunnerFailure> = { outcome: "ok", value: { name:
 
 const UNAVAILABLE: Result<Toolchain, RunnerFailure> = {
   outcome: "failed",
-  error: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
+  error: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
 };
 
 const REPO = absolutePathSchema.parse("/repo");
@@ -95,7 +95,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
     expect({
       exceptionPath: bound.exceptionPath,
       projectedKinds: bound.projectedKinds,
-      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, declaredConfigRoots: [], records: [] }),
+      run: await bound.run({ ...RUN, declaredConfigRoots: [], records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,
@@ -117,7 +117,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
       runnerOf,
     });
     expect({
-      run: await bound.run({ ...RUN, projectedClauses: RUN.clauses, declaredConfigRoots: [], records: [] }),
+      run: await bound.run({ ...RUN, declaredConfigRoots: [], records: [] }),
       conform: await bound.conform({ clause: CLAUSE, cases: [] }),
       project: await bound.project(PROJECTION),
       built: runnerOf.mock.calls.length,

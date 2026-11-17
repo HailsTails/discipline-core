@@ -14,11 +14,12 @@ import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.t
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
-import { repoPathSchema } from "../../../core/values/repo-path.ts";
+import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { createEslintRunner, type EslintRunnerPorts } from "./create-eslint-runner.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type {
+  ConfigFileSearch,
   EslintPort,
   GovernanceInstance,
   IgnoredState,
@@ -272,12 +273,23 @@ const queryOver = (request: {
 }): QueryInstance => ({
   ignoredState: ({ file }) => Promise.resolve({ outcome: "ok", value: request.ignored[file] }),
   ruleState: ({ file, ruleId }) => Promise.resolve({ outcome: "ok", value: request.states[`${file} ${ruleId}`] }),
+  configFileOf: () => Promise.resolve(CONFIG_UNKNOWN),
 });
 
 const failingQuery = (failure: RunnerFailure): QueryInstance => ({
   ignoredState: () => Promise.resolve({ outcome: "failed", error: failure }),
   ruleState: () => Promise.resolve({ outcome: "failed", error: failure }),
+  configFileOf: () => Promise.resolve(CONFIG_UNKNOWN),
 });
+
+const CONFIG_UNKNOWN: ConfigFileSearch = { kind: "unknown" };
+
+const configFailingQuery = (request: { readonly search: ConfigFileSearch; readonly detail: string }): QueryInstance => ({
+  ...failingQuery({ kind: "team-config-unloadable", detail: request.detail }),
+  configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(request.search),
+});
+
+const UNEXPECTED_TOKEN = "Unexpected token ';'";
 
 const CHECKED: Readonly<Record<string, IgnoredState>> = { "src/a.ts": "checked", "src/factory.ts": "checked" };
 
@@ -301,6 +313,10 @@ const lintResolving = (outcome: Result<readonly LintedFile[], RunnerFailure>) =>
 
 const CLASS_MESSAGE: LintedMessage = { ruleId: RULE_ID, line: 3, column: 3, message: "class authored" };
 
+const FORTY_BUNDLED = "var a=1;var b=2;var c=3;var d=4;var e=5;";
+
+const LIMIT_LONG_LINE = `${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}${FORTY_BUNDLED}`;
+
 const CLEAN_LINT = lintResolving({ outcome: "ok", value: linted({ messagesInA: [] }) });
 
 const HIT_IN_A = {
@@ -319,6 +335,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
   };
   return {
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(parts.query),
+    ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
     createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>().mockReturnValue({
       lintFiles: parts.lintFiles,
     }),
@@ -347,7 +364,6 @@ const runRequest = (request: {
   files: FILES,
   trackedPaths: FILES,
   clauses: request.clauses,
-  projectedClauses: request.clauses,
   records: request.records,
 });
 
@@ -595,6 +611,109 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
   });
 });
 
+const FIXTURE_B = repoPathSchema.parse("fixtures/bad/b.ts");
+const FIXTURE_C = repoPathSchema.parse("fixtures/bad/c.ts");
+
+const ROOT_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/eslint.config.mjs" };
+const BROKEN_FIXTURE_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/fixtures/bad/eslint.config.mjs" };
+
+const FILE_CHECKED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "checked" };
+const FILE_IGNORED: Result<IgnoredState, RunnerFailure> = { outcome: "ok", value: "ignored" };
+const CONFIG_UNLOADABLE: Result<IgnoredState, RunnerFailure> = {
+  outcome: "failed",
+  error: { kind: "team-config-unloadable", detail: UNEXPECTED_TOKEN },
+};
+
+const lookupQuery = (request: {
+  readonly ignored: Readonly<Record<string, Result<IgnoredState, RunnerFailure>>>;
+  readonly configs: Readonly<Record<string, ConfigFileSearch>>;
+}): QueryInstance => ({
+  ignoredState: ({ file }) => Promise.resolve(request.ignored[file]),
+  ruleState: () => Promise.resolve({ outcome: "ok", value: ERROR }),
+  configFileOf: ({ file }) => Promise.resolve(request.configs[file]),
+});
+
+const eslintAsking = (request: {
+  readonly query: QueryInstance;
+  readonly ignoredByConfig: EslintPort["ignoredByConfig"];
+}): EslintPort => ({
+  ...eslintOver({
+    query: request.query,
+    lintFiles: lintResolving({ outcome: "ok", value: [{ filePath: "/repo/src/a.ts", messages: [] }] }),
+  }),
+  ignoredByConfig: request.ignoredByConfig,
+});
+
+const runOver = (request: { readonly files: readonly RepoPath[] }) => ({ ...CLASS_RUN, files: request.files, trackedPaths: request.files });
+
+const FIXTURE_RUN = runOver({ files: [FILE_A, FIXTURE_B] });
+
+const TEAM_WITH_BROKEN_FIXTURE = lookupQuery({
+  ignored: { "src/a.ts": FILE_CHECKED, "fixtures/bad/b.ts": CONFIG_UNLOADABLE, "fixtures/bad/c.ts": CONFIG_UNLOADABLE },
+  configs: { "fixtures/bad/b.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad/c.ts": BROKEN_FIXTURE_CONFIG, "fixtures/bad": ROOT_CONFIG },
+});
+
+const ROOT_ASKED = { configFile: "/repo/eslint.config.mjs", cwd: "/repo" };
+
+describe("the governance run, step 3: a broken nested ESLint config in a folder the root config ignores", () => {
+  it("reports the file as an ignore native exception, the way the team's ESLint never loads that config", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    const report = await runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(FIXTURE_RUN);
+    expect({ report, asked: ignoredByConfig.mock.calls }).toEqual({
+      report: {
+        outcome: "ok",
+        value: {
+          hits: [],
+          nativeExceptions: [{ kind: "ignore", clause: CLASS_SYNTAX_OBJECT, file: "fixtures/bad/b.ts" }],
+          projection: "current",
+          slices: [],
+        },
+      },
+      asked: [[{ ...ROOT_ASKED, path: "fixtures/bad/hone-folder-probe" }], [{ ...ROOT_ASKED, path: "fixtures/bad/b.ts" }]],
+    });
+  });
+
+  it("asks the root config about the broken config's folder once for every file under it", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED);
+    await runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(
+      runOver({ files: [FILE_A, FIXTURE_B, FIXTURE_C] }),
+    );
+    expect(ignoredByConfig.mock.calls).toEqual([
+      [{ ...ROOT_ASKED, path: "fixtures/bad/hone-folder-probe" }],
+      [{ ...ROOT_ASKED, path: "fixtures/bad/b.ts" }],
+      [{ ...ROOT_ASKED, path: "fixtures/bad/c.ts" }],
+    ]);
+  });
+});
+
+describe("the governance run, step 3: a broken ESLint config the team's ESLint does load", () => {
+  it("stays team-config-unloadable, asking for the fix first, when the root config does not ignore the folder", async () => {
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_CHECKED);
+    await expect(
+      runnerOver({ eslint: eslintAsking({ query: TEAM_WITH_BROKEN_FIXTURE, ignoredByConfig }) }).run(FIXTURE_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "fixtures/bad/eslint.config.mjs, the ESLint config for fixtures/bad/b.ts, failed to load: Unexpected token ';'. Fix that config. Only if fixtures/bad holds nothing Hone should check, add it to exclude in disciplines.json instead.",
+      },
+    });
+  });
+
+  it("asks no governing config when the config that failed to load is the repository root's", async () => {
+    const team: QueryInstance = {
+      ...lookupQuery({ ignored: { "src/a.ts": CONFIG_UNLOADABLE, "src/factory.ts": CONFIG_UNLOADABLE }, configs: {} }),
+      configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(ROOT_CONFIG),
+    };
+    const ignoredByConfig = vi.fn<EslintPort["ignoredByConfig"]>();
+    await runnerOver({ eslint: eslintAsking({ query: team, ignoredByConfig }) }).run(CLASS_RUN);
+    expect({ asked: ignoredByConfig.mock.calls, lookups: vi.mocked(team.configFileOf).mock.calls }).toEqual({
+      asked: [],
+      lookups: [[{ file: "src/a.ts" }], [{ file: "src/factory.ts" }]],
+    });
+  });
+});
 describe("the governance run, step 3: the projection in effect", () => {
   it("builds the query instance on the repository root", async () => {
     const eslint = eslintOver({});
@@ -602,14 +721,66 @@ describe("the governance run, step 3: the projection in effect", () => {
     expect(vi.mocked(eslint.createQueryInstance).mock.calls).toEqual([[{ repoRoot: "/repo" }]]);
   });
 
-  it("passes team-config-unloadable through from the query instance", async () => {
+  it("names the file whose ESLint config failed to load when ESLint cannot say which config it was", async () => {
     await expect(
-      runnerOver({
-        eslint: eslintOver({ query: failingQuery({ kind: "team-config-unloadable", detail: "eslint.config.mjs threw" }) }),
-      }).run(CLASS_RUN),
-    ).resolves.toEqual({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "eslint.config.mjs threw" } });
+      runnerOver({ eslint: eslintOver({ query: configFailingQuery({ search: CONFIG_UNKNOWN, detail: UNEXPECTED_TOKEN }) }) }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "the ESLint config for src/a.ts failed to load: Unexpected token ';'. Fix that config." },
+    });
   });
 
+  it("leads with fixing a nested ESLint config that failed to load, and offers exclude only for a folder holding nothing Hone should check", async () => {
+    const query = configFailingQuery({ search: { kind: "found", path: "/repo/fixtures/broken/eslint.config.mjs" }, detail: UNEXPECTED_TOKEN });
+    await expect(runnerOver({ eslint: eslintOver({ query }) }).run(CLASS_RUN)).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "fixtures/broken/eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config. Only if fixtures/broken holds nothing Hone should check, add it to exclude in disciplines.json instead.",
+      },
+    });
+    expect(query.configFileOf).toHaveBeenCalledWith({ file: "src/a.ts" });
+  });
+
+  it("asks only for a fix when the config that failed to load is the repository root's", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({ query: configFailingQuery({ search: { kind: "found", path: "/repo/eslint.config.mjs" }, detail: UNEXPECTED_TOKEN }) }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Unexpected token ';'. Fix that config." },
+    });
+  });
+
+  it("does not repeat the full stop of an ESLint message that ends in one", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({
+          query: configFailingQuery({ search: { kind: "found", path: "/repo/eslint.config.mjs" }, detail: "Config file is not an array." }),
+        }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "eslint.config.mjs, the ESLint config for src/a.ts, failed to load: Config file is not an array. Fix that config." },
+    });
+  });
+
+  it("asks for a config that spreads the projection when no ESLint config applies to the file at all", async () => {
+    await expect(
+      runnerOver({
+        eslint: eslintOver({ query: configFailingQuery({ search: { kind: "none" }, detail: "Could not find config file." }) }),
+      }).run(CLASS_RUN),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "no eslint.config.* applies to src/a.ts. Create one at the repository root that spreads disciplines.eslint.mjs last, as ADOPTING.md step 4a shows.",
+      },
+    });
+  });
   it("passes plugin-conflict through from the query instance", async () => {
     await expect(
       runnerOver({
@@ -764,7 +935,6 @@ describe("the governance run, step 4: the governance instance", () => {
             }),
           },
           rules: [{ ruleId: RULE_ID, options: [] }],
-          watchedRuleIds: [RULE_ID],
         },
       ],
     ]);
@@ -903,6 +1073,28 @@ describe("the governance run, step 5: messages", () => {
           { ...HIT_IN_A, anchor: { line: 2, column: 2 }, snippet: "second;" },
           { ...HIT_IN_A, anchor: { line: 3, column: 2 }, snippet: "third;" },
         ],
+        nativeExceptions: [],
+        projection: "current",
+        slices: [],
+      },
+    });
+  });
+
+  it("starts the snippet of a line longer than the snippet limit at the finding's column, so a bundled line shows the flagged code, marked as cut at its start", async () => {
+    const { fileText } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: `  ${LIMIT_LONG_LINE}class Flagged {}\n`,
+    });
+    const report = await runnerOver({
+      fileText,
+      eslint: eslintOver({
+        lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [{ ...CLASS_MESSAGE, line: 1, column: 203 }] }) }),
+      }),
+    }).run(CLASS_RUN);
+    expect(report).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [{ ...HIT_IN_A, anchor: { line: 1, column: 202 }, snippet: "…class Flagged {}" }],
         nativeExceptions: [],
         projection: "current",
         slices: [],
@@ -1778,7 +1970,6 @@ const windowsRun = (request: { readonly pieceRoot: string }) => ({
   files: FILES,
   trackedPaths: [],
   clauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
-  projectedClauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
   records: [],
 });
 
@@ -1923,125 +2114,6 @@ describe("plugin namespace ownership", () => {
 
   it("still accepts Hone's own namespaces for the shared rule set", async () => {
     await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({ outcome: "ok" });
-  });
-});
-
-const LOOPS_WAIVER: ExceptionRecord = { ...CLAUSE_WIDE, clause: FOR_OF };
-
-const LOOPS_WAIVED_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
-import piece1 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
-
-export default [
-  {
-    name: "hone-core/piece/hone",
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "hone": piece0 },
-    rules: { "hone/no-class-authoring": "error" },
-  },
-  {
-    name: "hone-core/piece/loops",
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "loops": piece1 },
-    rules: { "loops/no-for-of": "error" },
-  },
-  {
-    name: "hone-core/clause-wide-carve-out/CD-15#for-of",
-    rules: { "loops/no-for-of": "off" },
-  },
-];
-`;
-
-const LOOPS_WAIVED_QUERY = queryOver({
-  ignored: CHECKED,
-  states: {
-    [`src/a.ts ${RULE_ID}`]: ERROR,
-    [`src/factory.ts ${RULE_ID}`]: ERROR,
-    [`src/a.ts ${LOOPS_RULE_ID}`]: OFF,
-    [`src/factory.ts ${LOOPS_RULE_ID}`]: OFF,
-  },
-});
-
-const LOOPS_NOT_RUN = {
-  ...runRequest({ clauses: [CLASS_CLAUSE], records: [LOOPS_WAIVER] }),
-  projectedClauses: [CLASS_CLAUSE, LOOPS_CLAUSE],
-};
-
-const loopsWaivedRunner = (request: { readonly eslint: EslintPort }) =>
-  runnerOver({ fileText: projectionHolding({ text: LOOPS_WAIVED_PROJECTION }), eslint: request.eslint });
-
-const LOOPS_OVERRIDES = [
-  { kind: "config-override", clause: FOR_OF_OBJECT, file: "src/a.ts" },
-  { kind: "config-override", clause: FOR_OF_OBJECT, file: "src/factory.ts" },
-];
-
-const LOOP_MESSAGE: LintedMessage = { ruleId: LOOPS_RULE_ID, line: 3, column: 3, message: "for-of loop" };
-
-describe("the governance run, a projected clause it does not run", () => {
-  it("registers and watches every projected rule but switches on only the rules it runs", async () => {
-    const eslint = eslintOver({ query: LOOPS_WAIVED_QUERY });
-    await loopsWaivedRunner({ eslint }).run(LOOPS_NOT_RUN);
-    expect(vi.mocked(eslint.createGovernanceInstance).mock.calls).toEqual([
-      [
-        {
-          repoRoot: "/repo",
-          plugins: { "hone": expect.objectContaining({ rules: expect.anything() }), "loops": expect.objectContaining({ rules: expect.anything() }) },
-          rules: [{ ruleId: RULE_ID, options: [] }],
-          watchedRuleIds: [RULE_ID, LOOPS_RULE_ID],
-        },
-      ],
-    ]);
-  });
-
-  it("is current when the projection holds every projected clause and the waiver's off block", async () => {
-    await expect(loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY }) }).run(LOOPS_NOT_RUN)).resolves.toEqual({
-      outcome: "ok",
-      value: { hits: [], nativeExceptions: LOOPS_OVERRIDES, projection: "current", slices: [] },
-    });
-  });
-
-  it("is out-of-date when the projection lacks the clause it does not run", async () => {
-    await expect(
-      runnerOver({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY }) }).run(LOOPS_NOT_RUN),
-    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "out-of-date" } });
-  });
-
-  it("is not-included when the configuration turns the clause it does not run back on", async () => {
-    await expect(loopsWaivedRunner({ eslint: eslintOver({}) }).run(LOOPS_NOT_RUN)).resolves.toEqual(NOT_INCLUDED);
-  });
-
-});
-
-describe("the governance run, messages of a projected clause it does not run", () => {
-  it("reports no hit for a message of the clause it does not run", async () => {
-    const lintFiles = lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE, LOOP_MESSAGE] }) });
-    await expect(
-      loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY, lintFiles }) }).run(LOOPS_NOT_RUN),
-    ).resolves.toEqual({ outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: LOOPS_OVERRIDES, projection: "current", slices: [] } });
-  });
-
-  it("attributes an inline rule config that switches the clause it does not run back on, reporting none of its hits", async () => {
-    const inline: LintedMessage = {
-      ruleId: "hone-core/inline-config",
-      messageId: "inline-rule-config",
-      line: 2,
-      column: 1,
-      message: '/* eslint loops/no-for-of: "error" */',
-    };
-    const lintFiles = lintResolving({ outcome: "ok", value: linted({ messagesInA: [inline, LOOP_MESSAGE] }) });
-    await expect(
-      loopsWaivedRunner({ eslint: eslintOver({ query: LOOPS_WAIVED_QUERY, lintFiles }) }).run(LOOPS_NOT_RUN),
-    ).resolves.toEqual({
-      outcome: "ok",
-      value: {
-        hits: [],
-        nativeExceptions: [
-          ...LOOPS_OVERRIDES,
-          { kind: "inline-rule-config", clause: FOR_OF_OBJECT, file: "src/a.ts", line: 2, text: '/* eslint loops/no-for-of: "error" */' },
-        ],
-        projection: "current",
-        slices: [],
-      },
-    });
   });
 });
 
@@ -2221,7 +2293,8 @@ describe("package projection slices, not applied in one package of several", () 
   });
 });
 
-describe("package projection slices, projected", () => {  it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
+describe("package projection slices, projected", () => {
+  it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
     const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
@@ -2244,84 +2317,6 @@ describe("package projection slices, projected", () => {  it("projects the root 
         [{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_SLICE }],
       ],
     });
-  });
-});
-
-const PACKAGE_A_LOOPS_WAIVED_SLICE = `import piece0 from "../../node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
-import piece1 from "../../node_modules/@hailstails/hone/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
-
-export default [
-  {
-    name: "hone-core/piece/hone",
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "hone": piece0 },
-    rules: { "hone/no-class-authoring": "error" },
-  },
-  {
-    name: "hone-core/piece/loops",
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "loops": piece1 },
-    rules: { "loops/no-for-of": "error" },
-  },
-  {
-    name: "hone-core/clause-wide-carve-out/CD-15#for-of",
-    rules: { "loops/no-for-of": "off" },
-  },
-];
-`;
-
-const PACKAGE_A_RUNNING_ONLY_SLICE = `import piece0 from "../../node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
-
-export default [
-  {
-    name: "hone-core/piece/hone",
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "hone": piece0 },
-    rules: { "hone/no-class-authoring": "error" },
-  },
-];
-`;
-
-const waivedPackageRunner = (request: { readonly slice: string }) =>
-  runnerOver({
-    fileText: repoHolding({
-      projection: LOOPS_WAIVED_PROJECTION,
-      files: { [PACKAGE_A_SLICE_PATH]: presentFile({ text: request.slice }) },
-    }),
-    eslint: eslintOver({ query: LOOPS_WAIVED_QUERY }),
-  });
-
-const LOOPS_NOT_RUN_WITH_PACKAGE = { ...LOOPS_NOT_RUN, trackedPaths: [...FILES, PACKAGE_A_CONFIG] };
-
-describe("package projection slices with a waived clause", () => {
-  it("judges a package slice against every projected clause, so a slice holding the waived rule and its off block is current", async () => {
-    await expect(waivedPackageRunner({ slice: PACKAGE_A_LOOPS_WAIVED_SLICE }).run(LOOPS_NOT_RUN_WITH_PACKAGE)).resolves.toMatchObject({
-      outcome: "ok",
-      value: { projection: "current", slices: [] },
-    });
-  });
-
-  it("names a package slice out of date when it holds only the clauses that run", async () => {
-    await expect(waivedPackageRunner({ slice: PACKAGE_A_RUNNING_ONLY_SLICE }).run(LOOPS_NOT_RUN_WITH_PACKAGE)).resolves.toMatchObject({
-      outcome: "ok",
-      value: { projection: "current", slices: [{ slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" }] },
-    });
-  });
-
-  it("projects the waived clause and its clause-wide off block into every slice, as into the root", async () => {
-    const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
-    await runnerOver({ fileText }).project({
-      repoRoot: REPO_ROOT,
-      installRoot: INSTALL_ROOT,
-      declaredConfigRoots: [],
-      trackedPaths: [PACKAGE_A_CONFIG],
-      clauses: [CLASS_CLAUSE, LOOPS_CLAUSE],
-      records: [LOOPS_WAIVER],
-    });
-    expect(vi.mocked(fileText.write).mock.calls).toEqual([
-      [{ path: PROJECTION_PATH, text: LOOPS_WAIVED_PROJECTION }],
-      [{ path: PACKAGE_A_SLICE_PATH, text: PACKAGE_A_LOOPS_WAIVED_SLICE }],
-    ]);
   });
 });
 
@@ -2405,18 +2400,20 @@ const IGNORED_FIXTURE_FILES: Readonly<Record<string, FakeFile>> = {
   "/repo/fixtures/broken/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
 };
 
-const fixtureQuery = (request: { readonly fixture: IgnoredState }) =>
-  queryOver({
-    ignored: { ...CHECKED, "fixtures/broken/eslint.config.mjs": request.fixture },
-    states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: ERROR },
-  });
+const FIXTURE_TEAM = lookupQuery({
+  ignored: { "src/a.ts": FILE_CHECKED, "src/factory.ts": FILE_CHECKED },
+  configs: { "fixtures/broken": ROOT_CONFIG },
+});
+
+const fixtureEslint = (request: { readonly folder: Result<IgnoredState, RunnerFailure> }) =>
+  eslintAsking({ query: FIXTURE_TEAM, ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(request.folder) });
 
 describe("package projection slices, under a folder the team's config ignores", () => {
   it("requires no slice for a config root a governing config ignores, since the team's ESLint never loads it", async () => {
     await expect(
       runnerOver({
         fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
-        eslint: eslintOver({ query: fixtureQuery({ fixture: "ignored" }) }),
+        eslint: fixtureEslint({ folder: FILE_IGNORED }),
       }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
     ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
   });
@@ -2425,7 +2422,7 @@ describe("package projection slices, under a folder the team's config ignores", 
     await expect(
       runnerOver({
         fileText: repoHolding({ projection: ENABLING_PROJECTION, files: IGNORED_FIXTURE_FILES }),
-        eslint: eslintOver({ query: fixtureQuery({ fixture: "checked" }) }),
+        eslint: fixtureEslint({ folder: FILE_CHECKED }),
       }).run({ ...CLASS_RUN, trackedPaths: [...FILES, FIXTURE_CONFIG] }),
     ).resolves.toMatchObject({
       outcome: "ok",
@@ -2435,7 +2432,7 @@ describe("package projection slices, under a folder the team's config ignores", 
 
   it("projects no slice into a folder a governing config ignores", async () => {
     const fileText = fileTextOver({ ...SOURCE_FILES, ...IGNORED_FIXTURE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
-    await runnerOver({ fileText, eslint: eslintOver({ query: fixtureQuery({ fixture: "ignored" }) }) }).project({
+    await runnerOver({ fileText, eslint: fixtureEslint({ folder: FILE_IGNORED }) }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
       declaredConfigRoots: [],
@@ -2459,10 +2456,59 @@ describe("package projection slices, under a folder the team's config ignores", 
       }),
       eslint,
     }).run(PACKAGE_RUN);
-    expect(eslint.createQueryInstance).toHaveBeenCalledTimes(1);
+    expect({ queries: vi.mocked(eslint.createQueryInstance).mock.calls.length, asked: vi.mocked(eslint.ignoredByConfig).mock.calls }).toEqual({
+      queries: 1,
+      asked: [],
+    });
   });
 });
 
+const NESTED_SELECTION = repoPathSchema.parse("packages/b/disciplines.json");
+const NESTED_CONFIG = repoPathSchema.parse("packages/b/eslint.config.mjs");
+const NESTED_FILE = repoPathSchema.parse("packages/b/src/old.ts");
+
+const NESTED_RUN = {
+  ...runRequest({ clauses: [CLASS_CLAUSE], records: [{ ...FACTORY_LOCATION, file: NESTED_FILE }] }),
+  files: [...FILES, NESTED_FILE],
+  trackedPaths: [...FILES, NESTED_FILE, NESTED_SELECTION],
+};
+
+const NESTED_SKIPPED = { slice: "packages/b/disciplines.eslint.mjs", state: "nested-configuration" };
+
+const nestedQuery = queryOver({
+  ignored: { ...CHECKED, "packages/b/src/old.ts": "checked" },
+  states: { [`src/a.ts ${RULE_ID}`]: ERROR, [`src/factory.ts ${RULE_ID}`]: ERROR, [`packages/b/src/old.ts ${RULE_ID}`]: OFF },
+});
+
+describe("package projection slices, a folder holding its own disciplines.json", () => {
+  it("names the skipped folder's slice when a file under check there has a file exception", async () => {
+    await expect(
+      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run(NESTED_RUN),
+    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [NESTED_SKIPPED] } });
+  });
+
+  it("names the skipped folder's slice when a file under check there sits beside a tracked eslint.config", async () => {
+    await expect(
+      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run({
+        ...NESTED_RUN,
+        records: [],
+        trackedPaths: [...NESTED_RUN.trackedPaths, NESTED_CONFIG],
+      }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [NESTED_SKIPPED] } });
+  });
+
+  it("names nothing for a skipped folder with no file under check", async () => {
+    await expect(
+      runnerOver({}).run({ ...NESTED_RUN, files: FILES, trackedPaths: [...NESTED_RUN.trackedPaths, NESTED_CONFIG] }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [] } });
+  });
+
+  it("names nothing for a skipped folder whose files under check have no exception and no eslint.config beside them", async () => {
+    await expect(
+      runnerOver({ eslint: eslintOver({ query: nestedQuery }) }).run({ ...NESTED_RUN, records: [] }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { slices: [] } });
+  });
+});
 describe("package projection slices, a run that cannot finish", () => {
   it("writes and removes nothing when one slice cannot be rendered", async () => {
     const fileText = fileTextOver({

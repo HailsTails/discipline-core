@@ -59,6 +59,13 @@ describe("clauseIdSchema", () => {
 });
 
 describe("mechanismIdSchema", () => {
+  it("refuses not-run, which disciplines.json reserves for a clause adopted with its mechanism not run", () => {
+    expect(mechanismIdSchema.safeParse("not-run")).toMatchObject({
+      success: false,
+      error: { issues: [expect.objectContaining({ message: expect.stringContaining("\"not-run\" is reserved for a clause adopted with its mechanism not run") })] },
+    });
+  });
+
   it("refuses not-adopted, which disciplines.json reserves for a clause a repository does not adopt", () => {
     expect(mechanismIdSchema.safeParse("not-adopted")).toMatchObject({
       success: false,

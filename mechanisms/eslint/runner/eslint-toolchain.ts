@@ -1,6 +1,6 @@
 import type typescriptEslintPlugin from "@typescript-eslint/eslint-plugin";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
-import { loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../../../core/mechanism-port/toolchain-requirement.ts";
+import { gatheredPeerFailure, installedPeer, loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../../../core/mechanism-port/toolchain-requirement.ts";
 import { createDefaultPackageLocationPort } from "../../../core/platform-ports/package-location-port.ts";
 import type { InstallForm } from "../../../core/values/install-layout.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -55,51 +55,64 @@ export const defaultEslintToolchainPeers = (options: { readonly installRoot: str
   location: createDefaultPackageLocationPort(options),
   modules: defaultEslintToolchainModules,
 });
-const afterLoaded = <Loaded, Next>(request: {
-  readonly loaded: ToolchainLoad<Loaded>;
-  readonly next: (loaded: Loaded) => ToolchainLoad<Next>;
-}): ToolchainLoad<Next> =>
-  request.loaded.then((loaded) => (loaded.outcome === "failed" ? loaded : request.next(loaded.value)));
 
-const loadedToolchainOn = (request: {
-  readonly peers: EslintToolchainPeers;
-  readonly eslint: EslintModule;
-  readonly typescriptParser: TypescriptParser;
-}): ToolchainLoad<EslintToolchain> =>
-  afterLoaded({
-    loaded: loadedPeer({
-      requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT,
-      location: request.peers.location,
-      load: request.peers.modules.typescriptEslintPlugin,
-      versionOf: (plugin) => plugin.default.meta.version,
-    }),
-    next: () =>
-      Promise.resolve({
-        outcome: "ok",
-        value: {
-          eslintVersion: request.eslint.ESLint.version,
-          createEslint: createEslintOn({ eslintClass: request.eslint.ESLint }),
-          typescriptParser: request.typescriptParser,
-        },
-      }),
+const failureOf = <Loaded>(request: { readonly loaded: Result<Loaded, RunnerFailure> }): readonly RunnerFailure[] =>
+  request.loaded.outcome === "failed" ? [request.loaded.error] : [];
+
+const failedWith = (request: { readonly failures: readonly [RunnerFailure, ...RunnerFailure[]] }): Result<never, RunnerFailure> => ({
+  outcome: "failed",
+  error: gatheredPeerFailure({ failures: request.failures }),
+});
+
+const toolchainOf = (request: {
+  readonly eslint: Result<EslintModule, RunnerFailure>;
+  readonly typescriptParser: Result<TypescriptParser, RunnerFailure>;
+  readonly typescriptEslintPlugin: Result<TypescriptEslintPluginModule, RunnerFailure>;
+}): Result<EslintToolchain, RunnerFailure> => {
+  if (request.eslint.outcome === "failed") {
+    return failedWith({ failures: [request.eslint.error, ...failureOf({ loaded: request.typescriptParser }), ...failureOf({ loaded: request.typescriptEslintPlugin })] });
+  }
+  if (request.typescriptParser.outcome === "failed") {
+    return failedWith({ failures: [request.typescriptParser.error, ...failureOf({ loaded: request.typescriptEslintPlugin })] });
+  }
+  if (request.typescriptEslintPlugin.outcome === "failed") {
+    return failedWith({ failures: [request.typescriptEslintPlugin.error] });
+  }
+  return {
+    outcome: "ok",
+    value: {
+      eslintVersion: request.eslint.value.ESLint.version,
+      createEslint: createEslintOn({ eslintClass: request.eslint.value.ESLint }),
+      typescriptParser: request.typescriptParser.value,
+    },
+  };
+};
+
+export const loadEslintToolchain = (request: { readonly peers: EslintToolchainPeers }): ToolchainLoad<EslintToolchain> => {
+  const eslint = loadedPeer({
+    requirement: ESLINT_REQUIREMENT,
+    location: request.peers.location,
+    load: request.peers.modules.eslint,
+    versionOf: (module) => module.ESLint.version,
   });
-
-export const loadEslintToolchain = (request: { readonly peers: EslintToolchainPeers }): ToolchainLoad<EslintToolchain> =>
-  afterLoaded({
-    loaded: loadedPeer({
-      requirement: ESLINT_REQUIREMENT,
-      location: request.peers.location,
-      load: request.peers.modules.eslint,
-      versionOf: (eslint) => eslint.ESLint.version,
-    }),
-    next: (eslint) =>
-      afterLoaded({
-        loaded: loadedPeer({
-          requirement: TYPESCRIPT_ESLINT_PARSER_REQUIREMENT,
+  const typescriptParser = loadedPeer({
+    requirement: TYPESCRIPT_ESLINT_PARSER_REQUIREMENT,
+    location: request.peers.location,
+    load: request.peers.modules.typescriptParser,
+    versionOf: (parser) => parser.version,
+  });
+  return Promise.all([eslint, typescriptParser]).then(([loadedEslint, loadedParser]) =>
+    loadedEslint.outcome === "ok"
+      ? loadedPeer({
+          requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT,
           location: request.peers.location,
-          load: request.peers.modules.typescriptParser,
-          versionOf: (parser) => parser.version,
-        }),
-        next: (typescriptParser) => loadedToolchainOn({ peers: request.peers, eslint, typescriptParser }),
-      }),
-  });
+          load: request.peers.modules.typescriptEslintPlugin,
+          versionOf: (plugin) => plugin.default.meta.version,
+        }).then((loadedPlugin) => toolchainOf({ eslint: loadedEslint, typescriptParser: loadedParser, typescriptEslintPlugin: loadedPlugin }))
+      : installedPeer({ requirement: TYPESCRIPT_ESLINT_PLUGIN_REQUIREMENT, location: request.peers.location }).then((installedPlugin) =>
+          failedWith({
+            failures: [loadedEslint.error, ...failureOf({ loaded: loadedParser }), ...failureOf({ loaded: installedPlugin })],
+          }),
+        ),
+  );
+};

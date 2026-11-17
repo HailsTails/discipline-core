@@ -76,9 +76,9 @@ Commit `package.json`, the lockfile and the tarball if it is a file in the repos
 
 ## 3. Read what each discipline means
 
-[rules/README.md](rules/README.md) lists every discipline. Each `rules/<ID>/README.md` quotes the rule, says exactly what its check flags, shows a violation and its fix, and says how to record an exception. A discipline's clause addresses are in its README's Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the page names (step 9).
+[rules/README.md](rules/README.md) lists every discipline. Each discipline has two pages. `rules/<ID>/README.md` quotes the rule, names its review lens, and gives its spirit: what the friction is for, what a finding usually points at, the direction to go, and the principles behind it. `rules/<ID>/CHECKS.md` holds the mechanics: the Clauses table, exactly what each check flags, a violation and its fix, and how to record an exception. Read the rule page first; [the spirit of the rules](rules/SPIRIT.md) explains the approach for the whole set. A discipline's clause addresses are in its CHECKS.md Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the rule page names (step 9).
 
-A check covers only what its page says it flags. Read the whole rule, not only the Clauses table: where a rule asks for more than its check can see, the page says which part is left to review, and the page's review lens covers that part.
+A check covers only what its CHECKS.md says it flags. Read the whole rule, not only the Clauses table: where a rule asks for more than its check can see, CHECKS.md says which part is left to review, and the rule's review lens covers that part.
 
 Where to start: for an API, boundary validation (CD-4, CD-45), result-shaped failures (CD-9, CD-10, CD-11) and inward dependency direction (CD-12, CD-13) are useful next selections, most of them judgement rules. For React, first select the type and test disciplines that apply to component code; do not apply server ports or process-lifecycle rules to browser code.
 
@@ -98,13 +98,20 @@ Create `<repo>/disciplines.json`. Map every clause you adopt to the mechanism th
 }
 ```
 
-- `clauses` keys are clause addresses from the rules pages; the value is a mechanism the clause's rules page lists, `audit` or `eslint`, or `"not-adopted"`.
+- `clauses` keys are clause addresses from the rules' CHECKS.md pages; the value is a mechanism the clause's CHECKS.md lists, `audit` or `eslint`, `"not-run"` or `"not-adopted"`.
 - Selecting one clause of a discipline adopts the whole discipline: any of its other mechanical clauses you leave out are reported as `uncovered` and fail the run. CD-3 has seven clauses; select all seven or none.
-- A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). To leave such a clause out, list it as `"not-adopted"`; to defer it as tracked debt, list it with its mechanism and record a `clause-wide-carve-out` for it (step 7).
-- To adopt a discipline through one mechanism only, for example CD-6's `identifier-names` through `audit` without its ESLint-only `naming-convention`, list the clause you do not adopt as `"not-adopted"`: `"CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-adopted"`. That clause is never run and never projected, not even as `"off"`, so this adopter needs no ESLint installed; the report lists it under `notAdopted` and the run stays a whole assessment. No exception record is needed, and one on that clause is invalid as `clause-not-adopted`.
-- To keep a clause adopted but defer it as tracked debt with an owner, select it, record a `clause-wide-carve-out` with its why-chain, and set `"assessment": { "waivedClauses": "not-run" }` in `disciplines.json`. The waived clause is then never run, and a mechanism left with nothing to run is not loaded, so this adopter needs no ESLint installed. `hone project` still writes the waived clause's `"off"` block to the projection, and whenever ESLint runs for another clause the projection is still checked against every selected clause. The trade: in those runs the waiver is not judged `stale`, so it stays in force until you remove it, and every report says so in its `assessment` section.
+- A discipline may span mechanisms; adopt every mechanical clause through the mechanism that has it, or the discipline reports the rest uncovered. CD-14, for example, checks `class-syntax` through `audit` or `eslint` but `static-only-class` only through `eslint`, so adopting CD-14 means adopting the ESLint mechanism for at least that clause; see [README.md](README.md#adopting-the-eslint-mechanism). If ESLint cannot work in this repository, list such a clause as `"not-run"`, as below.
+- A clause's value in `clauses` is one of three:
+  - a mechanism id, such as `audit`: the check runs and its findings fail the run;
+  - `"not-run"`: the clause is adopted, but its mechanism is not run; the report lists it under `notRun` as `adopted, mechanism not run: enforced by review`;
+  - `"not-adopted"`: the clause is not adopted; the report lists it under `notAdopted`.
+- A `"not-run"` or `"not-adopted"` clause is never run and never projected, not even as `"off"`, and its mechanism is not loaded unless another clause uses it, so a repository that lists every ESLint clause this way needs no ESLint installed. Both leave the run a whole assessment. Neither takes an exception record: one on such a clause is invalid as `clause-not-run` or `clause-not-adopted`.
+- When a clause's check cannot simply run clean, [the spirit of the rules](rules/SPIRIT.md#not-adopted-not-run-carved-out-escaped) names three declared states. Choose one deliberately, with reasons:
+  - Not adopted: the rule does not apply to this codebase; a tech lead declares that, in the open. Set the clause to `"not-adopted"`.
+  - Adopted, mechanism not run: the rule binds, but its check is not a true measure of the rule's intent here, or cannot work here for a technical reason. The check is set aside; the intent is still owed, through review. Set the clause to `"not-run"`. CD-6's ESLint-only `naming-convention` in a repository without ESLint is the usual case: `"CD-6#identifier-names": "audit", "CD-6#naming-convention": "not-run"`.
+  - Clause-wide carve-out: the rule binds and its check is sound, but the codebase has debt it cannot address right now. Keep the clause's mechanism, so the clause still runs, and record the debt against it as a `clause-wide-carve-out` with its why-chain and an owner who will pay it down (step 7).
 - `exclude` lists folders or exact files, as repository paths with forward slashes; an entry containing `*` is refused, because globs are not supported. A folder entry excludes everything under it. Use it for generated or third-party code. `node_modules`, `dist`, `build`, `coverage`, `.git` and a top-level `vendor` folder are skipped already.
-- `clauseSettings` gives a clause the settings its rules page lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; CD-5's `trackerPatterns` narrows tracked references to your tracker's format. See [README.md](README.md#disciplinesjson).
+- `clauseSettings` gives a clause the settings its CHECKS.md lists under Settings, keyed by clause address. CD-19, for example, flags only imports of the packages you list in its `confinedPackages`; CD-5's `trackerPatterns` narrows tracked references to your tracker's format. See [README.md](README.md#disciplinesjson).
 - `ruleSets` stays `{}` unless you write disciplines of your own; see [docs/extending.md](docs/extending.md).
 
 Every clause address Hone ships:
@@ -142,18 +149,21 @@ Skip this if every selected clause is `audit`. Otherwise, after writing `discipl
 npm run --silent hone:project
 ```
 
-It prints `disciplines.eslint.mjs written`. Spread its default export last in the repository's flat config. A repository with no ESLint config yet can start from this `eslint.config.mjs`:
+It prints `disciplines.eslint.mjs written`. Spread its default export last in the repository's flat config. The projection sets rules only, so the config must also parse TypeScript, with the `@typescript-eslint/parser` that step 2 installs; without it the repository's own `eslint` run fails on the first type annotation while Hone's check still passes. A repository with no ESLint config yet can start from this `eslint.config.mjs`:
 
 ```js
+import typescriptParser from "@typescript-eslint/parser";
 import projection from "./disciplines.eslint.mjs";
 
 export default [
-  { files: ["**/*.{ts,tsx,mts,cts}"] },
+  { files: ["**/*.{ts,tsx,mts,cts}"], languageOptions: { parser: typescriptParser } },
   ...projection,
 ];
 ```
 
-In a monorepo where ESLint resolves each file from its nearest config, `hone:project` also writes a `disciplines.eslint.mjs` slice beside each package's tracked `eslint.config.*`, holding only that package's exceptions with paths relative to the package. Where one ESLint 9 run applies the root config to every file, package configs are never loaded and get no slice. A package config in a folder that a config above it ignores gets no slice either. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
+To confirm it, run the repository's own `eslint` on one TypeScript file with a type annotation, for example `node_modules/.bin/eslint src/index.ts` with a file of your own; it must report findings or nothing, never `Parsing error`.
+
+In a monorepo where ESLint resolves each file from its nearest config, `hone:project` also writes a `disciplines.eslint.mjs` slice beside each package's tracked `eslint.config.*`, holding only that package's exceptions with paths relative to the package. Where one ESLint 9 run applies the root config to every file, package configs are never loaded and get no slice. A package config in a folder that a config above it ignores gets no slice either. A folder holding its own `disciplines.json` gets no slice: nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)), and the check lists such a folder under `assessment` as `nested-configuration not-supported` when its files under check have a file exception or an `eslint.config.*`. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
 
 ```js
 import projection from "./disciplines.eslint.mjs";
@@ -200,7 +210,7 @@ npm run --silent hone:check
 | `1` | `verdict: fail`: the report says why |
 | `2` | an input could not be loaded or a check crashed; the output is one line starting `load failure:` or names the failing piece |
 
-`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names a toolchain package that is missing from the repository root or outside its range; install a version in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
+`npm run` passes the exit code through. `sh: hone: not found` or `'hone' is not recognized` means step 2's install is missing; run `npm install`. A `load failure: runner-failed <mechanism> toolchain-unavailable <package> ...` line names every toolchain package that is missing from the repository root or outside its range; install a version of each in the range it prints. For a `typescript` that is not installed, the line says the install is incomplete, since a supported install always has its required peer: add `typescript` to the root's `devDependencies` and reinstall. A `toolchain-shadowed <package> resolved from ...` line means a copy of that package sits inside Hone's own install folder, which the line names: delete that `node_modules` folder and reinstall.
 
 In CI, pass the branch's base so that debt recorded per file is forfeited once that file changes:
 
@@ -230,7 +240,54 @@ npm run --silent hone:check -- --base-revision <base-commit>
 
 The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
-Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in this file with their review lenses." Copying the rule pages does not make an agent read them; the instruction does.
+Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. When a check fails, read the section for the failing clause in `disciplines.assessment.md` and the Spirit section of the clause's rule page before changing anything; do not add an exception, exclusion or setting to make it pass. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in `disciplines.assessment.md` with their review lenses." Copying the rule pages does not make an agent read them; the instruction does. Step 5a writes `disciplines.assessment.md`.
+
+### 5a. Write the assessment
+
+The first run on an existing codebase usually fails, often with many findings. Each finding is a signal about the design: a missing boundary, an earlier choice that forces the workaround, a port wider than its use. Before fixing or recording anything, write down what the signals mean in this codebase, in `<repo>/disciplines.assessment.md`. Whoever later hits a red check then has more to go on than the assumption that the friction is unnecessary: the file says what that clause points at here and where the code is going.
+
+Each rule page's Spirit section lists the usual causes behind its findings. The assessment does not repeat them. It says which cause applies here, where, the forward goal in this codebase's terms, and the steps toward it.
+
+Start from the template the package ships:
+
+```bash
+cp node_modules/@hailstails/hone/methods/assessment-template.md disciplines.assessment.md
+```
+
+Fill the top sections: the rules adopted, the clauses not adopted because the rule does not apply here, the clauses adopted with their mechanism not run because the check is not a true measure here or cannot work here, and the judgement rules adopted (step 9). Step 4 says how each is declared in `disciplines.json`; the assessment says why.
+
+Then write one section per high-count clause. Hone has no threshold for this. A clause is high-count when its findings will not all be fixed in the change that adopts it: three findings in one file you fix today need no section; three findings in three folders you will not reach this week do.
+
+The assessment is usually drafted by a coding agent. Give it this instruction as it is:
+
+```text
+Draft disciplines.assessment.md from node_modules/@hailstails/hone/methods/assessment-template.md, using the latest hone:check report.
+
+For each clause in the report's findings section whose findings will not all be fixed in this change:
+1. Measure. Count its findings and group them by folder, by the value, library or dependency involved, and by the shape of the code.
+2. Read the code at several sites in each group, not only the report lines.
+3. Read the clause's rule page, node_modules/@hailstails/hone/rules/<ID>/README.md, in full, and its Spirit section closely.
+4. Match each group against the causes listed under "What a finding points at". Name the cause exactly as the rule names it. If no listed cause fits, say so and describe what the sites show; do not pick the closest.
+5. Write the clause's section from the template: the cause, the count and example sites as file:line, the forward goal in this codebase's terms, and the steps that change the code toward it, starting with the step that unlocks the others.
+
+Exclusions, exceptions, settings and not adopting a clause are never a cause, a goal or a step. The Debt line says how existing debt is held while the steps are taken; write it last, after the rest of the section. A section that gives only counts, or whose steps are about recording exceptions, is not done.
+
+Stop when every such clause has a section. Report the sections for review before changing code or recording exceptions.
+```
+
+Review the draft as you would a design: the causes and the goals are the decisions in it. Commit it beside `disciplines.json`. Record exceptions (step 7) only after the assessment, and note each in the clause's Debt line. Keep the file current: when steps land or a count changes, update the section; when a clause has no findings left, delete its section.
+
+A finished section reads like this:
+
+```markdown
+## CD-2#cast-expressions
+
+- **Cause here:** Parsing skipped at a boundary. Database rows are cast to domain types where they are read.
+- **Sites:** 118 at 3f1c2ab, in src/orders/ and src/billing/. For example src/orders/order-reader.ts:41, src/billing/invoice-reader.ts:17.
+- **Forward goal:** rows are parsed once in the storage port, and services receive typed orders and invoices.
+- **Steps:** 1. A schema per table read, in the storage port. 2. The port returns parsed types. 3. Delete the casts, one folder at a time.
+- **Debt:** held by the orders team; file carve-outs in discipline-exceptions.json, paid off as each file is touched.
+```
 
 ## 6. Read the report
 
@@ -241,31 +298,32 @@ The report prints only the sections that have entries, each with its count, then
 CD-15#loops audit src/basket.ts:15:0 for (const line of this.lines) {
 ```
 
-Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `exempted` and `assessment` is empty. The sections are:
+Lines are 1-based and columns 0-based. The run passes only when every section except `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` is empty. The sections are:
 
 | Section | Meaning and what to do |
 | --- | --- |
 | `excluded` | the `exclude` entries from `disciplines.json` that were left out of the run; informational, check it is what you meant |
 | `notAdopted` | the clauses `disciplines.json` lists as `"not-adopted"`; informational, they were neither run nor projected |
+| `notRun` | the clauses `disciplines.json` lists as `"not-run"`, each as `<clause> adopted, mechanism not run: enforced by review`; informational, they were neither run nor projected, and the rule is still owed through review |
 | `findings` | violations: fix the code, or record an exception (step 7) |
 | `exempted` | findings an exception covers; informational |
-| `uncovered` | a mechanical clause of an adopted discipline is not listed: add it to `disciplines.json` with a mechanism, or as `"not-adopted"` |
+| `uncovered` | a mechanical clause of an adopted discipline is not listed: add it to `disciplines.json` with a mechanism, `"not-run"` or `"not-adopted"` |
 | `stale` | an exception that no longer exempts anything: delete it |
 | `forfeited` | a file carve-out whose file changed since `--base-revision`: fix the file and delete the carve-out |
-| `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-adopted` for an entry on a clause listed as `"not-adopted"`: correct or delete it |
+| `invalidRecords` | an exception entry that cannot be accepted, with the reason, for example `clause-not-run` or `clause-not-adopted` for an entry on a clause listed as `"not-run"` or `"not-adopted"`: correct or delete it |
 | `doublyHeld` | a file both authorised and carved out for one clause: keep one |
 | `unmeasured` | something could not be measured, for example `forfeiture-unmeasured` when file carve-outs exist and no `--base-revision` was given |
-| `assessment` | a concern this run left to another run or did not run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run` or `waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming-convention eslint`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
+| `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 file carve-outs not checked for decay in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
 
-To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
+To print less, set `"reportOutput"` in `disciplines.json` for the repository, or pass `--report-output <output>` for one run, which wins over the file. `full` is the default and prints the report above; `failures-only` leaves out `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment`; `counts` prints only each section's heading and count, adding `informational` after `excluded`, `notAdopted`, `notRun`, `exempted` and `assessment` so every other line names a section that failed the run; `verdict-only` prints only the verdict line. Every output ends in the verdict line, and the exit code is the same whichever output you choose. An unknown value fails the run with exit `2`, as `arguments-invalid` for the option or `file-malformed` for the file.
 
 ## 7. Record exceptions
 
-Fix findings where you can. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
+Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section and the clause's section in `disciplines.assessment.md` (step 5a), then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
 - `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`.
-- `clause-wide-carve-out`: the clause is waived everywhere. Leaving the clause out of `clauses` is not an alternative: it leaves the clause `uncovered`. To not adopt the clause at all, list it as `"not-adopted"` (step 4) instead of recording a waiver. A clause-wide carve-out that exempts no finding is `stale`, so record one only while the clause still has findings, unless the repository sets `waivedClauses` to `not-run` (step 4), which skips the clause and does not judge the carve-out stale.
+- `clause-wide-carve-out`: debt across the whole clause. The rule binds and its check is sound, and the codebase cannot address the debt right now. Its why-chain records why, and the debt has an owner who will pay it down. The check still runs, and a clause-wide carve-out that exempts no finding is `stale`, so record one only while the clause still has findings. Leaving the clause out of `clauses` is not an alternative: it leaves the clause `uncovered`. If the check is not a true measure of the rule here, or cannot work here, list the clause as `"not-run"` instead; if the rule does not apply, list it as `"not-adopted"` (step 4).
 
 Every entry needs a `reason`. By default every entry also needs a `whyChain` shaped like this, with exactly five steps in `whys`:
 
@@ -310,7 +368,7 @@ It must exit `1` with the line `CD-17#clock-sources audit src/discipline-probe.t
 
 ## 9. Apply the judgement rules
 
-A judgement clause cannot be selected in `disciplines.json`, and no check reports it. Write down which judgement rules the repository adopts, in the project instructions beside `disciplines.json`, so reviewers and agents know to apply them.
+A judgement clause cannot be selected in `disciplines.json`, and no check reports it. List the judgement rules the repository adopts in the Judgement rules section of `disciplines.assessment.md` (step 5a), so reviewers and agents know to apply them.
 
 Each rule page names its review lens, a method under [methods/lenses/](methods/README.md) for reading code against that kind of rule. To review a change, by a human reviewer or a coding agent:
 
@@ -326,7 +384,7 @@ To use an agent, give it the lens file, the rule pages it names, the change and 
 
 To update, repeat step 2 on a branch with a tarball built from a newer pinned SHA, compare the installed rule pages under `node_modules/@hailstails/hone/rules/` with the old ones, re-run `hone:project` if any clause is `eslint`, run the check, and commit with a message naming the new SHA. Rule text can change between pins, so read the changed pages. Before updating to a pin that has the causal why-chain contract, follow [MIGRATING.md section 8](MIGRATING.md#8-moving-to-causal-why-chains): pass `--base-revision` first, or the update's check reports `legacy-chain-unmeasured`.
 
-To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
+To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts, any vendored tarball, `disciplines.json`, `discipline-exceptions.json`, `disciplines.assessment.md` and, with `eslint` clauses, `disciplines.eslint.mjs` and its spread in the flat config, and take the check out of the validation script.
 
 ## Worked example
 
@@ -359,6 +417,7 @@ verdict: pass
 ## Known gaps
 
 - The worked example uses only the audit mechanism. The ESLint consumer in `tests/test-fixtures/consumer-proof/eslint/` is the tested ESLint setup.
-- Each check flags exactly what its rules page says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
-- A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above.
+- Each check flags exactly what its CHECKS.md says and no more. Where a rule asks for more than its check can see, the page says which part is left to review.
+- A snippet is the text the check reports; some checks report a fixed-width window that runs across lines, as CD-2 does above. No snippet is longer than 200 characters: a longer one is cut and ends in `…`. An ESLint finding on a line longer than that, such as a bundled or minified file, shows the line from the finding's column.
+- A broken nested `eslint.config.*` in a folder the root config ignores, such as fixtures under `ignores: ["fixtures/**"]`, does not stop the check: those files are reported as `ignore` native exceptions, as the team's own `eslint .` never loads that config. One pattern shape is taken for a folder ignore although it is not one: an ignore matching every entry directly inside the folder, such as `gen/*`, where the team's ESLint still enters `gen` and fails on its broken config.
 - The disciplines' IDs and rule text come from one team's code-discipline set. Selecting a subset is supported; editing a shipped rule is not. Write your own rule set for different rules, following [docs/extending.md](docs/extending.md).

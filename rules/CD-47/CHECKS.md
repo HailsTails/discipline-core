@@ -1,0 +1,37 @@
+# CD-47 checks
+
+Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+
+## Clauses
+
+| Clause | Mechanism | Checks |
+| --- | --- | --- |
+| `CD-47#hermetic-git-spawns` | audit | a git spawn in a test without a hermetic `env` |
+
+## What the check flags
+- Test files: `*.test.ts`, `*.test.tsx`, `*.test.mjs`, `*.test.js`, `*.spec.ts`, `*.spec.mjs`. Generated folders (`node_modules`, `dist`, `build`, `coverage`, `.git`, root `vendor`) are skipped; any other folder can be left out with `exclude` in disciplines.json.
+- A line calling `spawnSync`, `spawn`, `execFileSync`, `execFile`, `execSync`, `exec`, `execa` or `execaSync` with `"git"` (or `'git'`, or a template literal) as the first argument.
+- Allowed when, within that line and the next seven, an `env:` names `hermeticGitEnvironment`, `withoutInheritedGitBindings` or `environment`, and no nearby `env:` uses `process.env`. The helper is yours to provide.
+- Not detected: a command string such as `execSync("git status")`, a split call, or a non-literal command. Whether the spawn is warranted at all is left to review.
+
+## Example violation
+```ts
+spawnSync("git", ["init"], { cwd: directory });
+```
+
+## How to fix
+```ts
+spawnSync("git", ["init"], { cwd: directory, env: hermeticGitEnvironment() });
+```
+Build the environment without inherited git variables or the user's configuration, and run in a temporary directory.
+
+## Exceptions
+Record exemptions only in `discipline-exceptions.json` at the repository root; core reads no other allowance file. Use `authorised-location` when a test file legitimately builds its environment another way. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+
+```json
+{ "version": 1, "exceptions": [
+  { "kind": "authorised-location", "clause": "CD-47#hermetic-git-spawns", "file": "test/git-fixture.test.ts", "reason": "..." }
+] }
+```
+
+Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.

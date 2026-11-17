@@ -30,6 +30,7 @@ import {
   type MechanismId,
   mechanismIdSchema,
   NOT_ADOPTED,
+  NOT_RUN,
   ruleSetNameSchema,
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
@@ -84,21 +85,26 @@ export type RuleSetLocation =
 const LEADING_CURRENT_DIRECTORY = "./";
 
 type ClauseChoice =
-  | { readonly adoption: "adopted"; readonly mechanism: MechanismId }
-  | { readonly adoption: "not-adopted" };
+  | { readonly state: "run"; readonly mechanism: MechanismId }
+  | { readonly state: "not-run" }
+  | { readonly state: "not-adopted" };
+
+type UnrunState = Exclude<ClauseChoice["state"], "run">;
 
 const clauseChoiceSchema = z.union(
   [
-    z.literal(NOT_ADOPTED).transform((): ClauseChoice => ({ adoption: "not-adopted" })),
-    mechanismIdSchema.transform((mechanism): ClauseChoice => ({ adoption: "adopted", mechanism })),
+    z.literal(NOT_RUN).transform((): ClauseChoice => ({ state: "not-run" })),
+    z.literal(NOT_ADOPTED).transform((): ClauseChoice => ({ state: "not-adopted" })),
+    mechanismIdSchema.transform((mechanism): ClauseChoice => ({ state: "run", mechanism })),
   ],
-  { error: `a clause takes a mechanism id or "${NOT_ADOPTED}"` },
+  { error: `a clause takes a mechanism id, "${NOT_RUN}" or "${NOT_ADOPTED}"` },
 );
 
-type ClauseListing = ClauseChoice["adoption"] | "unlisted";
+type ClauseListing = ClauseChoice["state"] | "unlisted";
 
-const UNSETTABLE_LISTING_REFUSALS: Readonly<Record<Exclude<ClauseListing, "adopted">, string>> = {
+const UNSETTABLE_LISTING_REFUSALS: Readonly<Record<Exclude<ClauseListing, "run">, string>> = {
   unlisted: "clauses does not select it",
+  "not-run": "clauses runs no mechanism for it, so remove its settings",
   "not-adopted": "clauses does not adopt it, so remove its settings",
 };
 
@@ -106,7 +112,7 @@ const clauseListingOf = (request: {
   readonly clauses: readonly (readonly [ClauseAddress, ClauseChoice])[];
   readonly address: ClauseAddress;
 }): ClauseListing =>
-  request.clauses.find(([listed]) => sameClauseAddress({ left: listed, right: request.address }) === "same")?.[1].adoption ??
+  request.clauses.find(([listed]) => sameClauseAddress({ left: listed, right: request.address }) === "same")?.[1].state ??
   "unlisted";
 
 const ruleSetLocationSchema = z.union([
@@ -158,7 +164,7 @@ const consumerSelectionFileSchema = z.strictObject({
   settingsAddresses
     .flatMap((address) => {
       const listing = clauseListingOf({ clauses: file.clauses, address });
-      return listing === "adopted" ? [] : [{ address, listing }];
+      return listing === "run" ? [] : [{ address, listing }];
     })
     .forEach(({ address, listing }) => {
       const text = clauseAddressText({ address });
@@ -447,11 +453,13 @@ type SelectionRequest = {
 
 const adoptedEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, MechanismId])[] =>
   request.file.clauses.flatMap(([address, choice]): readonly (readonly [ClauseAddress, MechanismId])[] =>
-    choice.adoption === "adopted" ? [[address, choice.mechanism]] : [],
+    choice.state === "run" ? [[address, choice.mechanism]] : [],
   );
 
-const notAdoptedAddresses = (request: { readonly file: ConsumerSelectionFile }): readonly ClauseAddress[] =>
-  request.file.clauses.flatMap(([address, choice]) => (choice.adoption === "not-adopted" ? [address] : []));
+const unrunEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, UnrunState])[] =>
+  request.file.clauses.flatMap(([address, choice]): readonly (readonly [ClauseAddress, UnrunState])[] =>
+    choice.state === "run" ? [] : [[address, choice.state]],
+  );
 
 const resolvedClauses = (request: SelectionRequest): Result<readonly ResolvedClause[], LoadFailure> =>
   adoptedEntries(request).reduce<Result<readonly ResolvedClause[], LoadFailure>>(
@@ -464,9 +472,13 @@ const resolvedClauses = (request: SelectionRequest): Result<readonly ResolvedCla
     { outcome: "ok", value: [] },
   );
 
-type NotAdoptedRequest = SelectionRequest & { readonly adopted: readonly ResolvedClause[] };
+type UnrunRequest = SelectionRequest & { readonly adopted: readonly ResolvedClause[] };
 
-const notAdoptedClause = (request: NotAdoptedRequest & { readonly address: ClauseAddress }): Result<ListedClause, LoadFailure> => {
+type UnrunClause = ListedClause & { readonly state: UnrunState };
+
+const unrunClause = (
+  request: UnrunRequest & { readonly address: ClauseAddress; readonly state: UnrunState },
+): Result<UnrunClause, LoadFailure> => {
   const root = ruleSetRootOf({
     ...request,
     ruleSet: request.address.ruleSet,
@@ -481,14 +493,19 @@ const notAdoptedClause = (request: NotAdoptedRequest & { readonly address: Claus
     earlier: request.adopted,
     judgementRefusal: "judgement-clause-listed",
   });
-  return defined.outcome === "failed" ? defined : { outcome: "ok", value: { discipline: defined.value.discipline, address: request.address } };
+  return defined.outcome === "failed"
+    ? defined
+    : { outcome: "ok", value: { discipline: defined.value.discipline, address: request.address, state: request.state } };
 };
 
-const notAdoptedClauses = (request: NotAdoptedRequest): Result<readonly ListedClause[], LoadFailure> =>
-  notAdoptedAddresses(request).reduce<Result<readonly ListedClause[], LoadFailure>>(
-    (sofar, address) => appendedClause({ sofar, resolve: () => notAdoptedClause({ ...request, address }) }),
+const unrunClauses = (request: UnrunRequest): Result<readonly UnrunClause[], LoadFailure> =>
+  unrunEntries(request).reduce<Result<readonly UnrunClause[], LoadFailure>>(
+    (sofar, [address, state]) => appendedClause({ sofar, resolve: () => unrunClause({ ...request, address, state }) }),
     { outcome: "ok", value: [] },
   );
+
+const addressesIn = (request: { readonly unrun: readonly UnrunClause[]; readonly state: UnrunState }): readonly ClauseAddress[] =>
+  request.unrun.filter((clause) => clause.state === request.state).map((clause) => clause.address);
 
 const appendedClause = <Clause>(request: {
   readonly sofar: Result<readonly Clause[], LoadFailure>;
@@ -555,7 +572,7 @@ const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile 
 
 const selectionReadingOf = (request: {
   readonly resolved: readonly ResolvedClause[];
-  readonly notAdopted: readonly ListedClause[];
+  readonly unrun: readonly UnrunClause[];
   readonly file: ConsumerSelectionFile;
 }): SelectionReading => ({
   selection: {
@@ -567,10 +584,11 @@ const selectionReadingOf = (request: {
     uncovered: uncoveredClauses({
       listed: [
         ...request.resolved.map((resolved) => ({ discipline: resolved.discipline, address: addressOf({ resolved }) })),
-        ...request.notAdopted,
+        ...request.unrun,
       ],
     }),
-    notAdopted: request.notAdopted.map((listed) => listed.address),
+    notAdopted: addressesIn({ unrun: request.unrun, state: "not-adopted" }),
+    notRun: addressesIn({ unrun: request.unrun, state: "not-run" }),
   },
   bindings: request.resolved.map(({ binding }) => binding),
   excluded: request.file.exclude,
@@ -655,9 +673,9 @@ export const readSelection = (request: {
   if (settled.outcome === "failed") {
     return settled;
   }
-  const notAdopted = notAdoptedClauses({ ...request, file: file.value, adopted: settled.value });
-  if (notAdopted.outcome === "failed") {
-    return notAdopted;
+  const unrun = unrunClauses({ ...request, file: file.value, adopted: settled.value });
+  if (unrun.outcome === "failed") {
+    return unrun;
   }
-  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, notAdopted: notAdopted.value, file: file.value }) };
+  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, unrun: unrun.value, file: file.value }) };
 };

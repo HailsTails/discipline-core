@@ -1,8 +1,9 @@
 import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
+import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import type { CheckReport, NotRunClause, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
+import type { CheckReport, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -63,6 +64,7 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
       return escapedLineBreaks({ text: request.problem.detail });
     case "clause-not-selected":
     case "clause-not-adopted":
+    case "clause-not-run":
     case "non-exemptible-clause":
       return clauseAddressText({ address: request.problem.clause });
     case "file-not-repo-path":
@@ -86,17 +88,14 @@ const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string =>
 const counted = (request: { readonly count: number; readonly noun: string }): string =>
   request.count === 1 ? `1 ${request.noun}` : `${request.count} ${request.noun}s`;
 
-const notRunList = (request: { readonly clausesNotRun: readonly NotRunClause[] }): string =>
-  request.clausesNotRun.length === 0
-    ? ""
-    : `: ${request.clausesNotRun.map((entry) => `${clauseAddressText({ address: entry.clause })} ${entry.mechanism}`).join(", ")}`;
+const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
 const assessmentLine = (request: { readonly partial: PartialAssessment }): string => {
   switch (request.partial.concern) {
     case "forfeiture":
       return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.fileCarveOuts, noun: "file carve-out" })} not checked for decay in this run`;
-    case "waivedClauses":
-      return `waived-clauses ${request.partial.assessedBy}: ${counted({ count: request.partial.clausesNotRun.length, noun: "clause" })} not run, ${counted({ count: request.partial.recordsNotJudgedStale, noun: "record" })} not judged stale${notRunList(request.partial)}`;
+    case "nestedConfiguration":
+      return `nested-configuration ${request.partial.assessedBy}: ${request.partial.mechanism} skips ${request.partial.folder}, which holds its own disciplines.json, so hone project cannot write ${request.partial.slice}; nested Hone configurations are not supported yet, see ${NESTED_CONFIGURATION_ISSUE}`;
   }
 };
 
@@ -110,6 +109,8 @@ type ReportLines = (request: { readonly report: CheckReport }) => readonly strin
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
   notAdopted: (request) => request.report.notAdopted.map((address) => clauseAddressText({ address })),
+  notRun: (request) =>
+    request.report.notRun.map((address) => `${clauseAddressText({ address })} adopted, mechanism not run: enforced by review`),
   findings: (request) => request.report.findings.map((finding) => findingLine({ finding })),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),

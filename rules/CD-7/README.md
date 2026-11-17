@@ -4,49 +4,26 @@
 
 A file or folder is named for the abstraction it holds, not for a category of things. A junk-drawer name (utils, helpers, common, shared, types, misc) signals a missing primitive: the code inside wants a real home named for what it does. Category names accrete unrelated code because anything can be justified into them.
 
-The sections below describe what the audit and ESLint checks cover.
+Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
-## Clauses
+## Spirit
 
-| Clause | Mechanism | Checks |
-| --- | --- | --- |
-| `CD-7#categorical-paths` | audit | a forbidden file name or folder name in a path |
-| `CD-7#filename-case` | eslint | a file name that is not kebab-case or PascalCase |
+**What the friction is for.** A name is the first design decision a reader meets. A category name accepts anything, so code drifts into it without anyone deciding where it belongs. The friction forces the question "what is this?" at the moment it is cheapest to answer.
 
-Review lens: [naming](../../methods/lenses/naming.md). The lens reviews the whole rule, including what no check flags.
+**What a finding points at.** Match the paths against these causes.
+- *A concept nobody named.* The drawer holds functions that all serve one idea the codebase never named, such as money, dates or identifiers. Name the idea and give it a module.
+- *Shared by accident.* Code moved to a common place because two callers needed it. Decide whether it belongs to one of them or is a concept of its own.
+- *Shapes separated from their owners.* A types file holds shapes far from the code that uses them. Put each shape beside the code it describes.
+- *Folders sorted by kind.* The tree groups things by what they are, not by what they do. Group by capability.
 
-## What the check flags
-- `.ts` and `.tsx` files only, judged by path; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
-- File names, exactly and in lower case, with a `.ts` extension: `types.ts interfaces.ts models.ts enums.ts utils.ts util.ts helpers.ts helper.ts common.ts lib.ts misc.ts shared.ts`.
-- Any folder in the path named `utils`, `helpers`, `common`, `lib`, `misc` or `shared`. Each file under such a folder is reported once for the folder.
-- Allowed: `account-types.ts`, `Types.ts` and `types.tsx`, which are not exact matches.
+**Where to go.** Every file and folder name says what it holds, so a reader finds code by asking what it does. The rename is the small part; finding the concept behind it is the work.
 
-## What the ESLint check flags
-Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-7/README.md).
-- `hone-cd7/filename-case` checks the file name before its first dot, after trimming edge `_`: it must be kebab-case or PascalCase. Each later dot segment must be kebab-case, PascalCase or lowercase.
-- One leading `.`, `+` or `$` is ignored.
-- Route names such as `[slug].ts` and `(group).ts` pass.
-- A bad name is reported at line 1.
+**Reactions to distrust.**
+- "It's just a name." The name is where the missing concept shows. A synonym such as "core" or "base" keeps the drawer.
+- "The framework requires that path." Then authorise that path. What you add under it still needs a real home.
+- "We'll sort it later." Category folders only grow.
 
-## Example violation
-```text
-src/helpers.ts
-src/utils/format-price.ts
-```
-
-## How to fix
-```text
-src/price-formatting.ts
-```
-Rename the file or folder for what it contains, or split it into files that each hold one thing.
-
-## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a path name is fixed by a framework or external convention. Use `file-carve-out` for debt in one file: it needs a `whyChain` and is forfeited once the file is touched. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
-
-```json
-{ "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-7#categorical-paths", "file": "src/shared/index.ts", "reason": "..." }
-] }
-```
-
-Every record, `authorised-location` included, also needs a `whyChain` that follows the [why-chain contract](../../docs/why-chain-contract.md): five whys chained cause to cause, a `rootCause`, its `rootCheck`, a `readback` and an `owner`. The one exception is a record imported from an earlier system, which carries `provenance` instead. [The exceptions format](../../README.md#discipline-exceptionsjson) gives both shapes.
+**Principles behind it.**
+- *Screaming architecture* (Robert C. Martin). The folder structure should tell a reader what the system does, not which kinds of file it contains.
+- *Single Responsibility Principle* (Robert C. Martin, SOLID). A module has one reason to change. A drawer of unrelated helpers has as many reasons as it has helpers.
+- *Primitive Obsession* (a code smell in Fowler's *Refactoring*). Helpers that all handle one raw value, such as an amount or a date string, usually mark a domain type nobody created.

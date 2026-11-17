@@ -1,106 +1,93 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
-import type { EslintPort, IgnoredState, QueryInstance } from "./eslint-instance.ts";
+import type { Result } from "../../../core/values/result.ts";
+import type { ConfigLookup } from "./config-lookup.ts";
+import type { ConfigFileSearch, EslintPort, IgnoredState, QueryInstance } from "./eslint-instance.ts";
 import { ignoredRootsOf } from "./ignored-roots.ts";
 
 const REPO = absolutePathSchema.parse("/repo");
 
 const path = createPathPort({ flavour: "posix", workingDirectory: () => "/elsewhere" });
 
-const noFiles: FileTextPort = {
-  read: ({ path: requested }) => ({ outcome: "failed", error: { kind: "unreadable", path: requested, detail: "absent" } }),
-  exists: () => "absent",
-  write: vi.fn<FileTextPort["write"]>(),
-};
+const ROOT_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/eslint.config.mjs" };
 
-const queryAnswering = (state: IgnoredState): QueryInstance => ({
-  ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValue({ outcome: "ok", value: state }),
+const NEAREST: ConfigLookup = { kind: "nearest-to-file" };
+
+const teamQuery = (configs: Readonly<Record<string, ConfigFileSearch>>): QueryInstance => ({
+  ignoredState: vi.fn<QueryInstance["ignoredState"]>(),
   ruleState: vi.fn<QueryInstance["ruleState"]>(),
+  configFileOf: ({ file }) => Promise.resolve(configs[file]),
 });
 
-const eslintGovernedBy = (query: QueryInstance): EslintPort => ({
-  createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(query),
+const eslintAnswering = (request: {
+  readonly query: QueryInstance;
+  readonly answer: Result<IgnoredState, RunnerFailure>;
+}): EslintPort => ({
+  createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(request.query),
   createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>(),
   lintSourceCases: vi.fn<EslintPort["lintSourceCases"]>(),
+  ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(request.answer),
 });
 
-const ignoredAmong = (request: {
-  readonly files: Readonly<Record<string, string>>;
-  readonly eslint: EslintPort;
-  readonly packages: readonly string[];
-  readonly candidates: readonly string[];
-}) =>
+const ignoredAmong = (request: { readonly eslint: EslintPort; readonly lookup: ConfigLookup; readonly candidates: readonly string[] }) =>
   ignoredRootsOf({
-    ports: { fileText: overlaidFileText({ base: noFiles, files: request.files }), path, eslint: request.eslint },
+    eslint: request.eslint,
+    path,
     repoRoot: REPO,
-    packages: new Set(request.packages),
+    lookup: request.lookup,
     candidates: repoPathSchema.array().parse(request.candidates),
   }).then((ignored) => [...ignored]);
 
-const ROOT_AND_FIXTURE = { "/repo/eslint.config.mjs": "", "/repo/fixtures/broken/eslint.config.mjs": "" };
+const FIXTURE_TEAM = teamQuery({ "fixtures/broken": ROOT_CONFIG, "packages/web": ROOT_CONFIG });
 
 describe("ignoredRootsOf", () => {
-  it("names a config root whose folder the repository root's config ignores, asking it about the root's own config file", async () => {
-    const rootQuery = queryAnswering("ignored");
-    await expect(
-      ignoredAmong({
-        files: ROOT_AND_FIXTURE,
-        eslint: eslintGovernedBy(rootQuery),
-        packages: ["fixtures/broken"],
-        candidates: ["fixtures/broken"],
-      }),
-    ).resolves.toEqual(["fixtures/broken"]);
-    expect(rootQuery.ignoredState).toHaveBeenCalledWith({ file: "fixtures/broken/eslint.config.mjs" });
-  });
-
-  it("leaves out a config root its governing configs check", async () => {
-    await expect(
-      ignoredAmong({
-        files: ROOT_AND_FIXTURE,
-        eslint: eslintGovernedBy(queryAnswering("checked")),
-        packages: ["fixtures/broken"],
-        candidates: ["fixtures/broken"],
-      }),
-    ).resolves.toEqual([]);
-  });
-
-  it("names a config root an enclosing package's config ignores, asking that package about the path under it", async () => {
-    const packageQuery = queryAnswering("ignored");
-    const eslint = eslintGovernedBy(packageQuery);
-    await expect(
-      ignoredAmong({
-        files: { "/repo/packages/a/eslint.config.mjs": "", "/repo/packages/a/fixtures/eslint.config.mjs": "" },
-        eslint,
-        packages: ["packages/a", "packages/a/fixtures"],
-        candidates: ["packages/a/fixtures"],
-      }),
-    ).resolves.toEqual(["packages/a/fixtures"]);
-    expect(vi.mocked(eslint.createQueryInstance).mock.calls).toEqual([
-      [{ repoRoot: "/repo/packages/a", configFile: "/repo/packages/a/eslint.config.mjs" }],
+  it("names a config root whose folder its governing config ignores, asking that config about the folder", async () => {
+    const eslint = eslintAnswering({ query: FIXTURE_TEAM, answer: { outcome: "ok", value: "ignored" } });
+    await expect(ignoredAmong({ eslint, lookup: NEAREST, candidates: ["fixtures/broken"] })).resolves.toEqual(["fixtures/broken"]);
+    expect(vi.mocked(eslint.ignoredByConfig).mock.calls).toEqual([
+      [{ configFile: "/repo/eslint.config.mjs", cwd: "/repo", path: "fixtures/broken/hone-folder-probe" }],
     ]);
-    expect(packageQuery.ignoredState).toHaveBeenCalledWith({ file: "fixtures/eslint.config.mjs" });
   });
 
-  it("asks no config about a root with no eslint.config on disk, since nothing there can be loaded or skipped", async () => {
-    const eslint = eslintGovernedBy(queryAnswering("ignored"));
-    await expect(
-      ignoredAmong({ files: { "/repo/eslint.config.mjs": "" }, eslint, packages: ["packages/web"], candidates: ["packages/web"] }),
-    ).resolves.toEqual([]);
-    expect(eslint.createQueryInstance).not.toHaveBeenCalled();
+  it("does not take packages/web for ignored under a root config holding only { ignores: [\"dist/**\"] }, asking the config that matches the probe rather than the team query that reads every unconfigured path as ignored", async () => {
+    const query = teamQuery({ "packages/web": ROOT_CONFIG });
+    const eslint = eslintAnswering({ query, answer: { outcome: "ok", value: "checked" } });
+    await expect(ignoredAmong({ eslint, lookup: NEAREST, candidates: ["packages/web"] })).resolves.toEqual([]);
+    expect({ asked: vi.mocked(eslint.ignoredByConfig).mock.calls, teamAsked: vi.mocked(query.ignoredState).mock.calls }).toEqual({
+      asked: [[{ configFile: "/repo/eslint.config.mjs", cwd: "/repo", path: "packages/web/hone-folder-probe" }]],
+      teamAsked: [],
+    });
   });
 
-  it("builds one query per governing config however many roots it governs", async () => {
-    const eslint = eslintGovernedBy(queryAnswering("checked"));
+  it("leaves out a config root its governing config checks", async () => {
+    const eslint = eslintAnswering({ query: FIXTURE_TEAM, answer: { outcome: "ok", value: "checked" } });
+    await expect(ignoredAmong({ eslint, lookup: NEAREST, candidates: ["packages/web"] })).resolves.toEqual([]);
+  });
+
+  it("leaves out a config root when its governing config cannot answer", async () => {
+    const eslint = eslintAnswering({
+      query: FIXTURE_TEAM,
+      answer: { outcome: "failed", error: { kind: "team-config-unloadable", detail: "Unexpected token ';'" } },
+    });
+    await expect(ignoredAmong({ eslint, lookup: NEAREST, candidates: ["packages/web"] })).resolves.toEqual([]);
+  });
+
+  it("finds governing configs the way the team's run does, from the root config under a root-only lookup", async () => {
+    const eslint = eslintAnswering({ query: FIXTURE_TEAM, answer: { outcome: "ok", value: "checked" } });
     await ignoredAmong({
-      files: { ...ROOT_AND_FIXTURE, "/repo/fixtures/other/eslint.config.mjs": "" },
       eslint,
-      packages: ["fixtures/broken", "fixtures/other"],
-      candidates: ["fixtures/broken", "fixtures/other"],
+      lookup: { kind: "repository-root", configFile: "/repo/eslint.config.mjs" },
+      candidates: ["packages/web"],
     });
     expect(vi.mocked(eslint.createQueryInstance).mock.calls).toEqual([[{ repoRoot: "/repo", configFile: "/repo/eslint.config.mjs" }]]);
+  });
+
+  it("builds no ESLint at all when no root is in question", async () => {
+    const eslint = eslintAnswering({ query: FIXTURE_TEAM, answer: { outcome: "ok", value: "ignored" } });
+    await expect(ignoredAmong({ eslint, lookup: NEAREST, candidates: [] })).resolves.toEqual([]);
+    expect(eslint.createQueryInstance).not.toHaveBeenCalled();
   });
 });

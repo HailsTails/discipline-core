@@ -5,6 +5,8 @@ import { loadFailureText } from "./load-failure-text.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
 
+const ESLINT = mechanismIdSchema.parse("eslint");
+
 describe("loadFailureText", () => {
   it("prints an untracked ESLint config root with what the entry must be", () => {
     expect(loadFailureText({ failure: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/Web") } })).toBe(
@@ -77,11 +79,31 @@ describe("loadFailureText", () => {
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
         },
       }),
     ).toBe(
       "load failure: runner-failed audit toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+    );
+  });
+
+  it("prints every unavailable peer on the one line, each with what was found and its range, and asks for a supported version of each", () => {
+    expect(
+      loadFailureText({
+        failure: {
+          kind: "runner-failed",
+          mechanism: ESLINT,
+          failure: {
+            kind: "toolchain-unavailable",
+            peers: [
+              { packageName: "@typescript-eslint/parser", peer: "optional", supported: "^8.56.0", found: "not installed" },
+              { packageName: "@typescript-eslint/eslint-plugin", peer: "optional", supported: "^8.56.0", found: "7.18.0" },
+            ],
+          },
+        },
+      }),
+    ).toBe(
+      "load failure: runner-failed eslint toolchain-unavailable @typescript-eslint/parser found not installed, supported ^8.56.0; @typescript-eslint/eslint-plugin found 7.18.0, supported ^8.56.0: add a supported version of each to the devDependencies of the repository root\n",
     );
   });
 
@@ -159,7 +181,7 @@ describe("loadFailureText for a missing required peer", () => {
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found: "not installed" }] },
         },
       }),
     ).toBe(
@@ -176,7 +198,7 @@ describe("loadFailureText for a missing required peer", () => {
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "typescript", peer: "required", supported: ">=4.8.4 <7.0.0", found }] },
         },
       }),
     ).toBe(
