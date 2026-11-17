@@ -23,6 +23,12 @@ const CLAUSE: RunnerClause = {
   settings: { module: "import-boundaries.ts" },
 };
 
+const bannedHit = (request: { readonly line: number; readonly specifier: string }) => ({
+  clause: ADDRESS,
+  anchor: { line: request.line, column: 0 },
+  snippet: `banned third-party import: ${request.specifier} — use its recorded wrapping boundary`,
+});
+
 type ObservationFixture = {
   readonly tree: SyntaxTree;
   readonly observers: SourceObservers;
@@ -62,19 +68,52 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     expect(observed.anchorAt).not.toHaveBeenCalled();
   });
 
-  it("compiles no pattern while beginning a file with no banned third-party import", () => {
-    const prepared = preparedFor({ file: FILE });
-    const file = prepared.prepareFile({ file: FILE, readText: vi.fn<WalkerFile["readText"]>() });
-    assert(file.outcome === "ok");
-    assert(file.value.kind === "syntax");
-    const tree = SYNTAX_API.createSourceFile(FILE, `const text = "${FROM} nothing";
-`, SYNTAX_API.ScriptTarget.Latest, true);
-    const compiled = vi.spyOn(globalThis, "RegExp");
-
-    const observers = file.value.begin({ sourceFile: tree, anchorAt: vi.fn<(request: { readonly position: number }) => Anchor>() });
-    compiled.mockRestore();
-
-    expect({ compiledPatterns: compiled.mock.calls.length, hits: observers.finish() }).toEqual({ compiledPatterns: 0, hits: [] });
+  it.each([
+    {
+      name: "CRLF line endings",
+      source: `${IMPORT} a ${FROM} "eslint";\r\n${IMPORT} b ${FROM} "uuid";\r\n`,
+      hits: [bannedHit({ line: 1, specifier: "eslint" }), bannedHit({ line: 2, specifier: "uuid" })],
+    },
+    { name: "a specifier on the line after from", source: `${IMPORT} x ${FROM}\n"uuid";\n`, hits: [] },
+    { name: "a CRLF specifier on the line after from", source: `${IMPORT} x\r\n${FROM}\r\n"uuid";\r\n`, hits: [] },
+    {
+      name: "a comment and a string",
+      source: `${LINE_COMMENT} ${FROM} "pino"\nconst text = "${FROM} 'pino'";\n`,
+      hits: [bannedHit({ line: 1, specifier: "pino" }), bannedHit({ line: 2, specifier: "pino" })],
+    },
+    {
+      name: "tab and mixed whitespace separators",
+      source: `${IMPORT} x ${FROM}\t"jose";\n${IMPORT} y ${FROM}  \t 'jose';\n`,
+      hits: [bannedHit({ line: 1, specifier: "jose" }), bannedHit({ line: 2, specifier: "jose" })],
+    },
+    {
+      name: "hono beside its subpaths",
+      source: `${IMPORT} a ${FROM} "hono";\n${IMPORT} b ${FROM} "hono/cors";\n${IMPORT} c ${FROM} "hono/cookie";\n`,
+      hits: [
+        bannedHit({ line: 1, specifier: "hono" }),
+        bannedHit({ line: 2, specifier: "hono/cors" }),
+        bannedHit({ line: 3, specifier: "hono/cookie" }),
+      ],
+    },
+    {
+      name: "a final line with no trailing newline",
+      source: `${IMPORT} a ${FROM} "winston"`,
+      hits: [bannedHit({ line: 1, specifier: "winston" })],
+    },
+    {
+      name: "specifiers that share a prefix or contain regex metacharacters",
+      source: `${IMPORT} a ${FROM} "winston-transport";\n${IMPORT} b ${FROM} "@hono/node-server";\n${IMPORT} c ${FROM} "@modelcontextprotocol/sdk";\n`,
+      hits: [
+        bannedHit({ line: 1, specifier: "winston-transport" }),
+        bannedHit({ line: 2, specifier: "@hono/node-server" }),
+        bannedHit({ line: 3, specifier: "@modelcontextprotocol/sdk" }),
+      ],
+    },
+    { name: "lookalike specifiers", source: `${IMPORT} a ${FROM} "honoXcors";\n${IMPORT} b ${FROM} "hono.cors";\n`, hits: [] },
+    { name: "no banned import", source: `const nothing = 1;\n`, hits: [] },
+    { name: "an empty file", source: "", hits: [] },
+  ])("finds the same per-line banned third-party imports as a scan of every line for $name", ({ source, hits }) => {
+    expect(sourceObservations({ source }).observers.finish()).toEqual(hits);
   });
 
   it("returns every raw hit before earlier and later observed stdlib imports under the CD19 clause", () => {

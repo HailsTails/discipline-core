@@ -21,6 +21,7 @@ import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { ModuleExtension } from "../../../core/values/install-layout.ts";
+import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
@@ -115,19 +116,6 @@ const pieceInvalid = (request: {
   outcome: "failed",
   error: { kind: "piece-invalid", pieceRoot: request.pieceRoot, detail: request.detail },
 });
-
-const collectOutcomes = <Value>(request: {
-  readonly outcomes: readonly Outcome<readonly Value[]>[];
-}): Outcome<readonly Value[]> => {
-  const failed = request.outcomes.find((outcome) => outcome.outcome === "failed");
-  if (failed !== undefined) {
-    return failed;
-  }
-  return {
-    outcome: "ok",
-    value: request.outcomes.flatMap((outcome) => (outcome.outcome === "ok" ? outcome.value : [])),
-  };
-};
 
 const mappedOutcome = <Value, Mapped>(request: {
   readonly outcome: Outcome<Value>;
@@ -232,7 +220,7 @@ const configuredSelection = (request: {
   readonly path: PathPort;
   readonly origin: ImportOrigin;
 }): Outcome<readonly PlacedClause[]> => {
-  const configured = collectOutcomes({
+  const configured = gatheredOutcomes({
     outcomes: request.clauses.map((clause) =>
       listedOutcome({ outcome: placedConfiguredClause({ clause, path: request.path, origin: request.origin }) }),
     ),
@@ -336,7 +324,7 @@ const selectedClauses = (request: {
     sharedPlugins({ configured: configured.value, modules: request.modules }).map((shared) =>
       listedSelection({ shared }),
     ),
-  ).then((outcomes) => collectOutcomes({ outcomes }));
+  ).then((outcomes) => gatheredOutcomes({ outcomes }));
 };
 
 const namespaceLeaders = (request: {
@@ -395,7 +383,7 @@ const checkedQueriedFile = (request: {
     request.ruleIds.map((ruleId) => fileRuleStates({ query: request.query, file: request.file, ruleId })),
   ).then((outcomes) =>
     mappedOutcome({
-      outcome: collectOutcomes({ outcomes }),
+      outcome: gatheredOutcomes({ outcomes }),
       map: (states): readonly QueriedFile[] => [{ file: request.file, ignored: "checked", states }],
     }),
   );
@@ -441,7 +429,7 @@ const queriedFiles = (request: {
     request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds })),
   ).then((outcomes) =>
     mappedOutcome({
-      outcome: collectOutcomes({ outcomes }),
+      outcome: gatheredOutcomes({ outcomes }),
       map: (queried) => partitionedFiles({ queried }),
     }),
   );
@@ -784,7 +772,7 @@ const lintedFindings = (request: {
     repoRoot: request.repoRoot,
     file: file.value,
   });
-  return collectOutcomes({
+  return gatheredOutcomes({
     outcomes: request.linted.messages.map((message) =>
       messageFindings({ message, file: file.value, selected: request.selected, sourceLines }),
     ),
@@ -850,7 +838,7 @@ const scannedPackageExceptions = (request: {
   readonly scan: PackageJsonScan;
   readonly selectedRules: readonly SelectedRule[];
 }): Outcome<readonly NativeException[]> =>
-  collectOutcomes({
+  gatheredOutcomes({
     outcomes: [
       { outcome: "ok", value: request.scan.nativeExceptions },
       ...request.scan.suppressionsLocations.map((scripted) =>
@@ -900,7 +888,7 @@ const trackedExceptions = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly selectedRules: readonly SelectedRule[];
 }): Outcome<readonly NativeException[]> =>
-  collectOutcomes({
+  gatheredOutcomes({
     outcomes: [
       ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
         suppressionsFileExceptions({ ...request, location }),
@@ -967,7 +955,7 @@ const governedReport = (request: {
   readonly queried: QueriedFiles;
   readonly lintedFiles: readonly LintedFile[];
 }): Outcome<EmbeddedRunReport> => {
-  const findings = collectOutcomes({
+  const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
       lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
     ),

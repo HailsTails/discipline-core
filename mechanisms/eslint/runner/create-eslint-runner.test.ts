@@ -229,12 +229,15 @@ const SOURCE_FILES: Readonly<Record<string, FakeFile>> = {
   }),
 };
 
-const READS_OF_SOURCE_A_ONCE = [
-  [{ path: "/repo/disciplines.eslint.mjs" }],
-  [{ path: "/repo/disciplines.json" }],
-  [{ path: "/repo/node_modules/eslint/package.json" }],
-  [{ path: "/repo/src/a.ts" }],
-];
+const sourceReadsOver = (request: { readonly fileText: FileTextPort; readonly sourceText: string }) => {
+  const sourceRead = vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.sourceText });
+  const readers: Readonly<Record<string, FileTextPort["read"]>> = { "/repo/src/a.ts": sourceRead };
+  const fileText: FileTextPort = {
+    ...request.fileText,
+    read: (call) => (readers[call.path] ?? request.fileText.read)(call),
+  };
+  return { sourceRead, fileText };
+};
 
 const projectionHolding = (request: { readonly text: string }): FileTextPort =>
   fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: presentFile({ text: request.text }) });
@@ -865,11 +868,10 @@ describe("the governance run, step 5: messages", () => {
   });
 
   it("reads a source file once however many hits it has, cutting each snippet from the same lines", async () => {
-    const fileText = repoHolding({
-      projection: ENABLING_PROJECTION,
-      files: { "/repo/src/a.ts": presentFile({ text: "first;\n  second;\n    third;\n" }) },
+    const { fileText, sourceRead } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: "first;\n  second;\n    third;\n",
     });
-    const read = vi.spyOn(fileText, "read");
     const report = await runnerOver({
       fileText,
       eslint: eslintOver({
@@ -879,29 +881,26 @@ describe("the governance run, step 5: messages", () => {
         }),
       }),
     }).run(CLASS_RUN);
-    expect({ reads: read.mock.calls, report }).toEqual({
-      reads: READS_OF_SOURCE_A_ONCE,
-      report: {
-        outcome: "ok",
-        value: {
-          hits: [
-            { ...HIT_IN_A, anchor: { line: 1, column: 2 }, snippet: "first;" },
-            { ...HIT_IN_A, anchor: { line: 2, column: 2 }, snippet: "second;" },
-            { ...HIT_IN_A, anchor: { line: 3, column: 2 }, snippet: "third;" },
-          ],
-          nativeExceptions: [],
-          projection: "current",
-        },
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(report).toEqual({
+      outcome: "ok",
+      value: {
+        hits: [
+          { ...HIT_IN_A, anchor: { line: 1, column: 2 }, snippet: "first;" },
+          { ...HIT_IN_A, anchor: { line: 2, column: 2 }, snippet: "second;" },
+          { ...HIT_IN_A, anchor: { line: 3, column: 2 }, snippet: "third;" },
+        ],
+        nativeExceptions: [],
+        projection: "current",
       },
     });
   });
 
   it("keeps reads at one per file for many hits in one file", async () => {
-    const fileText = repoHolding({
-      projection: ENABLING_PROJECTION,
-      files: { "/repo/src/a.ts": presentFile({ text: "first;\n" }) },
+    const { fileText, sourceRead } = sourceReadsOver({
+      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
+      sourceText: "first;\n",
     });
-    const read = vi.spyOn(fileText, "read");
     const report = await runnerOver({
       fileText,
       eslint: eslintOver({
@@ -912,7 +911,8 @@ describe("the governance run, step 5: messages", () => {
       }),
     }).run(CLASS_RUN);
     assert(report.outcome === "ok");
-    expect({ reads: read.mock.calls, hits: report.value.hits.length }).toEqual({ reads: READS_OF_SOURCE_A_ONCE, hits: 2000 });
+    expect(sourceRead).toHaveBeenCalledTimes(1);
+    expect(report.value.hits).toHaveLength(2000);
   });
 
   it("is file-unreadable at a linted source file with a hit that cannot be read", async () => {

@@ -17,6 +17,7 @@ import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
+import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { observeWalkerFile } from "./observe-walker-file.ts";
 import {
@@ -52,17 +53,6 @@ const pieceInvalid = (request: {
 const thrownDetail = (request: { readonly thrown: unknown }): string =>
   request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
 
-const gathered = <Value>(request: {
-  readonly outcomes: readonly Outcome<readonly Value[]>[];
-}): Outcome<readonly Value[]> => {
-  const failed = request.outcomes.find((outcome) => outcome.outcome === "failed");
-  if (failed !== undefined) return failed;
-  return {
-    outcome: "ok",
-    value: request.outcomes.flatMap((outcome) => (outcome.outcome === "ok" ? outcome.value : [])),
-  };
-};
-
 const selectedClause = (request: {
   readonly clause: RunnerClause;
   readonly path: PathPort;
@@ -86,7 +76,7 @@ const selectedClauses = (request: {
   readonly clauses: readonly RunnerClause[];
   readonly path: PathPort;
 }): Outcome<readonly SelectedWalkerClause[]> =>
-  gathered({ outcomes: request.clauses.map((clause) => selectedClause({ clause, path: request.path })) });
+  gatheredOutcomes({ outcomes: request.clauses.map((clause) => selectedClause({ clause, path: request.path })) });
 
 const preparedPieces = (request: {
   readonly ports: WalkerPorts;
@@ -144,23 +134,15 @@ const walkedHits = (request: {
   readonly clauses: readonly RunnerClause[];
   readonly files: readonly WalkerFile[];
 }): Outcome<readonly Hit[]> => {
-  const fromFiles: Hit[] = [];
-  let failure: Outcome<readonly Hit[]> | undefined;
-  request.files.forEach((file) => {
-    if (failure !== undefined) return;
-    const observed = observedHits({ ...request, file });
-    if (observed.outcome === "failed") {
-      failure = observed;
-      return;
-    }
-    observed.value.forEach((hit) => {
-      fromFiles.push(hit);
-    });
+  const observed: Outcome<readonly Hit[]>[] = [];
+  request.files.some((file) => {
+    const fileHits = observedHits({ ...request, file });
+    observed.push(fileHits);
+    return fileHits.outcome === "failed";
   });
-  if (failure !== undefined) return failure;
-  return gathered({
-    outcomes: [{ outcome: "ok", value: fromFiles }, ...request.pieces.map((piece) => finishedPiece({ piece }))],
-  });
+  const fromFiles = gatheredOutcomes({ outcomes: observed });
+  if (fromFiles.outcome === "failed") return fromFiles;
+  return gatheredOutcomes({ outcomes: [fromFiles, ...request.pieces.map((piece) => finishedPiece({ piece }))] });
 };
 
 const repositoryFile = (request: {
@@ -250,7 +232,7 @@ const conformCases = (request: {
         collected.outcome === "failed"
           ? collected
           : caseVerdict({ ports: request.ports, clause: request.clause, sourceCase }).then((next) =>
-              gathered({ outcomes: [collected, next] }),
+              gatheredOutcomes({ outcomes: [collected, next] }),
             ),
       ),
     Promise.resolve({ outcome: "ok", value: [] }),

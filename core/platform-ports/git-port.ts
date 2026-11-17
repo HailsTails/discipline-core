@@ -103,12 +103,16 @@ const GIT_EXECUTION_POLICY: ExecutionPolicy = {
 const parsedRepoPaths = (request: {
   readonly listed: readonly string[];
 }): Result<readonly RepoPath[], string> => {
-  const parsed = request.listed.map((text) => ({ text, result: repoPathSchema.safeParse(text) }));
-  const refused = parsed.find((entry) => !entry.result.success);
+  const paths: RepoPath[] = [];
+  const refused = request.listed.find((text) => {
+    const parsed = repoPathSchema.safeParse(text);
+    if (parsed.success) paths.push(parsed.data);
+    return !parsed.success;
+  });
   if (refused !== undefined) {
-    return { outcome: "failed", error: refused.text };
+    return { outcome: "failed", error: refused };
   }
-  return { outcome: "ok", value: parsed.flatMap((entry) => (entry.result.success ? [entry.result.data] : [])) };
+  return { outcome: "ok", value: paths };
 };
 
 const gitOutput = (request: {
