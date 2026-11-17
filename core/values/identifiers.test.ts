@@ -59,6 +59,13 @@ describe("clauseIdSchema", () => {
 });
 
 describe("mechanismIdSchema", () => {
+  it("refuses not-adopted, which disciplines.json reserves for a clause a repository does not adopt", () => {
+    expect(mechanismIdSchema.safeParse("not-adopted")).toMatchObject({
+      success: false,
+      error: { issues: [expect.objectContaining({ message: expect.stringContaining("reserved for a clause a repository does not adopt") })] },
+    });
+  });
+
   it.each(["audit", "eslint", "oxlint2"])("accepts %j", (text) => {
     expect(mechanismIdSchema.safeParse(text).success).toBe(true);
   });
