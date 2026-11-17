@@ -78,7 +78,7 @@ waived-clauses not-run: 1 clause not run, 1 record not judged stale: CD-6#naming
 
 ## Adopting the ESLint mechanism
 
-With any clause selected for `eslint`, run `hone project`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per exception record turning the rule `"off"` for that record's file, or everywhere for a clause-wide carve-out. Commit it, and spread its default export last in the repository's flat config:
+With any clause selected for `eslint`, run `hone project`. It writes `disciplines.eslint.mjs` at the repository root: one block per piece enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block per set of clauses that files are excepted from, listing those files and turning the rules `"off"` for them, and one block per clause-wide carve-out turning its rules `"off"` everywhere. Commit it, and spread its default export last in the repository's flat config:
 
 ```js
 import disciplines from "./disciplines.eslint.mjs";
