@@ -138,31 +138,6 @@ describe("runReleasePullRequest refusing on the repository's state", () => {
     });
   });
 
-  it("refuses, naming each merge commit, when the history since the tag is not linear", () => {
-    const run = runWith({
-      commits: {
-        outcome: "ok",
-        value: [
-          { parentCount: 1, message: "fix: one (#41)" },
-          { parentCount: 2, message: "Merge remote-tracking branch 'origin/main' into a-branch" },
-        ],
-      },
-    });
-
-    expect(run).toMatchObject({
-      texts: UNCHANGED,
-      writes: [],
-      errors: [
-        [
-          {
-            text: "release-pull-request: the commits since v0.1.0-pre.3 include a merge commit, \"Merge remote-tracking branch 'origin/main' into a-branch\", and a merge's other parent brings in changes this script cannot size from one line of subjects. Run it on a new branch at the tip of main, before anything is committed to it; if main itself holds a merge since the tag, prepare this release by hand.\n",
-          },
-        ],
-      ],
-      exits: [[{ code: 1 }]],
-    });
-  });
-
   it("refuses when package.json is not at the latest release's version", () => {
     const run = runWith({ files: { "/repo/CHANGELOG.md": CHANGELOG, "/repo/package.json": '{ "version": "0.1.0-pre.4" }\n' } });
 
@@ -196,6 +171,33 @@ describe("runReleasePullRequest refusing on the repository's state", () => {
     expect(run).toMatchObject({
       texts: UNCHANGED,
       errors: [[{ text: "release-pull-request: no release tag v<version> is merged into HEAD\n" }]],
+      exits: [[{ code: 1 }]],
+    });
+  });
+});
+
+describe("runReleasePullRequest refusing a history that is not linear", () => {
+  it("refuses, naming each merge commit, when the history since the tag is not linear", () => {
+    const run = runWith({
+      commits: {
+        outcome: "ok",
+        value: [
+          { parentCount: 1, message: "fix: one (#41)" },
+          { parentCount: 2, message: "Merge remote-tracking branch 'origin/main' into a-branch" },
+        ],
+      },
+    });
+
+    expect(run).toMatchObject({
+      texts: UNCHANGED,
+      writes: [],
+      errors: [
+        [
+          {
+            text: "release-pull-request: the commits since v0.1.0-pre.3 include a merge commit, \"Merge remote-tracking branch 'origin/main' into a-branch\", and a merge's other parent brings in changes this script cannot size from one line of subjects. Run it on a new branch at the tip of main, before anything is committed to it; if main itself holds a merge since the tag, prepare this release by hand.\n",
+          },
+        ],
+      ],
       exits: [[{ code: 1 }]],
     });
   });
