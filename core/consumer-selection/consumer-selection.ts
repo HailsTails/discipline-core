@@ -7,6 +7,7 @@ import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import {
   type ClauseExceptions,
+  type ClauseSettingDeclarations,
   type DisciplineFile,
   disciplineFilePath,
   type PieceFile,
@@ -31,7 +32,8 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import { clauseSettingsSchema, settledPieceSettings } from "./clause-settings.ts";
+import { clauseSettingsSchema, settledClauseSettings } from "./clause-settings.ts";
+import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import type { ClauseBinding, SelectionReading } from "./selection.ts";
 
 export type { SelectedClause, Selection, ClauseBinding, SelectionReading } from "./selection.ts";
@@ -66,6 +68,7 @@ type ResolvedClause = {
   readonly piece: PieceFile;
   readonly binding: ClauseBinding;
   readonly exceptions: ClauseExceptions;
+  readonly declarations: ClauseSettingDeclarations;
 };
 
 const RULE_SET_SUFFIX_SEPARATOR = "-";
@@ -113,13 +116,26 @@ const consumerSelectionFileSchema = z.strictObject({
   reportOutput: reportOutputSchema.default("full"),
   clauseSettings: clauseSettingsSchema.default([]),
 }).superRefine((file, context) => {
-  file.clauseSettings
-    .filter(([address]) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
-    .forEach(([address]) => {
+  const settingsAddresses = file.clauseSettings.map(([address]) => address);
+  settingsAddresses
+    .filter((address) => !file.clauses.some(([selected]) => sameClauseAddress({ left: selected, right: address }) === "same"))
+    .forEach((address) => {
       context.addIssue({
         code: "custom",
         path: ["clauseSettings", clauseAddressText({ address })],
         message: "clauseSettings names a clause that clauses does not select",
+      });
+    });
+  settingsAddresses
+    .filter((address, index) =>
+      settingsAddresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
+    )
+    .forEach((address) => {
+      const text = clauseAddressText({ address });
+      context.addIssue({
+        code: "custom",
+        path: ["clauseSettings", text],
+        message: `clauseSettings names ${text} twice, also as ${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${text}`,
       });
     });
 });
@@ -242,7 +258,11 @@ const pieceOf = (request: PieceRequest): Result<PieceFile, LoadFailure> => {
   return readPieceFile({ ...location, fileText: request.fileText, discipline: request.discipline });
 };
 
-type PieceEntry = { readonly piece: PieceFile; readonly settings: unknown };
+type PieceEntry = {
+  readonly piece: PieceFile;
+  readonly settings: unknown;
+  readonly declarations: ClauseSettingDeclarations;
+};
 
 const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
   const runnerPath = request.path.join({
@@ -263,7 +283,7 @@ const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
       mechanism: request.mechanism,
     });
   }
-  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings } };
+  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings, declarations: entry.clauseSettings } };
 };
 
 const resolvedClauseOf = (request: {
@@ -277,6 +297,7 @@ const resolvedClauseOf = (request: {
     discipline: defined.discipline,
     piece: entry.piece,
     exceptions: defined.definition.exceptions,
+    declarations: entry.declarations,
     binding: {
       mechanism: clauseRequest.mechanism,
       clause: {
@@ -462,7 +483,7 @@ const selectionReadingOf = (request: {
 const givenClauseSettings = (request: {
   readonly file: ConsumerSelectionFile;
   readonly address: ClauseAddress;
-}): Readonly<Record<string, unknown>> | undefined =>
+}): ClauseSettingValues | undefined =>
   request.file.clauseSettings.find(([address]) => sameClauseAddress({ left: address, right: request.address }) === "same")?.[1];
 
 const settledClause = (request: {
@@ -471,16 +492,19 @@ const settledClause = (request: {
   readonly path: string;
 }): Result<ResolvedClause, LoadFailure> => {
   const address = addressOf({ resolved: request.clause });
-  const settings = settledPieceSettings({
+  const clauseSettings = settledClauseSettings({
     address,
-    pieceSettings: request.clause.binding.clause.settings,
+    declarations: request.clause.declarations,
     given: givenClauseSettings({ file: request.file, address }),
   });
-  if (settings.outcome === "failed") {
-    return failed({ kind: "file-malformed", path: request.path, detail: settings.error });
+  if (clauseSettings.outcome === "failed") {
+    return failed({ kind: "file-malformed", path: request.path, detail: clauseSettings.error });
   }
   const { binding } = request.clause;
-  return { outcome: "ok", value: { ...request.clause, binding: { ...binding, clause: { ...binding.clause, settings: settings.value } } } };
+  return {
+    outcome: "ok",
+    value: { ...request.clause, binding: { ...binding, clause: { ...binding.clause, clauseSettings: clauseSettings.value } } },
+  };
 };
 
 const withClauseSettings = (request: {
@@ -494,7 +518,7 @@ const withClauseSettings = (request: {
     { outcome: "ok", value: [] },
   );
 
-const selectionFilePath = (request:{ readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
+const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
 
 export const readReportOutput = (request: {

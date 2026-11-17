@@ -3,6 +3,10 @@
   "discipline": "CD-19",
   "mechanism": "audit",
   "clauses": [
-    { "clause": "import-boundaries", "settings": { "module": "import-boundaries.ts", "clauseSettings": { "confinedSpecifiers": [] } } }
+    {
+      "clause": "import-boundaries",
+      "settings": { "module": "import-boundaries.ts" },
+      "clauseSettings": { "confinedSpecifiers": { "default": [] } }
+    }
   ]
 }

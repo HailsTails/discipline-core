@@ -11,9 +11,9 @@ export const stringListClauseSettings = <Key extends string>(request: {
   readonly keys: readonly [Key, ...Key[]];
 }): Result<StringListSettings<Key>, PieceFailure> => {
   const parsed = z
-    .object({ clauseSettings: z.record(z.enum(request.keys), z.array(z.string().min(1)).readonly()) })
-    .safeParse(request.clause.settings);
-  if (parsed.success) return { outcome: "ok", value: parsed.data.clauseSettings };
+    .record(z.enum(request.keys), z.array(z.string().min(1)).readonly())
+    .safeParse(request.clause.clauseSettings);
+  if (parsed.success) return { outcome: "ok", value: parsed.data };
   return {
     outcome: "failed",
     error: {

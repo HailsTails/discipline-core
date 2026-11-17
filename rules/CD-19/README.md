@@ -30,6 +30,7 @@ List the specifiers of each library the repository confines behind a wrapping po
 ```
 
 ## Example violation
+With `"confinedSpecifiers": ["uuid"]`, both lines are flagged; with the default, only the first.
 ```ts
 import { readFileSync } from "node:fs";
 import { v4 } from "uuid";

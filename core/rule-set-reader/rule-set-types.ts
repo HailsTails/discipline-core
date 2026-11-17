@@ -1,9 +1,9 @@
 import type { AnchorKind } from "../values/anchor.ts";
-import type { ClauseExceptions } from "./authored-rule-set-types.ts";
+import type { ClauseExceptions, ClauseSettingDeclarations } from "./authored-rule-set-types.ts";
 import type { ClauseId, DisciplineId, MechanismId } from "../values/identifier-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 
-export type { ClauseExceptions };
+export type { ClauseExceptions, ClauseSettingDeclaration, ClauseSettingDeclarations } from "./authored-rule-set-types.ts";
 
 export type SourceCase = {
   readonly name: string;
@@ -45,5 +45,6 @@ export type PieceFile = {
   readonly clauses: readonly {
     readonly clause: ClauseId;
     readonly settings: unknown;
+    readonly clauseSettings: ClauseSettingDeclarations;
   }[];
 };

@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, type Mock, vi } from "vitest";
+import type { ClauseSettingValues } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -21,11 +22,15 @@ const CONFIGURED_SPECIFIERS: readonly string[] = [
   "hono/cors", "hono/cookie", "hono/types", "hono/utils/http-status", "jose", "@modelcontextprotocol/sdk",
   "zod-to-json-schema", "uuid",
 ];
-const clauseWith = (request: { readonly clauseSettings: unknown }): RunnerClause => ({
+const CLAUSE_WITHOUT_SETTINGS: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
-  settings: { module: "import-boundaries.ts", clauseSettings: request.clauseSettings },
+  settings: { module: "import-boundaries.ts" },
+};
+const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): RunnerClause => ({
+  ...CLAUSE_WITHOUT_SETTINGS,
+  clauseSettings: request.clauseSettings,
 });
 const CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: CONFIGURED_SPECIFIERS } });
 const NEUTRAL_CLAUSE = clauseWith({ clauseSettings: { confinedSpecifiers: [] } });
@@ -259,14 +264,17 @@ describe("CD-19 confined specifiers come from the clause settings", () => {
     expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "lib(x)+" })]);
   });
 
-  it.each([
-    { name: "missing clause settings", clauseSettings: undefined },
-    { name: "a specifier list that is not an array", clauseSettings: { confinedSpecifiers: "eslint" } },
-    { name: "an empty specifier", clauseSettings: { confinedSpecifiers: [""] } },
-    { name: "an unknown setting", clauseSettings: { confinedSpecifiers: [], confinedPackages: ["eslint"] } },
-  ])("refuses to prepare with $name, naming the clause", ({ clauseSettings }) => {
+  it.each<{ readonly name: string; readonly clause: RunnerClause }>([
+    { name: "missing clause settings", clause: CLAUSE_WITHOUT_SETTINGS },
+    { name: "a specifier list that is not an array", clause: clauseWith({ clauseSettings: { confinedSpecifiers: "eslint" } }) },
+    { name: "an empty specifier", clause: clauseWith({ clauseSettings: { confinedSpecifiers: [""] } }) },
+    {
+      name: "an unknown setting",
+      clause: clauseWith({ clauseSettings: { confinedSpecifiers: [], confinedPackages: ["eslint"] } }),
+    },
+  ])("refuses to prepare with $name, naming the clause", ({ clause }) => {
     const prepared = check.prepare({
-      clauses: [clauseWith({ clauseSettings })],
+      clauses: [clause],
       repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
       syntaxApi: SYNTAX_API,
     });

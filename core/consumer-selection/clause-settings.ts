@@ -1,5 +1,9 @@
 import { z } from "zod";
+import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
+import type { ClauseSettingDeclaration, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
 import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
+import { type JsonKind, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
+import type { ReadonlyJsonValue } from "../values/json-value.ts";
 import type { Result } from "../values/result.ts";
 
 export const clauseSettingsSchema = z
@@ -9,40 +13,63 @@ export const clauseSettingsSchema = z
 
 export type ClauseSettings = z.output<typeof clauseSettingsSchema>;
 
-const declaredSettingsSchema = z.looseObject({ clauseSettings: z.record(z.string(), z.unknown()) });
+const KIND_NAMES: Readonly<Record<JsonKind, string>> = {
+  string: "a string",
+  number: "a number",
+  boolean: "a boolean",
+  null: "null",
+  array: "an array",
+  object: "an object",
+};
 
-const settingsNotTaken = (request: {
-  readonly address: ClauseAddress;
-  readonly detail: string;
-}): Result<never, string> => ({
+type GivenSetting = { readonly key: string; readonly value: ReadonlyJsonValue };
+
+const refusal = (request: { readonly address: ClauseAddress; readonly detail: string }): Result<never, string> => ({
   outcome: "failed",
   error: `clauseSettings for ${clauseAddressText({ address: request.address })}: ${request.detail}`,
 });
 
-const undeclaredKeysOf = (request: {
-  readonly declared: Readonly<Record<string, unknown>>;
-  readonly given: Readonly<Record<string, unknown>>;
-}): readonly string[] => Object.keys(request.given).filter((key) => !Object.hasOwn(request.declared, key));
+export const defaultClauseSettings = (request: { readonly declarations: ClauseSettingDeclarations }): ClauseSettingValues =>
+  Object.fromEntries(Object.entries(request.declarations).map(([key, declaration]) => [key, declaration.default]));
 
-export const settledPieceSettings = (request: {
+const listed = (request: { readonly values: readonly ReadonlyJsonValue[] }): string =>
+  request.values.map((choice) => JSON.stringify(choice)).join(", ");
+
+const settingRefusalOf = (request: {
+  readonly given: GivenSetting;
+  readonly declaration: ClauseSettingDeclaration | undefined;
+  readonly declarations: ClauseSettingDeclarations;
+}): string | undefined => {
+  const { given, declaration } = request;
+  if (declaration === undefined) {
+    return `its piece takes no ${given.key}; it takes ${Object.keys(request.declarations).join(", ")}`;
+  }
+  const kind = jsonKindOf({ value: declaration.default });
+  if (jsonKindOf({ value: given.value }) !== kind) return `${given.key} must be ${KIND_NAMES[kind]}, as its default is`;
+  const choices = declaration.choices;
+  if (choices !== undefined && !choices.some((choice) => sameJsonValue({ left: choice, right: given.value }) === "same")) {
+    return `${given.key} must be one of ${listed({ values: choices })}`;
+  }
+  return undefined;
+};
+
+export const settledClauseSettings = (request: {
   readonly address: ClauseAddress;
-  readonly pieceSettings: unknown;
-  readonly given: Readonly<Record<string, unknown>> | undefined;
-}): Result<unknown, string> => {
-  if (request.given === undefined) return { outcome: "ok", value: request.pieceSettings };
-  const declared = declaredSettingsSchema.safeParse(request.pieceSettings);
-  if (!declared.success || Object.keys(declared.data.clauseSettings).length === 0) {
-    return settingsNotTaken({ address: request.address, detail: "its piece takes no settings" });
-  }
-  const undeclared = undeclaredKeysOf({ declared: declared.data.clauseSettings, given: request.given });
-  if (undeclared.length > 0) {
-    return settingsNotTaken({
-      address: request.address,
-      detail: `its piece takes no ${undeclared.join(", ")}; it takes ${Object.keys(declared.data.clauseSettings).join(", ")}`,
-    });
-  }
-  return {
-    outcome: "ok",
-    value: { ...declared.data, clauseSettings: { ...declared.data.clauseSettings, ...request.given } },
-  };
+  readonly declarations: ClauseSettingDeclarations;
+  readonly given: ClauseSettingValues | undefined;
+}): Result<ClauseSettingValues, string> => {
+  const defaults = defaultClauseSettings(request);
+  if (request.given === undefined) return { outcome: "ok", value: defaults };
+  if (Object.keys(request.declarations).length === 0) return refusal({ address: request.address, detail: "its piece takes no settings" });
+  const detail = Object.entries(request.given)
+    .map(([key, settingValue]) =>
+      settingRefusalOf({
+        given: { key, value: settingValue },
+        declaration: Object.hasOwn(request.declarations, key) ? request.declarations[key] : undefined,
+        declarations: request.declarations,
+      }),
+    )
+    .find((found) => found !== undefined);
+  if (detail !== undefined) return refusal({ address: request.address, detail });
+  return { outcome: "ok", value: { ...defaults, ...request.given } };
 };

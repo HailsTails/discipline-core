@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
+import type { ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
-import { clauseSettingsSchema, settledPieceSettings } from "./clause-settings.ts";
+import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
 
-const ADDRESS = clauseAddressSchema.parse("CD-19#import-boundaries");
-const DECLARING_PIECE = { module: "import-boundaries.ts", clauseSettings: { confinedSpecifiers: [] } };
+const ADDRESS = clauseAddressSchema.parse("CD-6#naming-convention");
+
+const DECLARATIONS: ClauseSettingDeclarations = {
+  confinedPackages: { default: [] },
+  convention: { default: "camelCase", choices: ["camelCase", "snake_case"] },
+};
 
 describe("clauseSettingsSchema", () => {
   it("reads each clause address with its settings object", () => {
@@ -20,39 +26,56 @@ describe("clauseSettingsSchema", () => {
   });
 });
 
-describe("settledPieceSettings", () => {
-  it("keeps the piece's settings when the repository gives none", () => {
-    expect(settledPieceSettings({ address: ADDRESS, pieceSettings: DECLARING_PIECE, given: undefined })).toEqual({
+describe("defaultClauseSettings", () => {
+  it("takes each declared key's default", () => {
+    expect(defaultClauseSettings({ declarations: DECLARATIONS })).toEqual({ confinedPackages: [], convention: "camelCase" });
+  });
+});
+
+describe("settledClauseSettings", () => {
+  it("is the declared defaults when the repository gives none", () => {
+    expect(settledClauseSettings({ address: ADDRESS, declarations: DECLARATIONS, given: undefined })).toEqual({
       outcome: "ok",
-      value: DECLARING_PIECE,
+      value: { confinedPackages: [], convention: "camelCase" },
     });
   });
 
-  it("replaces a declared setting with the repository's value", () => {
-    expect(
-      settledPieceSettings({ address: ADDRESS, pieceSettings: DECLARING_PIECE, given: { confinedSpecifiers: ["eslint"] } }),
-    ).toEqual({
+  it("replaces only the keys the repository gives", () => {
+    expect(settledClauseSettings({ address: ADDRESS, declarations: DECLARATIONS, given: { convention: "snake_case" } })).toEqual({
       outcome: "ok",
-      value: { module: "import-boundaries.ts", clauseSettings: { confinedSpecifiers: ["eslint"] } },
+      value: { confinedPackages: [], convention: "snake_case" },
     });
   });
 
-  it.each([
-    { name: "declares no clauseSettings", pieceSettings: { module: "import-boundaries.ts" } },
-    { name: "declares an empty clauseSettings", pieceSettings: { module: "import-boundaries.ts", clauseSettings: {} } },
-  ])("refuses repository settings for a piece that $name", ({ pieceSettings }) => {
-    expect(settledPieceSettings({ address: ADDRESS, pieceSettings, given: { confinedSpecifiers: [] } })).toEqual({
+  it.each<{
+    readonly name: string;
+    readonly declarations: ClauseSettingDeclarations;
+    readonly given: ClauseSettingValues;
+    readonly detail: string;
+  }>([
+    { name: "a piece that declares no keys", declarations: {}, given: { convention: "camelCase" }, detail: "its piece takes no settings" },
+    {
+      name: "an undeclared key",
+      declarations: DECLARATIONS,
+      given: { naming: "camelCase" },
+      detail: "its piece takes no naming; it takes confinedPackages, convention",
+    },
+    {
+      name: "a value of another JSON kind than the default",
+      declarations: DECLARATIONS,
+      given: { confinedPackages: "eslint" },
+      detail: "confinedPackages must be an array, as its default is",
+    },
+    {
+      name: "a value outside the choices",
+      declarations: DECLARATIONS,
+      given: { convention: "kebab-case" },
+      detail: 'convention must be one of "camelCase", "snake_case"',
+    },
+  ])("refuses $name, naming the clause, the key and what is accepted", ({ declarations, given, detail }) => {
+    expect(settledClauseSettings({ address: ADDRESS, declarations, given })).toEqual({
       outcome: "failed",
-      error: "clauseSettings for CD-19#import-boundaries: its piece takes no settings",
-    });
-  });
-
-  it("refuses a setting the piece does not declare, naming the ones it does", () => {
-    expect(
-      settledPieceSettings({ address: ADDRESS, pieceSettings: DECLARING_PIECE, given: { module: "x.ts", extra: 1 } }),
-    ).toEqual({
-      outcome: "failed",
-      error: "clauseSettings for CD-19#import-boundaries: its piece takes no module, extra; it takes confinedSpecifiers",
+      error: `clauseSettings for CD-6#naming-convention: ${detail}`,
     });
   });
 });

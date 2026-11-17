@@ -63,6 +63,7 @@ describe("CD-14 ESLint piece.json", () => {
               pluginModule: "cd14/cd14.eslint-plugin.ts",
               rule: "no-class-authoring",
             },
+            clauseSettings: {},
           },
           {
             clause: "static-only-class",
@@ -72,6 +73,7 @@ describe("CD-14 ESLint piece.json", () => {
               rule: "no-extraneous-class",
               options: [{ allowConstructorOnly: true, allowEmpty: true, allowStaticOnly: false, allowWithDecorator: true }],
             },
+            clauseSettings: {},
           },
         ],
       },
