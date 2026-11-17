@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-pre.2",
+  "version": "0.1.0-pre.3",
   "private": true,
   "type": "module",
   "description": "Runs a project's selected disciplines against its own files.",

@@ -70,7 +70,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "artefacts/$TARBALL_NAME" --verify-tag --title "$title" --notes "$notes" "${prerelease[@]}"
 
   publish-npm:
-    name: Publish the released tarball to npm
+    name: Stage the released tarball on npm
     needs: release
     if: vars.NPM_PUBLISH == 'enabled'
     environment: npm
@@ -91,8 +91,8 @@ jobs:
         with:
           node-version: 22.18.0
           registry-url: 'https://registry.npmjs.org'
-      - name: Install the npm that supports trusted publishing
-        run: npm install --global npm@11.6.2
+      - name: Install the npm that supports staged publishing
+        run: npm install --global npm@11.21.1
       - name: Download the tarball attached to the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -103,7 +103,7 @@ jobs:
         run: |
           test -n "$TARBALL_SHA256"
           printf '%s  %s\n' "$TARBALL_SHA256" "artefacts/$TARBALL_NAME" | sha256sum --check --strict
-      - name: Publish the tarball under its dist-tag
+      - name: Stage the tarball under its dist-tag for approval on npm
         run: |
           case "$DIST_TAG" in next | latest) ;; *) exit 1 ;; esac
-          npm publish "./artefacts/$TARBALL_NAME" --tag "$DIST_TAG"
+          npm stage publish "./artefacts/$TARBALL_NAME" --tag "$DIST_TAG"
