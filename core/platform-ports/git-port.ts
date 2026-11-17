@@ -33,6 +33,19 @@ export type GitPort = {
   readonly textInBase: (request: GitContentQuery) => Result<BaseFileText, GitFailure>;
 };
 
+export type GitHistoryPort = {
+  readonly mergedTags: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly pattern: string;
+  }) => Result<readonly string[], GitFailure>;
+  readonly commitsAfter: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly revision: string;
+  }) => Result<readonly CommitRecord[], GitFailure>;
+};
+
+export type CommitRecord = { readonly parentCount: number; readonly message: string };
+
 export type GitEnvironment = Readonly<Record<string, string | undefined>>;
 
 export type GitRun =
@@ -277,21 +290,86 @@ export const createGitPort = (options: {
   };
 };
 
-export const createDefaultGitPort = (_options: Record<string, never>): GitPort => {
-  const execution = createDefaultExecutionPort({ policy: GIT_EXECUTION_POLICY });
-  return createGitPort({
-    spawn: (request) => {
-      const executed = execution.run({ arguments: request.arguments });
-      if (executed.outcome === "failed") {
-        return {
-          outcome: "errored",
-          detail: executed.error.kind === "terminated"
-            ? `git was ended by signal ${executed.error.signal}`
-            : executed.error.detail,
-        };
-      }
-      return { outcome: "exited", ...executed.value };
-    },
-    ambientEnvironment: {},
-  });
+const TRAILING_LINE_BREAKS = /\n+$/;
+
+const gitListing = (
+  request: GitContext & { readonly gitArguments: readonly string[]; readonly separator: string },
+): Result<readonly string[], GitFailure> => {
+  const output = gitOutput(request);
+  if (output.outcome === "failed") {
+    return output;
+  }
+  return {
+    outcome: "ok",
+    value: output.value.stdout
+      .split(request.separator)
+      .map((entry) => entry.replace(TRAILING_LINE_BREAKS, ""))
+      .filter((entry) => entry.length > 0),
+  };
 };
+
+const PARENT_SEPARATOR = " ";
+
+const LINE_BREAK = "\n";
+
+const commitRecordOf = (request: { readonly entry: string }): CommitRecord => {
+  const [parents, ...messageLines] = request.entry.split(LINE_BREAK);
+  return {
+    parentCount: parents.split(PARENT_SEPARATOR).filter((parent) => parent.length > 0).length,
+    message: messageLines.join(LINE_BREAK),
+  };
+};
+
+const commitsAfterRevision = (
+  request: GitContext & { readonly revision: string },
+): Result<readonly CommitRecord[], GitFailure> => {
+  const entries = gitListing({
+    ...request,
+    gitArguments: ["log", "--reverse", "-z", "--format=%P%n%B", "--end-of-options", `${request.revision}..HEAD`],
+    separator: "\0",
+  });
+  return entries.outcome === "failed" ? entries : { outcome: "ok", value: entries.value.map((entry) => commitRecordOf({ entry })) };
+};
+
+export const createGitHistoryPort = (options: {
+  readonly spawn: GitSpawn;
+  readonly ambientEnvironment: GitEnvironment;
+}): GitHistoryPort => {
+  const environment = environmentWithoutRepositoryLocation({
+    ambientEnvironment: options.ambientEnvironment,
+  });
+  return {
+    mergedTags: (request) =>
+      gitListing({
+        spawn: options.spawn,
+        environment,
+        repoRoot: request.repoRoot,
+        gitArguments: ["tag", "--list", "--merged", "HEAD", request.pattern],
+        separator: "\n",
+      }),
+    commitsAfter: (request) =>
+      commitsAfterRevision({ spawn: options.spawn, environment, repoRoot: request.repoRoot, revision: request.revision }),
+  };
+};
+
+const defaultGitSpawn = (_options: Record<string, never>): GitSpawn => {
+  const execution = createDefaultExecutionPort({ policy: GIT_EXECUTION_POLICY });
+  return (request) => {
+    const executed = execution.run({ arguments: request.arguments });
+    if (executed.outcome === "failed") {
+      return {
+        outcome: "errored",
+        detail: executed.error.kind === "terminated"
+          ? `git was ended by signal ${executed.error.signal}`
+          : executed.error.detail,
+      };
+    }
+    return { outcome: "exited", ...executed.value };
+  };
+};
+
+export const createDefaultGitPort = (_options: Record<string, never>): GitPort =>
+  createGitPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });
+
+export const createDefaultGitHistoryPort = (_options: Record<string, never>): GitHistoryPort =>
+  createGitHistoryPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });

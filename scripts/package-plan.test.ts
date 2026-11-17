@@ -11,6 +11,7 @@ const SOURCE_PATHS = [
   "README.md",
   "ADOPTING.md",
   "MIGRATING.md",
+  "CHANGELOG.md",
   "LICENSE",
   "package.json",
   "docs/why-chain-contract.md",
