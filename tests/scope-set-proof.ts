@@ -23,8 +23,11 @@ import {
   createEslintPort,
   type EslintSurface,
   type EslintSurfaceOptions,
+  type EslintClass,
   type EslintToolchain,
+  eslintOptionsOf,
   type LintedFile,
+  lintedFileOf,
 } from "../mechanisms/eslint/runner/eslint-instance.ts";
 import { eslintPieceSettingsSchema } from "../mechanisms/eslint/runner/eslint-piece-settings-schema.ts";
 import {
@@ -33,14 +36,24 @@ import {
   type ScopeSetPartition,
   scopeSetPartition,
 } from "../mechanisms/eslint/runner/scope-set.ts";
-import { type EslintLine, loadedEslintToolchain, modulesServingRunner } from "./eslint-toolchains.ts";
+import { type EslintLine, eslintClassOn, loadedEslintToolchain, modulesServingRunner } from "./eslint-toolchains.ts";
 import { overlaidFileText } from "./overlaid-file-text.ts";
 
 export type TeamParser = "as-configured" | "typescript-parser-block";
 
+export type TeamSuppressions =
+  | { readonly applied: "none" }
+  | { readonly applied: "default-location" }
+  | { readonly applied: "named-location"; readonly location: string };
+
+type AppliedSuppressions = Exclude<TeamSuppressions, { readonly applied: "none" }>;
+
+type EslintOptions = NonNullable<ConstructorParameters<EslintClass>[0]>;
+
 export type ProofSubject = {
   readonly line: EslintLine;
   readonly teamParser: TeamParser;
+  readonly teamSuppressions: TeamSuppressions;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
   readonly fileText: FileTextPort;
@@ -60,7 +73,12 @@ export type ScopeSetProof = {
   readonly restTeamLint: readonly LintedFile[];
 };
 
-type SubjectRequest = { readonly line: EslintLine; readonly teamParser: TeamParser; readonly git: GitPort };
+type SubjectRequest = {
+  readonly line: EslintLine;
+  readonly teamParser: TeamParser;
+  readonly teamSuppressions?: TeamSuppressions;
+  readonly git: GitPort;
+};
 
 type RecordedRunRequest = RunRequest & { readonly records: readonly ExceptionRecord[] };
 
@@ -115,6 +133,8 @@ const DEFAULT_PATH = createDefaultPathPort({});
 const INSTALL_ROOT = absolutePathSchema.parse(DEFAULT_PATH.join({ segments: [import.meta.dirname, ".."] }));
 
 const loadedModuleSchema = z.object({ default: z.unknown() });
+
+const NO_SUPPRESSIONS: TeamSuppressions = { applied: "none" };
 
 const recorderOf = (): Recorder => {
   const teamOptions: EslintSurfaceOptions[] = [];
@@ -397,6 +417,35 @@ const governedMessagesOf = (request: {
   ),
 });
 
+const suppressionOptionsOf = (request: { readonly suppressions: AppliedSuppressions }): EslintOptions =>
+  request.suppressions.applied === "named-location"
+    ? { applySuppressions: true, suppressionsLocation: request.suppressions.location }
+    : { applySuppressions: true };
+
+const suppressingTeamLint = async (
+  request: RecordedToolchain & { readonly suppressions: AppliedSuppressions; readonly filePaths: readonly string[] },
+): Promise<readonly LintedFile[]> => {
+  const eslintClass = await eslintClassOn({ line: request.subject.line });
+  const options = exactlyOne({ entries: request.recorded.teamOptions, claim: "the query of the team's configuration" });
+  const eslint = new eslintClass({
+    ...eslintOptionsOf({ version: eslintClass.version, options }),
+    ...suppressionOptionsOf(request),
+  });
+  return eslint.lintFiles([...request.filePaths]).then((results) => results.map(lintedFileOf));
+};
+
+const teamLint = (
+  request: RecordedToolchain & { readonly filePaths: readonly string[] },
+): Promise<readonly LintedFile[]> => {
+  if (request.filePaths.length === 0) {
+    return Promise.resolve([]);
+  }
+  const suppressions = request.subject.teamSuppressions;
+  return suppressions.applied === "none"
+    ? teamSurface(request).lintFiles({ filePaths: request.filePaths })
+    : suppressingTeamLint({ ...request, suppressions });
+};
+
 const restEvidence = (
   request: RecordedToolchain & { readonly partition: ProofPartition },
 ): Promise<readonly LintedFile[]> => {
@@ -404,7 +453,7 @@ const restEvidence = (
     return Promise.resolve([]);
   }
   const ruleIds = new Set(onlyRun(request).request.clauses.map((clause) => ruleIdOf({ clause })));
-  return lintedOrNone({ surface: teamSurface(request), filePaths: request.partition.rest }).then((linted) =>
+  return teamLint({ ...request, filePaths: request.partition.rest }).then((linted) =>
     linted.map((file) => governedMessagesOf({ linted: file, ruleIds })),
   );
 };
@@ -488,6 +537,7 @@ const teamPieceModules = async (request: RecordedToolchain): Promise<ModuleLoade
 
 const subjectOn = (request: SubjectRequest & { readonly repoRoot: AbsolutePath; readonly fileText: FileTextPort }): ProofSubject => ({
   ...request,
+  teamSuppressions: request.teamSuppressions ?? NO_SUPPRESSIONS,
   installRoot: INSTALL_ROOT,
   modules: createDefaultModuleLoaderPort({}),
   path: DEFAULT_PATH,
