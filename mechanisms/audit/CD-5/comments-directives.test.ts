@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, type Mock, vi } from "vitest";
+import type { ClauseSettingValues } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -12,20 +13,29 @@ const ADDRESS = clauseAddressSchema.parse("CD-5#comments-directives");
 const SYNTAX_API = defaultParsePort.syntaxApi;
 const TODO_ANNOTATION = "TO" + "DO";
 const TYPE_EXPECTATION = "@ts-expect-" + "error";
-const CLAUSE: RunnerClause = {
+const NEUTRAL_TRACKER_PATTERNS: readonly string[] = ["\\([^()]*[^()\\s][^()]*\\)"];
+const SPEC_TRACKER_PATTERNS: readonly string[] = ["\\(spec-\\d+\\)"];
+
+const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-5",
   clauseSettings: {},
   settings: { module: "comments-directives.ts" },
 };
+const clauseWith = (request: { readonly clauseSettings: ClauseSettingValues }): RunnerClause => ({
+  ...CLAUSE_WITH_NO_SETTINGS,
+  clauseSettings: request.clauseSettings,
+});
+const CLAUSE = clauseWith({ clauseSettings: { trackerPatterns: NEUTRAL_TRACKER_PATTERNS } });
+const SPEC_CLAUSE = clauseWith({ clauseSettings: { trackerPatterns: SPEC_TRACKER_PATTERNS } });
 
-const sourceObservations = (request: { readonly source: string }): {
+const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): {
   readonly observers: SourceObservers;
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
   readonly finish: PreparedWalkerCheck["finish"];
 } => {
-  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const selected = prepared.value.prepareFile({ file: FILE, readText: vi.fn().mockReturnValue({ outcome: "ok", value: request.source }) });
   assert(selected.outcome === "ok");
@@ -104,5 +114,110 @@ describe("CD-5 existing annotation capability", () => {
       { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `const note = '// ${TODO_ANNOTATION} later';` },
       { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: `const marker = '// ${TYPE_EXPECTATION} ignored';` },
     ]);
+  });
+});
+
+describe("CD-5 neutral tracker patterns", () => {
+  it.each([
+    { name: "an issue number", tracker: "(#42)" },
+    { name: "a ticket key", tracker: "(PROJ-7)" },
+    { name: "a spec number", tracker: "(spec-099)" },
+    { name: "a link", tracker: "(https://tracker.example/issues/42)" },
+  ])("accepts a directive and a type expectation carrying $name", ({ tracker }) => {
+    const directive = `// biome-ignore lint/example: rationale ${tracker}`;
+    const observed = sourceObservations({ source: `${directive}\n// ${TYPE_EXPECTATION} reason ${tracker}\n` });
+
+    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: directive.length } });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+  it.each([
+    { name: "empty parentheses", tracker: "()" },
+    { name: "blank parentheses", tracker: "(  )" },
+    { name: "an unclosed parenthesis", tracker: "(#42" },
+  ])("flags a directive and a type expectation carrying only $name", ({ tracker }) => {
+    const directive = `// biome-ignore lint/example: rationale ${tracker}`;
+    const expectation = `// ${TYPE_EXPECTATION} reason ${tracker}`;
+    const observed = sourceObservations({ source: `${directive}\n${expectation}\n` });
+
+    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: directive.length } });
+
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: directive },
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation },
+    ]);
+  });
+
+  it("refuses a tracker written before the type expectation marker", () => {
+    const expectation = `(#42) // ${TYPE_EXPECTATION} reason`;
+    const observed = sourceObservations({ source: `${expectation}\n` });
+
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation }]);
+  });
+});
+
+describe("CD-5 configured tracker patterns", () => {
+  it("accepts only references the configured patterns match", () => {
+    const tracked = `// biome-ignore lint/example: rationale (spec-7)`;
+    const untracked = `// biome-ignore lint/example: rationale (#42)`;
+    const expectation = `// ${TYPE_EXPECTATION} reason (#42)`;
+    const observed = sourceObservations({ source: `${tracked}\n${untracked}\n${expectation}\n`, clause: SPEC_CLAUSE });
+
+    observed.observers.comment?.({ range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: 0, end: tracked.length } });
+    observed.observers.comment?.({
+      range: { kind: SYNTAX_API.SyntaxKind.SingleLineCommentTrivia, pos: tracked.length + 1, end: tracked.length + 1 + untracked.length },
+    });
+
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: untracked },
+      { clause: ADDRESS, anchor: { line: 7, column: 2 }, snippet: expectation },
+    ]);
+  });
+
+  it("accepts a reference any one of several configured patterns matches", () => {
+    const expectation = `// ${TYPE_EXPECTATION} reason [ABC-12]`;
+    const observed = sourceObservations({
+      source: `${expectation}\n`,
+      clause: clauseWith({ clauseSettings: { trackerPatterns: [...SPEC_TRACKER_PATTERNS, "\\[ABC-\\d+\\]"] } }),
+    });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+  it("leaves the parenthesised task rule to the annotation itself", () => {
+    const observed = sourceObservations({ source: `// ${TODO_ANNOTATION}(#42) later\n`, clause: SPEC_CLAUSE });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+  it.each<{ readonly name: string; readonly clause: RunnerClause; readonly detail: string }>([
+    { name: "no tracker patterns", clause: CLAUSE_WITH_NO_SETTINGS, detail: "the clauseSettings of CD-5#comments-directives are malformed" },
+    {
+      name: "a pattern list that is not an array",
+      clause: clauseWith({ clauseSettings: { trackerPatterns: "\\(#\\d+\\)" } }),
+      detail: "the clauseSettings of CD-5#comments-directives are malformed",
+    },
+    {
+      name: "an empty pattern",
+      clause: clauseWith({ clauseSettings: { trackerPatterns: [""] } }),
+      detail: "the clauseSettings of CD-5#comments-directives are malformed",
+    },
+    {
+      name: "a pattern that does not compile",
+      clause: clauseWith({ clauseSettings: { trackerPatterns: ["(spec-"] } }),
+      detail: 'the clauseSettings of CD-5#comments-directives are malformed: trackerPatterns entry "(spec-" is not a regular expression',
+    },
+  ])("refuses to prepare with $name, naming the clause", ({ clause, detail }) => {
+    const prepared = check.prepare({
+      clauses: [clause],
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      syntaxApi: SYNTAX_API,
+    });
+
+    expect(prepared).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-invalid", pieceRoot: "/install/mechanisms/audit/CD-5", detail: expect.stringContaining(detail) },
+    });
   });
 });

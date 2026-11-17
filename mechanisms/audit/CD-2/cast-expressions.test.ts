@@ -3,7 +3,7 @@ import type { RunnerClause } from "../../../core/mechanism-port/runner-module-sc
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import type { SyntaxTree } from "../runner/typescript-parse.ts";
+import type { SyntaxNode, SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./cast-expressions.ts";
@@ -15,9 +15,16 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-2",
-  clauseSettings: {},
+  clauseSettings: { permittedCastTypes: [], permittedCastTypePackages: [] },
   settings: { module: "cast-expressions.ts" },
 };
+const CONFIGURED_CLAUSE: RunnerClause = {
+  ...CLAUSE,
+  clauseSettings: { permittedCastTypes: ["ReadonlyArray", 'Tool["inputSchema"]'], permittedCastTypePackages: ["zod"] },
+};
+
+const statementCast = (request: { readonly tree: SyntaxTree; readonly index: number }): SyntaxNode =>
+  request.tree.getChildAt(0, request.tree).getChildAt(request.index, request.tree).getChildAt(0, request.tree);
 
 type ObservationFixture = {
   readonly tree: SyntaxTree;
@@ -25,9 +32,9 @@ type ObservationFixture = {
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
 };
 
-const sourceObservations = (request: { readonly source: string }): ObservationFixture => {
+const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): ObservationFixture => {
   const repository: WalkerRepository = { files: [FILE], exists: vi.fn().mockReturnValue("present") };
-  const prepared = check.prepare({ clauses: [CLAUSE], repository, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const file = prepared.value.prepareFile({
     file: FILE,
@@ -99,8 +106,24 @@ describe("CD-2 existing cast capability", () => {
     ]);
   });
 
-  it("retains allowed syntax forms and prepares aliased Zod names from a later top-level import", () => {
+  it("permits only unknown and const casts with the neutral defaults", () => {
     const observed = sourceObservations({ source: "candidate as unknown;\n'permitted' as const;\nschema as Schema;\njsonSchema as Tool['inputSchema'];\nallResult.value as ReadonlyArray<RowShape>;\nimport type { ZodObject as Schema } from 'zod/v4';\n" });
+
+    observed.observers.enter?.({ node: statementCast({ tree: observed.tree, index: 0 }) });
+    observed.observers.enter?.({ node: statementCast({ tree: observed.tree, index: 1 }) });
+    observed.observers.enter?.({ node: statementCast({ tree: observed.tree, index: 2 }) });
+    observed.observers.enter?.({ node: statementCast({ tree: observed.tree, index: 3 }) });
+    observed.observers.enter?.({ node: statementCast({ tree: observed.tree, index: 4 }) });
+
+    expect(observed.observers.finish()).toHaveLength(3);
+    expect(observed.anchorAt.mock.calls).toEqual([[{ position: 44 }], [{ position: 62 }], [{ position: 97 }]]);
+  });
+
+  it("permits the configured type names and names imported from the configured packages", () => {
+    const observed = sourceObservations({
+      clause: CONFIGURED_CLAUSE,
+      source: "candidate as unknown;\n'permitted' as const;\nschema as Schema;\njsonSchema as Tool['inputSchema'];\nallResult.value as ReadonlyArray<RowShape>;\nimport type { ZodObject as Schema } from 'zod/v4';\n",
+    });
     const unknownCast = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree);
     const constCast = observed.tree.getChildAt(0, observed.tree).getChildAt(1, observed.tree).getChildAt(0, observed.tree);
     const zodCast = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree).getChildAt(0, observed.tree);
@@ -118,7 +141,7 @@ describe("CD-2 existing cast capability", () => {
   });
 
   it("does not admit a locally declared Zod-prefixed type as an imported Zod name", () => {
-    const observed = sourceObservations({ source: "type ZodInternalCarrier = {};\nschema as ZodInternalCarrier;\n" });
+    const observed = sourceObservations({ source: "type ZodInternalCarrier = {};\nschema as ZodInternalCarrier;\n", clause: CONFIGURED_CLAUSE });
     const cast = observed.tree.getChildAt(0, observed.tree).getChildAt(1, observed.tree).getChildAt(0, observed.tree);
 
     observed.observers.enter?.({ node: cast });
@@ -140,5 +163,22 @@ describe("CD-2 existing cast capability", () => {
       { clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet: "candidate as Map<string, any>; " },
     ]);
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 18 });
+  });
+
+  it("refuses to prepare with malformed cast settings, naming the clause", () => {
+    const prepared = check.prepare({
+      clauses: [{ ...CLAUSE, clauseSettings: {} }],
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      syntaxApi: SYNTAX_API,
+    });
+
+    expect(prepared).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "piece-invalid",
+        pieceRoot: "/install/mechanisms/audit/CD-2",
+        detail: expect.stringContaining("the clauseSettings of CD-2#cast-expressions are malformed"),
+      },
+    });
   });
 });

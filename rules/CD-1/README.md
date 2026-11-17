@@ -19,7 +19,7 @@ Review lens: [type-soundness](../../methods/lenses/type-soundness.md). The lens 
 ## What the check flags
 - `.ts` and `.tsx` files; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
 - A type assertion (`x as T` or `<T>x`) where the first 80 characters from the start of the assertion match `as any`, `: any` or `<any>`.
-- Allowed: `as unknown`. Other casts are reported by CD-2 instead.
+- Allowed: `as unknown`, `as const`, and the cast shapes named in the clause's `permittedCastTypes` and `permittedCastTypePackages` settings, which work as they do for [CD-2](../CD-2/README.md#settings) and are empty by default. Other casts are reported by CD-2 instead.
 - A multi-argument generic such as `Map<string, any>` does not match and falls to CD-2. A bare annotation such as `let value: any` is not flagged; that part is left to review.
 
 ## What the ESLint check flags

@@ -37,6 +37,14 @@
             "expectedLines": [
               3
             ]
+          },
+          {
+            "name": "as a name imported from a package no setting permits",
+            "fileName": "package-type-cast.ts",
+            "source": "import { z } from \"zod\";\ndeclare const raw: unknown;\nexport const schema = raw as z;\n",
+            "expectedLines": [
+              3
+            ]
           }
         ],
         "allow": [
@@ -50,12 +58,6 @@
             "name": "as const",
             "fileName": "const-assertion.ts",
             "source": "export const PERMITTED_LITERAL = \"permitted\" as const;\n",
-            "expectedLines": []
-          },
-          {
-            "name": "as a name imported from zod",
-            "fileName": "zod-cast.ts",
-            "source": "import { z } from \"zod\";\ndeclare const raw: unknown;\nexport const schema = raw as z;\n",
             "expectedLines": []
           }
         ]

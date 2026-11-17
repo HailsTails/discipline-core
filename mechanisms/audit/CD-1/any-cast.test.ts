@@ -15,7 +15,7 @@ const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-1",
-  clauseSettings: {},
+  clauseSettings: { permittedCastTypes: [], permittedCastTypePackages: [] },
   settings: { module: "any-cast.ts" },
 };
 
@@ -26,9 +26,9 @@ type ObservationFixture = {
   readonly finish: PreparedWalkerCheck["finish"];
 };
 
-const sourceObservations = (request: { readonly source: string }): ObservationFixture => {
+const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): ObservationFixture => {
   const repository: WalkerRepository = { files: [FILE], exists: vi.fn().mockReturnValue("present") };
-  const prepared = check.prepare({ clauses: [CLAUSE], repository, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const file = prepared.value.prepareFile({
     file: FILE,
@@ -122,5 +122,37 @@ describe("CD-1 existing any-cast capability", () => {
     expect(observed.observers.finish()).toEqual([
       { clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet: "candidate as Profile; const value: any = candidate; " },
     ]);
+  });
+
+  it("flags an any-bearing cast to a package type with the neutral defaults and permits it once the package is configured", () => {
+    const source = "import type { ZodType } from 'zod';\nschema as ZodType<any>;\n";
+    const neutral = sourceObservations({ source });
+    const configured = sourceObservations({
+      source,
+      clause: { ...CLAUSE, clauseSettings: { permittedCastTypes: [], permittedCastTypePackages: ["zod"] } },
+    });
+
+    neutral.observers.enter?.({ node: neutral.tree.getChildAt(0, neutral.tree).getChildAt(1, neutral.tree).getChildAt(0, neutral.tree) });
+    configured.observers.enter?.({ node: configured.tree.getChildAt(0, configured.tree).getChildAt(1, configured.tree).getChildAt(0, configured.tree) });
+
+    expect(neutral.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 3, column: 2 }, snippet: "schema as ZodType<any>; " }]);
+    expect(configured.observers.finish()).toEqual([]);
+  });
+
+  it("refuses to prepare with malformed cast settings, naming the clause", () => {
+    const prepared = check.prepare({
+      clauses: [{ ...CLAUSE, clauseSettings: { permittedCastTypes: [] } }],
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      syntaxApi: SYNTAX_API,
+    });
+
+    expect(prepared).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "piece-invalid",
+        pieceRoot: "/install/mechanisms/audit/CD-1",
+        detail: expect.stringContaining("the clauseSettings of CD-1#any-cast are malformed"),
+      },
+    });
   });
 });
