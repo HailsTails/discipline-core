@@ -214,6 +214,8 @@ npm run --silent hone:check
 
 Add the check to the repository's existing validation script, and run that script in CI and in any pre-push hook the repository already has, so the check runs wherever the other checks run.
 
+A known limit: `hone check` runs its own ESLint pass over the governed files, even when the repository's own lint has just run. A hook that runs both pays for lint twice. Reusing the repository's lint run is planned after 1.0.
+
 A first adoption assesses decay at push only, so that a hotfix in a carved file is not blocked in CI while the check is new: set `"assessment": { "forfeiture": "elsewhere" }` in `disciplines.json`. CI and the pre-push hook then run different commands. The pre-push hook assesses decay for its run:
 
 ```bash

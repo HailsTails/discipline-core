@@ -261,11 +261,15 @@ Hone's version numbers follow semantic versioning under these rules:
 
 - A new or tightened check ships off by default in a minor release and becomes a default only in a major release.
 - A change to the ESLint config that `hone project` generates, which an adopter must regenerate, is a minor release, with a clear message telling the adopter to regenerate: its changelog entry says to run `hone project` and commit the result, and until then the check reports the projection `out-of-date`.
-- A change to a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag is a major release.
+- Renaming or removing a clause address, a config key in `disciplines.json` or `discipline-exceptions.json`, or a CLI flag, or changing what one means, is a major release. Adding one with a safe default is not.
 - A change to what [the output contract](docs/output-contract.md) says a tool can parse is a major release: the command and option names, the exit codes and streams, the report's sections, outputs and verdict lines, the load failure kinds, and each line's leading fields up to its first value that may hold a space. What it marks not stable, such as the help text, the wording of `arguments-invalid` and `readFirst` lines and the repair text after a load failure's values, may change in a minor release, and a minor release may add a section, a kind of line or an option.
 - A breaking change to a type in `@hailstails/hone/rule-set` is a major release. `@hailstails/hone/audit` is experimental: its types may change in a minor release until it is marked stable.
 - Before the first stable release, a change that would need a major release ships in a minor release instead.
 - A pre-release previews the release it is numbered towards and is published under the `next` dist-tag. A change of any size can land between two pre-releases of the same release, and the changelog lists it.
+
+`disciplines.json` and `discipline-exceptions.json` follow the same rules. A new key with a safe default, where nothing changes for an adopter who does not set it, is not breaking and can arrive in a minor release. A new required key with no safe default is breaking, and so is a change that makes a file that loads today stop loading or mean something else; both wait for a major release.
+
+A clause that accepts `audit` keeps accepting it: `audit` is never removed from the mechanisms such a clause lists, so a selection that names `audit` for it keeps loading. A clause can only gain mechanisms.
 
 Each release's changes are listed in [the changelog](https://github.com/HailsTails/hone/blob/main/CHANGELOG.md) in the repository.
 
