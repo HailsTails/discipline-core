@@ -1,9 +1,10 @@
 import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
+import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
-import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ReadFirstEntry, Unmeasured } from "./check-report.ts";
+import type { AssessmentFileNote, CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, ReadFirstEntry, Unmeasured } from "./check-report.ts";
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
@@ -74,6 +75,15 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
   }
 };
 
+const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
+
+const nestedConfigurationNote = (request: {
+  readonly unmeasured: Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
+}): string =>
+  request.unmeasured.projection === "missing" || request.unmeasured.nestedConfigurations.length === 0
+    ? ""
+    : `; not managed from this repository, each holding its own disciplines.json: ${request.unmeasured.nestedConfigurations.join(", ")}; nested Hone configurations are not supported yet, see ${NESTED_CONFIGURATION_ISSUE}`;
+
 const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string => {
   switch (request.unmeasured.kind) {
     case "forfeiture-unmeasured":
@@ -81,7 +91,7 @@ const unmeasuredLine = (request: { readonly unmeasured: Unmeasured }): string =>
     case "legacy-chain-unmeasured":
       return request.unmeasured.kind;
     case "mechanism-not-run":
-      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}`;
+      return `${request.unmeasured.kind} ${request.unmeasured.mechanism} ${request.unmeasured.projection}${nestedConfigurationNote({ unmeasured: request.unmeasured })}`;
   }
 };
 
@@ -94,6 +104,11 @@ const assessmentLine = (request: { readonly partial: PartialAssessment }): strin
       return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.fileCarveOuts, noun: "file carve-out" })} not checked for decay in this run`;
   }
 };
+
+const projectionProblemLine = (request: { readonly problem: ProjectionProblem }): string =>
+  request.problem.scope === "slice"
+    ? `${request.problem.mechanism} ${request.problem.state} ${request.problem.slice}`
+    : `${request.problem.mechanism} ${request.problem.state}`;
 
 const sectionRead = (request: { readonly reading: ClauseReading }): string =>
   `read the ${JSON.stringify(assessmentSectionHeading(request.reading))} section of ${ASSESSMENT_FILE_NAME}`;
@@ -152,7 +167,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     ),
   unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ unmeasured })),
   projectionProblems: (request) =>
-    request.report.projectionProblems.map((problem) => `${problem.mechanism} ${problem.state}`),
+    request.report.projectionProblems.map((problem) => projectionProblemLine({ problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
 };

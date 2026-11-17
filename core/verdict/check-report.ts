@@ -20,7 +20,13 @@ export type Unmeasured =
   | {
       readonly kind: "mechanism-not-run";
       readonly mechanism: MechanismId;
-      readonly projection: "missing" | "not-included";
+      readonly projection: "missing";
+    }
+  | {
+      readonly kind: "mechanism-not-run";
+      readonly mechanism: MechanismId;
+      readonly projection: "not-included";
+      readonly nestedConfigurations: readonly RepoPath[];
     };
 
 export type PartialAssessment = {
@@ -29,10 +35,14 @@ export type PartialAssessment = {
   readonly fileCarveOuts: number;
 };
 
-export type ProjectionProblem = {
-  readonly mechanism: MechanismId;
-  readonly state: "out-of-date";
-};
+export type ProjectionProblem =
+  | { readonly scope: "projection"; readonly mechanism: MechanismId; readonly state: "out-of-date" }
+  | {
+      readonly scope: "slice";
+      readonly mechanism: MechanismId;
+      readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured";
+      readonly slice: RepoPath;
+    };
 
 export type AssessmentSection = "present" | "not-assessed" | "unread";
 

@@ -9,6 +9,9 @@ const escapedLineBreaks = (request: { readonly text: string }): string =>
 const JUDGEMENT_CLAUSE_LISTED_REPAIR =
   "a judgement clause is enforced by review and is left out of clauses, adopted or not; remove it";
 
+const CONFIG_ROOT_REPAIR =
+  "an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json";
+
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
@@ -81,6 +84,8 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
     case "mechanism-not-allowed":
     case "piece-missing":
       return [request.failure.address, request.failure.mechanism];
+    case "config-root-untracked":
+      return [`${request.failure.root}:`, CONFIG_ROOT_REPAIR];
     case "runner-missing":
       return [request.failure.mechanism];
     case "runner-invalid":

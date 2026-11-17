@@ -146,6 +146,15 @@ const consumerSelectionFileSchema = z.strictObject({
     )
     .default([]),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
+  eslintConfigRoots: z
+    .array(
+      brandedRepoPathSchema({
+        text: repoPathTextSchema.refine((rootPath) => !rootPath.includes("*"), {
+          error: "an eslintConfigRoots entry is a repository folder, not a glob",
+        }),
+      }),
+    )
+    .default([]),
   fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
   reportOutput: reportOutputSchema.default("full"),
   assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
@@ -584,6 +593,7 @@ const selectionReadingOf = (request: {
   bindings: request.resolved.map(({ binding }) => binding),
   clauseRoots: request.resolved.map((resolved) => ({ clause: addressOf({ resolved }), ruleSetRoot: resolved.ruleSetRoot })),
   excluded: request.file.exclude,
+  eslintConfigRoots: request.file.eslintConfigRoots,
   fileExceptionWhyChains: request.file.fileExceptionWhyChains,
 });
 

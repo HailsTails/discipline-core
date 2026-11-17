@@ -7,4 +7,11 @@ export default [
     plugins: { "hone": piece0 },
     rules: { "hone/no-class-authoring": "error" },
   },
+  {
+    name: "hone-core/file-records/CD-14#class-syntax",
+    files: [
+      "packages/a/legacy.ts",
+    ],
+    rules: { "hone/no-class-authoring": "off" },
+  },
 ];

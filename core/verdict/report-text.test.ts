@@ -432,10 +432,57 @@ exceptions[4] why-chain-refused why 2\nis empty\r
         output: "full",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }],
         },
       }),
     ).toContain("\neslint out-of-date\n");
+  });
+
+  it("renders a package slice problem as its mechanism, state and the slice it names", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          projectionProblems: [
+            { scope: "slice", mechanism: eslint, state: "not-applied", slice: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") },
+          ],
+        },
+      }),
+    ).toContain("\neslint not-applied packages/a/disciplines.eslint.mjs\n");
+  });
+
+  it("explains a not-included projection in the failures-only output by the folders holding their own disciplines.json, without marking the verdict partial", () => {
+    expect(
+      renderReportText({
+        output: "failures-only",
+        report: {
+          ...emptyReport,
+          unmeasured: [
+            {
+              kind: "mechanism-not-run",
+              mechanism: eslint,
+              projection: "not-included",
+              nestedConfigurations: repoPathSchema.array().parse(["fixtures/a", "fixtures/b"]),
+            },
+          ],
+        },
+      }),
+    ).toBe(
+      "unmeasured (1)\nmechanism-not-run eslint not-included; not managed from this repository, each holding its own disciplines.json: fixtures/a, fixtures/b; nested Hone configurations are not supported yet, see https://github.com/HailsTails/hone/issues/72\nverdict: fail\n",
+    );
+  });
+
+  it("renders a not-included projection with no folder holding its own disciplines.json as its kind, mechanism and projection alone", () => {
+    expect(
+      renderReportText({
+        output: "full",
+        report: {
+          ...emptyReport,
+          unmeasured: [{ kind: "mechanism-not-run", mechanism: eslint, projection: "not-included", nestedConfigurations: [] }],
+        },
+      }),
+    ).toContain("\nmechanism-not-run eslint not-included\n");
   });
 });
 
@@ -460,7 +507,7 @@ describe("renderReportText sections", () => {
         output: "full",
         report: {
           ...emptyReport,
-          projectionProblems: [{ mechanism: eslint, state: "out-of-date" }],
+          projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }],
           stale: [located],
           findings: [finding],
         },

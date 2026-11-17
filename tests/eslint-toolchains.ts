@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { EmbeddedRunner } from "../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import { toolchainBoundEmbeddedRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
@@ -167,6 +168,7 @@ export const eslintRunnerOn = (request: { readonly line: EslintLine }): Embedded
     runnerOf: (toolchain) =>
       createEslintRunner({
         fileText: createDefaultFileTextPort({}),
+        fileRemoval: createDefaultFileRemovalPort({}),
         modules: pieceModulesOn({ line: request.line, base: createDefaultModuleLoaderPort({}) }),
         path: createDefaultPathPort({}),
         eslint: createEslintPort({ toolchain }),

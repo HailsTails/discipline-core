@@ -59,6 +59,7 @@ const INSTALLED_TYPESCRIPT_COMPILER = "node_modules/typescript/bin/tsc";
 const TYPECHECK_ONLY = ["--noEmit", "-p"];
 const PLATFORM_LINE_END = "\r\n";
 const NPM_CONFIG = ".npmrc";
+const LINT_SCRIPT = "lint";
 const inOrder = (request: { readonly steps: readonly Step[] }): Result<null, string> =>
   request.steps.reduce<Result<null, string>>((sofar, step) => (sofar.outcome === "failed" ? sofar : step()), SUCCEEDED);
 
@@ -182,6 +183,30 @@ const typeCheckedProject = (request: {
   return SUCCEEDED;
 };
 
+const packageLint = (request: {
+  readonly context: ProofContext;
+  readonly repo: string;
+  readonly consumer: string;
+  readonly action: Extract<ProofAction, { readonly kind: "lint" }>;
+}): Result<null, string> => {
+  const judged = judgedStep({
+    label: `${request.consumer} lint in ${request.action.directory}`,
+    expectation: request.action.expectation,
+    run: withLineFeeds({
+      run: request.context.commands.run({
+        command: "npm",
+        arguments: [...NPM_RUN_SILENT, LINT_SCRIPT],
+        directory: request.context.path.join({ segments: [request.repo, request.action.directory] }),
+      }),
+    }),
+  });
+  if (judged.outcome === "failed") {
+    return judged;
+  }
+  request.context.process.writeOut({ text: `${judged.value}\n` });
+  return SUCCEEDED;
+};
+
 const readExactly = (request: {
   readonly context: ProofContext;
   readonly label: string;
@@ -231,6 +256,8 @@ const performedAction = (request: {
       });
     case "typecheck":
       return typeCheckedProject({ context: request.context, repo: request.repo, consumer: request.consumer, action });
+    case "lint":
+      return packageLint({ context: request.context, repo: request.repo, consumer: request.consumer, action });
   }
 };
 

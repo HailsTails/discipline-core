@@ -248,3 +248,14 @@ For each clause the setting skipped:
 3. **Remove the setting and the flag.** Delete `waivedClauses` from `assessment` in `disciplines.json`, and `--waived-clauses` from scripts, CI and the pre-push hook.
 4. **Re-project** if any clause was `eslint`: run `npm run --silent hone:project`. The projection no longer carries the clause's rule or its `"off"` block; commit it.
 5. **Run the check.** The `assessment` section's `waived-clauses` line is gone, and the verdict line is no longer marked `(partial assessment)` unless forfeiture is assessed elsewhere.
+
+## 13. Moving to package projection slices
+
+Earlier releases wrote one `disciplines.eslint.mjs` at the repository root, and every package config spread it. A package linted from its own folder resolves `files` against that folder, so the root projection's carve-outs never matched there. Hone now writes a slice per config root; see [README.md](README.md#package-slices).
+
+1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Under the nearest-to-file lookup, each folder with a tracked `eslint.config.*` is a config root, and the check fails with `eslint missing <package>/disciplines.eslint.mjs` for each until its slice is written.
+2. **Project and commit.** Run `npm run --silent hone:project` and commit every `disciplines.eslint.mjs` it writes, the root one and each package's.
+3. **Spread each package's own slice.** In each package config, import `./disciplines.eslint.mjs` from that package's folder and spread it last, in place of the root projection. A package still spreading the root projection is reported `eslint not-applied <package>/disciplines.eslint.mjs` once a recorded file there is under check.
+4. **List generated configs.** A package whose `eslint.config.*` a tool generates and git ignores gets no slice until its folder is listed under `eslintConfigRoots` in `disciplines.json`. Each listed folder must be one git tracks files under, outside every `exclude` path, or the check stops with `config-root-untracked`.
+5. **Repositories on the repository-root lookup.** One ESLint 9 run applies the root config to every file, so no package folder is a config root. `hone project` removes each package slice it wrote whose bytes it would still write, and reports any other as `left-in-place`. If anyone lints from a package folder, a package config that imports its slice then fails with `Cannot find module`: list that package under `eslintConfigRoots` to keep its slice, or stop importing it there.
+6. **Folders holding their own `disciplines.json`** get no slice: their ESLint configuration is not managed from this repository, as nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)). When such a folder's own config leaves a carve-out recorded there out of effect, the check names it on the `mechanism-not-run eslint not-included` line.

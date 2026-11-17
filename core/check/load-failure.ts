@@ -1,5 +1,6 @@
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import type { MechanismId } from "../values/identifiers.ts";
+import type { RepoPath } from "../values/repo-path.ts";
 
 export type LoadFailure =
   | { readonly kind: "arguments-invalid"; readonly detail: string }
@@ -21,4 +22,5 @@ export type LoadFailure =
   | { readonly kind: "piece-missing"; readonly address: string; readonly mechanism: MechanismId }
   | { readonly kind: "rule-set-invalid"; readonly path: string; readonly detail: string }
   | { readonly kind: "git-failed"; readonly detail: string }
+  | { readonly kind: "config-root-untracked"; readonly root: RepoPath }
   | { readonly kind: "runner-failed"; readonly mechanism: MechanismId; readonly failure: RunnerFailure };

@@ -43,6 +43,8 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","src/a.ts"]': "/repo/src/a.ts",
+  '["/repo","packages/a/eslint.config.mjs"]': "/repo/packages/a/eslint.config.mjs",
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
   '["/install","mechanisms","audit","CD-14","piece.json"]': PIECE_PATH,
   '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
@@ -103,6 +105,7 @@ const INSTALL: Readonly<Record<string, FakeFile>> = {
   [DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE }),
   [PIECE_PATH]: presentFile({ text: PIECE }),
   [RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
+  "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
 const TWO_MECHANISM_DISCIPLINE = JSON.stringify({
@@ -163,6 +166,7 @@ const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
   [LINT_PIECE_PATH]: presentFile({ text: LINT_PIECE }),
   [RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
   [LINT_RUNNER_PATH]: presentFile({ text: "export const runner = {};\n" }),
+  "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
 const WALKER_RECORD = {
@@ -291,7 +295,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const writes = await runProject(projectRequest({ modules: modulesLoading({ runner }) }));
     expect({ writes, runCalls: runner.run.mock.calls }).toEqual({
@@ -308,7 +312,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const writes = await runProject(
       projectRequest({
@@ -330,7 +334,7 @@ describe("runProject with an embedded runner", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const legacyLocation = { kind: "authorised-location", clause: "CD-14#class-syntax", file: "src/walker.ts", reason: "audit location", whyChain: LEGACY_WHY_CHAIN };
     const writes = await runProject(
@@ -360,7 +364,7 @@ describe("runProject for a repository that does not adopt a clause", () => {
       conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
       project: vi
         .fn<(request: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "written" } }),
+        .mockResolvedValue({ outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] }),
     };
     const load = vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } });
     const writes = await runProject(
@@ -382,5 +386,96 @@ describe("runProject for a repository that does not adopt a clause", () => {
         [expect.objectContaining({ clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })], records: [] })],
       ],
     });
+  });
+});
+
+const PACKAGE_CONFIG_GIT: GitPort = {
+  ...GIT,
+  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({
+    outcome: "ok",
+    value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("packages/a/eslint.config.mjs")],
+  }),
+};
+
+describe("runProject for a repository with a package config and a clause it does not adopt", () => {
+  it("hands the runner the tracked package config and only the adopted clause, so no slice holds the clause not adopted", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    await runProject(
+      projectRequest({
+        git: PACKAGE_CONFIG_GIT,
+        fileText: fileTextOver({
+          ...TWO_MECHANISM_INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "not-adopted" } }),
+          }),
+          [EXCEPTIONS_PATH]: ABSENT_FILE,
+          "/repo/packages/a/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect(runner.project.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          trackedPaths: ["src/a.ts", "packages/a/eslint.config.mjs"],
+          clauses: [expect.objectContaining({ address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" } })],
+        }),
+      ],
+    ]);
+  });
+});
+
+describe("runProject with an ESLint config root git does not track", () => {
+  it("is the load failure config-root-untracked and projects nothing", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    const outcome = await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["packages/missing"] }),
+          }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect({ outcome, projectCalls: runner.project.mock.calls }).toEqual({
+      outcome: { outcome: "failed", error: { kind: "config-root-untracked", root: "packages/missing" } },
+      projectCalls: [],
+    });
+  });
+
+  it("hands the runner each declared folder git tracks", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    await runProject(
+      projectRequest({
+        fileText: fileTextOver({
+          ...INSTALL,
+          [SELECTION_PATH]: presentFile({
+            text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: ["src"] }),
+          }),
+        }),
+        modules: modulesLoading({ runner }),
+      }),
+    );
+    expect(runner.project.mock.calls).toEqual([[expect.objectContaining({ declaredConfigRoots: ["src"] })]]);
   });
 });
