@@ -12,6 +12,7 @@ import {
 } from "../values/identifiers.ts";
 import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
+import { parsedJson } from "../values/parsed-json.ts";
 import type { Result } from "../values/result.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import type { AuthoredDisciplineFile, AuthoredPieceFile, AuthoredSourceCase } from "./authored-rule-set-types.ts";
@@ -29,19 +30,7 @@ export type {
 
 const SUPPORTED_VERSION = 1;
 
-export const parsedJson = (request: {
-  readonly text: string;
-}): Result<unknown, string> => {
-  try {
-    const parsed: unknown = JSON.parse(request.text);
-    return { outcome: "ok", value: parsed };
-  } catch (thrown) {
-    return {
-      outcome: "failed",
-      error: thrown instanceof Error ? thrown.message : String(thrown),
-    };
-  }
-};
+export { parsedJson } from "../values/parsed-json.ts";
 
 export const readVersionOneJson = (request: {
   readonly fileText: FileTextPort;

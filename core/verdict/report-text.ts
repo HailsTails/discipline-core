@@ -244,19 +244,29 @@ const pointedReading = (request: { readonly reading: ClauseReading }): string =>
 const assessmentContext = (request: { readonly reading: ClauseReading }): string =>
   request.reading.assessmentSection === "not-assessed" ? `; ${ASSESSMENT_FILE_NAME} does not assess this clause` : "";
 
-const assessmentFileLine = (request: { readonly note: AssessmentFileNote }): string => {
+const SPIRIT_LEAD = "Start from each rule's Spirit below. ";
+
+type SpiritBelow = "named" | "none";
+
+const spiritBelowIn = (request: { readonly entries: readonly ReadFirstEntry[] }): SpiritBelow =>
+  request.entries.some((entry) => entry.kind === "clause" && entry.rulePage.presence === "present") ? "named" : "none";
+
+const assessmentFileState = (request: { readonly note: AssessmentFileNote }): string => {
   switch (request.note.state) {
     case "not-written":
-      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME}, where this repository records its own causes, forward goal and steps for a clause, is not written yet; ${request.note.guide}#5a-write-the-assessment says how to write it.`;
+      return `${ASSESSMENT_FILE_NAME}, where this repository records its own causes, forward goal and steps for a clause, is not written yet; ${request.note.guide}#5a-write-the-assessment says how to write it.`;
     case "unreadable":
-      return `Start from each rule's Spirit below. ${ASSESSMENT_FILE_NAME} could not be read.`;
+      return `${ASSESSMENT_FILE_NAME} could not be read.`;
   }
 };
 
-const readFirstLine = (request: { readonly entry: ReadFirstEntry }): string => {
+const assessmentFileLine = (request: { readonly note: AssessmentFileNote; readonly spiritBelow: SpiritBelow }): string =>
+  `${request.spiritBelow === "named" ? SPIRIT_LEAD : ""}${assessmentFileState(request)}`;
+
+const readFirstLine = (request: { readonly entry: ReadFirstEntry; readonly spiritBelow: SpiritBelow }): string => {
   switch (request.entry.kind) {
     case "assessment-file":
-      return assessmentFileLine({ note: request.entry });
+      return assessmentFileLine({ note: request.entry, spiritBelow: request.spiritBelow });
     case "clause":
       return `${clauseAddressText({ address: request.entry.clause })}: ${pointedReading({ reading: request.entry })}${assessmentContext({ reading: request.entry })}`;
   }
@@ -287,7 +297,10 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   projectionProblems: (request) =>
     request.report.projectionProblems.map((problem) => projectionProblemLine({ ...request, problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
-  readFirst: (request) => request.report.readFirst.map((entry) => readFirstLine({ entry })),
+  readFirst: (request) => {
+    const spiritBelow = spiritBelowIn({ entries: request.report.readFirst });
+    return request.report.readFirst.map((entry) => readFirstLine({ entry, spiritBelow }));
+  },
 };
 
 const reportSections = (request: ProjectionRequest & { readonly report: CheckReport }): readonly ReportSection[] =>
