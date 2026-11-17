@@ -16,7 +16,9 @@
     "install-proof": "node scripts/install-proof.ts",
     "build-package": "node scripts/build-package.ts",
     "pack-package": "node scripts/pack-package.ts",
-    "package-determinism": "node scripts/check-package-determinism.ts"
+    "package-determinism": "node scripts/check-package-determinism.ts",
+    "pull-request-title": "node scripts/pull-request-title-command.ts",
+    "release-pull-request": "node scripts/release-pull-request-command.ts"
   },
   "dependencies": {
     "@eslint/plugin-kit": "0.7.3",

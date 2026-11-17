@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { createGitPort, type GitRun, type GitSpawn } from "./git-port.ts";
+import { createGitHistoryPort, createGitPort, type GitRun, type GitSpawn } from "./git-port.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
@@ -336,6 +336,89 @@ describe("createGitPort textInBase", () => {
     expect(reading).toEqual({
       outcome: "failed",
       error: { kind: "git-failed", command: "git -C /repo ls-tree -z --name-only --end-of-options missing-base src/example.ts", detail: "fatal: not a valid object name missing-base" },
+    });
+  });
+});
+
+describe("createGitHistoryPort mergedTags", () => {
+  it("lists the tags matching the pattern that are merged into HEAD, one per line", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "v0.1.0-pre.1\nv0.1.0-pre.2\n" });
+
+    const tags = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).mergedTags({ repoRoot: REPO_ROOT, pattern: "v*" });
+
+    expect(tags).toEqual({ outcome: "ok", value: ["v0.1.0-pre.1", "v0.1.0-pre.2"] });
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ file: "git", arguments: ["-C", "/repo", "tag", "--list", "--merged", "HEAD", "v*"] }));
+  });
+
+  it("returns git-failed carrying stderr when git exits non-zero", () => {
+    const tags = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_NOT_A_REPOSITORY), ambientEnvironment: AMBIENT_ENVIRONMENT }).mergedTags({
+      repoRoot: REPO_ROOT,
+      pattern: "v*",
+    });
+
+    expect(tags).toEqual({
+      outcome: "failed",
+      error: { kind: "git-failed", command: "git -C /repo tag --list --merged HEAD v*", detail: "fatal: not a git repository" },
+    });
+  });
+});
+
+describe("createGitHistoryPort commitsAfter", () => {
+  it("lists every commit after the revision up to HEAD, oldest first, with its parent count and its message without trailing newlines", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue({
+      ...EXITED_EMPTY,
+      stdout: "aaa\nfix: one (#1)\n\0aaa bbb\nMerge branch 'main'\n\0ccc\nfeat: two (#2)\n\nBREAKING CHANGE: renamed\n\0",
+    });
+
+    const commits = createGitHistoryPort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
+
+    expect(commits).toEqual({
+      outcome: "ok",
+      value: [
+        { parentCount: 1, message: "fix: one (#1)" },
+        { parentCount: 2, message: "Merge branch 'main'" },
+        { parentCount: 1, message: "feat: two (#2)\n\nBREAKING CHANGE: renamed" },
+      ],
+    });
+    expect(spawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file: "git",
+        arguments: ["-C", "/repo", "log", "--reverse", "-z", "--format=%P%n%B", "--end-of-options", "v0.1.0-pre.3..HEAD"],
+      }),
+    );
+  });
+
+  it("counts no parents for a root commit", () => {
+    const commits = createGitHistoryPort({
+      spawn: vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "\nfeat: start\n\0" }),
+      ambientEnvironment: AMBIENT_ENVIRONMENT,
+    }).commitsAfter({ repoRoot: REPO_ROOT, revision: "v0.1.0-pre.3" });
+
+    expect(commits).toEqual({ outcome: "ok", value: [{ parentCount: 0, message: "feat: start" }] });
+  });
+
+  it("lists no commits for empty output", () => {
+    const commits = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY), ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({
+      repoRoot: REPO_ROOT,
+      revision: "v0.1.0-pre.3",
+    });
+
+    expect(commits).toEqual({ outcome: "ok", value: [] });
+  });
+
+  it("returns git-failed with the spawn's detail when git cannot run", () => {
+    const commits = createGitHistoryPort({ spawn: vi.fn<GitSpawn>().mockReturnValue(ERRORED_ON_BUFFER), ambientEnvironment: AMBIENT_ENVIRONMENT }).commitsAfter({
+      repoRoot: REPO_ROOT,
+      revision: "v0.1.0-pre.3",
+    });
+
+    expect(commits).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo log --reverse -z --format=%P%n%B --end-of-options v0.1.0-pre.3..HEAD",
+        detail: "spawnSync git ENOBUFS",
+      },
     });
   });
 });
