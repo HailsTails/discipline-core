@@ -6,6 +6,8 @@ const DEVELOPMENT_MANIFEST = {
   private: true,
   type: "module",
   description: "Runs disciplines.",
+  keywords: ["disciplines", "code-quality"],
+  author: "Example Author",
   license: "MIT-0",
   engines: { node: ">=22.18.0" },
   scripts: { test: "vitest run" },
@@ -15,27 +17,27 @@ const DEVELOPMENT_MANIFEST = {
   devDependencies: { vitest: "4.1.11" },
 };
 
-describe("publishManifestOf", () => {
-  const published = (developmentManifest: string) =>
-    publishManifestOf({
-      developmentManifest,
-      identity: {
-        name: "Provisional",
-        packageName: "provisional-core",
-        reservedEslintNamespace: "provisional-core",
-        command: "provisional",
-        ownRuleSet: "provisional",
-        description: "Checks a repository against its disciplines.",
-        repository: "https://github.com/example/provisional",
-        unrelatedNpmPackage: "provisional",
-      },
-      command: "core/check/tool-command.js",
-      files: ["LICENSE", "chunks", "core", "mechanisms"],
-      exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
-      nodeRange: "^22.18.0 || >=24",
-    });
+const published = (developmentManifest: string) =>
+  publishManifestOf({
+    developmentManifest,
+    identity: {
+      name: "Provisional",
+      packageName: "provisional-core",
+      reservedEslintNamespace: "provisional-core",
+      command: "provisional",
+      ownRuleSet: "provisional",
+      description: "Checks a repository against its disciplines.",
+      repository: "https://github.com/example/provisional",
+      unrelatedNpmPackage: "provisional",
+    },
+    command: "core/check/tool-command.js",
+    files: ["LICENSE", "chunks", "core", "mechanisms"],
+    exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
+    nodeRange: "^22.18.0 || >=24",
+  });
 
-  it("names and describes the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
+describe("publishManifestOf", () => {
+  it("names, describes, tags and credits the package for consumers, links its repository, home page and issues so npm trusted publishing can match the repository, publishes publicly so a scoped name is not restricted, names its one command, exposes only its manifest and the modules a projection imports, and carries the optional peers but no dependencies", () => {
     expect(published(JSON.stringify(DEVELOPMENT_MANIFEST))).toEqual({
       outcome: "ok",
       value: `${JSON.stringify(
@@ -43,7 +45,9 @@ describe("publishManifestOf", () => {
           name: "provisional-core",
           version: "0.0.0",
           description: "Checks a repository against its disciplines.",
+          keywords: ["disciplines", "code-quality"],
           license: "MIT-0",
+          author: "Example Author",
           repository: { type: "git", url: "git+https://github.com/example/provisional.git" },
           homepage: "https://github.com/example/provisional#readme",
           bugs: { url: "https://github.com/example/provisional/issues" },
@@ -68,6 +72,13 @@ describe("publishManifestOf", () => {
   it("names the development manifest invalid when it lacks the peers", () => {
     const { peerDependencies: _peers, ...withoutPeers } = DEVELOPMENT_MANIFEST;
     expect(published(JSON.stringify(withoutPeers))).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
+  });
+
+  it("names the development manifest invalid when it lacks keywords or an author", () => {
+    const { keywords: _keywords, ...withoutKeywords } = DEVELOPMENT_MANIFEST;
+    const { author: _author, ...withoutAuthor } = DEVELOPMENT_MANIFEST;
+    expect(published(JSON.stringify(withoutKeywords))).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
+    expect(published(JSON.stringify(withoutAuthor))).toMatchObject({ outcome: "failed", error: { kind: "manifest-invalid" } });
   });
 
   it("names the development manifest invalid when it is not JSON", () => {

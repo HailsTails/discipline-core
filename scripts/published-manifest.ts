@@ -10,7 +10,9 @@ const versionsSchema = z.record(z.string(), z.string());
 
 const publishedSectionsSchema = z.object({
   version: z.string(),
+  keywords: z.array(z.string()),
   license: z.string(),
+  author: z.string(),
   peerDependencies: versionsSchema,
   peerDependenciesMeta: z.record(z.string(), z.object({ optional: z.boolean() })),
 });
@@ -115,7 +117,9 @@ export const publishManifestOf = (request: {
         name: request.identity.packageName,
         version: published.value.version,
         description: request.identity.description,
+        keywords: published.value.keywords,
         license: published.value.license,
+        author: published.value.author,
         ...repositoryLinksOf({ repository: request.identity.repository }),
         publishConfig: PUBLIC_ACCESS,
         type: "module",

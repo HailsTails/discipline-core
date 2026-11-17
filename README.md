@@ -1,6 +1,10 @@
 # Hone
 
 [![npm version on the next dist-tag](https://img.shields.io/npm/v/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
+[![CI on main](https://github.com/HailsTails/hone/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HailsTails/hone/actions/workflows/ci.yml?query=branch%3Amain)
+[![Unpacked size on the next dist-tag](https://img.shields.io/npm/unpacked-size/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
+[![Supported Node versions on the next dist-tag](https://img.shields.io/node/v/%40hailstails%2Fhone/next)](https://www.npmjs.com/package/@hailstails/hone)
+[![Licence](https://img.shields.io/npm/l/%40hailstails%2Fhone)](LICENSE)
 
 Hone checks a repository against the disciplines it has chosen to adopt. It is a tool, not a framework: it reads what the repository selected, hands each selected clause to the mechanism that checks it, applies the repository's recorded exceptions, and prints one verdict. Its core enforces nothing and names no discipline and no mechanism. A discipline (for example CD-14, no authored classes) is data under `rules/`, and a mechanism is a runner under `mechanisms/`; the core reaches both only through files and one module contract.
 
