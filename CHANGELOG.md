@@ -2,6 +2,12 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 1.2.0
+
+### Features
+
+- add CD-3 edition 2, judging the options a tsconfig.json resolves to through extends, and a required disk on the experimental audit WalkerRepository (#136)
+
 ## 1.1.0
 
 ### Features
