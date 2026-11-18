@@ -2,6 +2,22 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 1.3.0
+
+### Features
+
+- debt records need no reason or why-chain (#147)
+- record-debt skips files the ESLint projection cannot reach (#153)
+
+### Fixes
+
+- pass over a package.json script whose quotes do not pair, and list one naming eslint as an unreadable command-line-option (#139)
+
+### Other changes
+
+- keep Hone's own exception records in the split layout (#140)
+- run CD-27 test-body-logic and the CD-3 clauses at edition 2, and record Hone's backlog as debt (#157)
+
 ## 1.2.0
 
 ### Features
