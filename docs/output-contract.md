@@ -390,7 +390,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 ## hone record-debt
 
-`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to the exception records, in whichever [layout](../README.md#exception-records) the repository keeps them; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file.
+`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to the exception records, in whichever [layout](../README.md#the-split-layout) the repository keeps them; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file.
 
 | Output | Line |
 | --- | --- |

@@ -25,7 +25,7 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 
 ## Commands
 
-The package ships one command, `hone`, with three subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone:
+The package ships one command, `hone`, with four subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone; `split-records` runs once, when a repository moves its records to [the split layout](#the-split-layout):
 
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
@@ -36,11 +36,11 @@ hone --help
 hone --version
 ```
 
-`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help`, `hone project --help` and `hone record-debt --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
+`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help`, `hone project --help`, `hone record-debt --help` and `hone split-records --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
 [docs/output-contract.md](docs/output-contract.md) lists every line `hone` prints, exactly as it prints it, with the exit codes and which parts are stable for hooks, CI and agents to rely on. A test renders every kind of line and checks it against that page, both ways.
 
-`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`, followed by ` (partial assessment)` when the run left part of the assessment to another run. It exits `0` when the verdict is `pass`, `1` when it is `fail`, and `2` on a load failure, which prints one line, `load failure: <kind> <fields>`. `hone project` and `hone record-debt` exit `0` or `2`.
+`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`, followed by ` (partial assessment)` when the run left part of the assessment to another run. It exits `0` when the verdict is `pass`, `1` when it is `fail`, and `2` on a load failure, which prints one line, `load failure: <kind> <fields>`. `hone project`, `hone record-debt` and `hone split-records` exit `0` or `2`.
 
 The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, the edition each clause with more than one edition ran, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems, any part of the assessment left to another run and, last, where to read first for each clause with findings, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, editions, exempted findings, assessment and where to read first is empty.
 
@@ -99,7 +99,7 @@ The `assessment` section is informational and the marker does not change the exi
 
 ### Recording inherited debt
 
-`hone record-debt` gives a repository that adopts Hone with existing code a file record for each debt it cannot fix on day one. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a is the procedure. The command runs the check with the `--base-revision` it is given, then adds one `file-carve-out` to `discipline-exceptions.json` for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`. Each is the record a person would write, so nothing downstream treats it differently. It gives only a `reason`, which says the debt was inherited and that nobody has reviewed it, so `disciplines.json` must set `"fileExceptionWhyChains": "optional"`. Without that setting the command writes nothing and stops with the load failure `why-chains-required`. It never sets the key itself.
+`hone record-debt` gives a repository that adopts Hone with existing code a file record for each debt it cannot fix on day one. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a is the procedure. The command runs the check with the `--base-revision` it is given, then adds one `file-carve-out` to the exception records, `discipline-exceptions.json` or the discipline's file in [the split layout](#the-split-layout), for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`. Each is the record a person would write, so nothing downstream treats it differently. It gives only a `reason`, which says the debt was inherited and that nobody has reviewed it, so `disciplines.json` must set `"fileExceptionWhyChains": "optional"`. Without that setting the command writes nothing and stops with the load failure `why-chains-required`. It never sets the key itself.
 
 Give it the base that the run assessing decay is given, such as `origin/main` for a branch: a record for a file changed since that base is forfeited by that run, and a check against a later revision, such as `HEAD`, does not show it.
 
@@ -112,7 +112,7 @@ It never writes anything wider than one clause in one file: no `authorised-locat
 
 Other native exceptions under `unrecorded`, such as a `config-override` or a lint-script option, are not recorded: [ADOPTING.md](ADOPTING.md#6-read-the-report) step 6 says what to do with each.
 
-It adds the new entries after the last one and leaves every entry already in the file as written. It stages and commits nothing: the diff of `discipline-exceptions.json` is the review, and nothing takes effect until a person commits it. It never removes or rewrites a record, so running it again adds records only for pairs that still have none. A record whose finding is gone is reported `stale` by the check as before, for a person to delete. Run `hone project` after it when any clause is `eslint`, so the projection carries the new records.
+It adds the new entries after the last one and leaves every entry already in the file as written. It stages and commits nothing: the diff of the exception records is the review, and nothing takes effect until a person commits it. It never removes or rewrites a record, so running it again adds records only for pairs that still have none. A record whose finding is gone is reported `stale` by the check as before, for a person to delete. Run `hone project` after it when any clause is `eslint`, so the projection carries the new records.
 
 The command does not refuse to run again later, and has no flag for it. Forfeiture is what stops it turning new findings into carve-outs: a file carve-out is forfeited once its file changes since `--base-revision`, so a record written for a file someone has just changed fails the next check that assesses forfeiture, and a file that is new since the base gets no record at all. That holds only where forfeiture is assessed. In an arrangement that leaves it elsewhere, such as `"assessment": { "forfeiture": "elsewhere" }` with the pre-push hook that assesses it bypassed, such a record is not caught until a run that does assess it.
 
@@ -206,7 +206,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 
 ## discipline-exceptions.json
 
-At the repository root; absent means no exceptions. Each entry names a selected clause, and applies to the mechanism that clause is selected for.
+At the repository root, or split by rule into the `discipline-exceptions` folder as [the split layout](#the-split-layout) describes; neither means no exceptions. Each entry names a selected clause, and applies to the mechanism that clause is selected for.
 
 ```json
 {
@@ -246,6 +246,31 @@ At the repository root; absent means no exceptions. Each entry names a selected 
 - A clause whose `discipline.json` declares `"exceptions": "refused"` cannot be exempted. No shipped discipline declares it, so every shipped clause can be.
 - Files are exact repository paths, never globs.
 - An entry that exempts nothing is stale, a file both authorised and carved for one clause is doubly held, and an entry that cannot be parsed is invalid. Each fails the run.
+
+### The split layout
+
+A repository can keep the same records in a `discipline-exceptions` folder instead of `discipline-exceptions.json`: a folder for each record kind, and in it one file for each discipline. The name of a changed file then says which rule and which kind a change touches, and a code owner can own one rule's exceptions.
+
+```text
+discipline-exceptions/
+  authorised-locations/
+    cd-19.json
+  file-carve-outs/
+    cd-19.json
+    cd-27.json
+  clause-wide-carve-outs/
+    team/
+      tm-1.json
+```
+
+- Each file has the format above, `{ "version": 1, "exceptions": [...] }`, and holds only records of its folder's kind on its discipline. The file is named for the discipline ID in lower case, such as `cd-7a.json`, inside a folder named for the rule set when the clause is in a team's rule set rather than Hone's own. Each record keeps its `kind` and `clause`, so a record reads the same in either layout.
+- A record in another discipline's or kind's file, or any other file or folder under `discipline-exceptions`, makes the load fail as `file-malformed`, naming the file; for a misplaced record it names the file it belongs in.
+- Hone reads whichever layout is present. `discipline-exceptions.json` stays the default, and nothing changes for a repository that keeps it. A repository holding both is refused with `records-in-both-layouts` rather than merged.
+- An `invalidRecords` line names the file that holds the record and its index there. `hone record-debt` adds each record to its discipline's `file-carve-outs` file, writing the file when there is none yet.
+- The `--base-revision` may hold either layout, so the change that moves a repository to the split layout is checked against `discipline-exceptions.json` at its base: imported and legacy-chain records are still verified.
+- Records are read in path order: the kind folders in the order of their names, then the files in the order of their paths. A section that lists records, such as `stale`, lists them in that order, not in the order `discipline-exceptions.json` had.
+
+`hone split-records --repo .` moves a repository to the split layout. It writes each file, with its records in the order they had in `discipline-exceptions.json`, then removes that file, and prints `<path> written` for each file and `discipline-exceptions.json removed`. A record keeps its text byte for byte when `discipline-exceptions.json` is written with two-space indentation, as `hone record-debt` writes it; otherwise it is rewritten in that form, with the same values. It writes nothing and changes nothing for a repository already split or without records, and it refuses a repository holding both layouts, or a record whose clause names no discipline, with a load failure. [MIGRATING.md](MIGRATING.md#16-moving-to-the-split-layout) section 16 is the procedure.
 
 ## Installing
 
@@ -315,7 +340,7 @@ This is the first release. Its tests cover each supported platform's ordinary pa
 - Lint scripts are read with a simple shell tokenizer, so unusual quoting or a `cd` before `eslint` is not interpreted.
 - Detection reads an ESLint 9 run started from inside a package, or given the lookup flag through the environment or a task runner, as a root-only run; set `eslintConfigLookup` in `disciplines.json` for those repositories.
 - Team ESLint configs that imitate projection block names, register a second copy of the plugin, or use processors are not exercised.
-- A byte-order mark at the start of `disciplines.json` or `discipline-exceptions.json`; save them without one.
+- A byte-order mark at the start of `disciplines.json`, `discipline-exceptions.json` or a file of the split layout; save them without one.
 
 ## Developing Hone
 

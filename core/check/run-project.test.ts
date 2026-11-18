@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { singleFileRepositoryOver } from "../../tests/records-disk.ts";
+import { recordsDisk, singleFileRepositoryOver } from "../../tests/records-disk.ts";
+import { createExceptionRepository } from "../exception-records/exception-layout.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -171,6 +172,20 @@ const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
+const SPLIT_WALKER_LOCATIONS = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/walker.ts",
+      "reason": "audit location",
+      "provenance": { "kind": "existing-authorisation", "source": "fictional unit fixture core/check/run-project.test.ts; not historical authorisation" }
+    }
+  ]
+}
+`;
+
 const WALKER_RECORD = {
   kind: "authorised-location",
   clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
@@ -329,6 +344,27 @@ describe("runProject with an embedded runner", () => {
       writes: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
       projectCalls: [[expect.objectContaining({ records: [WALKER_RECORD] })]],
     });
+  });
+
+  it("hands the runner's projection the records kept in the split layout", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    const disk = recordsDisk({ working: { "discipline-exceptions/authorised-locations/cd-14.json": SPLIT_WALKER_LOCATIONS }, base: {} });
+
+    await runProject(
+      projectRequest({
+        fileText: fileTextOver(TWO_MECHANISM_INSTALL),
+        modules: modulesByPath({ [RUNNER_PATH]: { runner }, [LINT_RUNNER_PATH]: { runner: standaloneRunner() } }),
+        exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
+      }),
+    );
+
+    expect(runner.project.mock.calls).toEqual([[expect.objectContaining({ records: [WALKER_RECORD] })]]);
   });
 
   it("projects a record whose why-chain predates the causal contract, reading no base revision", async () => {

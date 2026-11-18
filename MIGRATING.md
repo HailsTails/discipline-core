@@ -2,7 +2,7 @@
 
 This page moves a repository from the older standalone route, which copied rule files into a harness folder and wired selected linter rules by hand, to Hone. Follow the steps in order. Every command is run from the repository root. Stop at any "stop and ask" line and hand the question to the human; do not guess past it.
 
-A repository already on Hone, or on discipline Hone before the rename, whose exceptions predate causal why-chains needs only [section 8](#8-moving-to-causal-why-chains).
+A repository already on Hone, or on discipline Hone before the rename, whose exceptions predate causal why-chains needs only [section 8](#8-moving-to-causal-why-chains). One that wants its records kept in a file for each rule and kind needs only [section 16](#16-moving-to-the-split-layout).
 
 ## 1. Detect the old install
 
@@ -179,7 +179,7 @@ Only after step 5 passes:
 
 1. Delete the copied rule files and guides from step 1's harness folder (`.cursor/knowledge/aidlc-shared/code-discipline/` or its `.claude`/`.codex` equivalent).
 2. Delete the copied tools tree and `harness.config.json`, unless anything else in the repository uses them. A repository that also runs the rin AIDLC plugin keeps `harness.config.json`, and in this same change sets `"constitution": { "engine": "hone", "baseRevision": "origin/main" }` in it. Otherwise rin's stage gate, sensors and review lenses keep running the old walker over the old records, and they refuse what this check passes. A rin plugin from before the rename refuses `"hone"` and takes `"discipline-core"`. Set `baseRevision` whenever a file carve-out or an imported entry exists.
-3. Delete the old record files, `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json`: their content now lives in `discipline-exceptions.json`. Leave any other file in those folders, and the folder that holds it: another tool, such as a hook, may read it.
+3. Delete the old record files, `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json`: their content now lives in `discipline-exceptions.json`. To keep a file for each rule and kind, as those folders did, move to the split layout in a later change, as section 16 says. Leave any other file in those folders, and the folder that holds it: another tool, such as a hook, may read it.
 4. In `package.json` scripts, CI and the pre-push hook, replace the old tool commands with the Hone check, as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows. Every run needs `--base-revision` while a file carve-out exists, unless it leaves forfeiture to another run as [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5 shows, and a run with imported records needs it in any case: in local scripts and the pre-push hook use the branch's base (`origin/main`, or `HEAD` to measure only uncommitted changes); in CI use the pull request's base commit. A run that leaves forfeiture to another run ends `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)`, so a hook or gate that matches `verdict: pass` or `verdict: fail` at the end of the line reads neither; see the warning in [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5.
 5. Rewrite the agent instructions to point at `node_modules/@hailstails/hone/rules/` and the judgement rules, as ADOPTING step 5 and step 9 say, and remove any instruction to read the old copied files.
 6. Run the check and the repository's own validation command again, then commit everything in one change.
@@ -334,3 +334,20 @@ Choose one state for it, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) s
 3. **The rule does not apply to this codebase.** A tech lead says so in the open, and the clause is listed as `"not-adopted"`. The report lists it under `notAdopted`.
 
 Neither `"not-run"` nor `"not-adopted"` takes an exception record. Stop and ask the human before choosing `"not-adopted"`, or before recording carve-outs for existing `!` sites.
+
+## 16. Moving to the split layout
+
+`discipline-exceptions.json` holds every record in one file. The split layout keeps the same records in the `discipline-exceptions` folder, one file for each record kind and discipline, as `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json` did: [README.md](README.md#the-split-layout) describes it. Moving is optional, and a repository that does nothing keeps the single file.
+
+1. **Start a branch from the base your hook and CI pass to the check**, such as `origin/main`, with no other change to the records in it. Fetch the base first, so it is current.
+2. **Split the records:**
+
+   ```bash
+   node_modules/.bin/hone split-records --repo .
+   ```
+
+   It prints `<path> written` for each file and `discipline-exceptions.json removed`. Within each file the records keep the order they had. It refuses a record whose clause names no discipline, naming its index: fix the clause or remove the record, then run it again.
+3. **Re-project and check against the same base.** With any `eslint` clause, run `npm run --silent hone:project`; it prints `unchanged`, since the projection does not depend on where a record is kept. Then run `npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main` (with pnpm, `pnpm run --silent hone:check --forfeiture this-run --base-revision origin/main`). The base still holds `discipline-exceptions.json`, and Hone reads the base in whichever layout it holds, so imported and legacy-chain records are still verified against it. `--forfeiture this-run` makes this run assess decay whatever `assessment.forfeiture` says. The report is the one the check printed before the split, except that a section listing records, such as `stale`, lists them in the order of the new files.
+4. **Commit the removal and the new files in one change.** A tree that holds both `discipline-exceptions.json` and the folder fails every run with `records-in-both-layouts`. Point any code owners or review rules at the new files, such as `discipline-exceptions/file-carve-outs/cd-19.json`.
+
+From then on, `hone record-debt` adds each record to its discipline's file, and a record a person writes goes in the file of its kind and discipline: one in any other file fails the load as `file-malformed`, naming the file it belongs in.
