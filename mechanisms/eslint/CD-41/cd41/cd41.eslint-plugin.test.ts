@@ -61,9 +61,99 @@ const lengthFlagCases: readonly SourceCase[] = [
     source: "export const sprawl = (): void => {\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n  step();\n};\n",
     expectedLines: [1],
   },
+  {
+    name: "an it callback with fifty-one body lines inside a describe",
+    fileName: repoPathSchema.parse("case-it.test.ts"),
+    source: "describe(\"suite\", () => {\n  it(\"sprawls\", () => {\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n  });\n});\n",
+    expectedLines: [2],
+  },
+  {
+    name: "a test callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("case-test.test.ts"),
+    source: "test(\"sprawls\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [1],
+  },
+  {
+    name: "a helper declared in a describe body with fifty-one body lines",
+    fileName: repoPathSchema.parse("case-helper.test.ts"),
+    source: "describe(\"suite\", () => {\n  const arrange = (): void => {\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n  };\n});\n",
+    expectedLines: [2],
+  },
+  {
+    name: "a describe-named member of another object",
+    fileName: repoPathSchema.parse("case-member.ts"),
+    source: "schema.describe(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [1],
+  },
+  {
+    name: "a function passed to describe's table, not as its callback",
+    fileName: repoPathSchema.parse("case-table.test.ts"),
+    source: "describe.each([() => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n}])(\"row\", () => {});\n",
+    expectedLines: [1],
+  },
 ];
 
 const lengthAllowCases: readonly SourceCase[] = [
+  {
+    name: "a describe callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-describe.test.ts"),
+    source: "describe(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a describe.each callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-each.test.ts"),
+    source: "describe.each([1, 2])(\"sprawl %i\", (value) => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a jest describe.each template callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-template.test.ts"),
+    source: "describe.each`\n  value\n  one\n`(\"sprawl $value\", ({ value }) => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a describe.skip callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-skip.test.ts"),
+    source: "describe.skip(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a describe.skipIf callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-skip-if.test.ts"),
+    source: "describe.skipIf(ci)(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a suite function expression with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-suite.test.ts"),
+    source: "suite(\"sprawl\", function () {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a node:test describe callback after its options with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-options.test.ts"),
+    source: "describe(\"sprawl\", { concurrency: 1 }, () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a playwright test.describe callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-playwright.test.ts"),
+    source: "test.describe(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "an xdescribe callback with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-x.test.ts"),
+    source: "xdescribe(\"sprawl\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
+  {
+    name: "a describe nested in a describe, each with fifty-one body lines",
+    fileName: repoPathSchema.parse("suite-nested.test.ts"),
+    source: "describe(\"outer\", () => {\n  describe(\"inner\", () => {\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n  });\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
+    expectedLines: [],
+  },
   {
     name: "a function with exactly fifty body lines",
     fileName: repoPathSchema.parse("limit-length.ts"),

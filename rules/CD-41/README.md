@@ -16,6 +16,8 @@ Review lens: [decomposition](../../methods/lenses/decomposition.md). The lens re
 - *Failures checked inline.* Nesting deepens because each failure is handled in place. Return early on failure, or let helpers return results the coordinator only routes.
 - *Shapes that do not meet.* The coordinator reshapes data between calls because its helpers disagree. Align the helpers' inputs and outputs.
 
+**What a finding does not point at.** A test suite's `describe` body is a list of cases, not a coordinator, so its length is not a finding. Splitting a suite only to shorten it adds nothing. The tests and helpers inside it are still functions, and each is judged on its own.
+
 **Where to go.** Coordinators read as a short list of named steps. Each helper does one thing at one level of detail.
 
 **Reactions to distrust.**
