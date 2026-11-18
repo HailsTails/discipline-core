@@ -17,3 +17,5 @@ export type { PieceHit, PreparedFileCheck, PreparedWalkerCheck, SourceObservers,
 export const folderScope = sourceScope.folderScope;
 
 export const editionReaches = editionReach.editionReaches;
+
+export const isEdition = editionReach.isEdition;

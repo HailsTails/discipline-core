@@ -145,7 +145,9 @@ const WRONG_FIELD_TYPES_REJECTED: ProofAction = {
 
 const TEAM_RULE_SET = "tools/disciplines/acme";
 
-const TEAM_FINDINGS_REPORT = `findings (2)
+const TEAM_FINDINGS_REPORT = `editions (1)
+acme/ACME-2#scratch-files audit edition 1 of 2
+findings (2)
 acme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");
 acme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md
 readFirst (3)

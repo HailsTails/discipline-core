@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { editionSchema } from "./edition.ts";
-import { editionOrder, editionReaches } from "./edition-reach.ts";
+import { editionOrder, editionReaches, isEdition } from "./edition-reach.ts";
 import type { Edition, EditionReach } from "./edition-types.ts";
 
 const ONE = editionSchema.parse("1");
@@ -28,5 +28,15 @@ describe("editionOrder", () => {
     { name: "editions ordered as text but not as numbers", editions: [ONE, TEN, TWO], order: "unordered" },
   ])("is $order for $name", ({ editions, order }) => {
     expect(editionOrder({ editions })).toBe(order);
+  });
+});
+
+describe("isEdition", () => {
+  it.each(["1", "2", "10"])("narrows %j to an edition", (text) => {
+    expect(isEdition(text)).toBe(true);
+  });
+
+  it.each(["", "0", "01", "1.0", "v2", "latest"])("refuses %j", (text) => {
+    expect(isEdition(text)).toBe(false);
   });
 });

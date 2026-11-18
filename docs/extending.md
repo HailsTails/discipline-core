@@ -185,7 +185,8 @@ In a monorepo each package's own config does the same, importing the projection 
   "clauses": [
     {
       "clause": "scratch-files",
-      "settings": { "module": "scratch-files.ts" }
+      "settings": { "module": "scratch-files.ts" },
+      "editions": ["1", "2"]
     }
   ]
 }
@@ -194,14 +195,21 @@ In a monorepo each package's own config does the same, importing the projection 
 `mechanisms/audit/ACME-2/scratch-files.ts`:
 
 ```ts
-import type { PieceHit, RunnerClause, WalkerPiece } from "@hailstails/hone/audit";
+import { editionReaches, isEdition, type PieceHit, type RunnerClause, type WalkerPiece } from "@hailstails/hone/audit";
 
 const SCRATCH_MARKER = ".scratch.";
+const DRAFT_MARKER = ".draft.";
+const DRAFT_EDITION = "2";
+
+const markersOf = (request: { readonly clause: RunnerClause }): readonly string[] =>
+  isEdition(DRAFT_EDITION) && editionReaches({ edition: request.clause.edition, introducedIn: DRAFT_EDITION }) === "reached"
+    ? [SCRATCH_MARKER, DRAFT_MARKER]
+    : [SCRATCH_MARKER];
 
 const scratchHits = (request: { readonly clauses: readonly RunnerClause[]; readonly file: string }): readonly PieceHit[] =>
-  request.file.includes(SCRATCH_MARKER)
-    ? request.clauses.map((clause) => ({ clause: clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }))
-    : [];
+  request.clauses
+    .filter((clause) => markersOf({ clause }).some((marker) => request.file.includes(marker)))
+    .map((clause) => ({ clause: clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }));
 
 export const check: WalkerPiece = {
   prepare: ({ clauses }) => ({
@@ -245,17 +253,17 @@ Hone refuses a value under an undeclared key, of another JSON kind than the defa
 
 ### Editions of a check
 
-When a clause's check becomes stricter, ship the stricter check as a new edition instead of changing what the clause flags. A clause entry in `piece.json` lists its editions in ascending order; the first is the default, and the last is the latest:
+When a clause's check becomes stricter, ship the stricter check as a new edition instead of changing what the clause flags. A clause entry in `piece.json` lists its `editions` in ascending order: the first is the default, and the last is the latest. The example's piece lists `["1", "2"]`: edition 2 also flags files named with `.draft.`. An entry without `editions` has the single edition `"1"`. The setting key `edition` is reserved for the edition a repository pins, so a piece cannot declare it under `clauseSettings`.
+
+The piece reads the edition that runs from `clause.edition` on each `RunnerClause`. `@hailstails/hone/audit` exports two helpers. `isEdition` narrows a text such as `"2"` to an `Edition` without a cast. `editionReaches({ edition: clause.edition, introducedIn })` says whether the running edition covers something introduced in a given edition. The example piece uses both, and a piece's tests use `isEdition` the same way to build a `RunnerClause` for each edition.
+
+A case in `discipline.json` names the edition it runs under with `"edition": "2"`. A case without one runs under the piece's default edition. A case naming an edition the piece does not declare makes the rule set invalid. Conformance runs each edition's cases under that edition, and `clauseUnderTestOf` gives each case its `edition`. The example's `rules/ACME-2/discipline.json` flags `src/notes.draft.ts` under edition 2 and allows it under edition 1:
 
 ```json
-{
-  "clause": "scratch-files",
-  "settings": { "module": "scratch-files.ts" },
-  "editions": ["1", "2"]
-}
+{ "name": "draft file", "fileName": "src/notes.draft.ts", "source": "export const notes = 1;\n", "expectedLines": [1], "edition": "2" }
 ```
 
-An entry without `editions` has the single edition `"1"`. The setting key `edition` is reserved for the edition a repository pins, so a piece cannot declare it under `clauseSettings`. The piece reads the edition that runs from `clause.edition` on each `RunnerClause`, and `editionReaches({ edition: clause.edition, introducedIn })` from `@hailstails/hone/audit` says whether that edition covers a construct introduced in a given edition. A case in `discipline.json` names the edition it runs under with `"edition": "2"`; a case without one runs under the piece's default edition, and a case naming an edition the piece does not declare makes the rule set invalid. Conformance runs each edition's cases under that edition.
+A repository that selects the clause runs edition 1 until it sets `"checkEditions": "latest"` or pins the clause with `"edition": "2"` in its `clauseSettings`. Its report lists the edition that ran under `editions`, such as `acme/ACME-2#scratch-files audit edition 1 of 2`.
 
 ## TypeScript pieces under Node
 

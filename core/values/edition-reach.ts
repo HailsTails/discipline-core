@@ -1,5 +1,9 @@
 import type { Edition, EditionReach } from "./edition-types.ts";
 
+export const EDITION_PATTERN = /^[1-9][0-9]*$/;
+
+export const isEdition = (text: string): text is Edition => EDITION_PATTERN.test(text);
+
 const ordinalOf = (request: { readonly edition: Edition }): number => Number(request.edition);
 
 export const editionReaches = (request: { readonly edition: Edition; readonly introducedIn: Edition }): EditionReach =>

@@ -25,7 +25,7 @@ Edition 2 also flags:
 - `switch` statements.
 - Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method.
 
-Neither edition flags element access such as `calls[0]`, calls to free functions, or a method named by a computed key such as `rows["map"](f)`. Helper files that tests import are not checked; only the test files themselves are.
+Neither edition flags element access such as `calls[0]`, calls to free functions, or a method called through a computed key, such as `rows["map"]`. Helper files that tests import are not checked; only the test files themselves are.
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-27/README.md).

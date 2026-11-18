@@ -1,4 +1,4 @@
-import { folderScope, type PieceFailure } from "@hailstails/hone/audit";
+import { folderScope, isEdition, type PieceFailure, type RunnerClause } from "@hailstails/hone/audit";
 import { type CaseUnderTest, clauseConformanceOf, clauseUnderTestOf, repoPathOf } from "@hailstails/hone/testing";
 import typescript from "typescript";
 import { check } from "../mechanisms/audit/ACME-2/scratch-files.ts";
@@ -57,10 +57,17 @@ const readsOf = (sourceCase: CaseUnderTest): number => {
 
 provedEqual({
   proof: "each case is bound with its file and source, and ACME-2 decides on the file name alone",
-  actual: underTest.value.cases.map((sourceCase) => ({ name: sourceCase.name, file: sourceCase.file, reads: readsOf(sourceCase) })),
+  actual: underTest.value.cases.map((sourceCase) => ({
+    name: sourceCase.name,
+    file: sourceCase.file,
+    edition: sourceCase.edition,
+    reads: readsOf(sourceCase),
+  })),
   expected: [
-    { name: "scratch file", file: "src/draft.scratch.ts", reads: 0 },
-    { name: "ordinary file", file: "src/kept.ts", reads: 0 },
+    { name: "scratch file", file: "src/draft.scratch.ts", edition: "1", reads: 0 },
+    { name: "draft file", file: "src/notes.draft.ts", edition: "2", reads: 0 },
+    { name: "ordinary file", file: "src/kept.ts", edition: "1", reads: 0 },
+    { name: "draft file before edition 2", file: "src/notes.draft.ts", edition: "1", reads: 0 },
   ],
 });
 
@@ -69,4 +76,43 @@ provedEqual({
   proof: "ACME-2 handles a file it cannot read",
   actual: prepared.value.prepareFile({ file: unreadable.value, readText: () => ({ outcome: "failed", error: unreadableFailure }) }),
   expected: { outcome: "ok", value: { kind: "complete", hits: [] } },
+});
+
+const SECOND_EDITION = "2";
+if (!isEdition(SECOND_EDITION)) {
+  throw new Error(`${SECOND_EDITION} is not an edition`);
+}
+const secondEditionClause: RunnerClause = { ...underTest.value.clause, edition: SECOND_EDITION };
+const draftFile = repoPathOf({ file: "src/notes.draft.ts" });
+if (draftFile.outcome === "failed") {
+  throw new Error(`src/notes.draft.ts is not a repository path: ${draftFile.error.detail}`);
+}
+
+const draftHitsUnder = (request: { readonly clause: RunnerClause }): unknown => {
+  const preparedUnder = check.prepare({
+    clauses: [request.clause],
+    repository: { files: [draftFile.value], exists: () => "present" },
+    syntaxApi: typescript,
+  });
+  if (preparedUnder.outcome === "failed") {
+    throw new Error(`ACME-2 did not prepare: ${preparedUnder.error.kind}`);
+  }
+  return preparedUnder.value.prepareFile({ file: draftFile.value, readText: () => ({ outcome: "ok", value: "" }) });
+};
+
+provedEqual({
+  proof: "ACME-2 runs its default edition, which does not flag a draft file",
+  actual: { edition: underTest.value.clause.edition, result: draftHitsUnder({ clause: underTest.value.clause }) },
+  expected: { edition: "1", result: { outcome: "ok", value: { kind: "complete", hits: [] } } },
+});
+provedEqual({
+  proof: "ACME-2 edition 2 flags a draft file",
+  actual: draftHitsUnder({ clause: secondEditionClause }),
+  expected: {
+    outcome: "ok",
+    value: {
+      kind: "complete",
+      hits: [{ clause: underTest.value.clause.address, anchor: { line: 1, column: 0 }, snippet: "src/notes.draft.ts" }],
+    },
+  },
 });

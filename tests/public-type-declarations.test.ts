@@ -38,8 +38,8 @@ describe("the declarations the public type entries ship, emitted in memory by th
     expect(reach.valueDeclaring).toEqual([]);
   });
 
-  it("declare folderScope and editionReaches from the audit entry, the three testing functions from the testing entry, and no value from the rule-set entry", () => {
-    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches"], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
+  it("declare folderScope, editionReaches and isEdition from the audit entry, the three testing functions from the testing entry, and no value from the rule-set entry", () => {
+    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches", "isEdition"], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
   });
 
   it("ship no declaration that mentions zod", () => {

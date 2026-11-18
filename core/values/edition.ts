@@ -1,15 +1,11 @@
 import { z } from "zod";
 import { brandedTextSchema } from "./branded-schema.ts";
-import { editionOrder } from "./edition-reach.ts";
+import { EDITION_PATTERN, editionOrder, isEdition } from "./edition-reach.ts";
 import type { ClauseEditions, Edition } from "./edition-types.ts";
 import type { Equal } from "./type-equality.ts";
 
 export type { ClauseEditionReading, ClauseEditions, Edition, EditionReach } from "./edition-types.ts";
-export { editionReaches } from "./edition-reach.ts";
-
-const EDITION_PATTERN = /^[1-9][0-9]*$/;
-
-const isEdition = (text: string): text is Edition => EDITION_PATTERN.test(text);
+export { editionReaches, isEdition } from "./edition-reach.ts";
 
 export const editionSchema = brandedTextSchema({
   text: z.string().regex(EDITION_PATTERN),
