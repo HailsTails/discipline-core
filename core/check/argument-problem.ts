@@ -20,7 +20,8 @@ export type ArgumentProblem =
       readonly given: string;
     }
   | { readonly kind: "option-removed"; readonly given: string; readonly instead: string }
-  | { readonly kind: "repo-unresolvable"; readonly given: string };
+  | { readonly kind: "repo-unresolvable"; readonly given: string }
+  | { readonly kind: "path-invalid"; readonly option: CommandOption; readonly given: string };
 
 const COMMAND = TOOL_IDENTITY.command;
 
@@ -75,6 +76,8 @@ export const argumentProblemText = (request: { readonly problem: ArgumentProblem
       return removedText({ removed: problem.given, instead: problem.instead });
     case "repo-unresolvable":
       return `--repo ${problem.given} resolves to no absolute path`;
+    case "path-invalid":
+      return `${problem.option.name} takes one exact file or folder inside ${REPO_OPTION.name}, relative to it, with forward slashes and no *, not ${JSON.stringify(problem.given)}`;
   }
 };
 

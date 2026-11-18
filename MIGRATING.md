@@ -45,7 +45,7 @@ Map each chosen discipline to its clauses with this table. A discipline is adopt
 
 Clauses whose mechanism is `review` are judgement clauses: do not put them in `disciplines.json`; list them in the agent instructions instead (step 6).
 
-Stop and ask the human if a chosen CD is one of CD-35 to CD-38, or if selecting a whole discipline adds clauses the old route never checked and the first run shows findings for them: they decide whether to fix those findings, carve them out (step 3), or not adopt that discipline yet.
+Stop and ask the human if a chosen CD is one of CD-35 to CD-38, or if selecting a whole discipline adds clauses the old route never checked and the first run shows findings for them: they decide whether to fix those findings, carve them out (step 3, where `hone record-debt` can write the records), or not adopt that discipline yet.
 
 ### 2a. Carry over the old route's settings
 
@@ -55,7 +55,7 @@ Do this before step 3, and before you delete any record Hone lists as `stale`. T
 | --- | --- | --- |
 | Packages confined to wrapping files | a list in the tool's code or its config. Rin's walker holds it as `BANNED_THIRD_PARTY_IMPORTS`: search its tools folder for that name, since an installed copy keeps it in `constitution-audit/audit-constitution.runtime.js`, and its `audit-constitution.ts` only re-exports that file | `confinedPackages` for `CD-19#import-boundaries` under `clauseSettings` in `disciplines.json`. Hone confines no package by default, so until you list them CD-19 flags only `node:` imports. A package covers its subpaths, as [rules/CD-19/CHECKS.md](rules/CD-19/CHECKS.md#what-the-check-flags) says, where the old walker matched each listed name exactly, so Hone can flag a subpath import the old list did not name. |
 | Scope | `constitution.include` and `constitution.exclude` in `harness.config.json` | `exclude` in `disciplines.json`, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 says. Hone has no include list and no globs: list each folder or file outside the old scope as an exact path. |
-| Rules relaxed by folder | `scriptGlobs`, `uiGlobs` or similar in `harness.config.json` | nothing. Hone has one selection for the whole repository. What those folders fail under the full rules is existing debt: fix it or record it in step 3. Do not exclude the folders to hide it. |
+| Rules relaxed by folder | `scriptGlobs`, `uiGlobs` or similar in `harness.config.json` | nothing. Hone has one selection for the whole repository. What those folders fail under the full rules is existing debt: fix it or record it in step 3. There is no old record to import it from, so once the human approves recording it, `hone record-debt` writes the records (step 3). Do not exclude the folders to hide it. |
 | Files the tool skipped in its own code | a list such as `SELF_AUDIT_EXCLUDED_FILENAMES` | an `exclude` entry or an exception record for each file. Stop and ask the human which, and why. |
 
 A `stale` record on `CD-19#import-boundaries` right after the move usually means the confined list was not carried over. Fix `confinedPackages` and run the check again before deleting anything.
@@ -106,6 +106,14 @@ Each converted record is imported: give it `provenance` naming the old record in
 `source` is the old file and the entry's position in its array, counting from `0`, so both files in the example above use `.constitution-carve-outs/cd-15.json#0`. An authorised location uses `{ "kind": "existing-authorisation", "source": ".constitution-authorised-locations/cd-<id>.json#<index>" }`. Hone accepts an imported record only while the `--base-revision` holds it unchanged or its `source` entry lists the record's file at that revision, so keep the old record files committed until step 6, and run every check in this migration with `--base-revision HEAD`. A record you write for new debt, or an imported record you later change, needs a full `whyChain` that follows the [why-chain contract](docs/why-chain-contract.md): Hone refuses it as `import-unverified` otherwise. A repository whose `disciplines.json` sets `"fileExceptionWhyChains": "optional"` may instead give such an `authorised-location` or `file-carve-out` only its `reason`, with no `whyChain` and no `provenance`.
 
 An imported `file-carve-out` needs a `decision`: copy the old entry's. If the old entry has none, stop and ask the human who accepted the debt. An imported `authorised-location` needs no `decision`: copy the old entry's if it has one, otherwise give `kind` and `source` only. Never write a placeholder or a root cause that only says the check was failing: Hone refuses those as `invalidRecords`.
+
+Once the old records are converted, what is left is debt no old record covers: findings in a folder whose relaxed rule set was not carried over (step 2a), clauses the old route never checked, and inline disables or `@ts-expect-error` directives the old tool accepted ([section 14](#14-moving-to-recorded-inline-exceptions)). When the human approves recording it, set `"fileExceptionWhyChains": "optional"` in `disciplines.json` and run, with one `--leave` for each file the human decided is a permanent exception:
+
+```bash
+node_modules/.bin/hone record-debt --repo . --base-revision HEAD --leave <path>
+```
+
+It adds a reason-only `file-carve-out` for each clause and file that no converted record holds, and leaves the converted records as they are. A converted record still holds its pair, so the command reports it `already-recorded` only if the check does not accept it; fix that record rather than adding another. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a says how to read its output and review the result.
 
 ## 4. Replace the hand-written linter rules
 
@@ -161,7 +169,7 @@ With pnpm, run the check as `pnpm run --silent hone:check --base-revision HEAD`.
 
 It must print a `CD-15#loops audit` finding and a `CD-1#explicit-any eslint` finding, then `verdict: fail`, and exit `1`. Use a selected clause in place of either if the repository did not adopt CD-15 or CD-1. Then remove both files (`git rm -f src/discipline-probe-loop.ts src/discipline-probe-any.ts`) and run the check again: it must print `verdict: pass` and exit `0`.
 
-To see debt decay, change one line in a carved file, stage it and run the check: the record moves to `forfeited` and the run fails. Restore the file afterwards (`git restore --staged --worktree <file>`).
+To see debt decay, change one line in a carved file, stage it and run the check: the record moves to `forfeited` and the run fails. Restore the file afterwards (`git restore --staged --worktree <file>`). Records `hone record-debt` wrote decay the same way as converted ones.
 
 Stop here, do not remove anything, and ask the human if the check does not pass.
 
@@ -305,7 +313,7 @@ Earlier releases reported an `eslint-disable` comment naming a selected rule as 
 
 1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Each `@ts-expect-error`, `@ts-ignore` and `@ts-nocheck` in a `.ts` or `.tsx` file is listed under `unrecorded` as `CD-2#cast-expressions audit inline-disable <file>:<line> <comment>`, test files included, and each `eslint-disable` as before.
 2. **Remove what you can.** A directive or disable that hides nothing is cheaper to delete than to record.
-3. **Record the rest per clause and file.** Add a `file-carve-out` for debt, or an `authorised-location` where the clause truly does not apply to that file, on the clause the line names and that file. One record holds every inline exception of that clause in the file. A `clause-wide-carve-out` does not hold them, and a tracked reference on the comment (CD-5) does not stand in for the record. Editing a carved file forfeits the carve-out, and each inline exception it held is listed again.
+3. **Record the rest per clause and file.** Add a `file-carve-out` for debt, or an `authorised-location` where the clause truly does not apply to that file, on the clause the line names and that file. For a repository that accepts reason-only records, `hone record-debt` writes the debt records ([ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a). One record holds every inline exception of that clause in the file. A `clause-wide-carve-out` does not hold them, and a tracked reference on the comment (CD-5) does not stand in for the record. Editing a carved file forfeits the carve-out, and each inline exception it held is listed again.
 4. **Name the rule in a bare disable.** An `eslint-disable` naming no rule escapes every selected ESLint clause and needs a record for each. Its lines end `names no rule and escapes every selected clause: naming the rule is the cheap fix`.
 5. **Fix lint-script options.** A `command-line-option` line that ends `weakens the script's whole run, so no record can cover it: remove it from the script` names an option to remove. One that ends `is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as "<invocation>"` names a script such as `tsc && eslint -c eslint.config.mjs .`: move the quoted command to a script of its own, then run the check again. One that ends `comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` quotes the first token Hone does not read, such as `env` or a runner flag like `-y`: rewrite the command so only package runners and `NAME=value` settings, including `cross-env NAME=value`, come before `eslint`. `-c` naming the config ESLint already finds, and `--ignore-pattern` that ignores no checked file, are not reported once `eslint` runs plainly.
 6. **Stale records may clear.** A record that holds a native exception it can cover now counts as used. An `authorised-location` or `file-carve-out` that held only a `config-override`, and was listed `stale` while dropping it left the override unrecorded, is no longer stale.

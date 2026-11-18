@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { createGitHistoryPort, createGitPort, type GitRun, type GitSpawn } from "./git-port.ts";
+import { createGitHistoryPort, createGitPort, createGitTreePort, type GitRun, type GitSpawn } from "./git-port.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
@@ -19,6 +19,8 @@ const EXITED_WITH_LISTING = {
   stdout: "c.ts\0src/a.ts\0",
   stderr: "",
 } satisfies GitRun;
+
+const REPOSITORY_LOCATION = "GIT_DIR";
 
 const EXITED_EMPTY = { outcome: "exited", status: 0, stdout: "", stderr: "" } satisfies GitRun;
 
@@ -351,6 +353,43 @@ describe("createGitPort textInBase", () => {
     expect(reading).toEqual({
       outcome: "failed",
       error: { kind: "git-failed", command: "git -C /repo ls-tree -z --name-only --end-of-options missing-base src/example.ts", detail: "fatal: not a valid object name missing-base" },
+    });
+  });
+});
+
+describe("createGitTreePort pathsAt", () => {
+  it("lists every path at the revision with option-safe arguments", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue(EXITED_WITH_LISTING);
+
+    const listing = createGitTreePort({ spawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).pathsAt({ repoRoot: REPO_ROOT, revision: "origin/main" });
+
+    expect({ listing, calls: spawn.mock.calls }).toEqual({
+      listing: { outcome: "ok", value: ["c.ts", "src/a.ts"] },
+      calls: [[expect.objectContaining({ arguments: ["-C", "/repo", "ls-tree", "-r", "-z", "--name-only", "--end-of-options", "origin/main"] })]],
+    });
+  });
+
+  it("hands git the ambient environment without the repository location", () => {
+    const treeSpawn = vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY);
+
+    createGitTreePort({ spawn: treeSpawn, ambientEnvironment: AMBIENT_ENVIRONMENT }).pathsAt({ repoRoot: REPO_ROOT, revision: "HEAD" });
+
+    expect(treeSpawn).toHaveBeenCalledWith(expect.objectContaining({ environment: expect.not.objectContaining({ [REPOSITORY_LOCATION]: expect.anything() }) }));
+  });
+
+  it("returns git-failed carrying stderr when git cannot read the revision", () => {
+    const listing = createGitTreePort({
+      spawn: vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_NOT_A_REPOSITORY, stderr: "fatal: Not a valid object name nope" }),
+      ambientEnvironment: {},
+    }).pathsAt({ repoRoot: REPO_ROOT, revision: "nope" });
+
+    expect(listing).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo ls-tree -r -z --name-only --end-of-options nope",
+        detail: "fatal: Not a valid object name nope",
+      },
     });
   });
 });

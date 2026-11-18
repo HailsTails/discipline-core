@@ -25,20 +25,21 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 
 ## Commands
 
-The package ships one command, `hone`, with two subcommands, run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows:
+The package ships one command, `hone`, with three subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone:
 
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
+hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone --help
 hone --version
 ```
 
-`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help` and `hone project --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
+`--repo` is the folder that holds `disciplines.json`, usually the repository root. `hone --help` lists the commands, `hone check --help`, `hone project --help` and `hone record-debt --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `disciplines.json` is the load failure `selection-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
 [docs/output-contract.md](docs/output-contract.md) lists every line `hone` prints, exactly as it prints it, with the exit codes and which parts are stable for hooks, CI and agents to rely on. A test renders every kind of line and checks it against that page, both ways.
 
-`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`, followed by ` (partial assessment)` when the run left part of the assessment to another run. It exits `0` when the verdict is `pass`, `1` when it is `fail`, and `2` on a load failure, which prints one line, `load failure: <kind> <fields>`. `hone project` exits `0` or `2`.
+`hone check` loads the repository's selection, exceptions, rule sets and pieces; works out which files changed since `--base-revision`; runs each selected mechanism once over the repository's tracked `.ts`, `.tsx`, `.mts` and `.cts` files; applies the exceptions; and prints a plain-text report ending in `verdict: pass` or `verdict: fail`, followed by ` (partial assessment)` when the run left part of the assessment to another run. It exits `0` when the verdict is `pass`, `1` when it is `fail`, and `2` on a load failure, which prints one line, `load failure: <kind> <fields>`. `hone project` and `hone record-debt` exit `0` or `2`.
 
 The report lists the excluded paths, the clauses not adopted, the clauses adopted with their mechanism not run, findings, exempted findings, uncovered clauses, stale, forfeited, unrecorded and doubly-held exceptions, invalid exception records, unmeasured checks, projection problems, any part of the assessment left to another run and, last, where to read first for each clause with findings, each with its count. The verdict is `pass` only when every list except the excluded paths, clauses not adopted, clauses not run, exempted findings, assessment and where to read first is empty.
 
@@ -94,6 +95,23 @@ verdict: pass (partial assessment)
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing else: `--base-revision` given with it is used only to check imported entries and legacy chains, and a run without a base revision still reports `import-unmeasured` and `legacy-chain-unmeasured` as above.
 
 `hone project` writes the native configuration each embedded mechanism needs, and prints `<path> <effect>` per file: `written`, `unchanged`, `removed` for a package slice Hone wrote whose folder is no longer a config root, or `left-in-place` for such a file whose bytes are not what Hone would write there. The audit mechanism is standalone and writes nothing, so with only the walker selected the command prints nothing and exits `0`.
+
+### Recording inherited debt
+
+`hone record-debt` gives a repository that adopts Hone with existing code a file record for each debt it cannot fix on day one. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a is the procedure. The command runs the check with the `--base-revision` it is given, then adds one `file-carve-out` to `discipline-exceptions.json` for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`. Each is the record a person would write, so nothing downstream treats it differently. It gives only a `reason`, which says the debt was inherited and that nobody has reviewed it, so `disciplines.json` must set `"fileExceptionWhyChains": "optional"`. Without that setting the command writes nothing and stops with the load failure `why-chains-required`. It never sets the key itself.
+
+It never writes anything wider than one clause in one file: no `authorised-location`, no `clause-wide-carve-out`, no `exclude` entry and no setting. It prints one line per clause and file, `recorded` for each record it added, and writes nothing for:
+
+- a pair that already has an `authorised-location` or `file-carve-out`, such as one the check forfeits (`already-recorded`);
+- a file under a `--leave` path (`left`). `--leave` takes an exact file or folder, as `exclude` does, and may be given once for each path. It names the deliberate, permanent exceptions, which a person records as an `authorised-location` with its own reason;
+- a file the base revision does not hold, since nothing in it was inherited (`new-file`);
+- a clause whose discipline refuses exceptions (`refused`).
+
+Other native exceptions under `unrecorded`, such as a `config-override` or a lint-script option, are not recorded: [ADOPTING.md](ADOPTING.md#6-read-the-report) step 6 says what to do with each.
+
+It adds the new entries after the last one and leaves every entry already in the file as written. It stages and commits nothing: the diff of `discipline-exceptions.json` is the review, and nothing takes effect until a person commits it. It never removes or rewrites a record, so running it again adds records only for pairs that still have none. A record whose finding is gone is reported `stale` by the check as before, for a person to delete. Run `hone project` after it when any clause is `eslint`, so the projection carries the new records.
+
+The command does not refuse to run again later, and has no flag for it. Forfeiture is what stops it turning new findings into carve-outs: a file carve-out is forfeited once its file changes since `--base-revision`, so a record written for a file someone has just changed fails the next check that assesses forfeiture, and a file that is new since the base gets no record at all. That holds only where forfeiture is assessed. In an arrangement that leaves it elsewhere, such as `"assessment": { "forfeiture": "elsewhere" }` with the pre-push hook that assesses it bypassed, such a record is not caught until a run that does assess it.
 
 ## Adopting the ESLint mechanism
 
@@ -176,7 +194,7 @@ At the repository root. It selects clauses and the mechanism that checks each on
 - A judgement clause cannot be selected; it is enforced by review.
 - `eslintConfigLookup`, optional, is `"nearest-to-file"` or `"repository-root"` and says which `eslint.config.*` the team's own ESLint run applies to a file; see [Runtime](#runtime). Leave it out to let Hone detect it.
 - `eslintConfigRoots`, optional, lists repository folders that get their own projection slice under either lookup although they track no `eslint.config.*`, such as a package whose config a tool generates and ignores; see [Package slices](#package-slices). Globs are refused. Each entry must be a folder git tracks files under outside every `exclude` path, spelled exactly as git spells it; any other entry stops the run before anything is checked or written, as `load failure: config-root-untracked <folder>:` with what to fix.
-- `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson).
+- `fileExceptionWhyChains`, optional, is `"required"` (the default) or `"optional"`. `"optional"` lets an `authorised-location` or `file-carve-out` entry give only its `reason`; see [discipline-exceptions.json](#discipline-exceptionsjson). `hone record-debt` writes such entries, so it needs `"optional"`.
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
 - `clauseSettings`, optional, maps a selected clause address to an object of that clause's settings, for a clause whose CHECKS.md lists settings. Each key must be one the clause's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `disciplines.json` malformed, naming the clause, the key and what is accepted: settings for a clause the file does not select or names twice, for a clause that takes none, under an undeclared key, or of the wrong kind or choice.
 - `assessment`, optional, says which run assesses each concern. Its one key, `forfeiture`, is `"this-run"` (the default) or `"elsewhere"`; `--forfeiture` overrides it for one run; see [Commands](#commands). `waivedClauses`, which earlier releases accepted, is removed: it makes `disciplines.json` `file-malformed`, naming the clause states that replace it; see [MIGRATING.md](MIGRATING.md#12-moving-off-waivedclauses). Any other key makes it `file-malformed`, naming the key as not available in this version.

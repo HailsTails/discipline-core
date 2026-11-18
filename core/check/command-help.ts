@@ -26,7 +26,8 @@ const stackedEntries = (request: { readonly entries: readonly HelpEntry[] }): re
 
 const usageTerm = (request: { readonly option: CommandOption }): string => {
   const term = `${request.option.name} ${request.option.value}`;
-  return request.option.need === "required" ? term : `[${term}]`;
+  const given = request.option.need === "required" ? term : `[${term}]`;
+  return request.option.occurrence === "repeated" ? `${given}...` : given;
 };
 
 const commandUsage = (request: { readonly subcommand: Subcommand; readonly spec: CommandSpec }): string =>

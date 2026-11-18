@@ -1,18 +1,18 @@
 # Output contract
 
-This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures and the `hone project` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
+This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures, the `hone project` lines and the `hone record-debt` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
 
 A test renders every kind of line the command can print, fills each template below with that line's own sample values, and requires the result to equal the printed line exactly: a line Hone can print that is not listed here fails the build, and so does a line listed here that Hone cannot print. The synopsis and help blocks below are compared with what the command prints, character for character.
 
 ## Streams and exit codes
 
-Hone prints everything to standard output: the report, the help, the version, `hone project` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
+Hone prints everything to standard output: the report, the help, the version, `hone project` and `hone record-debt` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
 
 The exit code is the signal a hook should act on:
 
-- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, or help or the version was printed;
+- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, or help or the version was printed;
 - `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line. Exit `1` always comes with one of those lines, and with nothing else;
-- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, and an error Hone did not expect, which prints as `unexpected-error`.
+- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt` could not write, and an error Hone did not expect, which prints as `unexpected-error`.
 
 A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
 
@@ -33,9 +33,10 @@ These are not stable, so a minor release may change them:
 - the help text, though the synopsis and the exit codes it lists are stable;
 - the text of a `<detail>`, which comes from Node, git, ESLint or a schema check;
 - the wording after `load failure: arguments-invalid`, written for the person who typed the command;
-- the text after a load failure's values, which says what to do next: the repair text of `selection-absent`, `judgement-clause-listed` and `config-root-untracked`, and everything after the kind in `toolchain-unavailable` and `toolchain-shadowed`;
+- the text after a load failure's values, which says what to do next: the repair text of `selection-absent`, `judgement-clause-listed`, `config-root-untracked` and `why-chains-required`, and everything after the kind in `toolchain-unavailable` and `toolchain-shadowed`;
 - the `readFirst` lines and their leading note, written for a person;
-- the words of an `unmeasured` or `projectionProblems` line after the `:` that ends its leading fields (its kind and reason, or its mechanism, state and slice), which say why and what to do next.
+- the words of an `unmeasured` or `projectionProblems` line after the `:` that ends its leading fields (its kind and reason, or its mechanism, state and slice), which say why and what to do next;
+- the words of a `hone record-debt` line after the `:` that follows its file, which say why no record was written and what to do instead.
 
 A minor release may add a section, a kind of line in a section, a load failure kind, an option or a command. A tool reading the report should pass over a section heading or a line kind it does not know.
 
@@ -69,11 +70,12 @@ Paths are printed with forward slashes. A path inside the `--repo` folder is pri
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
+hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone --help
 hone --version
 ```
 
-Each option is followed by its value as the next argument; a value that starts with `-` is read as a missing value. A bare `--` where an option is expected is skipped and the options after it are still read, so `pnpm run <script> -- <options>` works whether or not the package manager passes the `--` on; a `--` where a value is expected is a missing value, like any value that starts with `-`. `--help` or `-h` after a command prints that command's help instead of running it, and `hone --help <command>` prints the same. `hone --help` and `hone --version` take nothing else after them.
+Each option is followed by its value as the next argument; a value that starts with `-` is read as a missing value. An option followed by `...` may be given more than once, one value each time; any other option given twice is `arguments-invalid`. A bare `--` where an option is expected is skipped and the options after it are still read, so `pnpm run <script> -- <options>` works whether or not the package manager passes the `--` on; a `--` where a value is expected is a missing value, like any value that starts with `-`. `--help` or `-h` after a command prints that command's help instead of running it, and `hone --help <command>` prints the same. `hone --help` and `hone --version` take nothing else after them.
 
 `hone --help` prints:
 
@@ -83,8 +85,9 @@ usage: hone <command> [options]
 Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.
 
 commands:
-  check    check the repository against the disciplines it selects and print the report, ending in its verdict
-  project  write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
+  check        check the repository against the disciplines it selects and print the report, ending in its verdict
+  project      write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
+  record-debt  add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
 
 options:
   --help, -h  print this help; after a command, print that command's help
@@ -134,6 +137,28 @@ options:
 exit codes:
   0  every projection was written or already current
   2  any failure
+```
+
+`hone record-debt --help` prints:
+
+```text
+usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+
+add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --base-revision <revision>
+      the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record
+  --leave <path>
+      a file or folder, relative to --repo, that gets no record because a person records it as an authorised location; give it once for each path
+  --help, -h
+      print this help
+
+exit codes:
+  0  every record needed was written, or none was needed
+  2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
 ```
 
 `hone --version` prints the version of the installed package, read from its `package.json`, and exits `0`:
@@ -266,6 +291,8 @@ A run that cannot decide prints one line and exits `2`. It prints the same line 
 | `install-root-unresolvable` | `load failure: install-root-unresolvable <url> <detail>` |
 | `file-unreadable` | `load failure: file-unreadable <path> <detail>` |
 | `file-malformed` | `load failure: file-malformed <path> <detail>` |
+| `file-unwritable` | `load failure: file-unwritable <path> <detail>` |
+| `why-chains-required` | `load failure: why-chains-required <path>: hone record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them` |
 | `unsupported-version` | `load failure: unsupported-version <path> <version found>` |
 | `reserved-rule-set-name` | `load failure: reserved-rule-set-name <rule set>` |
 | `rule-set-name-collision` | `load failure: rule-set-name-collision <rule set> <other rule set>` |
@@ -301,8 +328,8 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 | Problem | Line |
 | --- | --- |
-| `command-missing` | `load failure: arguments-invalid hone needs a command, check or project; run hone --help for usage` |
-| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check and project; run hone --help for usage` |
+| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project or record-debt; run hone --help for usage` |
+| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project and record-debt; run hone --help for usage` |
 | `flag-extra` | `load failure: arguments-invalid hone <flag> takes nothing after it, not "<given>"; run hone --help for usage` |
 | `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in <option> <value>; run hone <command> --help for its options` |
 | `option-unknown` | `load failure: arguments-invalid hone <command> has no option "<given>"; run hone <command> --help for its options` |
@@ -313,6 +340,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `choice-invalid` | `load failure: arguments-invalid <option> takes <values>, not "<given>"` |
 | `option-removed` | `load failure: arguments-invalid removed: "--waived-clauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12` |
 | `repo-unresolvable` | `load failure: arguments-invalid --repo <dir> resolves to no absolute path` |
+| `path-invalid` | `load failure: arguments-invalid <option> takes one exact file or folder inside --repo, relative to it, with forward slashes and no *, not "<given>"` |
 
 ## hone project
 
@@ -324,3 +352,15 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `project` | `<path> unchanged` |
 | `project` | `<path> removed` |
 | `project` | `<path> left-in-place` |
+
+## hone record-debt
+
+`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to `discipline-exceptions.json`; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file.
+
+| Output | Line |
+| --- | --- |
+| `record-debt` | `<clause> recorded <file>` |
+| `record-debt` | `<clause> already-recorded <file>: discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold` |
+| `record-debt` | `<clause> left <file>: under --leave <path>; record it as an authorised-location with its own reason, or fix it` |
+| `record-debt` | `<clause> new-file <file>: the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason` |
+| `record-debt` | `<clause> refused <file>: the clause's discipline refuses exceptions; fix it` |

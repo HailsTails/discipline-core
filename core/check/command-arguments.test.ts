@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { argumentProblemText } from "./argument-problem.ts";
-import { parseCheckArguments, parseInvocation, parseProjectArguments } from "./command-arguments.ts";
-import { FORFEITURE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } from "./command-line.ts";
+import { parseCheckArguments, parseInvocation, parseProjectArguments, parseRecordDebtArguments } from "./command-arguments.ts";
+import { ADOPTION_BASE_REVISION_OPTION, FORFEITURE_OPTION, LEAVE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } from "./command-line.ts";
 
 const invalid = (request: { readonly detail: string }) => ({
   outcome: "failed",
@@ -12,6 +12,8 @@ describe("parseInvocation", () => {
   it.each([
     { given: ["check", "--repo", "/work/repo"], expected: { kind: "run", subcommand: "check", arguments: ["--repo", "/work/repo"] } },
     { given: ["project", "--repo", "/work/repo"], expected: { kind: "run", subcommand: "project", arguments: ["--repo", "/work/repo"] } },
+    { given: ["record-debt", "--repo", "."], expected: { kind: "run", subcommand: "record-debt", arguments: ["--repo", "."] } },
+    { given: ["record-debt", "--leave", "src/a.ts", "-h"], expected: { kind: "help", topic: "record-debt" } },
     { given: ["--help"], expected: { kind: "help", topic: "tool" } },
     { given: ["-h"], expected: { kind: "help", topic: "tool" } },
     { given: ["--version"], expected: { kind: "version" } },
@@ -101,5 +103,31 @@ describe("parseProjectArguments", () => {
     { given: ["--repo", "/work/repo", "--base-revision", "main"], problem: { kind: "option-unknown", subcommand: "project", given: "--base-revision" } },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
     expect(parseProjectArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
+  });
+});
+
+describe("parseRecordDebtArguments", () => {
+  it.each([
+    { given: ["--repo", "/work/repo", "--base-revision", "HEAD"], leave: [] },
+    { given: ["--base-revision", "HEAD", "--leave", "src/clock.ts", "--repo", "/work/repo", "--leave", "src/adapters"], leave: ["src/clock.ts", "src/adapters"] },
+    { given: ["--repo", "/work/repo", "--", "--base-revision", "HEAD", "--leave", "src/clock.ts"], leave: ["src/clock.ts"] },
+  ])("reads $given, keeping each --leave path in the order given", ({ given, leave }) => {
+    expect(parseRecordDebtArguments({ arguments: given })).toEqual({
+      outcome: "ok",
+      value: { repo: "/work/repo", baseRevision: "HEAD", leave },
+    });
+  });
+
+  it.each([
+    { given: ["--repo", "/work/repo"], problem: { kind: "option-required", subcommand: "record-debt", option: ADOPTION_BASE_REVISION_OPTION } },
+    { given: ["--base-revision", "HEAD"], problem: { kind: "option-required", subcommand: "record-debt", option: REPO_OPTION } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--base-revision", "main"], problem: { kind: "option-repeated", option: ADOPTION_BASE_REVISION_OPTION } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--leave"], problem: { kind: "value-missing", option: LEAVE_OPTION } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--forfeiture", "elsewhere"], problem: { kind: "option-unknown", subcommand: "record-debt", given: "--forfeiture" } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--leave", "src/*.ts"], problem: { kind: "path-invalid", option: LEAVE_OPTION, given: "src/*.ts" } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--leave", "../shared"], problem: { kind: "path-invalid", option: LEAVE_OPTION, given: "../shared" } },
+    { given: ["--repo", "/a", "--base-revision", "HEAD", "--leave", "src\\clock.ts"], problem: { kind: "path-invalid", option: LEAVE_OPTION, given: "src\\clock.ts" } },
+  ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
+    expect(parseRecordDebtArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
   });
 });

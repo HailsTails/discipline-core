@@ -376,7 +376,28 @@ The chain runs cause to cause: each why asks why the answer before it is true, e
 
 Debt or authorisations already recorded by an earlier system, for example the old standalone route's `.constitution-carve-outs/`, can be imported with `provenance` instead of a `whyChain`, as [MIGRATING.md](MIGRATING.md#3-convert-the-old-records-into-exceptions) step 3 shows. Imported entries are checked against `--base-revision`: by default, any entry you write or change yourself needs the full `whyChain`.
 
-To record existing debt without a chain on every entry, set `"fileExceptionWhyChains": "optional"` in `disciplines.json`. An `authorised-location` or `file-carve-out` entry may then give only its `reason`, so write the reason as why the exception exists; a blank reason is refused. A run with any file carve-out still needs `--base-revision`, or it reports `forfeiture-unmeasured` and fails. A `clause-wide-carve-out` still needs its `whyChain`, and a `whyChain` or `provenance` you give anyway is still checked. [README.md](README.md#discipline-exceptionsjson) has the details.
+To record existing debt without a chain on every entry, set `"fileExceptionWhyChains": "optional"` in `disciplines.json`; step 7a writes those records for you. An `authorised-location` or `file-carve-out` entry may then give only its `reason`, so write the reason as why the exception exists; a blank reason is refused. A run with any file carve-out still needs `--base-revision`, or it reports `forfeiture-unmeasured` and fails. A `clause-wide-carve-out` still needs its `whyChain`, and a `whyChain` or `provenance` you give anyway is still checked. [README.md](README.md#discipline-exceptionsjson) has the details.
+
+### 7a. Record the debt you inherit
+
+A repository with existing code usually has more findings than the change that adopts Hone can fix. `hone record-debt` writes a `file-carve-out` for each clause and file the check finds broken, so the first passing run does not wait on hundreds of records written by hand. Do this after the assessment (step 5a), and after fixing what you are going to fix in this change.
+
+1. **Decide the permanent exceptions first.** List each file or folder that breaks a clause on purpose and always will, such as the one adapter that reads the real clock. Those are not debt. They get an `authorised-location` with their own reason, written by a person, so keep them out of the generated records with `--leave`.
+2. **Accept reason-only records.** Set `"fileExceptionWhyChains": "optional"` in `disciplines.json`. Without it the command writes nothing and stops with `load failure: why-chains-required`.
+3. **Start from a clean tree.** Commit or set aside your own edits to source files. The command records each file the base revision holds, and a file you have changed since that revision is forfeited by the next check.
+4. **Run it once, with the commit you adopt at as the base**, one `--leave` for each path from point 1:
+
+   ```bash
+   node_modules/.bin/hone record-debt --repo . --base-revision HEAD --leave src/clock.ts --leave src/adapters
+   ```
+
+   It prints one line per clause and file. `recorded` lines are records it added to `discipline-exceptions.json`. `left` lines are files under a `--leave` path: write their `authorised-location` records now, each with its own reason. `new-file` lines are files the base revision does not hold, so nothing in them was inherited: fix them, or record them yourself with a reason of your own. `already-recorded` and `refused` lines say why nothing was written; [README.md](README.md#recording-inherited-debt) has the details.
+5. **Re-project and check.** With any `eslint` clause, run `npm run --silent hone:project`. Then run `npm run --silent hone:check -- --base-revision HEAD` (with pnpm, `pnpm run --silent hone:check --base-revision HEAD`). The generated records leave only what step 4 did not record, such as `config-override` or lint-script options under `unrecorded`, which step 6 says how to clear.
+6. **Review the diff.** Nothing takes effect until you commit it. Each generated record says it is inherited debt that nobody has reviewed, and the reviewer of the adopting change reads them as that. Note them in each clause's Debt line in `disciplines.assessment.md`.
+
+The records are the same as any other `file-carve-out`: each is forfeited once its file changes, which is how the debt is paid down. A file with no earlier revision gets no record, because it has no debt to inherit. The command is for adoption, but it does not refuse to run again: forfeiture already stops it turning new findings into carve-outs, since a record written for a file just changed is forfeited by the next check that assesses decay. That holds only where decay is assessed. With `"assessment": { "forfeiture": "elsewhere" }` (step 5), it is assessed only by the run that the repository leaves it to, such as the pre-push hook, so a push that bypasses that run lets such a record through until a later run assesses it.
+
+Running it again only adds records for pairs that have none; it never removes or rewrites one. A record whose finding has gone is reported `stale` by the check: delete it.
 
 ## 8. Prove one failure and correction
 

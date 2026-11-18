@@ -6,8 +6,9 @@ const TOOL_HELP = `usage: hone <command> [options]
 Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.
 
 commands:
-  check    check the repository against the disciplines it selects and print the report, ending in its verdict
-  project  write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
+  check        check the repository against the disciplines it selects and print the report, ending in its verdict
+  project      write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
+  record-debt  add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
 
 options:
   --help, -h  print this help; after a command, print that command's help
@@ -31,7 +32,30 @@ exit codes:
   2  any failure
 `;
 
+const RECORD_DEBT_HELP = `usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+
+add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --base-revision <revision>
+      the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record
+  --leave <path>
+      a file or folder, relative to --repo, that gets no record because a person records it as an authorised location; give it once for each path
+  --help, -h
+      print this help
+
+exit codes:
+  0  every record needed was written, or none was needed
+  2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
+`;
+
 describe("helpText", () => {
+  it("marks a required option without brackets and a repeatable one with a trailing ellipsis", () => {
+    expect(helpText({ topic: "record-debt" })).toBe(RECORD_DEBT_HELP);
+  });
+
   it("lists the commands and the tool's own options", () => {
     expect(helpText({ topic: "tool" })).toBe(TOOL_HELP);
   });
@@ -56,7 +80,7 @@ describe("helpText", () => {
 describe("SYNOPSIS", () => {
   it("lists each command's usage, then the tool's own flags", () => {
     expect(SYNOPSIS).toBe(
-      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone --help\nhone --version\n",
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone --help\nhone --version\n",
     );
   });
 });

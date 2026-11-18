@@ -1,10 +1,13 @@
+import type { InheritedDebtOutcome } from "../exception-records/inherited-debt.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
+import { clauseAddressText } from "../values/clause-address.ts";
 import type { ExitCode } from "../platform-ports/process-port.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import { renderReportText } from "../verdict/report-text.ts";
 import { verdictOf } from "../verdict/verdict.ts";
+import { LEAVE_OPTION } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { loadFailureText } from "./load-failure-text.ts";
 
@@ -54,3 +57,30 @@ export const versionCommandOutcome = (request: { readonly result: Result<string,
   request.result.outcome === "failed"
     ? loadFailureOutcome({ failure: request.result.error })
     : { code: 0, text: `${request.result.value}\n` };
+
+const inheritedDebtNote = (request: { readonly outcome: InheritedDebtOutcome }): string => {
+  const { outcome } = request;
+  switch (outcome.effect) {
+    case "recorded":
+      return "";
+    case "already-recorded":
+      return ": discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold";
+    case "left":
+      return `: under ${LEAVE_OPTION.name} ${outcome.under}; record it as an authorised-location with its own reason, or fix it`;
+    case "new-file":
+      return ": the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason";
+    case "refused":
+      return ": the clause's discipline refuses exceptions; fix it";
+  }
+};
+
+export const inheritedDebtLine = (request: { readonly outcome: InheritedDebtOutcome }): string =>
+  `${clauseAddressText({ address: request.outcome.clause })} ${request.outcome.effect} ${request.outcome.file}${inheritedDebtNote(request)}
+`;
+
+export const recordDebtCommandOutcome = (request: {
+  readonly result: Result<readonly InheritedDebtOutcome[], LoadFailure>;
+}): CommandOutcome =>
+  request.result.outcome === "failed"
+    ? loadFailureOutcome({ failure: request.result.error })
+    : { code: 0, text: request.result.value.map((outcome) => inheritedDebtLine({ outcome })).join("") };

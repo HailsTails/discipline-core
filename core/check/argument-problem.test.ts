@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { argumentProblemText, argumentsInvalid } from "./argument-problem.ts";
-import { FORFEITURE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } from "./command-line.ts";
+import { FORFEITURE_OPTION, LEAVE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } from "./command-line.ts";
 
 describe("argumentProblemText", () => {
   it.each([
-    { problem: { kind: "command-missing" }, text: "hone needs a command, check or project; run hone --help for usage" },
+    { problem: { kind: "command-missing" }, text: "hone needs a command, check, project or record-debt; run hone --help for usage" },
     {
       problem: { kind: "command-unknown", given: "lint" },
-      text: 'hone has no command "lint"; its commands are check and project; run hone --help for usage',
+      text: 'hone has no command "lint"; its commands are check, project and record-debt; run hone --help for usage',
     },
     {
       problem: { kind: "argument-unexpected", subcommand: "check", given: "src" },
@@ -51,6 +51,10 @@ describe("argumentProblemText for values and the repository folder", () => {
       text: 'removed: "--waived-clauses"; mark the clause not-run',
     },
     { problem: { kind: "repo-unresolvable", given: "src" }, text: "--repo src resolves to no absolute path" },
+    {
+      problem: { kind: "path-invalid", option: LEAVE_OPTION, given: "src/*.ts" },
+      text: '--leave takes one exact file or folder inside --repo, relative to it, with forward slashes and no *, not "src/*.ts"',
+    },
   ] as const)("words $problem.kind for the person who typed the command", ({ problem, text }) => {
     expect(argumentProblemText({ problem })).toBe(text);
   });
@@ -60,7 +64,7 @@ describe("argumentsInvalid", () => {
   it("carries the worded problem as the detail of an arguments-invalid load failure", () => {
     expect(argumentsInvalid({ problem: { kind: "command-missing" } })).toEqual({
       outcome: "failed",
-      error: { kind: "arguments-invalid", detail: "hone needs a command, check or project; run hone --help for usage" },
+      error: { kind: "arguments-invalid", detail: "hone needs a command, check, project or record-debt; run hone --help for usage" },
     });
   });
 });

@@ -1,0 +1,330 @@
+import { describe, expect, it, vi } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { requiredEntry } from "../../tests/required-entry.ts";
+import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
+import type { FileTextPort } from "../platform-ports/file-text-port.ts";
+import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
+import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
+import type { PathPort, RelativeLocation } from "../platform-ports/path-port.ts";
+import type { ProcessPort } from "../platform-ports/process-port.ts";
+import { absolutePathSchema } from "../values/absolute-path.ts";
+import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
+import { recordDebtCommandOf } from "./run-record-debt-command.ts";
+import type { CommandRequest } from "./run-check-command.ts";
+
+const ENTRY_URL = "file:///install/core/check/tool-command.ts";
+
+const EXCEPTIONS_PATH = "/repo/discipline-exceptions.json";
+
+type FakeFile = {
+  readonly read: ReturnType<FileTextPort["read"]>;
+  readonly presence: ReturnType<FileTextPort["exists"]>;
+};
+
+const presentFile = (request: { readonly text: string }): FakeFile => ({
+  read: { outcome: "ok", value: request.text },
+  presence: "present",
+});
+
+const ABSENT_FILE: FakeFile = {
+  read: { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } },
+  presence: "absent",
+};
+
+const CLASS_SYNTAX_DEFINITION = {
+  kind: "mechanical",
+  id: "class-syntax",
+  summary: "no class syntax",
+  mechanisms: ["audit"],
+  anchor: { kind: "keyword", keyword: "class" },
+  cases: {
+    flag: [{ name: "flagged", fileName: "src/a.ts", source: "class A {}\n", expectedLines: [1] }],
+    allow: [{ name: "allowed", fileName: "src/b.ts", source: "const b = 1;\n", expectedLines: [] }],
+  },
+};
+
+const repositoryFiles = (request: {
+  readonly fileExceptionWhyChains: "required" | "optional";
+  readonly exceptions: FakeFile;
+}): Readonly<Record<string, FakeFile>> => ({
+  "/repo/disciplines.json": presentFile({
+    text: JSON.stringify({
+      version: 1,
+      ruleSets: {},
+      clauses: { "CD-14#class-syntax": "audit" },
+      fileExceptionWhyChains: request.fileExceptionWhyChains,
+    }),
+  }),
+  [EXCEPTIONS_PATH]: request.exceptions,
+  "/install/package.json": ABSENT_FILE,
+  "/install/rules/CD-14/discipline.json": presentFile({
+    text: JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] }),
+  }),
+  "/install/mechanisms/audit/CD-14/piece.json": presentFile({
+    text: JSON.stringify({
+      version: 1,
+      discipline: "CD-14",
+      mechanism: "audit",
+      clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }],
+    }),
+  }),
+  "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
+  "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
+  "/repo/disciplines.assessment.md": ABSENT_FILE,
+  "/install/rules/CD-14/README.md": presentFile({ text: "# CD-14\n" }),
+});
+
+const REASON_ONLY_NO_RECORDS = repositoryFiles({ fileExceptionWhyChains: "optional", exceptions: ABSENT_FILE });
+
+const fileTextOver = (request: {
+  readonly files: Readonly<Record<string, FakeFile>>;
+  readonly writes: ReturnType<FileTextPort["write"]>;
+}): FileTextPort => ({
+  read: ({ path }) => requiredEntry({ table: request.files, key: path }).read,
+  exists: ({ path }) => requiredEntry({ table: request.files, key: path }).presence,
+  write: vi.fn<FileTextPort["write"]>().mockReturnValue(request.writes),
+});
+
+const WRITTEN: ReturnType<FileTextPort["write"]> = { outcome: "ok", value: undefined };
+
+const JOINED_PATHS: Readonly<Record<string, string>> = {
+  '["/repo","disciplines.json"]': "/repo/disciplines.json",
+  '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
+  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
+  '["/install","package.json"]': "/install/package.json",
+  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
+  '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
+  '["/repo","src/a.ts"]': "/repo/src/a.ts",
+  '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
+  '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
+  '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
+  '["/install","mechanisms","audit","runner","runner.ts"]': "/install/mechanisms/audit/runner/runner.ts",
+};
+
+const DIRECTORIES: Readonly<Record<string, string>> = {
+  "/install/core/check/tool-command.ts": "/install/core/check",
+  "/install/core/check": "/install/core",
+  "/install/core": "/install",
+};
+
+const RELATIVE_TO_REPO: Readonly<Record<string, RelativeLocation>> = {
+  "/repo/disciplines.json": { relation: "within-root", path: "disciplines.json" },
+  [EXCEPTIONS_PATH]: { relation: "within-root", path: "discipline-exceptions.json" },
+  "/install": { relation: "different-root" },
+  "/install/ADOPTING.md": { relation: "different-root" },
+  "/install/rules/CD-14/README.md": { relation: "different-root" },
+};
+
+const TABLE_PATH: PathPort = {
+  join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
+  relative: ({ to }) => requiredEntry({ table: RELATIVE_TO_REPO, key: to }),
+  joinRepository: vi.fn<PathPort["joinRepository"]>(),
+  directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
+  repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
+  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(path) }),
+  fromFileUrl: () => ({ outcome: "ok", value: absolutePathSchema.parse("/install/core/check/tool-command.ts") }),
+};
+
+const HIT_IN_A = {
+  clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
+  file: "src/a.ts",
+  anchor: { line: 3, column: 0 },
+  snippet: "class A {}",
+};
+
+const runnerFinding = (request: { readonly hits: readonly unknown[] }): ModuleLoaderPort => {
+  const runner: LoadedRunner = {
+    exceptionPath: "standalone",
+    run: vi.fn<LoadedRunner["run"]>().mockResolvedValue({ outcome: "ok", value: { hits: request.hits, nativeExceptions: [] } }),
+    conform: vi.fn<LoadedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  };
+  return { load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } }) };
+};
+
+const SOURCE_A = repoPathSchema.parse("src/a.ts");
+
+const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
+  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: [SOURCE_A] }),
+  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: changed }),
+  contentInBase: vi.fn<GitPort["contentInBase"]>(),
+  textInBase: vi.fn<GitPort["textInBase"]>(),
+});
+
+const treeHolding = (listing: ReturnType<GitTreePort["pathsAt"]>): GitTreePort => ({
+  pathsAt: vi.fn<GitTreePort["pathsAt"]>().mockReturnValue(listing),
+});
+
+const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
+  arguments: request.arguments,
+  writeOut: vi.fn<ProcessPort["writeOut"]>(),
+  writeError: vi.fn<ProcessPort["writeError"]>(),
+  exitWith: vi.fn<ProcessPort["exitWith"]>(),
+});
+
+const ADOPTION_ARGUMENTS = ["--repo", "/repo", "--base-revision", "HEAD"];
+
+type Run = {
+  readonly arguments: readonly string[];
+  readonly fileText: FileTextPort;
+  readonly git: GitPort;
+  readonly tree: GitTreePort;
+};
+
+const adoptionRun = (): Run => ({
+  arguments: ADOPTION_ARGUMENTS,
+  fileText: fileTextOver({ files: REASON_ONLY_NO_RECORDS, writes: WRITTEN }),
+  git: gitChanging([]),
+  tree: treeHolding({ outcome: "ok", value: [SOURCE_A] }),
+});
+
+const recordedDebt = async (request: Run) => {
+  const processPort = processWith({ arguments: request.arguments });
+  const command: CommandRequest = {
+    process: processPort,
+    path: TABLE_PATH,
+    fileText: request.fileText,
+    modules: runnerFinding({ hits: [HIT_IN_A] }),
+    git: request.git,
+    moduleUrl: ENTRY_URL,
+  };
+  await recordDebtCommandOf({ gitTree: request.tree })(command);
+  return {
+    writes: vi.mocked(processPort.writeOut).mock.calls,
+    exits: vi.mocked(processPort.exitWith).mock.calls,
+    files: vi.mocked(request.fileText.write).mock.calls,
+  };
+};
+
+const EXCEPTIONS_WITH_THE_RECORD = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/a.ts",
+      "reason": "Inherited debt: this file was already in the repository before Hone was adopted, and broke this clause when hone record-debt wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes."
+    }
+  ]
+}
+`;
+
+const EMPTY_EXCEPTIONS = `{
+  "version": 1,
+  "exceptions": []
+}
+`;
+
+const FORFEITED_CARVE_OUT = JSON.stringify({
+  version: 1,
+  exceptions: [{ kind: "file-carve-out", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "legacy class", whyChain: CAUSAL_WHY_CHAIN }],
+});
+
+describe("recordDebtCommandOf", () => {
+  it("writes a reason-only file carve-out for each broken clause and file into a new exceptions file, and prints the pair", async () => {
+    expect(await recordedDebt(adoptionRun())).toEqual({
+      writes: [[{ text: "CD-14#class-syntax recorded src/a.ts\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [[{ path: EXCEPTIONS_PATH, text: EXCEPTIONS_WITH_THE_RECORD }]],
+    });
+  });
+
+  it("appends to the exceptions file the repository already has", async () => {
+    const files = repositoryFiles({ fileExceptionWhyChains: "optional", exceptions: presentFile({ text: EMPTY_EXCEPTIONS }) });
+
+    const outcome = await recordedDebt({ ...adoptionRun(), fileText: fileTextOver({ files, writes: WRITTEN }) });
+
+    expect(outcome.files).toEqual([[{ path: EXCEPTIONS_PATH, text: EXCEPTIONS_WITH_THE_RECORD }]]);
+  });
+
+  it("asks git for the paths at the --base-revision it is given", async () => {
+    const tree = treeHolding({ outcome: "ok", value: [SOURCE_A] });
+
+    await recordedDebt({ ...adoptionRun(), arguments: ["--repo", "/repo", "--base-revision", "origin/main"], tree });
+
+    expect(vi.mocked(tree.pathsAt).mock.calls).toEqual([[{ repoRoot: "/repo", revision: "origin/main" }]]);
+  });
+});
+
+describe("recordDebtCommandOf writing nothing for a pair", () => {
+  it("leaves a pair under a --leave path for a person, writing nothing", async () => {
+    expect(await recordedDebt({ ...adoptionRun(), arguments: ["--repo", "/repo", "--base-revision", "HEAD", "--leave", "src"] })).toEqual({
+      writes: [[{ text: "CD-14#class-syntax left src/a.ts: under --leave src; record it as an authorised-location with its own reason, or fix it\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [],
+    });
+  });
+
+  it("does not record a file the base revision does not hold", async () => {
+    expect(await recordedDebt({ ...adoptionRun(), tree: treeHolding({ outcome: "ok", value: [] }) })).toEqual({
+      writes: [[{ text: "CD-14#class-syntax new-file src/a.ts: the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [],
+    });
+  });
+
+  it("adds nothing for a pair whose record the check forfeits, so the forfeiture stands", async () => {
+    const files = repositoryFiles({ fileExceptionWhyChains: "optional", exceptions: presentFile({ text: FORFEITED_CARVE_OUT }) });
+
+    expect(await recordedDebt({ ...adoptionRun(), fileText: fileTextOver({ files, writes: WRITTEN }), git: gitChanging([SOURCE_A]) })).toEqual({
+      writes: [[{ text: "CD-14#class-syntax already-recorded src/a.ts: discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [],
+    });
+  });
+});
+
+describe("recordDebtCommandOf failing to load", () => {
+  it("writes nothing and says what to set when disciplines.json requires a why-chain on every record", async () => {
+    const files = repositoryFiles({ fileExceptionWhyChains: "required", exceptions: ABSENT_FILE });
+
+    expect(await recordedDebt({ ...adoptionRun(), fileText: fileTextOver({ files, writes: WRITTEN }) })).toEqual({
+      writes: [
+        [
+          {
+            text: 'load failure: why-chains-required disciplines.json: hone record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them\n',
+          },
+        ],
+      ],
+      exits: [[{ code: 2 }]],
+      files: [],
+    });
+  });
+
+  it("exits 2 with the git failure when the base revision cannot be listed", async () => {
+    const tree = treeHolding({ outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "fatal: Not a valid object name nope" } });
+
+    expect(await recordedDebt({ ...adoptionRun(), tree })).toEqual({
+      writes: [[{ text: "load failure: git-failed git ls-tree: fatal: Not a valid object name nope\n" }]],
+      exits: [[{ code: 2 }]],
+      files: [],
+    });
+  });
+
+  it("exits 2 naming the file when the records cannot be written", async () => {
+    const refusing = fileTextOver({
+      files: REASON_ONLY_NO_RECORDS,
+      writes: { outcome: "failed", error: { kind: "unwritable", path: EXCEPTIONS_PATH, detail: "EACCES" } },
+    });
+
+    expect(await recordedDebt({ ...adoptionRun(), fileText: refusing })).toEqual({
+      writes: [[{ text: "load failure: file-unwritable discipline-exceptions.json EACCES\n" }]],
+      exits: [[{ code: 2 }]],
+      files: [[{ path: EXCEPTIONS_PATH, text: EXCEPTIONS_WITH_THE_RECORD }]],
+    });
+  });
+
+  it("exits 2 without running anything when --base-revision is missing", async () => {
+    expect(await recordedDebt({ ...adoptionRun(), arguments: ["--repo", "/repo"] })).toEqual({
+      writes: [
+        [
+          {
+            text: "load failure: arguments-invalid hone record-debt needs --base-revision <revision>: the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record\n",
+          },
+        ],
+      ],
+      exits: [[{ code: 2 }]],
+      files: [],
+    });
+  });
+});

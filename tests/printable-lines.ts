@@ -1,11 +1,12 @@
 import { type ArgumentProblem, argumentsInvalid } from "../core/check/argument-problem.ts";
 import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
-import { FORFEITURE_OPTION, type HelpTopic, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
-import { projectCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
+import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
+import { projectCommandOutcome, recordDebtCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
 import { installedVersionOf } from "../core/check/installed-version.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
 import type { ExceptionRecord } from "../core/exception-records/exception-record.ts";
+import type { InheritedDebtOutcome } from "../core/exception-records/inherited-debt.ts";
 import type {
   ExistingAuthorisationProvenance,
   InheritedDebtProvenance,
@@ -444,6 +445,11 @@ const LOAD_FAILURES: { readonly [Kind in LoadFailure["kind"]]: Filled<Extract<Lo
     entry: { kind: "file-malformed", path: "disciplines.json", detail: "clauses is not an object" },
     fills: { path: "disciplines.json", detail: "clauses is not an object" },
   },
+  "file-unwritable": {
+    entry: { kind: "file-unwritable", path: "discipline-exceptions.json", detail: "EACCES" },
+    fills: { path: "discipline-exceptions.json", detail: "EACCES" },
+  },
+  "why-chains-required": { entry: { kind: "why-chains-required", path: "disciplines.json" }, fills: { path: "disciplines.json" } },
   "unsupported-version": { entry: { kind: "unsupported-version", path: "disciplines.json", found: 2 }, fills: { path: "disciplines.json", "version found": "2" } },
   "reserved-rule-set-name": { entry: { kind: "reserved-rule-set-name", name: "hone" }, fills: { "rule set": "hone" } },
   "rule-set-name-collision": { entry: { kind: "rule-set-name-collision", name: "team", other: "team-web" }, fills: { "rule set": "team", "other rule set": "team-web" } },
@@ -493,6 +499,7 @@ const ARGUMENT_PROBLEMS: { readonly [Kind in ArgumentProblem["kind"]]: Filled<Ex
   },
   "option-removed": { entry: { kind: "option-removed", given: "--waived-clauses", instead: WAIVED_CLAUSES_REPLACEMENT }, fills: {} },
   "repo-unresolvable": { entry: { kind: "repo-unresolvable", given: "src" }, fills: { dir: "src" } },
+  "path-invalid": { entry: { kind: "path-invalid", option: LEAVE_OPTION, given: "src/*.ts" }, fills: { option: "--leave", given: "src/*.ts" } },
 };
 
 const failureLine = (request: { readonly label: string; readonly failure: LoadFailure; readonly fills: Fills }): PrintedLine => ({
@@ -530,6 +537,22 @@ const PROJECT_LINES: readonly PrintedLine[] = linesOf({
   fills: { path: "disciplines.eslint.mjs" },
 });
 
+const LEFT_UNDER = repoPathSchema.parse("src");
+
+const INHERITED_DEBT_EFFECTS: Readonly<Record<InheritedDebtOutcome["effect"], InheritedDebtOutcome>> = {
+  recorded: { clause: LOOPS, file: FILE, effect: "recorded" },
+  "already-recorded": { clause: LOOPS, file: FILE, effect: "already-recorded" },
+  left: { clause: LOOPS, file: FILE, effect: "left", under: LEFT_UNDER },
+  "new-file": { clause: LOOPS, file: FILE, effect: "new-file" },
+  refused: { clause: LOOPS, file: FILE, effect: "refused" },
+};
+
+const RECORD_DEBT_LINES: readonly PrintedLine[] = linesOf({
+  label: "record-debt",
+  text: recordDebtCommandOutcome({ result: { outcome: "ok", value: Object.values(INHERITED_DEBT_EFFECTS) } }).text,
+  fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src" },
+});
+
 const VERSION_MANIFEST: FileTextPort = {
   read: () => ({ outcome: "ok", value: JSON.stringify({ name: "@hailstails/hone", version: "1.0.0" }) }),
   exists: () => "present",
@@ -548,7 +571,7 @@ const VERSION_LINES: readonly PrintedLine[] = linesOf({
   fills: { version: "1.0.0" },
 });
 
-export const PRINTABLE_LINES: readonly PrintedLine[] = [...REPORT_LINES, ...FAILURE_LINES, ...PROJECT_LINES, ...VERSION_LINES];
+export const PRINTABLE_LINES: readonly PrintedLine[] = [...REPORT_LINES, ...FAILURE_LINES, ...PROJECT_LINES, ...RECORD_DEBT_LINES, ...VERSION_LINES];
 
 export const PRINTED_SECTION_ROLES: readonly DocumentedRole[] = SECTION_NAMES.map((section) => ({ section, role: sectionRoleOf({ section }) }));
 
