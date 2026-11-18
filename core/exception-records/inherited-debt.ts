@@ -1,13 +1,10 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
 import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import type { FileCarveOutEntry } from "./exception-record.ts";
 import type { PlacedEntry } from "./exception-records.ts";
 
 export const RECORD_DEBT_SUBCOMMAND = "record-debt";
-
-export const INHERITED_DEBT_REASON = `Inherited debt: this file existed at the base revision ${TOOL_IDENTITY.command} ${RECORD_DEBT_SUBCOMMAND} was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.`;
 
 type DebtPair = {
   readonly clause: ClauseAddress;
@@ -103,6 +100,6 @@ export const inheritedDebtEntriesOf = (request: {
 }): readonly FileCarveOutEntry[] =>
   request.outcomes.flatMap((outcome) =>
     outcome.effect === "recorded"
-      ? [{ kind: "file-carve-out", clause: clauseAddressText({ address: outcome.clause }), file: outcome.file, reason: INHERITED_DEBT_REASON }]
+      ? [{ kind: "file-carve-out", clause: clauseAddressText({ address: outcome.clause }), file: outcome.file }]
       : [],
   );

@@ -206,8 +206,7 @@ const EXCEPTIONS_WITH_THE_RECORD = `{
     {
       "kind": "file-carve-out",
       "clause": "CD-14#class-syntax",
-      "file": "src/a.ts",
-      "reason": "Inherited debt: this file existed at the base revision hone record-debt was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes."
+      "file": "src/a.ts"
     }
   ]
 }
@@ -278,22 +277,19 @@ describe("recordDebtCommandOf writing nothing for a pair", () => {
   });
 });
 
-describe("recordDebtCommandOf failing to load", () => {
-  it("writes nothing and says what to set when disciplines.json requires a why-chain on every record", async () => {
+describe("recordDebtCommandOf when disciplines.json leaves why-chains required", () => {
+  it("writes the same reason-only file carve-out, since debt needs no why-chain", async () => {
     const files = repositoryFiles({ fileExceptionWhyChains: "required", exceptions: ABSENT_FILE });
 
     expect(await recordedDebt({ ...adoptionRun(), fileText: fileTextOver({ files, writes: WRITTEN }) })).toEqual({
-      writes: [
-        [
-          {
-            text: 'load failure: why-chains-required disciplines.json: hone record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them\n',
-          },
-        ],
-      ],
-      exits: [[{ code: 2 }]],
-      files: [],
+      writes: [[{ text: "CD-14#class-syntax recorded src/a.ts\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [[{ path: EXCEPTIONS_PATH, text: EXCEPTIONS_WITH_THE_RECORD }]],
     });
   });
+});
+
+describe("recordDebtCommandOf failing to load", () => {
 
   it("exits 2 with the git failure when the base revision cannot be listed", async () => {
     const tree = treeHolding({ outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "fatal: Not a valid object name nope" } });

@@ -38,7 +38,7 @@ export type FileCarveOutEntry = FileDebtEvidence & {
   readonly kind: "file-carve-out";
   readonly clause: string;
   readonly file: string;
-  readonly reason: string;
+  readonly reason?: string;
 };
 
 export type ClauseWideCarveOutEntry = {
@@ -68,7 +68,7 @@ export type ExceptionRecord =
       readonly clause: ClauseAddress;
       readonly mechanism: MechanismId;
       readonly file: RepoPath;
-      readonly reason: string;
+      readonly reason?: string;
     })
   | {
       readonly kind: "clause-wide-carve-out";

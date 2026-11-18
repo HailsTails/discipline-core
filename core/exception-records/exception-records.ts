@@ -84,7 +84,7 @@ const exceptionsFileSchema = z.object({
         kind: z.literal("file-carve-out"),
         clause: z.string(),
         file: z.string(),
-        reason: z.string(),
+        reason: z.string().optional(),
         whyChain: z.unknown().optional(),
         provenance: z.unknown().optional(),
       }),
@@ -195,14 +195,14 @@ const fileCarveOutFields = {
   kind: z.literal("file-carve-out"),
   clause: z.string(),
   file: z.string(),
-  reason: z.string(),
+  reason: z.string().optional(),
 };
 
 const chainedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: unjudgedWhyChainSchema, provenance: inheritedDebtProvenanceSchema.optional() });
 
 const importedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: z.never().optional(), provenance: inheritedDebtProvenanceSchema });
 
-const reasonedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, ...reasonOnlyFields });
+const plainFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: z.never().optional(), provenance: z.never().optional() });
 
 type FileEvidenceSchemas = {
   readonly "authorised-location": z.ZodType<Unjudged<AuthorisedLocationEntry>>;
@@ -212,11 +212,11 @@ type FileEvidenceSchemas = {
 const FILE_EVIDENCE_SCHEMAS_OF: Readonly<Record<FileExceptionWhyChains, FileEvidenceSchemas>> = {
   required: {
     "authorised-location": z.union([chainedAuthorisedLocationSchema, importedAuthorisedLocationSchema]),
-    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema]),
+    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, plainFileCarveOutSchema]),
   },
   optional: {
     "authorised-location": z.union([chainedAuthorisedLocationSchema, importedAuthorisedLocationSchema, reasonedAuthorisedLocationSchema]),
-    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, reasonedFileCarveOutSchema]),
+    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, plainFileCarveOutSchema]),
   },
 };
 
@@ -268,9 +268,14 @@ const legacyListing = (request: {
     : "not-listed";
 };
 
-const importRefused = (request: { readonly detail: string }): Result<never, EntryProblem> => ({
+const IMPORT_WAY_OUT: Readonly<Record<ImportedIdentity["kind"], string>> = {
+  "authorised-location": "give it a whyChain",
+  "file-carve-out": "give it a whyChain, or remove its provenance to keep it as debt",
+};
+
+const importRefused = (request: { readonly detail: string; readonly kind: ImportedIdentity["kind"] }): Result<never, EntryProblem> => ({
   outcome: "failed",
-  error: { kind: "import-unverified", detail: `${request.detail}: give it a whyChain` },
+  error: { kind: "import-unverified", detail: `${request.detail}: ${IMPORT_WAY_OUT[request.kind]}` },
 });
 
 const verifiedImport = <ImportedRecord>(request: {
@@ -289,7 +294,7 @@ const verifiedImport = <ImportedRecord>(request: {
     return { outcome: "ok", value: request.record };
   }
   if (baseline.entriesAtBase.some((baseEntry) => sameIdentity({ entry: baseEntry, identity: request.identity }) === "same")) {
-    return importRefused({ detail: "the imported record was edited since the base revision" });
+    return importRefused({ detail: "the imported record was edited since the base revision", kind: request.identity.kind });
   }
   const source = legacySourceOf({ source: request.provenance.source });
   const listed =
@@ -300,6 +305,7 @@ const verifiedImport = <ImportedRecord>(request: {
   return listed
     ? { outcome: "ok", value: request.record }
     : importRefused({
+        kind: request.identity.kind,
         detail: `the record is new since the base revision, and its provenance source ${request.provenance.source} is not an entry at the base revision listing ${request.identity.file} under ${LEGACY_DIRECTORY_OF[request.provenance.kind]}/${request.discipline.toLowerCase()}.json`,
       });
 };
