@@ -73,7 +73,7 @@ export const ADOPTION_BASE_REVISION_OPTION: CommandOption = {
   value: "<revision>",
   need: "required",
   occurrence: "once",
-  summary: "the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record",
+  summary: "the branch's base, the revision the run that assesses decay is given, such as origin/main; a file it does not hold gets no record",
 };
 
 export const LEAVE_OPTION: CommandOption = {

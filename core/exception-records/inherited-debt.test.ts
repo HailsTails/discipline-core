@@ -180,9 +180,9 @@ describe("inheritedDebtEntriesOf", () => {
     ).toEqual([{ kind: "file-carve-out", clause: "team/TM-1#no-tmp-files", file: "src/basket.ts", reason: INHERITED_DEBT_REASON }]);
   });
 
-  it("gives a reason that says the debt was inherited and that nobody reviewed it", () => {
+  it("gives a reason that says only what the command knows: the file existed at the base and broke the clause, nobody reviewed it, and it lapses on the next change", () => {
     expect(INHERITED_DEBT_REASON).toBe(
-      "Inherited debt: this file was already in the repository before Hone was adopted, and broke this clause when hone record-debt wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.",
+      "Inherited debt: this file existed at the base revision hone record-debt was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.",
     );
   });
 });

@@ -40,7 +40,7 @@ options:
   --repo <dir>
       the folder that holds disciplines.json, usually the repository root
   --base-revision <revision>
-      the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record
+      the branch's base, the revision the run that assesses decay is given, such as origin/main; a file it does not hold gets no record
   --leave <path>
       a file or folder, relative to --repo, that gets no record because a person records it as an authorised location; give it once for each path
   --help, -h

@@ -110,10 +110,10 @@ An imported `file-carve-out` needs a `decision`: copy the old entry's. If the ol
 Once the old records are converted, what is left is debt no old record covers: findings in a folder whose relaxed rule set was not carried over (step 2a), clauses the old route never checked, and inline disables or `@ts-expect-error` directives the old tool accepted ([section 14](#14-moving-to-recorded-inline-exceptions)). When the human approves recording it, set `"fileExceptionWhyChains": "optional"` in `disciplines.json` and run, with one `--leave` for each file the human decided is a permanent exception:
 
 ```bash
-node_modules/.bin/hone record-debt --repo . --base-revision HEAD --leave <path>
+node_modules/.bin/hone record-debt --repo . --base-revision origin/main --leave <path>
 ```
 
-It adds a reason-only `file-carve-out` for each clause and file that no converted record holds, and leaves the converted records as they are. A converted record still holds its pair, so the command reports it `already-recorded` only if the check does not accept it; fix that record rather than adding another. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a says how to read its output and review the result.
+Give it the branch's base, `origin/main`, not `HEAD` as this migration's other checks do: after step 6 the pre-push hook and CI assess decay against that base, so a record for a file this branch edits passes a check against `HEAD` and is forfeited there. Finish each file the migration edits, as [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a point 3 says, and confirm with `npm run --silent hone:check -- --base-revision origin/main`. It adds a reason-only `file-carve-out` for each clause and file that no converted record holds, and leaves the converted records as they are. A converted record still holds its pair, so the command reports it `already-recorded` only if the check does not accept it; fix that record rather than adding another. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a says how to read its output and review the result.
 
 ## 4. Replace the hand-written linter rules
 

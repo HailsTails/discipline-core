@@ -100,6 +100,8 @@ The `assessment` section is informational and the marker does not change the exi
 
 `hone record-debt` gives a repository that adopts Hone with existing code a file record for each debt it cannot fix on day one. [ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a is the procedure. The command runs the check with the `--base-revision` it is given, then adds one `file-carve-out` to `discipline-exceptions.json` for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`. Each is the record a person would write, so nothing downstream treats it differently. It gives only a `reason`, which says the debt was inherited and that nobody has reviewed it, so `disciplines.json` must set `"fileExceptionWhyChains": "optional"`. Without that setting the command writes nothing and stops with the load failure `why-chains-required`. It never sets the key itself.
 
+Give it the base that the run assessing decay is given, such as `origin/main` for a branch: a record for a file changed since that base is forfeited by that run, and a check against a later revision, such as `HEAD`, does not show it.
+
 It never writes anything wider than one clause in one file: no `authorised-location`, no `clause-wide-carve-out`, no `exclude` entry and no setting. It prints one line per clause and file, `recorded` for each record it added, and writes nothing for:
 
 - a pair that already has an `authorised-location` or `file-carve-out`, such as one the check forfeits (`already-recorded`);

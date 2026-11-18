@@ -203,7 +203,7 @@ const EXCEPTIONS_WITH_THE_RECORD = `{
       "kind": "file-carve-out",
       "clause": "CD-14#class-syntax",
       "file": "src/a.ts",
-      "reason": "Inherited debt: this file was already in the repository before Hone was adopted, and broke this clause when hone record-debt wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes."
+      "reason": "Inherited debt: this file existed at the base revision hone record-debt was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes."
     }
   ]
 }
@@ -319,7 +319,7 @@ describe("recordDebtCommandOf failing to load", () => {
       writes: [
         [
           {
-            text: "load failure: arguments-invalid hone record-debt needs --base-revision <revision>: the revision the repository adopts Hone at, such as HEAD; a file it does not hold was not inherited and gets no record\n",
+            text: "load failure: arguments-invalid hone record-debt needs --base-revision <revision>: the branch's base, the revision the run that assesses decay is given, such as origin/main; a file it does not hold gets no record\n",
           },
         ],
       ],

@@ -7,7 +7,7 @@ import type { StructuralExceptionEntry } from "./exception-records.ts";
 
 export const RECORD_DEBT_SUBCOMMAND = "record-debt";
 
-export const INHERITED_DEBT_REASON = `Inherited debt: this file was already in the repository before ${TOOL_IDENTITY.name} was adopted, and broke this clause when ${TOOL_IDENTITY.command} ${RECORD_DEBT_SUBCOMMAND} wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.`;
+export const INHERITED_DEBT_REASON = `Inherited debt: this file existed at the base revision ${TOOL_IDENTITY.command} ${RECORD_DEBT_SUBCOMMAND} was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.`;
 
 type DebtPair = {
   readonly clause: ClauseAddress;
