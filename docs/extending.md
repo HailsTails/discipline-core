@@ -290,7 +290,7 @@ Hone loads piece modules with Node, which strips the types from a `.ts` file as 
 
 ## Type-check the rule set
 
-`@hailstails/hone/rule-set` holds types only. `@hailstails/hone/audit` holds the walker piece types and one value, `folderScope`. Import types with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
+`@hailstails/hone/rule-set` holds types only. `@hailstails/hone/audit` holds the walker piece types and three values: `folderScope`, `isEdition` and `editionReaches`. Import types with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
 
 ```json
 {
@@ -340,7 +340,7 @@ const conformance = await clauseConformanceOf({ ruleSetRoot: "tools/disciplines/
 
 A relative `ruleSetRoot` is read from the working directory. `{ outcome: "ok", value: [] }` means the piece met every case. Each entry in a longer list names a case, the lines it expects and the lines the piece flagged. `{ outcome: "failed", error: { kind, detail } }` means the cases could not run, for example `rule-set-unloadable` for a clause the audit mechanism may not check.
 
-Checks of your own call the piece directly. `clauseUnderTestOf` returns the same bound clause and each case's `name`, `file` and `source`, ready for `check.prepare` and `prepareFile`; `repoPathOf` makes the `RepoPath` for any other file, such as one whose `readText` fails with `file-unreadable`. `folderScope` from `@hailstails/hone/audit` tells a piece whether a file sits in a generated folder. Hone does not run these tests; the team runs them with its own test runner.
+Checks of your own call the piece directly. `clauseUnderTestOf` returns the same bound clause and each case's `name`, `file`, `source` and `edition`, ready for `check.prepare` and `prepareFile`; `repoPathOf` makes the `RepoPath` for any other file, such as one whose `readText` fails with `file-unreadable`. `folderScope` from `@hailstails/hone/audit` tells a piece whether a file sits in a generated folder. Hone does not run these tests; the team runs them with its own test runner.
 
 ## Exceptions
 
@@ -362,9 +362,9 @@ Without that setting the entry also needs a `whyChain`, and without one it is re
 Two requirements are decided and not yet built. Each will make some rule sets that pass today fail:
 
 - **A rule page is required.** A selected team discipline without `rules/<ID>/README.md` will fail to load.
-- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder and `folderScope` from `@hailstails/hone/audit`. The rule is about a piece's run-time code: a piece's own tests may also import `@hailstails/hone/testing`.
+- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder and `folderScope`, `isEdition` and `editionReaches` from `@hailstails/hone/audit`. The rule is about a piece's run-time code: a piece's own tests may also import `@hailstails/hone/testing`.
 
-To be ready now: write each discipline's `README.md`, and import nothing from Hone in a piece but types from `@hailstails/hone/rule-set` and `@hailstails/hone/audit` and `folderScope`.
+To be ready now: write each discipline's `README.md`, and import nothing from Hone in a piece but types from `@hailstails/hone/rule-set` and `@hailstails/hone/audit`, and `folderScope`, `isEdition` and `editionReaches`.
 
 | Part | Status |
 | --- | --- |
