@@ -1700,15 +1700,34 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
     });
   });
 
-  it("passes tool-failed through for a script with an unterminated quote", async () => {
+  it("reports a script naming eslint whose quotes do not pair as an unreadable command-line-option, and passes over one that names no eslint", async () => {
     await expect(
       runnerOver({
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
-          files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: "eslint 'src" } }) }) },
+          files: {
+            "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { say: "echo don't stop", lint: "eslint 'src" } }) }),
+          },
         }),
       }).run(trackedRun({ tracked: "package.json" })),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "tool-failed", detail: expect.stringContaining("lint") } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        hits: [],
+        nativeExceptions: [
+          {
+            kind: "command-line-option",
+            clause: CLASS_SYNTAX_OBJECT,
+            location: "package.json",
+            script: "lint",
+            option: "eslint 'src",
+            cause: { kind: "unreadable", command: "eslint" },
+          },
+        ],
+        projection: "current",
+        slices: [],
+      },
+    });
   });
 
   it("is file-unreadable at a tracked package.json that cannot be read", async () => {

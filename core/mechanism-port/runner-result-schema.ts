@@ -23,7 +23,8 @@ export type InlineReach = "one-clause" | "every-selected-clause";
 export type ScriptOptionCause =
   | { readonly kind: "weakens-run" }
   | { readonly kind: "after-another-command"; readonly command: string; readonly invocation: string }
-  | { readonly kind: "wrapped"; readonly command: string; readonly wrapper: string };
+  | { readonly kind: "wrapped"; readonly command: string; readonly wrapper: string }
+  | { readonly kind: "unreadable"; readonly command: string };
 
 export type NativeException =
   | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }

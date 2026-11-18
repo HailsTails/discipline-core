@@ -384,6 +384,11 @@ exceptions[4] why-chain-refused why 2\nis empty\r
       cause: { kind: "wrapped", command: "eslint", wrapper: "-y" },
       note: ': "-y" comes before eslint and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before eslint',
     },
+    {
+      option: "eslint --rule 'no-class: off",
+      cause: { kind: "unreadable", command: "eslint" },
+      note: ": a quote in the script has no partner, so Hone cannot read what the script passes to eslint or tell what that does to the files under check; pair every quote in the script",
+    },
   ])("renders $option with the reason $cause.kind gives and its way out", ({ option, cause, note }) => {
     expect(
       renderReportText({

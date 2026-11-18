@@ -1018,6 +1018,11 @@ const judgedScriptExceptions = (request: {
     (outcomes) => gatheredOutcomes({ outcomes }),
   );
 
+const unreadableScriptExceptions = (request: { readonly scan: PackageJsonScan }): readonly NativeException[] =>
+  request.scan.unreadableScripts.flatMap((unreadable) =>
+    unreadable.exceptions.map((exception): NativeException => ({ ...exception, cause: { kind: "unreadable", command: unreadable.command } })),
+  );
+
 const scannedPackageExceptions = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
@@ -1031,6 +1036,7 @@ const scannedPackageExceptions = (request: {
     gatheredOutcomes({
       outcomes: [
         scriptExceptions,
+        { outcome: "ok", value: unreadableScriptExceptions({ scan: request.scan }) },
         ...request.scan.suppressionsLocations.map((scripted) =>
         scriptSuppressionEntries({
           fileText: request.fileText,
