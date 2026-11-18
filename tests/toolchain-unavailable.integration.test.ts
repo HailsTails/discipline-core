@@ -1,5 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
-import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";

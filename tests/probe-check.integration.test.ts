@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";

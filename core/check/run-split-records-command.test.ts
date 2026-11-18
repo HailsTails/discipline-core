@@ -126,6 +126,9 @@ describe("runSplitRecordsCommand", () => {
     });
   });
 
+});
+
+describe("runSplitRecordsCommand with nothing it can do", () => {
   it("says there is nothing to split for a repository already split", async () => {
     const disk = recordsDisk({ working: { "disciplines.json": SELECTION_TEXT, "discipline-exceptions/file-carve-outs/cd-19.json": CARVE_OUTS_TEXT }, base: {} });
     const processPort = processWith({ arguments: ["--repo", "/repo"] });

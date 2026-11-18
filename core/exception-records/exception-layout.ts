@@ -227,8 +227,10 @@ const workingEntries = (request: LayoutRequest): Result<readonly PlacedEntry[], 
   }
 };
 
-const isRecordsPathAtBase = (request: { readonly path: RepoPath }): boolean =>
-  request.path === SINGLE_FILE || (request.path.startsWith(`${SPLIT_FOLDER}/`) && request.path.endsWith(RECORDS_FILE_EXTENSION));
+const recordsFileStanding = (request: { readonly path: RepoPath }): "records-file" | "other-file" =>
+  request.path === SINGLE_FILE || (request.path.startsWith(`${SPLIT_FOLDER}/`) && request.path.endsWith(RECORDS_FILE_EXTENSION))
+    ? "records-file"
+    : "other-file";
 
 const baseTextEntries = (request: LayoutRequest & { readonly revision: string; readonly file: RepoPath }): Result<readonly StructuralExceptionEntry[], GitFailure> => {
   const text = request.git.textInBase({ repoRoot: request.repoRoot, baseRevision: request.revision, file: request.file });
@@ -243,7 +245,7 @@ const baseEntries = (request: LayoutRequest & { readonly revision: string }): Re
   if (paths.outcome === "failed") {
     return paths;
   }
-  const files = inTextOrder({ paths: paths.value.filter((path) => isRecordsPathAtBase({ path })) });
+  const files = inTextOrder({ paths: paths.value.filter((path) => recordsFileStanding({ path }) === "records-file") });
   return files.reduce<Result<readonly StructuralExceptionEntry[], GitFailure>>((sofar, file) => {
     if (sofar.outcome === "failed") {
       return sofar;
@@ -381,10 +383,10 @@ const splitOf = (request: LayoutRequest): Result<RecordsSplit, LoadFailure> => {
 };
 
 export const createExceptionRepository = (request: LayoutRequest): ExceptionRepository => ({
-  entries: () => workingEntries(request),
-  entriesAt: (at) => baseEntries({ ...request, revision: at.revision }),
+  read: () => workingEntries(request),
+  readAt: (at) => baseEntries({ ...request, revision: at.revision }),
   add: (addition) => added({ ...request, entries: addition.entries }),
-  split: () => splitOf(request),
+  moveToSplitLayout: () => splitOf(request),
 });
 
 export const exceptionRepositoryOf =

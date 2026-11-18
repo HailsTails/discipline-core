@@ -1,5 +1,5 @@
 import { assert, describe, expect, it, type MockInstance, vi } from "vitest";
-import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { runProject } from "../core/check/run-project.ts";
 import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";

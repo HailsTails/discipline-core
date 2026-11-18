@@ -79,7 +79,7 @@ const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
   if (selection.outcome === "failed") {
     return Promise.resolve(selection);
   }
-  const existing = request.exceptionRepository.entries();
+  const existing = request.exceptionRepository.read();
   if (existing.outcome === "failed") {
     return Promise.resolve(existing);
   }

@@ -176,7 +176,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
   if (reading.outcome === "failed") {
     return reading;
   }
-  const entries = request.exceptionRepository.entries();
+  const entries = request.exceptionRepository.read();
   if (entries.outcome === "failed") {
     return entries;
   }
@@ -301,7 +301,7 @@ const exceptionBaselineOf = (request: {
   ) {
     return UNMEASURED_EXCEPTION_BASELINE;
   }
-  const entriesAtBase = request.check.exceptionRepository.entriesAt({ revision: baseRevision });
+  const entriesAtBase = request.check.exceptionRepository.readAt({ revision: baseRevision });
   if (entriesAtBase.outcome === "failed") {
     return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: entriesAtBase.error }) };
   }

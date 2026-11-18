@@ -20,7 +20,7 @@ const recordsSplit = (request: CommandRequest): Result<RecordsSplit, LoadFailure
     fileText: request.fileText,
     repoRoot: repoRoot.value,
     installRoot: installRootOf({ path: request.path, moduleUrl: request.moduleUrl }),
-    run: request.exceptionRepositoryOf({ repoRoot: repoRoot.value }).split(),
+    run: request.exceptionRepositoryOf({ repoRoot: repoRoot.value }).moveToSplitLayout(),
   });
 };
 

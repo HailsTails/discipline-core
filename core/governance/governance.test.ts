@@ -1,13 +1,10 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { recordsDisk } from "../../tests/records-disk.ts";
 import { createExceptionRepository } from "../exception-records/exception-layout.ts";
 import { parseExceptionEntries, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
-import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { PathPort } from "../platform-ports/path-port.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
-import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -158,7 +155,7 @@ describe("applyGovernance with provenance-only inherited debt", () => {
       working: { "discipline-exceptions.json": JSON.stringify({ version: 1, exceptions: [{ kind: "file-carve-out", clause: "CD-14#no-class-syntax", file: "src/a.ts", reason: "fictional inherited-debt fixture", provenance }] }) },
       base: {},
     });
-    const entries = createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }).entries();
+    const entries = createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }).read();
     assert(entries.outcome === "ok");
     const exceptionReading = { outcome: "ok", value: parseExceptionEntries({ entries: entries.value, selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [], editions: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" }) } as const;
 

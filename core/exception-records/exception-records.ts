@@ -56,10 +56,10 @@ export type RecordsSplit =
   | { readonly effect: "already-split" | "no-records"; readonly path: RepoPath };
 
 export type ExceptionRepository = {
-  readonly entries: () => Result<readonly PlacedEntry[], LoadFailure>;
-  readonly entriesAt: (request: { readonly revision: string }) => Result<readonly StructuralExceptionEntry[], GitFailure>;
+  readonly read: () => Result<readonly PlacedEntry[], LoadFailure>;
+  readonly readAt: (request: { readonly revision: string }) => Result<readonly StructuralExceptionEntry[], GitFailure>;
   readonly add: (request: { readonly entries: readonly FileCarveOutEntry[] }) => Result<void, LoadFailure>;
-  readonly split: () => Result<RecordsSplit, LoadFailure>;
+  readonly moveToSplitLayout: () => Result<RecordsSplit, LoadFailure>;
 };
 
 export type ExceptionRepositoryOf = (request: { readonly repoRoot: AbsolutePath }) => ExceptionRepository;

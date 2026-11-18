@@ -226,9 +226,9 @@ const SECOND_ADAPTER = {
   reason: "inherited",
 } as const;
 
-describe("createExceptionRepository entries in the single file", () => {
+describe("createExceptionRepository read in the single file", () => {
   it("reads each record of discipline-exceptions.json with its index there", () => {
-    expect(repositoryOver({ working: SINGLE_FILES, base: {} }).repository.entries()).toEqual({
+    expect(repositoryOver({ working: SINGLE_FILES, base: {} }).repository.read()).toEqual({
       outcome: "ok",
       value: [
         { place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, entry: ADAPTER },
@@ -241,26 +241,26 @@ describe("createExceptionRepository entries in the single file", () => {
   });
 
   it("reads no records when neither layout is present", () => {
-    expect(repositoryOver({ working: {}, base: {} }).repository.entries()).toEqual({ outcome: "ok", value: [] });
+    expect(repositoryOver({ working: {}, base: {} }).repository.read()).toEqual({ outcome: "ok", value: [] });
   });
 
   it("is file-malformed when an entry does not match the records format", () => {
     expect(
-      repositoryOver({ working: { "discipline-exceptions.json": '{ "version": 1, "exceptions": [{ "kind": "blanket-waiver" }] }' }, base: {} }).repository.entries(),
+      repositoryOver({ working: { "discipline-exceptions.json": '{ "version": 1, "exceptions": [{ "kind": "blanket-waiver" }] }' }, base: {} }).repository.read(),
     ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: "/repo/discipline-exceptions.json" } });
   });
 
   it("is unsupported-version with the found value for a version other than 1", () => {
-    expect(repositoryOver({ working: { "discipline-exceptions.json": '{ "version": 0, "exceptions": [] }' }, base: {} }).repository.entries()).toEqual({
+    expect(repositoryOver({ working: { "discipline-exceptions.json": '{ "version": 0, "exceptions": [] }' }, base: {} }).repository.read()).toEqual({
       outcome: "failed",
       error: { kind: "unsupported-version", path: "/repo/discipline-exceptions.json", found: 0 },
     });
   });
 });
 
-describe("createExceptionRepository entries in the split layout", () => {
+describe("createExceptionRepository read in the split layout", () => {
   it("reads each rule file in path order, each record with its file and its index in that file", () => {
-    expect(repositoryOver({ working: SPLIT_FILES, base: {} }).repository.entries()).toEqual({
+    expect(repositoryOver({ working: SPLIT_FILES, base: {} }).repository.read()).toEqual({
       outcome: "ok",
       value: [
         { place: { layout: "split", file: "discipline-exceptions/authorised-locations/cd-19.json", index: 0 }, entry: WRAPPING },
@@ -274,7 +274,7 @@ describe("createExceptionRepository entries in the split layout", () => {
 
   it("refuses a record kept in another rule's or kind's file, naming where it belongs", () => {
     expect(
-      repositoryOver({ working: { "discipline-exceptions/file-carve-outs/cd-6.json": CARVE_OUTS_19_TEXT }, base: {} }).repository.entries(),
+      repositoryOver({ working: { "discipline-exceptions/file-carve-outs/cd-6.json": CARVE_OUTS_19_TEXT }, base: {} }).repository.read(),
     ).toEqual({
       outcome: "failed",
       error: {
@@ -286,7 +286,7 @@ describe("createExceptionRepository entries in the split layout", () => {
   });
 
   it("refuses a file the layout has no place for", () => {
-    expect(repositoryOver({ working: { ...SPLIT_FILES, "discipline-exceptions/notes.md": "notes" }, base: {} }).repository.entries()).toEqual({
+    expect(repositoryOver({ working: { ...SPLIT_FILES, "discipline-exceptions/notes.md": "notes" }, base: {} }).repository.read()).toEqual({
       outcome: "failed",
       error: {
         kind: "file-malformed",
@@ -298,26 +298,26 @@ describe("createExceptionRepository entries in the split layout", () => {
   });
 
   it("refuses a repository holding both layouts rather than merging them", () => {
-    expect(repositoryOver({ working: { ...SINGLE_FILES, ...SPLIT_FILES }, base: {} }).repository.entries()).toEqual({
+    expect(repositoryOver({ working: { ...SINGLE_FILES, ...SPLIT_FILES }, base: {} }).repository.read()).toEqual({
       outcome: "failed",
       error: { kind: "records-in-both-layouts", path: "/repo/discipline-exceptions.json", folder: "/repo/discipline-exceptions" },
     });
   });
 });
 
-describe("createExceptionRepository entriesAt reads the base revision in whichever layout it holds", () => {
+describe("createExceptionRepository readAt reads the base revision in whichever layout it holds", () => {
   it.each([
     { layout: "single file", base: SINGLE_FILES, entries: [ADAPTER, WIRE, WRAPPING, PORT, TEAM_WIDE] },
     { layout: "split layout", base: SPLIT_FILES, entries: [WRAPPING, TEAM_WIDE, ADAPTER, PORT, WIRE] },
   ])("reads the records of a base in the $layout, whatever the working tree holds", ({ base, entries }) => {
     expect({
-      underSingle: repositoryOver({ working: SINGLE_FILES, base }).repository.entriesAt({ revision: "main" }),
-      underSplit: repositoryOver({ working: SPLIT_FILES, base }).repository.entriesAt({ revision: "main" }),
+      underSingle: repositoryOver({ working: SINGLE_FILES, base }).repository.readAt({ revision: "main" }),
+      underSplit: repositoryOver({ working: SPLIT_FILES, base }).repository.readAt({ revision: "main" }),
     }).toEqual({ underSingle: { outcome: "ok", value: entries }, underSplit: { outcome: "ok", value: entries } });
   });
 
   it("reads no records from a base that holds neither layout", () => {
-    expect(repositoryOver({ working: SINGLE_FILES, base: { "src/a.ts": "a" } }).repository.entriesAt({ revision: "main" })).toEqual({
+    expect(repositoryOver({ working: SINGLE_FILES, base: { "src/a.ts": "a" } }).repository.readAt({ revision: "main" })).toEqual({
       outcome: "ok",
       value: [],
     });
@@ -362,11 +362,11 @@ const LEFT_AS_THEY_ARE: readonly {
   { state: "with an empty records file", working: { "discipline-exceptions.json": EMPTY_TEXT }, outcome: { effect: "no-records", path: "discipline-exceptions.json" } },
 ];
 
-describe("createExceptionRepository split", () => {
+describe("createExceptionRepository moveToSplitLayout", () => {
   it("writes one file for each kind and discipline, in the single file's order within each, then removes the single file", () => {
     const { repository, disk } = repositoryOver({ working: SINGLE_FILES, base: {} });
 
-    expect(repository.split()).toEqual({
+    expect(repository.moveToSplitLayout()).toEqual({
       outcome: "ok",
       value: {
         effect: "split",
@@ -385,7 +385,7 @@ describe("createExceptionRepository split", () => {
   it("refuses a record whose clause names no discipline, writing nothing", () => {
     const { repository, disk } = repositoryOver({ working: { "discipline-exceptions.json": UNPLACEABLE_TEXT }, base: {} });
 
-    expect(repository.split()).toEqual({
+    expect(repository.moveToSplitLayout()).toEqual({
       outcome: "failed",
       error: {
         kind: "records-unsplittable",
@@ -400,11 +400,11 @@ describe("createExceptionRepository split", () => {
   it.each(LEFT_AS_THEY_ARE)("leaves a repository $state as it is", ({ working, outcome }) => {
     const { repository, disk } = repositoryOver({ working, base: {} });
 
-    expect({ split: repository.split(), texts: disk.texts() }).toEqual({ split: { outcome: "ok", value: outcome }, texts: working });
+    expect({ split: repository.moveToSplitLayout(), texts: disk.texts() }).toEqual({ split: { outcome: "ok", value: outcome }, texts: working });
   });
 
   it("refuses to split while both layouts are present", () => {
-    expect(repositoryOver({ working: { ...SINGLE_FILES, ...SPLIT_FILES }, base: {} }).repository.split()).toMatchObject({
+    expect(repositoryOver({ working: { ...SINGLE_FILES, ...SPLIT_FILES }, base: {} }).repository.moveToSplitLayout()).toMatchObject({
       outcome: "failed",
       error: { kind: "records-in-both-layouts" },
     });

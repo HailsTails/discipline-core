@@ -1,5 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
-import { withSingleFileRecords, withSingleFileRecordsOf } from "../../../tests/records-disk.ts";
+import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
 import { runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
