@@ -2,6 +2,19 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 1.1.0
+
+### Features
+
+- add hone record-debt, which writes an adopting repository's existing findings as reason-only file carve-outs (#132)
+- ship a tightened check as a clause edition, with CD-27 test-body-logic edition 2 behind checkEditions (#133)
+- keep exception records in a file per rule and kind, with hone split-records to migrate (#134)
+
+### Other changes
+
+- point the README badges and install text at the latest dist-tag (#129)
+- build the package once on the release's environment and prove that tarball on Windows and Linux (#130)
+
 ## 1.0.0
 
 ### Other changes
