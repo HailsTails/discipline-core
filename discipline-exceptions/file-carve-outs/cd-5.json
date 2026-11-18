@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/disable-file-named.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/disable-file.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/disable-line.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/disable-next-line.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/enable.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/other-rule.ts"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-5#comments-directives",
+      "file": "mechanisms/eslint/runner/test-fixtures/inline-forms/i/rule-config.ts"
+    }
+  ]
+}

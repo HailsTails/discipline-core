@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-7#categorical-paths",
+      "file": "tests/test-fixtures/walkthrough/before/src/utils/format.ts"
+    }
+  ]
+}

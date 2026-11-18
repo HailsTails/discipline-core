@@ -45,6 +45,14 @@
   },
   "exclude": ["tests/test-fixtures/consumer-proof"],
   "clauseSettings": {
-    "CD-19#import-boundaries": { "confinedPackages": ["eslint"] }
+    "CD-19#import-boundaries": { "confinedPackages": ["eslint"] },
+    "CD-27#test-body-logic": { "edition": "2" },
+    "CD-3#strict": { "edition": "2" },
+    "CD-3#no-unchecked-indexed-access": { "edition": "2" },
+    "CD-3#exact-optional-property-types": { "edition": "2" },
+    "CD-3#no-implicit-override": { "edition": "2" },
+    "CD-3#no-fallthrough-cases-in-switch": { "edition": "2" },
+    "CD-3#no-property-access-from-index-signature": { "edition": "2" },
+    "CD-3#use-unknown-in-catch-variables": { "edition": "2" }
   }
 }
