@@ -7,6 +7,8 @@ import { repoPathSchema } from "../values/repo-path.ts";
 import type { CheckReport } from "./check-report.ts";
 import { verdictOf } from "./verdict.ts";
 
+const RECORDS_FILE = repoPathSchema.parse("discipline-exceptions.json");
+
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
 const fileA = repoPathSchema.parse("src/a.ts");
 const audit = mechanismIdSchema.parse("audit");
@@ -83,7 +85,7 @@ describe("verdictOf", () => {
       "invalidRecords",
       {
         ...emptyReport,
-        invalidRecords: [{ index: 0, problem: { kind: "duplicate", ofIndex: 1 } }],
+        invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 0 }, problem: { kind: "duplicate", of: { layout: "single-file", file: RECORDS_FILE, index: 1 } } }],
       },
     ],
     ["unmeasured", { ...emptyReport, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }],

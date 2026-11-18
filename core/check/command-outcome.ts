@@ -1,3 +1,4 @@
+import type { RecordsSplit } from "../exception-records/exception-records.ts";
 import type { InheritedDebtOutcome } from "../exception-records/inherited-debt.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
@@ -64,7 +65,7 @@ const inheritedDebtNote = (request: { readonly outcome: InheritedDebtOutcome }):
     case "recorded":
       return "";
     case "already-recorded":
-      return ": discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold";
+      return `: ${outcome.heldIn} already holds a record on this clause and file; the check says why it does not hold`;
     case "left":
       return `: under ${LEAVE_OPTION.name} ${outcome.under}; record it as an authorised-location with its own reason, or fix it`;
     case "new-file":
@@ -84,3 +85,22 @@ export const recordDebtCommandOutcome = (request: {
   request.result.outcome === "failed"
     ? loadFailureOutcome({ failure: request.result.error })
     : { code: 0, text: request.result.value.map((outcome) => inheritedDebtLine({ outcome })).join("") };
+
+const recordsSplitText = (request: { readonly split: RecordsSplit }): string => {
+  const { split } = request;
+  switch (split.effect) {
+    case "split":
+      return split.writes.map((write) => `${write.path} ${write.effect}\n`).join("");
+    case "already-split":
+      return `${split.path} already holds the records split: nothing to split\n`;
+    case "no-records":
+      return `${split.path} holds no records: nothing to split\n`;
+  }
+};
+
+export const splitRecordsCommandOutcome = (request: {
+  readonly result: Result<RecordsSplit, LoadFailure>;
+}): CommandOutcome =>
+  request.result.outcome === "failed"
+    ? loadFailureOutcome({ failure: request.result.error })
+    : { code: 0, text: recordsSplitText({ split: request.result.value }) };

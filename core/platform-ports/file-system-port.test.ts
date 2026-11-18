@@ -15,7 +15,7 @@ describe("createDirectoryPort", () => {
     ]);
     const list = vi.fn<DirectorySurface["list"]>().mockReturnValue(entries);
 
-    const directoryOutcome = createDirectoryPort({ directory: { list } }).list({ path: DIRECTORY });
+    const directoryOutcome = createDirectoryPort({ directory: { list, create: vi.fn<DirectorySurface["create"]>() } }).list({ path: DIRECTORY });
 
     expect(directoryOutcome).toEqual({
       outcome: "ok",
@@ -41,7 +41,7 @@ describe("createDirectoryPort", () => {
   it("returns an observed empty directory as successful empty entries", () => {
     const list = vi.fn<DirectorySurface["list"]>().mockReturnValue([]);
 
-    expect(createDirectoryPort({ directory: { list } }).list({ path: DIRECTORY })).toEqual({
+    expect(createDirectoryPort({ directory: { list, create: vi.fn<DirectorySurface["create"]>() } }).list({ path: DIRECTORY })).toEqual({
       outcome: "ok",
       value: [],
     });
@@ -51,7 +51,7 @@ describe("createDirectoryPort", () => {
   it("preserves an external Error message and the affected directory", () => {
     const list = vi.fn<DirectorySurface["list"]>().mockThrow(new Error("directory access denied"));
 
-    expect(createDirectoryPort({ directory: { list } }).list({ path: DIRECTORY })).toEqual({
+    expect(createDirectoryPort({ directory: { list, create: vi.fn<DirectorySurface["create"]>() } }).list({ path: DIRECTORY })).toEqual({
       outcome: "failed",
       error: {
         kind: "directory-unreadable",
@@ -64,13 +64,34 @@ describe("createDirectoryPort", () => {
   it("preserves a non-Error external failure as text with the affected directory", () => {
     const list = vi.fn<DirectorySurface["list"]>().mockThrow("directory unavailable");
 
-    expect(createDirectoryPort({ directory: { list } }).list({ path: DIRECTORY })).toEqual({
+    expect(createDirectoryPort({ directory: { list, create: vi.fn<DirectorySurface["create"]>() } }).list({ path: DIRECTORY })).toEqual({
       outcome: "failed",
       error: {
         kind: "directory-unreadable",
         path: DIRECTORY,
         detail: "directory unavailable",
       },
+    });
+  });
+});
+
+describe("createDirectoryPort create", () => {
+  it("creates the folder through the surface and reports success", () => {
+    const create = vi.fn<DirectorySurface["create"]>();
+
+    expect(createDirectoryPort({ directory: { list: vi.fn<DirectorySurface["list"]>(), create } }).create({ path: DIRECTORY })).toEqual({
+      outcome: "ok",
+      value: undefined,
+    });
+    expect(create).toHaveBeenCalledExactlyOnceWith({ path: DIRECTORY });
+  });
+
+  it("reports a folder the surface cannot create with its path and the error message", () => {
+    const create = vi.fn<DirectorySurface["create"]>().mockThrow(new Error("read-only file system"));
+
+    expect(createDirectoryPort({ directory: { list: vi.fn<DirectorySurface["list"]>(), create } }).create({ path: DIRECTORY })).toEqual({
+      outcome: "failed",
+      error: { kind: "directory-uncreatable", path: DIRECTORY, detail: "read-only file system" },
     });
   });
 });

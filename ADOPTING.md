@@ -2,7 +2,7 @@
 
 This page takes a TypeScript repository from nothing to a checked, passing run. Do the steps in order. Every command is run from the root of the repository being checked, which this page calls `<repo>`. Nothing here needs AIDLC or any agent harness. A repository that adopted the disciplines through the older standalone copy route follows [MIGRATING.md](MIGRATING.md), which uses these steps.
 
-Hone reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks over every git-tracked file, applies the exceptions in `discipline-exceptions.json`, and prints one report ending in `verdict: pass` or `verdict: fail`.
+Hone reads `disciplines.json` in `<repo>`, runs the selected disciplines' checks over every git-tracked file, applies the exceptions recorded in `discipline-exceptions.json`, or split by rule in the `discipline-exceptions` folder, and prints one report ending in `verdict: pass` or `verdict: fail`.
 
 ## 1. Check the prerequisites
 
@@ -378,6 +378,8 @@ The chain runs cause to cause: each why asks why the answer before it is true, e
 
 Debt or authorisations already recorded by an earlier system, for example the old standalone route's `.constitution-carve-outs/`, can be imported with `provenance` instead of a `whyChain`, as [MIGRATING.md](MIGRATING.md#3-convert-the-old-records-into-exceptions) step 3 shows. Imported entries are checked against `--base-revision`: by default, any entry you write or change yourself needs the full `whyChain`.
 
+The records live in `discipline-exceptions.json` by default. To keep one file for each rule and kind instead, so the name of a changed file says which rule and which kind a change touches, move to the split layout with `hone split-records`, as [MIGRATING.md](MIGRATING.md#16-moving-to-the-split-layout) section 16 shows; [README.md](README.md#the-split-layout) describes the layout. Everything that reads or writes records works the same in either.
+
 To record existing debt without a chain on every entry, set `"fileExceptionWhyChains": "optional"` in `disciplines.json`; step 7a writes those records for you. An `authorised-location` or `file-carve-out` entry may then give only its `reason`, so write the reason as why the exception exists; a blank reason is refused. A run with any file carve-out still needs `--base-revision`, or it reports `forfeiture-unmeasured` and fails. A `clause-wide-carve-out` still needs its `whyChain`, and a `whyChain` or `provenance` you give anyway is still checked. [README.md](README.md#discipline-exceptionsjson) has the details.
 
 ### 7a. Record the debt you inherit
@@ -394,7 +396,7 @@ A repository with existing code usually has more findings than the change that a
    node_modules/.bin/hone record-debt --repo . --base-revision origin/main --leave src/clock.ts --leave src/adapters
    ```
 
-   It prints one line per clause and file. `recorded` lines are records it added to `discipline-exceptions.json`. `left` lines are files under a `--leave` path: write their `authorised-location` records now, each with its own reason. `new-file` lines are files the base revision does not hold, so nothing in them was inherited: fix them, or record them yourself with a reason of your own. `already-recorded` and `refused` lines say why nothing was written; [README.md](README.md#recording-inherited-debt) has the details.
+   It prints one line per clause and file. `recorded` lines are records it added to the exception records. `left` lines are files under a `--leave` path: write their `authorised-location` records now, each with its own reason. `new-file` lines are files the base revision does not hold, so nothing in them was inherited: fix them, or record them yourself with a reason of your own. `already-recorded` and `refused` lines say why nothing was written; [README.md](README.md#recording-inherited-debt) has the details.
 5. **Re-project and check against the same base.** With any `eslint` clause, run `npm run --silent hone:project`. Then run `npm run --silent hone:check -- --forfeiture this-run --base-revision origin/main` (with pnpm, `pnpm run --silent hone:check --forfeiture this-run --base-revision origin/main`). `--forfeiture this-run` makes this run assess decay whatever `assessment.forfeiture` says, as the run that assesses it for your repository does: the pre-push hook with `"forfeiture": "elsewhere"` (step 5), or CI without it. A `forfeited` line names a file this change edits: go back to point 3 for it. A check against `HEAD` hides those lines, because nothing has changed since `HEAD`, and the hook or CI then fails where this run passed. The generated records leave only what point 4 did not record, such as `config-override` or lint-script options under `unrecorded`, which step 6 says how to clear.
 6. **Review the diff.** Nothing takes effect until you commit it. Each generated record says it is inherited debt that nobody has reviewed, and the reviewer of the adopting change reads them as that. Note them in each clause's Debt line in `disciplines.assessment.md`.
 

@@ -7,6 +7,7 @@ import { installedVersionOf } from "./installed-version.ts";
 import { type CommandRequest, printOutcome, runCheckCommand } from "./run-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
+import { runSplitRecordsCommand } from "./run-split-records-command.ts";
 
 export type CommandHandler = (request: CommandRequest) => Promise<void>;
 
@@ -54,5 +55,6 @@ export const runToolCommand: CommandHandler = toolCommandOf({
     check: runCheckCommand,
     project: runProjectCommand,
     "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
+    "split-records": runSplitRecordsCommand,
   },
 });

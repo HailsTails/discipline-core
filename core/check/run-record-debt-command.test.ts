@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { type RecordsDisk, recordsDisk, singleFileRepositoriesOver } from "../../tests/records-disk.ts";
+import { exceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -90,6 +92,7 @@ const WRITTEN: ReturnType<FileTextPort["write"]> = { outcome: "ok", value: undef
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
   '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
   '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
   '["/install","package.json"]': "/install/package.json",
@@ -186,6 +189,7 @@ const recordedDebt = async (request: Run) => {
     fileText: request.fileText,
     modules: runnerFinding({ hits: [HIT_IN_A] }),
     git: request.git,
+    exceptionRepositoryOf: singleFileRepositoriesOver({ path: TABLE_PATH, fileText: request.fileText, git: request.git }),
     moduleUrl: ENTRY_URL,
   };
   await recordDebtCommandOf({ gitTree: request.tree })(command);
@@ -325,6 +329,58 @@ describe("recordDebtCommandOf failing to load", () => {
       ],
       exits: [[{ code: 2 }]],
       files: [],
+    });
+  });
+});
+
+const recordedDebtInto = async (request: { readonly run: Run; readonly disk: RecordsDisk }) => {
+  const processPort = processWith({ arguments: request.run.arguments });
+  await recordDebtCommandOf({ gitTree: request.run.tree })({
+    process: processPort,
+    path: TABLE_PATH,
+    fileText: request.run.fileText,
+    modules: runnerFinding({ hits: [HIT_IN_A] }),
+    git: request.run.git,
+    exceptionRepositoryOf: exceptionRepositoryOf(request.disk.ports),
+    moduleUrl: ENTRY_URL,
+  });
+  return {
+    writes: vi.mocked(processPort.writeOut).mock.calls,
+    exits: vi.mocked(processPort.exitWith).mock.calls,
+    texts: request.disk.texts(),
+  };
+};
+
+const AUTHORISED_ELSEWHERE = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/factory.ts",
+      "reason": "the wrapping factory"
+    }
+  ]
+}
+`;
+
+describe("recordDebtCommandOf in the split layout", () => {
+  it("appends the record to the file that keeps that rule's file carve-outs", async () => {
+    const disk = recordsDisk({ working: { "discipline-exceptions/file-carve-outs/cd-14.json": EMPTY_EXCEPTIONS }, base: {} });
+
+    expect(await recordedDebtInto({ run: adoptionRun(), disk })).toEqual({
+      writes: [[{ text: "CD-14#class-syntax recorded src/a.ts\n" }]],
+      exits: [[{ code: 0 }]],
+      texts: { "discipline-exceptions/file-carve-outs/cd-14.json": EXCEPTIONS_WITH_THE_RECORD },
+    });
+  });
+
+  it("writes a new file for that rule's file carve-outs beside its other kinds' files", async () => {
+    const disk = recordsDisk({ working: { "discipline-exceptions/authorised-locations/cd-14.json": AUTHORISED_ELSEWHERE }, base: {} });
+
+    expect((await recordedDebtInto({ run: adoptionRun(), disk })).texts).toEqual({
+      "discipline-exceptions/authorised-locations/cd-14.json": AUTHORISED_ELSEWHERE,
+      "discipline-exceptions/file-carve-outs/cd-14.json": EXCEPTIONS_WITH_THE_RECORD,
     });
   });
 });

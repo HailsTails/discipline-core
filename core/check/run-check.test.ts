@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { recordsDisk, singleFileRepositoryOver } from "../../tests/records-disk.ts";
+import { createExceptionRepository } from "../exception-records/exception-layout.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -60,6 +62,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
   '["/repo","disciplines.assessment.md"]': ASSESSMENT_PATH,
   '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
   '["/install","package.json"]': "/install/package.json",
@@ -387,18 +390,21 @@ const MEASURED_GIT = gitReporting({
   changedSince: { outcome: "ok", value: CHANGED_PATHS },
 });
 
-const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
-  repoRoot: REPO_ROOT,
-  installRoot: INSTALL_ROOT,
-  moduleExtension: ".ts",
-  baseRevision: "main",
-  assessment: DEFAULT_ASSESSMENT,
-  fileText: fileTextOver(INSTALL),
-  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
-  path: TABLE_PATH,
-  git: MEASURED_GIT,
-  ...overrides,
-});
+const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => {
+  const ports = {
+    repoRoot: REPO_ROOT,
+    installRoot: INSTALL_ROOT,
+    moduleExtension: ".ts" as const,
+    baseRevision: "main",
+    assessment: DEFAULT_ASSESSMENT,
+    fileText: fileTextOver(INSTALL),
+    modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
+    path: TABLE_PATH,
+    git: MEASURED_GIT,
+    ...overrides,
+  };
+  return { exceptionRepository: singleFileRepositoryOver(ports), ...ports };
+};
 
 describe("runCheck reports", () => {
   it("is a pass report when the runner flags nothing", async () => {
@@ -473,7 +479,7 @@ describe("runCheck reports", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ index: 0, problem: { kind: "clause-not-selected" } }] },
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "clause-not-selected" } }] },
     });
   });
 
@@ -554,7 +560,7 @@ describe("runCheck forfeiture measurement", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ index: 0, problem: { kind: "import-unverified" } }], unmeasured: [] },
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "import-unverified" } }], unmeasured: [] },
     });
   });
 
@@ -637,7 +643,7 @@ describe("runCheck forfeiture measurement", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ index: 0, problem: { kind: "why-chain-refused" } }], unmeasured: [] },
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "why-chain-refused" } }], unmeasured: [] },
     });
   });
 
@@ -962,7 +968,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ index: 0, problem: { kind: "import-unverified" } }], unmeasured: [] },
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "import-unverified" } }], unmeasured: [] },
     });
   });
 
@@ -986,8 +992,8 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
       outcome: "ok",
       value: {
         invalidRecords: [
-          { index: 0, problem: { kind: "evidence-refused" } },
-          { index: 1, problem: { kind: "evidence-refused" } },
+          { place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "evidence-refused" } },
+          { place: { layout: "single-file", file: "discipline-exceptions.json", index: 1 }, problem: { kind: "evidence-refused" } },
         ],
         unmeasured: [],
       },
@@ -1662,7 +1668,7 @@ describe("runCheck clauses not adopted", () => {
     ).resolves.toMatchObject({
       outcome: "ok",
       value: {
-        invalidRecords: [{ index: 0, problem: { kind: "clause-not-adopted", clause: CLASS_SYNTAX_OBJECT } }],
+        invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "clause-not-adopted", clause: CLASS_SYNTAX_OBJECT } }],
         notAdopted: [CLASS_SYNTAX_OBJECT],
       },
     });
@@ -1750,7 +1756,7 @@ describe("runCheck clauses adopted but not run", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ index: 0, problem: { kind: "clause-not-run", clause: CLASS_SYNTAX_OBJECT } }], notRun: [CLASS_SYNTAX_OBJECT] },
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "clause-not-run", clause: CLASS_SYNTAX_OBJECT } }], notRun: [CLASS_SYNTAX_OBJECT] },
     });
   });
 });
@@ -1777,6 +1783,97 @@ describe("runCheck pointing a failing clause at where to read first", () => {
     expect({ reads: reads.mock.calls, checks: checks.mock.calls }).toEqual({
       reads: expect.not.arrayContaining([[{ path: ASSESSMENT_PATH }]]),
       checks: expect.not.arrayContaining([[{ path: ASSESSMENT_PATH }]]),
+    });
+  });
+});
+
+const SINGLE_LOCATION_RECORDS = { "discipline-exceptions.json": EXCEPTIONS_WITH_AUTHORISED_LOCATION };
+
+const SPLIT_LOCATION_RECORDS = { "discipline-exceptions/authorised-locations/cd-14.json": EXCEPTIONS_WITH_AUTHORISED_LOCATION };
+
+const layoutCheck = (request: {
+  readonly working: Readonly<Record<string, string>>;
+  readonly base: Readonly<Record<string, string>>;
+}): CheckRequest => {
+  const disk = recordsDisk(request);
+  return checkRequest({
+    exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
+    modules: modulesLoading({
+      runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/factory.ts" }], nativeExceptions: [] } } }),
+    }),
+    git: gitReporting({ trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] }, changedSince: { outcome: "ok", value: [] } }),
+  });
+};
+
+const REASONED_CARVE_OUT_TEXT = JSON.stringify({ version: 1, exceptions: [REASONED_CARVE_OUT] });
+
+const SINGLE_REASONED_RECORDS = { "discipline-exceptions.json": REASONED_CARVE_OUT_TEXT };
+
+const SPLIT_REASONED_RECORDS = { "discipline-exceptions/file-carve-outs/cd-14.json": REASONED_CARVE_OUT_TEXT };
+
+const touchedLegacyLayoutCheck = (request: {
+  readonly working: Readonly<Record<string, string>>;
+  readonly base: Readonly<Record<string, string>>;
+}): CheckRequest => {
+  const disk = recordsDisk(request);
+  return checkRequest({
+    exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
+    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_WITH_OPTIONAL_WHY_CHAINS }) }),
+    git: gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] } }),
+  });
+};
+
+describe("runCheck forfeiting a reason-only record over either exception record layout", () => {
+  it.each([
+    { working: "single file", base: "single file", records: SINGLE_REASONED_RECORDS, baseRecords: SINGLE_REASONED_RECORDS },
+    { working: "split layout", base: "split layout", records: SPLIT_REASONED_RECORDS, baseRecords: SPLIT_REASONED_RECORDS },
+    { working: "split layout", base: "single file", records: SPLIT_REASONED_RECORDS, baseRecords: SINGLE_REASONED_RECORDS },
+    { working: "single file", base: "split layout", records: SINGLE_REASONED_RECORDS, baseRecords: SPLIT_REASONED_RECORDS },
+  ])("forfeits a reason-only file carve-out in the $working whose file the change touched, against a base in the $base", async ({ records, baseRecords }) => {
+    await expect(runCheck(touchedLegacyLayoutCheck({ working: records, base: baseRecords }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [], unmeasured: [], forfeited: [{ ...REASONED_CARVE_OUT, clause: CLASS_SYNTAX_OBJECT, mechanism: "audit" }], stale: [] },
+    });
+  });
+});
+
+describe("runCheck over either exception record layout", () => {
+  it.each([
+    { working: "single file", base: "single file", records: SINGLE_LOCATION_RECORDS, baseRecords: SINGLE_LOCATION_RECORDS },
+    { working: "split layout", base: "split layout", records: SPLIT_LOCATION_RECORDS, baseRecords: SPLIT_LOCATION_RECORDS },
+    { working: "split layout", base: "single file", records: SPLIT_LOCATION_RECORDS, baseRecords: SINGLE_LOCATION_RECORDS },
+    { working: "single file", base: "split layout", records: SINGLE_LOCATION_RECORDS, baseRecords: SPLIT_LOCATION_RECORDS },
+  ])("verifies an imported record in the $working against a base in the $base and exempts its finding", async ({ records, baseRecords }) => {
+    await expect(runCheck(layoutCheck({ working: records, base: baseRecords }))).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        ...EMPTY_REPORT,
+        exempted: [
+          {
+            finding: { ...HIT_IN_A, file: "src/factory.ts", mechanism: "audit" },
+            by: [
+              {
+                kind: "authorised-location",
+                clause: CLASS_SYNTAX_OBJECT,
+                mechanism: "audit",
+                file: "src/factory.ts",
+                reason: "the wrapping factory for the library",
+                provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" },
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it.each([
+    { layout: "single file", records: SINGLE_LOCATION_RECORDS, place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 } },
+    { layout: "split layout", records: SPLIT_LOCATION_RECORDS, place: { layout: "split", file: "discipline-exceptions/authorised-locations/cd-14.json", index: 0 } },
+  ])("refuses an imported record in the $layout that the base does not hold, naming where it is kept", async ({ records, place }) => {
+    await expect(runCheck(layoutCheck({ working: records, base: {} }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [{ place, problem: { kind: "import-unverified" } }] },
     });
   });
 });

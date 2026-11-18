@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, type MockInstance, vi } from "vitest";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { runProject } from "../core/check/run-project.ts";
 import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
@@ -105,7 +106,7 @@ const checkOf = (request: {
   readonly tracked: readonly RepoPath[];
   readonly ports: ObservedPorts;
 }) =>
-  runCheck({
+  runCheck(withSingleFileRecords({
     repoRoot: request.repo,
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -115,10 +116,10 @@ const checkOf = (request: {
     modules: request.ports.runnerModules,
     path,
     git: gitTracking({ tracked: request.tracked }),
-  });
+  }));
 
 const projectOf = (request: { readonly repo: AbsolutePath; readonly ports: ObservedPorts }) =>
-  runProject({
+  runProject(withSingleFileRecords({
     repoRoot: request.repo,
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -126,7 +127,7 @@ const projectOf = (request: { readonly repo: AbsolutePath; readonly ports: Obser
     modules: request.ports.runnerModules,
     path,
     git: gitTracking({ tracked: [] }),
-  });
+  }));
 
 const SIBLINGED_TRACKED: readonly RepoPath[] = [
   repoPathSchema.parse("disciplines.json"),

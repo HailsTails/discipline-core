@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
@@ -34,7 +35,7 @@ const git: GitPort = {
 
 describe("the shipped CD-1 rule, read from rules/CD-1/discipline.json through a full check (CD-47: the shipped rule file is the assertion's subject; nothing is spawned or written)", () => {
   it("accepts an authorised location for CD-1 and still flags an unrecorded any cast", async () => {
-    const report = await runCheck({
+    const report = await runCheck(withSingleFileRecords({
       repoRoot: resolvedPath({ path: `${import.meta.dirname}/test-fixtures/cd1-exempted` }),
       installRoot: resolvedPath({ path: `${import.meta.dirname}/..` }),
       moduleExtension: ".ts",
@@ -44,7 +45,7 @@ describe("the shipped CD-1 rule, read from rules/CD-1/discipline.json through a 
       modules: createDefaultModuleLoaderPort({}),
       path,
       git,
-    });
+    }));
     expect(report).toMatchObject({
       outcome: "ok",
       value: {
@@ -74,7 +75,7 @@ const cascadeCheck = (request: { readonly changed: readonly RepoPath[] }) => {
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
   };
-  return runCheck({
+  return runCheck(withSingleFileRecords({
     repoRoot: CASCADE_REPO,
     installRoot: resolvedPath({ path: `${import.meta.dirname}/..` }),
     moduleExtension: ".ts",
@@ -84,7 +85,7 @@ const cascadeCheck = (request: { readonly changed: readonly RepoPath[] }) => {
     modules: createDefaultModuleLoaderPort({}),
     path,
     git: cascadeGit,
-  });
+  }));
 };
 
 describe("adopting a repository whose legacy file holds CD-1 debt beside another discipline's debt (CD-47: the shipped rules and the fixture's own files are the assertion's subject; nothing is spawned or written)", () => {

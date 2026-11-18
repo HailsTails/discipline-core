@@ -1,5 +1,8 @@
 import type { Result } from "../values/result.ts";
 import type { ExceptionEntry } from "./exception-record.ts";
+import type { StructuralExceptionEntry } from "./exception-records.ts";
+
+export type WritableEntry = ExceptionEntry | StructuralExceptionEntry;
 
 type ListBounds = { readonly key: number; readonly open: number; readonly close: number };
 
@@ -89,7 +92,7 @@ const listBoundsIn = (request: { readonly text: string }): ListBounds | undefine
     ).bounds;
 
 const renderedEntries = (request: {
-  readonly entries: readonly ExceptionEntry[];
+  readonly entries: readonly WritableEntry[];
   readonly indent: string;
   readonly lineBreak: string;
 }): string =>
@@ -108,7 +111,7 @@ const lastContentBefore = (request: { readonly text: string; readonly bounds: Li
 const appendedText = (request: {
   readonly text: string;
   readonly bounds: ListBounds;
-  readonly entries: readonly ExceptionEntry[];
+  readonly entries: readonly WritableEntry[];
 }): string => {
   const { text, bounds } = request;
   const lineBreak = text.includes("\r\n") ? "\r\n" : "\n";
@@ -122,7 +125,7 @@ const appendedText = (request: {
 
 export const exceptionsTextWith = (request: {
   readonly text: string | undefined;
-  readonly entries: readonly ExceptionEntry[];
+  readonly entries: readonly WritableEntry[];
 }): Result<string, { readonly detail: string }> => {
   if (request.text === undefined) {
     return { outcome: "ok", value: `${JSON.stringify({ version: 1, exceptions: request.entries }, null, INDENT_STEP.length)}\n` };

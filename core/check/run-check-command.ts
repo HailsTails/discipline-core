@@ -1,4 +1,5 @@
 import { readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
@@ -28,6 +29,7 @@ export type CommandRequest = {
   readonly fileText: FileTextPort;
   readonly modules: ModuleLoaderPort;
   readonly git: GitPort;
+  readonly exceptionRepositoryOf: ExceptionRepositoryOf;
   readonly moduleUrl: string;
 };
 
@@ -115,6 +117,7 @@ const checkRunIn = async (
     modules: request.modules,
     path: request.path,
     git: request.git,
+    exceptionRepository: request.exceptionRepositoryOf({ repoRoot: request.repoRoot }),
   });
   return checkRunOf({
     report,

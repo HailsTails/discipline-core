@@ -3,14 +3,13 @@ import { type ClauseBinding, readSelection, type Selection } from "../consumer-s
 import type { ClauseRoot } from "../consumer-selection/selection.ts";
 import {
   type ExceptionRecord,
-  exceptionEntriesOfText,
   type ExceptionBaseline,
+  type ExceptionRepository,
   importedEntriesIn,
   importSourcesOf,
   type InvalidRecord,
   legacyChainsIn,
   parseExceptionEntries,
-  readExceptionEntries,
   recordImportOf,
   type StructuralExceptionEntry,
   UNMEASURED_EXCEPTION_BASELINE,
@@ -55,6 +54,7 @@ export type CheckRequest = {
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
   readonly git: GitPort;
+  readonly exceptionRepository: ExceptionRepository;
 };
 
 export type ExceptionBaselineReader = (request: {
@@ -83,8 +83,6 @@ export type LoadedInputs = {
 };
 
 const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
-
-const EXCEPTIONS_FILE = repoPathSchema.parse("discipline-exceptions.json");
 
 const runnerExportSchema = z.object({ runner: runnerModuleSchema });
 
@@ -178,11 +176,11 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
   if (reading.outcome === "failed") {
     return reading;
   }
-  const entries = readExceptionEntries(request);
+  const entries = request.exceptionRepository.read();
   if (entries.outcome === "failed") {
     return entries;
   }
-  const exceptionBaseline = request.exceptionBaselineOf({ entries: entries.value });
+  const exceptionBaseline = request.exceptionBaselineOf({ entries: entries.value.map(({ entry }) => entry) });
   const parsed = parseExceptionEntries({
     entries: entries.value,
     selection: reading.value.selection,
@@ -303,20 +301,15 @@ const exceptionBaselineOf = (request: {
   ) {
     return UNMEASURED_EXCEPTION_BASELINE;
   }
-  const texts = textsInBase({
-    check: request.check,
-    baseRevision,
-    files: [EXCEPTIONS_FILE, ...importSourcesOf({ entries: request.entries })],
-  });
+  const entriesAtBase = request.check.exceptionRepository.readAt({ revision: baseRevision });
+  if (entriesAtBase.outcome === "failed") {
+    return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: entriesAtBase.error }) };
+  }
+  const texts = textsInBase({ check: request.check, baseRevision, files: importSourcesOf({ entries: request.entries }) });
   if (texts.outcome === "failed") {
     return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: texts.error }) };
   }
-  const exceptionsAtBase = texts.value.get(EXCEPTIONS_FILE);
-  return {
-    measured: "yes",
-    entriesAtBase: exceptionsAtBase === undefined ? [] : exceptionEntriesOfText({ text: exceptionsAtBase }),
-    sourceTextsAtBase: texts.value,
-  };
+  return { measured: "yes", entriesAtBase: entriesAtBase.value, sourceTextsAtBase: texts.value };
 };
 
 const projectionOutcome = (request: {

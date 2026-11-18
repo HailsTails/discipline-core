@@ -23,6 +23,7 @@ const projectionsIn = (
     modules: request.modules,
     path: request.path,
     git: request.git,
+    exceptionRepository: request.exceptionRepositoryOf({ repoRoot: request.repoRoot }),
   });
 };
 

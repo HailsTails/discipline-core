@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { recordsDisk, singleFileRepositoryOver } from "../../tests/records-disk.ts";
+import { createExceptionRepository } from "../exception-records/exception-layout.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -43,6 +45,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/repo","packages/a/eslint.config.mjs"]': "/repo/packages/a/eslint.config.mjs",
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
@@ -169,6 +172,20 @@ const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
 };
 
+const SPLIT_WALKER_LOCATIONS = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/walker.ts",
+      "reason": "audit location",
+      "provenance": { "kind": "existing-authorisation", "source": "fictional unit fixture core/check/run-project.test.ts; not historical authorisation" }
+    }
+  ]
+}
+`;
+
 const WALKER_RECORD = {
   kind: "authorised-location",
   clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
@@ -202,16 +219,19 @@ const GIT: GitPort = {
   textInBase: vi.fn<GitPort["textInBase"]>(),
 };
 
-const projectRequest = (overrides: Partial<ProjectRequest>): ProjectRequest => ({
-  repoRoot: absolutePathSchema.parse("/repo"),
-  installRoot: absolutePathSchema.parse("/install"),
-  moduleExtension: ".ts",
-  fileText: fileTextOver(INSTALL),
-  modules: modulesLoading({ runner: standaloneRunner() }),
-  path: TABLE_PATH,
-  git: GIT,
-  ...overrides,
-});
+const projectRequest = (overrides: Partial<ProjectRequest>): ProjectRequest => {
+  const ports = {
+    repoRoot: absolutePathSchema.parse("/repo"),
+    installRoot: absolutePathSchema.parse("/install"),
+    moduleExtension: ".ts" as const,
+    fileText: fileTextOver(INSTALL),
+    modules: modulesLoading({ runner: standaloneRunner() }),
+    path: TABLE_PATH,
+    git: GIT,
+    ...overrides,
+  };
+  return { exceptionRepository: singleFileRepositoryOver(ports), ...ports };
+};
 
 describe("runProject", () => {
   it("returns no projection writes with a standalone runner, writing no file and running nothing", async () => {
@@ -324,6 +344,27 @@ describe("runProject with an embedded runner", () => {
       writes: { outcome: "ok", value: [{ path: "disciplines.eslint.mjs", effect: "written" }] },
       projectCalls: [[expect.objectContaining({ records: [WALKER_RECORD] })]],
     });
+  });
+
+  it("hands the runner's projection the records kept in the split layout", async () => {
+    const runner = {
+      exceptionPath: "embedded",
+      projectedKinds: ["config-override"],
+      run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      conform: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+      project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
+    };
+    const disk = recordsDisk({ working: { "discipline-exceptions/authorised-locations/cd-14.json": SPLIT_WALKER_LOCATIONS }, base: {} });
+
+    await runProject(
+      projectRequest({
+        fileText: fileTextOver(TWO_MECHANISM_INSTALL),
+        modules: modulesByPath({ [RUNNER_PATH]: { runner }, [LINT_RUNNER_PATH]: { runner: standaloneRunner() } }),
+        exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
+      }),
+    );
+
+    expect(runner.project.mock.calls).toEqual([[expect.objectContaining({ records: [WALKER_RECORD] })]]);
   });
 
   it("projects a record whose why-chain predates the causal contract, reading no base revision", async () => {

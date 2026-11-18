@@ -4,10 +4,10 @@ import { FORFEITURE_OPTION, LEAVE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } fr
 
 describe("argumentProblemText", () => {
   it.each([
-    { problem: { kind: "command-missing" }, text: "hone needs a command, check, project or record-debt; run hone --help for usage" },
+    { problem: { kind: "command-missing" }, text: "hone needs a command, check, project, record-debt or split-records; run hone --help for usage" },
     {
       problem: { kind: "command-unknown", given: "lint" },
-      text: 'hone has no command "lint"; its commands are check, project and record-debt; run hone --help for usage',
+      text: 'hone has no command "lint"; its commands are check, project, record-debt and split-records; run hone --help for usage',
     },
     {
       problem: { kind: "argument-unexpected", subcommand: "check", given: "src" },
@@ -64,7 +64,7 @@ describe("argumentsInvalid", () => {
   it("carries the worded problem as the detail of an arguments-invalid load failure", () => {
     expect(argumentsInvalid({ problem: { kind: "command-missing" } })).toEqual({
       outcome: "failed",
-      error: { kind: "arguments-invalid", detail: "hone needs a command, check, project or record-debt; run hone --help for usage" },
+      error: { kind: "arguments-invalid", detail: "hone needs a command, check, project, record-debt or split-records; run hone --help for usage" },
     });
   });
 });

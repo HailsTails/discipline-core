@@ -58,9 +58,16 @@ export const shownFailureOf = (request: ShownRequest & { readonly failure: LoadF
     case "file-malformed":
     case "file-unwritable":
     case "why-chains-required":
+    case "records-unsplittable":
     case "unsupported-version":
     case "rule-set-invalid":
       return { ...failure, path: shownPathOf({ ...request, target: failure.path }) };
+    case "records-in-both-layouts":
+      return {
+        ...failure,
+        path: shownPathOf({ ...request, target: failure.path }),
+        folder: shownPathOf({ ...request, target: failure.folder }),
+      };
     case "runner-failed":
       return { ...failure, failure: shownRunnerFailureOf({ ...request, failure: failure.failure }) };
     default:

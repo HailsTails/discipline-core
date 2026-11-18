@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
 import type { CommandRequest } from "../core/check/run-check-command.ts";
 import type { Finding } from "../core/governance/governance.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -114,6 +115,7 @@ const requestOver = (request: { readonly process: ProcessPort }): CommandRequest
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
   },
+  exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
   moduleUrl: "file:///install/core/check/tool-command.ts",
 });
 

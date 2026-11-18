@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import type { EmbeddedRunReport } from "../core/mechanism-port/embedded-run-report-schema.ts";
@@ -248,7 +249,7 @@ const reportTextOf = (request: { readonly report: Result<CheckReport, LoadFailur
     : JSON.stringify(request.report.error);
 
 const checkedText = (request: RecordedSetUp): Promise<string> =>
-  runCheck({
+  runCheck(withSingleFileRecords({
     repoRoot: request.set.subject.repoRoot,
     installRoot: request.set.subject.installRoot,
     moduleExtension: ".ts",
@@ -262,7 +263,7 @@ const checkedText = (request: RecordedSetUp): Promise<string> =>
     }),
     path: request.set.subject.path,
     git: request.set.subject.git,
-  }).then((report) => reportTextOf({ report }));
+  })).then((report) => reportTextOf({ report }));
 
 const recordedCheck = async (request: { readonly set: RunSetUp }): Promise<{ readonly text: string; readonly recorded: Recorded }> => {
   const recorder = recorderOf();

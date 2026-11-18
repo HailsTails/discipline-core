@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import {
   toolchainBoundEmbeddedRunner,
@@ -201,7 +202,7 @@ const checkOf = (request: {
   readonly modules: ModuleLoaderPort;
   readonly fileText: FileTextPort;
 }) =>
-  runCheck({
+  runCheck(withSingleFileRecords({
     repoRoot: REPO_ROOT,
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -211,7 +212,7 @@ const checkOf = (request: {
     modules: request.modules,
     path,
     git,
-  });
+  }));
 
 const WHOLE_AUDIT_ONLY_REPORT = {
   findings: [],

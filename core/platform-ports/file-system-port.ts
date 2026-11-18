@@ -1,4 +1,4 @@
-import { accessSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 
@@ -148,14 +148,22 @@ export type DirectoryFailure = {
   readonly detail: string;
 };
 
+export type DirectoryCreationFailure = {
+  readonly kind: "directory-uncreatable";
+  readonly path: AbsolutePath;
+  readonly detail: string;
+};
+
 export type DirectoryPort = {
   readonly list: (request: {
     readonly path: AbsolutePath;
   }) => Result<readonly DirectoryEntry[], DirectoryFailure>;
+  readonly create: (request: { readonly path: AbsolutePath }) => Result<void, DirectoryCreationFailure>;
 };
 
 export type DirectorySurface = {
   readonly list: (request: { readonly path: AbsolutePath }) => readonly DirectoryEntry[];
+  readonly create: (request: { readonly path: AbsolutePath }) => void;
 };
 
 export const createDirectoryPort = (options: {
@@ -175,6 +183,17 @@ export const createDirectoryPort = (options: {
       };
     }
   },
+  create: (request) => {
+    try {
+      options.directory.create({ path: request.path });
+      return { outcome: "ok", value: undefined };
+    } catch (thrown) {
+      return {
+        outcome: "failed",
+        error: { kind: "directory-uncreatable", path: request.path, detail: failureDetail({ thrown }) },
+      };
+    }
+  },
 });
 
 const defaultDirectorySurface: DirectorySurface = {
@@ -182,6 +201,9 @@ const defaultDirectorySurface: DirectorySurface = {
     name: entry.name,
     kind: entry.isDirectory() ? "directory" : "file",
   })),
+  create: (request) => {
+    mkdirSync(request.path, { recursive: true });
+  },
 };
 
 export const createDefaultDirectoryPort = (

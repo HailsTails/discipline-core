@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
 import { runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
@@ -75,7 +76,7 @@ const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPor
 });
 
 const checkOf = (request: { readonly name: string; readonly tracked: readonly RepoPath[]; readonly line: EslintLine }) =>
-  runCheck({
+  runCheck(withSingleFileRecords({
     repoRoot: consumerRepo({ name: request.name }),
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -85,7 +86,7 @@ const checkOf = (request: { readonly name: string; readonly tracked: readonly Re
     modules: runnerModulesOn({ line: request.line, base: modules }),
     path,
     git: gitTracking({ tracked: request.tracked }),
-  });
+  }));
 
 const classFinding = (request: { readonly file: string; readonly line: number }) => ({
   clause: CLASS_SYNTAX,

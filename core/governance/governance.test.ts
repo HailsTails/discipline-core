@@ -1,11 +1,10 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import { createExceptionRepository, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
+import { recordsDisk } from "../../tests/records-disk.ts";
+import { createExceptionRepository } from "../exception-records/exception-layout.ts";
+import { parseExceptionEntries, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
-import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { PathPort } from "../platform-ports/path-port.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
-import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -152,21 +151,13 @@ describe("applyGovernance with provenance-only inherited debt", () => {
       source: "fictional unit input governance.test.ts; not historical debt",
       decision: "fictional initial baseline assertion; not a live debt decision",
     };
-    const fileText: FileTextPort = {
-      read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: JSON.stringify({ version: 1, exceptions: [{ kind: "file-carve-out", clause: "CD-14#no-class-syntax", file: "src/a.ts", reason: "fictional inherited-debt fixture", provenance }] }) }),
-      exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
-      write: vi.fn<FileTextPort["write"]>(),
-    };
-    const path: PathPort = {
-      join: vi.fn<PathPort["join"]>().mockReturnValue("/repo/discipline-exceptions.json"),
-      relative: vi.fn<PathPort["relative"]>(),
-      joinRepository: vi.fn<PathPort["joinRepository"]>(),
-      directoryOf: vi.fn<PathPort["directoryOf"]>(),
-      repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
-      resolve: vi.fn<PathPort["resolve"]>(),
-      fromFileUrl: vi.fn<PathPort["fromFileUrl"]>(),
-    };
-    const exceptionReading = createExceptionRepository({ repoRoot: absolutePathSchema.parse("/repo"), fileText, path }).read({ selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [], editions: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" });
+    const disk = recordsDisk({
+      working: { "discipline-exceptions.json": JSON.stringify({ version: 1, exceptions: [{ kind: "file-carve-out", clause: "CD-14#no-class-syntax", file: "src/a.ts", reason: "fictional inherited-debt fixture", provenance }] }) },
+      base: {},
+    });
+    const entries = createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }).read();
+    assert(entries.outcome === "ok");
+    const exceptionReading = { outcome: "ok", value: parseExceptionEntries({ entries: entries.value, selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [], editions: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" }) } as const;
 
     expect(exceptionReading).toMatchObject({ outcome: "ok", value: { invalid: [] } });
     assert(exceptionReading.outcome === "ok");

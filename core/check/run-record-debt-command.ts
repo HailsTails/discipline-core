@@ -1,7 +1,5 @@
 import { readSelection, type SelectionReading } from "../consumer-selection/consumer-selection.ts";
-import { readExceptionEntries, type StructuralExceptionEntry } from "../exception-records/exception-records.ts";
-import { exceptionsTextWith } from "../exception-records/exceptions-text.ts";
-import type { FileCarveOutEntry } from "../exception-records/exception-record.ts";
+import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
 import { type InheritedDebtOutcome, inheritedDebtEntriesOf, inheritedDebtOf } from "../exception-records/inherited-debt.ts";
 import type { GitTreePort } from "../platform-ports/git-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
@@ -21,13 +19,12 @@ type AdoptionRequest = CommandRequest & {
   readonly arguments: RecordDebtArguments;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
+  readonly exceptionRepository: ExceptionRepository;
 };
 
 type DebtResult = Result<readonly InheritedDebtOutcome[], LoadFailure>;
 
 const SELECTION_FILE_NAME = "disciplines.json";
-
-const EXCEPTIONS_FILE_NAME = "discipline-exceptions.json";
 
 const ASSESSED_IN_THIS_RUN: Assessment = { forfeiture: "this-run" };
 
@@ -49,27 +46,10 @@ const pathsInBase = (request: AdoptionRequest): Result<ReadonlySet<RepoPath>, Lo
     : { outcome: "ok", value: new Set(listed.value) };
 };
 
-const writtenEntries = (request: AdoptionRequest & { readonly entries: readonly FileCarveOutEntry[] }): Result<void, LoadFailure> => {
-  if (request.entries.length === 0) {
-    return { outcome: "ok", value: undefined };
-  }
-  const path = request.path.join({ segments: [request.repoRoot, EXCEPTIONS_FILE_NAME] });
-  const current = request.fileText.exists({ path }) === "present" ? request.fileText.read({ path }) : { outcome: "ok" as const, value: undefined };
-  if (current.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "file-unreadable", path, detail: current.error.detail } };
-  }
-  const text = exceptionsTextWith({ text: current.value, entries: request.entries });
-  if (text.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "file-malformed", path, detail: text.error.detail } };
-  }
-  const written = request.fileText.write({ path, text: text.value });
-  return written.outcome === "failed" ? { outcome: "failed", error: { kind: "file-unwritable", path, detail: written.error.detail } } : written;
-};
-
 const debtOutcomesOf = async (
   request: AdoptionRequest & {
     readonly selection: SelectionReading;
-    readonly existing: readonly StructuralExceptionEntry[];
+    readonly existing: readonly PlacedEntry[];
     readonly inBase: ReadonlySet<RepoPath>;
   },
 ): Promise<DebtResult> => {
@@ -90,7 +70,7 @@ const debtOutcomesOf = async (
     inBase: request.inBase,
     refusing: request.selection.selection.selected.flatMap((clause) => (clause.exceptions === "refused" ? [clause.address] : [])),
   });
-  const written = writtenEntries({ ...request, entries: inheritedDebtEntriesOf({ outcomes }) });
+  const written = request.exceptionRepository.add({ entries: inheritedDebtEntriesOf({ outcomes }) });
   return written.outcome === "failed" ? written : { outcome: "ok", value: outcomes };
 };
 
@@ -99,7 +79,7 @@ const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
   if (selection.outcome === "failed") {
     return Promise.resolve(selection);
   }
-  const existing = readExceptionEntries(request);
+  const existing = request.exceptionRepository.read();
   if (existing.outcome === "failed") {
     return Promise.resolve(existing);
   }
@@ -123,7 +103,13 @@ const recordDebtResult = async (request: CommandRequest & { readonly gitTree: Gi
   const run: DebtResult =
     installRoot.outcome === "failed"
       ? installRoot
-      : await adoptionDebt({ ...request, arguments: parsed.value, repoRoot: repoRoot.value, installRoot: installRoot.value });
+      : await adoptionDebt({
+          ...request,
+          arguments: parsed.value,
+          repoRoot: repoRoot.value,
+          installRoot: installRoot.value,
+          exceptionRepository: request.exceptionRepositoryOf({ repoRoot: repoRoot.value }),
+        });
   return withShownPaths({ path: request.path, fileText: request.fileText, repoRoot: repoRoot.value, installRoot, run });
 };
 

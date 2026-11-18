@@ -1,4 +1,4 @@
-import { type ExceptionRecord, type InvalidRecord, recordImportOf } from "../exception-records/exception-records.ts";
+import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
@@ -91,6 +91,14 @@ const unrecordedDetail = (request: { readonly exception: AttributedNativeExcepti
 const unrecordedLine = (request: { readonly exception: AttributedNativeException }): string =>
   `${clauseAddressText({ address: request.exception.clause })} ${request.exception.mechanism} ${request.exception.kind} ${unrecordedDetail(request)}`;
 
+const placeText = (request: { readonly place: RecordPlace; readonly form: "entry" | "index" }): string => {
+  const { place } = request;
+  if (place.layout === "split") {
+    return `${place.file} exceptions[${place.index}]`;
+  }
+  return request.form === "entry" ? `exceptions[${place.index}]` : `${place.index}`;
+};
+
 const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }): string => {
   switch (request.problem.kind) {
     case "clause-unparseable":
@@ -106,7 +114,7 @@ const invalidDetail = (request: { readonly problem: InvalidRecord["problem"] }):
     case "file-not-repo-path":
       return escapedLineBreaks({ text: request.problem.file });
     case "duplicate":
-      return `of ${request.problem.ofIndex}`;
+      return `of ${placeText({ place: request.problem.of, form: "index" })}`;
   }
 };
 
@@ -319,7 +327,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     ),
   invalidRecords: (request) =>
     request.report.invalidRecords.map(
-      (invalid) => `exceptions[${invalid.index}] ${invalid.problem.kind} ${invalidDetail(invalid)}`,
+      (invalid) => `${placeText({ place: invalid.place, form: "entry" })} ${invalid.problem.kind} ${invalidDetail(invalid)}`,
     ),
   unmeasured: (request) => request.report.unmeasured.map((unmeasured) => unmeasuredLine({ ...request, unmeasured })),
   projectionProblems: (request) =>

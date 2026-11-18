@@ -12,6 +12,9 @@ const AUDIT = mechanismIdSchema.parse("audit");
 const BASKET = repoPathSchema.parse("src/basket.ts");
 const LEGACY = repoPathSchema.parse("src/legacy/report.ts");
 const FRESH = repoPathSchema.parse("src/fresh.ts");
+const SINGLE_FILE = repoPathSchema.parse("discipline-exceptions.json");
+const LOCATIONS_FILE = repoPathSchema.parse("discipline-exceptions/authorised-locations/cd-15.json");
+const CARVE_OUTS_FILE = repoPathSchema.parse("discipline-exceptions/file-carve-outs/cd-15.json");
 
 const findingAt = (request: { readonly clause: Finding["clause"]; readonly file: Finding["file"]; readonly line: number }): Finding => ({
   clause: request.clause,
@@ -95,20 +98,45 @@ describe("inheritedDebtOf choosing pairs", () => {
 });
 
 describe("inheritedDebtOf writing nothing for a pair", () => {
-  it("does not record a pair that already has a record on that clause and file, whatever its kind or how its clause is spelled", () => {
+  it("does not record a pair that already has a record on that clause and file, whatever its kind or how its clause is spelled, naming the file that holds it", () => {
     expect(
       inheritedDebtOf({
         ...NOTHING,
         findings: [findingAt({ clause: LOOPS, file: BASKET, line: 4 }), findingAt({ clause: LOOPS, file: LEGACY, line: 4 })],
         existing: [
-          { kind: "file-carve-out", clause: "hone/CD-15#loops", file: "src/basket.ts", reason: "forfeited since the base" },
-          { kind: "authorised-location", clause: "CD-15#loops", file: "src/legacy/report.ts", reason: "an invalid one" },
+          {
+            place: { layout: "single-file", file: SINGLE_FILE, index: 0 },
+            entry: { kind: "file-carve-out", clause: "hone/CD-15#loops", file: "src/basket.ts", reason: "forfeited since the base" },
+          },
+          {
+            place: { layout: "split", file: LOCATIONS_FILE, index: 0 },
+            entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/legacy/report.ts", reason: "an invalid one" },
+          },
         ],
       }),
     ).toEqual([
-      { clause: LOOPS, file: BASKET, effect: "already-recorded" },
-      { clause: LOOPS, file: LEGACY, effect: "already-recorded" },
+      { clause: LOOPS, file: BASKET, effect: "already-recorded", heldIn: "discipline-exceptions.json" },
+      { clause: LOOPS, file: LEGACY, effect: "already-recorded", heldIn: "discipline-exceptions/authorised-locations/cd-15.json" },
     ]);
+  });
+
+  it("names the first file holding a pair recorded twice", () => {
+    expect(
+      inheritedDebtOf({
+        ...NOTHING,
+        findings: [findingAt({ clause: LOOPS, file: BASKET, line: 4 })],
+        existing: [
+          {
+            place: { layout: "split", file: LOCATIONS_FILE, index: 0 },
+            entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/basket.ts", reason: "held" },
+          },
+          {
+            place: { layout: "split", file: CARVE_OUTS_FILE, index: 0 },
+            entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/basket.ts", reason: "held twice" },
+          },
+        ],
+      }),
+    ).toEqual([{ clause: LOOPS, file: BASKET, effect: "already-recorded", heldIn: "discipline-exceptions/authorised-locations/cd-15.json" }]);
   });
 
   it("is not stopped by a clause-wide carve-out or by an entry whose clause cannot be read", () => {
@@ -117,8 +145,14 @@ describe("inheritedDebtOf writing nothing for a pair", () => {
         ...NOTHING,
         findings: [findingAt({ clause: LOOPS, file: BASKET, line: 4 })],
         existing: [
-          { kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "refused for its chain", whyChain: {} },
-          { kind: "file-carve-out", clause: "not an address", file: "src/basket.ts", reason: "unreadable" },
+          {
+            place: { layout: "single-file", file: SINGLE_FILE, index: 0 },
+            entry: { kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "refused for its chain", whyChain: {} },
+          },
+          {
+            place: { layout: "single-file", file: SINGLE_FILE, index: 1 },
+            entry: { kind: "file-carve-out", clause: "not an address", file: "src/basket.ts", reason: "unreadable" },
+          },
         ],
       }),
     ).toEqual([{ clause: LOOPS, file: BASKET, effect: "recorded" }]);
