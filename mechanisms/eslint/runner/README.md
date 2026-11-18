@@ -23,6 +23,11 @@ The config roots are the repository root, every folder holding a tracked `eslint
 - `governing-config.ts` decides, when a nested `eslint.config.*` fails to load, whether the team's own ESLint would ever enter its folder. It asks the config governing that folder, then each config above it up to the repository root, whether it ignores that folder and then the file. `governingConfigIgnores` answers one such question, for a file or a folder, telling a real ignore from a path no `files` block matches; `cachedGoverningIgnores` asks each config about each path once, only when first needed.
 - `inline-config-parser.ts` is the wrapping factory for `@eslint/plugin-kit`, the only file that imports it.
 - `native-rules.ts` re-exports the ESLint core rules (`eslintCoreRules`) and the typescript-eslint rules (`typescriptEslintRules`) that pieces reuse. It is the only file that imports them, and it imports `eslint/use-at-your-own-risk` and `@typescript-eslint/eslint-plugin` statically, resolved upward from the install like the toolchain.
+- `rule-sites.ts` is the one boundary between Hone's pieces and ESLint's rule contract.
+  - `siteRule` builds a rule from its `meta` and an `observe` function. `observe` names the sites the rule looks at: `file`, `functions`, `classes`, `calls`, `throws`, `ifs` and `variableDeclarations`.
+  - The module maps each site onto the ESLint listener keys it stands for, such as `FunctionDeclaration`, `FunctionExpression` and `ArrowFunctionExpression` for `functions`, in one literal `Rule.RuleListener`, so ESLint's own types check each handler.
+  - `functionDisposition` tells whether a node is one of the function types `functions` covers.
+  - A change to ESLint's listener names, or a new node type for an existing site, is made here alone.
 - `projection.ts` renders a projection's text, and writes and compares one projection file.
 - `projection-slices.ts` finds the config roots for a lookup, names each root's slice, picks and re-paths each slice's records, finds the package root governing a file, and finds tracked slices outside every root.
 - `sliced-projection.ts` renders each root's slice, reports stale package slices, and plans then writes, removes or leaves slices for `project`.
@@ -47,4 +52,4 @@ Both take the rules to read from as `NativeRuleSources`. A piece that wraps nati
 
 The namespace `reservedNamespace` names (currently `hone-core`) is reserved. Two selected clauses may not share a rule id, or a namespace with different plugin modules. A bad setting, a module that fails to load or does not match its schema, or a missing rule makes the run fail as `piece-invalid`.
 
-The rule imports only types from `eslint` and gets everything else from ESLint's rule context. The guide (`docs/adding-a-discipline-or-mechanism.md`) walks through a shipped piece as the example.
+The rule imports only types from `eslint` and gets everything else from ESLint's rule context. A shipped piece writes each of its own rules with `siteRule` from `rule-sites.ts`, asking for the sites it looks at rather than ESLint's listener keys. Each handler receives the official ESTree node, which the rule reads and narrows on `type` as it needs. The guide (`docs/adding-a-discipline-or-mechanism.md`) walks through a shipped piece as the example.

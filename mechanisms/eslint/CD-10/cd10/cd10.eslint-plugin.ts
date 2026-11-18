@@ -1,14 +1,6 @@
-import type { Rule } from "../../runner/eslint-instance.ts";
+import { siteRule, type ThrowSite } from "../../runner/rule-sites.ts";
 
-type ThrownExpression = {
-  readonly type: string;
-  readonly name?: string;
-  readonly left?: ThrownExpression;
-  readonly right?: ThrownExpression;
-  readonly consequent?: ThrownExpression;
-  readonly alternate?: ThrownExpression;
-  readonly expressions?: readonly ThrownExpression[];
-};
+type ThrownExpression = ThrowSite["argument"];
 
 type ThrownDisposition = "non-error" | "possibly-error";
 
@@ -29,12 +21,20 @@ const eitherNonError = (request: {
     ? "non-error"
     : "possibly-error";
 
-const COMPOSITE_DISPOSITIONS: Readonly<Record<string, (expression: ThrownExpression) => ThrownDisposition>> = {
-  LogicalExpression: (expression) => eitherNonError({ first: expression.left, second: expression.right }),
-  ConditionalExpression: (expression) =>
-    eitherNonError({ first: expression.consequent, second: expression.alternate }),
-  AssignmentExpression: (expression) => thrownDisposition({ expression: expression.right }),
-  SequenceExpression: (expression) => thrownDisposition({ expression: expression.expressions?.at(-1) }),
+const compositeDisposition = (request: { readonly expression: ThrownExpression }): ThrownDisposition => {
+  const expression = request.expression;
+  if (expression.type === "LogicalExpression") {
+    return eitherNonError({ first: expression.left, second: expression.right });
+  }
+  if (expression.type === "ConditionalExpression") {
+    return eitherNonError({ first: expression.consequent, second: expression.alternate });
+  }
+  if (expression.type === "AssignmentExpression") {
+    return thrownDisposition({ expression: expression.right });
+  }
+  return expression.type === "SequenceExpression"
+    ? thrownDisposition({ expression: expression.expressions.at(-1) })
+    : "possibly-error";
 };
 
 const thrownDisposition = (request: { readonly expression: ThrownExpression | undefined }): ThrownDisposition => {
@@ -47,11 +47,10 @@ const thrownDisposition = (request: { readonly expression: ThrownExpression | un
   if (request.expression.type === "Identifier") {
     return request.expression.name === "undefined" ? "non-error" : "possibly-error";
   }
-  const composite = COMPOSITE_DISPOSITIONS[request.expression.type];
-  return composite === undefined ? "possibly-error" : composite(request.expression);
+  return compositeDisposition({ expression: request.expression });
 };
 
-const throwOnlyError: Rule.RuleModule = {
+const throwOnlyError = siteRule({
   meta: {
     type: "problem",
     docs: { description: "Disallow throwing values that cannot be Error objects (CD-10)" },
@@ -60,15 +59,15 @@ const throwOnlyError: Rule.RuleModule = {
       throwOnlyError: "CD-10: throw an Error, not a literal, object, template or undefined.",
     },
   },
-  create: (context) => ({
-    ThrowStatement: (node) => {
+  observe: (context) => ({
+    throws: (node) => {
       if (thrownDisposition({ expression: node.argument }) === "possibly-error") {
         return;
       }
       context.report({ node, messageId: "throwOnlyError" });
     },
   }),
-};
+});
 
 export default {
   meta: { name: "hone-cd10", version: "0.0.0-local" },

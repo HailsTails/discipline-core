@@ -1,4 +1,4 @@
-import type { Rule } from "../../runner/eslint-instance.ts";
+import { siteRule } from "../../runner/rule-sites.ts";
 
 type FilenameDisposition = "conventional" | "unconventional";
 
@@ -41,7 +41,7 @@ const filenameDisposition = (request: { readonly basename: string }): FilenameDi
   return route === null ? plainDisposition({ name }) : routeDisposition({ name, route: route[0] });
 };
 
-const filenameCase: Rule.RuleModule = {
+const filenameCase = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Require kebab-case or PascalCase file names (CD-7)" },
@@ -50,8 +50,8 @@ const filenameCase: Rule.RuleModule = {
       filenameCase: "CD-7: name this file in kebab-case or PascalCase.",
     },
   },
-  create: (context) => ({
-    Program: () => {
+  observe: (context) => ({
+    file: () => {
       const basename = context.filename.split(PATH_SEPARATOR).at(-1) ?? "";
       if (filenameDisposition({ basename }) === "conventional") {
         return;
@@ -59,7 +59,7 @@ const filenameCase: Rule.RuleModule = {
       context.report({ loc: { line: 1, column: 0 }, messageId: "filenameCase" });
     },
   }),
-};
+});
 
 export default {
   meta: { name: "hone-cd7", version: "0.0.0-local" },

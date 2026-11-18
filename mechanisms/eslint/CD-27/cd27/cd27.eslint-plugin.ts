@@ -1,4 +1,5 @@
 import type { AST, Rule } from "../../runner/eslint-instance.ts";
+import { siteRule } from "../../runner/rule-sites.ts";
 
 type CalleeNode = {
   readonly type: string;
@@ -82,15 +83,16 @@ const modifierRule = (request: {
   readonly modifier: TestModifier;
   readonly description: string;
   readonly message: string;
-}): Rule.RuleModule => ({
+}): Rule.RuleModule =>
+  siteRule({
   meta: {
     type: "problem",
     docs: { description: request.description },
     schema: [],
     messages: { modifiedTest: request.message },
   },
-  create: (context) => ({
-    CallExpression: (node) => {
+  observe: (context) => ({
+    calls: (node) => {
       const loc = modifiedLink({ callee: node.callee, modifier: request.modifier })?.node.loc;
       if (loc === undefined || loc === null) {
         return;
@@ -98,7 +100,7 @@ const modifierRule = (request: {
       context.report({ loc, messageId: "modifiedTest" });
     },
   }),
-});
+  });
 
 export default {
   meta: { name: "hone-cd27", version: "0.0.0-local" },
