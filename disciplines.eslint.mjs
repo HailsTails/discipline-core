@@ -166,15 +166,9 @@ export default [
   {
     name: "hone-core/file-records/CD-6#naming-convention",
     files: [
-      "mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.ts",
-      "mechanisms/eslint/CD-10/cd10/cd10.eslint-plugin.ts",
-      "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts",
-      "mechanisms/eslint/CD-27/cd27/cd27.eslint-plugin.ts",
-      "mechanisms/eslint/CD-41/cd41/cd41.eslint-plugin.ts",
-      "mechanisms/eslint/CD-42/cd42/cd42.eslint-plugin.ts",
-      "mechanisms/eslint/CD-7/cd7/cd7.eslint-plugin.ts",
       "mechanisms/eslint/runner/eslint-instance.ts",
       "mechanisms/eslint/runner/eslint-toolchain.test.ts",
+      "mechanisms/eslint/runner/rule-sites.ts",
       "scripts/install-proof-plan.test.ts",
       "scripts/install-proof-ports.test.ts",
       "tests/eslint-toolchains.ts",

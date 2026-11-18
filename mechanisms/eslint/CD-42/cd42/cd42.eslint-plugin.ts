@@ -1,8 +1,6 @@
-import type { Rule } from "../../runner/eslint-instance.ts";
+import { type IfSite, siteRule } from "../../runner/rule-sites.ts";
 
-type IfNode = Parameters<NonNullable<Rule.RuleListener["IfStatement"]>>[0];
-
-type StatementNode = IfNode["consequent"];
+type StatementNode = IfSite["consequent"];
 
 type ExitDisposition = "exits" | "continues";
 
@@ -62,7 +60,7 @@ const exitDisposition = (request: {
   return statement.type === "SwitchStatement" ? everyCaseExits({ cases: statement.cases }) : "continues";
 };
 
-const chainPosition = (request: { readonly node: IfNode }): "chain-head" | "else-if" =>
+const chainPosition = (request: { readonly node: IfSite }): "chain-head" | "else-if" =>
   request.node.parent.type === "IfStatement" && request.node.parent.alternate === request.node ? "else-if" : "chain-head";
 
 const reportedElses = (request: {
@@ -80,7 +78,7 @@ const reportedElses = (request: {
     : [request.alternate];
 };
 
-const uselessElse: Rule.RuleModule = {
+const uselessElse = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Disallow else after a branch that always exits (CD-42)" },
@@ -89,8 +87,8 @@ const uselessElse: Rule.RuleModule = {
       uselessElse: "CD-42: the branch above always exits, so drop this else and return the happy path last.",
     },
   },
-  create: (context) => ({
-    IfStatement: (node) => {
+  observe: (context) => ({
+    ifs: (node) => {
       if (chainPosition({ node }) === "else-if") {
         return;
       }
@@ -103,7 +101,7 @@ const uselessElse: Rule.RuleModule = {
       });
     },
   }),
-};
+});
 
 export default {
   meta: { name: "hone-cd42", version: "0.0.0-local" },

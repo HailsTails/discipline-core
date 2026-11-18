@@ -1,4 +1,5 @@
 import type { AST, Rule, SourceCode } from "../../runner/eslint-instance.ts";
+import { functionSiteOf, siteRule } from "../../runner/rule-sites.ts";
 
 type FunctionScore = { readonly node: Rule.Node; readonly score: number };
 
@@ -16,12 +17,6 @@ type LogicalRun = "starts-run" | "continues-run";
 const MAX_COGNITIVE_COMPLEXITY = 15;
 
 const MAX_FUNCTION_LINES = 50;
-
-const FUNCTION_TYPES: ReadonlySet<string> = new Set([
-  "FunctionDeclaration",
-  "FunctionExpression",
-  "ArrowFunctionExpression",
-]);
 
 const LOOP_TYPES: ReadonlySet<string> = new Set([
   "ForStatement",
@@ -137,10 +132,24 @@ const walkedIf = (request: Walk): WalkedScore =>
     increment: 1 + request.nesting,
   });
 
-const NESTING_STRUCTURES: Readonly<Record<string, ReadonlySet<string>>> = {
-  SwitchStatement: new Set(["cases"]),
-  ConditionalExpression: new Set(["consequent", "alternate"]),
-  CatchClause: new Set(["body"]),
+const SWITCH_NESTED_KEYS: ReadonlySet<string> = new Set(["cases"]);
+
+const CONDITIONAL_NESTED_KEYS: ReadonlySet<string> = new Set(["consequent", "alternate"]);
+
+const CATCH_NESTED_KEYS: ReadonlySet<string> = new Set(["body"]);
+
+const nestedKeysOf = (request: { readonly node: Rule.Node }): ReadonlySet<string> | undefined => {
+  const node = request.node;
+  if (LOOP_TYPES.has(node.type)) {
+    return LOOP_BODY_KEYS;
+  }
+  if (node.type === "SwitchStatement") {
+    return SWITCH_NESTED_KEYS;
+  }
+  if (node.type === "ConditionalExpression") {
+    return CONDITIONAL_NESTED_KEYS;
+  }
+  return node.type === "CatchClause" ? CATCH_NESTED_KEYS : undefined;
 };
 
 const structureIncrement = (request: Walk): number => {
@@ -163,7 +172,7 @@ const walkedTry = (request: Walk): WalkedScore => {
 
 const walked = (request: Walk): WalkedScore => {
   const node = request.node;
-  if (FUNCTION_TYPES.has(node.type)) {
+  if (functionSiteOf({ node }) !== undefined) {
     const nested = scoredFunction({ node, nesting: request.nesting + 1, sourceCode: request.sourceCode });
     return { own: 0, nested: [{ node, score: nested.own }, ...nested.nested] };
   }
@@ -173,7 +182,7 @@ const walked = (request: Walk): WalkedScore => {
   if (node.type === "TryStatement") {
     return walkedTry(request);
   }
-  const nestedKeys = LOOP_TYPES.has(node.type) ? LOOP_BODY_KEYS : NESTING_STRUCTURES[node.type];
+  const nestedKeys = nestedKeysOf({ node });
   if (nestedKeys !== undefined) {
     return withOwn({ score: walkedChildren({ ...request, nestedKeys }), increment: 1 + request.nesting });
   }
@@ -223,7 +232,15 @@ const functionLineCount = (request: { readonly body: Rule.Node; readonly sourceC
       return lines + (request.sourceCode.text.slice(triviaStart, token.range[0]).match(LINE_BREAK)?.length ?? 0);
     }, 0);
 
-const cognitiveComplexity: Rule.RuleModule = {
+const enclosure = (request: { readonly node: Rule.Node }): "enclosed" | "outermost" => {
+  const parent = request.node.parent;
+  if (parent === null) {
+    return "outermost";
+  }
+  return functionSiteOf({ node: parent }) === undefined ? enclosure({ node: parent }) : "enclosed";
+};
+
+const cognitiveComplexity = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Limit each function's cognitive complexity to 15 (CD-41)" },
@@ -233,7 +250,7 @@ const cognitiveComplexity: Rule.RuleModule = {
         "CD-41: this function's cognitive complexity is {{score}}, above the limit of {{max}}; move the branching into helpers it composes.",
     },
   },
-  create: (context) => {
+  observe: (context) => {
     const reportScored = (scored: FunctionScore): void => {
       const loc = functionNameLoc({ node: scored.node, sourceCode: context.sourceCode });
       if (loc === undefined) {
@@ -246,7 +263,7 @@ const cognitiveComplexity: Rule.RuleModule = {
       });
     };
     const scoreOutermost = (node: Rule.Node): void => {
-      if (context.sourceCode.getAncestors(node).some((ancestor) => FUNCTION_TYPES.has(ancestor.type))) {
+      if (enclosure({ node }) === "enclosed") {
         return;
       }
       const scored = scoredFunction({ node, nesting: 0, sourceCode: context.sourceCode });
@@ -254,13 +271,9 @@ const cognitiveComplexity: Rule.RuleModule = {
         .filter((entry) => entry.score > MAX_COGNITIVE_COMPLEXITY)
         .forEach(reportScored);
     };
-    return {
-      FunctionDeclaration: scoreOutermost,
-      FunctionExpression: scoreOutermost,
-      ArrowFunctionExpression: scoreOutermost,
-    };
+    return { functions: scoreOutermost };
   },
-};
+});
 
 const reportLongFunction = (request: { readonly context: Rule.RuleContext; readonly node: Rule.Node }): void => {
   if (accessorDisposition({ node: request.node }) === "accessor" || !("body" in request.node) || !isNode(request.node.body)) {
@@ -277,7 +290,7 @@ const reportLongFunction = (request: { readonly context: Rule.RuleContext; reado
   });
 };
 
-const functionLength: Rule.RuleModule = {
+const functionLength = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Limit each function body to 50 lines (CD-41)" },
@@ -286,12 +299,8 @@ const functionLength: Rule.RuleModule = {
       functionLength: "CD-41: this function body has {{lines}} lines, above the limit of {{max}}; split it into helpers.",
     },
   },
-  create: (context) => ({
-    FunctionDeclaration: (node) => reportLongFunction({ context, node }),
-    FunctionExpression: (node) => reportLongFunction({ context, node }),
-    ArrowFunctionExpression: (node) => reportLongFunction({ context, node }),
-  }),
-};
+  observe: (context) => ({ functions: (node) => reportLongFunction({ context, node }) }),
+});
 
 export default {
   meta: { name: "hone-cd41", version: "0.0.0-local" },
