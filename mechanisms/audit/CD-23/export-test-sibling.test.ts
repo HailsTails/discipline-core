@@ -6,6 +6,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./export-test-sibling.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const FILE = repoPathSchema.parse("src/view.tsx");
 const SIBLING = repoPathSchema.parse("src/view.test.tsx");
@@ -42,7 +43,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("reports an exported runtime source without its co-located test sibling at the file anchor", () => {
     const observers = sourceObservations({
       source: "export const value = 1;\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([
@@ -53,7 +54,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("accepts the existing TSX test sibling in the supplied repository population", () => {
     const observers = sourceObservations({
       source: "export const value = 1;\n",
-      repository: { files: [FILE, SIBLING], exists: vi.fn().mockReturnValue("present") },
+      repository: { files: [FILE, SIBLING], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([]);
@@ -62,7 +63,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("reports a default-export assignment without its co-located test sibling", () => {
     const observers = sourceObservations({
       source: "export default value;\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([
@@ -73,7 +74,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("reports a runtime named export without its co-located test sibling", () => {
     const observers = sourceObservations({
       source: "const value = 1;\nexport { value };\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([
@@ -84,7 +85,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("excludes both forms of type-only named exports from sibling obligations", () => {
     const observers = sourceObservations({
       source: "export type { First } from './first.ts';\nexport { type Second } from './second.ts';\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([]);
@@ -96,7 +97,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
     const source = "export const value = 1;\n";
     const prepared = check.prepare({
       clauses: [CLAUSE],
-      repository: { files: [file, sibling], exists: vi.fn().mockReturnValue("present") },
+      repository: { files: [file, sibling], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK },
       syntaxApi: SYNTAX_API,
     });
     assert(prepared.outcome === "ok");
@@ -117,7 +118,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("retains type-only and declare-only export exclusions", () => {
     const observers = sourceObservations({
       source: "export type Value = { readonly name: string };\nexport declare const value: Value;\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([]);
@@ -126,7 +127,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
   it("preserves the existing export-star and unexported-runtime classification gaps", () => {
     const observers = sourceObservations({
       source: "export * from './module.ts';\nconst hidden = 1;\n",
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
     });
 
     expect(observers.finish()).toEqual([]);
@@ -143,7 +144,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
     const file = repoPathSchema.parse(fileName);
     const prepared = check.prepare({
       clauses: [CLAUSE],
-      repository: { files: [file], exists: vi.fn().mockReturnValue("absent") },
+      repository: { files: [file], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK },
       syntaxApi: SYNTAX_API,
     });
     assert(prepared.outcome === "ok");
@@ -157,7 +158,7 @@ describe("CD-23 existing exported-source sibling obligation", () => {
 
   it.each(["src/vendor/view.ts", "src/scripts/task.ts", "scripts/task.ts", "ui/view.tsx"])("retains authored source for %s", (fileName) => {
     const file = repoPathSchema.parse(fileName);
-    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("absent") }, syntaxApi: SYNTAX_API });
+    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("absent"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
     assert(prepared.outcome === "ok");
     const readText = vi.fn().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file, detail: "unexpected read" } });
 

@@ -10,7 +10,8 @@ The audit runner is Hone's standalone mechanism for checks that read a project's
 
 ## Files
 
-- `walker-piece.ts` declares the contract a piece implements, `WalkerPiece`: a `prepare` call that receives the piece's selected clauses, the repository's tracked paths and TypeScript's API, and returns a prepared check with per-file `prepareFile` and a repository-wide `finish`.
+- `walker-piece.ts` declares the contract a piece implements, `WalkerPiece`: a `prepare` call that receives the piece's selected clauses, the repository's tracked paths with a `disk` for reading files around them, such as a base config under `node_modules`, and TypeScript's API, and returns a prepared check with per-file `prepareFile` and a repository-wide `finish`.
+- `walker-disk.ts` builds the `disk` a piece is handed: for a run, the real files under the repository root, untracked ones included, read through the file ports; for a conformance case, the case's texts in memory.
 - `source-scope.ts` classifies a repository path as `generated` (under `node_modules`, `dist`, `build`, `coverage`, `.git`, or a root `vendor`) or `authored`, so every piece skips generated folders the same way.
 - `walker-check-schema.ts` holds the schema for a clause's settings: `module`, a path inside the piece folder ending `.ts`, and optionally `escapingDirectives`, the TypeScript directives that escape the clause.
 - `type-directives.ts` reads a comment as a TypeScript directive only where the compiler honours it, and turns each directive a clause lists into an `inline-disable` of that clause. A piece that judges directives reads them through it too.
@@ -35,6 +36,6 @@ The runner offers the piece every tracked path in the repository, and the piece 
 
 After every file, the prepared check's `finish` may return repository-wide hits, each naming its file. Every hit names one of the piece's selected clauses and carries a snippet the piece chooses.
 
-`conform` runs each case of a clause's `discipline.json` as a one-file repository holding only that case.
+`conform` runs each case of a clause's `discipline.json` as a one-file repository holding only that case, whose `disk` holds only the case's file under the root `/repository`.
 
 A piece that throws, or returns a value outside its schema, makes the run fail as `piece-invalid`. A piece that cannot parse a file returns a failed result whose error is `{ kind: "file-unparseable", file, detail }`, and the check stops with `load failure: runner-failed audit file-unparseable <file> <detail>`.

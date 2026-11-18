@@ -8,6 +8,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers } from "../runner/walker-piece.ts";
 import { check } from "./identifier-names.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const FILE = repoPathSchema.parse("src/naming.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-6#identifier-names");
@@ -27,7 +28,7 @@ const sourceObservations = (request: { readonly source: string }): {
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
   readonly finish: PreparedWalkerCheck["finish"];
 } => {
-  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [FILE], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const selected = prepared.value.prepareFile({ file: FILE, readText: vi.fn().mockReturnValue({ outcome: "ok", value: request.source }) });
   assert(selected.outcome === "ok");
@@ -49,7 +50,7 @@ describe("CD-6 existing binding-name capability", () => {
     { name: "non-TypeScript candidate", fileName: "src/example.js", kind: "skipped" },
   ])("preserves source eligibility without a read for $name", ({ fileName, kind }) => {
     const file = repoPathSchema.parse(fileName);
-    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
     assert(prepared.outcome === "ok");
     const readText = vi.fn().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file, detail: "unexpected read" } });
 

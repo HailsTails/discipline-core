@@ -3,6 +3,7 @@ import { z } from "zod";
 import { toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { StandaloneRunner } from "../core/mechanism-port/runner-module-schema.ts";
+import { createDefaultEntryKindPort } from "../core/platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
@@ -60,6 +61,7 @@ export const auditRunnerOn = (request: { readonly line: TypeScriptLine }): Stand
         modules: createDefaultModuleLoaderPort({}),
         path: createDefaultPathPort({}),
         parse,
+        entryKind: createDefaultEntryKindPort({}),
       }),
   });
 

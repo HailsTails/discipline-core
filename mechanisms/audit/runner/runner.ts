@@ -1,4 +1,5 @@
 import { toolchainBoundStandaloneRunner } from "../../../core/mechanism-port/toolchain-bound-runner.ts";
+import { createDefaultEntryKindPort } from "../../../core/platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { installRootOfRunnerEntry } from "../../../core/platform-ports/package-location-port.ts";
@@ -20,5 +21,6 @@ export const runner = toolchainBoundStandaloneRunner({
       modules: createDefaultModuleLoaderPort({}),
       path: createDefaultPathPort({}),
       parse,
+      entryKind: createDefaultEntryKindPort({}),
     }),
 });

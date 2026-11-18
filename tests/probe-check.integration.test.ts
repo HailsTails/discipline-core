@@ -16,6 +16,7 @@ import cd23Discipline from "../rules/CD-23/discipline.json" with { type: "json" 
 import * as noTmpFiles from "./probe-rule-set/mechanisms/audit/PD-1/no-tmp-files.ts";
 import probePiece from "./probe-rule-set/mechanisms/audit/PD-1/piece.json" with { type: "json" };
 import probeDiscipline from "./probe-rule-set/rules/PD-1/discipline.json" with { type: "json" };
+import { ABSENT_ENTRY_KIND } from "./empty-walker-disk.ts";
 
 const TEMPORARY_SOURCE = "const scratch = 1;\n";
 const UNSIBLINGED_SOURCE = "export const kept = 1;\n";
@@ -104,7 +105,7 @@ const EXPORT_TEST_SIBLING_ADDRESS = { ruleSet: "hone", discipline: "CD-23", clau
 const probeCheck = () => {
   const parse = { ...defaultParsePort };
   const parseCalls = vi.spyOn(parse, "parse");
-  const runnerModule = { runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse }) };
+  const runnerModule = { runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse, entryKind: ABSENT_ENTRY_KIND }) };
   const report = runCheck(withSingleFileRecords({
     repoRoot: absolutePathSchema.parse("/repo"),
     installRoot: absolutePathSchema.parse("/install"),

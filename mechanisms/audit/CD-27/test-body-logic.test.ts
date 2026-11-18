@@ -8,6 +8,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./test-body-logic.ts";
 import { editionSchema, FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const FILE = repoPathSchema.parse("src/logic.test.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-27#test-body-logic");
@@ -33,7 +34,7 @@ type SourceObservations = {
 };
 
 const sourceObservations = (request: { readonly source: string; readonly clauses: readonly RunnerClause[] }): SourceObservations => {
-  const prepared = check.prepare({ clauses: request.clauses, repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: request.clauses, repository: { files: [FILE], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const selected = prepared.value.prepareFile({ file: FILE, readText: vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: request.source }) });
   assert(selected.outcome === "ok");
@@ -55,7 +56,7 @@ describe("CD-27 existing whole-test-file logic observations", () => {
     { name: "non-TypeScript test", fileName: "src/logic.test.js", kind: "skipped" },
   ])("preserves own test-family eligibility without reading for $name", ({ fileName, kind }) => {
     const file = repoPathSchema.parse(fileName);
-    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
     assert(prepared.outcome === "ok");
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file, detail: "unexpected read" } });
 

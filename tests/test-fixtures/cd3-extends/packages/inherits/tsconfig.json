@@ -1,0 +1,1 @@
+{ "extends": "../../configs/package.json", "compilerOptions": { "outDir": "dist" } }

@@ -5,8 +5,11 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { JsoncParsePort } from "../runner/jsonc-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerFile, WalkerRepository } from "../runner/walker-piece.ts";
+import type { CompilerOptionsResolution, CompilerOptionsResolutionOf, OptionSettings, ResolvedConfig } from "./compiler-options-resolution.ts";
 import { createCompilerOverridesCheck } from "./compiler-overrides.ts";
-import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { type Edition, editionSchema, FIRST_EDITION } from "../../../core/values/edition.ts";
+import { createDefaultJsoncParsePort } from "../runner/jsonc-parse.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const FILE = repoPathSchema.parse("tsconfig.json");
 const SOURCE = '{"compilerOptions":{"strict":true}}';
@@ -27,9 +30,20 @@ const PROPERTY_CLAUSE: RunnerClause = { address: PROPERTY, anchor: { kind: "file
 const CATCH_CLAUSE: RunnerClause = { address: CATCH, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
 const CLAUSES: readonly RunnerClause[] = [STRICT_CLAUSE, UNCHECKED_CLAUSE, EXACT_CLAUSE, OVERRIDE_CLAUSE, FALLTHROUGH_CLAUSE, PROPERTY_CLAUSE, CATCH_CLAUSE];
 
-const prepareCheck = (request: { readonly jsonc: JsoncParsePort; readonly clauses: readonly RunnerClause[]; readonly file?: WalkerFile["file"] }): PreparedWalkerCheck => {
-  const repository: WalkerRepository = { files: [request.file ?? FILE], exists: vi.fn<WalkerRepository["exists"]>().mockReturnValue("present") };
-  const prepared = createCompilerOverridesCheck({ jsonc: request.jsonc }).prepare({ clauses: request.clauses, repository, syntaxApi: SYNTAX_API });
+const UNRESOLVING: CompilerOptionsResolutionOf = () => ({ resolve: vi.fn<CompilerOptionsResolution["resolve"]>() });
+
+const prepareCheck = (request: {
+  readonly jsonc: JsoncParsePort;
+  readonly clauses: readonly RunnerClause[];
+  readonly file?: WalkerFile["file"];
+  readonly resolutionOf?: CompilerOptionsResolutionOf;
+}): PreparedWalkerCheck => {
+  const repository: WalkerRepository = { files: [request.file ?? FILE], exists: vi.fn<WalkerRepository["exists"]>().mockReturnValue("present"), disk: EMPTY_DISK };
+  const prepared = createCompilerOverridesCheck({ jsonc: request.jsonc, resolutionOf: request.resolutionOf ?? UNRESOLVING }).prepare({
+    clauses: request.clauses,
+    repository,
+    syntaxApi: SYNTAX_API,
+  });
   assert(prepared.outcome === "ok");
   return prepared.value;
 };
@@ -179,5 +193,213 @@ describe("CD3 existing explicit compiler overrides", () => {
     expect(prepared.prepareFile({ file, readText })).toEqual({ outcome: "ok", value: { kind: "skipped" } });
     expect(readText).not.toHaveBeenCalled();
     expect(parse).not.toHaveBeenCalled();
+  });
+});
+
+const SECOND_EDITION: Edition = editionSchema.parse("2");
+
+const JSONC = createDefaultJsoncParsePort({ trailingCommas: "refused" });
+
+const SECOND_EDITION_CLAUSES: readonly RunnerClause[] = [
+  { ...STRICT_CLAUSE, edition: SECOND_EDITION },
+  { ...UNCHECKED_CLAUSE, edition: SECOND_EDITION },
+  { ...EXACT_CLAUSE, edition: SECOND_EDITION },
+  { ...OVERRIDE_CLAUSE, edition: SECOND_EDITION },
+  { ...FALLTHROUGH_CLAUSE, edition: SECOND_EDITION },
+  { ...PROPERTY_CLAUSE, edition: SECOND_EDITION },
+  { ...CATCH_CLAUSE, edition: SECOND_EDITION },
+];
+
+const EITHER_EDITION = [
+  { edition: FIRST_EDITION, clauses: CLAUSES },
+  { edition: SECOND_EDITION, clauses: SECOND_EDITION_CLAUSES },
+];
+
+const UNSET: OptionSettings = {
+  strict: "unset",
+  noUncheckedIndexedAccess: "unset",
+  exactOptionalPropertyTypes: "unset",
+  noImplicitOverride: "unset",
+  noFallthroughCasesInSwitch: "unset",
+  noPropertyAccessFromIndexSignature: "unset",
+  useUnknownInCatchVariables: "unset",
+};
+
+const ALL_ON = {
+  strict: "on",
+  noUncheckedIndexedAccess: "on",
+  exactOptionalPropertyTypes: "on",
+  noImplicitOverride: "on",
+  noFallthroughCasesInSwitch: "on",
+  noPropertyAccessFromIndexSignature: "on",
+  useUnknownInCatchVariables: "on",
+} as const;
+
+const ALL_OFF = {
+  strict: "off",
+  noUncheckedIndexedAccess: "off",
+  exactOptionalPropertyTypes: "off",
+  noImplicitOverride: "off",
+  noFallthroughCasesInSwitch: "off",
+  noPropertyAccessFromIndexSignature: "off",
+  useUnknownInCatchVariables: "off",
+} as const;
+
+const resolvingTo = (request: { readonly resolved: ResolvedConfig }) => {
+  const resolve = vi.fn<CompilerOptionsResolution["resolve"]>().mockReturnValue(request.resolved);
+  const resolutionOf = vi.fn<CompilerOptionsResolutionOf>().mockReturnValue({ resolve });
+  return { resolve, resolutionOf };
+};
+
+const fileWith = (request: { readonly source: string }): WalkerFile => ({ file: FILE, readText: () => ({ outcome: "ok", value: request.source }) });
+
+const EXTENDING_SOURCE = '{ "extends": "./tsconfig.base.json", "compilerOptions": { "outDir": "dist" } }';
+
+const EVERY_OPTION_SOURCE =
+  '{ "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": false, "exactOptionalPropertyTypes": true, "noImplicitOverride": true, "noFallthroughCasesInSwitch": true, "noPropertyAccessFromIndexSignature": true, "useUnknownInCatchVariables": true } }';
+
+describe("CD3 in either edition", () => {
+  it.each(EITHER_EDITION)("flags each selected option a tsconfig.json sets itself under edition $edition", ({ clauses }) => {
+    const { resolve, resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_ON, bases: [] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses, resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EVERY_OPTION_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: STRICT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.strict = true" },
+      { clause: UNCHECKED, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noUncheckedIndexedAccess = false" },
+      { clause: EXACT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.exactOptionalPropertyTypes = true" },
+      { clause: OVERRIDE, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noImplicitOverride = true" },
+      { clause: FALLTHROUGH, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noFallthroughCasesInSwitch = true" },
+      { clause: PROPERTY, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noPropertyAccessFromIndexSignature = true" },
+      { clause: CATCH, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.useUnknownInCatchVariables = true" },
+    ] } });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it.each(EITHER_EDITION)("skips a config not named tsconfig.json without resolving it under edition $edition", ({ clauses }) => {
+    const { resolutionOf, resolve } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_OFF, bases: [] } });
+    const file = repoPathSchema.parse("tsconfig.base.json");
+    const prepared = prepareCheck({ jsonc: JSONC, clauses, file, resolutionOf });
+
+    expect(prepared.prepareFile({ file, readText: () => ({ outcome: "ok", value: "{}" }) })).toEqual({ outcome: "ok", value: { kind: "skipped" } });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+});
+
+describe("CD3 edition 1", () => {
+  it("leaves an option a tsconfig.json inherits unjudged, whatever the base turns off", () => {
+    const { resolve, resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_OFF, bases: [{ file: "tsconfig.base.json", settings: ALL_OFF }] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: CLAUSES, resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [] } });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+});
+
+describe("CD3 edition 2 judging the options a tsconfig.json resolves to", () => {
+  it("passes a tsconfig.json whose resolved configuration turns every selected option on", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_ON, bases: [{ file: "tsconfig.base.json", settings: ALL_ON }] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: SECOND_EDITION_CLAUSES, resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [] } });
+  });
+
+  it("resolves the walked tsconfig.json once over the piece's syntax API and disk, however many clauses it judges", () => {
+    const { resolve, resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_ON, bases: [] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: SECOND_EDITION_CLAUSES, resolutionOf });
+
+    prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }));
+
+    expect(resolutionOf).toHaveBeenCalledExactlyOnceWith({ syntaxApi: SYNTAX_API, disk: EMPTY_DISK });
+    expect(resolve).toHaveBeenCalledExactlyOnceWith({ file: FILE });
+  });
+
+  it("names the bases that turn an inherited option off", () => {
+    const { resolutionOf } = resolvingTo({
+      resolved: {
+        kind: "resolved",
+        effective: { ...ALL_ON, noUncheckedIndexedAccess: "off" },
+        bases: [
+          { file: "tsconfig.base.json", settings: { ...UNSET, noUncheckedIndexedAccess: "on" } },
+          { file: "configs/loose.json", settings: { ...UNSET, noUncheckedIndexedAccess: "off" } },
+        ],
+      },
+    });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...UNCHECKED_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: UNCHECKED, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noUncheckedIndexedAccess = false, inherited from configs/loose.json" },
+    ] } });
+  });
+
+  it("names this file and every base an option is unset in when nothing turns it on", () => {
+    const { resolutionOf } = resolvingTo({
+      resolved: {
+        kind: "resolved",
+        effective: { ...ALL_ON, exactOptionalPropertyTypes: "off" },
+        bases: [
+          { file: "tsconfig.base.json", settings: { ...UNSET, strict: "on" } },
+          { file: "node_modules/@tsconfig/node20/tsconfig.json", settings: UNSET },
+        ],
+      },
+    });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...EXACT_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: EXACT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.exactOptionalPropertyTypes unset here and in tsconfig.base.json, node_modules/@tsconfig/node20/tsconfig.json" },
+    ] } });
+  });
+
+});
+
+describe("CD3 edition 2 naming where an option is left unset or turned off", () => {
+  it("says a tsconfig.json that leaves an option unset extends no base", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: { ...ALL_ON, noImplicitOverride: "off" }, bases: [] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...OVERRIDE_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "compilerOptions": { "outDir": "dist" } }' }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: OVERRIDE, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noImplicitOverride unset, and this file extends no base" },
+    ] } });
+  });
+
+  it("names the base whose strict = false turns useUnknownInCatchVariables off", () => {
+    const { resolutionOf } = resolvingTo({
+      resolved: { kind: "resolved", effective: { ...ALL_ON, strict: "off", useUnknownInCatchVariables: "off" }, bases: [{ file: "tsconfig.base.json", settings: { ...UNSET, strict: "off" } }] },
+    });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...CATCH_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: EXTENDING_SOURCE }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: CATCH, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.useUnknownInCatchVariables = false, inherited from tsconfig.base.json" },
+    ] } });
+  });
+
+  it("names this file when its own strict = false turns useUnknownInCatchVariables off", () => {
+    const { resolutionOf } = resolvingTo({
+      resolved: { kind: "resolved", effective: { ...ALL_ON, strict: "off", useUnknownInCatchVariables: "off" }, bases: [{ file: "tsconfig.base.json", settings: ALL_ON }] },
+    });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...STRICT_CLAUSE, edition: SECOND_EDITION }, { ...CATCH_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "extends": "./tsconfig.base.json", "compilerOptions": { "strict": false } }' }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: STRICT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.strict = false" },
+      { clause: CATCH, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.useUnknownInCatchVariables = false, turned off in tsconfig.json" },
+    ] } });
+  });
+
+  it("reports each option a tsconfig.json leaves out as unknown when its configuration cannot be resolved", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "unresolved", detail: "TS5083 Cannot read file 'missing.json'." } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [{ ...STRICT_CLAUSE, edition: SECOND_EDITION }, { ...UNCHECKED_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "extends": "./missing.json", "compilerOptions": { "strict": true } }' }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: STRICT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.strict = true" },
+      { clause: UNCHECKED, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noUncheckedIndexedAccess unknown: TS5083 Cannot read file 'missing.json'." },
+    ] } });
+  });
+
+  it("judges only the clauses selected under edition 2 when the editions differ", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "resolved", effective: ALL_OFF, bases: [] } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: [STRICT_CLAUSE, { ...UNCHECKED_CLAUSE, edition: SECOND_EDITION }], resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "compilerOptions": {} }' }))).toEqual({ outcome: "ok", value: { kind: "complete", hits: [
+      { clause: UNCHECKED, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.noUncheckedIndexedAccess unset, and this file extends no base" },
+    ] } });
   });
 });

@@ -12,6 +12,7 @@ import {
   runnerResultSchema,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { StandaloneRunReport } from "../../../core/mechanism-port/standalone-run-report-schema.ts";
+import type { EntryKindPort } from "../../../core/platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
@@ -29,6 +30,7 @@ import {
 import type { DirectiveEscape } from "./type-directives.ts";
 import type { TypeScriptParsePort } from "./typescript-parse.ts";
 import { walkerPieceSettingsSchema } from "./walker-check-schema.ts";
+import { CASE_ROOT, portsDisk, textsDisk } from "./walker-disk.ts";
 import type { WalkerFile, WalkerRepository } from "./walker-piece.ts";
 
 type Outcome<Value> = Result<Value, RunnerFailure>;
@@ -38,6 +40,7 @@ type WalkerPorts = {
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
   readonly parse: TypeScriptParsePort;
+  readonly entryKind: EntryKindPort;
 };
 
 type ClauseOrder = { readonly clauses: readonly RunnerClause[] };
@@ -218,6 +221,7 @@ const runOverRepository = (request: {
       request.ports.fileText.exists({
         path: request.ports.path.join({ segments: [request.run.repoRoot, file] }),
       }),
+    disk: portsDisk({ root: request.run.repoRoot, entryKind: request.ports.entryKind, fileText: request.ports.fileText }),
   };
   return preparedPieces({ ports: request.ports, clauses: request.run.clauses, repository }).then((prepared) => {
     if (prepared.outcome === "failed") return prepared;
@@ -245,6 +249,7 @@ const caseVerdict = (request: {
   const repository: WalkerRepository = {
     files: [request.sourceCase.fileName],
     exists: ({ file }) => (file === request.sourceCase.fileName ? "present" : "absent"),
+    disk: textsDisk({ root: CASE_ROOT, texts: { [request.sourceCase.fileName]: request.sourceCase.source } }),
   };
   return preparedPieces({ ports: request.ports, clauses: [request.clause], repository }).then((prepared) => {
     if (prepared.outcome === "failed") return prepared;

@@ -1,4 +1,4 @@
-import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 
@@ -212,3 +212,36 @@ export const createDefaultDirectoryPort = (
   createDirectoryPort({
     directory: defaultDirectorySurface,
   });
+
+export type EntryKind = "file" | "directory" | "absent";
+
+export type EntryKindPort = {
+  readonly kindOf: (request: { readonly path: string }) => EntryKind;
+};
+
+export type EntryKindSurface = {
+  readonly stat: (request: { readonly path: string }) => Exclude<EntryKind, "absent"> | undefined;
+};
+
+export const createEntryKindPort = (options: { readonly surface: EntryKindSurface }): EntryKindPort => ({
+  kindOf: (request) => {
+    try {
+      return options.surface.stat({ path: request.path }) ?? "absent";
+    } catch {
+      return "absent";
+    }
+  },
+});
+
+const defaultEntryKindSurface: EntryKindSurface = {
+  stat: (request) => {
+    const found = statSync(request.path, { throwIfNoEntry: false });
+    if (found === undefined) {
+      return undefined;
+    }
+    return found.isDirectory() ? "directory" : "file";
+  },
+};
+
+export const createDefaultEntryKindPort = (_options: Record<string, never>): EntryKindPort =>
+  createEntryKindPort({ surface: defaultEntryKindSurface });

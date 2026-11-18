@@ -1,9 +1,15 @@
-import { folderScope, isEdition, type PieceFailure, type RunnerClause } from "@hailstails/hone/audit";
+import { folderScope, isEdition, type PieceFailure, type RunnerClause, type WalkerDisk } from "@hailstails/hone/audit";
 import { type CaseUnderTest, clauseConformanceOf, clauseUnderTestOf, repoPathOf } from "@hailstails/hone/testing";
 import typescript from "typescript";
 import { check } from "../mechanisms/audit/ACME-2/scratch-files.ts";
 
 const RULE_SET_ROOT = "tools/disciplines/acme";
+
+const NO_DISK: WalkerDisk = {
+  root: "/repository",
+  kindAt: () => "absent",
+  textAt: ({ path }) => ({ outcome: "failed", error: { detail: `${path} is not on this disk` } }),
+};
 
 const provedEqual = (request: { readonly proof: string; readonly actual: unknown; readonly expected: unknown }): void => {
   if (JSON.stringify(request.actual) !== JSON.stringify(request.expected)) {
@@ -36,7 +42,7 @@ if (unreadable.outcome === "failed") {
 const caseFiles = underTest.value.cases.map((sourceCase) => sourceCase.file);
 const prepared = check.prepare({
   clauses: [underTest.value.clause],
-  repository: { files: [...caseFiles, unreadable.value], exists: ({ file }) => (caseFiles.includes(file) ? "present" : "absent") },
+  repository: { files: [...caseFiles, unreadable.value], exists: ({ file }) => (caseFiles.includes(file) ? "present" : "absent"), disk: NO_DISK },
   syntaxApi: typescript,
 });
 if (prepared.outcome === "failed") {
@@ -91,7 +97,7 @@ if (draftFile.outcome === "failed") {
 const draftHitsUnder = (request: { readonly clause: RunnerClause }): unknown => {
   const preparedUnder = check.prepare({
     clauses: [request.clause],
-    repository: { files: [draftFile.value], exists: () => "present" },
+    repository: { files: [draftFile.value], exists: () => "present", disk: NO_DISK },
     syntaxApi: typescript,
   });
   if (preparedUnder.outcome === "failed") {

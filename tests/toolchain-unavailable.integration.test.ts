@@ -19,6 +19,7 @@ import { createEslintRunner, ESLINT_PROJECTED_KINDS } from "../mechanisms/eslint
 import { createEslintPort } from "../mechanisms/eslint/runner/eslint-instance.ts";
 import { loadEslintToolchain } from "../mechanisms/eslint/runner/eslint-toolchain.ts";
 import { eslintPeersOn, modulesServingRunner } from "./eslint-toolchains.ts";
+import { ABSENT_ENTRY_KIND } from "./empty-walker-disk.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/..`);
 
@@ -68,7 +69,7 @@ const eslintRunnerLocatingBy = (request: { readonly pieces: ModuleLoaderPort; re
 const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPort }) =>
   toolchainBoundStandaloneRunner({
     toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ packageName: "typescript" }) } }),
-    runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse }),
+    runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse, entryKind: ABSENT_ENTRY_KIND }),
   });
 
 const checkWith = (request: { readonly fixture: string; readonly runner: unknown; readonly tracked: readonly RepoPath[] }) =>

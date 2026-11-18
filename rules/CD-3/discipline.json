@@ -29,6 +29,24 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "strict set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"strict\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -49,6 +67,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"strict\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"strict\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -80,6 +105,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "noUncheckedIndexedAccess set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"noUncheckedIndexedAccess\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "noUncheckedIndexedAccess unset with no base",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"outDir\": \"dist\", \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -100,6 +152,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noUncheckedIndexedAccess\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"noUncheckedIndexedAccess\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -131,6 +190,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "exactOptionalPropertyTypes set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"exactOptionalPropertyTypes\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "exactOptionalPropertyTypes unset with no base",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"outDir\": \"dist\", \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -151,6 +237,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"exactOptionalPropertyTypes\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"exactOptionalPropertyTypes\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -182,6 +275,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "noImplicitOverride set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"noImplicitOverride\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "noImplicitOverride unset with no base",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"outDir\": \"dist\", \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -202,6 +322,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noImplicitOverride\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"noImplicitOverride\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -233,6 +360,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "noFallthroughCasesInSwitch set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"noFallthroughCasesInSwitch\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "noFallthroughCasesInSwitch unset with no base",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"outDir\": \"dist\", \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -253,6 +407,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noFallthroughCasesInSwitch\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"noFallthroughCasesInSwitch\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -284,6 +445,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "noPropertyAccessFromIndexSignature set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"noPropertyAccessFromIndexSignature\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "noPropertyAccessFromIndexSignature unset with no base",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"outDir\": \"dist\", \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -304,6 +492,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noPropertyAccessFromIndexSignature\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"noPropertyAccessFromIndexSignature\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -335,6 +530,33 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "useUnknownInCatchVariables set to false under the second edition",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{\n  \"compilerOptions\": {\n    \"useUnknownInCatchVariables\": false\n  }\n}\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "a base that cannot be read",
+            "fileName": "packages/a/tsconfig.json",
+            "source": "{ \"extends\": \"../../tsconfig.base.json\", \"compilerOptions\": { \"target\": \"ESNext\" } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
+          },
+          {
+            "name": "turned off by strict set to false in the same file",
+            "fileName": "packages/b/tsconfig.json",
+            "source": "{ \"compilerOptions\": { \"strict\": false } }\n",
+            "expectedLines": [
+              1
+            ],
+            "edition": "2"
           }
         ],
         "allow": [
@@ -355,6 +577,13 @@
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"useUnknownInCatchVariables\": true } }\n",
             "expectedLines": []
+          },
+          {
+            "name": "tsconfig.base.json is not read under the second edition",
+            "fileName": "tsconfig.base.json",
+            "source": "{ \"compilerOptions\": { \"useUnknownInCatchVariables\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }

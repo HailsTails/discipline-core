@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { absolutePathSchema } from "../values/absolute-path.ts";
-import { createDirectoryPort, type DirectoryEntry, type DirectorySurface } from "./file-system-port.ts";
+import { createDirectoryPort, createEntryKindPort, type DirectoryEntry, type DirectorySurface, type EntryKindSurface } from "./file-system-port.ts";
 
 const DIRECTORY = absolutePathSchema.parse("D:\\work\\project files\\src");
 
@@ -93,5 +93,24 @@ describe("createDirectoryPort create", () => {
       outcome: "failed",
       error: { kind: "directory-uncreatable", path: DIRECTORY, detail: "read-only file system" },
     });
+  });
+});
+
+describe("createEntryKindPort", () => {
+  it.each([
+    { found: "file", kind: "file" },
+    { found: "directory", kind: "directory" },
+    { found: undefined, kind: "absent" },
+  ] as const)("reports $kind for an entry the surface finds as $found", ({ found, kind }) => {
+    const stat = vi.fn<EntryKindSurface["stat"]>().mockReturnValue(found);
+
+    expect(createEntryKindPort({ surface: { stat } }).kindOf({ path: DIRECTORY })).toBe(kind);
+    expect(stat).toHaveBeenCalledExactlyOnceWith({ path: DIRECTORY });
+  });
+
+  it("reports an entry the surface cannot inspect as absent, as TypeScript's own file checks do", () => {
+    const stat = vi.fn<EntryKindSurface["stat"]>().mockThrow(new Error("permission denied"));
+
+    expect(createEntryKindPort({ surface: { stat } }).kindOf({ path: DIRECTORY })).toBe("absent");
   });
 });

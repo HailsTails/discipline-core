@@ -14,6 +14,7 @@ import { defaultEslintPort } from "../../../tests/eslint-toolchains.ts";
 import { eslintPluginModuleSchema } from "../runner/eslint-plugin-schema.ts";
 import classAuthoringPlugin from "./cd14/cd14.eslint-plugin.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { ABSENT_ENTRY_KIND } from "../../../tests/empty-walker-disk.ts";
 
 const PIECE_ROOT = absolutePathSchema.parse(import.meta.dirname);
 
@@ -51,6 +52,7 @@ const walkerRunner = createWalkerRunner({
   modules: loadingWalkerPiece,
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/install" }),
   parse: defaultParsePort,
+  entryKind: ABSENT_ENTRY_KIND,
 });
 
 const WALKER_CLAUSE: RunnerClause = {
