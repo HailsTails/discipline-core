@@ -2675,7 +2675,7 @@ const NESTED_RUN = {
 
 const NESTED_SKIPPED = { slice: "packages/b/disciplines.eslint.mjs", state: "nested-configuration" };
 
-const NESTED_FOLDER = "packages/b";
+const NESTED_FOLDER = { folder: "packages/b", selectionFolder: "packages/b" };
 
 const nestedQuery = (request: { readonly old: RuleState }) =>
   queryOver({

@@ -3,7 +3,7 @@ import { type RecordsDisk, recordsDisk, singleFileRepositoriesOver } from "../..
 import { exceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
-import type { EmbeddedRunReport } from "../mechanism-port/embedded-run-report-schema.ts";
+import type { EmbeddedRunReport, UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner } from "../mechanism-port/embedded-runner-module-schema.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import { hitSchema } from "../mechanism-port/runner-result-schema.ts";
@@ -148,9 +148,9 @@ const runnerFinding = (request: { readonly hits: readonly unknown[] }): ModuleLo
   return { load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } }) };
 };
 
-const OWN_DISCIPLINES_FOLDER = repoPathSchema.parse("src");
+const OWN_CONFIGURATION: UnprojectedFolderReport = { folder: repoPathSchema.parse("src"), selectionFolder: repoPathSchema.parse("src") };
 
-const embeddedRunnerFinding = (request: { readonly unprojectedFolders: readonly RepoPath[] }): ModuleLoaderPort => {
+const embeddedRunnerFinding = (request: { readonly unprojectedFolders: readonly UnprojectedFolderReport[] }): ModuleLoaderPort => {
   const report: EmbeddedRunReport = {
     hits: [hitSchema.parse(HIT_IN_A)],
     nativeExceptions: [],
@@ -304,11 +304,11 @@ describe("recordDebtCommandOf writing nothing for a pair", () => {
 
 describe("recordDebtCommandOf for a clause whose mechanism applies records through its projection", () => {
   it("writes nothing for a pair in a folder the runner names as loading its own config inside a folder holding its own disciplines.json, and says so", async () => {
-    expect(await recordedDebt({ ...adoptionRun(), modules: embeddedRunnerFinding({ unprojectedFolders: [OWN_DISCIPLINES_FOLDER] }) })).toEqual({
+    expect(await recordedDebt({ ...adoptionRun(), modules: embeddedRunnerFinding({ unprojectedFolders: [OWN_CONFIGURATION] }) })).toEqual({
       writes: [
         [
           {
-            text: "CD-14#class-syntax nested-configuration src/a.ts: src holds its own disciplines.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the audit projection cannot put a record on this file into effect; fix it, or govern src from this repository by removing its disciplines.json, then run record-debt again\n",
+            text: "CD-14#class-syntax nested-configuration src/a.ts: the file loads the audit configuration in src, and src holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the audit projection cannot put a record on this file into effect; fix it, or govern src from this repository by removing src/disciplines.json, then run record-debt again\n",
           },
         ],
       ],

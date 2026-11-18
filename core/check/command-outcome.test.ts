@@ -227,4 +227,21 @@ describe("inheritedDebtLine", () => {
       "CD-15#loops already-recorded src/basket.ts: discipline-exceptions/authorised-locations/cd-15.json already holds a record on this clause and file; the check says why it does not hold\n",
     );
   });
+
+  it("names the folder whose configuration the file loads apart from the folder holding the disciplines.json a person would remove", () => {
+    expect(
+      inheritedDebtLine({
+        outcome: {
+          clause: clauseAddressSchema.parse("CD-15#loops"),
+          file: repoPathSchema.parse("nested/src/n.ts"),
+          effect: "nested-configuration",
+          under: repoPathSchema.parse("nested/src"),
+          selectionFolder: repoPathSchema.parse("nested"),
+          mechanism: mechanismIdSchema.parse("eslint"),
+        },
+      }),
+    ).toBe(
+      "CD-15#loops nested-configuration nested/src/n.ts: the file loads the eslint configuration in nested/src, and nested holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the eslint projection cannot put a record on this file into effect; fix it, or govern nested from this repository by removing nested/disciplines.json, then run record-debt again\n",
+    );
+  });
 });

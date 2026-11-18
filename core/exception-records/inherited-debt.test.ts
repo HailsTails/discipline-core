@@ -11,6 +11,7 @@ const TEAM_CLAUSE = clauseAddressSchema.parse("team/TM-1#no-tmp-files");
 const AUDIT = mechanismIdSchema.parse("audit");
 const ESLINT = mechanismIdSchema.parse("eslint");
 const LEGACY_FOLDER = repoPathSchema.parse("src/legacy");
+const SOURCE_FOLDER = repoPathSchema.parse("src");
 const BASKET = repoPathSchema.parse("src/basket.ts");
 const LEGACY = repoPathSchema.parse("src/legacy/report.ts");
 const FRESH = repoPathSchema.parse("src/fresh.ts");
@@ -229,7 +230,7 @@ describe("reachedDebtOf", () => {
     expect(
       reachedDebtOf({
         outcomes: RECORDED_IN_LEGACY,
-        unprojected: [{ mechanism: ESLINT, folder: LEGACY_FOLDER }],
+        unprojected: [{ mechanism: ESLINT, folder: LEGACY_FOLDER, selectionFolder: SOURCE_FOLDER }],
         mechanisms: new Map([
           ["CD-2#cast-expressions", AUDIT],
           ["CD-15#loops", ESLINT],
@@ -238,7 +239,7 @@ describe("reachedDebtOf", () => {
       }),
     ).toEqual([
       { clause: CASTS, file: LEGACY, effect: "recorded" },
-      { clause: LOOPS, file: LEGACY, effect: "nested-configuration", under: LEGACY_FOLDER, mechanism: ESLINT },
+      { clause: LOOPS, file: LEGACY, effect: "nested-configuration", under: LEGACY_FOLDER, selectionFolder: SOURCE_FOLDER, mechanism: ESLINT },
       { clause: LOOPS, file: BASKET, effect: "recorded" },
       { clause: TEAM_CLAUSE, file: LEGACY, effect: "left", under: LEGACY_FOLDER },
     ]);

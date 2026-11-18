@@ -4,4 +4,5 @@ import type { RepoPath } from "./repo-path.ts";
 export type UnprojectedFolder = {
   readonly mechanism: MechanismId;
   readonly folder: RepoPath;
+  readonly selectionFolder: RepoPath;
 };

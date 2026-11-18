@@ -504,7 +504,7 @@ export type ReachedCheck = {
 };
 
 const unprojectedOf = (request: { readonly runs: readonly MechanismRun[] }): readonly UnprojectedFolder[] =>
-  request.runs.flatMap((run) => run.unprojectedFolders.map((folder) => ({ mechanism: run.mechanism, folder })));
+  request.runs.flatMap((run) => run.unprojectedFolders.map((unprojected) => ({ mechanism: run.mechanism, ...unprojected })));
 
 export const runReachedCheck = async (request: CheckRequest): Promise<Result<ReachedCheck, LoadFailure>> => {
   const inputs = await loadInputs({

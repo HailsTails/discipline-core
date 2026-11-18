@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { embeddedRunReportSchema, type SliceProblem } from "../mechanism-port/embedded-run-report-schema.ts";
+import { embeddedRunReportSchema, type SliceProblem, type UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import {
   type RunnerFailure,
@@ -32,7 +32,7 @@ export type MechanismRun = {
   readonly coverableKinds: readonly NativeException["kind"][];
   readonly projection: "none" | ProjectionState;
   readonly slices: readonly SliceProblem[];
-  readonly unprojectedFolders: readonly RepoPath[];
+  readonly unprojectedFolders: readonly UnprojectedFolderReport[];
 };
 
 const STANDALONE_COVERABLE_KINDS: readonly NativeException["kind"][] = ["inline-disable"];

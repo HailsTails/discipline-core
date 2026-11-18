@@ -17,7 +17,12 @@ export type InheritedDebtOutcome =
   | (DebtPair & { readonly effect: "recorded" | "new-file" | "refused" })
   | (DebtPair & { readonly effect: "already-recorded"; readonly heldIn: RepoPath })
   | (DebtPair & { readonly effect: "left"; readonly under: RepoPath })
-  | (DebtPair & { readonly effect: "nested-configuration"; readonly under: RepoPath; readonly mechanism: MechanismId });
+  | (DebtPair & {
+      readonly effect: "nested-configuration";
+      readonly under: RepoPath;
+      readonly selectionFolder: RepoPath;
+      readonly mechanism: MechanismId;
+    });
 
 export type InheritedDebtRequest = {
   readonly findings: readonly Finding[];
@@ -122,7 +127,14 @@ const reachedOutcomeOf = (request: {
   );
   return unprojected === undefined
     ? outcome
-    : { clause: outcome.clause, file: outcome.file, effect: "nested-configuration", under: unprojected.folder, mechanism: unprojected.mechanism };
+    : {
+        clause: outcome.clause,
+        file: outcome.file,
+        effect: "nested-configuration",
+        under: unprojected.folder,
+        selectionFolder: unprojected.selectionFolder,
+        mechanism: unprojected.mechanism,
+      };
 };
 
 export const reachedDebtOf = (request: {

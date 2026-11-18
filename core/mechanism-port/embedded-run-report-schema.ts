@@ -74,13 +74,22 @@ export const sliceProblemSchema = z
 
 export type SliceProblem = z.infer<typeof sliceProblemSchema>;
 
+export const unprojectedFolderSchema = z
+  .object({
+    folder: repoPathSchema,
+    selectionFolder: repoPathSchema,
+  })
+  .readonly();
+
+export type UnprojectedFolderReport = z.infer<typeof unprojectedFolderSchema>;
+
 export const embeddedRunReportSchema = z
   .object({
     hits: z.array(hitSchema).readonly(),
     nativeExceptions: z.array(nativeExceptionSchema).readonly(),
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
     slices: z.array(sliceProblemSchema).readonly().default([]),
-    unprojectedFolders: z.array(repoPathSchema).readonly().default([]),
+    unprojectedFolders: z.array(unprojectedFolderSchema).readonly().default([]),
   })
   .readonly();
 

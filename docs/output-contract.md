@@ -393,7 +393,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 ## hone record-debt
 
-`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to the exception records, in whichever [layout](../README.md#the-split-layout) the repository keeps them; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file. A `nested-configuration` line names a pair whose clause runs on an embedded mechanism, such as ESLint, in a file under a `<folder>` that loads its own configuration inside a folder holding its own `disciplines.json`. The projection never reaches that configuration, so a record there would leave the projection out of effect and fail the next check.
+`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to the exception records, in whichever [layout](../README.md#the-split-layout) the repository keeps them; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file. A `nested-configuration` line names a pair whose clause runs on an embedded mechanism, such as ESLint, in a file that loads the configuration in `<config folder>`, at or under the outermost `<folder>` that holds its own `disciplines.json`. The projection never reaches that configuration, so a record there would leave the projection out of effect and fail the next check.
 
 | Output | Line |
 | --- | --- |
@@ -402,7 +402,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `record-debt` | `<clause> left <file>: under --leave <path>; record it as an authorised-location with its own reason, or fix it` |
 | `record-debt` | `<clause> new-file <file>: the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason` |
 | `record-debt` | `<clause> refused <file>: the clause's discipline refuses exceptions; fix it` |
-| `record-debt` | `<clause> nested-configuration <file>: <folder> holds its own disciplines.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the <mechanism> projection cannot put a record on this file into effect; fix it, or govern <folder> from this repository by removing its disciplines.json, then run record-debt again` |
+| `record-debt` | `<clause> nested-configuration <file>: the file loads the <mechanism> configuration in <config folder>, and <folder> holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the <mechanism> projection cannot put a record on this file into effect; fix it, or govern <folder> from this repository by removing <folder>/disciplines.json, then run record-debt again` |
 
 ## hone split-records
 

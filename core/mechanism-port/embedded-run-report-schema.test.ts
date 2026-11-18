@@ -80,14 +80,14 @@ describe("embeddedRunReportSchema", () => {
   });
 
   it("reads the folders a runner names as ones whose files load a config the projection does not reach", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: ["fixtures/linted"] };
+    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [{ folder: "fixtures/deep/tool", selectionFolder: "fixtures/deep" }] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("refuses an unprojected folder that is not a repo path", () => {
     expect(
-      embeddedRunReportSchema.safeParse({ hits: [], nativeExceptions: [], projection: "current", unprojectedFolders: ["/repo/fixtures"] }),
-    ).toMatchObject({ success: false, error: { issues: [{ path: expect.arrayContaining(["unprojectedFolders", 0]) }] } });
+      embeddedRunReportSchema.safeParse({ hits: [], nativeExceptions: [], projection: "current", unprojectedFolders: [{ folder: "/repo/fixtures", selectionFolder: "fixtures" }] }),
+    ).toMatchObject({ success: false, error: { issues: [{ path: ["unprojectedFolders", 0, "folder"] }] } });
   });
 
   it("reads a report from a runner that names no slices as having no slice problems", () => {

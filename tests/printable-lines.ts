@@ -593,19 +593,21 @@ const LEFT_UNDER = repoPathSchema.parse("src");
 
 const OWN_DISCIPLINES_FOLDER = repoPathSchema.parse("packages/legacy");
 
+const OWN_CONFIGURATION_FOLDER = repoPathSchema.parse("packages/legacy/tools");
+
 const INHERITED_DEBT_EFFECTS: Readonly<Record<InheritedDebtOutcome["effect"], InheritedDebtOutcome>> = {
   recorded: { clause: LOOPS, file: FILE, effect: "recorded" },
   "already-recorded": { clause: LOOPS, file: FILE, effect: "already-recorded", heldIn: SPLIT_RECORDS_FILE },
   left: { clause: LOOPS, file: FILE, effect: "left", under: LEFT_UNDER },
   "new-file": { clause: LOOPS, file: FILE, effect: "new-file" },
   refused: { clause: LOOPS, file: FILE, effect: "refused" },
-  "nested-configuration": { clause: LOOPS, file: FILE, effect: "nested-configuration", under: OWN_DISCIPLINES_FOLDER, mechanism: MECHANISM },
+  "nested-configuration": { clause: LOOPS, file: FILE, effect: "nested-configuration", under: OWN_CONFIGURATION_FOLDER, selectionFolder: OWN_DISCIPLINES_FOLDER, mechanism: MECHANISM },
 };
 
 const RECORD_DEBT_LINES: readonly PrintedLine[] = linesOf({
   label: "record-debt",
   text: recordDebtCommandOutcome({ result: { outcome: "ok", value: Object.values(INHERITED_DEBT_EFFECTS) } }).text,
-  fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src", "records file": SPLIT_RECORDS_FILE, folder: OWN_DISCIPLINES_FOLDER, mechanism: MECHANISM },
+  fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src", "records file": SPLIT_RECORDS_FILE, folder: OWN_DISCIPLINES_FOLDER, "config folder": OWN_CONFIGURATION_FOLDER, mechanism: MECHANISM },
 });
 
 const SPLIT_RECORDS_OUTCOMES: readonly { readonly split: RecordsSplit; readonly path: string }[] = [

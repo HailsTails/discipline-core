@@ -73,7 +73,7 @@ const inheritedDebtNote = (request: { readonly outcome: InheritedDebtOutcome }):
     case "refused":
       return ": the clause's discipline refuses exceptions; fix it";
     case "nested-configuration":
-      return `: ${outcome.under} holds its own disciplines.json, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}), so the ${outcome.mechanism} projection cannot put a record on this file into effect; fix it, or govern ${outcome.under} from this repository by removing its disciplines.json, then run ${RECORD_DEBT_SUBCOMMAND} again`;
+      return `: the file loads the ${outcome.mechanism} configuration in ${outcome.under}, and ${outcome.selectionFolder} holds its own disciplines.json; nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}), so the ${outcome.mechanism} projection cannot put a record on this file into effect; fix it, or govern ${outcome.selectionFolder} from this repository by removing ${outcome.selectionFolder}/disciplines.json, then run ${RECORD_DEBT_SUBCOMMAND} again`;
   }
 };
 

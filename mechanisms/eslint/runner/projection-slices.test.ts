@@ -207,11 +207,21 @@ describe("unprojectedFoldersOf", () => {
     "src/e.ts",
   ]);
 
-  it("names each outermost folder inside a folder holding its own disciplines.json whose own ESLint config its files load, holding a file under check", () => {
+  it("names each outermost folder inside a folder holding its own disciplines.json whose own ESLint config its files load, holding a file under check, beside the folder holding that disciplines.json", () => {
     expect(unprojectedFoldersOf({ trackedPaths: OWN_CONFIG_TREE, files: FILES, lookup: "nearest-to-file" })).toEqual([
-      "fixtures/deep/tool",
-      "fixtures/linted",
+      { folder: "fixtures/deep/tool", selectionFolder: "fixtures/deep" },
+      { folder: "fixtures/linted", selectionFolder: "fixtures/linted" },
     ]);
+  });
+
+  it("names the outermost folder holding its own disciplines.json as the one a person would govern from this repository", () => {
+    expect(
+      unprojectedFoldersOf({
+        trackedPaths: tracked(["eslint.config.mjs", "nested/disciplines.json", "nested/inner/disciplines.json", "nested/inner/src/eslint.config.mjs"]),
+        files: tracked(["nested/inner/src/n.ts"]),
+        lookup: "nearest-to-file",
+      }),
+    ).toEqual([{ folder: "nested/inner/src", selectionFolder: "nested" }]);
   });
 
   it("names no folder holding its own disciplines.json but no ESLint config, whose files load the config above it", () => {
