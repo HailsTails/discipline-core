@@ -1,9 +1,16 @@
 import { readSelection, type SelectionReading } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
-import { type InheritedDebtOutcome, inheritedDebtEntriesOf, inheritedDebtOf } from "../exception-records/inherited-debt.ts";
+import {
+  type InheritedDebtOutcome,
+  inheritedDebtEntriesOf,
+  inheritedDebtOf,
+  reachedDebtOf,
+} from "../exception-records/inherited-debt.ts";
 import type { GitTreePort } from "../platform-ports/git-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
+import { clauseAddressText } from "../values/clause-address.ts";
+import type { MechanismId } from "../values/identifiers.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
@@ -12,7 +19,7 @@ import { recordDebtCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from "./run-check-command.ts";
-import { runCheck } from "./run-check.ts";
+import { runReachedCheck } from "./run-check.ts";
 
 type AdoptionRequest = CommandRequest & {
   readonly gitTree: GitTreePort;
@@ -33,29 +40,36 @@ const pathsInBase = (request: AdoptionRequest): Result<ReadonlySet<RepoPath>, Lo
     : { outcome: "ok", value: new Set(listed.value) };
 };
 
-const debtOutcomesOf = async (
-  request: AdoptionRequest & {
-    readonly selection: SelectionReading;
-    readonly existing: readonly PlacedEntry[];
-    readonly inBase: ReadonlySet<RepoPath>;
-  },
-): Promise<DebtResult> => {
-  const report = await runCheck({
+type DebtRequest = AdoptionRequest & {
+  readonly selection: SelectionReading;
+  readonly existing: readonly PlacedEntry[];
+  readonly inBase: ReadonlySet<RepoPath>;
+};
+
+const clauseMechanismsOf = (request: { readonly selection: SelectionReading }): ReadonlyMap<string, MechanismId> =>
+  new Map(request.selection.selection.selected.map((clause) => [clauseAddressText({ address: clause.address }), clause.mechanism]));
+
+const debtOutcomesOf = async (request: DebtRequest): Promise<DebtResult> => {
+  const reached = await runReachedCheck({
     ...request,
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: request.arguments.baseRevision,
     assessment: ASSESSED_IN_THIS_RUN,
   });
-  if (report.outcome === "failed") {
-    return report;
+  if (reached.outcome === "failed") {
+    return reached;
   }
-  const outcomes = inheritedDebtOf({
-    findings: report.value.findings,
-    unrecorded: report.value.unrecorded,
-    existing: request.existing,
-    leave: request.arguments.leave,
-    inBase: request.inBase,
-    refusing: request.selection.selection.selected.flatMap((clause) => (clause.exceptions === "refused" ? [clause.address] : [])),
+  const outcomes = reachedDebtOf({
+    outcomes: inheritedDebtOf({
+      findings: reached.value.report.findings,
+      unrecorded: reached.value.report.unrecorded,
+      existing: request.existing,
+      leave: request.arguments.leave,
+      inBase: request.inBase,
+      refusing: request.selection.selection.selected.flatMap((clause) => (clause.exceptions === "refused" ? [clause.address] : [])),
+    }),
+    unprojected: reached.value.unprojected,
+    mechanisms: clauseMechanismsOf(request),
   });
   const written = request.exceptionRepository.add({ entries: inheritedDebtEntriesOf({ outcomes }) });
   return written.outcome === "failed" ? written : { outcome: "ok", value: outcomes };

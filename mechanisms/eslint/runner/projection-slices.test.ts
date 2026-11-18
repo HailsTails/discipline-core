@@ -13,6 +13,7 @@ import {
   nestedConfigurationFoldersOf,
   sliceRecordsOf,
   slicePathOf,
+  unprojectedFoldersOf,
 } from "./projection-slices.ts";
 
 const classSyntax = clauseAddressSchema.parse("CD-14#class-syntax");
@@ -180,6 +181,51 @@ describe("nestedConfigurationFoldersOf", () => {
         files: tracked(["fixtures/consumer/inner/old.ts", "fixtures/plain/x.ts", "src/a.ts"]),
       }),
     ).toEqual(["fixtures/consumer", "fixtures/plain"]);
+  });
+});
+
+describe("unprojectedFoldersOf", () => {
+  const OWN_CONFIG_TREE = tracked([
+    "eslint.config.mjs",
+    "fixtures/linted/disciplines.json",
+    "fixtures/linted/eslint.config.mjs",
+    "fixtures/linted/inner/eslint.config.mjs",
+    "fixtures/rooted/disciplines.json",
+    "fixtures/deep/disciplines.json",
+    "fixtures/deep/tool/eslint.config.mjs",
+    "fixtures/idle/disciplines.json",
+    "fixtures/idle/eslint.config.mjs",
+    "packages/a/eslint.config.mjs",
+  ]);
+
+  const FILES = tracked([
+    "fixtures/linted/inner/a.ts",
+    "fixtures/rooted/src/parse.ts",
+    "fixtures/deep/tool/b.ts",
+    "fixtures/deep/c.ts",
+    "packages/a/d.ts",
+    "src/e.ts",
+  ]);
+
+  it("names each outermost folder inside a folder holding its own disciplines.json whose own ESLint config its files load, holding a file under check", () => {
+    expect(unprojectedFoldersOf({ trackedPaths: OWN_CONFIG_TREE, files: FILES, lookup: "nearest-to-file" })).toEqual([
+      "fixtures/deep/tool",
+      "fixtures/linted",
+    ]);
+  });
+
+  it("names no folder holding its own disciplines.json but no ESLint config, whose files load the config above it", () => {
+    expect(
+      unprojectedFoldersOf({
+        trackedPaths: tracked(["eslint.config.mjs", "fixtures/rooted/disciplines.json"]),
+        files: tracked(["fixtures/rooted/src/parse.ts"]),
+        lookup: "nearest-to-file",
+      }),
+    ).toEqual([]);
+  });
+
+  it("names no folder when every file loads the repository root's config", () => {
+    expect(unprojectedFoldersOf({ trackedPaths: OWN_CONFIG_TREE, files: FILES, lookup: "repository-root" })).toEqual([]);
   });
 });
 

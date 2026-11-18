@@ -30,6 +30,7 @@ import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
+import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
@@ -497,7 +498,15 @@ const checkReportOf = (request: {
   };
 };
 
-export const runCheck = async (request: CheckRequest): Promise<Result<CheckReport, LoadFailure>> => {
+export type ReachedCheck = {
+  readonly report: CheckReport;
+  readonly unprojected: readonly UnprojectedFolder[];
+};
+
+const unprojectedOf = (request: { readonly runs: readonly MechanismRun[] }): readonly UnprojectedFolder[] =>
+  request.runs.flatMap((run) => run.unprojectedFolders.map((folder) => ({ mechanism: run.mechanism, folder })));
+
+export const runReachedCheck = async (request: CheckRequest): Promise<Result<ReachedCheck, LoadFailure>> => {
   const inputs = await loadInputs({
     ...request,
     exceptionBaselineOf: ({ entries }) => exceptionBaselineOf({ check: request, entries }),
@@ -515,12 +524,18 @@ export const runCheck = async (request: CheckRequest): Promise<Result<CheckRepor
   }
   return {
     outcome: "ok",
-    value: checkReportOf({
-      check: request,
-      assessment: request.assessment,
-      inputs: inputs.value,
-      runs: runs.value,
-      touched: touchedSetFor({ check: request, records: inputs.value.records }),
-    }),
+    value: {
+      report: checkReportOf({
+        check: request,
+        assessment: request.assessment,
+        inputs: inputs.value,
+        runs: runs.value,
+        touched: touchedSetFor({ check: request, records: inputs.value.records }),
+      }),
+      unprojected: unprojectedOf({ runs: runs.value }),
+    },
   };
 };
+
+export const runCheck = (request: CheckRequest): Promise<Result<CheckReport, LoadFailure>> =>
+  runReachedCheck(request).then((reached) => (reached.outcome === "failed" ? reached : { outcome: "ok", value: reached.value.report }));

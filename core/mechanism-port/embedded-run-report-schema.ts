@@ -80,10 +80,14 @@ export const embeddedRunReportSchema = z
     nativeExceptions: z.array(nativeExceptionSchema).readonly(),
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
     slices: z.array(sliceProblemSchema).readonly().default([]),
+    unprojectedFolders: z.array(repoPathSchema).readonly().default([]),
   })
   .readonly();
 
 export type EmbeddedRunReport = z.infer<typeof embeddedRunReportSchema>;
+
+export type ReturnedEmbeddedRunReport = Omit<EmbeddedRunReport, "unprojectedFolders"> &
+  Partial<Pick<EmbeddedRunReport, "unprojectedFolders">>;
 
 export const isInlineReachEqual: Equal<z.infer<typeof inlineDisableSchema>["reach"], InlineReach> = true;
 

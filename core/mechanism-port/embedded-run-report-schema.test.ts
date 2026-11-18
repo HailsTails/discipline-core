@@ -46,22 +46,22 @@ const EVERY_NATIVE_KIND = [
 
 describe("embeddedRunReportSchema", () => {
   it("accepts a report holding a hit, one native exception of every kind and a not-included projection", () => {
-    const report = { hits: [HIT_IN_A], nativeExceptions: EVERY_NATIVE_KIND, projection: "not-included", slices: [] };
+    const report = { hits: [HIT_IN_A], nativeExceptions: EVERY_NATIVE_KIND, projection: "not-included", slices: [], unprojectedFolders: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts a current projection with no hits and no native exceptions", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [] };
+    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts an out-of-date projection", () => {
-    const report = { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [] };
+    const report = { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [], unprojectedFolders: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts a missing projection", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "missing", slices: [] };
+    const report = { hits: [], nativeExceptions: [], projection: "missing", slices: [], unprojectedFolders: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
@@ -76,13 +76,24 @@ describe("embeddedRunReportSchema", () => {
         { slice: "packages/c/disciplines.eslint.mjs", state: "not-applied" },
       ],
     };
+    expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: { ...report, unprojectedFolders: [] } });
+  });
+
+  it("reads the folders a runner names as ones whose files load a config the projection does not reach", () => {
+    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: ["fixtures/linted"] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
+  });
+
+  it("refuses an unprojected folder that is not a repo path", () => {
+    expect(
+      embeddedRunReportSchema.safeParse({ hits: [], nativeExceptions: [], projection: "current", unprojectedFolders: ["/repo/fixtures"] }),
+    ).toMatchObject({ success: false, error: { issues: [{ path: expect.arrayContaining(["unprojectedFolders", 0]) }] } });
   });
 
   it("reads a report from a runner that names no slices as having no slice problems", () => {
     expect(embeddedRunReportSchema.safeParse({ hits: [], nativeExceptions: [], projection: "current" })).toEqual({
       success: true,
-      data: { hits: [], nativeExceptions: [], projection: "current", slices: [] },
+      data: { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [] },
     });
   });
 
@@ -169,6 +180,7 @@ describe("embeddedRunReportSchema", () => {
       ],
       projection: "current",
       slices: [],
+      unprojectedFolders: [],
     };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });

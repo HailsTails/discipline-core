@@ -83,6 +83,7 @@ describe("runMechanism with a standalone runner", () => {
         coverableKinds: ["inline-disable"],
         projection: "none",
         slices: [],
+        unprojectedFolders: [],
       },
     });
   });
@@ -92,7 +93,7 @@ describe("runMechanism with a standalone runner", () => {
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [] },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [] },
     });
   });
 
@@ -140,7 +141,7 @@ describe("runMechanism with a standalone runner", () => {
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [EXPECTATION_IN_A] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [EXPECTATION_IN_A], coverableKinds: ["inline-disable"], projection: "none", slices: [] },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [EXPECTATION_IN_A], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [] },
     });
   });
 
@@ -313,6 +314,7 @@ describe("runMechanism with an embedded runner", () => {
         coverableKinds: ["config-override"],
         projection: "current",
         slices: [],
+        unprojectedFolders: [],
       },
     });
   });
@@ -324,7 +326,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "not-included", slices: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "not-included", slices: [], unprojectedFolders: [] },
     });
   });
 
@@ -335,7 +337,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "missing", slices: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "missing", slices: [], unprojectedFolders: [] },
     });
   });
 
@@ -353,6 +355,7 @@ describe("runMechanism with an embedded runner", () => {
         coverableKinds: ["config-override"],
         projection: "out-of-date",
         slices: [],
+        unprojectedFolders: [],
       },
     });
   });
@@ -541,6 +544,7 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         coverableKinds: ["config-override"],
         projection: "current",
         slices: [],
+        unprojectedFolders: [],
       },
     });
   });

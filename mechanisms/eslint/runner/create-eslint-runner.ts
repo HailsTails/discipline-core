@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
-import type { EmbeddedRunReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
+import type { ReturnedEmbeddedRunReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner, EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
@@ -54,6 +54,7 @@ import {
   governingPackageOf,
   packageFoldersOf,
   nestedConfigurationFoldersOf,
+  unprojectedFoldersOf,
   slicePathOf,
 } from "./projection-slices.ts";
 import {
@@ -1097,9 +1098,9 @@ const trackedExceptions = (request: {
   ]).then((outcomes) => gatheredOutcomes({ outcomes }));
 
 const reportWith = (request: {
-  readonly projection: EmbeddedRunReport["projection"];
+  readonly projection: ReturnedEmbeddedRunReport["projection"];
   readonly slices: readonly SliceProblem[];
-}): Outcome<EmbeddedRunReport> => ({
+}): Outcome<ReturnedEmbeddedRunReport> => ({
   outcome: "ok",
   value: { hits: [], nativeExceptions: [], projection: request.projection, slices: request.slices },
 });
@@ -1156,7 +1157,7 @@ const governedReport = (request: {
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
   readonly lintedFiles: readonly LintedFile[];
-}): Promise<Outcome<EmbeddedRunReport>> => {
+}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
       lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
@@ -1205,7 +1206,7 @@ const lintedReport = (request: {
   readonly ports: EslintRunnerPorts;
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
-}): Promise<Outcome<EmbeddedRunReport>> =>
+}): Promise<Outcome<ReturnedEmbeddedRunReport>> =>
   governedLint({ run: request.run, selected: request.selected, eslint: request.ports.eslint }).then(
     (lintedFiles) =>
       lintedFiles.outcome === "failed" ? lintedFiles : governedReport({ ...request, lintedFiles: lintedFiles.value }),
@@ -1279,7 +1280,7 @@ const queriedReport = (request: {
   readonly ports: EslintRunnerPorts;
   readonly query: QueryInstance;
   readonly queried: Outcome<QueriedFiles>;
-}): Promise<Outcome<EmbeddedRunReport>> => {
+}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   if (request.queried.outcome === "failed") {
     return Promise.resolve(request.queried);
   }
@@ -1310,7 +1311,7 @@ const governedRun = (request: {
   readonly roots: readonly ConfigRoot[];
   readonly lookup: ConfigLookup;
   readonly ports: EslintRunnerPorts;
-}): Promise<Outcome<EmbeddedRunReport>> => {
+}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const lookup = request.lookup;
   const query = request.ports.eslint.createQueryInstance(
     lookup.kind === "repository-root"
@@ -1363,7 +1364,7 @@ const selectedRun = (request: {
   readonly selected: readonly SelectedClause[];
   readonly origin: ImportOrigin;
   readonly ports: EslintRunnerPorts;
-}): Promise<Outcome<EmbeddedRunReport>> => {
+}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const current = currentProjection({
     fileText: request.ports.fileText,
     path: request.ports.path,
@@ -1400,20 +1401,23 @@ const selectedRun = (request: {
     roots,
     fileText: request.ports.fileText,
   });
-  return status.outcome === "failed"
-    ? Promise.resolve(status)
-    : governedRun({
-        ...request,
-        status: {
-          ...status.value,
-          slices: [
-            ...status.value.slices,
-            ...unconfiguredSlicesOf({ ports: request.ports, run: request.run, roots }),
-          ],
-        },
-        roots,
-        lookup: lookup.value,
-      });
+  if (status.outcome === "failed") {
+    return Promise.resolve(status);
+  }
+  const unprojectedFolders = unprojectedFoldersOf({
+    trackedPaths: request.run.trackedPaths,
+    files: request.run.files,
+    lookup: lookup.value.kind,
+  });
+  return governedRun({
+    ...request,
+    status: {
+      ...status.value,
+      slices: [...status.value.slices, ...unconfiguredSlicesOf({ ports: request.ports, run: request.run, roots })],
+    },
+    roots,
+    lookup: lookup.value,
+  }).then((report) => (report.outcome === "failed" ? report : { outcome: "ok", value: { ...report.value, unprojectedFolders } }));
 };
 
 const lintedSourceCases = (request: {

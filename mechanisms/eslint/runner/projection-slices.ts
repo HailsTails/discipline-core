@@ -123,6 +123,21 @@ export const nestedConfigurationFoldersOf = (request: {
     .sort(codeUnitOrder)
     .map((folder) => repoPathSchema.parse(folder));
 
+export const unprojectedFoldersOf = (request: {
+  readonly trackedPaths: readonly RepoPath[];
+  readonly files: readonly RepoPath[];
+  readonly lookup: EslintConfigLookup;
+}): readonly RepoPath[] => {
+  const nested = nestedRepositories(request);
+  const ownConfigured = configuredDirectories({ ...request, declared: [] }).filter(
+    (directory) => directory !== "" && insideNestedRepository({ directory, nested }) === "nested",
+  );
+  return outermostOf({ nested: ownConfigured })
+    .filter((folder) => holdingOf({ paths: request.files, folder }) === "holds")
+    .sort(codeUnitOrder)
+    .map((folder) => repoPathSchema.parse(folder));
+};
+
 export const orphanedSliceDirectoriesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly roots: readonly ConfigRoot[];

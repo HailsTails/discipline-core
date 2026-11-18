@@ -111,7 +111,8 @@ It never writes anything wider than one clause in one file: no `authorised-locat
 - a pair that already has an `authorised-location` or `file-carve-out`, such as one the check forfeits (`already-recorded`);
 - a file under a `--leave` path (`left`). `--leave` takes an exact file or folder, as `exclude` does, and may be given once for each path. It names the deliberate, permanent exceptions, which a person records as an `authorised-location` with its own reason;
 - a file the base revision does not hold, since nothing in it was inherited (`new-file`);
-- a clause whose discipline refuses exceptions (`refused`).
+- a clause whose discipline refuses exceptions (`refused`);
+- a file that loads its own ESLint config inside a folder holding its own `disciplines.json` (`nested-configuration`). The projection never reaches that config, so the record could not take effect and the next check would fail on it. Nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)).
 
 Other native exceptions under `unrecorded`, such as a `config-override` or a lint-script option, are not recorded: [ADOPTING.md](ADOPTING.md#6-read-the-report) step 6 says what to do with each.
 
