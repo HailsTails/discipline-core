@@ -85,21 +85,21 @@ const modifierRule = (request: {
   readonly message: string;
 }): Rule.RuleModule =>
   siteRule({
-  meta: {
-    type: "problem",
-    docs: { description: request.description },
-    schema: [],
-    messages: { modifiedTest: request.message },
-  },
-  observe: (context) => ({
-    calls: (node) => {
-      const loc = modifiedLink({ callee: node.callee, modifier: request.modifier })?.node.loc;
-      if (loc === undefined || loc === null) {
-        return;
-      }
-      context.report({ loc, messageId: "modifiedTest" });
+    meta: {
+      type: "problem",
+      docs: { description: request.description },
+      schema: [],
+      messages: { modifiedTest: request.message },
     },
-  }),
+    observe: (context) => ({
+      calls: (node) => {
+        const loc = modifiedLink({ callee: node.callee, modifier: request.modifier })?.node.loc;
+        if (loc === undefined || loc === null) {
+          return;
+        }
+        context.report({ loc, messageId: "modifiedTest" });
+      },
+    }),
   });
 
 export default {

@@ -26,8 +26,10 @@ The config roots are the repository root, every folder holding a tracked `eslint
 - `rule-sites.ts` is the one boundary between Hone's pieces and ESLint's rule contract.
   - `siteRule` builds a rule from its `meta` and an `observe` function. `observe` names the sites the rule looks at: `file`, `functions`, `classes`, `calls`, `throws`, `ifs` and `variableDeclarations`.
   - The module maps each site onto the ESLint listener keys it stands for, such as `FunctionDeclaration`, `FunctionExpression` and `ArrowFunctionExpression` for `functions`, in one literal `Rule.RuleListener`, so ESLint's own types check each handler.
-  - `functionDisposition` tells whether a node is one of the function types `functions` covers.
-  - A change to ESLint's listener names, or a new node type for an existing site, is made here alone.
+  - `functionSiteOf` narrows a node to a `FunctionSite`, or gives `undefined`, for the function types `functions` covers.
+  - Its reason to change is ESLint's rule-registration contract: how a rule names the nodes it listens to. On `main` that contract was written in seven plugin files; here it is written once.
+  - Four of the seven sites, `calls`, `throws`, `ifs` and `variableDeclarations`, are one node type each. They earn their place only as the price of that single registration point.
+  - A new node type for `functions` is added here alone, since every plugin reaches the function types through `FunctionSite` and `functionSiteOf`. A new node type for `classes` is added here and in the class-authoring plugin, which tells a declaration from an expression with a `switch` over `ClassSite` that the compiler holds exhaustive.
 - `projection.ts` renders a projection's text, and writes and compares one projection file.
 - `projection-slices.ts` finds the config roots for a lookup, names each root's slice, picks and re-paths each slice's records, finds the package root governing a file, and finds tracked slices outside every root.
 - `sliced-projection.ts` renders each root's slice, reports stale package slices, and plans then writes, removes or leaves slices for `project`.

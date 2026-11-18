@@ -1,5 +1,5 @@
 import type { AST, Rule, SourceCode } from "../../runner/eslint-instance.ts";
-import { functionDisposition, siteRule } from "../../runner/rule-sites.ts";
+import { functionSiteOf, siteRule } from "../../runner/rule-sites.ts";
 
 type FunctionScore = { readonly node: Rule.Node; readonly score: number };
 
@@ -172,7 +172,7 @@ const walkedTry = (request: Walk): WalkedScore => {
 
 const walked = (request: Walk): WalkedScore => {
   const node = request.node;
-  if (functionDisposition({ node }) === "function") {
+  if (functionSiteOf({ node }) !== undefined) {
     const nested = scoredFunction({ node, nesting: request.nesting + 1, sourceCode: request.sourceCode });
     return { own: 0, nested: [{ node, score: nested.own }, ...nested.nested] };
   }
@@ -232,6 +232,14 @@ const functionLineCount = (request: { readonly body: Rule.Node; readonly sourceC
       return lines + (request.sourceCode.text.slice(triviaStart, token.range[0]).match(LINE_BREAK)?.length ?? 0);
     }, 0);
 
+const enclosure = (request: { readonly node: Rule.Node }): "enclosed" | "outermost" => {
+  const parent = request.node.parent;
+  if (parent === null) {
+    return "outermost";
+  }
+  return functionSiteOf({ node: parent }) === undefined ? enclosure({ node: parent }) : "enclosed";
+};
+
 const cognitiveComplexity = siteRule({
   meta: {
     type: "suggestion",
@@ -255,7 +263,7 @@ const cognitiveComplexity = siteRule({
       });
     };
     const scoreOutermost = (node: Rule.Node): void => {
-      if (context.sourceCode.getAncestors(node).some((ancestor) => functionDisposition({ node: ancestor }) === "function")) {
+      if (enclosure({ node }) === "enclosed") {
         return;
       }
       const scored = scoredFunction({ node, nesting: 0, sourceCode: context.sourceCode });

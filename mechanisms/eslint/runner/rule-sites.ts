@@ -36,12 +36,6 @@ export type SiteRuleDefinition = {
   readonly observe: (context: Rule.RuleContext) => SiteObservers;
 };
 
-const FUNCTION_SITE_TYPES: ReadonlySet<string> = new Set<FunctionSite["type"]>([
-  "FunctionDeclaration",
-  "FunctionExpression",
-  "ArrowFunctionExpression",
-]);
-
 const everyListener = (observers: SiteObservers): Rule.RuleListener => ({
   Program: observers.file,
   FunctionDeclaration: observers.functions,
@@ -58,8 +52,12 @@ const everyListener = (observers: SiteObservers): Rule.RuleListener => ({
 const listenerOf = (observers: SiteObservers): Rule.RuleListener =>
   Object.fromEntries(Object.entries(everyListener(observers)).filter(([, listen]) => listen !== undefined));
 
-export const functionDisposition = (request: { readonly node: { readonly type: string } }): "function" | "not-function" =>
-  FUNCTION_SITE_TYPES.has(request.node.type) ? "function" : "not-function";
+export const functionSiteOf = (request: { readonly node: Rule.Node }): FunctionSite | undefined => {
+  const node = request.node;
+  return node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression"
+    ? node
+    : undefined;
+};
 
 export const siteRule = (definition: SiteRuleDefinition): Rule.RuleModule => ({
   meta: definition.meta,

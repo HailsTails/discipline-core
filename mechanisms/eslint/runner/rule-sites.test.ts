@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultEslintPort } from "../../../tests/eslint-toolchains.ts";
 import type { Rule } from "./eslint-instance.ts";
 import { eslintPluginModuleSchema } from "./eslint-plugin-schema.ts";
-import { functionDisposition, type RuleMeta, type SiteObservers, siteRule } from "./rule-sites.ts";
+import { type FunctionSite, functionSiteOf, type RuleMeta, type SiteObservers, siteRule } from "./rule-sites.ts";
 
 const RUNNER_ROOT = absolutePathSchema.parse(import.meta.dirname);
 
@@ -67,14 +67,47 @@ describe("siteRule through the ESLint runner's lintSourceCases", () => {
   });
 });
 
-describe("functionDisposition", () => {
-  it.each([
-    { type: "FunctionDeclaration", disposition: "function" },
-    { type: "FunctionExpression", disposition: "function" },
-    { type: "ArrowFunctionExpression", disposition: "function" },
-    { type: "ClassDeclaration", disposition: "not-function" },
-    { type: "CallExpression", disposition: "not-function" },
-  ])("reads a $type node as $disposition", ({ type, disposition }) => {
-    expect(functionDisposition({ node: { type } })).toBe(disposition);
+const CALLS_SOURCE =
+  "const arrow = () => run();\nconst expressed = function () {\n  return run();\n};\nconst value = run();\nvoid [1].map(() => run());\n";
+
+const lintObserved = (request: { readonly observers: SiteObservers; readonly source: string }) =>
+  defaultEslintPort.lintSourceCases({
+    cwd: RUNNER_ROOT,
+    plugin: eslintPluginModuleSchema.parse({
+      default: { rules: { observed: siteRule({ meta: SITE_META, observe: () => request.observers }) } },
+    }).default,
+    pluginNamespace: "sites",
+    rule: "observed",
+    options: [],
+    cases: [{ name: "observed", fileName: repoPathSchema.parse("observed.ts"), source: request.source, expectedLines: [] }],
+  });
+
+describe("functionSiteOf", () => {
+  it("narrows each kind of function site to that same node", async () => {
+    const seen = vi.fn<(site: FunctionSite | undefined) => void>();
+    await lintObserved({ observers: { functions: (site) => seen(functionSiteOf({ node: site })) }, source: MIXED_SOURCE });
+    expect(seen).toHaveBeenCalledTimes(3);
+    expect(seen).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: "FunctionDeclaration" }));
+    expect(seen).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: "FunctionExpression" }));
+    expect(seen).toHaveBeenNthCalledWith(3, expect.objectContaining({ type: "ArrowFunctionExpression" }));
+  });
+
+  it("finds a function only where a call's parent is one", async () => {
+    const seen = vi.fn<(site: FunctionSite | undefined) => void>();
+    await lintObserved({ observers: { calls: (site) => seen(functionSiteOf({ node: site.parent })) }, source: CALLS_SOURCE });
+    expect(seen).toHaveBeenCalledTimes(5);
+    expect(seen).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: "ArrowFunctionExpression", body: expect.objectContaining({ type: "CallExpression" }) }));
+    expect(seen).toHaveBeenNthCalledWith(2, undefined);
+    expect(seen).toHaveBeenNthCalledWith(3, undefined);
+    expect(seen).toHaveBeenNthCalledWith(4, undefined);
+    expect(seen).toHaveBeenNthCalledWith(5, expect.objectContaining({ type: "ArrowFunctionExpression" }));
+  });
+
+  it("reads a class site as no function", async () => {
+    const seen = vi.fn<(site: FunctionSite | undefined) => void>();
+    await lintObserved({ observers: { classes: (site) => seen(functionSiteOf({ node: site })) }, source: MIXED_SOURCE });
+    expect(seen).toHaveBeenCalledTimes(2);
+    expect(seen).toHaveBeenNthCalledWith(1, undefined);
+    expect(seen).toHaveBeenNthCalledWith(2, undefined);
   });
 });

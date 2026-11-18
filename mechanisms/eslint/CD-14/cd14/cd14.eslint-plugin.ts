@@ -1,6 +1,6 @@
 import type { ESLint, Rule } from "eslint";
 import { defaultNativeRuleSources, type NativeRuleSources, typescriptEslintRules } from "../../runner/native-rules.ts";
-import { siteRule } from "../../runner/rule-sites.ts";
+import { type ClassSite, siteRule } from "../../runner/rule-sites.ts";
 
 export type ClassSyntax = {
 	readonly filename: string;
@@ -72,6 +72,14 @@ const reportAtClassKeyword = ({
 	}
 	context.report({ loc: keyword.loc, messageId: "noClass" });
 };
+const classKindOf = ({ node }: { readonly node: ClassSite }): ClassSyntax["kind"] => {
+	switch (node.type) {
+		case "ClassDeclaration":
+			return "declaration";
+		case "ClassExpression":
+			return "expression";
+	}
+};
 const noClassAuthoring = siteRule({
 	meta: {
 		type: "problem",
@@ -100,8 +108,7 @@ const noClassAuthoring = siteRule({
 			reportAtClassKeyword({ context, node });
 		};
 		return {
-			classes: (node) =>
-				reportClass({ node, kind: node.type === "ClassDeclaration" ? "declaration" : "expression" }),
+			classes: (node) => reportClass({ node, kind: classKindOf({ node }) }),
 		};
 	},
 });

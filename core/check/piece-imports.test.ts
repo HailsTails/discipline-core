@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { requiredEntry } from "../../tests/required-entry.ts";
+import { requiredEntry, requiredSegmentsEntry } from "../../tests/required-entry.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { pieceImportFindings } from "./piece-import-rules.ts";
 
@@ -227,7 +227,7 @@ const REPOSITORY_DIRECTORIES: Readonly<Record<string, string>> = {
 const TABLE_PATH: PathPort = {
   join: vi.fn<PathPort["join"]>(),
   relative: vi.fn<PathPort["relative"]>(),
-  joinRepository: ({ segments }) => requiredEntry({ table: JOINED_REPOSITORY_PATHS, key: JSON.stringify(segments) }),
+  joinRepository: ({ segments }) => requiredSegmentsEntry({ table: JOINED_REPOSITORY_PATHS, segments }),
   directoryOf: vi.fn<PathPort["directoryOf"]>(),
   repositoryDirectoryOf: ({ path }) => requiredEntry({ table: REPOSITORY_DIRECTORIES, key: path }),
   resolve: vi.fn<PathPort["resolve"]>(),
