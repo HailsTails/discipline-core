@@ -185,6 +185,7 @@ const CLEAN_REPORT = {
   excluded: [],
   notAdopted: [],
   notRun: [],
+  editions: [],
   findings: [],
   exempted: [],
   uncovered: [],

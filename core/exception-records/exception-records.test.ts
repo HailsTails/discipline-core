@@ -32,6 +32,7 @@ const SELECTION: Selection = {
   uncovered: [],
   notAdopted: [],
   notRun: [],
+  editions: [],
 };
 
 const [FIRST_WHY, SECOND_WHY] = CAUSAL_WHY_CHAIN.whys;
@@ -550,7 +551,7 @@ describe("non-exemptibility at the canonical boundary, for a clause whose discip
   ])("refuses an adopted any clause for $kind", (entry) => {
     expect(readCanonicalExceptions({
       text: JSON.stringify({ version: 1, exceptions: [entry] }),
-      selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [] },
+      selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [], editions: [] },
     })).toEqual({ outcome: "ok", value: { records: [], invalid: [
       { index: 0, problem: { kind: "non-exemptible-clause", clause: { ruleSet: "hone", discipline: "CD-1", clause: "any-cast" } } },
     ] } });
@@ -717,7 +718,7 @@ describe("parseExceptionEntries imported records against the base revision", () 
     expect(
       parseExceptionEntries({
         entries: [{ ...IMPORTED_CARVE_OUT, clause: "CD-1#any-cast" }],
-        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [] },
+        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [], editions: [] },
         fileExceptionWhyChains: "required",
         baseline: baselineHolding({ entriesAtBase: [IMPORTED_CARVE_OUT], sourceTextsAtBase: new Map() }),
       }),
@@ -847,7 +848,7 @@ describe("parseExceptionEntries when file exception why-chains are optional", ()
     expect(
       parseExceptionEntries({
         entries: [{ ...REASONED_CARVE_OUT, clause: "CD-1#any-cast" }],
-        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [] },
+        selection: { selected: [{ address: clauseAddressSchema.parse("CD-1#any-cast"), mechanism: mechanismIdSchema.parse("audit"), exceptions: "refused" }], uncovered: [], notAdopted: [], notRun: [], editions: [] },
         fileExceptionWhyChains: "optional",
         baseline: UNMEASURED_EXCEPTION_BASELINE,
       }).invalid,

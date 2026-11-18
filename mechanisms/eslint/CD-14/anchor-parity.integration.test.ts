@@ -13,6 +13,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import { defaultEslintPort } from "../../../tests/eslint-toolchains.ts";
 import { eslintPluginModuleSchema } from "../runner/eslint-plugin-schema.ts";
 import classAuthoringPlugin from "./cd14/cd14.eslint-plugin.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const PIECE_ROOT = absolutePathSchema.parse(import.meta.dirname);
 
@@ -57,6 +58,7 @@ const WALKER_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "class-syntax.ts" },
 };
 

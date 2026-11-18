@@ -109,6 +109,8 @@ const JOINED_REPOSITORY_PATHS: Readonly<Record<string, string>> = {
   '[".","rules","CD-27"]': "rules/CD-27",
   '["./mechanisms/audit/CD-27","../runner/walker-piece.ts"]': "mechanisms/audit/runner/walker-piece.ts",
   '["./mechanisms/audit/CD-27","../runner/source-scope.ts"]': "mechanisms/audit/runner/source-scope.ts",
+  '["./mechanisms/audit/CD-27","../runner/typescript-parse.ts"]': "mechanisms/audit/runner/typescript-parse.ts",
+  '["./mechanisms/audit/CD-27","../../../core/values/edition.ts"]': "core/values/edition.ts",
   '[".","mechanisms","audit","CD-47"]': "mechanisms/audit/CD-47",
   '[".","rules","CD-47"]': "rules/CD-47",
   '["./mechanisms/audit/CD-47","../runner/walker-piece.ts"]': "mechanisms/audit/runner/walker-piece.ts",

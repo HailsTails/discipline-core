@@ -5,7 +5,8 @@
   "clauses": [
     {
       "clause": "scratch-files",
-      "settings": { "module": "scratch-files.ts" }
+      "settings": { "module": "scratch-files.ts" },
+      "editions": ["1", "2"]
     }
   ]
 }

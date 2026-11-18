@@ -11,6 +11,7 @@ import { createWalkerRunner } from "../runner/create-walker-runner.ts";
 import { walkerPieceSettingsSchema } from "../runner/walker-check-schema.ts";
 import { check } from "./cast-expressions.ts";
 import piece from "./piece.json" with { type: "json" };
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const EXPECTATION = "@ts-expect-" + "error";
 const IGNORE = "@ts-" + "ignore";
@@ -25,6 +26,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-2",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: SETTINGS,
 };
 

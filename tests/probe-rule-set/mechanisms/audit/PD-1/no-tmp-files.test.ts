@@ -4,6 +4,7 @@ import { clauseAddressSchema } from "../../../../../core/values/clause-address.t
 import { repoPathSchema } from "../../../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../../typescript-parse-port.ts";
 import { check } from "./no-tmp-files.ts";
+import { FIRST_EDITION } from "../../../../../core/values/edition.ts";
 
 const ADDRESS = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
 const CLAUSE: RunnerClause = {
@@ -11,6 +12,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/probe/mechanisms/audit/PD-1",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "no-tmp-files.ts" },
 };
 

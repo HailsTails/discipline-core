@@ -27,6 +27,7 @@ import type {
   LintedMessage,
   QueryInstance,
 } from "./eslint-instance.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 type FakeFile = {
   readonly read: Result<string, { readonly kind: "unreadable"; readonly path: string; readonly detail: string }>;
@@ -70,6 +71,7 @@ const CLASS_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: CLASS_SETTINGS,
 };
 
@@ -78,6 +80,7 @@ const LOOPS_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "for" },
   pieceRoot: LOOPS_PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { pluginNamespace: "loops", pluginModule: "loops/loops.eslint-plugin.ts", rule: "no-for-of" },
 };
 
@@ -394,6 +397,7 @@ const SHARED_MODULE_FOR_OF_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "for" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { ...CLASS_SETTINGS, rule: "no-for-of" },
 };
 

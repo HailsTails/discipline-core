@@ -7,6 +7,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { projectMechanism, runMechanism } from "./mechanism-dispatch.ts";
+import { FIRST_EDITION } from "../values/edition.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
 const REPO_ROOT = absolutePathSchema.parse("/repo");
@@ -20,6 +21,7 @@ const CLASS_SYNTAX_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "class-syntax.ts" },
 };
 

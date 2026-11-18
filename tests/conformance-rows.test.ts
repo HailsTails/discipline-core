@@ -30,6 +30,32 @@ const TABLE = {
   "./mechanisms/audit/XX-2/piece.json": "{}",
 };
 
+const EDITIONED_TABLE = {
+  "./rules/XX-1/discipline.json": JSON.stringify({
+    version: 1,
+    id: "XX-1",
+    clauses: [
+      {
+        kind: "mechanical",
+        id: "first-check",
+        summary: "first",
+        mechanisms: ["audit"],
+        anchor: { kind: "file" },
+        cases: {
+          flag: [{ name: "flagged", fileName: "a.ts", source: "x\n", expectedLines: [1], edition: "2" }],
+          allow: [{ name: "allowed", fileName: "b.ts", source: "y\n", expectedLines: [] }],
+        },
+      },
+    ],
+  }),
+  "./mechanisms/audit/XX-1/piece.json": JSON.stringify({
+    version: 1,
+    discipline: "XX-1",
+    mechanism: "audit",
+    clauses: [{ clause: "first-check", settings: { module: "first.ts" }, editions: ["1", "2"] }],
+  }),
+};
+
 describe("foldersUnder", () => {
   it("lists each folder holding a key under the prefix once, in order", () => {
     expect(foldersUnder({ table: TABLE, prefix: "./mechanisms/audit/" })).toEqual(["XX-1", "XX-2"]);
@@ -54,12 +80,22 @@ describe("conformanceRows", () => {
           pieceRoot: "/install/mechanisms/audit/XX-1",
           settings: { module: "first.ts" },
           clauseSettings: {},
+          edition: "1",
         },
         cases: [
           { name: "flagged", fileName: "a.ts", source: "x\n", expectedLines: [1] },
           { name: "allowed", fileName: "b.ts", source: "y\n", expectedLines: [] },
         ],
       },
+    ]);
+  });
+
+  it("builds one row per edition its cases run under, naming each later edition", () => {
+    expect(
+      conformanceRows({ table: EDITIONED_TABLE, disciplines: ["XX-1"], mechanism: mechanismIdSchema.parse("audit"), mechanismRoot: "/install/mechanisms/audit" }),
+    ).toMatchObject([
+      { name: "XX-1#first-check", clause: { edition: "1" }, cases: [{ name: "allowed" }] },
+      { name: "XX-1#first-check edition 2", clause: { edition: "2" }, cases: [{ name: "flagged", edition: "2" }] },
     ]);
   });
 });

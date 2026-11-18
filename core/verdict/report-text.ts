@@ -303,6 +303,10 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   notAdopted: (request) => request.report.notAdopted.map((address) => clauseAddressText({ address })),
   notRun: (request) =>
     request.report.notRun.map((address) => `${clauseAddressText({ address })} adopted, mechanism not run: enforced by review`),
+  editions: (request) =>
+    request.report.editions.map(
+      (reading) => `${clauseAddressText({ address: reading.address })} ${reading.mechanism} edition ${reading.edition} of ${reading.latest}`,
+    ),
   findings: (request) => request.report.findings.map((finding) => findingLine({ finding })),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),

@@ -7,6 +7,7 @@ import type { SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./throws-in-tests.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-10#throws-in-tests");
 const SYNTAX_API = defaultParsePort.syntaxApi;
@@ -15,6 +16,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-10",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "throws-in-tests.ts" },
 };
 

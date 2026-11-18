@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { ClauseSettingValues, RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { stringListClauseSettings } from "./piece-clause-settings.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const CLAUSE_WITH_NO_SETTINGS: RunnerClause = {
   address: clauseAddressSchema.parse("CD-19#import-boundaries"),
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-19",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "a.ts" },
 };
 

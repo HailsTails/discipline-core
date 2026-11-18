@@ -13,6 +13,7 @@ import { requiredEntry } from "../../../tests/required-entry.ts";
 import { createWalkerRunner } from "../runner/create-walker-runner.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import { check } from "./class-syntax.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const CLASS_ON_LINE_THREE = "const a = 1;\n\n  class Alpha {}\n";
 const ADDRESS = clauseAddressSchema.parse("CD-14#class-syntax");
@@ -50,6 +51,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "class-syntax.ts" },
 };
 

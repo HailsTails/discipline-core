@@ -11,6 +11,7 @@ import type {
 import type { FilePresence } from "../platform-ports/file-text-port.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
+import type { ClauseEditionReading } from "../values/edition.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 
@@ -67,6 +68,7 @@ export type CheckReport = {
   readonly excluded: readonly RepoPath[];
   readonly notAdopted: readonly ClauseAddress[];
   readonly notRun: readonly ClauseAddress[];
+  readonly editions: readonly ClauseEditionReading[];
   readonly findings: readonly Finding[];
   readonly exempted: readonly ExemptedFinding[];
   readonly uncovered: readonly ClauseAddress[];

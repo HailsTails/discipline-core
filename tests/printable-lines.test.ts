@@ -34,6 +34,7 @@ describe("PRINTED_SECTION_ROLES", () => {
       { section: "excluded", role: "informational" },
       { section: "notAdopted", role: "informational" },
       { section: "notRun", role: "informational" },
+      { section: "editions", role: "informational" },
       { section: "findings", role: "failing" },
       { section: "exempted", role: "informational" },
       { section: "uncovered", role: "failing" },

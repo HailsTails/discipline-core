@@ -16,6 +16,7 @@ const REPORT: CheckReport = {
   excluded: [repoPathSchema.parse("generated")],
   notAdopted: [],
   notRun: [],
+  editions: [],
   findings: [
     {
       clause: clauseAddressSchema.parse("CD-15#loops"),

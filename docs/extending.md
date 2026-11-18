@@ -185,7 +185,8 @@ In a monorepo each package's own config does the same, importing the projection 
   "clauses": [
     {
       "clause": "scratch-files",
-      "settings": { "module": "scratch-files.ts" }
+      "settings": { "module": "scratch-files.ts" },
+      "editions": ["1", "2"]
     }
   ]
 }
@@ -194,14 +195,21 @@ In a monorepo each package's own config does the same, importing the projection 
 `mechanisms/audit/ACME-2/scratch-files.ts`:
 
 ```ts
-import type { PieceHit, RunnerClause, WalkerPiece } from "@hailstails/hone/audit";
+import { editionReaches, isEdition, type PieceHit, type RunnerClause, type WalkerPiece } from "@hailstails/hone/audit";
 
 const SCRATCH_MARKER = ".scratch.";
+const DRAFT_MARKER = ".draft.";
+const DRAFT_EDITION = "2";
+
+const markersOf = (request: { readonly clause: RunnerClause }): readonly string[] =>
+  isEdition(DRAFT_EDITION) && editionReaches({ edition: request.clause.edition, introducedIn: DRAFT_EDITION }) === "reached"
+    ? [SCRATCH_MARKER, DRAFT_MARKER]
+    : [SCRATCH_MARKER];
 
 const scratchHits = (request: { readonly clauses: readonly RunnerClause[]; readonly file: string }): readonly PieceHit[] =>
-  request.file.includes(SCRATCH_MARKER)
-    ? request.clauses.map((clause) => ({ clause: clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }))
-    : [];
+  request.clauses
+    .filter((clause) => markersOf({ clause }).some((marker) => request.file.includes(marker)))
+    .map((clause) => ({ clause: clause.address, anchor: { line: 1, column: 0 }, snippet: request.file }));
 
 export const check: WalkerPiece = {
   prepare: ({ clauses }) => ({
@@ -243,6 +251,20 @@ A repository that selects the clause can then override it in `disciplines.json`,
 
 Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`, in place of the fixed `SCRATCH_MARKER`. The value is typed as any JSON value, so the piece narrows it, for example with `typeof marker === "string"`, and returns a `piece-invalid` failure when it is not what it accepts. Name the settings on the discipline's page under a Settings heading. This section is described, not run by the example: Hone's unit tests cover reading, refusing and overriding settings.
 
+### Editions of a check
+
+When a clause's check becomes stricter, ship the stricter check as a new edition instead of changing what the clause flags. A clause entry in `piece.json` lists its `editions` in ascending order: the first is the default, and the last is the latest. The example's piece lists `["1", "2"]`: edition 2 also flags files named with `.draft.`. An entry without `editions` has the single edition `"1"`. The setting key `edition` is reserved for the edition a repository pins, so a piece cannot declare it under `clauseSettings`.
+
+The piece reads the edition that runs from `clause.edition` on each `RunnerClause`. `@hailstails/hone/audit` exports two helpers. `isEdition` narrows a text such as `"2"` to an `Edition` without a cast. `editionReaches({ edition: clause.edition, introducedIn })` says whether the running edition covers something introduced in a given edition. The example piece uses both, and a piece's tests use `isEdition` the same way to build a `RunnerClause` for each edition.
+
+A case in `discipline.json` names the edition it runs under with `"edition": "2"`. A case without one runs under the piece's default edition. A case naming an edition the piece does not declare makes the rule set invalid. Conformance runs each edition's cases under that edition, and `clauseUnderTestOf` gives each case its `edition`. The example's `rules/ACME-2/discipline.json` flags `src/notes.draft.ts` under edition 2 and allows it under edition 1:
+
+```json
+{ "name": "draft file", "fileName": "src/notes.draft.ts", "source": "export const notes = 1;\n", "expectedLines": [1], "edition": "2" }
+```
+
+A repository that selects the clause runs edition 1 until it sets `"checkEditions": "latest"` or pins the clause with `"edition": "2"` in its `clauseSettings`. Its report lists the edition that ran under `editions`, such as `acme/ACME-2#scratch-files audit edition 1 of 2`.
+
 ## TypeScript pieces under Node
 
 Hone loads piece modules with Node, which strips the types from a `.ts` file as it loads it. Node 22.18 or later does this without flags.
@@ -268,7 +290,7 @@ Hone loads piece modules with Node, which strips the types from a `.ts` file as 
 
 ## Type-check the rule set
 
-`@hailstails/hone/rule-set` holds types only. `@hailstails/hone/audit` holds the walker piece types and one value, `folderScope`. Import types with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
+`@hailstails/hone/rule-set` holds types only. `@hailstails/hone/audit` holds the walker piece types and three values: `folderScope`, `isEdition` and `editionReaches`. Import types with `import type`. A `tsconfig` for the rule set that matches how Node runs it, `tools/disciplines/acme/tsconfig.pieces.json`:
 
 ```json
 {
@@ -318,7 +340,7 @@ const conformance = await clauseConformanceOf({ ruleSetRoot: "tools/disciplines/
 
 A relative `ruleSetRoot` is read from the working directory. `{ outcome: "ok", value: [] }` means the piece met every case. Each entry in a longer list names a case, the lines it expects and the lines the piece flagged. `{ outcome: "failed", error: { kind, detail } }` means the cases could not run, for example `rule-set-unloadable` for a clause the audit mechanism may not check.
 
-Checks of your own call the piece directly. `clauseUnderTestOf` returns the same bound clause and each case's `name`, `file` and `source`, ready for `check.prepare` and `prepareFile`; `repoPathOf` makes the `RepoPath` for any other file, such as one whose `readText` fails with `file-unreadable`. `folderScope` from `@hailstails/hone/audit` tells a piece whether a file sits in a generated folder. Hone does not run these tests; the team runs them with its own test runner.
+Checks of your own call the piece directly. `clauseUnderTestOf` returns the same bound clause and each case's `name`, `file`, `source` and `edition`, ready for `check.prepare` and `prepareFile`; `repoPathOf` makes the `RepoPath` for any other file, such as one whose `readText` fails with `file-unreadable`. `folderScope` from `@hailstails/hone/audit` tells a piece whether a file sits in a generated folder. Hone does not run these tests; the team runs them with its own test runner.
 
 ## Exceptions
 
@@ -340,9 +362,9 @@ Without that setting the entry also needs a `whyChain`, and without one it is re
 Two requirements are decided and not yet built. Each will make some rule sets that pass today fail:
 
 - **A rule page is required.** A selected team discipline without `rules/<ID>/README.md` will fail to load.
-- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder and `folderScope` from `@hailstails/hone/audit`. The rule is about a piece's run-time code: a piece's own tests may also import `@hailstails/hone/testing`.
+- **Pieces keep to import boundaries.** A team piece will be refused if it imports from anywhere but its own piece folder, its discipline's `rules/<ID>` folder, `@hailstails/hone/rule-set`, `@hailstails/hone/audit` and its mechanism's toolchain package (`eslint` or `typescript`), with values only from its own piece folder and `folderScope`, `isEdition` and `editionReaches` from `@hailstails/hone/audit`. The rule is about a piece's run-time code: a piece's own tests may also import `@hailstails/hone/testing`.
 
-To be ready now: write each discipline's `README.md`, and import nothing from Hone in a piece but types from `@hailstails/hone/rule-set` and `@hailstails/hone/audit` and `folderScope`.
+To be ready now: write each discipline's `README.md`, and import nothing from Hone in a piece but types from `@hailstails/hone/rule-set` and `@hailstails/hone/audit`, and `folderScope`, `isEdition` and `editionReaches`.
 
 | Part | Status |
 | --- | --- |

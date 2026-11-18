@@ -225,6 +225,7 @@ describe("createSelectionRepository", () => {
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
           notAdopted: [],
           notRun: [],
+          editions: [],
         },
         bindings: [
           {
@@ -235,6 +236,7 @@ describe("createSelectionRepository", () => {
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
           {
@@ -245,6 +247,7 @@ describe("createSelectionRepository", () => {
               pieceRoot: "/repo/team-rules/mechanisms/audit/TM-1",
               settings: { module: "no-tmp-files.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
         ],
@@ -590,6 +593,7 @@ describe("readSelection", () => {
           uncovered: [],
           notAdopted: [],
           notRun: [],
+          editions: [],
         },
         bindings: [
           {
@@ -600,6 +604,7 @@ describe("readSelection", () => {
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "class-syntax.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
           {
@@ -610,6 +615,7 @@ describe("readSelection", () => {
               pieceRoot: "/install/mechanisms/audit/CD-14",
               settings: { module: "abstract-syntax.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
         ],
@@ -641,6 +647,7 @@ describe("readSelection", () => {
           uncovered: [],
           notAdopted: [],
           notRun: [],
+          editions: [],
         },
         bindings: [
           {
@@ -651,6 +658,7 @@ describe("readSelection", () => {
               pieceRoot: "/repo/team-rules/mechanisms/audit/TM-1",
               settings: { module: "no-tmp-files.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
         ],
@@ -675,6 +683,7 @@ describe("readSelection", () => {
           uncovered: [{ ruleSet: "hone", discipline: "CD-14", clause: "abstract-syntax" }],
           notAdopted: [],
           notRun: [],
+          editions: [],
         },
         bindings: [expect.objectContaining({ mechanism: "audit" })],
         eslintConfigRoots: [],
@@ -806,6 +815,7 @@ describe("readSelection", () => {
               anchor: { kind: "keyword", keyword: "class" },
               settings: { module: "class-syntax.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
           {
@@ -816,6 +826,7 @@ describe("readSelection", () => {
               pieceRoot: "/repo/team-rules/mechanisms/audit/CD-14",
               settings: { module: "team-class-syntax.ts" },
               clauseSettings: {},
+              edition: "1",
             },
           },
         ],
@@ -1312,6 +1323,125 @@ describe("readSelection with clauseSettings", () => {
 
 });
 
+const CD_14_EDITIONED_PIECE = JSON.stringify({
+  version: 1,
+  discipline: "CD-14",
+  mechanism: "audit",
+  clauses: [
+    {
+      clause: "class-syntax",
+      settings: { module: "class-syntax.ts" },
+      clauseSettings: { style: { default: "plain", choices: ["plain", "strict"] } },
+      editions: ["1", "2"],
+    },
+    { clause: "abstract-syntax", settings: { module: "abstract-syntax.ts" } },
+  ],
+});
+
+const selectingEditioned = (selection: unknown) =>
+  select({
+    ...SETTABLE_INSTALL,
+    "/install/mechanisms/audit/CD-14/piece.json": presentFile({ text: CD_14_EDITIONED_PIECE }),
+    [SELECTION_PATH]: presentFile({ text: JSON.stringify(selection) }),
+  });
+
+type BoundEditions = {
+  readonly outcome: "ok";
+  readonly value: {
+    readonly selection: { readonly editions: readonly unknown[] };
+    readonly bindings: readonly unknown[];
+  };
+};
+
+const ranEditions = (request: { readonly classSyntax: string; readonly style: string }): BoundEditions => ({
+  outcome: "ok",
+  value: {
+    selection: {
+      editions: [
+        {
+          address: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
+          mechanism: "audit",
+          edition: request.classSyntax,
+          latest: "2",
+        },
+      ],
+    },
+    bindings: [
+      { clause: { clauseSettings: { style: request.style }, edition: request.classSyntax } },
+      { clause: { clauseSettings: {}, edition: "1" } },
+    ],
+  },
+});
+
+describe("readSelection settling each clause's edition", () => {
+  it("runs each clause's default edition and reads only clauses with more than one edition", () => {
+    expect(selectingEditioned({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES })).toMatchObject(
+      ranEditions({ classSyntax: "1", style: "plain" }),
+    );
+  });
+
+  it("runs the latest edition of every clause when checkEditions is latest", () => {
+    expect(selectingEditioned({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, checkEditions: "latest" })).toMatchObject(
+      ranEditions({ classSyntax: "2", style: "plain" }),
+    );
+  });
+
+  it("runs the edition a clause's settings give, keeping the piece's own settings apart", () => {
+    expect(
+      selectingEditioned({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#class-syntax": { edition: "2", style: "strict" } },
+      }),
+    ).toMatchObject(ranEditions({ classSyntax: "2", style: "strict" }));
+  });
+
+  it("holds a clause to the edition its settings give when checkEditions is latest", () => {
+    expect(
+      selectingEditioned({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        checkEditions: "latest",
+        clauseSettings: { "CD-14#class-syntax": { edition: "1" } },
+      }),
+    ).toMatchObject(ranEditions({ classSyntax: "1", style: "plain" }));
+  });
+
+});
+
+describe("readSelection holding a clause to its own edition", () => {
+  it("accepts an edition for a clause whose piece declares no other settings", () => {
+    expect(
+      selectingEditioned({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#abstract-syntax": { edition: "1" } },
+      }),
+    ).toMatchObject(ranEditions({ classSyntax: "1", style: "plain" }));
+  });
+
+  it("is file-malformed for an edition the piece does not declare, naming those it does", () => {
+    expect(
+      selectingEditioned({
+        version: 1,
+        ruleSets: {},
+        clauses: BOTH_CD_14_CLAUSES,
+        clauseSettings: { "CD-14#class-syntax": { edition: "3" } },
+      }),
+    ).toEqual(malformedWith({ detail: 'clauseSettings for CD-14#class-syntax: edition must be one of "1", "2"' }));
+  });
+
+  it("is file-malformed for a checkEditions value it does not know", () => {
+    expect(selectingEditioned({ version: 1, ruleSets: {}, clauses: BOTH_CD_14_CLAUSES, checkEditions: "newest" })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "file-malformed", path: SELECTION_PATH },
+    });
+  });
+});
+
 describe("readSelection refusing a clauseSettings value its piece does not accept", () => {
   it.each([
     {
@@ -1443,7 +1573,7 @@ describe("readSelection with clauses not adopted", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX], notRun: [] },
+        selection: { selected: [], uncovered: [], notAdopted: [HONE_CLASS_SYNTAX, HONE_ABSTRACT_SYNTAX], notRun: [], editions: [] },
         bindings: [],
         eslintConfigRoots: [],
         clauseRoots: [],
@@ -1536,6 +1666,7 @@ describe("readSelection with clauses adopted but not run", () => {
           uncovered: [],
           notAdopted: [],
           notRun: [HONE_ABSTRACT_SYNTAX],
+          editions: [],
         },
         bindings: [expect.objectContaining({ clause: expect.objectContaining({ address: HONE_CLASS_SYNTAX }) })],
       },
@@ -1552,7 +1683,7 @@ describe("readSelection with clauses adopted but not run", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        selection: { selected: [], uncovered: [], notAdopted: [HONE_ABSTRACT_SYNTAX], notRun: [HONE_CLASS_SYNTAX] },
+        selection: { selected: [], uncovered: [], notAdopted: [HONE_ABSTRACT_SYNTAX], notRun: [HONE_CLASS_SYNTAX], editions: [] },
         bindings: [],
         eslintConfigRoots: [],
         clauseRoots: [],
@@ -1577,6 +1708,7 @@ describe("readSelection with clauses adopted but not run", () => {
         selection: {
           uncovered: [HONE_ABSTRACT_SYNTAX, { ruleSet: "hone", discipline: "CD-14", clause: "decorator-syntax" }],
           notRun: [HONE_CLASS_SYNTAX],
+          editions: [],
         },
       },
     });

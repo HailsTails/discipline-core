@@ -4,6 +4,7 @@ import type { SourceCase } from "../rule-set-reader/rule-set-reader.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { checkConformance } from "./conformance.ts";
+import { FIRST_EDITION } from "../values/edition.ts";
 
 const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
 
@@ -12,6 +13,7 @@ const CLASS_SYNTAX_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/audit/CD-14",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "class-syntax.ts" },
 };
 

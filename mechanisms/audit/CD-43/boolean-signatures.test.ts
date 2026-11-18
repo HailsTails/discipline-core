@@ -7,6 +7,7 @@ import type { SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers, WalkerFile, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./boolean-signatures.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/signatures.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-43#boolean-signatures");
@@ -16,6 +17,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-43",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "boolean-signatures.ts" },
 };
 

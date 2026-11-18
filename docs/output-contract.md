@@ -52,6 +52,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<line>`, `<column>` | a 1-based line and a 0-based column | never |
 | `<count>`, `<index>`, `<earlier index>` | a whole number; an index counts from 0 | never |
 | `<version>` | the installed package's version | never |
+| `<edition>`, `<latest>` | the edition of a clause's check that ran and the latest edition its piece declares, each a whole number from 1 | never |
 | `<file>`, `<path>`, `<slice>`, `<suppressions file>`, `<package file>`, `<config root>`, `<piece folder>`, `<location>`, `<install folder>`, `<rule page>`, `<adoption guide>` | a path, as described below | may hold a space |
 | `<folders>` | paths separated by `, ` | may hold a space |
 | `<folder>` | the folder that holds a `<slice>` | may hold a space |
@@ -176,6 +177,7 @@ exit codes:
 | `excluded` | informational | paths that `exclude` in `disciplines.json` leaves out |
 | `notAdopted` | informational | clauses marked `not-adopted` |
 | `notRun` | informational | clauses marked `not-run` |
+| `editions` | informational | the edition each clause ran, for clauses whose check has more than one edition |
 | `findings` | failing | each place a clause is broken |
 | `exempted` | informational | findings an exception covers, with the exceptions that cover them |
 | `uncovered` | failing | clauses of a selected discipline that are neither selected nor marked |
@@ -221,6 +223,7 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `excluded` | `<path>` |
 | `notAdopted` | `<clause>` |
 | `notRun` | `<clause> adopted, mechanism not run: enforced by review` |
+| `editions` | `<clause> <mechanism> edition <edition> of <latest>` |
 | `findings` | `<clause> <mechanism> <file>:<line>:<column> <snippet>` |
 | `exempted` | `<clause> <mechanism> <file>:<line>:<column> <snippet> exempted by <record kind>` |
 | `exempted` | `<clause> <mechanism> <file>:<line>:<column> <snippet> exempted by <record kind> imported from <source>` |

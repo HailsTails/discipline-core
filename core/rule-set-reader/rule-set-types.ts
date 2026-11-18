@@ -2,6 +2,7 @@ import type { AnchorKind } from "../values/anchor.ts";
 import type { ClauseExceptions, ClauseSettingDeclarations } from "./authored-rule-set-types.ts";
 import type { ClauseId, DisciplineId, MechanismId } from "../values/identifier-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
+import type { ClauseEditions, Edition } from "../values/edition-types.ts";
 
 export type { ClauseExceptions, ClauseSettingDeclaration, ClauseSettingDeclarations } from "./authored-rule-set-types.ts";
 
@@ -10,6 +11,7 @@ export type SourceCase = {
   readonly fileName: RepoPath;
   readonly source: string;
   readonly expectedLines: readonly number[];
+  readonly edition?: Edition | undefined;
 };
 
 export type ClauseDefinition =
@@ -46,5 +48,6 @@ export type PieceFile = {
     readonly clause: ClauseId;
     readonly settings: unknown;
     readonly clauseSettings: ClauseSettingDeclarations;
+    readonly editions: ClauseEditions;
   }[];
 };

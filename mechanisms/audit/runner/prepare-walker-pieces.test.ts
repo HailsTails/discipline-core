@@ -8,6 +8,7 @@ import type { Result } from "../../../core/values/result.ts";
 import { prepareWalkerPieces } from "./prepare-walker-pieces.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerPiece, WalkerRepository } from "./walker-piece.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const PIECE_ROOT = "/install/mechanisms/audit/XX-1";
 const FIRST_MODULE = "/install/mechanisms/audit/XX-1/first.ts";
@@ -26,6 +27,7 @@ const FIRST_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "first.ts" },
 };
 
@@ -34,6 +36,7 @@ const SECOND_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "second.ts" },
 };
 
@@ -42,6 +45,7 @@ const THIRD_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "first.ts" },
 };
 

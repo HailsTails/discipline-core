@@ -6,6 +6,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./clock-sources.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/clock-source.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-17#clock-sources");
@@ -18,6 +19,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-17",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "clock-sources.ts" },
 };
 

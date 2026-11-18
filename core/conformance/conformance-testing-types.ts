@@ -1,4 +1,5 @@
 import type { RunnerClause } from "../mechanism-port/runner-module-types.ts";
+import type { Edition } from "../values/edition-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 import type { Result } from "../values/result.ts";
 import type { ConformanceFailure } from "./conformance-types.ts";
@@ -17,7 +18,12 @@ export type ConformanceSetupFailureKind =
 
 export type ConformanceSetupFailure = { readonly kind: ConformanceSetupFailureKind; readonly detail: string };
 
-export type CaseUnderTest = { readonly name: string; readonly file: RepoPath; readonly source: string };
+export type CaseUnderTest = {
+  readonly name: string;
+  readonly file: RepoPath;
+  readonly source: string;
+  readonly edition: Edition;
+};
 
 export type ClauseUnderTest = { readonly clause: RunnerClause; readonly cases: readonly CaseUnderTest[] };
 

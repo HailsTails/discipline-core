@@ -3,10 +3,11 @@ import type { RunnerClause } from "../../../core/mechanism-port/runner-module-sc
 import type { Anchor } from "../../../core/values/anchor.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import type { SyntaxTree } from "../runner/typescript-parse.ts";
+import type { SyntaxNode, SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./test-body-logic.ts";
+import { editionSchema, FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/logic.test.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-27#test-body-logic");
@@ -16,16 +17,23 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-27",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "test-body-logic.ts" },
 };
 
-const sourceObservations = (request: { readonly source: string }): {
+const SECOND_EDITION_CLAUSE: RunnerClause = { ...CLAUSE, edition: editionSchema.parse("2") };
+const TEAM_ADDRESS = clauseAddressSchema.parse("team/TM-27#test-body-logic");
+const TEAM_SECOND_EDITION_CLAUSE: RunnerClause = { ...SECOND_EDITION_CLAUSE, address: TEAM_ADDRESS };
+
+type SourceObservations = {
   readonly tree: SyntaxTree;
   readonly observers: SourceObservers;
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
   readonly finish: PreparedWalkerCheck["finish"];
-} => {
-  const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+};
+
+const sourceObservations = (request: { readonly source: string; readonly clauses: readonly RunnerClause[] }): SourceObservations => {
+  const prepared = check.prepare({ clauses: request.clauses, repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const selected = prepared.value.prepareFile({ file: FILE, readText: vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "ok", value: request.source }) });
   assert(selected.outcome === "ok");
@@ -56,7 +64,7 @@ describe("CD-27 existing whole-test-file logic observations", () => {
   });
 
   it("emits all structural observations in encounter order with one finding for a multi-binding let statement", () => {
-    const observed = sourceObservations({ source: "if(x)f();\ntry{}catch(e){}\nx?y:z;\nlet a,b;\n" });
+    const observed = sourceObservations({ source: "if(x)f();\ntry{}catch(e){}\nx?y:z;\nlet a,b;\n", clauses: [CLAUSE] });
     const statements = observed.tree.getChildAt(0, observed.tree);
     const letStatement = statements.getChildAt(3, observed.tree);
     assert(SYNTAX_API.isVariableStatement(letStatement));
@@ -85,7 +93,7 @@ describe("CD-27 existing whole-test-file logic observations", () => {
   });
 
   it("retains dynamic and mutation calls at module level and inside a nested callback without a callback gate", () => {
-    const observed = sourceObservations({ source: "r.map(f);\r\nr.push(1);\r\nit('',()=>s.filter(f));\r\n" });
+    const observed = sourceObservations({ source: "r.map(f);\r\nr.push(1);\r\nit('',()=>s.filter(f));\r\n", clauses: [CLAUSE] });
     const statements = observed.tree.getChildAt(0, observed.tree);
     const testCall = statements.getChildAt(2, observed.tree).getChildAt(0, observed.tree);
     assert(SYNTAX_API.isCallExpression(testCall));
@@ -111,7 +119,7 @@ describe("CD-27 existing whole-test-file logic observations", () => {
   });
 
   it("adds the original ellipsis at exactly eighty source characters without collapsing whitespace", () => {
-    const observed = sourceObservations({ source: "r.map(f);\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr" });
+    const observed = sourceObservations({ source: "r.map(f);\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", clauses: [CLAUSE] });
 
     observed.observers.enter?.({ node: observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree) });
 
@@ -122,7 +130,7 @@ describe("CD-27 existing whole-test-file logic observations", () => {
   });
 
   it("preserves computed, alias, declaration-list and conditional-type gaps without duplicating CD25 CD26 or CD10", () => {
-    const observed = sourceObservations({ source: "const a=1;\nvar b=2;\nfor(let i=0;i<1;i++){}\nr['map'](f);\nmap(f);\nr.custom();\nvi.fn(()=>1);\nm.mockImplementation(()=>1);\nvi.mock('module');\nthrow failure;\ntype Flag = X extends Y ? A : B;\n" });
+    const observed = sourceObservations({ source: "const a=1;\nvar b=2;\nfor(let i=0;i<1;i++){}\nr['map'](f);\nmap(f);\nr.custom();\nvi.fn(()=>1);\nm.mockImplementation(()=>1);\nvi.mock('module');\nthrow failure;\ntype Flag = X extends Y ? A : B;\n", clauses: [CLAUSE] });
     const statements = observed.tree.getChildAt(0, observed.tree);
     const forStatement = statements.getChildAt(2, observed.tree);
     assert(SYNTAX_API.isForStatement(forStatement));
@@ -145,5 +153,96 @@ describe("CD-27 existing whole-test-file logic observations", () => {
 
     expect(observed.observers.finish()).toEqual([]);
     expect(observed.anchorAt).not.toHaveBeenCalled();
+  });
+});
+
+const firstExpressionOf = (request: { readonly source: string; readonly clauses: readonly RunnerClause[] }): {
+  readonly observed: SourceObservations;
+  readonly expression: SyntaxNode;
+} => {
+  const observed = sourceObservations(request);
+  return { observed, expression: observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree) };
+};
+
+const SECOND_EDITION_EXPRESSIONS = [
+  { name: "nullish coalescing", source: "a ?? b;" },
+  { name: "logical or", source: "a || b;" },
+  { name: "logical and", source: "a && b;" },
+  { name: "nullish assignment", source: "a ??= b;" },
+  { name: "logical or assignment", source: "a ||= b;" },
+  { name: "logical and assignment", source: "a &&= b;" },
+  { name: "optional property access", source: "a?.b;" },
+  { name: "optional element access", source: "a?.[0];" },
+  { name: "optional call", source: "f?.(1);" },
+  { name: "JSON.stringify", source: "JSON.stringify(value);" },
+  { name: "JSON.parse", source: "JSON.parse(text);" },
+  { name: "Object.assign", source: "Object.assign(target, source);" },
+  { name: "Object.fromEntries", source: "Object.fromEntries(pairs);" },
+  { name: "Array.from", source: "Array.from(items);" },
+  { name: "a Math method", source: "Math.max(a, b);" },
+];
+
+describe("CD-27 second-edition logic observations", () => {
+  it.each(SECOND_EDITION_EXPRESSIONS)("flags $name under the second edition", ({ source }) => {
+    const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });
+
+    observed.observers.enter?.({ node: expression });
+
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: source }]);
+    expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 0 });
+  });
+
+  it.each(SECOND_EDITION_EXPRESSIONS)("keeps $name unflagged under the first edition", ({ source }) => {
+    const { observed, expression } = firstExpressionOf({ source, clauses: [CLAUSE] });
+
+    observed.observers.enter?.({ node: expression });
+
+    expect(observed.observers.finish()).toEqual([]);
+  });
+
+  it("flags a switch statement under the second edition only", () => {
+    const second = sourceObservations({ source: "switch (x) {}", clauses: [SECOND_EDITION_CLAUSE] });
+    const first = sourceObservations({ source: "switch (x) {}", clauses: [CLAUSE] });
+
+    second.observers.enter?.({ node: second.tree.getChildAt(0, second.tree).getChildAt(0, second.tree) });
+    first.observers.enter?.({ node: first.tree.getChildAt(0, first.tree).getChildAt(0, first.tree) });
+
+    expect(second.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "switch (x) {}" }]);
+    expect(first.observers.finish()).toEqual([]);
+  });
+
+  it("keeps flagging first-edition logic under the second edition", () => {
+    const { observed, expression } = firstExpressionOf({ source: "r.map(f);", clauses: [SECOND_EDITION_CLAUSE] });
+
+    observed.observers.enter?.({ node: expression });
+
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f);" }]);
+  });
+
+  it("attributes a second-edition hit only to the clauses running the second edition", () => {
+    const { observed, expression } = firstExpressionOf({ source: "a ?? b;", clauses: [CLAUSE, TEAM_SECOND_EDITION_CLAUSE] });
+
+    observed.observers.enter?.({ node: expression });
+
+    expect(observed.observers.finish()).toEqual([{ clause: TEAM_ADDRESS, anchor: { line: 1, column: 0 }, snippet: "a ?? b;" }]);
+  });
+
+  it.each([
+    { name: "a literal index", source: "calls[0];" },
+    { name: "a computed key", source: "files[path];" },
+    { name: "a computed call by a banned name", source: "r['map'](f);" },
+    { name: "a free call", source: "map(f);" },
+    { name: "a namespace method off the denylist", source: "Promise.resolve(1);" },
+    { name: "an unknown method on a denylisted namespace", source: "JSON.rawJSON(text);" },
+    { name: "a mocking factory", source: "vi.fn();" },
+    { name: "an asymmetric matcher", source: "expect.stringContaining('x');" },
+    { name: "arithmetic", source: "a + b;" },
+    { name: "a comparison", source: "a === b;" },
+  ])("keeps $name unflagged under the second edition", ({ source }) => {
+    const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });
+
+    observed.observers.enter?.({ node: expression });
+
+    expect(observed.observers.finish()).toEqual([]);
   });
 });

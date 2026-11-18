@@ -202,7 +202,7 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 1,
       output:
-        `findings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nreadFirst (3)\ndisciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nacme/ACME-1#console-calls: its rule set has no rule page at tools/disciplines/acme/rules/ACME-1/README.md\nacme/ACME-2#scratch-files: its rule set has no rule page at tools/disciplines/acme/rules/ACME-2/README.md\nverdict: fail\n`,
+        `editions (1)\nacme/ACME-2#scratch-files audit edition 1 of 2\nfindings (2)\nacme/ACME-1#console-calls eslint src/start-banner.ts:1:0 console.log("web started");\nacme/ACME-2#scratch-files audit notes.scratch.md:1:0 notes.scratch.md\nreadFirst (3)\ndisciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nacme/ACME-1#console-calls: its rule set has no rule page at tools/disciplines/acme/rules/ACME-1/README.md\nacme/ACME-2#scratch-files: its rule set has no rule page at tools/disciplines/acme/rules/ACME-2/README.md\nverdict: fail\n`,
     },
   },
 ];

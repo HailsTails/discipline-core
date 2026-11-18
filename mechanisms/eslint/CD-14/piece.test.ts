@@ -64,6 +64,7 @@ describe("CD-14 ESLint piece.json", () => {
               rule: "no-class-authoring",
             },
             clauseSettings: {},
+            editions: { declared: ["1"], default: "1", latest: "1" },
           },
           {
             clause: "static-only-class",
@@ -74,6 +75,7 @@ describe("CD-14 ESLint piece.json", () => {
               options: [{ allowConstructorOnly: true, allowEmpty: true, allowStaticOnly: false, allowWithDecorator: true }],
             },
             clauseSettings: {},
+            editions: { declared: ["1"], default: "1", latest: "1" },
           },
         ],
       },
