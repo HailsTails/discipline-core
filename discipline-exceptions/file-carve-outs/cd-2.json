@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-2#cast-expressions",
+      "file": "tests/test-fixtures/walkthrough/before/src/basket.ts"
+    }
+  ]
+}

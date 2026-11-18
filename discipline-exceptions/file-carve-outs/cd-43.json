@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-43#boolean-signatures",
+      "file": "tests/test-fixtures/eslint-9/eslint-9-engine.ts"
+    }
+  ]
+}
