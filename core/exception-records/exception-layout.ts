@@ -16,6 +16,7 @@ import {
   type ExceptionRepositoryOf,
   exceptionEntriesOfDocument,
   exceptionEntriesOfText,
+  foreignKeysOfDocument,
   type PlacedEntry,
   type RecordsSplit,
   type StructuralExceptionEntry,
@@ -40,6 +41,8 @@ type Listing = Result<readonly RepoPath[], LoadFailure>;
 type Placement = { readonly placed: "yes"; readonly file: RepoPath } | { readonly placed: "no"; readonly detail: string };
 
 type RuleFileGroup = { readonly file: RepoPath; readonly entries: readonly WritableEntry[] };
+
+type RecordsDocument = { readonly entries: readonly StructuralExceptionEntry[]; readonly foreignKeys: readonly string[] };
 
 const SINGLE_FILE = repoPathSchema.parse("discipline-exceptions.json");
 
@@ -156,14 +159,21 @@ const splitFiles = (request: LayoutRequest): Listing => {
   return listing.outcome === "failed" ? listing : { outcome: "ok", value: inTextOrder({ paths: listing.value }) };
 };
 
-const documentEntries = (request: LayoutRequest & { readonly file: RepoPath }): Result<readonly StructuralExceptionEntry[], LoadFailure> => {
+const recordsDocumentOf = (request: LayoutRequest & { readonly file: RepoPath }): Result<RecordsDocument, LoadFailure> => {
   const path = absoluteOf(request);
   const document = readVersionOneJson({ fileText: request.fileText, path });
   if (document.outcome === "failed") {
     return document;
   }
   const entries = exceptionEntriesOfDocument({ document: document.value });
-  return entries.outcome === "failed" ? { outcome: "failed", error: { kind: "file-malformed", path, detail: entries.error.detail } } : entries;
+  return entries.outcome === "failed"
+    ? { outcome: "failed", error: { kind: "file-malformed", path, detail: entries.error.detail } }
+    : { outcome: "ok", value: { entries: entries.value, foreignKeys: foreignKeysOfDocument({ document: document.value }) } };
+};
+
+const documentEntries = (request: LayoutRequest & { readonly file: RepoPath }): Result<readonly StructuralExceptionEntry[], LoadFailure> => {
+  const document = recordsDocumentOf(request);
+  return document.outcome === "failed" ? document : { outcome: "ok", value: document.value.entries };
 };
 
 const placedIn = (request: {
@@ -338,15 +348,25 @@ const added = (request: LayoutRequest & { readonly entries: readonly WritableEnt
   return written.outcome === "failed" ? written : { outcome: "ok", value: undefined };
 };
 
+const foreignKeysRefusal = (request: LayoutRequest & { readonly foreignKeys: readonly string[] }): Result<never, LoadFailure> =>
+  unplaceable({
+    ...request,
+    file: SINGLE_FILE,
+    detail: `holds the keys ${request.foreignKeys.map((key) => JSON.stringify(key)).join(", ")} beside version and exceptions, and the split layout has no file to keep them in; remove them or keep them elsewhere, then split again`,
+  });
+
 const singleFileSplit = (request: LayoutRequest): Result<RecordsSplit, LoadFailure> => {
-  const entries = documentEntries({ ...request, file: SINGLE_FILE });
-  if (entries.outcome === "failed") {
-    return entries;
+  const document = recordsDocumentOf({ ...request, file: SINGLE_FILE });
+  if (document.outcome === "failed") {
+    return document;
   }
-  if (entries.value.length === 0) {
+  if (document.value.entries.length === 0) {
     return { outcome: "ok", value: { effect: "no-records", path: SINGLE_FILE } };
   }
-  const groups = ruleFileGroupsOf({ ...request, entries: entries.value, from: SINGLE_FILE });
+  if (document.value.foreignKeys.length > 0) {
+    return foreignKeysRefusal({ ...request, foreignKeys: document.value.foreignKeys });
+  }
+  const groups = ruleFileGroupsOf({ ...request, entries: document.value.entries, from: SINGLE_FILE });
   if (groups.outcome === "failed") {
     return groups;
   }

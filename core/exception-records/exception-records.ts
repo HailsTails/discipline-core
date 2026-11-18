@@ -111,6 +111,15 @@ export const exceptionEntriesOfDocument = (request: {
     : { outcome: "failed", error: { detail: z.prettifyError(parsed.error) } };
 };
 
+const RECORDS_DOCUMENT_KEYS: readonly string[] = Object.keys(exceptionsFileSchema.shape);
+
+const documentKeysSchema = z.record(z.string(), z.unknown());
+
+export const foreignKeysOfDocument = (request: { readonly document: unknown }): readonly string[] => {
+  const keys = documentKeysSchema.safeParse(request.document);
+  return keys.success ? Object.keys(keys.data).filter((key) => !RECORDS_DOCUMENT_KEYS.includes(key)) : [];
+};
+
 export type ExceptionBaseline =
   | { readonly measured: "no"; readonly base: BaseRevisionAvailability }
   | {

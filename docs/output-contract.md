@@ -402,7 +402,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 ## hone split-records
 
-`hone split-records` moves a repository's exception records from `discipline-exceptions.json` into the `discipline-exceptions` folder. It prints a `written` line for each file it writes, in path order, then a `removed` line for `discipline-exceptions.json`. When the records are already split, or `discipline-exceptions.json` is absent or holds no records, it prints one line, changes nothing and exits `0`. A records file that holds a record whose clause names no discipline is `records-unsplittable`, and nothing is written.
+`hone split-records` moves a repository's exception records from `discipline-exceptions.json` into the `discipline-exceptions` folder. It prints a `written` line for each file it writes, in path order, then a `removed` line for `discipline-exceptions.json`. When the records are already split, or `discipline-exceptions.json` is absent or holds no records, it prints one line, changes nothing and exits `0`. A records file that holds a record whose clause names no discipline, or keys other than `version` and `exceptions`, is `records-unsplittable`, and nothing is written.
 
 | Output | Line |
 | --- | --- |

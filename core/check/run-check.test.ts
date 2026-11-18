@@ -1805,6 +1805,38 @@ const layoutCheck = (request: {
   });
 };
 
+const REASONED_CARVE_OUT_TEXT = JSON.stringify({ version: 1, exceptions: [REASONED_CARVE_OUT] });
+
+const SINGLE_REASONED_RECORDS = { "discipline-exceptions.json": REASONED_CARVE_OUT_TEXT };
+
+const SPLIT_REASONED_RECORDS = { "discipline-exceptions/file-carve-outs/cd-14.json": REASONED_CARVE_OUT_TEXT };
+
+const touchedLegacyLayoutCheck = (request: {
+  readonly working: Readonly<Record<string, string>>;
+  readonly base: Readonly<Record<string, string>>;
+}): CheckRequest => {
+  const disk = recordsDisk(request);
+  return checkRequest({
+    exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
+    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_WITH_OPTIONAL_WHY_CHAINS }) }),
+    git: gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] } }),
+  });
+};
+
+describe("runCheck forfeiting a reason-only record over either exception record layout", () => {
+  it.each([
+    { working: "single file", base: "single file", records: SINGLE_REASONED_RECORDS, baseRecords: SINGLE_REASONED_RECORDS },
+    { working: "split layout", base: "split layout", records: SPLIT_REASONED_RECORDS, baseRecords: SPLIT_REASONED_RECORDS },
+    { working: "split layout", base: "single file", records: SPLIT_REASONED_RECORDS, baseRecords: SINGLE_REASONED_RECORDS },
+    { working: "single file", base: "split layout", records: SINGLE_REASONED_RECORDS, baseRecords: SPLIT_REASONED_RECORDS },
+  ])("forfeits a reason-only file carve-out in the $working whose file the change touched, against a base in the $base", async ({ records, baseRecords }) => {
+    await expect(runCheck(touchedLegacyLayoutCheck({ working: records, base: baseRecords }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [], unmeasured: [], forfeited: [{ ...REASONED_CARVE_OUT, clause: CLASS_SYNTAX_OBJECT, mechanism: "audit" }], stale: [] },
+    });
+  });
+});
+
 describe("runCheck over either exception record layout", () => {
   it.each([
     { working: "single file", base: "single file", records: SINGLE_LOCATION_RECORDS, baseRecords: SINGLE_LOCATION_RECORDS },

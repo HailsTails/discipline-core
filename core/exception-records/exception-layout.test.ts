@@ -182,6 +182,21 @@ const UNPLACEABLE_TEXT = `{
 }
 `;
 
+const ANNOTATED_TEXT = `{
+  "$schema": "./discipline-exceptions.schema.json",
+  "version": 1,
+  "notes": "kept by the platform team",
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-19#import-boundaries",
+      "file": "src/a.ts",
+      "reason": "held by the adapter"
+    }
+  ]
+}
+`;
+
 const EMPTY_TEXT = `{ "version": 1, "exceptions": [] }
 `;
 
@@ -395,6 +410,21 @@ describe("createExceptionRepository moveToSplitLayout", () => {
       },
     });
     expect(disk.texts()).toEqual({ "discipline-exceptions.json": UNPLACEABLE_TEXT });
+  });
+
+  it("refuses a records file holding keys beside version and exceptions, naming them and writing nothing", () => {
+    const { repository, disk } = repositoryOver({ working: { "discipline-exceptions.json": ANNOTATED_TEXT }, base: {} });
+
+    expect(repository.moveToSplitLayout()).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "records-unsplittable",
+        path: "/repo/discipline-exceptions.json",
+        detail:
+          'holds the keys "$schema", "notes" beside version and exceptions, and the split layout has no file to keep them in; remove them or keep them elsewhere, then split again',
+      },
+    });
+    expect(disk.texts()).toEqual({ "discipline-exceptions.json": ANNOTATED_TEXT });
   });
 
   it.each(LEFT_AS_THEY_ARE)("leaves a repository $state as it is", ({ working, outcome }) => {
