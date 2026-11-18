@@ -244,3 +244,24 @@ describe("typeScriptCompilerOptionsOf telling a tsconfig.json that compiles no f
     expect(resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: '{ "files": [], "include": ["src"] }' } })).toMatchObject({ kind: "resolved" });
   });
 });
+
+const COMPILE_SHAPES: readonly { readonly shape: string; readonly config: string; readonly kind: ResolvedConfig["kind"] }[] = [
+  { shape: "an include naming a file under a base", config: '{ "extends": "../../tsconfig.base.json", "include": ["src/index.ts"] }', kind: "resolved" },
+  { shape: "an include naming a file at the root", config: '{ "include": ["vite.config.ts"] }', kind: "resolved" },
+  { shape: "an include naming the folder itself", config: '{ "include": ["."] }', kind: "resolved" },
+  { shape: "a solution root extending a base", config: '{ "extends": "../../tsconfig.base.json", "files": [], "references": [{ "path": "./app" }] }', kind: "compiles-nothing" },
+  { shape: "an empty files list beside an include of a folder", config: '{ "files": [], "include": ["src"] }', kind: "resolved" },
+  { shape: "an empty include", config: '{ "include": [] }', kind: "compiles-nothing" },
+  { shape: "an exclude of every file", config: '{ "exclude": ["**/*"] }', kind: "compiles-nothing" },
+  { shape: "a files entry naming a missing file", config: '{ "files": ["src/missing.ts"] }', kind: "resolved" },
+];
+
+describe("typeScriptCompilerOptionsOf telling whether TypeScript would compile any file from a tsconfig.json", () => {
+  it.each(COMPILE_SHAPES)("is $kind for $shape under TypeScript 6", ({ config, kind }) => {
+    expect(resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: config, "tsconfig.base.json": '{ "compilerOptions": { "strict": true } }' } })).toMatchObject({ kind });
+  });
+
+  it.each(COMPILE_SHAPES)("is $kind for $shape under TypeScript 4.8.4", ({ config, kind }) => {
+    expect(resolvedOn({ syntaxApi: FLOOR, texts: { [LEAF]: config, "tsconfig.base.json": '{ "compilerOptions": { "strict": true } }' } })).toMatchObject({ kind });
+  });
+});
