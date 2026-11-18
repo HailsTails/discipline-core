@@ -21,6 +21,7 @@ const scriptOptionCauseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("weakens-run") }).readonly(),
   z.object({ kind: z.literal("after-another-command"), command: z.string(), invocation: z.string() }).readonly(),
   z.object({ kind: z.literal("wrapped"), command: z.string(), wrapper: z.string() }).readonly(),
+  z.object({ kind: z.literal("unreadable"), command: z.string() }).readonly(),
 ]);
 
 export const nativeExceptionSchema = z.discriminatedUnion("kind", [

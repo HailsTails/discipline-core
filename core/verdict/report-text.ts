@@ -65,6 +65,8 @@ const scriptOptionNote = (request: { readonly cause: ScriptOptionCause }): strin
       return `: ${request.cause.command} is not the first command of its script, ${UNJUDGED_OPTION}; give ${request.cause.command} a script of its own, such as ${quoted({ text: request.cause.invocation })}`;
     case "wrapped":
       return `: ${quoted({ text: request.cause.wrapper })} comes before ${request.cause.command} and is neither a package runner nor a NAME=value setting, ${UNJUDGED_OPTION}; put only package runners and NAME=value settings before ${request.cause.command}`;
+    case "unreadable":
+      return `: a quote in the script has no partner, so Hone cannot read what the script passes to ${request.cause.command} or tell what that does to the files under check; pair every quote in the script`;
   }
 };
 

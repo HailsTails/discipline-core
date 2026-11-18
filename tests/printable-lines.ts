@@ -180,6 +180,18 @@ const SCRIPT_OPTIONS: Readonly<Record<AttributedScriptOption["cause"]["kind"], F
       wrapper: JSON.stringify(SCRIPT_OPTION_WRAPPER),
     },
   },
+  unreadable: {
+    entry: {
+      kind: "command-line-option",
+      clause: LOOPS,
+      mechanism: MECHANISM,
+      location: repoPathSchema.parse("package.json"),
+      script: "lint",
+      option: "eslint --ignore-pattern 'legacy/**",
+      cause: { kind: "unreadable", command: "eslint" },
+    },
+    fills: { "package file": "package.json", script: "lint", option: "eslint --ignore-pattern 'legacy/**", command: "eslint" },
+  },
 };
 
 const NATIVE_EXCEPTIONS: {

@@ -67,9 +67,15 @@ export type ScriptSuppressionsLocation = {
   readonly script: string;
 };
 
+export type UnreadableScript = {
+  readonly command: string;
+  readonly exceptions: readonly ScriptOptionException[];
+};
+
 export type PackageJsonScan = {
   readonly scriptOptions: readonly ScriptOption[];
   readonly suppressionsLocations: readonly ScriptSuppressionsLocation[];
+  readonly unreadableScripts: readonly UnreadableScript[];
 };
 
 type ScriptPiece =
@@ -120,6 +126,8 @@ const SCRIPT_PIECES =
   /(?<single>'[^']*')|(?<double>"[^"]*")|(?<operator>&&|\|\||[;|])|(?<space>\s+)|(?<text>[^'"\s;|&]+|&)|(?<stray>['"])/g;
 
 const ESLINT_TOKEN = "eslint";
+
+const UNREADABLE_SCRIPT_BREAKS = /[\s'";|&()]+/;
 
 const ESLINT_VERSIONED_PREFIX = "eslint@";
 
@@ -588,7 +596,7 @@ const locatedScan = (request: {
   return {
     outcome: "ok",
     value: {
-      scriptOptions: request.scan.value.scriptOptions,
+      ...request.scan.value,
       suppressionsLocations: [
         ...request.scan.value.suppressionsLocations,
         { location: location.value, script: request.script },
@@ -597,21 +605,45 @@ const locatedScan = (request: {
   };
 };
 
-const scriptScan = (request: {
+const EMPTY_SCAN: PackageJsonScan = { scriptOptions: [], suppressionsLocations: [], unreadableScripts: [] };
+
+type ScriptRequest = {
   readonly path: RepoPath;
   readonly script: string;
   readonly scriptText: string;
   readonly selectedRules: readonly SelectedRule[];
-}): Result<PackageJsonScan, RunnerFailure> => {
+};
+
+const unreadableScan = (request: ScriptRequest): PackageJsonScan => {
+  const command = request.scriptText
+    .split(UNREADABLE_SCRIPT_BREAKS)
+    .find((piece) => eslintNamingOf({ token: piece }) === "names-eslint");
+  if (command === undefined) {
+    return EMPTY_SCAN;
+  }
+  return {
+    ...EMPTY_SCAN,
+    unreadableScripts: [
+      {
+        command,
+        exceptions: request.selectedRules.map(
+          (rule): ScriptOptionException => ({
+            kind: "command-line-option",
+            clause: rule.clause,
+            location: request.path,
+            script: request.script,
+            option: request.scriptText,
+          }),
+        ),
+      },
+    ],
+  };
+};
+
+const scriptScan = (request: ScriptRequest): Result<PackageJsonScan, RunnerFailure> => {
   const commands = shellCommandsOf({ script: request.scriptText });
   if (commands.outcome === "failed") {
-    return {
-      outcome: "failed",
-      error: {
-        kind: "tool-failed",
-        detail: `script "${request.script}" in ${request.path} has an unterminated quote`,
-      },
-    };
+    return { outcome: "ok", value: unreadableScan(request) };
   }
   const invocations = settledInvocationsOf({ commands: commands.value });
   const baseSegments = request.path.split("/").slice(0, -1);
@@ -622,10 +654,7 @@ const scriptScan = (request: {
         locatedScan({ scan, locationText, baseSegments, path: request.path, script: request.script }),
       {
         outcome: "ok",
-        value: {
-          scriptOptions: scriptOptionsOf({ ...request, invocations }),
-          suppressionsLocations: [],
-        },
+        value: { ...EMPTY_SCAN, scriptOptions: scriptOptionsOf({ ...request, invocations }) },
       },
     );
 };
@@ -657,6 +686,7 @@ const mergedScriptScan = (request: {
         ...request.scan.value.suppressionsLocations,
         ...scanned.value.suppressionsLocations,
       ],
+      unreadableScripts: [...request.scan.value.unreadableScripts, ...scanned.value.unreadableScripts],
     },
   };
 };
@@ -680,6 +710,6 @@ export const scanPackageJson = (request: {
   return Object.entries(packageJson.data.scripts ?? {}).reduce<Result<PackageJsonScan, RunnerFailure>>(
     (scan, [script, scriptText]) =>
       mergedScriptScan({ scan, script, scriptText, path: request.path, selectedRules: request.selectedRules }),
-    { outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } },
+    { outcome: "ok", value: EMPTY_SCAN },
   );
 };

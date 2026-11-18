@@ -293,19 +293,58 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ name: "app" }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [], unreadableScripts: [] } });
   });
 
-  it("reports a script with an unterminated quote as tool-failed naming the script", () => {
+  it.each([
+    { script: "echo don't stop" },
+    { script: "echo don\\'t stop" },
+    { script: `prettier --write "src` },
+  ])("passes over $script, whose quotes do not pair and which names no ESLint", ({ script }) => {
+    expect(
+      scanPackageJson({ path: rootPackageJson, text: JSON.stringify({ scripts: { say: script } }), selectedRules: [classRule] }),
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [], unreadableScripts: [] } });
+  });
+
+  it.each([
+    { script: "eslint --rule 'x: off", command: "eslint" },
+    { script: "tsc && ./node_modules/.bin/eslint 'src", command: "./node_modules/.bin/eslint" },
+    { script: `pnpm exec "eslint@9 src`, command: "eslint@9" },
+  ])("reports $script, whose quotes do not pair, as unreadable to $command once per selected clause", ({ script, command }) => {
     expect(
       scanPackageJson({
         path: rootPackageJson,
-        text: JSON.stringify({ scripts: { "lint:strict": "eslint --rule 'x: off" } }),
+        text: JSON.stringify({ scripts: { "lint:strict": script } }),
+        selectedRules: [classRule, tmpRule],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        scriptOptions: [],
+        suppressionsLocations: [],
+        unreadableScripts: [
+          {
+            command,
+            exceptions: [
+              { kind: "command-line-option", clause: classSyntax, location: "package.json", script: "lint:strict", option: script },
+              { kind: "command-line-option", clause: noTmpFiles, location: "package.json", script: "lint:strict", option: script },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it("still reads the other scripts of a package.json holding an unreadable one", () => {
+    expect(
+      scanPackageJson({
+        path: rootPackageJson,
+        text: JSON.stringify({ scripts: { say: "echo don't stop", lint: "eslint --suppress-all src" } }),
         selectedRules: [classRule],
       }),
     ).toMatchObject({
-      outcome: "failed",
-      error: { kind: "tool-failed", detail: expect.stringContaining("lint:strict") },
+      outcome: "ok",
+      value: { scriptOptions: [{ effect: WEAKENS, command: "eslint" }], suppressionsLocations: [], unreadableScripts: [] },
     });
   });
 
@@ -337,6 +376,7 @@ describe("scanPackageJson", () => {
           },
         ],
         suppressionsLocations: [],
+        unreadableScripts: [],
       },
     });
   });
@@ -348,7 +388,7 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring-x: off' src" } }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [], unreadableScripts: [] } });
   });
 
   it("reports an every-clause option once per selected clause", () => {
@@ -386,6 +426,7 @@ describe("scanPackageJson", () => {
           },
         ],
         suppressionsLocations: [],
+        unreadableScripts: [],
       },
     });
   });
@@ -397,7 +438,7 @@ describe("scanPackageJson", () => {
         text: JSON.stringify({ scripts: { format: "prettier --config .prettierrc --ignore-pattern dist ." } }),
         selectedRules: [classRule],
       }),
-    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [] } });
+    ).toEqual({ outcome: "ok", value: { scriptOptions: [], suppressionsLocations: [], unreadableScripts: [] } });
   });
 
   it("reads --suppressions-location in space and = forms from a root package.json", () => {
@@ -420,6 +461,7 @@ describe("scanPackageJson", () => {
           { location: "lint-suppressions.json", script: "lint" },
           { location: "ci/suppressions.json", script: "lint:ci" },
         ],
+        unreadableScripts: [],
       },
     });
   });
@@ -436,6 +478,7 @@ describe("scanPackageJson", () => {
       value: {
         scriptOptions: [],
         suppressionsLocations: [{ location: "packages/x/suppressions.json", script: "lint" }],
+        unreadableScripts: [],
       },
     });
   });
