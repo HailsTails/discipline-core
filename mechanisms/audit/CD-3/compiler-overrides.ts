@@ -101,10 +101,16 @@ const resolvedSnippet = (request: {
   return `compilerOptions.${option} unset here and in ${resolved.bases.map((base) => base.file).join(", ")}`;
 };
 
-const judgedSnippet = (request: { readonly config: ConfigFile; readonly resolved: ResolvedConfig; readonly option: StrictOption }): string | undefined =>
-  request.resolved.kind === "unresolved"
-    ? `compilerOptions.${request.option} unknown: ${request.resolved.detail}`
-    : resolvedSnippet({ config: request.config, resolved: request.resolved, option: request.option });
+const judgedSnippet = (request: { readonly config: ConfigFile; readonly resolved: ResolvedConfig; readonly option: StrictOption }): string | undefined => {
+  switch (request.resolved.kind) {
+    case "unresolved":
+      return `compilerOptions.${request.option} unknown: ${request.resolved.detail}`;
+    case "compiles-nothing":
+      return undefined;
+    case "resolved":
+      return resolvedSnippet({ config: request.config, resolved: request.resolved, option: request.option });
+  }
+};
 
 const presenceHit = (request: { readonly flag: SelectedFlag; readonly value: unknown }): PieceHit => ({
   clause: request.flag.address,

@@ -195,7 +195,7 @@ const UNRESOLVABLE: readonly {
     detail: "TS18000 Circularity detected while resolving configuration: packages/a/tsconfig.json -> configs/one.json -> configs/two.json -> configs/one.json",
   },
   {
-    name: "the configDir placeholder in extends, which TypeScript does not substitute there",
+    name: "a configDir path in extends that TypeScript cannot find",
     extendsValue: `"\${configDir}/../../tsconfig.base.json"`,
     texts: { "tsconfig.base.json": STRICTEST_TEXT },
     detail: `TS6053 File '\${configDir}/../../tsconfig.base.json' not found.`,
@@ -215,5 +215,32 @@ describe("typeScriptCompilerOptionsOf reporting a configuration TypeScript canno
 
   it("is resolved for a tsconfig.json whose include matches no file, since the check reads no source files", () => {
     expect(resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: '{ "include": ["src"], "compilerOptions": { "strict": true } }' } })).toMatchObject({ kind: "resolved" });
+  });
+});
+
+const VITE_ROOT = '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }] }';
+
+describe("typeScriptCompilerOptionsOf telling a tsconfig.json that compiles no files", () => {
+  it.each([
+    { line: "6", syntaxApi: CURRENT },
+    { line: "4.8.4", syntaxApi: FLOOR },
+  ])("says a solution-style tsconfig.json with an empty files list and only references compiles nothing under TypeScript $line", ({ syntaxApi }) => {
+    expect(resolvedOn({ syntaxApi, texts: { [LEAF]: VITE_ROOT } })).toEqual({ kind: "compiles-nothing" });
+  });
+
+  it("says a tsconfig.json compiles nothing when the empty files list comes from its base", () => {
+    expect(
+      resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: '{ "extends": "../../configs/solution.json" }', "configs/solution.json": '{ "files": [] }' } }),
+    ).toEqual({ kind: "compiles-nothing" });
+  });
+
+  it("resolves a tsconfig.json that lists files of its own", () => {
+    expect(resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: '{ "files": ["src/index.ts"], "references": [{ "path": "../b" }] }' } })).toMatchObject({
+      kind: "resolved",
+    });
+  });
+
+  it("resolves a tsconfig.json with an empty files list beside an include", () => {
+    expect(resolvedOn({ syntaxApi: CURRENT, texts: { [LEAF]: '{ "files": [], "include": ["src"] }' } })).toMatchObject({ kind: "resolved" });
   });
 });

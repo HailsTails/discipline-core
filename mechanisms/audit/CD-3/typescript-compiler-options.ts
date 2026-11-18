@@ -81,11 +81,15 @@ const unresolvedDetail = (request: Paths & { readonly syntaxApi: SyntaxApi; read
     .map((diagnostic) => `TS${diagnostic.code} ${shownText({ ...request, text: request.syntaxApi.flattenDiagnosticMessageText(diagnostic.messageText, " ") })}`)
     .join("; ");
 
+const compiledFilesOf = (request: { readonly parsed: typescript.ParsedCommandLine }): "some-or-wildcards" | "none" =>
+  request.parsed.fileNames.length === 0 && Object.keys(request.parsed.wildcardDirectories ?? {}).length === 0 ? "none" : "some-or-wildcards";
+
 const resolvedConfigOf = (request: Paths & { readonly syntaxApi: SyntaxApi; readonly host: typescript.ParseConfigHost; readonly path: string }): ResolvedConfig => {
   const source = request.syntaxApi.readJsonConfigFile(request.path, request.host.readFile);
   const parsed = request.syntaxApi.parseJsonSourceFileConfigFileContent(source, request.host, folderOf(request), undefined, request.path);
   const diagnostics = parsed.errors.filter((diagnostic) => !FILE_LIST_DIAGNOSTICS.includes(diagnostic.code));
   if (diagnostics.length > 0) return { kind: "unresolved", detail: unresolvedDetail({ ...request, diagnostics }) };
+  if (compiledFilesOf({ parsed }) === "none") return { kind: "compiles-nothing" };
   return {
     kind: "resolved",
     effective: effectiveOf({ syntaxApi: request.syntaxApi, options: parsed.options }),

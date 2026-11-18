@@ -74,6 +74,13 @@
             "source": "{ \"compilerOptions\": { \"strict\": false } }\n",
             "expectedLines": [],
             "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -157,6 +164,13 @@
             "name": "tsconfig.base.json is not read under the second edition",
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noUncheckedIndexedAccess\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
             "expectedLines": [],
             "edition": "2"
           }
@@ -244,6 +258,13 @@
             "source": "{ \"compilerOptions\": { \"exactOptionalPropertyTypes\": false } }\n",
             "expectedLines": [],
             "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -327,6 +348,13 @@
             "name": "tsconfig.base.json is not read under the second edition",
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"noImplicitOverride\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
             "expectedLines": [],
             "edition": "2"
           }
@@ -414,6 +442,13 @@
             "source": "{ \"compilerOptions\": { \"noFallthroughCasesInSwitch\": false } }\n",
             "expectedLines": [],
             "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -499,6 +534,13 @@
             "source": "{ \"compilerOptions\": { \"noPropertyAccessFromIndexSignature\": false } }\n",
             "expectedLines": [],
             "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
+            "expectedLines": [],
+            "edition": "2"
           }
         ]
       }
@@ -582,6 +624,13 @@
             "name": "tsconfig.base.json is not read under the second edition",
             "fileName": "tsconfig.base.json",
             "source": "{ \"compilerOptions\": { \"useUnknownInCatchVariables\": false } }\n",
+            "expectedLines": [],
+            "edition": "2"
+          },
+          {
+            "name": "a solution-style config that compiles no files",
+            "fileName": "tsconfig.json",
+            "source": "{ \"files\": [], \"references\": [{ \"path\": \"./tsconfig.app.json\" }, { \"path\": \"./tsconfig.node.json\" }] }\n",
             "expectedLines": [],
             "edition": "2"
           }

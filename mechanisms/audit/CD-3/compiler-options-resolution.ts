@@ -21,7 +21,8 @@ export type BaseConfig = { readonly file: string; readonly settings: OptionSetti
 
 export type ResolvedConfig =
   | { readonly kind: "resolved"; readonly effective: Readonly<Record<StrictOption, OptionState>>; readonly bases: readonly BaseConfig[] }
-  | { readonly kind: "unresolved"; readonly detail: string };
+  | { readonly kind: "unresolved"; readonly detail: string }
+  | { readonly kind: "compiles-nothing" };
 
 export type CompilerOptionsResolution = {
   readonly resolve: (request: { readonly file: RepoPath }) => ResolvedConfig;

@@ -24,6 +24,7 @@ const LOOSENED = repoPathSchema.parse("packages/loosened/tsconfig.json");
 const UNSET = repoPathSchema.parse("packages/unset/tsconfig.json");
 const BROKEN = repoPathSchema.parse("packages/broken/tsconfig.json");
 const LAYERED = repoPathSchema.parse("packages/layered/tsconfig.json");
+const SOLUTION = repoPathSchema.parse("tsconfig.json");
 
 const STRICT = clauseAddressSchema.parse("CD-3#strict");
 const UNCHECKED = clauseAddressSchema.parse("CD-3#no-unchecked-indexed-access");
@@ -96,8 +97,8 @@ describe("CD-3 edition 2 over a real extends chain on disk, through the shipped 
     const report = await auditRunnerOn({ line }).run({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
-      files: [INHERITS, LOOSENED, UNSET, BROKEN, LAYERED],
-      trackedPaths: [INHERITS, LOOSENED, UNSET, BROKEN, LAYERED],
+      files: [INHERITS, LOOSENED, UNSET, BROKEN, LAYERED, SOLUTION],
+      trackedPaths: [INHERITS, LOOSENED, UNSET, BROKEN, LAYERED, SOLUTION],
       clauses: CLAUSES,
     });
 

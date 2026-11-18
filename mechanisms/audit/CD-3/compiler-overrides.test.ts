@@ -403,3 +403,25 @@ describe("CD3 edition 2 naming where an option is left unset or turned off", () 
     ] } });
   });
 });
+
+describe("CD3 edition 2 over a tsconfig.json that compiles no files", () => {
+  it("leaves the options of a solution-style tsconfig.json unjudged, since they apply to no file", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "compiles-nothing" } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: SECOND_EDITION_CLAUSES, resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }] }' }))).toEqual({
+      outcome: "ok",
+      value: { kind: "complete", hits: [] },
+    });
+  });
+
+  it("still flags an option such a tsconfig.json sets itself, as edition 1 does", () => {
+    const { resolutionOf } = resolvingTo({ resolved: { kind: "compiles-nothing" } });
+    const prepared = prepareCheck({ jsonc: JSONC, clauses: SECOND_EDITION_CLAUSES, resolutionOf });
+
+    expect(prepared.prepareFile(fileWith({ source: '{ "files": [], "compilerOptions": { "strict": false } }' }))).toEqual({
+      outcome: "ok",
+      value: { kind: "complete", hits: [{ clause: STRICT, anchor: { line: 1, column: 0 }, snippet: "compilerOptions.strict = false" }] },
+    });
+  });
+});
