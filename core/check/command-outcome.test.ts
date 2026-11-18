@@ -15,6 +15,7 @@ const EMPTY_REPORT: CheckReport = {
   excluded: [],
   notAdopted: [],
   notRun: [],
+  editions: [],
   findings: [],
   exempted: [],
   uncovered: [],

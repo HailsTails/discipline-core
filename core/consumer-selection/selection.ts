@@ -1,6 +1,7 @@
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { RunnerClause } from "../mechanism-port/runner-module-schema.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";
+import type { ClauseEditionReading } from "../values/edition-types.ts";
 import type { FileExceptionWhyChains } from "../values/file-exception-why-chains.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -12,11 +13,14 @@ export type SelectedClause = {
   readonly exceptions: ClauseExceptions;
 };
 
+export type { ClauseEditionReading } from "../values/edition-types.ts";
+
 export type Selection = {
   readonly selected: readonly SelectedClause[];
   readonly uncovered: readonly ClauseAddress[];
   readonly notAdopted: readonly ClauseAddress[];
   readonly notRun: readonly ClauseAddress[];
+  readonly editions: readonly ClauseEditionReading[];
 };
 
 export type ClauseRoot = {

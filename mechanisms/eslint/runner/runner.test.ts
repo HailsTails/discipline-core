@@ -3,6 +3,7 @@ import { runnerModuleSchema } from "../../../core/mechanism-port/runner-module-s
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { runner } from "./runner.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 describe("runner", () => {
   it("is an embedded runner module core accepts, projecting config overrides and inline disables", () => {
@@ -20,6 +21,7 @@ describe("runner", () => {
           anchor: { kind: "file" },
           pieceRoot: "/install/mechanisms/eslint/XX-1",
           clauseSettings: {},
+          edition: FIRST_EDITION,
           settings: { pluginNamespace: "xx", pluginModule: "../x.ts", rule: "first-check" },
         },
         cases: [

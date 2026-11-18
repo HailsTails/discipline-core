@@ -20,6 +20,7 @@ import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { WAIVED_CLAUSES_REPLACEMENT } from "../core/values/assessment.ts";
 import type { BaseRevisionAvailability } from "../core/values/base-revision-availability.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
+import { type ClauseEditionReading, editionSchema } from "../core/values/edition.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
 import { type ReportOutput, reportOutputSchema } from "../core/values/report-output.ts";
@@ -68,6 +69,13 @@ const SHARED_FILLS: Fills = {
   "rule page": RULE_PAGE,
   "adoption guide": ADOPTION_GUIDE,
   "project command": PROJECT_COMMAND,
+};
+
+const EDITION_READING: ClauseEditionReading = {
+  address: LOOPS,
+  mechanism: MECHANISM,
+  edition: editionSchema.parse("1"),
+  latest: editionSchema.parse("2"),
 };
 
 const FINDING: Finding = { clause: LOOPS, mechanism: MECHANISM, file: FILE, anchor: { line: 15, column: 0 }, snippet: "const total = 0;\nreturn total;" };
@@ -308,6 +316,7 @@ const SECTION_SAMPLES: SectionSamples = {
   excluded: [{ entry: repoPathSchema.parse("generated"), fills: { path: "generated" } }],
   notAdopted: unfilled([LOOPS]),
   notRun: unfilled([LOOPS]),
+  editions: [{ entry: EDITION_READING, fills: { edition: "1", latest: "2" } }],
   findings: unfilled([FINDING]),
   exempted: [
     ...Object.values(RECORDS).map((record) => ({ entry: { finding: FINDING, by: [record] }, fills: { "record kind": record.kind } })),
@@ -334,6 +343,7 @@ const EMPTY_REPORT: CheckReport = {
   excluded: [],
   notAdopted: [],
   notRun: [],
+  editions: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -354,6 +364,7 @@ const EVERY_ENTRY: CheckReport = {
   excluded: entriesOf(SECTION_SAMPLES.excluded),
   notAdopted: entriesOf(SECTION_SAMPLES.notAdopted),
   notRun: entriesOf(SECTION_SAMPLES.notRun),
+  editions: entriesOf(SECTION_SAMPLES.editions),
   findings: entriesOf(SECTION_SAMPLES.findings),
   exempted: entriesOf(SECTION_SAMPLES.exempted),
   uncovered: entriesOf(SECTION_SAMPLES.uncovered),

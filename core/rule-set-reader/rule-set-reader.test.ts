@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
+import { editionSchema } from "../values/edition.ts";
+import { repoPathSchema } from "../values/repo-path.ts";
 import {
   clauseIdSchema,
   disciplineIdSchema,
@@ -111,6 +113,26 @@ const LOADED_DISCIPLINE: DisciplineFile = {
     },
   ],
 };
+
+const SECOND_EDITION_DISCIPLINE: DisciplineFile = {
+  ...LOADED_DISCIPLINE,
+  clauses: [
+    {
+      kind: "mechanical",
+      id: clauseIdSchema.parse("class-syntax"),
+      summary: CLASS_SYNTAX.summary,
+      mechanisms: [WALKER],
+      anchor: { kind: "keyword", keyword: "class" },
+      exceptions: "allowed",
+      cases: {
+        flag: [{ name: FLAG_CASE.name, fileName: repoPathSchema.parse(FLAG_CASE.fileName), source: FLAG_CASE.source, expectedLines: [1], edition: editionSchema.parse("2") }],
+        allow: [],
+      },
+    },
+  ],
+};
+
+const FIRST_EDITION_ONLY = { declared: ["1"], default: "1", latest: "1" };
 
 const readPiece = (file: unknown) =>
   readPieceFile({
@@ -293,6 +315,18 @@ describe("readDisciplineFile", () => {
     });
   });
 
+  it("reads a case that names the edition it runs under", () => {
+    const file = { ...DISCIPLINE, clauses: [{ ...CLASS_SYNTAX, cases: { flag: [{ ...FLAG_CASE, edition: "2" }], allow: [ALLOW_CASE] } }] };
+
+    expect(readDiscipline(file)).toEqual({ outcome: "ok", value: file });
+  });
+
+  it("refuses a case edition that is not a whole number as file-malformed", () => {
+    expect(
+      readDiscipline({ ...DISCIPLINE, clauses: [{ ...CLASS_SYNTAX, cases: { flag: [{ ...FLAG_CASE, edition: "latest" }], allow: [ALLOW_CASE] } }] }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "file-malformed", path: DISCIPLINE_PATH } });
+  });
+
   it("refuses a case fileName that is not a RepoPath as rule-set-invalid", () => {
     expect(
       readDiscipline({
@@ -312,7 +346,60 @@ describe("readPieceFile", () => {
   it("reads <ruleSetRoot>/mechanisms/<mechanism>/<discipline>/piece.json into a piece file", () => {
     expect(readPiece(PIECE)).toEqual({
       outcome: "ok",
-      value: { ...PIECE, clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {} }] },
+      value: {
+        ...PIECE,
+        clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {}, editions: FIRST_EDITION_ONLY }],
+      },
+    });
+  });
+
+  it("reads declared editions with the first as the default and the last as the latest", () => {
+    const clause = { clause: "class-syntax", settings: { module: "class-syntax.ts" }, editions: ["1", "2"] };
+
+    expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({
+      outcome: "ok",
+      value: { ...PIECE, clauses: [{ ...clause, clauseSettings: {}, editions: { declared: ["1", "2"], default: "1", latest: "2" } }] },
+    });
+  });
+
+  it.each([
+    { name: "editions out of order", editions: ["2", "1"], kind: "rule-set-invalid" },
+    { name: "an edition that is not a whole number", editions: ["1", "two"], kind: "file-malformed" },
+    { name: "no editions", editions: [], kind: "file-malformed" },
+  ])("refuses $name as $kind", ({ editions, kind }) => {
+    expect(
+      readPiece({ ...PIECE, clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, editions }] }),
+    ).toMatchObject({ outcome: "failed", error: { kind } });
+  });
+
+  it("refuses a clause setting named edition as reserved for the clause's editions", () => {
+    expect(
+      readPiece({
+        ...PIECE,
+        clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: { edition: { default: "1" } } }],
+      }),
+    ).toMatchObject({
+      outcome: "failed",
+      error: { kind: "rule-set-invalid", detail: expect.stringContaining("edition is reserved for the clause's editions") },
+    });
+  });
+
+  it("refuses a case that runs under an edition the piece does not declare", () => {
+    expect(
+      readPieceFile({
+        fileText: fileTextReading({ text: JSON.stringify(PIECE) }),
+        path: pathJoiningTo({ joined: PIECE_PATH }),
+        ruleSetRoot: ROOT,
+        mechanism: WALKER,
+        discipline: SECOND_EDITION_DISCIPLINE,
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "rule-set-invalid",
+        path: PIECE_PATH,
+        detail: "case class declaration of clause class-syntax runs under edition 2, which this piece does not declare; it declares 1",
+      },
     });
   });
 
@@ -328,7 +415,7 @@ describe("readPieceFile", () => {
 
     expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({
       outcome: "ok",
-      value: { ...PIECE, clauses: [{ ...clause, clauseSettings: {} }] },
+      value: { ...PIECE, clauses: [{ ...clause, clauseSettings: {}, editions: FIRST_EDITION_ONLY }] },
     });
   });
 
@@ -339,7 +426,10 @@ describe("readPieceFile", () => {
     };
     const clause = { clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings };
 
-    expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({ outcome: "ok", value: { ...PIECE, clauses: [clause] } });
+    expect(readPiece({ ...PIECE, clauses: [clause] })).toEqual({
+      outcome: "ok",
+      value: { ...PIECE, clauses: [{ ...clause, editions: FIRST_EDITION_ONLY }] },
+    });
   });
 
   it.each([

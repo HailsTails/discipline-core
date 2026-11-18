@@ -6,6 +6,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./factory-return-types.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/profile.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-7a#factory-return-types");
@@ -16,6 +17,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-7a",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "factory-return-types.ts" },
 };
 

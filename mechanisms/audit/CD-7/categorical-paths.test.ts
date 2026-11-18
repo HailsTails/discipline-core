@@ -5,6 +5,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./categorical-paths.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-7#categorical-paths");
 const SYNTAX_API = defaultParsePort.syntaxApi;
@@ -13,6 +14,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-7",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "categorical-paths.ts" },
 };
 

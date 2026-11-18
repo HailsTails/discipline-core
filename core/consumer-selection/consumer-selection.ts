@@ -1,4 +1,6 @@
 import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
+import { checkEditionsSchema } from "../values/check-editions.ts";
+import type { ClauseEditions } from "../values/edition.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
@@ -35,11 +37,12 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
+import { editionPinOf, settledClauseEdition } from "./clause-edition.ts";
 import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
-import type { ClauseBinding, SelectionReading } from "./selection.ts";
+import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "./selection.ts";
 
-export type { SelectedClause, Selection, ClauseBinding, SelectionReading } from "./selection.ts";
+export type { ClauseBinding, ClauseEditionReading, SelectedClause, Selection, SelectionReading } from "./selection.ts";
 
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
@@ -72,6 +75,7 @@ type ResolvedClause = {
   readonly binding: ClauseBinding;
   readonly exceptions: ClauseExceptions;
   readonly declarations: ClauseSettingDeclarations;
+  readonly editions: ClauseEditions;
 };
 
 const RULE_SET_SUFFIX_SEPARATOR = "-";
@@ -159,6 +163,7 @@ const consumerSelectionFileSchema = z.strictObject({
   reportOutput: reportOutputSchema.default("full"),
   assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
   clauseSettings: clauseSettingsSchema.default([]),
+  checkEditions: checkEditionsSchema.default("pinned"),
 }).superRefine((file, context) => {
   const settingsAddresses = file.clauseSettings.map(([address]) => address);
   settingsAddresses
@@ -322,6 +327,7 @@ type PieceEntry = {
   readonly piece: PieceFile;
   readonly settings: unknown;
   readonly declarations: ClauseSettingDeclarations;
+  readonly editions: ClauseEditions;
 };
 
 const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
@@ -343,7 +349,7 @@ const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
       mechanism: request.mechanism,
     });
   }
-  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings, declarations: entry.clauseSettings } };
+  return { outcome: "ok", value: { piece: piece.value, settings: entry.settings, declarations: entry.clauseSettings, editions: entry.editions } };
 };
 
 const resolvedClauseOf = (request: {
@@ -358,6 +364,7 @@ const resolvedClauseOf = (request: {
     piece: entry.piece,
     exceptions: defined.definition.exceptions,
     declarations: entry.declarations,
+    editions: entry.editions,
     binding: {
       mechanism: clauseRequest.mechanism,
       clause: {
@@ -368,6 +375,7 @@ const resolvedClauseOf = (request: {
         }),
         settings: entry.settings,
         clauseSettings: defaultClauseSettings({ declarations: entry.declarations }),
+        edition: entry.editions.default,
       },
     },
   };
@@ -570,6 +578,16 @@ const duplicateClauseRefusalOf = (request: { readonly file: ConsumerSelectionFil
 const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined =>
   reservedRuleSetNameRefusalOf(request) ?? ruleSetNameCollisionRefusalOf(request) ?? duplicateClauseRefusalOf(request);
 
+const editionReadingsOf = (request: { readonly resolved: readonly ResolvedClause[] }): readonly ClauseEditionReading[] =>
+  request.resolved
+    .filter(({ editions }) => editions.declared.length > 1)
+    .map(({ binding, editions }) => ({
+      address: binding.clause.address,
+      mechanism: binding.mechanism,
+      edition: binding.clause.edition,
+      latest: editions.latest,
+    }));
+
 const selectionReadingOf = (request: {
   readonly resolved: readonly ResolvedClause[];
   readonly unrun: readonly UnrunClause[];
@@ -589,6 +607,7 @@ const selectionReadingOf = (request: {
     }),
     notAdopted: addressesIn({ unrun: request.unrun, state: "not-adopted" }),
     notRun: addressesIn({ unrun: request.unrun, state: "not-run" }),
+    editions: editionReadingsOf({ resolved: request.resolved }),
   },
   bindings: request.resolved.map(({ binding }) => binding),
   clauseRoots: request.resolved.map((resolved) => ({ clause: addressOf({ resolved }), ruleSetRoot: resolved.ruleSetRoot })),
@@ -609,18 +628,22 @@ const settledClause = (request: {
   readonly path: string;
 }): Result<ResolvedClause, LoadFailure> => {
   const address = addressOf({ resolved: request.clause });
-  const clauseSettings = settledClauseSettings({
-    address,
-    declarations: request.clause.declarations,
-    given: givenClauseSettings({ file: request.file, address }),
-  });
+  const { pin, rest } = editionPinOf({ given: givenClauseSettings({ file: request.file, address }) });
+  const edition = settledClauseEdition({ address, editions: request.clause.editions, pin, checkEditions: request.file.checkEditions });
+  if (edition.outcome === "failed") {
+    return failed({ kind: "file-malformed", path: request.path, detail: edition.error });
+  }
+  const clauseSettings = settledClauseSettings({ address, declarations: request.clause.declarations, given: rest });
   if (clauseSettings.outcome === "failed") {
     return failed({ kind: "file-malformed", path: request.path, detail: clauseSettings.error });
   }
   const { binding } = request.clause;
   return {
     outcome: "ok",
-    value: { ...request.clause, binding: { ...binding, clause: { ...binding.clause, clauseSettings: clauseSettings.value } } },
+    value: {
+      ...request.clause,
+      binding: { ...binding, clause: { ...binding.clause, clauseSettings: clauseSettings.value, edition: edition.value } },
+    },
   };
 };
 

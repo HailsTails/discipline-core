@@ -3,6 +3,7 @@ import type { LoadFailure } from "../check/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import { clauseEditionsSchema, editionSchema } from "../values/edition.ts";
 import {
   clauseIdSchema,
   type DisciplineId,
@@ -76,6 +77,7 @@ const sourceCaseSchema = z.object({
   fileName: repoPathSchema,
   source: z.string(),
   expectedLines: z.array(z.number()),
+  edition: editionSchema.optional(),
 });
 
 const flagCaseSchema = sourceCaseSchema.refine(
@@ -146,6 +148,8 @@ const clauseSettingDeclarationSchema = z
     }
   });
 
+export const RESERVED_EDITION_SETTING = "edition";
+
 const pieceFileSchema = z.object({
   version: z.literal(SUPPORTED_VERSION),
   discipline: disciplineIdSchema,
@@ -155,7 +159,13 @@ const pieceFileSchema = z.object({
       z.object({
         clause: clauseIdSchema,
         settings: z.unknown(),
-        clauseSettings: z.record(z.string().min(1), clauseSettingDeclarationSchema).default({}),
+        clauseSettings: z
+          .record(z.string().min(1), clauseSettingDeclarationSchema)
+          .default({})
+          .refine((declarations) => !Object.hasOwn(declarations, RESERVED_EDITION_SETTING), {
+            error: `${RESERVED_EDITION_SETTING} is reserved for the clause's editions; declare them under editions`,
+          }),
+        editions: clauseEditionsSchema,
       }),
     )
     .refine((entries) => textDistinctness(entries.map((entry) => entry.clause)) === "distinct", {
@@ -246,6 +256,28 @@ export const readDisciplineFile = (request: {
   return { outcome: "ok", value: parsed.data };
 };
 
+type MechanicalDefinition = Extract<DisciplineFile["clauses"][number], { readonly kind: "mechanical" }>;
+
+const undeclaredCaseEditionOf = (request: {
+  readonly piece: PieceFile;
+  readonly discipline: DisciplineFile;
+}): string | undefined =>
+  request.piece.clauses
+    .flatMap((entry) => {
+      const definition = request.discipline.clauses.find(
+        (clause): clause is MechanicalDefinition => clause.id === entry.clause && clause.kind === "mechanical",
+      );
+      const cases = definition === undefined ? [] : [...definition.cases.flag, ...definition.cases.allow];
+      return cases.flatMap((sourceCase) =>
+        sourceCase.edition === undefined || entry.editions.declared.includes(sourceCase.edition)
+          ? []
+          : [
+              `case ${sourceCase.name} of clause ${entry.clause} runs under edition ${sourceCase.edition}, which this piece does not declare; it declares ${entry.editions.declared.join(", ")}`,
+            ],
+      );
+    })
+    .at(0);
+
 export const readPieceFile = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
@@ -287,6 +319,10 @@ export const readPieceFile = (request: {
       path,
       detail: `clause ${undeclared.clause} is not declared by discipline ${request.discipline.id}`,
     });
+  }
+  const unsupported = undeclaredCaseEditionOf({ piece, discipline: request.discipline });
+  if (unsupported !== undefined) {
+    return ruleSetInvalid({ path, detail: unsupported });
   }
   return { outcome: "ok", value: piece };
 };

@@ -243,6 +243,20 @@ A repository that selects the clause can then override it in `disciplines.json`,
 
 Hone refuses a value under an undeclared key, of another JSON kind than the default, or outside the `choices`, before any piece runs. The piece reads the value, the override or else the default, from `clause.clauseSettings` on each `RunnerClause`, in place of the fixed `SCRATCH_MARKER`. The value is typed as any JSON value, so the piece narrows it, for example with `typeof marker === "string"`, and returns a `piece-invalid` failure when it is not what it accepts. Name the settings on the discipline's page under a Settings heading. This section is described, not run by the example: Hone's unit tests cover reading, refusing and overriding settings.
 
+### Editions of a check
+
+When a clause's check becomes stricter, ship the stricter check as a new edition instead of changing what the clause flags. A clause entry in `piece.json` lists its editions in ascending order; the first is the default, and the last is the latest:
+
+```json
+{
+  "clause": "scratch-files",
+  "settings": { "module": "scratch-files.ts" },
+  "editions": ["1", "2"]
+}
+```
+
+An entry without `editions` has the single edition `"1"`. The setting key `edition` is reserved for the edition a repository pins, so a piece cannot declare it under `clauseSettings`. The piece reads the edition that runs from `clause.edition` on each `RunnerClause`, and `editionReaches({ edition: clause.edition, introducedIn })` from `@hailstails/hone/audit` says whether that edition covers a construct introduced in a given edition. A case in `discipline.json` names the edition it runs under with `"edition": "2"`; a case without one runs under the piece's default edition, and a case naming an edition the piece does not declare makes the rule set invalid. Conformance runs each edition's cases under that edition.
+
 ## TypeScript pieces under Node
 
 Hone loads piece modules with Node, which strips the types from a `.ts` file as it loads it. Node 22.18 or later does this without flags.

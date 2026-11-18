@@ -69,6 +69,7 @@ export const boundClauseOf = (request: RuleSetReading & ClauseRequest): Result<B
         pieceRoot: request.path.join({ segments: [ruleSetRoot.value, "mechanisms", request.mechanism, address.data.discipline] }),
         settings: entry.settings,
         clauseSettings: defaultClauseSettings({ declarations: entry.clauseSettings }),
+        edition: entry.editions.default,
       },
       cases: [...definition.cases.flag, ...definition.cases.allow],
     },
@@ -84,7 +85,12 @@ export const clauseUnderTestOf = (request: RuleSetReading & ClauseRequest): Resu
     outcome: "ok",
     value: {
       clause: bound.value.clause,
-      cases: bound.value.cases.map((sourceCase) => ({ name: sourceCase.name, file: sourceCase.fileName, source: sourceCase.source })),
+      cases: bound.value.cases.map((sourceCase) => ({
+        name: sourceCase.name,
+        file: sourceCase.fileName,
+        source: sourceCase.source,
+        edition: sourceCase.edition ?? bound.value.clause.edition,
+      })),
     },
   };
 };

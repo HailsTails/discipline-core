@@ -13,6 +13,7 @@ import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { disciplineIdSchema, type MechanismId } from "../core/values/identifiers.ts";
 import { requiredEntry } from "./required-entry.ts";
+import { editionRunsOf } from "../core/conformance/edition-runs.ts";
 
 export type RawTable = Readonly<Record<string, string>>;
 
@@ -70,20 +71,26 @@ const rowsOf = (request: {
     discipline,
   });
   assert(piece.outcome === "ok", `${request.discipline} ${request.mechanism} piece.json reads through the rule-set reader`);
-  return piece.value.clauses.map((entry) => {
+  return piece.value.clauses.flatMap((entry) => {
     const definition = discipline.clauses.find((clause) => clause.id === entry.clause);
     assert(definition?.kind === "mechanical", `${request.discipline}#${entry.clause} is a mechanical clause`);
-    return {
-      name: `${request.discipline}#${entry.clause}`,
+    const runs = editionRunsOf({
       clause: {
         address: clauseAddressSchema.parse(`${request.discipline}#${entry.clause}`),
         anchor: definition.anchor,
         pieceRoot: `${request.mechanismRoot}/${request.discipline}`,
         settings: entry.settings,
         clauseSettings: defaultClauseSettings({ declarations: entry.clauseSettings }),
+        edition: entry.editions.default,
       },
       cases: [...definition.cases.flag, ...definition.cases.allow],
-    };
+    });
+    return runs.map((run) => ({
+      name: run.clause.edition === entry.editions.default
+        ? `${request.discipline}#${entry.clause}`
+        : `${request.discipline}#${entry.clause} edition ${run.clause.edition}`,
+      ...run,
+    }));
   });
 };
 

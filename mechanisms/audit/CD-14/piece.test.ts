@@ -65,7 +65,7 @@ describe("CD-14 audit piece.json", () => {
         version: 1,
         discipline: "CD-14",
         mechanism: "audit",
-        clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {} }],
+        clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" }, clauseSettings: {}, editions: { declared: ["1"], default: "1", latest: "1" } }],
       },
     });
   });

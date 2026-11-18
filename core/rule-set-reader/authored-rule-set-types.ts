@@ -8,6 +8,7 @@ export type AuthoredSourceCase = {
   readonly fileName: string;
   readonly source: string;
   readonly expectedLines: readonly number[];
+  readonly edition?: string | undefined;
 };
 
 export type AuthoredClauseDefinition =
@@ -51,5 +52,6 @@ export type AuthoredPieceFile = {
     readonly clause: string;
     readonly settings: unknown;
     readonly clauseSettings?: ClauseSettingDeclarations;
+    readonly editions?: readonly string[] | undefined;
   }[];
 };

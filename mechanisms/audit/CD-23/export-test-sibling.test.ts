@@ -5,6 +5,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./export-test-sibling.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/view.tsx");
 const SIBLING = repoPathSchema.parse("src/view.test.tsx");
@@ -15,6 +16,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-23",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "export-test-sibling.ts" },
 };
 

@@ -9,6 +9,7 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { createWalkerRunner } from "./create-walker-runner.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerPiece } from "./walker-piece.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const PIECE_ROOT = "/install/mechanisms/audit/XX-1";
 const ALPHA = repoPathSchema.parse("src/alpha.ts");
@@ -21,6 +22,7 @@ const clauseFor = (request: { readonly address: typeof FIRST; readonly module: s
   anchor: { kind: "file" },
   pieceRoot: PIECE_ROOT,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: request.module },
 });
 

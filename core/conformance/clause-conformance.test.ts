@@ -49,6 +49,7 @@ const BOUND_CLAUSE = {
   pieceRoot: PIECE_ROOT,
   settings: { module: "scratch-files.ts" },
   clauseSettings: {},
+  edition: "1",
 };
 
 const BOUND_CASES = [

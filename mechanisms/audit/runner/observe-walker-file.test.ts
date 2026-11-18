@@ -11,6 +11,7 @@ import type {
 import type { CommentRange, SyntaxNode, SyntaxTree, TypeScriptParsePort } from "./typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PieceHit, SourceObservers, WalkerFile } from "./walker-piece.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/example.tsx");
 const SOURCE = "{ { /* note */ } }\n";
@@ -24,6 +25,7 @@ const FIRST_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "first.ts" },
 };
 const SECOND_CLAUSE: RunnerClause = {
@@ -31,6 +33,7 @@ const SECOND_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "second.ts" },
 };
 const THIRD_CLAUSE: RunnerClause = {
@@ -38,6 +41,7 @@ const THIRD_CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/XX-1",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "third.ts" },
 };
 const FIRST_HIT: PieceHit = {

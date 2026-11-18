@@ -4,6 +4,7 @@ import type { ExceptionRecord } from "../exception-records/exception-records.ts"
 import type { Finding } from "../governance/governance.ts";
 import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
+import { editionSchema } from "../values/edition.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
@@ -58,6 +59,7 @@ const emptyReport: CheckReport = {
   excluded: [],
   notAdopted: [],
   notRun: [],
+  editions: [],
   findings: [],
   exempted: [],
   uncovered: [],
@@ -1018,5 +1020,38 @@ describe("renderReportText readFirst by output", () => {
 
   it("prints only the verdict for the verdict-only output", () => {
     expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
+  });
+});
+
+describe("renderReportText clause editions", () => {
+  const editionReading = {
+    address: clauseAddressSchema.parse("CD-27#test-body-logic"),
+    mechanism: mechanismIdSchema.parse("audit"),
+    edition: editionSchema.parse("1"),
+    latest: editionSchema.parse("2"),
+  };
+
+  it("lists each clause's edition after the not-run clauses, with its mechanism and latest edition", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: { ...emptyReport, notRun: [probeNoTmp], editions: [editionReading] },
+      }),
+    ).toBe(
+      "notRun (1)\nprobe/PD-1#no-tmp-files adopted, mechanism not run: enforced by review\neditions (1)\nCD-27#test-body-logic audit edition 1 of 2\nverdict: pass\n",
+    );
+  });
+
+  it("passes as a whole assessment when the report lists only editions", () => {
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, output: "counts", report: { ...emptyReport, editions: [editionReading] } })).toBe(
+      "editions (1) informational\nverdict: pass\n",
+    );
+  });
+
+  it("leaves editions out of a failures-only report", () => {
+    expect(
+      renderReportText({ projectCommand: PROJECT_COMMAND, output: "failures-only", report: { ...emptyReport, editions: [editionReading] } }),
+    ).toBe("verdict: pass\n");
   });
 });

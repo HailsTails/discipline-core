@@ -7,6 +7,7 @@ import type { SyntaxNode, SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./cast-expressions.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/casts.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-2#cast-expressions");
@@ -16,6 +17,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-2",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "cast-expressions.ts" },
 };
 const THROUGH_UNKNOWN_MESSAGE = "cast through unknown — check the value's shape at runtime instead";

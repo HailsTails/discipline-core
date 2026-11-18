@@ -32,6 +32,7 @@ import {
   pieceModulesOn,
   runnerModulesOn,
 } from "../../../tests/eslint-toolchains.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
 
@@ -44,6 +45,7 @@ const ESLINT_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: `${INSTALL_ROOT}/mechanisms/eslint/CD-14`,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
 };
 
@@ -52,6 +54,7 @@ const WALKER_CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: `${INSTALL_ROOT}/mechanisms/audit/CD-14`,
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "class-syntax.ts" },
 };
 

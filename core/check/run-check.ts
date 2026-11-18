@@ -485,6 +485,7 @@ const checkReportOf = (request: {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
     notRun: request.inputs.selection.notRun,
+    editions: request.inputs.selection.editions,
     ...governed,
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,

@@ -7,6 +7,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
+import { FIRST_EDITION } from "../values/edition.ts";
 
 type Toolchain = { readonly name: "loaded-toolchain" };
 
@@ -24,6 +25,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "keyword", keyword: "class" },
   pieceRoot: "/install/mechanisms/eslint/CD-14",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: {},
 };
 

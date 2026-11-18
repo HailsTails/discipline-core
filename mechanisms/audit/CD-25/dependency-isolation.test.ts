@@ -7,6 +7,7 @@ import type { SyntaxTree } from "../runner/typescript-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers } from "../runner/walker-piece.ts";
 import { check } from "./dependency-isolation.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("src/isolation.test.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-25#dependency-isolation");
@@ -16,6 +17,7 @@ const CLAUSE: RunnerClause = {
   anchor: { kind: "file" },
   pieceRoot: "/install/mechanisms/audit/CD-25",
   clauseSettings: {},
+  edition: FIRST_EDITION,
   settings: { module: "dependency-isolation.ts" },
 };
 

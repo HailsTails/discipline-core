@@ -6,6 +6,7 @@ import type { JsoncParsePort } from "../runner/jsonc-parse.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerFile, WalkerRepository } from "../runner/walker-piece.ts";
 import { createCompilerOverridesCheck } from "./compiler-overrides.ts";
+import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 const FILE = repoPathSchema.parse("tsconfig.json");
 const SOURCE = '{"compilerOptions":{"strict":true}}';
@@ -17,13 +18,13 @@ const OVERRIDE = clauseAddressSchema.parse("CD-3#no-implicit-override");
 const FALLTHROUGH = clauseAddressSchema.parse("CD-3#no-fallthrough-cases-in-switch");
 const PROPERTY = clauseAddressSchema.parse("CD-3#no-property-access-from-index-signature");
 const CATCH = clauseAddressSchema.parse("consumer/CD-3#use-unknown-in-catch-variables");
-const STRICT_CLAUSE: RunnerClause = { address: STRICT, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const UNCHECKED_CLAUSE: RunnerClause = { address: UNCHECKED, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const EXACT_CLAUSE: RunnerClause = { address: EXACT, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const OVERRIDE_CLAUSE: RunnerClause = { address: OVERRIDE, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const FALLTHROUGH_CLAUSE: RunnerClause = { address: FALLTHROUGH, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const PROPERTY_CLAUSE: RunnerClause = { address: PROPERTY, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
-const CATCH_CLAUSE: RunnerClause = { address: CATCH, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, settings: { module: "compiler-overrides.ts" } };
+const STRICT_CLAUSE: RunnerClause = { address: STRICT, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const UNCHECKED_CLAUSE: RunnerClause = { address: UNCHECKED, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const EXACT_CLAUSE: RunnerClause = { address: EXACT, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const OVERRIDE_CLAUSE: RunnerClause = { address: OVERRIDE, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const FALLTHROUGH_CLAUSE: RunnerClause = { address: FALLTHROUGH, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const PROPERTY_CLAUSE: RunnerClause = { address: PROPERTY, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
+const CATCH_CLAUSE: RunnerClause = { address: CATCH, anchor: { kind: "file" }, pieceRoot: "/install/mechanisms/audit/CD-3", clauseSettings: {}, edition: FIRST_EDITION, settings: { module: "compiler-overrides.ts" } };
 const CLAUSES: readonly RunnerClause[] = [STRICT_CLAUSE, UNCHECKED_CLAUSE, EXACT_CLAUSE, OVERRIDE_CLAUSE, FALLTHROUGH_CLAUSE, PROPERTY_CLAUSE, CATCH_CLAUSE];
 
 const prepareCheck = (request: { readonly jsonc: JsoncParsePort; readonly clauses: readonly RunnerClause[]; readonly file?: WalkerFile["file"] }): PreparedWalkerCheck => {

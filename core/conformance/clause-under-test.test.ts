@@ -46,6 +46,35 @@ const PIECE_TEXT = JSON.stringify({
   ],
 });
 
+const EDITIONED_DISCIPLINE_TEXT = JSON.stringify({
+  version: 1,
+  id: "ACME-2",
+  clauses: [
+    {
+      kind: "mechanical",
+      id: "scratch-files",
+      summary: "no scratch file is committed",
+      mechanisms: ["audit"],
+      anchor: { kind: "file" },
+      cases: { flag: [{ ...FLAG_CASE, edition: "2" }], allow: [ALLOW_CASE] },
+    },
+  ],
+});
+
+const EDITIONED_PIECE_TEXT = JSON.stringify({
+  version: 1,
+  discipline: "ACME-2",
+  mechanism: "audit",
+  clauses: [
+    {
+      clause: "scratch-files",
+      settings: { module: "scratch-files.ts" },
+      clauseSettings: { marker: { default: ".scratch." } },
+      editions: ["1", "2"],
+    },
+  ],
+});
+
 const ESLINT_ONLY_DISCIPLINE_TEXT = JSON.stringify({
   version: 1,
   id: "ACME-2",
@@ -94,6 +123,7 @@ const BOUND_CLAUSE = {
   pieceRoot: PIECE_ROOT,
   settings: { module: "scratch-files.ts" },
   clauseSettings: { marker: ".scratch." },
+  edition: "1",
 };
 
 describe("boundClauseOf", () => {
@@ -198,10 +228,24 @@ describe("clauseUnderTestOf", () => {
       value: {
         clause: BOUND_CLAUSE,
         cases: [
-          { name: "scratch file", file: repoPathSchema.parse("src/draft.scratch.ts"), source: FLAG_CASE.source },
-          { name: "ordinary file", file: repoPathSchema.parse("src/kept.ts"), source: ALLOW_CASE.source },
+          { name: "scratch file", file: repoPathSchema.parse("src/draft.scratch.ts"), source: FLAG_CASE.source, edition: "1" },
+          { name: "ordinary file", file: repoPathSchema.parse("src/kept.ts"), source: ALLOW_CASE.source, edition: "1" },
         ],
       },
+    });
+  });
+
+  it("gives each case the edition it runs under, the piece's default when it names none", () => {
+    expect(
+      clauseUnderTestOf({
+        fileText: fileTextReading({ discipline: EDITIONED_DISCIPLINE_TEXT, piece: EDITIONED_PIECE_TEXT }),
+        path: pathJoining(),
+        mechanism: AUDIT, ruleSetRoot: "tools/disciplines/acme",
+        clause: "acme/ACME-2#scratch-files",
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: { clause: { edition: "1" }, cases: [{ name: "scratch file", edition: "2" }, { name: "ordinary file", edition: "1" }] },
     });
   });
 
