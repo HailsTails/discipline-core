@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { embeddedRunReportSchema, type SliceProblem } from "../mechanism-port/embedded-run-report-schema.ts";
+import { embeddedRunReportSchema, type SliceProblem, type UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import {
   type RunnerFailure,
@@ -32,6 +32,7 @@ export type MechanismRun = {
   readonly coverableKinds: readonly NativeException["kind"][];
   readonly projection: "none" | ProjectionState;
   readonly slices: readonly SliceProblem[];
+  readonly unprojectedFolders: readonly UnprojectedFolderReport[];
 };
 
 const STANDALONE_COVERABLE_KINDS: readonly NativeException["kind"][] = ["inline-disable"];
@@ -112,6 +113,7 @@ const standaloneRun = (request: {
       coverableKinds: STANDALONE_COVERABLE_KINDS,
       projection: "none",
       slices: [],
+      unprojectedFolders: [],
     },
   };
 };
@@ -170,6 +172,7 @@ const embeddedRun = (request: {
       coverableKinds: request.projectedKinds,
       projection: report.projection,
       slices: report.slices,
+      unprojectedFolders: report.unprojectedFolders,
     },
   };
 };

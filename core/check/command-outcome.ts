@@ -1,12 +1,12 @@
 import type { RecordsSplit } from "../exception-records/exception-records.ts";
-import type { InheritedDebtOutcome } from "../exception-records/inherited-debt.ts";
+import { type InheritedDebtOutcome, RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ExitCode } from "../platform-ports/process-port.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { renderReportText } from "../verdict/report-text.ts";
+import { NESTED_CONFIGURATION_ISSUE, renderReportText } from "../verdict/report-text.ts";
 import { verdictOf } from "../verdict/verdict.ts";
 import { LEAVE_OPTION } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
@@ -72,6 +72,8 @@ const inheritedDebtNote = (request: { readonly outcome: InheritedDebtOutcome }):
       return ": the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason";
     case "refused":
       return ": the clause's discipline refuses exceptions; fix it";
+    case "nested-configuration":
+      return `: the file loads the ${outcome.mechanism} configuration in ${outcome.under}, and ${outcome.selectionFolder} holds its own disciplines.json; nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}), so the ${outcome.mechanism} projection cannot put a record on this file into effect; fix it, or govern ${outcome.selectionFolder} from this repository by removing ${outcome.selectionFolder}/disciplines.json, then run ${RECORD_DEBT_SUBCOMMAND} again`;
   }
 };
 

@@ -3,7 +3,7 @@ import type { ExceptionRecord } from "../exception-records/exception-records.ts"
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { Equal } from "../values/type-equality.ts";
-import type { EmbeddedRunReport } from "./embedded-run-report-schema.ts";
+import type { ReturnedEmbeddedRunReport } from "./embedded-run-report-schema.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
 import type {
   embeddedRunnerModuleSchema,
@@ -21,7 +21,7 @@ export type EmbeddedRunRequest = RunRequest & {
 export type EmbeddedRunner = {
   readonly exceptionPath: "embedded";
   readonly projectedKinds: readonly NativeException["kind"][];
-  readonly run: (request: EmbeddedRunRequest) => Promise<Result<EmbeddedRunReport, RunnerFailure>>;
+  readonly run: (request: EmbeddedRunRequest) => Promise<Result<ReturnedEmbeddedRunReport, RunnerFailure>>;
   readonly conform: StandaloneRunner["conform"];
   readonly project: (
     request: ProjectionRequest,

@@ -3,12 +3,15 @@ import type { AttributedNativeException, Finding } from "../governance/governanc
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { inheritedDebtEntriesOf, inheritedDebtOf, type InheritedDebtRequest } from "./inherited-debt.ts";
+import { type InheritedDebtOutcome, inheritedDebtEntriesOf, inheritedDebtOf, type InheritedDebtRequest, reachedDebtOf } from "./inherited-debt.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");
 const CASTS = clauseAddressSchema.parse("CD-2#cast-expressions");
 const TEAM_CLAUSE = clauseAddressSchema.parse("team/TM-1#no-tmp-files");
 const AUDIT = mechanismIdSchema.parse("audit");
+const ESLINT = mechanismIdSchema.parse("eslint");
+const LEGACY_FOLDER = repoPathSchema.parse("src/legacy");
+const SOURCE_FOLDER = repoPathSchema.parse("src");
 const BASKET = repoPathSchema.parse("src/basket.ts");
 const LEGACY = repoPathSchema.parse("src/legacy/report.ts");
 const FRESH = repoPathSchema.parse("src/fresh.ts");
@@ -212,5 +215,37 @@ describe("inheritedDebtEntriesOf", () => {
         ],
       }),
     ).toEqual([{ kind: "file-carve-out", clause: "team/TM-1#no-tmp-files", file: "src/basket.ts" }]);
+  });
+});
+
+const RECORDED_IN_LEGACY: readonly InheritedDebtOutcome[] = [
+  { clause: CASTS, file: LEGACY, effect: "recorded" },
+  { clause: LOOPS, file: LEGACY, effect: "recorded" },
+  { clause: LOOPS, file: BASKET, effect: "recorded" },
+  { clause: TEAM_CLAUSE, file: LEGACY, effect: "left", under: LEGACY_FOLDER },
+];
+
+describe("reachedDebtOf", () => {
+  it("turns a recorded pair into nested-configuration only where its clause's mechanism cannot project into the folder holding the file", () => {
+    expect(
+      reachedDebtOf({
+        outcomes: RECORDED_IN_LEGACY,
+        unprojected: [{ mechanism: ESLINT, folder: LEGACY_FOLDER, selectionFolder: SOURCE_FOLDER }],
+        mechanisms: new Map([
+          ["CD-2#cast-expressions", AUDIT],
+          ["CD-15#loops", ESLINT],
+          ["team/TM-1#no-tmp-files", ESLINT],
+        ]),
+      }),
+    ).toEqual([
+      { clause: CASTS, file: LEGACY, effect: "recorded" },
+      { clause: LOOPS, file: LEGACY, effect: "nested-configuration", under: LEGACY_FOLDER, selectionFolder: SOURCE_FOLDER, mechanism: ESLINT },
+      { clause: LOOPS, file: BASKET, effect: "recorded" },
+      { clause: TEAM_CLAUSE, file: LEGACY, effect: "left", under: LEGACY_FOLDER },
+    ]);
+  });
+
+  it("keeps every outcome when each mechanism projects into every folder", () => {
+    expect(reachedDebtOf({ outcomes: RECORDED_IN_LEGACY, unprojected: [], mechanisms: new Map([["CD-15#loops", ESLINT]]) })).toEqual(RECORDED_IN_LEGACY);
   });
 });

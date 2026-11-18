@@ -2,7 +2,7 @@ import { z } from "zod";
 import { withSingleFileRecords, } from "./records-disk.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import type { EmbeddedRunReport } from "../core/mechanism-port/embedded-run-report-schema.ts";
+import type { ReturnedEmbeddedRunReport } from "../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner, EmbeddedRunRequest } from "../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../core/mechanism-port/runner-module-schema.ts";
@@ -84,7 +84,7 @@ type SubjectRequest = {
 
 type RecordedRun = {
   readonly request: EmbeddedRunRequest;
-  readonly report: Result<EmbeddedRunReport, RunnerFailure>;
+  readonly report: Result<ReturnedEmbeddedRunReport, RunnerFailure>;
 };
 
 type GovernanceLint = (request: {
@@ -363,7 +363,7 @@ const partitionOver = async (
     readonly pieceModules: ModuleLoaderPort;
     readonly governanceOptions: EslintSurfaceOptions;
     readonly run: EmbeddedRunRequest;
-    readonly report: EmbeddedRunReport;
+    readonly report: ReturnedEmbeddedRunReport;
   },
 ): Promise<ScopeSetPartition> => {
   const team = teamSurface(request);

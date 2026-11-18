@@ -172,7 +172,7 @@ const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasur
   }
 };
 
-const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
+export const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
 type ProjectionRequest = { readonly projectCommand: string };
 

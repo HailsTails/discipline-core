@@ -1,6 +1,8 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
 import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
+import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
+import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
 import type { FileCarveOutEntry } from "./exception-record.ts";
 import type { PlacedEntry } from "./exception-records.ts";
 
@@ -14,7 +16,13 @@ type DebtPair = {
 export type InheritedDebtOutcome =
   | (DebtPair & { readonly effect: "recorded" | "new-file" | "refused" })
   | (DebtPair & { readonly effect: "already-recorded"; readonly heldIn: RepoPath })
-  | (DebtPair & { readonly effect: "left"; readonly under: RepoPath });
+  | (DebtPair & { readonly effect: "left"; readonly under: RepoPath })
+  | (DebtPair & {
+      readonly effect: "nested-configuration";
+      readonly under: RepoPath;
+      readonly selectionFolder: RepoPath;
+      readonly mechanism: MechanismId;
+    });
 
 export type InheritedDebtRequest = {
   readonly findings: readonly Finding[];
@@ -103,3 +111,34 @@ export const inheritedDebtEntriesOf = (request: {
       ? [{ kind: "file-carve-out", clause: clauseAddressText({ address: outcome.clause }), file: outcome.file }]
       : [],
   );
+
+const reachedOutcomeOf = (request: {
+  readonly outcome: InheritedDebtOutcome;
+  readonly unprojected: readonly UnprojectedFolder[];
+  readonly mechanisms: ReadonlyMap<string, MechanismId>;
+}): InheritedDebtOutcome => {
+  const { outcome } = request;
+  if (outcome.effect !== "recorded") {
+    return outcome;
+  }
+  const mechanism = request.mechanisms.get(clauseAddressText({ address: outcome.clause }));
+  const unprojected = request.unprojected.find(
+    (candidate) => candidate.mechanism === mechanism && outcome.file.startsWith(`${candidate.folder}/`),
+  );
+  return unprojected === undefined
+    ? outcome
+    : {
+        clause: outcome.clause,
+        file: outcome.file,
+        effect: "nested-configuration",
+        under: unprojected.folder,
+        selectionFolder: unprojected.selectionFolder,
+        mechanism: unprojected.mechanism,
+      };
+};
+
+export const reachedDebtOf = (request: {
+  readonly outcomes: readonly InheritedDebtOutcome[];
+  readonly unprojected: readonly UnprojectedFolder[];
+  readonly mechanisms: ReadonlyMap<string, MechanismId>;
+}): readonly InheritedDebtOutcome[] => request.outcomes.map((outcome) => reachedOutcomeOf({ ...request, outcome }));

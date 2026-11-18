@@ -473,7 +473,7 @@ describe.each(ESLINT_LINES)("FR-3 over real files: the ESLint runner on real %s 
     const eslintRun = await eslintRunnerOn({ line }).run({ ...SHARED_CASES_RUN, records: [], clauses: [ESLINT_CLAUSE] });
     const walkerRun = await walkerRunner.run({ ...SHARED_CASES_RUN, clauses: [WALKER_CLAUSE] });
     expect({ eslint: eslintRun, audit: walkerRun }).toEqual({
-      eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current", slices: [] } },
+      eslint: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [] } },
       audit: { outcome: "ok", value: { hits: EXPECTED_SHARED_HITS, nativeExceptions: [] } },
     });
   });
@@ -648,7 +648,7 @@ describe.each(ESLINT_LINES)("a package that spreads its own projection slice, on
     async (team) => {
       await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, ...team })).resolves.toMatchObject({
         outcome: "ok",
-        value: { hits: [PACKAGE_HIT], projection: "current", slices: [] },
+        value: { hits: [PACKAGE_HIT], projection: "current", slices: [], unprojectedFolders: [] },
       });
     },
   );
@@ -672,6 +672,6 @@ describe.each(ESLINT_LINES)("a package that spreads its own projection slice, on
   it("requires no slice for a package config ESLint 9 never loads, resolving every file from the root config", async () => {
     await expect(
       monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [] } });
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [], unprojectedFolders: [] } });
   });
 });

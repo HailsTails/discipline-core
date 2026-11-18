@@ -3,7 +3,10 @@ import { type RecordsDisk, recordsDisk, singleFileRepositoriesOver } from "../..
 import { exceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
+import type { EmbeddedRunReport, UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
+import type { EmbeddedRunner } from "../mechanism-port/embedded-runner-module-schema.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
+import { hitSchema } from "../mechanism-port/runner-result-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
@@ -145,6 +148,26 @@ const runnerFinding = (request: { readonly hits: readonly unknown[] }): ModuleLo
   return { load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } }) };
 };
 
+const OWN_CONFIGURATION: UnprojectedFolderReport = { folder: repoPathSchema.parse("src"), selectionFolder: repoPathSchema.parse("src") };
+
+const embeddedRunnerFinding = (request: { readonly unprojectedFolders: readonly UnprojectedFolderReport[] }): ModuleLoaderPort => {
+  const report: EmbeddedRunReport = {
+    hits: [hitSchema.parse(HIT_IN_A)],
+    nativeExceptions: [],
+    projection: "current",
+    slices: [],
+    unprojectedFolders: request.unprojectedFolders,
+  };
+  const runner: EmbeddedRunner = {
+    exceptionPath: "embedded",
+    projectedKinds: ["config-override"],
+    run: vi.fn<EmbeddedRunner["run"]>().mockResolvedValue({ outcome: "ok", value: report }),
+    conform: vi.fn<EmbeddedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+    project: vi.fn<EmbeddedRunner["project"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  };
+  return { load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: { runner } }) };
+};
+
 const SOURCE_A = repoPathSchema.parse("src/a.ts");
 
 const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
@@ -172,6 +195,7 @@ type Run = {
   readonly fileText: FileTextPort;
   readonly git: GitPort;
   readonly tree: GitTreePort;
+  readonly modules: ModuleLoaderPort;
 };
 
 const adoptionRun = (): Run => ({
@@ -179,6 +203,7 @@ const adoptionRun = (): Run => ({
   fileText: fileTextOver({ files: REASON_ONLY_NO_RECORDS, writes: WRITTEN }),
   git: gitChanging([]),
   tree: treeHolding({ outcome: "ok", value: [SOURCE_A] }),
+  modules: runnerFinding({ hits: [HIT_IN_A] }),
 });
 
 const recordedDebt = async (request: Run) => {
@@ -187,7 +212,7 @@ const recordedDebt = async (request: Run) => {
     process: processPort,
     path: TABLE_PATH,
     fileText: request.fileText,
-    modules: runnerFinding({ hits: [HIT_IN_A] }),
+    modules: request.modules,
     git: request.git,
     exceptionRepositoryOf: singleFileRepositoriesOver({ path: TABLE_PATH, fileText: request.fileText, git: request.git }),
     moduleUrl: ENTRY_URL,
@@ -277,6 +302,30 @@ describe("recordDebtCommandOf writing nothing for a pair", () => {
   });
 });
 
+describe("recordDebtCommandOf for a clause whose mechanism applies records through its projection", () => {
+  it("writes nothing for a pair in a folder the runner names as loading its own config inside a folder holding its own disciplines.json, and says so", async () => {
+    expect(await recordedDebt({ ...adoptionRun(), modules: embeddedRunnerFinding({ unprojectedFolders: [OWN_CONFIGURATION] }) })).toEqual({
+      writes: [
+        [
+          {
+            text: "CD-14#class-syntax nested-configuration src/a.ts: the file loads the audit configuration in src, and src holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the audit projection cannot put a record on this file into effect; fix it, or govern src from this repository by removing src/disciplines.json, then run record-debt again\n",
+          },
+        ],
+      ],
+      exits: [[{ code: 0 }]],
+      files: [],
+    });
+  });
+
+  it("records a pair in a folder the runner does not name, such as one holding its own disciplines.json but no config of its own", async () => {
+    expect(await recordedDebt({ ...adoptionRun(), modules: embeddedRunnerFinding({ unprojectedFolders: [] }) })).toEqual({
+      writes: [[{ text: "CD-14#class-syntax recorded src/a.ts\n" }]],
+      exits: [[{ code: 0 }]],
+      files: [[{ path: EXCEPTIONS_PATH, text: EXCEPTIONS_WITH_THE_RECORD }]],
+    });
+  });
+});
+
 describe("recordDebtCommandOf when disciplines.json leaves why-chains required", () => {
   it("writes the same reason-only file carve-out, since debt needs no why-chain", async () => {
     const files = repositoryFiles({ fileExceptionWhyChains: "required", exceptions: ABSENT_FILE });
@@ -335,7 +384,7 @@ const recordedDebtInto = async (request: { readonly run: Run; readonly disk: Rec
     process: processPort,
     path: TABLE_PATH,
     fileText: request.run.fileText,
-    modules: runnerFinding({ hits: [HIT_IN_A] }),
+    modules: request.run.modules,
     git: request.run.git,
     exceptionRepositoryOf: exceptionRepositoryOf(request.disk.ports),
     moduleUrl: ENTRY_URL,

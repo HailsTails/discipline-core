@@ -1,4 +1,5 @@
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { UnprojectedFolderReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CONFIG_FILE_NAMES } from "./config-lookup.ts";
@@ -122,6 +123,27 @@ export const nestedConfigurationFoldersOf = (request: {
     .filter((folder) => holdingOf({ paths: request.files, folder }) === "holds")
     .sort(codeUnitOrder)
     .map((folder) => repoPathSchema.parse(folder));
+
+export const unprojectedFoldersOf = (request: {
+  readonly trackedPaths: readonly RepoPath[];
+  readonly files: readonly RepoPath[];
+  readonly lookup: EslintConfigLookup;
+}): readonly UnprojectedFolderReport[] => {
+  const nested = nestedRepositories(request);
+  const outermostNested = outermostOf({ nested });
+  const ownConfigured = configuredDirectories({ ...request, declared: [] }).filter(
+    (directory) => directory !== "" && insideNestedRepository({ directory, nested }) === "nested",
+  );
+  return outermostOf({ nested: ownConfigured })
+    .filter((folder) => holdingOf({ paths: request.files, folder }) === "holds")
+    .sort(codeUnitOrder)
+    .flatMap((folder) => {
+      const selectionFolder = outermostNested.find((candidate) => within({ path: folder, directory: candidate }) === "within");
+      return selectionFolder === undefined
+        ? []
+        : [{ folder: repoPathSchema.parse(folder), selectionFolder: repoPathSchema.parse(selectionFolder) }];
+    });
+};
 
 export const orphanedSliceDirectoriesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];
