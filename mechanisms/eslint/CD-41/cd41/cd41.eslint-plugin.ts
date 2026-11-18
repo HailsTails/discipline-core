@@ -51,7 +51,24 @@ const BRACES: ReadonlySet<string> = new Set(["{", "}"]);
 
 const SUITE_ROOTS: ReadonlySet<string> = new Set(["describe", "suite", "fdescribe", "xdescribe", "fsuite", "xsuite"]);
 
-const SUITE_MEMBER_OF_TEST = { root: "test", member: "describe" } as const;
+const SUITE_MODIFIERS: ReadonlySet<string> = new Set([
+  "each",
+  "for",
+  "only",
+  "skip",
+  "todo",
+  "concurrent",
+  "sequential",
+  "shuffle",
+  "skipIf",
+  "runIf",
+]);
+
+const PLAYWRIGHT_SUITE = {
+  root: "test",
+  member: "describe",
+  modifiers: new Set(["only", "skip", "fixme", "serial", "parallel"]),
+} as const;
 
 const LINE_BREAK = /\r\n|[\r\n]/gu;
 
@@ -253,15 +270,23 @@ const calleeChainOf = (request: { readonly callee: CalleeNode; readonly members:
   return name === undefined ? undefined : calleeChainOf({ callee: callee.object, members: [name, ...request.members] });
 };
 
+const modifiedSuiteRole = (request: {
+  readonly members: readonly string[];
+  readonly modifiers: ReadonlySet<string>;
+}): CallbackRole => (request.members.every((member) => request.modifiers.has(member)) ? "suite-body" : "callable");
+
 const chainRole = (request: { readonly chain: CalleeChain | undefined }): CallbackRole => {
   const chain = request.chain;
   if (chain === undefined) {
     return "callable";
   }
-  const namesSuite =
-    SUITE_ROOTS.has(chain.root) ||
-    (chain.root === SUITE_MEMBER_OF_TEST.root && chain.members.at(0) === SUITE_MEMBER_OF_TEST.member);
-  return namesSuite ? "suite-body" : "callable";
+  if (SUITE_ROOTS.has(chain.root)) {
+    return modifiedSuiteRole({ members: chain.members, modifiers: SUITE_MODIFIERS });
+  }
+  const [first, ...rest] = chain.members;
+  return chain.root === PLAYWRIGHT_SUITE.root && first === PLAYWRIGHT_SUITE.member
+    ? modifiedSuiteRole({ members: rest, modifiers: PLAYWRIGHT_SUITE.modifiers })
+    : "callable";
 };
 
 const callbackRole = (request: { readonly node: Rule.Node }): CallbackRole => {
