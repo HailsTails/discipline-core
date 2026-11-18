@@ -104,6 +104,8 @@ The `assessment` section is informational and the marker does not change the exi
 
 Give it the base that the run assessing decay is given, such as `origin/main` for a branch: a record for a file changed since that base is forfeited by that run, and a check against a later revision, such as `HEAD`, does not show it.
 
+The records it writes give no `reason`. A Hone from before file carve-outs could leave out `reason` refuses such a record: the whole check stops with `load failure: file-malformed <records file> … at exceptions[<index>].reason` and exits `2`. So before the command writes any record, update the Hone that every pre-push hook, CI job and other machine runs to this release or later, as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, or that check stops.
+
 It never writes anything wider than one clause in one file: no `authorised-location`, no `clause-wide-carve-out`, no `exclude` entry and no setting. It prints one line per clause and file, `recorded` for each record it added, and writes nothing for:
 
 - a pair that already has an `authorised-location` or `file-carve-out`, such as one the check forfeits (`already-recorded`);

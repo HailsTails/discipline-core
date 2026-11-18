@@ -344,18 +344,17 @@ Checks of your own call the piece directly. `clauseUnderTestOf` returns the same
 
 ## Exceptions
 
-Exception records in `discipline-exceptions.json` name team clauses by their full address and work exactly as for Hone's own clauses. This entry, with `"fileExceptionWhyChains": "optional"` in `disciplines.json`, moves the finding to `exempted` and, after `hone project`, turns the rule off for that file in the team's own ESLint run:
+Exception records in `discipline-exceptions.json` name team clauses by their full address and work exactly as for Hone's own clauses. This entry records the console calls already in `src/start-banner.ts` as debt: it moves the finding to `exempted` and, after `hone project`, turns the rule off for that file in the team's own ESLint run, until the file is next touched and the record is forfeited:
 
 ```json
 {
-  "kind": "authorised-location",
+  "kind": "file-carve-out",
   "clause": "acme/ACME-1#console-calls",
-  "file": "src/start-banner.ts",
-  "reason": "The start banner is the one place that writes to the terminal."
+  "file": "src/start-banner.ts"
 }
 ```
 
-Without that setting the entry also needs a `whyChain`, and without one it is refused as `evidence-refused`; with it, a reason-only `authorised-location` is deprecated and will be refused in the next major release. A `file-carve-out` is debt and needs no `whyChain` either way. [README.md](../README.md#discipline-exceptionsjson) describes the record kinds and the why-chain each needs.
+A `file-carve-out` is debt and needs no `whyChain` and no `reason`. Where the clause does not apply to a file at all, record an `authorised-location` instead: it is never forfeited, so it needs a `reason` and a `whyChain` that follows the [why-chain contract](why-chain-contract.md), and without the chain it is refused as `evidence-refused`. [README.md](../README.md#discipline-exceptionsjson) describes the record kinds and what each needs.
 
 ## What is stable
 

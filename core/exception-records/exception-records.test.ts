@@ -422,6 +422,15 @@ describe("parseExceptionEntries imported records against the base revision", () 
     ).toMatchObject({ records: [], invalid: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "import-unverified" } }] });
   });
 
+  it.each([
+    { entry: IMPORTED_CARVE_OUT, way: "give it a whyChain, or remove its provenance to keep it as debt" },
+    { entry: LOCATION, way: "give it a whyChain" },
+  ])("names the way out for an unverified $entry.kind import", ({ entry, way }) => {
+    expect(
+      parseExceptionEntries({ entries: [{ place: AT_0, entry }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: NOTHING_AT_BASE }).invalid,
+    ).toEqual([{ place: AT_0, problem: { kind: "import-unverified", detail: expect.stringMatching(new RegExp(`: ${way}$`)) } }]);
+  });
+
   it("refuses a new record without a why-chain whose provenance source at base does not list the file", () => {
     expect(
       parseExceptionEntries({
