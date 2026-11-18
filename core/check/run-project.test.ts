@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { singleFileRepositoryOver } from "../../tests/records-disk.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -43,6 +44,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': SELECTION_PATH,
   '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
+  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
   '["/repo","src/a.ts"]': "/repo/src/a.ts",
   '["/repo","packages/a/eslint.config.mjs"]': "/repo/packages/a/eslint.config.mjs",
   '["/install","rules","CD-14","discipline.json"]': DISCIPLINE_PATH,
@@ -202,16 +204,19 @@ const GIT: GitPort = {
   textInBase: vi.fn<GitPort["textInBase"]>(),
 };
 
-const projectRequest = (overrides: Partial<ProjectRequest>): ProjectRequest => ({
-  repoRoot: absolutePathSchema.parse("/repo"),
-  installRoot: absolutePathSchema.parse("/install"),
-  moduleExtension: ".ts",
-  fileText: fileTextOver(INSTALL),
-  modules: modulesLoading({ runner: standaloneRunner() }),
-  path: TABLE_PATH,
-  git: GIT,
-  ...overrides,
-});
+const projectRequest = (overrides: Partial<ProjectRequest>): ProjectRequest => {
+  const ports = {
+    repoRoot: absolutePathSchema.parse("/repo"),
+    installRoot: absolutePathSchema.parse("/install"),
+    moduleExtension: ".ts" as const,
+    fileText: fileTextOver(INSTALL),
+    modules: modulesLoading({ runner: standaloneRunner() }),
+    path: TABLE_PATH,
+    git: GIT,
+    ...overrides,
+  };
+  return { exceptionRepository: singleFileRepositoryOver(ports), ...ports };
+};
 
 describe("runProject", () => {
   it("returns no projection writes with a standalone runner, writing no file and running nothing", async () => {

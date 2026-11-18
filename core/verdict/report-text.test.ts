@@ -11,6 +11,10 @@ import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
 import { renderReportText } from "./report-text.ts";
 
+const RECORDS_FILE = repoPathSchema.parse("discipline-exceptions.json");
+
+const SPLIT_RECORDS_FILE = repoPathSchema.parse("discipline-exceptions/file-carve-outs/pd-1.json");
+
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
 const probeNoTmp = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
 const fileA = repoPathSchema.parse("src/a.ts");
@@ -265,7 +269,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint\r\nfix --rule
           ...emptyReport,
           invalidRecords: [
             {
-              index: 4,
+              place: { layout: "single-file", file: RECORDS_FILE, index: 4 },
               problem: { kind: "why-chain-refused", detail: "why 2\nis empty\r" },
             },
           ],
@@ -406,7 +410,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
           ...emptyReport,
           invalidRecords: [
             {
-              index: 2,
+              place: { layout: "single-file", file: RECORDS_FILE, index: 2 },
               problem: { kind: "clause-unparseable", detail: "is not a clause address" },
             },
           ],
@@ -424,7 +428,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
           ...emptyReport,
           invalidRecords: [
             {
-              index: 0,
+              place: { layout: "single-file", file: RECORDS_FILE, index: 0 },
               problem: { kind: "why-chain-refused", detail: "`whyChain.owner` is required" },
             },
           ],
@@ -441,7 +445,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
         report: {
           ...emptyReport,
           invalidRecords: [
-            { index: 3, problem: { kind: "clause-not-selected", clause: probeNoTmp } },
+            { place: { layout: "single-file", file: RECORDS_FILE, index: 3 }, problem: { kind: "clause-not-selected", clause: probeNoTmp } },
           ],
         },
       }),
@@ -456,11 +460,44 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
         report: {
           ...emptyReport,
           invalidRecords: [
-            { index: 3, problem: { kind: "file-not-repo-path", file: "/abs/a.ts" } },
+            { place: { layout: "single-file", file: RECORDS_FILE, index: 3 }, problem: { kind: "file-not-repo-path", file: "/abs/a.ts" } },
           ],
         },
       }),
     ).toContain("\nexceptions[3] file-not-repo-path /abs/a.ts\n");
+  });
+
+  it("renders an invalid record of the split layout with the file that holds it and its index there", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          invalidRecords: [
+            { place: { layout: "split", file: SPLIT_RECORDS_FILE, index: 3 }, problem: { kind: "clause-not-selected", clause: probeNoTmp } },
+          ],
+        },
+      }),
+    ).toContain("\ndiscipline-exceptions/file-carve-outs/pd-1.json exceptions[3] clause-not-selected probe/PD-1#no-tmp-files\n");
+  });
+
+  it("renders a duplicate of the split layout with the file and index of the record it duplicates", () => {
+    expect(
+      renderReportText({
+        projectCommand: PROJECT_COMMAND,
+        output: "full",
+        report: {
+          ...emptyReport,
+          invalidRecords: [
+            {
+              place: { layout: "split", file: SPLIT_RECORDS_FILE, index: 3 },
+              problem: { kind: "duplicate", of: { layout: "split", file: SPLIT_RECORDS_FILE, index: 1 } },
+            },
+          ],
+        },
+      }),
+    ).toContain("\ndiscipline-exceptions/file-carve-outs/pd-1.json exceptions[3] duplicate of discipline-exceptions/file-carve-outs/pd-1.json exceptions[1]\n");
   });
 
   it("renders a duplicate invalid record with the index it duplicates", () => {
@@ -470,7 +507,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
         output: "full",
         report: {
           ...emptyReport,
-          invalidRecords: [{ index: 3, problem: { kind: "duplicate", ofIndex: 1 } }],
+          invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 3 }, problem: { kind: "duplicate", of: { layout: "single-file", file: RECORDS_FILE, index: 1 } } }],
         },
       }),
     ).toContain("\nexceptions[3] duplicate of 1\n");
@@ -681,7 +718,7 @@ describe("renderReportText sections", () => {
         report: {
           ...emptyReport,
           invalidRecords: [
-            { index: 0, problem: { kind: "file-not-repo-path", file: "/x\nverdict: pass" } },
+            { place: { layout: "single-file", file: RECORDS_FILE, index: 0 }, problem: { kind: "file-not-repo-path", file: "/x\nverdict: pass" } },
           ],
         },
       }),
@@ -857,7 +894,7 @@ describe("renderReportText clauses not adopted", () => {
       renderReportText({
         projectCommand: PROJECT_COMMAND,
         output: "full",
-        report: { ...emptyReport, invalidRecords: [{ index: 2, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
+        report: { ...emptyReport, invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 2 }, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
       }),
     ).toContain("\nexceptions[2] clause-not-adopted CD-6#naming-convention\n");
   });
@@ -887,7 +924,7 @@ describe("renderReportText clauses adopted but not run", () => {
       renderReportText({
         projectCommand: PROJECT_COMMAND,
         output: "full",
-        report: { ...emptyReport, invalidRecords: [{ index: 1, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
+        report: { ...emptyReport, invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 1 }, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
       }),
     ).toContain("\nexceptions[1] clause-not-run probe/PD-1#no-tmp-files\n");
   });

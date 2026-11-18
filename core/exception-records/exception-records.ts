@@ -1,9 +1,8 @@
 import { z } from "zod";
 import type { LoadFailure } from "../check/load-failure.ts";
 import type { Selection } from "../consumer-selection/selection.ts";
-import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";
-import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
-import { parsedJson, readVersionOneJson } from "../rule-set-reader/rule-set-reader.ts";
+import type { GitFailure } from "../platform-ports/git-port.ts";
+import { parsedJson } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import {
@@ -22,7 +21,13 @@ import {
   whyChainFormOf,
   whyChainSchema,
 } from "../values/why-chain.ts";
-import type { AuthorisedLocationEntry, ExceptionRecord, FileCarveOutEntry, InvalidRecord } from "./exception-record.ts";
+import type {
+  AuthorisedLocationEntry,
+  ExceptionRecord,
+  FileCarveOutEntry,
+  InvalidRecord,
+  RecordPlace,
+} from "./exception-record.ts";
 
 export type {
   AuthorisationEvidence,
@@ -36,6 +41,7 @@ export type {
   FileDebtEvidence,
   InheritedDebtProvenance,
   InvalidRecord,
+  RecordPlace,
 } from "./exception-record.ts";
 
 export type ExceptionReading = {
@@ -43,38 +49,22 @@ export type ExceptionReading = {
   readonly invalid: readonly InvalidRecord[];
 };
 
+export type RecordsWrite = { readonly path: RepoPath; readonly effect: "written" | "removed" };
+
+export type RecordsSplit =
+  | { readonly effect: "split"; readonly writes: readonly RecordsWrite[] }
+  | { readonly effect: "already-split" | "no-records"; readonly path: RepoPath };
+
 export type ExceptionRepository = {
-  readonly read: (request: {
-    readonly selection: Selection;
-    readonly baseline: ExceptionBaseline;
-    readonly fileExceptionWhyChains: FileExceptionWhyChains;
-  }) => Result<ExceptionReading, LoadFailure>;
+  readonly entries: () => Result<readonly PlacedEntry[], LoadFailure>;
+  readonly entriesAt: (request: { readonly revision: string }) => Result<readonly StructuralExceptionEntry[], GitFailure>;
+  readonly add: (request: { readonly entries: readonly FileCarveOutEntry[] }) => Result<void, LoadFailure>;
+  readonly split: () => Result<RecordsSplit, LoadFailure>;
 };
 
-export const createExceptionRepository = (options: {
-  readonly repoRoot: AbsolutePath;
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-}): ExceptionRepository => ({
-  read: (request) => {
-    const entries = readExceptionEntries(options);
-    if (entries.outcome === "failed") return entries;
-    return {
-      outcome: "ok",
-      value: parseExceptionEntries({ ...request, entries: entries.value }),
-    };
-  },
-});
+export type ExceptionRepositoryOf = (request: { readonly repoRoot: AbsolutePath }) => ExceptionRepository;
 
-export const createDefaultExceptionRepository = (options: {
-  readonly repoRoot: AbsolutePath;
-}): ExceptionRepository => createExceptionRepository({
-  ...options,
-  fileText: createDefaultFileTextPort({}),
-  path: createDefaultPathPort({}),
-});
-
-type IndexedRecord = { readonly index: number; readonly record: ExceptionRecord };
+type IndexedRecord = { readonly index: number; readonly place: RecordPlace; readonly record: ExceptionRecord };
 
 type EntryProblem = InvalidRecord["problem"];
 
@@ -109,6 +99,17 @@ const exceptionsFileSchema = z.object({
 });
 
 export type StructuralExceptionEntry = z.infer<typeof exceptionsFileSchema>["exceptions"][number];
+
+export type PlacedEntry = { readonly place: RecordPlace; readonly entry: StructuralExceptionEntry };
+
+export const exceptionEntriesOfDocument = (request: {
+  readonly document: unknown;
+}): Result<readonly StructuralExceptionEntry[], { readonly detail: string }> => {
+  const parsed = exceptionsFileSchema.safeParse(request.document);
+  return parsed.success
+    ? { outcome: "ok", value: parsed.data.exceptions }
+    : { outcome: "failed", error: { detail: z.prettifyError(parsed.error) } };
+};
 
 export type ExceptionBaseline =
   | { readonly measured: "no"; readonly base: BaseRevisionAvailability }
@@ -497,26 +498,30 @@ const originalRecordOf = (request: {
       identityComparison({ left: earlier.record, right: request.candidate.record }) === "same-identity",
   );
 
-type ParsedEntry = { readonly index: number; readonly record: Result<ExceptionRecord, EntryProblem> };
+type ParsedEntry = {
+  readonly index: number;
+  readonly place: RecordPlace;
+  readonly record: Result<ExceptionRecord, EntryProblem>;
+};
 
 const validRecordsOf = (request: { readonly parsed: readonly ParsedEntry[] }): readonly IndexedRecord[] =>
-  request.parsed.flatMap(({ index, record }): readonly IndexedRecord[] =>
-    record.outcome === "ok" ? [{ index, record: record.value }] : [],
+  request.parsed.flatMap(({ index, place, record }): readonly IndexedRecord[] =>
+    record.outcome === "ok" ? [{ index, place, record: record.value }] : [],
   );
 
 const invalidRecordOf = (request: {
   readonly entry: ParsedEntry;
   readonly valid: readonly IndexedRecord[];
 }): readonly InvalidRecord[] => {
-  const { index, record } = request.entry;
+  const { index, place, record } = request.entry;
   if (record.outcome === "failed") {
-    return [{ index, problem: record.error }];
+    return [{ place, problem: record.error }];
   }
-  const original = originalRecordOf({ valid: request.valid, candidate: { index, record: record.value } });
+  const original = originalRecordOf({ valid: request.valid, candidate: { index, place, record: record.value } });
   if (original === undefined) {
     return [];
   }
-  return [{ index, problem: { kind: "duplicate", ofIndex: original.index } }];
+  return [{ place, problem: { kind: "duplicate", of: original.place } }];
 };
 
 const invalidRecordsOf = (request: {
@@ -531,43 +536,21 @@ const firstRecordsOf = (request: { readonly valid: readonly IndexedRecord[] }): 
     .map(({ record }) => record);
 
 export const parseExceptionEntries = (request: {
-  readonly entries: readonly StructuralExceptionEntry[];
+  readonly entries: readonly PlacedEntry[];
   readonly selection: Selection;
   readonly baseline: ExceptionBaseline;
   readonly fileExceptionWhyChains: FileExceptionWhyChains;
 }): ExceptionReading => {
   const fileEvidence = FILE_EVIDENCE_SCHEMAS_OF[request.fileExceptionWhyChains];
   const parsed = request.entries.map(
-    (entry, index): ParsedEntry => ({
+    ({ place, entry }, index): ParsedEntry => ({
       index,
+      place,
       record: parsedRecord({ entry, selection: request.selection, baseline: request.baseline, fileEvidence }),
     }),
   );
   const valid = validRecordsOf({ parsed });
   return { records: firstRecordsOf({ valid }), invalid: invalidRecordsOf({ parsed, valid }) };
-};
-
-export const readExceptionEntries = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-}): Result<readonly StructuralExceptionEntry[], LoadFailure> => {
-  const path = request.path.join({ segments: [request.repoRoot, "discipline-exceptions.json"] });
-  if (request.fileText.exists({ path }) === "absent") {
-    return { outcome: "ok", value: [] };
-  }
-  const document = readVersionOneJson({ fileText: request.fileText, path });
-  if (document.outcome === "failed") {
-    return document;
-  }
-  const parsed = exceptionsFileSchema.safeParse(document.value);
-  if (!parsed.success) {
-    return {
-      outcome: "failed",
-      error: { kind: "file-malformed", path, detail: z.prettifyError(parsed.error) },
-    };
-  }
-  return { outcome: "ok", value: parsed.data.exceptions };
 };
 
 export type ImportEvidence = { readonly imported: "no" } | { readonly imported: "yes"; readonly source: string };
@@ -629,6 +612,6 @@ export const exceptionEntriesOfText = (request: { readonly text: string }): read
   if (document.outcome === "failed") {
     return [];
   }
-  const parsed = exceptionsFileSchema.safeParse(document.value);
-  return parsed.success ? parsed.data.exceptions : [];
+  const entries = exceptionEntriesOfDocument({ document: document.value });
+  return entries.outcome === "ok" ? entries.value : [];
 };

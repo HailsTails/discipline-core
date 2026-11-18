@@ -31,6 +31,7 @@ The package ships one command, `hone`, with three subcommands. `check` and `proj
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+hone split-records --repo <dir>
 hone --help
 hone --version
 ```

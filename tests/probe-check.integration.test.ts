@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
@@ -104,7 +105,7 @@ const probeCheck = () => {
   const parse = { ...defaultParsePort };
   const parseCalls = vi.spyOn(parse, "parse");
   const runnerModule = { runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse }) };
-  const report = runCheck({
+  const report = runCheck(withSingleFileRecords({
     repoRoot: absolutePathSchema.parse("/repo"),
     installRoot: absolutePathSchema.parse("/install"),
     moduleExtension: ".ts",
@@ -116,7 +117,7 @@ const probeCheck = () => {
     },
     path,
     git,
-  });
+  }));
   return { report, parseCalls };
 };
 

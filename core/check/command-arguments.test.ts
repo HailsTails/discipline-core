@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { argumentProblemText } from "./argument-problem.ts";
-import { parseCheckArguments, parseInvocation, parseProjectArguments, parseRecordDebtArguments } from "./command-arguments.ts";
+import {
+  parseCheckArguments,
+  parseInvocation,
+  parseProjectArguments,
+  parseRecordDebtArguments,
+  parseSplitRecordsArguments,
+} from "./command-arguments.ts";
 import { ADOPTION_BASE_REVISION_OPTION, FORFEITURE_OPTION, LEAVE_OPTION, REPO_OPTION, REPORT_OUTPUT_OPTION } from "./command-line.ts";
 
 const invalid = (request: { readonly detail: string }) => ({
@@ -13,6 +19,7 @@ describe("parseInvocation", () => {
     { given: ["check", "--repo", "/work/repo"], expected: { kind: "run", subcommand: "check", arguments: ["--repo", "/work/repo"] } },
     { given: ["project", "--repo", "/work/repo"], expected: { kind: "run", subcommand: "project", arguments: ["--repo", "/work/repo"] } },
     { given: ["record-debt", "--repo", "."], expected: { kind: "run", subcommand: "record-debt", arguments: ["--repo", "."] } },
+    { given: ["split-records", "--repo", "."], expected: { kind: "run", subcommand: "split-records", arguments: ["--repo", "."] } },
     { given: ["record-debt", "--leave", "src/a.ts", "-h"], expected: { kind: "help", topic: "record-debt" } },
     { given: ["--help"], expected: { kind: "help", topic: "tool" } },
     { given: ["-h"], expected: { kind: "help", topic: "tool" } },
@@ -103,6 +110,19 @@ describe("parseProjectArguments", () => {
     { given: ["--repo", "/work/repo", "--base-revision", "main"], problem: { kind: "option-unknown", subcommand: "project", given: "--base-revision" } },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
     expect(parseProjectArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
+  });
+});
+
+describe("parseSplitRecordsArguments", () => {
+  it("reads --repo", () => {
+    expect(parseSplitRecordsArguments({ arguments: ["--repo", "/work/repo"] })).toEqual({ outcome: "ok", value: { repo: "/work/repo" } });
+  });
+
+  it.each([
+    { given: [], problem: { kind: "option-required", subcommand: "split-records", option: REPO_OPTION } },
+    { given: ["--repo", "/work/repo", "--base-revision", "main"], problem: { kind: "option-unknown", subcommand: "split-records", given: "--base-revision" } },
+  ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
+    expect(parseSplitRecordsArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
   });
 });
 

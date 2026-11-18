@@ -78,8 +78,14 @@ export type ExceptionRecord =
       readonly whyChain: RecordedWhyChain;
     };
 
-export type InvalidRecord = {
+export type RecordPlace = {
+  readonly layout: "single-file" | "split";
+  readonly file: RepoPath;
   readonly index: number;
+};
+
+export type InvalidRecord = {
+  readonly place: RecordPlace;
   readonly problem:
     | { readonly kind: "clause-unparseable"; readonly detail: string }
     | { readonly kind: "clause-not-selected"; readonly clause: ClauseAddress }
@@ -90,5 +96,5 @@ export type InvalidRecord = {
     | { readonly kind: "evidence-refused"; readonly detail: string }
     | { readonly kind: "import-unverified"; readonly detail: string }
     | { readonly kind: "non-exemptible-clause"; readonly clause: ClauseAddress }
-    | { readonly kind: "duplicate"; readonly ofIndex: number };
+    | { readonly kind: "duplicate"; readonly of: RecordPlace };
 };

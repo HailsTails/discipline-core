@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { singleFileRepositoriesOver } from "../../tests/records-disk.ts";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
@@ -81,6 +82,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
 const JOINED_PATHS: Readonly<Record<string, string>> = {
   '["/repo","disciplines.json"]': "/repo/disciplines.json",
   '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
+  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
   '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
   '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
   '["/install","package.json"]': "/install/package.json",
@@ -157,15 +159,18 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandRequest = (overrides: Partial<CommandRequest>): CommandRequest => ({
-  process: processWith({ arguments: ["--repo", "/repo"] }),
-  path: TABLE_PATH,
-  fileText: fileTextOver(NOTHING_SELECTED),
-  modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
-  git: gitTracking([]),
-  moduleUrl: ENTRY_URL,
-  ...overrides,
-});
+const commandRequest = (overrides: Partial<CommandRequest>): CommandRequest => {
+  const ports = {
+    process: processWith({ arguments: ["--repo", "/repo"] }),
+    path: TABLE_PATH,
+    fileText: fileTextOver(NOTHING_SELECTED),
+    modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [] } } }) }),
+    git: gitTracking([]),
+    moduleUrl: ENTRY_URL,
+    ...overrides,
+  };
+  return { exceptionRepositoryOf: singleFileRepositoriesOver(ports), ...ports };
+};
 
 const outputOf = (request: { readonly process: ProcessPort }) => ({
   writes: vi.mocked(request.process.writeOut).mock.calls,

@@ -8,6 +8,20 @@ const WALKER = mechanismIdSchema.parse("audit");
 const ESLINT = mechanismIdSchema.parse("eslint");
 
 describe("loadFailureText", () => {
+  it("prints records-in-both-layouts with the file, the folder and that only one layout is read", () => {
+    expect(
+      loadFailureText({ failure: { kind: "records-in-both-layouts", path: "discipline-exceptions.json", folder: "discipline-exceptions" } }),
+    ).toBe(
+      "load failure: records-in-both-layouts discipline-exceptions.json discipline-exceptions: Hone reads exception records from one layout; keep each record in one of them and remove the other\n",
+    );
+  });
+
+  it("prints records-unsplittable with the file and why", () => {
+    expect(
+      loadFailureText({ failure: { kind: "records-unsplittable", path: "discipline-exceptions.json", detail: "exceptions[1] names no discipline" } }),
+    ).toBe("load failure: records-unsplittable discipline-exceptions.json exceptions[1] names no discipline\n");
+  });
+
   it("prints an untracked ESLint config root with what the entry must be", () => {
     expect(loadFailureText({ failure: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/Web") } })).toBe(
       "load failure: config-root-untracked packages/Web: an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json\n",

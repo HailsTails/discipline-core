@@ -1,3 +1,4 @@
+import { createDefaultExceptionRepositoryOf } from "../core/exception-records/exception-layout.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultGitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
@@ -11,5 +12,6 @@ await runSelfCheck({
   fileText: createDefaultFileTextPort({}),
   modules: createDefaultModuleLoaderPort({}),
   git: createDefaultGitPort({}),
+  exceptionRepositoryOf: createDefaultExceptionRepositoryOf({}),
   moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
 });

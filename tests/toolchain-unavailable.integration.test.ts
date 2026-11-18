@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
@@ -71,7 +72,7 @@ const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPo
   });
 
 const checkWith = (request: { readonly fixture: string; readonly runner: unknown; readonly tracked: readonly RepoPath[] }) =>
-  runCheck({
+  runCheck(withSingleFileRecords({
     repoRoot: absolutePathSchema.parse(`${INSTALL_ROOT}/${request.fixture}`),
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -81,7 +82,7 @@ const checkWith = (request: { readonly fixture: string; readonly runner: unknown
     modules: modulesServingRunner({ runnerSuffix: "/runner/runner.ts", runner: request.runner, base: createDefaultModuleLoaderPort({}) }),
     path,
     git: gitTracking({ tracked: request.tracked }),
-  });
+  }));
 
 describe("a check whose adopter has not installed a toolchain peer the selected mechanism needs", () => {
   it("fails the ESLint mechanism as toolchain-unavailable naming eslint and its supported range, before loading any piece", async () => {

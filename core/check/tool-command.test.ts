@@ -17,6 +17,7 @@ const entrySource = import.meta.glob(["./tool-command.ts"], {
 });
 
 const WIRING = `#!/usr/bin/env node
+import { createDefaultExceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import { createDefaultFileTextPort } from "../platform-ports/file-text-port.ts";
 import { createDefaultGitPort } from "../platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
@@ -30,6 +31,7 @@ await runToolCommand({
   fileText: createDefaultFileTextPort({}),
   modules: createDefaultModuleLoaderPort({}),
   git: createDefaultGitPort({}),
+  exceptionRepositoryOf: createDefaultExceptionRepositoryOf({}),
   moduleUrl: import.meta.url,
 });
 `;

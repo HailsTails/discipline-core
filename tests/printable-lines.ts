@@ -1,7 +1,7 @@
 import { type ArgumentProblem, argumentsInvalid } from "../core/check/argument-problem.ts";
 import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
 import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
-import { projectCommandOutcome, recordDebtCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
+import { projectCommandOutcome, recordDebtCommandOutcome, splitRecordsCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
 import { installedVersionOf } from "../core/check/installed-version.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
@@ -11,6 +11,7 @@ import type {
   ExistingAuthorisationProvenance,
   InheritedDebtProvenance,
   InvalidRecord,
+  RecordsSplit,
 } from "../core/exception-records/exception-records.ts";
 import type { AttributedNativeException, Finding } from "../core/governance/governance.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
@@ -202,6 +203,12 @@ const NATIVE_EXCEPTIONS: {
   "command-line-option": Object.values(SCRIPT_OPTIONS),
 };
 
+const SINGLE_RECORDS_FILE = repoPathSchema.parse("discipline-exceptions.json");
+
+const SPLIT_RECORDS_FOLDER = repoPathSchema.parse("discipline-exceptions");
+
+const SPLIT_RECORDS_FILE = repoPathSchema.parse("discipline-exceptions/file-carve-outs/cd-15.json");
+
 const RECORD_PROBLEMS: { readonly [Kind in InvalidRecord["problem"]["kind"]]: Filled<Extract<InvalidRecord["problem"], { readonly kind: Kind }>> } = {
   "clause-unparseable": { entry: { kind: "clause-unparseable", detail: "not a clause address" }, fills: { detail: "not a clause address" } },
   "clause-not-selected": { entry: { kind: "clause-not-selected", clause: LOOPS }, fills: {} },
@@ -212,7 +219,15 @@ const RECORD_PROBLEMS: { readonly [Kind in InvalidRecord["problem"]["kind"]]: Fi
   "evidence-refused": { entry: { kind: "evidence-refused", detail: "no evidence" }, fills: { detail: "no evidence" } },
   "import-unverified": { entry: { kind: "import-unverified", detail: "the source has no such entry" }, fills: { detail: "the source has no such entry" } },
   "non-exemptible-clause": { entry: { kind: "non-exemptible-clause", clause: LOOPS }, fills: {} },
-  duplicate: { entry: { kind: "duplicate", ofIndex: 0 }, fills: { "earlier index": "0" } },
+  duplicate: { entry: { kind: "duplicate", of: { layout: "single-file", file: SINGLE_RECORDS_FILE, index: 0 } }, fills: { "earlier index": "0" } },
+};
+
+const SPLIT_RECORD_PROBLEMS: typeof RECORD_PROBLEMS = {
+  ...RECORD_PROBLEMS,
+  duplicate: {
+    entry: { kind: "duplicate", of: { layout: "split", file: SPLIT_RECORDS_FILE, index: 0 } },
+    fills: { "earlier records file": SPLIT_RECORDS_FILE, "earlier index": "0" },
+  },
 };
 
 type MechanismNotRun = Extract<Unmeasured, { readonly kind: "mechanism-not-run" }>;
@@ -327,10 +342,16 @@ const SECTION_SAMPLES: SectionSamples = {
   forfeited: unfilled([RECORDS["file-carve-out"]]),
   unrecorded: Object.values(NATIVE_EXCEPTIONS).flat(),
   doublyHeld: unfilled([{ clause: LOOPS, file: FILE, mechanism: MECHANISM }]),
-  invalidRecords: Object.values(RECORD_PROBLEMS).map((problem, index) => ({
-    entry: { index, problem: problem.entry },
-    fills: { ...problem.fills, index: String(index) },
-  })),
+  invalidRecords: [
+    ...Object.values(RECORD_PROBLEMS).map((problem, index) => ({
+      entry: { place: { layout: "single-file" as const, file: SINGLE_RECORDS_FILE, index }, problem: problem.entry },
+      fills: { ...problem.fills, index: String(index) },
+    })),
+    ...Object.values(SPLIT_RECORD_PROBLEMS).map((problem, index) => ({
+      entry: { place: { layout: "split" as const, file: SPLIT_RECORDS_FILE, index }, problem: problem.entry },
+      fills: { ...problem.fills, index: String(index), "records file": SPLIT_RECORDS_FILE },
+    })),
+  ],
   unmeasured: Object.values(UNMEASURED).flat(),
   projectionProblems: Object.values(PROJECTION_PROBLEMS)
     .flatMap((byState) => Object.values(byState))
@@ -461,6 +482,14 @@ const LOAD_FAILURES: { readonly [Kind in LoadFailure["kind"]]: Filled<Extract<Lo
     fills: { path: "discipline-exceptions.json", detail: "EACCES" },
   },
   "why-chains-required": { entry: { kind: "why-chains-required", path: "disciplines.json" }, fills: { path: "disciplines.json" } },
+  "records-in-both-layouts": {
+    entry: { kind: "records-in-both-layouts", path: "discipline-exceptions.json", folder: "discipline-exceptions" },
+    fills: { path: "discipline-exceptions.json", "records folder": "discipline-exceptions" },
+  },
+  "records-unsplittable": {
+    entry: { kind: "records-unsplittable", path: "discipline-exceptions.json", detail: "exceptions[3] has the clause \"CD-15 loops\", which names no discipline" },
+    fills: { path: "discipline-exceptions.json", detail: "exceptions[3] has the clause \"CD-15 loops\", which names no discipline" },
+  },
   "unsupported-version": { entry: { kind: "unsupported-version", path: "disciplines.json", found: 2 }, fills: { path: "disciplines.json", "version found": "2" } },
   "reserved-rule-set-name": { entry: { kind: "reserved-rule-set-name", name: "hone" }, fills: { "rule set": "hone" } },
   "rule-set-name-collision": { entry: { kind: "rule-set-name-collision", name: "team", other: "team-web" }, fills: { "rule set": "team", "other rule set": "team-web" } },
@@ -552,7 +581,7 @@ const LEFT_UNDER = repoPathSchema.parse("src");
 
 const INHERITED_DEBT_EFFECTS: Readonly<Record<InheritedDebtOutcome["effect"], InheritedDebtOutcome>> = {
   recorded: { clause: LOOPS, file: FILE, effect: "recorded" },
-  "already-recorded": { clause: LOOPS, file: FILE, effect: "already-recorded" },
+  "already-recorded": { clause: LOOPS, file: FILE, effect: "already-recorded", heldIn: SPLIT_RECORDS_FILE },
   left: { clause: LOOPS, file: FILE, effect: "left", under: LEFT_UNDER },
   "new-file": { clause: LOOPS, file: FILE, effect: "new-file" },
   refused: { clause: LOOPS, file: FILE, effect: "refused" },
@@ -561,8 +590,19 @@ const INHERITED_DEBT_EFFECTS: Readonly<Record<InheritedDebtOutcome["effect"], In
 const RECORD_DEBT_LINES: readonly PrintedLine[] = linesOf({
   label: "record-debt",
   text: recordDebtCommandOutcome({ result: { outcome: "ok", value: Object.values(INHERITED_DEBT_EFFECTS) } }).text,
-  fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src" },
+  fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src", "records file": SPLIT_RECORDS_FILE },
 });
+
+const SPLIT_RECORDS_OUTCOMES: readonly { readonly split: RecordsSplit; readonly path: string }[] = [
+  { split: { effect: "split", writes: [{ path: SPLIT_RECORDS_FILE, effect: "written" }] }, path: SPLIT_RECORDS_FILE },
+  { split: { effect: "split", writes: [{ path: SINGLE_RECORDS_FILE, effect: "removed" }] }, path: SINGLE_RECORDS_FILE },
+  { split: { effect: "already-split", path: SPLIT_RECORDS_FOLDER }, path: SPLIT_RECORDS_FOLDER },
+  { split: { effect: "no-records", path: SINGLE_RECORDS_FILE }, path: SINGLE_RECORDS_FILE },
+];
+
+const SPLIT_RECORDS_LINES: readonly PrintedLine[] = SPLIT_RECORDS_OUTCOMES.flatMap(({ split, path }) =>
+  linesOf({ label: "split-records", text: splitRecordsCommandOutcome({ result: { outcome: "ok", value: split } }).text, fills: { path } }),
+);
 
 const VERSION_MANIFEST: FileTextPort = {
   read: () => ({ outcome: "ok", value: JSON.stringify({ name: "@hailstails/hone", version: "1.0.0" }) }),
@@ -582,7 +622,14 @@ const VERSION_LINES: readonly PrintedLine[] = linesOf({
   fills: { version: "1.0.0" },
 });
 
-export const PRINTABLE_LINES: readonly PrintedLine[] = [...REPORT_LINES, ...FAILURE_LINES, ...PROJECT_LINES, ...RECORD_DEBT_LINES, ...VERSION_LINES];
+export const PRINTABLE_LINES: readonly PrintedLine[] = [
+  ...REPORT_LINES,
+  ...FAILURE_LINES,
+  ...PROJECT_LINES,
+  ...RECORD_DEBT_LINES,
+  ...SPLIT_RECORDS_LINES,
+  ...VERSION_LINES,
+];
 
 export const PRINTED_SECTION_ROLES: readonly DocumentedRole[] = SECTION_NAMES.map((section) => ({ section, role: sectionRoleOf({ section }) }));
 

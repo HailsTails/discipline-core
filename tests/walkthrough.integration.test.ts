@@ -1,4 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
+import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
 import { checkCommandOutcome } from "../core/check/command-outcome.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { runCheckCommand } from "../core/check/run-check-command.ts";
@@ -54,7 +55,7 @@ const trackingGit = (request: { readonly tracked: readonly RepoPath[] }): GitPor
 });
 
 const checkedText = async (request: { readonly repo: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {
-  const checked = await runCheck({
+  const checked = await runCheck(withSingleFileRecords({
     repoRoot: request.repo,
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
@@ -64,7 +65,7 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     modules: createDefaultModuleLoaderPort({}),
     path,
     git: trackingGit({ tracked: request.tracked }),
-  });
+  }));
   assert(checked.outcome === "ok", `${request.repo} loads`);
   return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND } } });
 };
@@ -76,14 +77,16 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
     writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
   };
-  await runCheckCommand({
-    process: processPort,
-    path,
-    fileText: createDefaultFileTextPort({}),
-    modules: createDefaultModuleLoaderPort({}),
-    git: trackingGit({ tracked: request.tracked }),
-    moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
-  });
+  await runCheckCommand(
+    withSingleFileRecordsOf({
+      process: processPort,
+      path,
+      fileText: createDefaultFileTextPort({}),
+      modules: createDefaultModuleLoaderPort({}),
+      git: trackingGit({ tracked: request.tracked }),
+      moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
+    }),
+  );
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
 };
 

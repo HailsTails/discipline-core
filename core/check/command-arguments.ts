@@ -32,6 +32,10 @@ export type ProjectArguments = {
   readonly repo: string;
 };
 
+export type SplitRecordsArguments = {
+  readonly repo: string;
+};
+
 export type RecordDebtArguments = {
   readonly repo: string;
   readonly baseRevision: string;
@@ -192,6 +196,17 @@ export const parseProjectArguments = (request: {
     return values;
   }
   const repo = requiredRepo({ subcommand: "project", values: values.value });
+  return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
+};
+
+export const parseSplitRecordsArguments = (request: {
+  readonly arguments: readonly string[];
+}): Result<SplitRecordsArguments, LoadFailure> => {
+  const values = givenOptionValues({ subcommand: "split-records", arguments: request.arguments });
+  if (values.outcome === "failed") {
+    return values;
+  }
+  const repo = requiredRepo({ subcommand: "split-records", values: values.value });
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
 };
 

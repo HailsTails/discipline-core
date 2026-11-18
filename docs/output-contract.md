@@ -1,18 +1,18 @@
 # Output contract
 
-This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures, the `hone project` lines and the `hone record-debt` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
+This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures, the `hone project` lines, the `hone record-debt` lines and the `hone split-records` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
 
 A test renders every kind of line the command can print, fills each template below with that line's own sample values, and requires the result to equal the printed line exactly: a line Hone can print that is not listed here fails the build, and so does a line listed here that Hone cannot print. The synopsis and help blocks below are compared with what the command prints, character for character.
 
 ## Streams and exit codes
 
-Hone prints everything to standard output: the report, the help, the version, `hone project` and `hone record-debt` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
+Hone prints everything to standard output: the report, the help, the version, `hone project`, `hone record-debt` and `hone split-records` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
 
 The exit code is the signal a hook should act on:
 
-- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, or help or the version was printed;
+- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, `hone split-records` split the records or found nothing to split, or help or the version was printed;
 - `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line. Exit `1` always comes with one of those lines, and with nothing else;
-- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt` could not write, and an error Hone did not expect, which prints as `unexpected-error`.
+- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt` or `hone split-records` could not write or place, and an error Hone did not expect, which prints as `unexpected-error`.
 
 A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
 
@@ -50,10 +50,10 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<mechanism>` | a mechanism id, such as `audit` or `eslint` | never |
 | `<record kind>`, `<section>`, `<package>` | a word from the lines below, a section name, or an npm package name | never |
 | `<line>`, `<column>` | a 1-based line and a 0-based column | never |
-| `<count>`, `<index>`, `<earlier index>` | a whole number; an index counts from 0 | never |
+| `<count>`, `<index>`, `<earlier index>` | a whole number; an index counts from 0, within the file that holds the record | never |
 | `<version>` | the installed package's version | never |
 | `<edition>`, `<latest>` | the edition of a clause's check that ran and the latest edition its piece declares, each a whole number from 1 | never |
-| `<file>`, `<path>`, `<slice>`, `<suppressions file>`, `<package file>`, `<config root>`, `<piece folder>`, `<location>`, `<install folder>`, `<rule page>`, `<adoption guide>` | a path, as described below | may hold a space |
+| `<file>`, `<path>`, `<records file>`, `<earlier records file>`, `<records folder>`, `<slice>`, `<suppressions file>`, `<package file>`, `<config root>`, `<piece folder>`, `<location>`, `<install folder>`, `<rule page>`, `<adoption guide>` | a path, as described below | may hold a space |
 | `<folders>` | paths separated by `, ` | may hold a space |
 | `<folder>` | the folder that holds a `<slice>` | may hold a space |
 | `<project command>` | the command that runs `hone project` for this repository: `node`, the installed command's absolute path, `project --repo` and the repository's absolute path, each path with forward slashes and in double quotes when it holds a character other than a letter, digit or one of `_ . / @ : + -` | may hold a space |
@@ -72,6 +72,7 @@ Paths are printed with forward slashes. A path inside the `--repo` folder is pri
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+hone split-records --repo <dir>
 hone --help
 hone --version
 ```
@@ -86,9 +87,10 @@ usage: hone <command> [options]
 Checks a repository against the disciplines it selects, applies its recorded exceptions and prints one verdict.
 
 commands:
-  check        check the repository against the disciplines it selects and print the report, ending in its verdict
-  project      write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
-  record-debt  add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  check          check the repository against the disciplines it selects and print the report, ending in its verdict
+  project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
+  record-debt    add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
   --help, -h  print this help; after a command, print that command's help
@@ -145,7 +147,7 @@ exit codes:
 ```text
 usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 
-add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
 
 options:
   --repo <dir>
@@ -160,6 +162,24 @@ options:
 exit codes:
   0  every record needed was written, or none was needed
   2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
+```
+
+`hone split-records --help` prints:
+
+```text
+usage: hone split-records --repo <dir>
+
+move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --help, -h
+      print this help
+
+exit codes:
+  0  the records were split, or there was nothing to split
+  2  a load failure: the records could not be read, placed or written, or Hone failed unexpectedly
 ```
 
 `hone --version` prints the version of the installed package, read from its `package.json`, and exits `0`:
@@ -183,9 +203,9 @@ exit codes:
 | `uncovered` | failing | clauses of a selected discipline that are neither selected nor marked |
 | `stale` | failing | exceptions that cover no finding |
 | `forfeited` | failing | file carve-outs on files this change touched |
-| `unrecorded` | failing | native exceptions with no record in `discipline-exceptions.json` |
+| `unrecorded` | failing | native exceptions with no exception record |
 | `doublyHeld` | failing | files both authorised and carved out for one clause |
-| `invalidRecords` | failing | entries in `discipline-exceptions.json` that cannot be applied |
+| `invalidRecords` | failing | exception records that cannot be applied |
 | `unmeasured` | failing | what this run could not measure |
 | `projectionProblems` | failing | ESLint projections that are out of date |
 | `assessment` | informational | concerns this run left to another run |
@@ -252,6 +272,16 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `invalidRecords` | `exceptions[<index>] import-unverified <detail>` |
 | `invalidRecords` | `exceptions[<index>] non-exemptible-clause <clause>` |
 | `invalidRecords` | `exceptions[<index>] duplicate of <earlier index>` |
+| `invalidRecords` | `<records file> exceptions[<index>] clause-unparseable <detail>` |
+| `invalidRecords` | `<records file> exceptions[<index>] clause-not-selected <clause>` |
+| `invalidRecords` | `<records file> exceptions[<index>] clause-not-adopted <clause>` |
+| `invalidRecords` | `<records file> exceptions[<index>] clause-not-run <clause>` |
+| `invalidRecords` | `<records file> exceptions[<index>] file-not-repo-path <file>` |
+| `invalidRecords` | `<records file> exceptions[<index>] why-chain-refused <detail>` |
+| `invalidRecords` | `<records file> exceptions[<index>] evidence-refused <detail>` |
+| `invalidRecords` | `<records file> exceptions[<index>] import-unverified <detail>` |
+| `invalidRecords` | `<records file> exceptions[<index>] non-exemptible-clause <clause>` |
+| `invalidRecords` | `<records file> exceptions[<index>] duplicate of <earlier records file> exceptions[<earlier index>]` |
 | `unmeasured` | `forfeiture-unmeasured no-base-revision: no --base-revision was given, so file carve-outs cannot be checked for decay; pass --base-revision with the branch's base, such as origin/main, or leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere` |
 | `unmeasured` | `forfeiture-unmeasured base-git-failed <revision>: git could not list the files changed since that revision and said <git message>; Hone needs that revision and the history back to where this branch left it, or leave decay to another run with "assessment": { "forfeiture": "elsewhere" } in disciplines.json or --forfeiture elsewhere` |
 | `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so imported records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
@@ -295,6 +325,8 @@ A run that cannot decide prints one line and exits `2`. It prints the same line 
 | `file-unreadable` | `load failure: file-unreadable <path> <detail>` |
 | `file-malformed` | `load failure: file-malformed <path> <detail>` |
 | `file-unwritable` | `load failure: file-unwritable <path> <detail>` |
+| `records-in-both-layouts` | `load failure: records-in-both-layouts <path> <records folder>: Hone reads exception records from one layout; keep each record in one of them and remove the other` |
+| `records-unsplittable` | `load failure: records-unsplittable <path> <detail>` |
 | `why-chains-required` | `load failure: why-chains-required <path>: hone record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them` |
 | `unsupported-version` | `load failure: unsupported-version <path> <version found>` |
 | `reserved-rule-set-name` | `load failure: reserved-rule-set-name <rule set>` |
@@ -331,8 +363,8 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 | Problem | Line |
 | --- | --- |
-| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project or record-debt; run hone --help for usage` |
-| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project and record-debt; run hone --help for usage` |
+| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project, record-debt or split-records; run hone --help for usage` |
+| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project, record-debt and split-records; run hone --help for usage` |
 | `flag-extra` | `load failure: arguments-invalid hone <flag> takes nothing after it, not "<given>"; run hone --help for usage` |
 | `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in <option> <value>; run hone <command> --help for its options` |
 | `option-unknown` | `load failure: arguments-invalid hone <command> has no option "<given>"; run hone <command> --help for its options` |
@@ -358,12 +390,23 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 ## hone record-debt
 
-`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to `discipline-exceptions.json`; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file.
+`hone record-debt` runs the check, then prints one line for each clause and file that has a finding, or an inline disable or TypeScript directive under `unrecorded`, ordered by file and then by clause. A `recorded` line is a `file-carve-out` it added to the exception records, in whichever [layout](../README.md#exception-records) the repository keeps them; every other line names a pair it wrote nothing for. It prints nothing when the check finds nothing to record. The `<path>` on a `left` line is the `--leave` value that covers the file.
 
 | Output | Line |
 | --- | --- |
 | `record-debt` | `<clause> recorded <file>` |
-| `record-debt` | `<clause> already-recorded <file>: discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold` |
+| `record-debt` | `<clause> already-recorded <file>: <records file> already holds a record on this clause and file; the check says why it does not hold` |
 | `record-debt` | `<clause> left <file>: under --leave <path>; record it as an authorised-location with its own reason, or fix it` |
 | `record-debt` | `<clause> new-file <file>: the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason` |
 | `record-debt` | `<clause> refused <file>: the clause's discipline refuses exceptions; fix it` |
+
+## hone split-records
+
+`hone split-records` moves a repository's exception records from `discipline-exceptions.json` into the `discipline-exceptions` folder. It prints a `written` line for each file it writes, in path order, then a `removed` line for `discipline-exceptions.json`. When the records are already split, or `discipline-exceptions.json` is absent or holds no records, it prints one line, changes nothing and exits `0`. A records file that holds a record whose clause names no discipline is `records-unsplittable`, and nothing is written.
+
+| Output | Line |
+| --- | --- |
+| `split-records` | `<path> written` |
+| `split-records` | `<path> removed` |
+| `split-records` | `<path> already holds the records split: nothing to split` |
+| `split-records` | `<path> holds no records: nothing to split` |

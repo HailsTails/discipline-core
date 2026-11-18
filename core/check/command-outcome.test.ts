@@ -5,7 +5,13 @@ import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { checkCommandOutcome, projectCommandOutcome, versionCommandOutcome } from "./command-outcome.ts";
+import {
+  checkCommandOutcome,
+  inheritedDebtLine,
+  projectCommandOutcome,
+  splitRecordsCommandOutcome,
+  versionCommandOutcome,
+} from "./command-outcome.ts";
 
 const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 
@@ -165,5 +171,60 @@ describe("versionCommandOutcome", () => {
     expect(
       versionCommandOutcome({ result: { outcome: "failed", error: { kind: "file-unreadable", path: "package.json", detail: "EACCES" } } }),
     ).toEqual({ code: 2, text: "load failure: file-unreadable package.json EACCES\n" });
+  });
+});
+
+describe("splitRecordsCommandOutcome", () => {
+  it("prints each file written, then the file removed, and exits 0", () => {
+    expect(
+      splitRecordsCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: {
+            effect: "split",
+            writes: [
+              { path: repoPathSchema.parse("discipline-exceptions/file-carve-outs/cd-19.json"), effect: "written" },
+              { path: repoPathSchema.parse("discipline-exceptions.json"), effect: "removed" },
+            ],
+          },
+        },
+      }),
+    ).toEqual({ code: 0, text: "discipline-exceptions/file-carve-outs/cd-19.json written\ndiscipline-exceptions.json removed\n" });
+  });
+
+  it.each([
+    {
+      split: { effect: "already-split", path: repoPathSchema.parse("discipline-exceptions") },
+      text: "discipline-exceptions already holds the records split: nothing to split\n",
+    },
+    {
+      split: { effect: "no-records", path: repoPathSchema.parse("discipline-exceptions.json") },
+      text: "discipline-exceptions.json holds no records: nothing to split\n",
+    },
+  ] as const)("prints one line and exits 0 when there is nothing to split: $text", ({ split, text }) => {
+    expect(splitRecordsCommandOutcome({ result: { outcome: "ok", value: split } })).toEqual({ code: 0, text });
+  });
+
+  it("prints the load failure and exits 2 when the records cannot be split", () => {
+    expect(
+      splitRecordsCommandOutcome({ result: { outcome: "failed", error: { kind: "records-unsplittable", path: "discipline-exceptions.json", detail: "exceptions[1] names no discipline" } } }),
+    ).toEqual({ code: 2, text: "load failure: records-unsplittable discipline-exceptions.json exceptions[1] names no discipline\n" });
+  });
+});
+
+describe("inheritedDebtLine", () => {
+  it("names the file that already holds the record", () => {
+    expect(
+      inheritedDebtLine({
+        outcome: {
+          clause: clauseAddressSchema.parse("CD-15#loops"),
+          file: repoPathSchema.parse("src/basket.ts"),
+          effect: "already-recorded",
+          heldIn: repoPathSchema.parse("discipline-exceptions/authorised-locations/cd-15.json"),
+        },
+      }),
+    ).toBe(
+      "CD-15#loops already-recorded src/basket.ts: discipline-exceptions/authorised-locations/cd-15.json already holds a record on this clause and file; the check says why it does not hold\n",
+    );
   });
 });

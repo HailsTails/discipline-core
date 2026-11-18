@@ -16,6 +16,8 @@ const SELECTION_ABSENT_REPAIR = "holds no disciplines.json; give the folder that
 
 const WHY_CHAINS_REQUIRED_REPAIR = `${TOOL_IDENTITY.command} record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them`;
 
+const BOTH_LAYOUTS_REPAIR = `${TOOL_IDENTITY.name} reads exception records from one layout; keep each record in one of them and remove the other`;
+
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
@@ -72,8 +74,11 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
     case "file-unreadable":
     case "file-malformed":
     case "file-unwritable":
+    case "records-unsplittable":
     case "rule-set-invalid":
       return [request.failure.path, request.failure.detail];
+    case "records-in-both-layouts":
+      return [request.failure.path, `${request.failure.folder}:`, BOTH_LAYOUTS_REPAIR];
     case "why-chains-required":
       return [`${request.failure.path}:`, WHY_CHAINS_REQUIRED_REPAIR];
     case "unsupported-version":

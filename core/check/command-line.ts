@@ -3,7 +3,9 @@ import { RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 
-export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND] as const;
+export const SPLIT_RECORDS_SUBCOMMAND = "split-records";
+
+export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
@@ -103,11 +105,19 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     ],
   },
   [RECORD_DEBT_SUBCOMMAND]: {
-    summary: "add a reason-only file carve-out to discipline-exceptions.json for each clause and file the check finds broken, as inherited debt, printing each pair and what was done",
+    summary: "add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done",
     options: [REPO_OPTION, ADOPTION_BASE_REVISION_OPTION, LEAVE_OPTION],
     exits: [
       { code: 0, meaning: "every record needed was written, or none was needed" },
       { code: 2, meaning: "a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly" },
+    ],
+  },
+  [SPLIT_RECORDS_SUBCOMMAND]: {
+    summary: "move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed",
+    options: [REPO_OPTION],
+    exits: [
+      { code: 0, meaning: "the records were split, or there was nothing to split" },
+      { code: 2, meaning: "a load failure: the records could not be read, placed or written, or Hone failed unexpectedly" },
     ],
   },
 };
