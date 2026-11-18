@@ -41,9 +41,16 @@ export type PreparedWalkerCheck = {
   readonly finish: () => Result<readonly Hit[], PieceFailure>;
 };
 
+export type WalkerDisk = {
+  readonly root: string;
+  readonly kindAt: (request: { readonly path: string }) => "file" | "directory" | "absent";
+  readonly textAt: (request: { readonly path: string }) => Result<string, { readonly detail: string }>;
+};
+
 export type WalkerRepository = {
   readonly files: readonly RepoPath[];
   readonly exists: (request: { readonly file: RepoPath }) => "present" | "absent";
+  readonly disk: WalkerDisk;
 };
 
 export type WalkerPiece = {

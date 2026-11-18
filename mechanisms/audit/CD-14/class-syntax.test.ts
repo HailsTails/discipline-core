@@ -14,6 +14,7 @@ import { createWalkerRunner } from "../runner/create-walker-runner.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import { check } from "./class-syntax.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { ABSENT_ENTRY_KIND } from "../../../tests/empty-walker-disk.ts";
 
 const CLASS_ON_LINE_THREE = "const a = 1;\n\n  class Alpha {}\n";
 const ADDRESS = clauseAddressSchema.parse("CD-14#class-syntax");
@@ -86,6 +87,7 @@ const walkerRunner = createWalkerRunner({
   modules: loadingThisPiece,
   path: TABLE_PATH,
   parse: defaultParsePort,
+  entryKind: ABSENT_ENTRY_KIND,
 });
 
 describe("CD-14 class-syntax audit check over TypeScript's own parse", () => {

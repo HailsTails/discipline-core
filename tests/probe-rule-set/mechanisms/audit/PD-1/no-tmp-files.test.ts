@@ -5,6 +5,7 @@ import { repoPathSchema } from "../../../../../core/values/repo-path.ts";
 import { defaultParsePort } from "../../../../typescript-parse-port.ts";
 import { check } from "./no-tmp-files.ts";
 import { FIRST_EDITION } from "../../../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../../empty-walker-disk.ts";
 
 const ADDRESS = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
 const CLAUSE: RunnerClause = {
@@ -20,7 +21,7 @@ const fileCheckOf = (request: { readonly file: string }) => {
   const file = repoPathSchema.parse(request.file);
   const prepared = check.prepare({
     clauses: [CLAUSE],
-    repository: { files: [file], exists: vi.fn().mockReturnValue("present") },
+    repository: { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK },
     syntaxApi: defaultParsePort.syntaxApi,
   });
   assert(prepared.outcome === "ok");

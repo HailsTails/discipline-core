@@ -12,6 +12,7 @@ import { walkerPieceSettingsSchema } from "../runner/walker-check-schema.ts";
 import { check } from "./cast-expressions.ts";
 import piece from "./piece.json" with { type: "json" };
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { ABSENT_ENTRY_KIND } from "../../../tests/empty-walker-disk.ts";
 
 const EXPECTATION = "@ts-expect-" + "error";
 const IGNORE = "@ts-" + "ignore";
@@ -48,6 +49,7 @@ const castFreeRun = () =>
     modules,
     path: createPathPort({ flavour: "posix", workingDirectory: () => "/" }),
     parse: defaultParsePort,
+    entryKind: ABSENT_ENTRY_KIND,
   }).run({
     repoRoot: absolutePathSchema.parse("/repo"),
     installRoot: absolutePathSchema.parse("/install"),

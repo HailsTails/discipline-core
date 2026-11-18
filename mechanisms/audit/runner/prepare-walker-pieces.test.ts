@@ -9,6 +9,7 @@ import { prepareWalkerPieces } from "./prepare-walker-pieces.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerPiece, WalkerRepository } from "./walker-piece.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const PIECE_ROOT = "/install/mechanisms/audit/XX-1";
 const FIRST_MODULE = "/install/mechanisms/audit/XX-1/first.ts";
@@ -19,7 +20,7 @@ const SYNTAX_API = defaultParsePort.syntaxApi;
 
 const REPOSITORY: WalkerRepository = {
   files: [ALPHA, BETA],
-  exists: () => "present",
+  exists: () => "present", disk: EMPTY_DISK,
 };
 
 const FIRST_CLAUSE: RunnerClause = {

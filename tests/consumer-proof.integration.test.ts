@@ -16,6 +16,7 @@ import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-run
 import { defaultParsePort } from "./typescript-parse-port.ts";
 import { type PathCallsOutside, pathCallsOutside } from "./confinement.ts";
 import { fullReportExitCode } from "./full-report-exit-code.ts";
+import { ABSENT_ENTRY_KIND } from "./empty-walker-disk.ts";
 
 const path = createDefaultPathPort({});
 
@@ -75,7 +76,7 @@ const observedPorts = (): ObservedPorts => {
   const pieceModules: ModuleLoaderPort = { load: createDefaultModuleLoaderPort({}).load };
   const runners: Readonly<Record<string, unknown>> = {
     [resolvedPath({ path: `${INSTALL_ROOT}/mechanisms/audit/runner/runner.ts` })]: {
-      runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse: defaultParsePort }),
+      runner: createWalkerRunner({ fileText, modules: pieceModules, path, parse: defaultParsePort, entryKind: ABSENT_ENTRY_KIND }),
     },
     [resolvedPath({ path: `${INSTALL_ROOT}/mechanisms/eslint/runner/runner.ts` })]: {
       runner: createEslintRunner({ fileText, fileRemoval: createDefaultFileRemovalPort({}), modules: pieceModules, path, eslint: defaultEslintPort, moduleExtension: ".ts" }),

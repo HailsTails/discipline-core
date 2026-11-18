@@ -8,6 +8,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SourceObservers, WalkerRepository } from "../runner/walker-piece.ts";
 import { check } from "./throws-in-tests.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-10#throws-in-tests");
 const SYNTAX_API = defaultParsePort.syntaxApi;
@@ -31,7 +32,7 @@ const sourceObservations = (request: {
   readonly source: string;
 }): ObservationFixture => {
   const file = repoPathSchema.parse(request.file);
-  const repository: WalkerRepository = { files: [file], exists: vi.fn().mockReturnValue("present") };
+  const repository: WalkerRepository = { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK };
   const prepared = check.prepare({ clauses: [CLAUSE], repository, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   const selected = prepared.value.prepareFile({
@@ -77,7 +78,7 @@ describe("CD-10 existing test throw observation", () => {
     const file = repoPathSchema.parse(fileName);
     const prepared = check.prepare({
       clauses: [CLAUSE],
-      repository: { files: [file], exists: vi.fn().mockReturnValue("present") },
+      repository: { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK },
       syntaxApi: SYNTAX_API,
     });
     assert(prepared.outcome === "ok");
@@ -91,7 +92,7 @@ describe("CD-10 existing test throw observation", () => {
 
   it("retains an eligible test under a nested root-only directory without reading during preparation", () => {
     const file = repoPathSchema.parse("src/vendor/example.test.ts");
-    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+    const prepared = check.prepare({ clauses: [CLAUSE], repository: { files: [file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
     assert(prepared.outcome === "ok");
     const readText = vi.fn().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file, detail: "unexpected read" } });
 

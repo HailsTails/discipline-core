@@ -9,6 +9,7 @@ import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, SourceObservers, WalkerFile } from "../runner/walker-piece.ts";
 import { check } from "./import-boundaries.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
+import { EMPTY_DISK } from "../../../tests/empty-walker-disk.ts";
 
 const FILE = repoPathSchema.parse("src/import-source.ts");
 const ADDRESS = clauseAddressSchema.parse("CD-19#import-boundaries");
@@ -53,7 +54,7 @@ type ObservationFixture = {
 };
 
 const preparedFor = (request: { readonly file: WalkerFile["file"]; readonly clause?: RunnerClause }): PreparedWalkerCheck => {
-  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present") }, syntaxApi: SYNTAX_API });
+  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   return prepared.value;
 };
@@ -316,7 +317,7 @@ describe("CD-19 confined package settings", () => {
   ])("refuses to prepare with $name, naming the clause", ({ clause }) => {
     const prepared = check.prepare({
       clauses: [clause],
-      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present") },
+      repository: { files: [FILE], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK },
       syntaxApi: SYNTAX_API,
     });
 

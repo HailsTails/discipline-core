@@ -34,6 +34,7 @@ import { createEslintPort } from "../mechanisms/eslint/runner/eslint-instance.ts
 import { loadEslintToolchain } from "../mechanisms/eslint/runner/eslint-toolchain.ts";
 import { eslintPeersOn, modulesServingRunner } from "./eslint-toolchains.ts";
 import { overlaidFileText } from "./overlaid-file-text.ts";
+import { ABSENT_ENTRY_KIND } from "./empty-walker-disk.ts";
 
 const path = createDefaultPathPort({});
 
@@ -168,6 +169,7 @@ const auditRunnerOver = (request: { readonly fileText: FileTextPort }) =>
         modules: createDefaultModuleLoaderPort({}),
         path,
         parse,
+        entryKind: ABSENT_ENTRY_KIND,
       }),
   });
 

@@ -1,5 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import type { RunnerClause, RunRequest } from "../../../core/mechanism-port/runner-module-schema.ts";
+import type { EntryKindPort } from "../../../core/platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
@@ -7,6 +8,7 @@ import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { createWalkerRunner } from "./create-walker-runner.ts";
+import { CASE_ROOT } from "./walker-disk.ts";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { PreparedWalkerCheck, WalkerPiece } from "./walker-piece.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
@@ -121,6 +123,16 @@ const runnerWith = (request: { readonly fileText: FileTextPort; readonly modules
     modules: request.modules,
     path: createPathPort({ flavour: "posix", workingDirectory: () => "/" }),
     parse: defaultParsePort,
+    entryKind: { kindOf: vi.fn<EntryKindPort["kindOf"]>().mockReturnValue("absent") },
+  });
+
+const skippingPrepare = () =>
+  vi.fn<WalkerPiece["prepare"]>().mockReturnValue({
+    outcome: "ok",
+    value: {
+      prepareFile: vi.fn<PreparedWalkerCheck["prepareFile"]>().mockReturnValue({ outcome: "ok", value: { kind: "skipped" } }),
+      finish: vi.fn<PreparedWalkerCheck["finish"]>().mockReturnValue({ outcome: "ok", value: [] }),
+    },
   });
 
 describe("createWalkerRunner run", () => {
@@ -172,6 +184,16 @@ describe("createWalkerRunner run", () => {
         clauses: [FIRST_CLAUSE, SECOND_CLAUSE],
         repository: expect.objectContaining({ files: [ALPHA, CONFIG] }),
       }),
+    );
+  });
+
+  it("prepares each piece over the disk around the repository root", async () => {
+    const prepare = skippingPrepare();
+
+    await runnerWith({ fileText: fileTextOf({ read: vi.fn() }), modules: modulesOf({ check: { prepare } }) }).run(RUN);
+
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ repository: expect.objectContaining({ disk: expect.objectContaining({ root: "/repo" }) }) }),
     );
   });
 
@@ -364,6 +386,19 @@ describe("createWalkerRunner conform", () => {
       ],
     });
     expect(read).not.toHaveBeenCalled();
+  });
+
+  it("prepares each case over a disk holding only that case's file under the case root", async () => {
+    const prepare = skippingPrepare();
+
+    await runnerWith({ fileText: fileTextOf({ read: vi.fn() }), modules: modulesOf({ check: { prepare } }) }).conform({
+      clause: FIRST_CLAUSE,
+      cases: [{ name: "config", fileName: CONFIG, source: "{}", expectedLines: [] }],
+    });
+
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ repository: expect.objectContaining({ disk: expect.objectContaining({ root: CASE_ROOT }) }) }),
+    );
   });
 
   it("prepares each case over a repository holding only that case's file", async () => {

@@ -12,7 +12,7 @@ export type { ClauseId, DisciplineId, RuleSetName } from "../core/values/identif
 export type { RepoPath } from "../core/values/repo-path-types.ts";
 export type { Result } from "../core/values/result.ts";
 export type { CommentRange, SyntaxApi, SyntaxNode, SyntaxTree } from "../mechanisms/audit/runner/typescript-parse.ts";
-export type { PieceHit, PreparedFileCheck, PreparedWalkerCheck, SourceObservers, WalkerFile, WalkerPiece, WalkerRepository } from "../mechanisms/audit/runner/walker-piece.ts";
+export type { PieceHit, PreparedFileCheck, PreparedWalkerCheck, SourceObservers, WalkerDisk, WalkerFile, WalkerPiece, WalkerRepository } from "../mechanisms/audit/runner/walker-piece.ts";
 
 export const folderScope = sourceScope.folderScope;
 
