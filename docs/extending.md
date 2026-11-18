@@ -355,7 +355,7 @@ Exception records in `discipline-exceptions.json` name team clauses by their ful
 }
 ```
 
-Without that setting the entry also needs a `whyChain`, and without one it is refused as `evidence-refused`. [README.md](../README.md#discipline-exceptionsjson) describes the record kinds and the why-chain each needs.
+Without that setting the entry also needs a `whyChain`, and without one it is refused as `evidence-refused`; with it, a reason-only `authorised-location` is deprecated and will be refused in the next major release. A `file-carve-out` is debt and needs no `whyChain` either way. [README.md](../README.md#discipline-exceptionsjson) describes the record kinds and the why-chain each needs.
 
 ## What is stable
 

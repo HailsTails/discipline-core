@@ -8,7 +8,7 @@ Checks a repository against the disciplines it selects, applies its recorded exc
 commands:
   check          check the repository against the disciplines it selects and print the report, ending in its verdict
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
-  record-debt    add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -35,7 +35,7 @@ exit codes:
 
 const RECORD_DEBT_HELP = `usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 
-add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
 
 options:
   --repo <dir>

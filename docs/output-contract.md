@@ -89,7 +89,7 @@ Checks a repository against the disciplines it selects, applies its recorded exc
 commands:
   check          check the repository against the disciplines it selects and print the report, ending in its verdict
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
-  record-debt    add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -147,7 +147,7 @@ exit codes:
 ```text
 usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 
-add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
 
 options:
   --repo <dir>
@@ -317,6 +317,8 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 ## Load failures
 
 A run that cannot decide prints one line and exits `2`. It prints the same line in every output. The line starts with `load failure: ` and its kind; the values follow in the order shown, and any text after the values is not stable.
+
+`hone record-debt` no longer prints `why-chains-required`: a file carve-out is debt and needs no `whyChain`, so it writes its records whatever `fileExceptionWhyChains` says. The kind keeps its line below until a major release removes it, so a tool that matches it keeps working.
 
 | Kind | Line |
 | --- | --- |

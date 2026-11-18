@@ -105,7 +105,7 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     ],
   },
   [RECORD_DEBT_SUBCOMMAND]: {
-    summary: "add a reason-only file carve-out to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done",
+    summary: "add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done",
     options: [REPO_OPTION, ADOPTION_BASE_REVISION_OPTION, LEAVE_OPTION],
     exits: [
       { code: 0, meaning: "every record needed was written, or none was needed" },

@@ -3,7 +3,7 @@ import type { AttributedNativeException, Finding } from "../governance/governanc
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { INHERITED_DEBT_REASON, inheritedDebtEntriesOf, inheritedDebtOf, type InheritedDebtRequest } from "./inherited-debt.ts";
+import { inheritedDebtEntriesOf, inheritedDebtOf, type InheritedDebtRequest } from "./inherited-debt.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");
 const CASTS = clauseAddressSchema.parse("CD-2#cast-expressions");
@@ -202,7 +202,7 @@ describe("inheritedDebtOf leaving a pair for a person", () => {
 });
 
 describe("inheritedDebtEntriesOf", () => {
-  it("writes one reason-only file carve-out for each recorded pair, with the clause as the report prints it", () => {
+  it("writes one file carve-out naming only its clause and file for each recorded pair, with the clause as the report prints it", () => {
     expect(
       inheritedDebtEntriesOf({
         outcomes: [
@@ -211,12 +211,6 @@ describe("inheritedDebtEntriesOf", () => {
           { clause: LOOPS, file: FRESH, effect: "new-file" },
         ],
       }),
-    ).toEqual([{ kind: "file-carve-out", clause: "team/TM-1#no-tmp-files", file: "src/basket.ts", reason: INHERITED_DEBT_REASON }]);
-  });
-
-  it("gives a reason that says only what the command knows: the file existed at the base and broke the clause, nobody reviewed it, and it lapses on the next change", () => {
-    expect(INHERITED_DEBT_REASON).toBe(
-      "Inherited debt: this file existed at the base revision hone record-debt was given, and broke this clause when it wrote this record. Nobody has reviewed it or decided it should stay. The record is forfeited when the file next changes.",
-    );
+    ).toEqual([{ kind: "file-carve-out", clause: "team/TM-1#no-tmp-files", file: "src/basket.ts" }]);
   });
 });

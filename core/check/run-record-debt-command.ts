@@ -24,20 +24,7 @@ type AdoptionRequest = CommandRequest & {
 
 type DebtResult = Result<readonly InheritedDebtOutcome[], LoadFailure>;
 
-const SELECTION_FILE_NAME = "disciplines.json";
-
 const ASSESSED_IN_THIS_RUN: Assessment = { forfeiture: "this-run" };
-
-const reasonOnlySelection = (request: AdoptionRequest): Result<SelectionReading, LoadFailure> => {
-  const reading = readSelection({ ...request, moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }) });
-  if (reading.outcome === "failed" || reading.value.fileExceptionWhyChains === "optional") {
-    return reading;
-  }
-  return {
-    outcome: "failed",
-    error: { kind: "why-chains-required", path: request.path.join({ segments: [request.repoRoot, SELECTION_FILE_NAME] }) },
-  };
-};
 
 const pathsInBase = (request: AdoptionRequest): Result<ReadonlySet<RepoPath>, LoadFailure> => {
   const listed = request.gitTree.pathsAt({ repoRoot: request.repoRoot, revision: request.arguments.baseRevision });
@@ -75,7 +62,7 @@ const debtOutcomesOf = async (
 };
 
 const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
-  const selection = reasonOnlySelection(request);
+  const selection = readSelection({ ...request, moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }) });
   if (selection.outcome === "failed") {
     return Promise.resolve(selection);
   }

@@ -84,7 +84,7 @@ const exceptionsFileSchema = z.object({
         kind: z.literal("file-carve-out"),
         clause: z.string(),
         file: z.string(),
-        reason: z.string(),
+        reason: z.string().optional(),
         whyChain: z.unknown().optional(),
         provenance: z.unknown().optional(),
       }),
@@ -195,14 +195,14 @@ const fileCarveOutFields = {
   kind: z.literal("file-carve-out"),
   clause: z.string(),
   file: z.string(),
-  reason: z.string(),
+  reason: z.string().optional(),
 };
 
 const chainedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: unjudgedWhyChainSchema, provenance: inheritedDebtProvenanceSchema.optional() });
 
 const importedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: z.never().optional(), provenance: inheritedDebtProvenanceSchema });
 
-const reasonedFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, ...reasonOnlyFields });
+const plainFileCarveOutSchema = z.strictObject({ ...fileCarveOutFields, whyChain: z.never().optional(), provenance: z.never().optional() });
 
 type FileEvidenceSchemas = {
   readonly "authorised-location": z.ZodType<Unjudged<AuthorisedLocationEntry>>;
@@ -212,11 +212,11 @@ type FileEvidenceSchemas = {
 const FILE_EVIDENCE_SCHEMAS_OF: Readonly<Record<FileExceptionWhyChains, FileEvidenceSchemas>> = {
   required: {
     "authorised-location": z.union([chainedAuthorisedLocationSchema, importedAuthorisedLocationSchema]),
-    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema]),
+    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, plainFileCarveOutSchema]),
   },
   optional: {
     "authorised-location": z.union([chainedAuthorisedLocationSchema, importedAuthorisedLocationSchema, reasonedAuthorisedLocationSchema]),
-    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, reasonedFileCarveOutSchema]),
+    "file-carve-out": z.union([chainedFileCarveOutSchema, importedFileCarveOutSchema, plainFileCarveOutSchema]),
   },
 };
 

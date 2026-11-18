@@ -987,14 +987,12 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
     ).resolves.toMatchObject({ outcome: "ok", value: { unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }] } });
   });
 
-  it("refuses the same reason-only records as evidence-refused when disciplines.json leaves why-chains required", async () => {
+  it("refuses the reason-only authorised location and holds the reason-only file carve-out as debt when disciplines.json leaves why-chains required", async () => {
     await expect(runCheck(checkRequest({ fileText: installWithReasonedRecords({ selection: SELECTION }) }))).resolves.toMatchObject({
       outcome: "ok",
       value: {
-        invalidRecords: [
-          { place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "evidence-refused" } },
-          { place: { layout: "single-file", file: "discipline-exceptions.json", index: 1 }, problem: { kind: "evidence-refused" } },
-        ],
+        invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "evidence-refused" } }],
+        stale: [{ ...REASONED_CARVE_OUT, clause: CLASS_SYNTAX_OBJECT, mechanism: "audit" }],
         unmeasured: [],
       },
     });
