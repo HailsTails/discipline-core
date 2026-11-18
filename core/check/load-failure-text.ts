@@ -14,6 +14,8 @@ const CONFIG_ROOT_REPAIR =
 
 const SELECTION_ABSENT_REPAIR = "holds no disciplines.json; give the folder that holds it, usually the repository root";
 
+const WHY_CHAINS_REQUIRED_REPAIR = `${TOOL_IDENTITY.command} record-debt writes records that give only a reason, and this file requires a whyChain on every record; set "fileExceptionWhyChains": "optional" in it to accept them`;
+
 const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies of the repository root";
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
@@ -69,8 +71,11 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
       return [request.failure.url, request.failure.detail];
     case "file-unreadable":
     case "file-malformed":
+    case "file-unwritable":
     case "rule-set-invalid":
       return [request.failure.path, request.failure.detail];
+    case "why-chains-required":
+      return [`${request.failure.path}:`, WHY_CHAINS_REQUIRED_REPAIR];
     case "unsupported-version":
       return [request.failure.path, String(JSON.stringify(request.failure.found))];
     case "reserved-rule-set-name":

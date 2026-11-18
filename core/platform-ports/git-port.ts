@@ -44,6 +44,13 @@ export type GitHistoryPort = {
   }) => Result<readonly CommitRecord[], GitFailure>;
 };
 
+export type GitTreePort = {
+  readonly pathsAt: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly revision: string;
+  }) => Result<readonly RepoPath[], GitFailure>;
+};
+
 export type CommitRecord = { readonly parentCount: number; readonly message: string };
 
 export type GitEnvironment = Readonly<Record<string, string | undefined>>;
@@ -325,6 +332,22 @@ const commitsAfterRevision = (
   return entries.outcome === "failed" ? entries : { outcome: "ok", value: entries.value.map((entry) => commitRecordOf({ entry })) };
 };
 
+export const createGitTreePort = (options: {
+  readonly spawn: GitSpawn;
+  readonly ambientEnvironment: GitEnvironment;
+}): GitTreePort => {
+  const environment = environmentWithoutRepositoryLocation({ ambientEnvironment: options.ambientEnvironment });
+  return {
+    pathsAt: (request) =>
+      gitPaths({
+        spawn: options.spawn,
+        environment,
+        repoRoot: request.repoRoot,
+        gitArguments: ["ls-tree", "-r", "-z", "--name-only", "--end-of-options", request.revision],
+      }),
+  };
+};
+
 export const createGitHistoryPort = (options: {
   readonly spawn: GitSpawn;
   readonly ambientEnvironment: GitEnvironment;
@@ -364,6 +387,9 @@ const defaultGitSpawn = (_options: Record<string, never>): GitSpawn => {
 
 export const createDefaultGitPort = (_options: Record<string, never>): GitPort =>
   createGitPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });
+
+export const createDefaultGitTreePort = (_options: Record<string, never>): GitTreePort =>
+  createGitTreePort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });
 
 export const createDefaultGitHistoryPort = (_options: Record<string, never>): GitHistoryPort =>
   createGitHistoryPort({ spawn: defaultGitSpawn({}), ambientEnvironment: {} });

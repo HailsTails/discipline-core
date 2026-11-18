@@ -1,3 +1,4 @@
+import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
 import { parseInvocation } from "./command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
@@ -5,6 +6,7 @@ import { loadFailureOutcome, versionCommandOutcome } from "./command-outcome.ts"
 import { installedVersionOf } from "./installed-version.ts";
 import { type CommandRequest, printOutcome, runCheckCommand } from "./run-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
+import { recordDebtCommandOf } from "./run-record-debt-command.ts";
 
 export type CommandHandler = (request: CommandRequest) => Promise<void>;
 
@@ -48,5 +50,9 @@ export const toolCommandOf =
       });
 
 export const runToolCommand: CommandHandler = toolCommandOf({
-  subcommands: { check: runCheckCommand, project: runProjectCommand },
+  subcommands: {
+    check: runCheckCommand,
+    project: runProjectCommand,
+    "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
+  },
 });

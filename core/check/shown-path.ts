@@ -56,6 +56,8 @@ export const shownFailureOf = (request: ShownRequest & { readonly failure: LoadF
   switch (failure.kind) {
     case "file-unreadable":
     case "file-malformed":
+    case "file-unwritable":
+    case "why-chains-required":
     case "unsupported-version":
     case "rule-set-invalid":
       return { ...failure, path: shownPathOf({ ...request, target: failure.path }) };
