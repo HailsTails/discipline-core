@@ -154,7 +154,7 @@ lens's own failure mode.
 ## Output shape
 
 Report **two-sided** counts the review asks for: a production-side
-block (ambient-binding violations by capability, missing default factories,
+block (ambient-binding violations by capability, adapters built outside the root,
 threading gaps, unbound context generics) and a test-side block
 (module-interception violations by mechanism, spy classifications, structural
 boundary gaps). Every finding is

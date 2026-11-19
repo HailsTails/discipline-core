@@ -71,9 +71,9 @@ per-declaration not per-export — is suspect until classified. For each, decide
 one of three buckets:
 
 - **justified.** The declaration is the single permitted authored class at its
-  named site, OR it is a `new X(...)` for an external-library class whose
-  wrapping-factory file the rules name AND the instance is held inside the
-  closure and never re-exported as a class. Cite the carve-out; no replacement.
+  named site, OR it is a `new X(...)` for an external-library class in
+  the adapter for the party it reaches, with a boundary record, AND the instance
+  is held inside the closure and never re-exported as a class. Cite the carve-out; no replacement.
 - **closure-candidate.** The class carries genuine instance state that is
   *mutated* across method calls (counters, caches, accumulating buffers,
   subscription registries, in-flight tracking). Replacement: a factory closing
