@@ -1,7 +1,10 @@
 import { z } from "zod";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
+import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { parsedJson } from "../../../core/rule-set-reader/rule-set-reader.ts";
+import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { ClauseAddress } from "../../../core/values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -691,11 +694,12 @@ const mergedScriptScan = (request: {
   };
 };
 
-export const scanPackageJson = (request: {
+export type PackageScripts = Readonly<Record<string, string>>;
+
+export const packageScriptsOf = (request: {
   readonly path: RepoPath;
   readonly text: string;
-  readonly selectedRules: readonly SelectedRule[];
-}): Result<PackageJsonScan, RunnerFailure> => {
+}): Result<PackageScripts, RunnerFailure> => {
   const json = parsedJson({ text: request.text });
   if (json.outcome === "failed") {
     return { outcome: "failed", error: { kind: "tool-failed", detail: `${request.path}: ${json.error}` } };
@@ -707,9 +711,39 @@ export const scanPackageJson = (request: {
       error: { kind: "tool-failed", detail: `${request.path}: ${z.prettifyError(packageJson.error)}` },
     };
   }
-  return Object.entries(packageJson.data.scripts ?? {}).reduce<Result<PackageJsonScan, RunnerFailure>>(
+  return { outcome: "ok", value: packageJson.data.scripts ?? {} };
+};
+
+export type PackageScriptsReader = (request: { readonly packagePath: RepoPath }) => Result<PackageScripts, RunnerFailure>;
+
+export const packageScriptsReaderOf =
+  (request: { readonly fileText: FileTextPort; readonly path: PathPort; readonly repoRoot: AbsolutePath }): PackageScriptsReader =>
+  ({ packagePath }) => {
+    const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, packagePath] }) });
+    if (text.outcome === "failed") {
+      return { outcome: "failed", error: { kind: "file-unreadable", file: packagePath, detail: text.error.detail } };
+    }
+    return packageScriptsOf({ path: packagePath, text: text.value });
+  };
+
+export const scannedPackageScripts = (request: {
+  readonly path: RepoPath;
+  readonly scripts: PackageScripts;
+  readonly selectedRules: readonly SelectedRule[];
+}): Result<PackageJsonScan, RunnerFailure> =>
+  Object.entries(request.scripts).reduce<Result<PackageJsonScan, RunnerFailure>>(
     (scan, [script, scriptText]) =>
       mergedScriptScan({ scan, script, scriptText, path: request.path, selectedRules: request.selectedRules }),
     { outcome: "ok", value: EMPTY_SCAN },
   );
+
+export const scanPackageJson = (request: {
+  readonly path: RepoPath;
+  readonly text: string;
+  readonly selectedRules: readonly SelectedRule[];
+}): Result<PackageJsonScan, RunnerFailure> => {
+  const scripts = packageScriptsOf(request);
+  return scripts.outcome === "failed"
+    ? scripts
+    : scannedPackageScripts({ path: request.path, scripts: scripts.value, selectedRules: request.selectedRules });
 };

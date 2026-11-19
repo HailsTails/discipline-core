@@ -69,12 +69,14 @@ const appendedEntry = (request: {
 const baseSegmentsOf = (request: { readonly keysRelativeTo: RepoPath | "repo-root" }): readonly string[] =>
   request.keysRelativeTo === REPO_ROOT ? [] : request.keysRelativeTo.split("/");
 
-export const suppressionEntriesOf = (request: {
+export type SuppressionsFile = z.infer<typeof suppressionsFileSchema>;
+
+export type SuppressionsReader = (request: { readonly location: RepoPath }) => Result<SuppressionsFile, RunnerFailure>;
+
+export const suppressionsFileOf = (request: {
   readonly location: RepoPath;
-  readonly keysRelativeTo: RepoPath | "repo-root";
   readonly text: string;
-  readonly selectedRules: readonly SelectedRule[];
-}): Result<readonly NativeException[], RunnerFailure> => {
+}): Result<SuppressionsFile, RunnerFailure> => {
   const json = parsedJson({ text: request.text });
   if (json.outcome === "failed") {
     return {
@@ -89,8 +91,17 @@ export const suppressionEntriesOf = (request: {
       error: { kind: "tool-failed", detail: `${request.location}: ${z.prettifyError(suppressions.error)}` },
     };
   }
+  return { outcome: "ok", value: suppressions.data };
+};
+
+export const suppressionEntriesIn = (request: {
+  readonly location: RepoPath;
+  readonly keysRelativeTo: RepoPath | "repo-root";
+  readonly suppressions: SuppressionsFile;
+  readonly selectedRules: readonly SelectedRule[];
+}): Result<readonly NativeException[], RunnerFailure> => {
   const baseSegments = baseSegmentsOf({ keysRelativeTo: request.keysRelativeTo });
-  return Object.entries(suppressions.data).reduce<Result<readonly NativeException[], RunnerFailure>>(
+  return Object.entries(request.suppressions).reduce<Result<readonly NativeException[], RunnerFailure>>(
     (entries, [key, rules]) =>
       appendedEntry({
         entries,
@@ -104,6 +115,28 @@ export const suppressionEntriesOf = (request: {
   );
 };
 
+export const suppressionEntriesOf = (request: {
+  readonly location: RepoPath;
+  readonly keysRelativeTo: RepoPath | "repo-root";
+  readonly text: string;
+  readonly selectedRules: readonly SelectedRule[];
+}): Result<readonly NativeException[], RunnerFailure> => {
+  const suppressions = suppressionsFileOf(request);
+  return suppressions.outcome === "failed"
+    ? suppressions
+    : suppressionEntriesIn({ ...request, suppressions: suppressions.value });
+};
+
+export const suppressionsReaderOf =
+  (request: { readonly fileText: FileTextPort; readonly path: PathPort; readonly repoRoot: AbsolutePath }): SuppressionsReader =>
+  ({ location }) => {
+    const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, location] }) });
+    if (text.outcome === "failed") {
+      return { outcome: "failed", error: { kind: "file-unreadable", file: location, detail: text.error.detail } };
+    }
+    return suppressionsFileOf({ location, text: text.value });
+  };
+
 export const scriptSuppressionEntries = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
@@ -112,19 +145,8 @@ export const scriptSuppressionEntries = (request: {
   readonly keysRelativeTo: RepoPath | "repo-root";
   readonly selectedRules: readonly SelectedRule[];
 }): Result<readonly NativeException[], RunnerFailure> => {
-  const text = request.fileText.read({
-    path: request.path.join({ segments: [request.repoRoot, request.location] }),
-  });
-  if (text.outcome === "failed") {
-    return {
-      outcome: "failed",
-      error: { kind: "file-unreadable", file: request.location, detail: text.error.detail },
-    };
-  }
-  return suppressionEntriesOf({
-    location: request.location,
-    keysRelativeTo: request.keysRelativeTo,
-    text: text.value,
-    selectedRules: request.selectedRules,
-  });
+  const suppressions = suppressionsReaderOf(request)({ location: request.location });
+  return suppressions.outcome === "failed"
+    ? suppressions
+    : suppressionEntriesIn({ ...request, suppressions: suppressions.value });
 };

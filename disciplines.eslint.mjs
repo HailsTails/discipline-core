@@ -139,7 +139,6 @@ export default [
       "mechanisms/audit/runner/prepare-walker-pieces.test.ts",
       "mechanisms/eslint/CD-6/cd6/cd6.eslint-plugin.test.ts",
       "mechanisms/eslint/runner/config-lookup.test.ts",
-      "mechanisms/eslint/runner/create-eslint-runner.test.ts",
       "mechanisms/eslint/runner/eslint-piece-settings-schema.test.ts",
       "mechanisms/eslint/runner/native-exceptions.integration.test.ts",
       "mechanisms/eslint/runner/package-script-scanner.test.ts",
