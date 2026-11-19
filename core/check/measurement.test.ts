@@ -6,14 +6,21 @@ import type {
   ExceptionRepository,
   StructuralExceptionEntry,
 } from "../exception-records/exception-records.ts";
-import type { BaseFileText, GitFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
-import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
-import type { Result } from "../values/result.ts";
-import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
+import { repoPathSchema } from "../values/repo-path.ts";
+import {
+  baselineAtBase,
+  baselineNeedOf,
+  changeSetNeedOf,
+  exceptionBaselineOf,
+  partialAssessmentsOf,
+  touchedSetFor,
+  unmeasuredOf,
+} from "./measurement.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
@@ -118,6 +125,8 @@ const LEGACY_CHAIN_ENTRY: StructuralExceptionEntry = {
 
 const GIT_FAILURE: GitFailure = { kind: "git-failed", command: "git ls-tree", detail: "fatal: not a tree object" };
 
+const SOURCE_FAILURE: GitFailure = { kind: "git-failed", command: "git show", detail: "fatal: bad object main:cd-14.json" };
+
 const UNMEASURED_NOT_GIVEN = { measured: "no", base: { state: "not-given" } } as const;
 
 const UNMEASURED_GIT_FAILED = {
@@ -129,21 +138,26 @@ const MEASURED_NOTHING_TOUCHED: TouchedSet = { measured: "yes", paths: new Set()
 
 const MEASURED_BASELINE: ExceptionBaseline = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() };
 
-const gitAnswering = (request: {
-  readonly changedSince: Result<readonly RepoPath[], GitFailure>;
-  readonly textInBase: Result<BaseFileText, GitFailure>;
-}): GitPort => ({
-  trackedPaths: vi.fn<GitPort["trackedPaths"]>(),
-  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
-  contentInBase: vi.fn<GitPort["contentInBase"]>(),
-  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(request.textInBase),
+
+const changedSinceAnswering = (answer: ReturnType<GitPort["changedSince"]>): Pick<GitPort, "changedSince"> => ({
+  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(answer),
 });
+
+const UNASKED_CHANGE_SET: Pick<GitPort, "changedSince"> = { changedSince: vi.fn<GitPort["changedSince"]>() };
+
+const textInBaseAnswering = (answer: ReturnType<GitPort["textInBase"]>): Pick<GitPort, "textInBase"> => ({
+  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(answer),
+});
+
+const UNASKED_TEXT: Pick<GitPort, "textInBase"> = { textInBase: vi.fn<GitPort["textInBase"]>() };
 
 const exceptionRepositoryAnswering = (
   answer: ReturnType<ExceptionRepository["readAt"]>,
 ): Pick<ExceptionRepository, "readAt"> => ({
   readAt: vi.fn<ExceptionRepository["readAt"]>().mockReturnValue(answer),
 });
+
+const UNASKED_REPOSITORY: Pick<ExceptionRepository, "readAt"> = { readAt: vi.fn<ExceptionRepository["readAt"]>() };
 
 describe("unmeasuredOf", () => {
   it("lists forfeiture-unmeasured when no base revision is given and a file carve-out exists", () => {
@@ -225,51 +239,71 @@ describe("unmeasuredOf", () => {
       { kind: "legacy-chain-unmeasured", base: { state: "not-given" } },
     ]);
   });
+
+  it("lists import and legacy-chain unmeasured when forfeiture is assessed elsewhere", () => {
+    expect(
+      unmeasuredOf({
+        touched: { measured: "elsewhere" },
+        exceptionBaseline: UNMEASURED_GIT_FAILED,
+        records: [IMPORTED_LOCATION, LEGACY_CHAIN_LOCATION, FILE_CARVE_OUT],
+      }),
+    ).toEqual([
+      { kind: "import-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } },
+      { kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } },
+    ]);
+  });
+});
+
+describe("changeSetNeedOf", () => {
+  it("needs the change set since the base when a file carve-out exists and forfeiture is assessed in this run", () => {
+    expect(changeSetNeedOf({ assessment: { forfeiture: "this-run" }, records: [FILE_CARVE_OUT] })).toEqual({ kind: "measure-since-base" });
+  });
+
+  it("settles on nothing touched when no file carve-out exists", () => {
+    expect(
+      changeSetNeedOf({ assessment: { forfeiture: "this-run" }, records: [AUTHORISED_LOCATION, CLAUSE_WIDE_CARVE_OUT] }),
+    ).toEqual({ kind: "settled", touched: { measured: "yes", paths: new Set() } });
+  });
+
+  it("settles on elsewhere when forfeiture is assessed elsewhere, even with a file carve-out", () => {
+    expect(changeSetNeedOf({ assessment: { forfeiture: "elsewhere" }, records: [FILE_CARVE_OUT] })).toEqual({
+      kind: "settled",
+      touched: { measured: "elsewhere" },
+    });
+  });
 });
 
 describe("touchedSetFor", () => {
-  it("measures the change set once against the base revision when a file carve-out exists", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [LEGACY_FILE] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
+  it("is the change set since the base revision when it is needed", () => {
     expect(
       touchedSetFor({
-        check: { assessment: { forfeiture: "this-run" }, repoRoot: REPO_ROOT, baseRevision: "main", git },
+        check: {
+          assessment: { forfeiture: "this-run" },
+          repoRoot: REPO_ROOT,
+          baseRevision: "main",
+          git: changedSinceAnswering({ outcome: "ok", value: [LEGACY_FILE] }),
+        },
         records: [FILE_CARVE_OUT],
       }),
     ).toEqual({ measured: "yes", paths: new Set([LEGACY_FILE]) });
-    expect(vi.mocked(git.changedSince).mock.calls).toEqual([[{ repoRoot: REPO_ROOT, baseRevision: "main" }]]);
   });
 
-  it("does not measure the change set when no file carve-out exists", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
+  it("is unmeasured when the change set is needed and no base revision is given", () => {
     expect(
       touchedSetFor({
-        check: { assessment: { forfeiture: "this-run" }, repoRoot: REPO_ROOT, baseRevision: "main", git },
-        records: [AUTHORISED_LOCATION, CLAUSE_WIDE_CARVE_OUT],
-      }),
-    ).toEqual({ measured: "yes", paths: new Set() });
-    expect(git.changedSince).not.toHaveBeenCalled();
-  });
-
-  it("is unmeasured without asking git when a file carve-out exists and no base revision is given", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
-    expect(
-      touchedSetFor({
-        check: { assessment: { forfeiture: "this-run" }, repoRoot: REPO_ROOT, baseRevision: undefined, git },
+        check: { assessment: { forfeiture: "this-run" }, repoRoot: REPO_ROOT, baseRevision: undefined, git: UNASKED_CHANGE_SET },
         records: [FILE_CARVE_OUT],
       }),
     ).toEqual({ measured: "no", base: { state: "not-given" } });
-    expect(git.changedSince).not.toHaveBeenCalled();
   });
 
-  it("never asks git for the change set when forfeiture is assessed elsewhere", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
+  it("is the settled answer when the change set is not needed", () => {
     expect(
       touchedSetFor({
-        check: { assessment: { forfeiture: "elsewhere" }, repoRoot: REPO_ROOT, baseRevision: "main", git },
+        check: { assessment: { forfeiture: "elsewhere" }, repoRoot: REPO_ROOT, baseRevision: "main", git: UNASKED_CHANGE_SET },
         records: [FILE_CARVE_OUT],
       }),
     ).toEqual({ measured: "elsewhere" });
-    expect(git.changedSince).not.toHaveBeenCalled();
   });
 });
 
@@ -294,103 +328,141 @@ describe("partialAssessmentsOf", () => {
   });
 });
 
-describe("exceptionBaselineOf", () => {
-  it("is unmeasured and reads nothing when no base revision is given", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
-    const exceptionRepository = exceptionRepositoryAnswering({ outcome: "ok", value: [] });
-    expect(
-      exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: undefined, git, exceptionRepository },
-        entries: [IMPORTED_LOCATION_ENTRY, LEGACY_CHAIN_ENTRY],
-      }),
-    ).toEqual({ measured: "no", base: { state: "not-given" } });
-    expect({ readAt: vi.mocked(exceptionRepository.readAt).mock.calls, textInBase: vi.mocked(git.textInBase).mock.calls }).toEqual({
-      readAt: [],
-      textInBase: [],
+describe("baselineNeedOf", () => {
+  it("settles on unmeasured when no base revision is given", () => {
+    expect(baselineNeedOf({ baseRevision: undefined, entries: [IMPORTED_LOCATION_ENTRY, LEGACY_CHAIN_ENTRY] })).toEqual({
+      kind: "settled",
+      baseline: UNMEASURED_NOT_GIVEN,
     });
   });
 
-  it("reads nothing at the base revision when no entry is imported or holds a legacy chain", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
-    const exceptionRepository = exceptionRepositoryAnswering({ outcome: "ok", value: [] });
-    expect(
-      exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: "main", git, exceptionRepository },
-        entries: [CARVE_OUT_ENTRY, REASON_ONLY_LOCATION_ENTRY],
-      }),
-    ).toEqual({ measured: "no", base: { state: "not-given" } });
-    expect({ readAt: vi.mocked(exceptionRepository.readAt).mock.calls, textInBase: vi.mocked(git.textInBase).mock.calls }).toEqual({
-      readAt: [],
-      textInBase: [],
+  it("settles on unmeasured when no entry is imported or holds a legacy chain", () => {
+    expect(baselineNeedOf({ baseRevision: "main", entries: [CARVE_OUT_ENTRY, REASON_ONLY_LOCATION_ENTRY] })).toEqual({
+      kind: "settled",
+      baseline: UNMEASURED_NOT_GIVEN,
     });
   });
 
-  it("reads the records at the base and only the imported entries' sources, keeping the sources present there", () => {
-    const git = gitAnswering({
-      changedSince: { outcome: "ok", value: [] },
-      textInBase: { outcome: "ok", value: { presence: "present-in-base", text: "[]" } },
+  it("needs the records at the base and only the imported entries' sources", () => {
+    expect(baselineNeedOf({ baseRevision: "main", entries: [IMPORTED_LOCATION_ENTRY, CARVE_OUT_ENTRY] })).toEqual({
+      kind: "read-at-base",
+      baseRevision: "main",
+      sources: [LEGACY_SOURCE_FILE],
     });
+  });
+
+  it("needs the records at the base and no source for a legacy chain", () => {
+    expect(baselineNeedOf({ baseRevision: "main", entries: [LEGACY_CHAIN_ENTRY] })).toEqual({
+      kind: "read-at-base",
+      baseRevision: "main",
+      sources: [],
+    });
+  });
+});
+
+describe("baselineAtBase", () => {
+  it("reads the records and each source at the base revision, keeping the sources present there", () => {
+    const git = textInBaseAnswering({ outcome: "ok", value: { presence: "present-in-base", text: "[]" } });
     const exceptionRepository = exceptionRepositoryAnswering({ outcome: "ok", value: [CARVE_OUT_ENTRY] });
-    expect(
-      exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: "main", git, exceptionRepository },
-        entries: [IMPORTED_LOCATION_ENTRY, CARVE_OUT_ENTRY],
-      }),
-    ).toEqual({ measured: "yes", entriesAtBase: [CARVE_OUT_ENTRY], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]) });
-    expect({ readAt: vi.mocked(exceptionRepository.readAt).mock.calls, textInBase: vi.mocked(git.textInBase).mock.calls }).toEqual({
+    expect({
+      baseline: baselineAtBase({ reach: { repoRoot: REPO_ROOT, git, exceptionRepository }, baseRevision: "main", sources: [LEGACY_SOURCE_FILE] }),
+      readAt: vi.mocked(exceptionRepository.readAt).mock.calls,
+      textInBase: vi.mocked(git.textInBase).mock.calls,
+    }).toEqual({
+      baseline: { measured: "yes", entriesAtBase: [CARVE_OUT_ENTRY], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]) },
       readAt: [[{ revision: "main" }]],
       textInBase: [[{ repoRoot: REPO_ROOT, baseRevision: "main", file: LEGACY_SOURCE_FILE }]],
     });
   });
 
-  it("leaves out an imported entry's source the base does not hold", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "ok", value: { presence: "absent-from-base" } } });
+  it("leaves out a source the base does not hold", () => {
     expect(
-      exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: "main", git, exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }) },
-        entries: [IMPORTED_LOCATION_ENTRY],
+      baselineAtBase({
+        reach: {
+          repoRoot: REPO_ROOT,
+          git: textInBaseAnswering({ outcome: "ok", value: { presence: "absent-from-base" } }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
+        },
+        baseRevision: "main",
+        sources: [LEGACY_SOURCE_FILE],
       }),
     ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() });
   });
 
-  it("measures a legacy chain against the records at the base, reading no source", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
+  it("is measured from the records alone when there is no source to read", () => {
     expect(
-      exceptionBaselineOf({
-        check: {
-          repoRoot: REPO_ROOT,
-          baseRevision: "main",
-          git,
-          exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [LEGACY_CHAIN_ENTRY] }),
-        },
-        entries: [LEGACY_CHAIN_ENTRY],
+      baselineAtBase({
+        reach: { repoRoot: REPO_ROOT, git: UNASKED_TEXT, exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [LEGACY_CHAIN_ENTRY] }) },
+        baseRevision: "main",
+        sources: [],
       }),
     ).toEqual({ measured: "yes", entriesAtBase: [LEGACY_CHAIN_ENTRY], sourceTextsAtBase: new Map() });
-    expect(git.textInBase).not.toHaveBeenCalled();
   });
 
   it("is unmeasured with git's message when the records at the base cannot be read", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "ok", value: { presence: "absent-from-base" } } });
+    expect(
+      baselineAtBase({
+        reach: {
+          repoRoot: REPO_ROOT,
+          git: textInBaseAnswering({ outcome: "ok", value: { presence: "absent-from-base" } }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "failed", error: GIT_FAILURE }),
+        },
+        baseRevision: "main",
+        sources: [LEGACY_SOURCE_FILE],
+      }),
+    ).toEqual(UNMEASURED_GIT_FAILED);
+  });
+
+  it("is unmeasured with git's message when a source cannot be read at the base", () => {
+    expect(
+      baselineAtBase({
+        reach: {
+          repoRoot: REPO_ROOT,
+          git: textInBaseAnswering({ outcome: "failed", error: SOURCE_FAILURE }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
+        },
+        baseRevision: "main",
+        sources: [LEGACY_SOURCE_FILE],
+      }),
+    ).toEqual({ measured: "no", base: { state: "git-failed", revision: "main", gitMessage: "fatal: bad object main:cd-14.json" } });
+  });
+
+  it("reports the records' failure, not a source's, when both cannot be read at the base", () => {
+    expect(
+      baselineAtBase({
+        reach: {
+          repoRoot: REPO_ROOT,
+          git: textInBaseAnswering({ outcome: "failed", error: SOURCE_FAILURE }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "failed", error: GIT_FAILURE }),
+        },
+        baseRevision: "main",
+        sources: [LEGACY_SOURCE_FILE],
+      }),
+    ).toEqual(UNMEASURED_GIT_FAILED);
+  });
+});
+
+describe("exceptionBaselineOf", () => {
+  it("is the baseline read at the base revision when one is needed", () => {
     expect(
       exceptionBaselineOf({
         check: {
           repoRoot: REPO_ROOT,
           baseRevision: "main",
-          git,
-          exceptionRepository: exceptionRepositoryAnswering({ outcome: "failed", error: GIT_FAILURE }),
+          git: textInBaseAnswering({ outcome: "ok", value: { presence: "present-in-base", text: "[]" } }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
         },
-        entries: [LEGACY_CHAIN_ENTRY],
-      }),
-    ).toEqual(UNMEASURED_GIT_FAILED);
-  });
-
-  it("is unmeasured with git's message when an imported entry's source cannot be read at the base", () => {
-    const git = gitAnswering({ changedSince: { outcome: "ok", value: [] }, textInBase: { outcome: "failed", error: GIT_FAILURE } });
-    expect(
-      exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: "main", git, exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }) },
         entries: [IMPORTED_LOCATION_ENTRY],
       }),
-    ).toEqual(UNMEASURED_GIT_FAILED);
+    ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]) });
+  });
+
+  it("is the settled baseline when none is needed", () => {
+    expect(
+      exceptionBaselineOf({
+        check: { repoRoot: REPO_ROOT, baseRevision: undefined, git: UNASKED_TEXT, exceptionRepository: UNASKED_REPOSITORY },
+        entries: [IMPORTED_LOCATION_ENTRY, LEGACY_CHAIN_ENTRY],
+      }),
+    ).toEqual(UNMEASURED_NOT_GIVEN);
   });
 });

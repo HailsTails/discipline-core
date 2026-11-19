@@ -18,11 +18,23 @@ import type { Result } from "../values/result.ts";
 import { whyChainFormOf } from "../values/why-chain.ts";
 import type { PartialAssessment, Unmeasured } from "../verdict/check-report.ts";
 
-export type BaseRevisionReach = {
+export type ChangeSetReach = {
   readonly repoRoot: AbsolutePath;
   readonly baseRevision: string | undefined;
-  readonly git: GitPort;
+  readonly git: Pick<GitPort, "changedSince">;
 };
+
+export type BaselineReach = {
+  readonly repoRoot: AbsolutePath;
+  readonly git: Pick<GitPort, "textInBase">;
+  readonly exceptionRepository: Pick<ExceptionRepository, "readAt">;
+};
+
+export type ChangeSetNeed = { readonly kind: "settled"; readonly touched: TouchedSet } | { readonly kind: "measure-since-base" };
+
+export type BaselineNeed =
+  | { readonly kind: "settled"; readonly baseline: ExceptionBaseline }
+  | { readonly kind: "read-at-base"; readonly baseRevision: string; readonly sources: readonly RepoPath[] };
 
 const forfeitureUnmeasured = (request: {
   readonly touched: TouchedSet;
@@ -35,14 +47,24 @@ const forfeitureUnmeasured = (request: {
 const fileCarveOutsIn = (request: { readonly records: readonly ExceptionRecord[] }): number =>
   request.records.filter((record) => record.kind === "file-carve-out").length;
 
+export const changeSetNeedOf = (request: {
+  readonly assessment: Assessment;
+  readonly records: readonly ExceptionRecord[];
+}): ChangeSetNeed => {
+  if (request.assessment.forfeiture === "elsewhere") {
+    return { kind: "settled", touched: { measured: "elsewhere" } };
+  }
+  return fileCarveOutsIn(request) > 0
+    ? { kind: "measure-since-base" }
+    : { kind: "settled", touched: { measured: "yes", paths: new Set() } };
+};
+
 export const touchedSetFor = (request: {
-  readonly check: BaseRevisionReach & { readonly assessment: Assessment };
+  readonly check: ChangeSetReach & { readonly assessment: Assessment };
   readonly records: readonly ExceptionRecord[];
 }): TouchedSet => {
-  if (request.check.assessment.forfeiture === "elsewhere") {
-    return { measured: "elsewhere" };
-  }
-  return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
+  const need = changeSetNeedOf({ assessment: request.check.assessment, records: request.records });
+  return need.kind === "settled" ? need.touched : computeTouchedSet(request.check);
 };
 
 export const partialAssessmentsOf = (request: {
@@ -90,13 +112,13 @@ export const unmeasuredOf = (request: {
 ];
 
 const textsInBase = (request: {
-  readonly check: BaseRevisionReach;
+  readonly reach: BaselineReach;
   readonly baseRevision: string;
   readonly files: readonly RepoPath[];
 }): Result<ReadonlyMap<RepoPath, string>, GitFailure> => {
   const readings = request.files.map((file) => ({
     file,
-    reading: request.check.git.textInBase({ repoRoot: request.check.repoRoot, baseRevision: request.baseRevision, file }),
+    reading: request.reach.git.textInBase({ repoRoot: request.reach.repoRoot, baseRevision: request.baseRevision, file }),
   }));
   const failed = readings.find(({ reading }) => reading.outcome === "failed");
   if (failed !== undefined && failed.reading.outcome === "failed") {
@@ -112,24 +134,43 @@ const textsInBase = (request: {
   };
 };
 
-export const exceptionBaselineOf = (request: {
-  readonly check: BaseRevisionReach & { readonly exceptionRepository: Pick<ExceptionRepository, "readAt"> };
+export const baselineNeedOf = (request: {
+  readonly baseRevision: string | undefined;
   readonly entries: readonly StructuralExceptionEntry[];
-}): ExceptionBaseline => {
-  const { baseRevision } = request.check;
+}): BaselineNeed => {
+  const { baseRevision } = request;
   if (
     baseRevision === undefined ||
     (importedEntriesIn({ entries: request.entries }) === "absent" && legacyChainsIn({ entries: request.entries }) === "absent")
   ) {
-    return UNMEASURED_EXCEPTION_BASELINE;
+    return { kind: "settled", baseline: UNMEASURED_EXCEPTION_BASELINE };
   }
-  const entriesAtBase = request.check.exceptionRepository.readAt({ revision: baseRevision });
+  return { kind: "read-at-base", baseRevision, sources: importSourcesOf({ entries: request.entries }) };
+};
+
+export const baselineAtBase = (request: {
+  readonly reach: BaselineReach;
+  readonly baseRevision: string;
+  readonly sources: readonly RepoPath[];
+}): ExceptionBaseline => {
+  const { baseRevision } = request;
+  const entriesAtBase = request.reach.exceptionRepository.readAt({ revision: baseRevision });
   if (entriesAtBase.outcome === "failed") {
     return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: entriesAtBase.error }) };
   }
-  const texts = textsInBase({ check: request.check, baseRevision, files: importSourcesOf({ entries: request.entries }) });
+  const texts = textsInBase({ reach: request.reach, baseRevision, files: request.sources });
   if (texts.outcome === "failed") {
     return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: texts.error }) };
   }
   return { measured: "yes", entriesAtBase: entriesAtBase.value, sourceTextsAtBase: texts.value };
+};
+
+export const exceptionBaselineOf = (request: {
+  readonly check: BaselineReach & { readonly baseRevision: string | undefined };
+  readonly entries: readonly StructuralExceptionEntry[];
+}): ExceptionBaseline => {
+  const need = baselineNeedOf({ baseRevision: request.check.baseRevision, entries: request.entries });
+  return need.kind === "settled"
+    ? need.baseline
+    : baselineAtBase({ reach: request.check, baseRevision: need.baseRevision, sources: need.sources });
 };
