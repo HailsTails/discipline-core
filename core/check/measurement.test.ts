@@ -274,18 +274,18 @@ describe("changeSetNeedOf", () => {
 });
 
 describe("touchedSetFor", () => {
-  it("is the change set since the base revision when it is needed", () => {
-    expect(
-      touchedSetFor({
-        check: {
-          assessment: { forfeiture: "this-run" },
-          repoRoot: REPO_ROOT,
-          baseRevision: "main",
-          git: changedSinceAnswering({ outcome: "ok", value: [LEGACY_FILE] }),
-        },
+  it("asks git for the change set since the check's base revision under its root when it is needed", () => {
+    const git = changedSinceAnswering({ outcome: "ok", value: [LEGACY_FILE] });
+    expect({
+      touched: touchedSetFor({
+        check: { assessment: { forfeiture: "this-run" }, repoRoot: REPO_ROOT, baseRevision: "main", git },
         records: [FILE_CARVE_OUT],
       }),
-    ).toEqual({ measured: "yes", paths: new Set([LEGACY_FILE]) });
+      changedSince: vi.mocked(git.changedSince).mock.calls,
+    }).toEqual({
+      touched: { measured: "yes", paths: new Set([LEGACY_FILE]) },
+      changedSince: [[{ repoRoot: REPO_ROOT, baseRevision: "main" }]],
+    });
   });
 
   it("is unmeasured when the change set is needed and no base revision is given", () => {
