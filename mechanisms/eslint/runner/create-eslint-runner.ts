@@ -7,7 +7,6 @@ import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-po
 import type {
   CaseVerdict,
   Hit,
-  InlineReach,
   NativeException,
   ProjectionWrite,
   ScriptOptionCause,
@@ -24,7 +23,6 @@ import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import { CUT_MARK, SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
@@ -32,10 +30,8 @@ import {
   type ConfigFileSearch,
   type EslintPort,
   type GovernedRule,
-  INLINE_CONFIG_RULE_ID,
   type IgnoredState,
   type LintedFile,
-  type LintedMessage,
   type QueryInstance,
   reservedNamespace,
 } from "./eslint-instance.ts";
@@ -43,7 +39,8 @@ import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } fr
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
-import { parseInlineConfigComment } from "./inline-config-parser.ts";
+import { hitsCutFrom, messageReadingOf } from "./lint-hits.ts";
+import { linesReaderOf, sourceLinesFor } from "./source-lines.ts";
 import { CONFIG_FILE_NAMES, type ConfigLookup, configLookupOf, teamConfigLookup } from "./config-lookup.ts";
 import { type PackageJsonScan, type ScriptOption, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
 import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
@@ -119,12 +116,6 @@ type SharedPlugin = { readonly configured: ConfiguredClause; readonly parsed: Pr
 const SUPPRESSIONS_FILE_NAME = "eslint-suppressions.json";
 
 const PACKAGE_JSON_NAME = "package.json";
-
-const INLINE_DISABLE = "inline-disable";
-
-const INLINE_RULE_CONFIG = "inline-rule-config";
-
-const LINE_BREAK = /\r\n|[\r\n\u2028\u2029]/;
 
 const pieceInvalid = (request: {
   readonly pieceRoot: string;
@@ -696,139 +687,6 @@ const queryExceptions = (request: {
   ...request.queried.checked.flatMap((checked) => overrideExceptions({ selected: request.selected, checked })),
 ];
 
-const commentValueOf = (request: { readonly text: string }): string => {
-  if (request.text.startsWith("//")) {
-    return request.text.slice(2);
-  }
-  return request.text.startsWith("/*") && request.text.endsWith("*/")
-    ? request.text.slice(2, -2)
-    : request.text;
-};
-
-type InlineReading = { readonly clauses: readonly SelectedClause[]; readonly reach: InlineReach };
-
-const namedClauses = (request: {
-  readonly ruleIds: readonly string[];
-  readonly selected: readonly SelectedClause[];
-}): InlineReading => ({
-  clauses: request.selected.filter((entry) => request.ruleIds.includes(entry.ruleId)),
-  reach: "one-clause",
-});
-
-const inlineReadingOf = (request: {
-  readonly text: string;
-  readonly selected: readonly SelectedClause[];
-}): InlineReading => {
-  const parsed = parseInlineConfigComment({ text: commentValueOf({ text: request.text }) });
-  switch (parsed.kind) {
-    case "disable":
-      return parsed.ruleIds.length === 0
-        ? { clauses: request.selected, reach: "every-selected-clause" }
-        : namedClauses({ ruleIds: parsed.ruleIds, selected: request.selected });
-    case "rule-config":
-      return namedClauses({ ruleIds: parsed.ruleIds, selected: request.selected });
-    case "unparseable-rule-config":
-      return { clauses: request.selected, reach: "every-selected-clause" };
-    case "not-an-exception":
-      return { clauses: [], reach: "one-clause" };
-  }
-};
-
-const inlineNativeException = (request: {
-  readonly kind: typeof INLINE_DISABLE | typeof INLINE_RULE_CONFIG;
-  readonly reach: InlineReach;
-  readonly clause: SelectedClause;
-  readonly file: RepoPath;
-  readonly message: LintedMessage;
-}): NativeException => {
-  const located = { clause: request.clause.clause.address, file: request.file, line: request.message.line, text: request.message.message };
-  switch (request.kind) {
-    case INLINE_DISABLE:
-      return { kind: request.kind, ...located, reach: request.reach };
-    case INLINE_RULE_CONFIG:
-      return { kind: request.kind, ...located };
-  }
-};
-
-const inlineExceptionKindOf = (request: {
-  readonly messageId: string | undefined;
-}): typeof INLINE_DISABLE | typeof INLINE_RULE_CONFIG | "not-inline" =>
-  request.messageId === INLINE_DISABLE || request.messageId === INLINE_RULE_CONFIG
-    ? request.messageId
-    : "not-inline";
-
-const inlineException = (request: {
-  readonly message: LintedMessage;
-  readonly file: RepoPath;
-  readonly selected: readonly SelectedClause[];
-}): Outcome<readonly NativeException[]> => {
-  const message = request.message;
-  const kind = inlineExceptionKindOf({ messageId: message.messageId });
-  if (kind === "not-inline") {
-    return {
-      outcome: "failed",
-      error: { kind: "tool-failed", detail: `${request.file}: ${message.message}` },
-    };
-  }
-  const reading = inlineReadingOf({ text: message.message, selected: request.selected });
-  return {
-    outcome: "ok",
-    value: reading.clauses.map((clause) =>
-      inlineNativeException({ kind, reach: reading.reach, clause, file: request.file, message }),
-    ),
-  };
-};
-
-type SourceLines = () => Outcome<readonly string[]>;
-
-const sourceLinesOnce = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly file: RepoPath;
-}): SourceLines => {
-  let lines: Outcome<readonly string[]> | undefined;
-  return () => {
-    lines ??= linesOf(request);
-    return lines;
-  };
-};
-
-const linesOf = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly file: RepoPath;
-}): Outcome<readonly string[]> => {
-  const text = request.fileText.read({
-    path: request.path.join({ segments: [request.repoRoot, request.file] }),
-  });
-  if (text.outcome === "failed") {
-    return {
-      outcome: "failed",
-      error: { kind: "file-unreadable", file: request.file, detail: text.error.detail },
-    };
-  }
-  return { outcome: "ok", value: text.value.split(LINE_BREAK) };
-};
-
-const lineSnippet = (request: { readonly line: string; readonly column: number }): string => {
-  const trimmed = request.line.trim();
-  return trimmed.length > SNIPPET_LIMIT ? `${CUT_MARK}${request.line.slice(request.column - 1)}` : trimmed;
-};
-
-const sourceLineOf = (request: {
-  readonly sourceLines: SourceLines;
-  readonly line: number;
-  readonly column: number;
-}): Outcome<string> =>
-  mappedOutcome({
-    outcome: request.sourceLines(),
-    map: (lines) => lineSnippet({ line: lines[request.line - 1] ?? "", column: request.column }),
-  });
-
-type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
-
 const outsideRepository = (request: { readonly linted: LintedFile }): Outcome<RepoPath> => ({
   outcome: "failed",
   error: {
@@ -869,68 +727,33 @@ const parseableFile = (request: {
   return file;
 };
 
-const ruleFindings = (request: {
-  readonly message: LintedMessage;
-  readonly file: RepoPath;
-  readonly clause: SelectedClause;
-  readonly sourceLines: SourceLines;
-}): Outcome<readonly LintFindings[]> =>
-  mappedOutcome({
-    outcome: sourceLineOf({ sourceLines: request.sourceLines, line: request.message.line, column: request.message.column }),
-    map: (snippet): readonly LintFindings[] => [
-      {
-        hits: [
-          {
-            clause: request.clause.clause.address,
-            file: request.file,
-            anchor: { line: request.message.line, column: request.message.column - 1 },
-            snippet,
-          },
-        ],
-        nativeExceptions: [],
-      },
-    ],
-  });
-
-const messageFindings = (request: {
-  readonly message: LintedMessage;
-  readonly file: RepoPath;
-  readonly selected: readonly SelectedClause[];
-  readonly sourceLines: SourceLines;
-}): Outcome<readonly LintFindings[]> => {
-  if (request.message.ruleId === INLINE_CONFIG_RULE_ID) {
-    return mappedOutcome({
-      outcome: inlineException({ message: request.message, file: request.file, selected: request.selected }),
-      map: (nativeExceptions): readonly LintFindings[] => [{ hits: [], nativeExceptions }],
-    });
-  }
-  const clause = request.selected.find((entry) => entry.ruleId === request.message.ruleId);
-  if (clause === undefined) {
-    return { outcome: "ok", value: [] };
-  }
-  return ruleFindings({ ...request, clause });
-};
+type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
 
 const lintedFindings = (request: {
   readonly linted: LintedFile;
   readonly selected: readonly SelectedClause[];
   readonly ports: EslintRunnerPorts;
   readonly repoRoot: AbsolutePath;
-}): Outcome<readonly LintFindings[]> => {
+}): Outcome<LintFindings> => {
   const file = parseableFile({ linted: request.linted, path: request.ports.path, repoRoot: request.repoRoot });
   if (file.outcome === "failed") {
     return file;
   }
-  const sourceLines = sourceLinesOnce({
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    repoRoot: request.repoRoot,
+  const reading = messageReadingOf({ file: file.value, messages: request.linted.messages, selected: request.selected });
+  if (reading.outcome === "failed") {
+    return reading;
+  }
+  const lines = sourceLinesFor({
     file: file.value,
+    ruleHits: reading.value.ruleHits,
+    readLines: linesReaderOf({ fileText: request.ports.fileText, path: request.ports.path, repoRoot: request.repoRoot }),
   });
-  return gatheredOutcomes({
-    outcomes: request.linted.messages.map((message) =>
-      messageFindings({ message, file: file.value, selected: request.selected, sourceLines }),
-    ),
+  return mappedOutcome({
+    outcome: lines,
+    map: (sourceLines): LintFindings => ({
+      hits: hitsCutFrom({ file: file.value, ruleHits: reading.value.ruleHits, lines: sourceLines }),
+      nativeExceptions: reading.value.nativeExceptions,
+    }),
   });
 };
 
@@ -1160,7 +983,9 @@ const governedReport = (request: {
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
-      lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
+      listedOutcome({
+        outcome: lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
+      }),
     ),
   });
   if (findings.outcome === "failed") {
