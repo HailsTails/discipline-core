@@ -9,6 +9,7 @@ commands:
   check          check the repository against the disciplines it selects and print the report, ending in its verdict
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
   record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  prune-debt     remove from the exception records each stale or forfeited file carve-out whose file no longer exists, printing each pair removed
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -52,6 +53,25 @@ exit codes:
   2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
 `;
 
+const PRUNE_DEBT_HELP = `usage: hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+
+remove from the exception records each stale or forfeited file carve-out whose file no longer exists, printing each pair removed
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --base-revision <revision>
+      the revision the change is measured from; without it no file carve-out can be forfeited
+  --forfeiture <this-run|elsewhere>
+      assess file carve-out decay in this run or leave it to another, over assessment.forfeiture in disciplines.json; this-run when neither is set
+  --help, -h
+      print this help
+
+exit codes:
+  0  every paid record was removed, or none was paid
+  2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
+`;
+
 const SPLIT_RECORDS_HELP = `usage: hone split-records --repo <dir>
 
 move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
@@ -74,6 +94,10 @@ describe("helpText", () => {
 
   it("marks a required option without brackets and a repeatable one with a trailing ellipsis", () => {
     expect(helpText({ topic: "record-debt" })).toBe(RECORD_DEBT_HELP);
+  });
+
+  it("gives the prune-debt command the check's base revision and forfeiture options, each optional", () => {
+    expect(helpText({ topic: "prune-debt" })).toBe(PRUNE_DEBT_HELP);
   });
 
   it("lists the commands and the tool's own options", () => {
@@ -100,7 +124,7 @@ describe("helpText", () => {
 describe("SYNOPSIS", () => {
   it("lists each command's usage, then the tool's own flags", () => {
     expect(SYNOPSIS).toBe(
-      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone split-records --repo <dir>\nhone --help\nhone --version\n",
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone split-records --repo <dir>\nhone --help\nhone --version\n",
     );
   });
 });

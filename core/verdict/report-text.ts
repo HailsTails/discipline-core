@@ -1,6 +1,7 @@
 import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
+import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -12,6 +13,7 @@ import type {
   AssessmentFileNote,
   CheckReport,
   ClauseReading,
+  PaidDebtNote,
   PartialAssessment,
   ProjectionProblem,
   ReadFirstEntry,
@@ -169,23 +171,23 @@ const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasur
 
 export const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
-type ProjectionRequest = { readonly projectCommand: string };
+type NextCommands = { readonly projectCommand: string; readonly pruneCommand: string };
 
 const projectionFileOf = (request: { readonly mechanism: MechanismId }): string => `disciplines.${request.mechanism}.mjs`;
 
-const refreshStep = (request: ProjectionRequest & { readonly mechanism: MechanismId }): string =>
+const refreshStep = (request: NextCommands & { readonly mechanism: MechanismId }): string =>
   `run ${request.projectCommand} and commit every ${projectionFileOf(request)} it writes`;
 
 const GENERATED_CONFIGURATION = "or, where a tool such as sku generates the configuration, last in the configuration the tool takes";
 
-type ReportRequest = ProjectionRequest & { readonly report: CheckReport };
+type ReportRequest = NextCommands & { readonly report: CheckReport };
 
 const sliceNote = (request: ReportRequest & { readonly mechanism: MechanismId }): string =>
   request.report.projectionProblems.some((problem) => problem.scope === "slice" && problem.mechanism === request.mechanism)
     ? `; the ${request.mechanism} lines under projectionProblems name the package slices involved`
     : "";
 
-const nestedNote = (request: ProjectionRequest & { readonly folders: readonly RepoPath[] }): string =>
+const nestedNote = (request: NextCommands & { readonly folders: readonly RepoPath[] }): string =>
   request.folders.length === 0
     ? ""
     : `; ${request.folders.join(", ")} hold their own disciplines.json, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its disciplines.json and keep its records here, then run ${request.projectCommand}, which writes its slice`;
@@ -211,7 +213,7 @@ type SliceProblem = Extract<ProjectionProblem, { readonly scope: "slice" }>;
 
 const folderOf = (request: { readonly slice: RepoPath }): string => request.slice.split("/").slice(0, -1).join("/");
 
-const sliceProblemReason = (request: ProjectionRequest & { readonly problem: SliceProblem }): string => {
+const sliceProblemReason = (request: NextCommands & { readonly problem: SliceProblem }): string => {
   const { mechanism, slice } = request.problem;
   const folder = folderOf({ slice });
   switch (request.problem.state) {
@@ -226,7 +228,7 @@ const sliceProblemReason = (request: ProjectionRequest & { readonly problem: Sli
   }
 };
 
-const projectionProblemLine = (request: ProjectionRequest & { readonly problem: ProjectionProblem }): string => {
+const projectionProblemLine = (request: NextCommands & { readonly problem: ProjectionProblem }): string => {
   const { problem } = request;
   switch (problem.scope) {
     case "projection":
@@ -292,16 +294,28 @@ const assessmentFileState = (request: { readonly note: AssessmentFileNote }): st
 const assessmentFileLine = (request: { readonly note: AssessmentFileNote; readonly spiritBelow: SpiritBelow }): string =>
   `${request.spiritBelow === "named" ? SPIRIT_LEAD : ""}${assessmentFileState(request)}`;
 
-const readFirstLine = (request: { readonly entry: ReadFirstEntry; readonly spiritBelow: SpiritBelow }): string => {
+const reprojectionStep = (request: NextCommands & { readonly projections: readonly MechanismId[] }): string =>
+  request.projections.length === 0
+    ? ", and commit the exception records it changes"
+    : `, then run ${request.projectCommand} and commit the exception records with every ${request.projections
+        .map((mechanism) => projectionFileOf({ mechanism }))
+        .join(" and every ")} it writes`;
+
+const paidDebtLine = (request: NextCommands & { readonly note: PaidDebtNote }): string =>
+  `${PRUNE_DEBT_SUBCOMMAND}: ${counted({ count: request.note.fileCarveOuts, noun: "file carve-out" })} under stale or forfeited still ${request.note.fileCarveOuts === 1 ? "records" : "record"} debt that is paid; run ${request.pruneCommand} to remove what is paid${reprojectionStep({ ...request, projections: request.note.projections })}`;
+
+const readFirstLine = (request: NextCommands & { readonly entry: ReadFirstEntry; readonly spiritBelow: SpiritBelow }): string => {
   switch (request.entry.kind) {
     case "assessment-file":
       return assessmentFileLine({ note: request.entry, spiritBelow: request.spiritBelow });
     case "clause":
       return `${clauseAddressText({ address: request.entry.clause })}: ${pointedReading({ reading: request.entry })}${assessmentContext({ reading: request.entry })}`;
+    case "paid-debt":
+      return paidDebtLine({ ...request, note: request.entry });
   }
 };
 
-type ReportLines = (request: ProjectionRequest & { readonly report: CheckReport }) => readonly string[];
+type ReportLines = (request: NextCommands & { readonly report: CheckReport }) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
@@ -332,11 +346,11 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   readFirst: (request) => {
     const spiritBelow = spiritBelowIn({ entries: request.report.readFirst });
-    return request.report.readFirst.map((entry) => readFirstLine({ entry, spiritBelow }));
+    return request.report.readFirst.map((entry) => readFirstLine({ ...request, entry, spiritBelow }));
   },
 };
 
-const reportSections = (request: ProjectionRequest & { readonly report: CheckReport }): readonly ReportSection[] =>
+const reportSections = (request: NextCommands & { readonly report: CheckReport }): readonly ReportSection[] =>
   SECTION_NAMES.map((name) => ({ name, lines: SECTION_LINES[name](request) }));
 
 const verdictLine = (request: { readonly report: CheckReport }): string =>
@@ -345,7 +359,7 @@ const verdictLine = (request: { readonly report: CheckReport }): string =>
     : `verdict: ${verdictOf(request)} (partial assessment)`;
 
 export const renderReportText = (
-  request: ProjectionRequest & { readonly report: CheckReport; readonly output: ReportOutput },
+  request: NextCommands & { readonly report: CheckReport; readonly output: ReportOutput },
 ): string => {
   const sectionLines = reportSections(request)
     .filter((section) => section.lines.length > 0)

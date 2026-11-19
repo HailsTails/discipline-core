@@ -181,13 +181,13 @@ The ESLint runner's map. "Checked file" means a tracked `.ts`, `.tsx`, `.mts` or
 | ESLint native channel | Exception kind | Can a record cover it? |
 | --- | --- | --- |
 | a checked file the team's configuration ignores (for example a global `ignores` block); reported for every selected clause | `ignore` | no |
-| a checked file on which the team's resolved configuration leaves a selected rule below `"error"` (`"warn"`, `"off"` or not set) | `config-override` | yes |
+| a checked file on which the team's resolved configuration leaves a selected rule below `"error"` (`"warn"`, `"off"` or not set), unless a record projects that rule off for that file | `config-override` | yes |
 | an entry for a selected rule in any tracked file named `eslint-suppressions.json`, or in a file named by `--suppressions-location` in a tracked `package.json` script | `suppression-entry` | no |
 | an `eslint-disable`, `eslint-disable-line` or `eslint-disable-next-line` comment naming a selected rule, or naming no rule, which escapes every selected clause and is reported once for each | `inline-disable` | yes, by a file record on its clause and file |
 | an `/* eslint ... */` comment configuring a selected rule, or one that cannot be parsed | `inline-rule-config` | no |
 | an option in an ESLint invocation in a tracked `package.json` script that weakens or replaces a selected rule's configuration: `--rule` or `--suppress-rule` naming it, or `--suppress-all`, `--no-config-lookup`, `--parser`, `--parser-options` or `--plugin`; `-c`/`--config` or `--ignore-pattern`, unless the script's own folder settles that it changes nothing | `command-line-option` | no |
 
-The ESLint runner declares `projectedKinds: ["config-override", "inline-disable"]`, because a file record's projection block turns the rule off for that file whatever its comments say. A record covers a `config-override` on its own file (authorised location or file carve-out) or on every file (clause-wide carve-out), and an `inline-disable` on its own file only.
+The ESLint runner declares `projectedKinds: ["config-override", "inline-disable"]`, because a file record's projection block turns the rule off for that file whatever its comments say. A record covers a `config-override` on its own file (authorised location or file carve-out) or on every file (clause-wide carve-out), and an `inline-disable` on its own file only. The runner does not report a `config-override` on a clause and file that a record projects off, forfeited or not: while the projection is in effect it is spread last and enables every selected rule at `"error"`, so a rule below `"error"` there is the projection's own off-switch. That off-switch never counts as a native exception the record holds, so a record whose file no longer breaks its clause is `stale`.
 
 How the runner finds each channel (`mechanisms/eslint/runner/`):
 

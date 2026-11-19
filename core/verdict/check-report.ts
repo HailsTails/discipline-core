@@ -62,7 +62,13 @@ export type AssessmentFileNote = {
   readonly guide: string;
 };
 
-export type ReadFirstEntry = AssessmentFileNote | ClauseReading;
+export type PaidDebtNote = {
+  readonly kind: "paid-debt";
+  readonly fileCarveOuts: number;
+  readonly projections: readonly MechanismId[];
+};
+
+export type ReadFirstEntry = AssessmentFileNote | ClauseReading | PaidDebtNote;
 
 export type CheckReport = {
   readonly excluded: readonly RepoPath[];

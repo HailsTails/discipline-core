@@ -6,10 +6,12 @@ import type { CheckReport } from "../core/verdict/check-report.ts";
 
 const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 
+const PRUNE_COMMAND = "node core/check/tool-command.ts prune-debt --repo .";
+
 export const fullReportExitCode = (request: { readonly checked: Result<CheckReport, LoadFailure> }): ExitCode =>
   checkCommandOutcome({
     result:
       request.checked.outcome === "failed"
         ? request.checked
-        : { outcome: "ok", value: { report: request.checked.value, output: "full", projectCommand: PROJECT_COMMAND } },
+        : { outcome: "ok", value: { report: request.checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
   }).code;

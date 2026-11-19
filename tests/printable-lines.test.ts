@@ -54,11 +54,12 @@ describe("PRINTED_SECTION_ROLES", () => {
 describe("PRINTED_BLOCKS", () => {
   it("fences the synopsis first, then the tool's help and each command's help", () => {
     expect(PRINTED_BLOCKS).toEqual([
-      expect.stringMatching(/^```text\nhone check --repo <dir> [^\n]*\nhone project --repo <dir>\nhone record-debt --repo <dir> [^\n]*\nhone split-records --repo <dir>\nhone --help\nhone --version\n```$/),
+      expect.stringMatching(/^```text\nhone check --repo <dir> [^\n]*\nhone project --repo <dir>\nhone record-debt --repo <dir> [^\n]*\nhone prune-debt --repo <dir> [^\n]*\nhone split-records --repo <dir>\nhone --help\nhone --version\n```$/),
       expect.stringMatching(/^```text\nusage: hone <command> \[options\]\n[\s\S]*\n```$/),
       expect.stringMatching(/^```text\nusage: hone check [\s\S]*\n```$/),
       expect.stringMatching(/^```text\nusage: hone project [\s\S]*\n```$/),
       expect.stringMatching(/^```text\nusage: hone record-debt [\s\S]*\n```$/),
+      expect.stringMatching(/^```text\nusage: hone prune-debt [\s\S]*\n```$/),
       expect.stringMatching(/^```text\nusage: hone split-records [\s\S]*\n```$/),
     ]);
   });

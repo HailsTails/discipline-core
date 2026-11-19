@@ -9,11 +9,14 @@ import {
   checkCommandOutcome,
   inheritedDebtLine,
   projectCommandOutcome,
+  pruneDebtCommandOutcome,
   splitRecordsCommandOutcome,
   versionCommandOutcome,
 } from "./command-outcome.ts";
 
 const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
+
+const PRUNE_COMMAND = "node core/check/tool-command.ts prune-debt --repo .";
 
 const WALKER = mechanismIdSchema.parse("audit");
 
@@ -46,14 +49,14 @@ const CLASS_IN_A: Finding = {
 
 describe("checkCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })).toEqual({
       code: 0,
       text: "verdict: pass\n",
     });
   });
 
   it("exits 1 and prints the report when the verdict is fail", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })).toEqual({
       code: 1,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\n",
     });
@@ -64,7 +67,7 @@ describe("checkCommandOutcome", () => {
       checkCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full", projectCommand: PROJECT_COMMAND },
+          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND },
         },
       }),
     ).toEqual({
@@ -75,7 +78,7 @@ describe("checkCommandOutcome", () => {
 
   it.each(reportOutputSchema.options)("exits 1 for a failing report whatever the %s output prints", (output) => {
     expect(
-      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output, projectCommand: PROJECT_COMMAND } } })
+      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })
         .code,
     ).toBe(1);
   });
@@ -83,7 +86,7 @@ describe("checkCommandOutcome", () => {
   it.each(reportOutputSchema.options)("exits 0 for a passing report whatever the %s output prints", (output) => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output, projectCommand: PROJECT_COMMAND } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
       }).code,
     ).toBe(0);
   });
@@ -95,7 +98,7 @@ describe("checkCommandOutcome", () => {
           outcome: "ok",
           value: {
             report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")], findings: [CLASS_IN_A] },
-            output: "failures-only", projectCommand: PROJECT_COMMAND,
+            output: "failures-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
           },
         },
       }),
@@ -105,11 +108,13 @@ describe("checkCommandOutcome", () => {
   it("exits 1 printing only the verdict for the verdict-only output", () => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only", projectCommand: PROJECT_COMMAND } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
       }),
     ).toEqual({ code: 1, text: "verdict: fail\n" });
   });
+});
 
+describe("checkCommandOutcome on a load failure", () => {
   it("exits 2 and prints the load failure line when an input could not be loaded", () => {
     expect(
       checkCommandOutcome({
@@ -243,5 +248,32 @@ describe("inheritedDebtLine", () => {
     ).toBe(
       "CD-15#loops nested-configuration nested/src/n.ts: the file loads the eslint configuration in nested/src, and nested holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the eslint projection cannot put a record on this file into effect; fix it, or govern nested from this repository by removing nested/disciplines.json, then run record-debt again\n",
     );
+  });
+});
+
+describe("pruneDebtCommandOutcome", () => {
+  it("exits 0 and prints nothing when no debt is paid", () => {
+    expect(pruneDebtCommandOutcome({ result: { outcome: "ok", value: [] } })).toEqual({ code: 0, text: "" });
+  });
+
+  it("exits 0 and prints one <clause> removed <file> line per removed pair, in the order given", () => {
+    expect(
+      pruneDebtCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: [
+            { clause: clauseAddressSchema.parse("CD-14#class-syntax"), file: repoPathSchema.parse("src/a.ts") },
+            { clause: clauseAddressSchema.parse("CD-15#loops"), file: repoPathSchema.parse("src/b.ts") },
+          ],
+        },
+      }),
+    ).toEqual({ code: 0, text: "CD-14#class-syntax removed src/a.ts\nCD-15#loops removed src/b.ts\n" });
+  });
+
+  it("exits 2 and prints the load failure line on a failure", () => {
+    expect(pruneDebtCommandOutcome({ result: { outcome: "failed", error: { kind: "runner-missing", mechanism: WALKER } } })).toEqual({
+      code: 2,
+      text: "load failure: runner-missing audit\n",
+    });
   });
 });

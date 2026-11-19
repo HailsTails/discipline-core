@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { requiredEntry } from "../../tests/required-entry.ts";
 import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
@@ -7,7 +8,7 @@ import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { helpText } from "./command-help.ts";
 import type { CommandRequest } from "./run-check-command.ts";
-import { type CommandHandler, toolCommandOf } from "./run-tool-command.ts";
+import { type CommandHandler, type Subcommands, toolCommandOf } from "./run-tool-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
@@ -53,17 +54,26 @@ const commandRequest = (request: { readonly process: ProcessPort }): CommandRequ
   moduleUrl: ENTRY_URL,
 });
 
-const subcommandsSpied = () => ({
+const subcommandsSpied = (): Subcommands => ({
   check: vi.fn<CommandHandler>().mockResolvedValue(undefined),
   project: vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "record-debt": vi.fn<CommandHandler>().mockResolvedValue(undefined),
+  "prune-debt": vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "split-records": vi.fn<CommandHandler>().mockResolvedValue(undefined),
 });
 
-const callsOf = (request: { readonly subcommands: ReturnType<typeof subcommandsSpied> }) => ({
+type SubcommandCalls = {
+  readonly check: readonly Parameters<CommandHandler>[];
+  readonly project: readonly Parameters<CommandHandler>[];
+  readonly recordDebt: readonly Parameters<CommandHandler>[];
+  readonly pruneDebt: readonly Parameters<CommandHandler>[];
+};
+
+const callsOf = (request: { readonly subcommands: Subcommands }): SubcommandCalls => ({
   check: vi.mocked(request.subcommands.check).mock.calls,
   project: vi.mocked(request.subcommands.project).mock.calls,
   recordDebt: vi.mocked(request.subcommands["record-debt"]).mock.calls,
+  pruneDebt: vi.mocked(request.subcommands["prune-debt"]).mock.calls,
 });
 
 const outputOf = (request: { readonly process: ProcessPort }) => ({
@@ -82,6 +92,7 @@ describe("toolCommandOf", () => {
       check: [[{ ...request, process: { ...request.process, arguments: ["--repo", "/repo"] } }]],
       project: [],
       recordDebt: [],
+      pruneDebt: [],
     });
   });
 
@@ -95,6 +106,7 @@ describe("toolCommandOf", () => {
       check: [],
       project: [[{ ...request, process: { ...request.process, arguments: ["--repo", "/repo"] } }]],
       recordDebt: [],
+      pruneDebt: [],
     });
   });
 
@@ -108,18 +120,33 @@ describe("toolCommandOf", () => {
       check: [],
       project: [],
       recordDebt: [[{ ...request, process: { ...request.process, arguments: ["--repo", "/repo", "--base-revision", "HEAD"] } }]],
+      pruneDebt: [],
+    });
+  });
+
+  it("runs the prune-debt subcommand with the same ports and the arguments after it", async () => {
+    const subcommands = subcommandsSpied();
+    const request = commandRequest({ process: processWith({ arguments: ["prune-debt", "--repo", "/repo", "--base-revision", "origin/main"] }) });
+
+    await toolCommandOf({ subcommands })(request);
+
+    expect(callsOf({ subcommands })).toEqual({
+      check: [],
+      project: [],
+      recordDebt: [],
+      pruneDebt: [[{ ...request, process: { ...request.process, arguments: ["--repo", "/repo", "--base-revision", "origin/main"] } }]],
     });
   });
 });
 
-const ranNothing = { check: [], project: [], recordDebt: [] };
+const ranNothing = { check: [], project: [], recordDebt: [], pruneDebt: [] };
 
 describe("toolCommandOf refusing an invocation it cannot read", () => {
   it.each([
-    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt or split-records; run hone --help for usage\n" },
+    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt or split-records; run hone --help for usage\n" },
     {
       given: ["lint", "--repo", "/repo"],
-      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt and split-records; run hone --help for usage\n',
+      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt, prune-debt and split-records; run hone --help for usage\n',
     },
   ])("exits 2 with the arguments-invalid line and runs nothing, given $given", async ({ given, line }) => {
     const subcommands = subcommandsSpied();
@@ -154,12 +181,10 @@ describe("toolCommandOf printing help", () => {
 
 const PACKAGE_PATH = "/install/package.json";
 
-const UNREAD: ReturnType<FileTextPort["read"]> = { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } };
-
 const versionRequest = (request: { readonly process: ProcessPort; readonly read: ReturnType<FileTextPort["read"]> }): CommandRequest => ({
   ...commandRequest(request),
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
-  fileText: { ...UNUSED_FILE_TEXT, read: ({ path }) => ({ [PACKAGE_PATH]: request.read })[path] ?? UNREAD },
+  fileText: { ...UNUSED_FILE_TEXT, read: ({ path }) => requiredEntry({ table: { [PACKAGE_PATH]: request.read }, key: path }) },
 });
 
 describe("toolCommandOf printing the version", () => {
@@ -168,7 +193,7 @@ describe("toolCommandOf printing the version", () => {
     const processPort = processWith({ arguments: ["--version"] });
 
     await toolCommandOf({ subcommands })(
-      versionRequest({ process: processPort, read: { outcome: "ok", value: JSON.stringify({ version: "1.2.3" }) } }),
+      versionRequest({ process: processPort, read: { outcome: "ok", value: '{ "version": "1.2.3" }' } }),
     );
 
     expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
@@ -202,7 +227,7 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
   ])("exits 2 with an unexpected-error load failure line, so exit 1 always means a failing verdict: $line", async ({ handler, line }) => {
     const processPort = processWith({ arguments: ["check", "--repo", "/repo"] });
 
-    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "split-records": handler } })(commandRequest({ process: processPort }));
+    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, "split-records": handler } })(commandRequest({ process: processPort }));
 
     expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
   });

@@ -1,7 +1,13 @@
 import { type ArgumentProblem, argumentsInvalid } from "../core/check/argument-problem.ts";
 import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
 import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
-import { projectCommandOutcome, recordDebtCommandOutcome, splitRecordsCommandOutcome, versionCommandOutcome } from "../core/check/command-outcome.ts";
+import {
+  projectCommandOutcome,
+  pruneDebtCommandOutcome,
+  recordDebtCommandOutcome,
+  splitRecordsCommandOutcome,
+  versionCommandOutcome,
+} from "../core/check/command-outcome.ts";
 import { installedVersionOf } from "../core/check/installed-version.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { loadFailureText } from "../core/check/load-failure-text.ts";
@@ -30,6 +36,7 @@ import type {
   AssessmentSection,
   CheckReport,
   ClauseReading,
+  PaidDebtNote,
   PartialAssessment,
   ProjectionProblem,
   Unmeasured,
@@ -60,6 +67,8 @@ const ADOPTION_GUIDE = "node_modules/@hailstails/hone/ADOPTING.md";
 
 const PROJECT_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop";
 
+const PRUNE_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop --base-revision origin/main";
+
 const SHARED_FILLS: Fills = {
   clause: "CD-15#loops",
   mechanism: "eslint",
@@ -70,6 +79,7 @@ const SHARED_FILLS: Fills = {
   "rule page": RULE_PAGE,
   "adoption guide": ADOPTION_GUIDE,
   "project command": PROJECT_COMMAND,
+  "prune command": PRUNE_COMMAND,
 };
 
 const EDITION_READING: ClauseEditionReading = {
@@ -337,6 +347,13 @@ const NOTES: Readonly<Record<AssessmentFileNote["state"], AssessmentFileNote>> =
   unreadable: { kind: "assessment-file", state: "unreadable", guide: ADOPTION_GUIDE },
 };
 
+const PAID_DEBT_NOTES: readonly Filled<PaidDebtNote>[] = [
+  { entry: { kind: "paid-debt", fileCarveOuts: 1, projections: [] }, fills: {} },
+  { entry: { kind: "paid-debt", fileCarveOuts: 3, projections: [] }, fills: { count: "3" } },
+  { entry: { kind: "paid-debt", fileCarveOuts: 1, projections: [MECHANISM] }, fills: {} },
+  { entry: { kind: "paid-debt", fileCarveOuts: 3, projections: [MECHANISM] }, fills: { count: "3" } },
+];
+
 const SLICE_FOLDER = "packages/web";
 
 const projectionFillsOf = (request: { readonly problem: ProjectionProblem }): Fills =>
@@ -374,7 +391,7 @@ const SECTION_SAMPLES: SectionSamples = {
     .flatMap((byState) => Object.values(byState))
     .map((problem) => ({ entry: problem, fills: projectionFillsOf({ problem }) })),
   assessment: Object.values(PARTIAL_ASSESSMENTS).flatMap((byAssessor) => Object.values(byAssessor).flat()),
-  readFirst: unfilled(Object.values(READINGS).flatMap((byPresence) => Object.values(byPresence))),
+  readFirst: [...unfilled(Object.values(READINGS).flatMap((byPresence) => Object.values(byPresence))), ...PAID_DEBT_NOTES],
 };
 
 const EMPTY_REPORT: CheckReport = {
@@ -436,15 +453,15 @@ const VERDICT_REPORTS: Readonly<Record<Verdict, Readonly<Record<"whole" | "parti
 const EVERY_OUTPUT: readonly ReportOutput[] = reportOutputSchema.options;
 
 const REPORT_LINES: readonly PrintedLine[] = [
-  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, entryFills: sampleFills })),
+  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sampleFills })),
   ...reportLinesOf({
     report: { ...EMPTY_REPORT, unmeasured: entriesOf(UNSLICED_UNRUN) },
     output: "full",
-    projectCommand: PROJECT_COMMAND,
+    projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
     entryFills: unslicedFills,
   }),
   ...[...NOTED_REPORTS, ...Object.values(VERDICT_REPORTS).flatMap((byPart) => Object.values(byPart))].flatMap((report) =>
-    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, entryFills: sharedFills }),
+    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sharedFills }),
   ),
 ];
 
@@ -615,6 +632,12 @@ const RECORD_DEBT_LINES: readonly PrintedLine[] = linesOf({
   fills: { clause: "CD-15#loops", file: "src/basket.ts", path: "src", "records file": SPLIT_RECORDS_FILE, folder: OWN_DISCIPLINES_FOLDER, "config folder": OWN_CONFIGURATION_FOLDER, mechanism: MECHANISM },
 });
 
+const PRUNE_DEBT_LINES: readonly PrintedLine[] = linesOf({
+  label: "prune-debt",
+  text: pruneDebtCommandOutcome({ result: { outcome: "ok", value: [{ clause: LOOPS, file: FILE }] } }).text,
+  fills: { clause: "CD-15#loops", file: "src/basket.ts" },
+});
+
 const SPLIT_RECORDS_OUTCOMES: readonly { readonly split: RecordsSplit; readonly path: string }[] = [
   { split: { effect: "split", writes: [{ path: SPLIT_RECORDS_FILE, effect: "written" }] }, path: SPLIT_RECORDS_FILE },
   { split: { effect: "split", writes: [{ path: SINGLE_RECORDS_FILE, effect: "removed" }] }, path: SINGLE_RECORDS_FILE },
@@ -649,6 +672,7 @@ export const PRINTABLE_LINES: readonly PrintedLine[] = [
   ...FAILURE_LINES,
   ...PROJECT_LINES,
   ...RECORD_DEBT_LINES,
+  ...PRUNE_DEBT_LINES,
   ...SPLIT_RECORDS_LINES,
   ...VERSION_LINES,
 ];

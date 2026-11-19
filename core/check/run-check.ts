@@ -9,7 +9,9 @@ import {
   parseExceptionEntries,
   type StructuralExceptionEntry,
 } from "../exception-records/exception-records.ts";
-import { applyGovernance, type Finding } from "../governance/governance.ts";
+import type { DebtPair } from "../exception-records/debt-pair.ts";
+import { paidDebtOf } from "../exception-records/paid-debt.ts";
+import { applyGovernance, type Finding, type GovernanceResult } from "../governance/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import {
   type LoadedRunner,
@@ -37,6 +39,7 @@ import type {
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
 import { packageLinkOf } from "./package-link.ts";
+import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
@@ -371,13 +374,30 @@ const remediedFindingsOf = (request: {
   return shownRemediesOf({ ...request.check, link, clauseRoots: request.inputs.clauseRoots, findings });
 };
 
+const absentFilesOf = (request: {
+  readonly check: TreeRequest;
+  readonly governed: Pick<GovernanceResult, "stale" | "forfeited">;
+}): readonly RepoPath[] => {
+  const carvedFiles = [...request.governed.stale, ...request.governed.forfeited].flatMap((record) =>
+    record.kind === "file-carve-out" ? [record.file] : [],
+  );
+  return [...new Set(carvedFiles)].filter(
+    (file) => request.check.fileText.exists({ path: request.check.path.join({ segments: [request.check.repoRoot, file] }) }) === "absent",
+  );
+};
+
+type CheckedReport = {
+  readonly report: CheckReport;
+  readonly paidDebt: readonly DebtPair[];
+};
+
 const checkReportOf = (request: {
   readonly check: CheckRequest;
   readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
   readonly touched: TouchedSet;
-}): CheckReport => {
+}): CheckedReport => {
   const governed = applyGovernance({
     findings: remediedFindingsOf(request),
     records: request.inputs.records,
@@ -385,7 +405,8 @@ const checkReportOf = (request: {
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
-  return {
+  const paidDebt = paidDebtOf({ ...governed, absent: absentFilesOf({ check: request.check, governed }) });
+  const report: CheckReport = {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
     notRun: request.inputs.selection.notRun,
@@ -402,12 +423,15 @@ const checkReportOf = (request: {
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
     ],
     assessment: partialAssessmentsOf({ assessment: request.assessment, records: request.inputs.records }),
-    readFirst: clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
+    readFirst: [
+      ...clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
+      ...paidDebtNotesOf({ governed, paid: paidDebt, runs: request.runs }),
+    ],
   };
+  return { report, paidDebt };
 };
 
-export type ReachedCheck = {
-  readonly report: CheckReport;
+export type ReachedCheck = CheckedReport & {
   readonly unprojected: readonly UnprojectedFolder[];
 };
 
@@ -433,7 +457,7 @@ export const runReachedCheck = async (request: CheckRequest): Promise<Result<Rea
   return {
     outcome: "ok",
     value: {
-      report: checkReportOf({
+      ...checkReportOf({
         check: request,
         assessment: request.assessment,
         inputs: inputs.value,

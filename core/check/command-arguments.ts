@@ -28,6 +28,12 @@ export type CheckArguments = {
   readonly forfeiture: ForfeitureAssessment | undefined;
 };
 
+export type PruneDebtArguments = {
+  readonly repo: string;
+  readonly baseRevision: string | undefined;
+  readonly forfeiture: ForfeitureAssessment | undefined;
+};
+
 export type ProjectArguments = {
   readonly repo: string;
 };
@@ -186,6 +192,31 @@ export const parseCheckArguments = (request: {
 }): Result<CheckArguments, LoadFailure> => {
   const values = givenOptionValues({ subcommand: "check", arguments: request.arguments });
   return values.outcome === "failed" ? values : checkArgumentsOf({ values: values.value });
+};
+
+const pruneDebtArgumentsOf = (request: { readonly values: OptionValues }): Result<PruneDebtArguments, LoadFailure> => {
+  const repo = requiredRepo({ subcommand: "prune-debt", values: request.values });
+  if (repo.outcome === "failed") {
+    return repo;
+  }
+  const forfeiture = chosenValue({ option: FORFEITURE_OPTION, choices: forfeitureAssessmentSchema.options, values: request.values });
+  return forfeiture.outcome === "failed"
+    ? forfeiture
+    : {
+        outcome: "ok",
+        value: {
+          repo: repo.value,
+          baseRevision: singleValue({ option: BASE_REVISION_OPTION, values: request.values }),
+          forfeiture: forfeiture.value,
+        },
+      };
+};
+
+export const parsePruneDebtArguments = (request: {
+  readonly arguments: readonly string[];
+}): Result<PruneDebtArguments, LoadFailure> => {
+  const values = givenOptionValues({ subcommand: "prune-debt", arguments: request.arguments });
+  return values.outcome === "failed" ? values : pruneDebtArgumentsOf({ values: values.value });
 };
 
 export const parseProjectArguments = (request: {

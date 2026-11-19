@@ -1,6 +1,7 @@
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "../core/check/command-outcome.ts";
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import { runProjectCommand } from "../core/check/run-project-command.ts";
+import { runPruneDebtCommand } from "../core/check/run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "../core/check/run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "../core/check/run-split-records-command.ts";
 import { createDefaultGitTreePort } from "../core/platform-ports/git-port.ts";
@@ -53,6 +54,7 @@ export const runSelfCheck: CommandHandler = toolCommandOf({
     check: runGatedCheckCommand,
     project: runProjectCommand,
     "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
+    "prune-debt": runPruneDebtCommand,
     "split-records": runSplitRecordsCommand,
   },
 });

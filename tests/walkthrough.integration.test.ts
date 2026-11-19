@@ -15,6 +15,8 @@ import expectedReports from "./test-fixtures/walkthrough/expected-reports.json" 
 
 const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 
+const PRUNE_COMMAND = "node core/check/tool-command.ts prune-debt --repo .";
+
 const path = createDefaultPathPort({});
 
 const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
@@ -67,7 +69,7 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     git: trackingGit({ tracked: request.tracked }),
   }));
   assert(checked.outcome === "ok", `${request.repo} loads`);
-  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND } } });
+  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } });
 };
 
 const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {

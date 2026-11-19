@@ -9,12 +9,12 @@ import { createPathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
-import { FIRST_EDITION } from "../values/edition.ts";
+import { editionSchema, FIRST_EDITION } from "../values/edition.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { type CheckRequest, runCheck } from "./run-check.ts";
+import { type CheckRequest, runCheck, runReachedCheck } from "./run-check.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const INSTALL_ROOT = absolutePathSchema.parse("/install");
@@ -28,6 +28,7 @@ const AUDIT = mechanismIdSchema.parse("audit");
 const LINT = mechanismIdSchema.parse("lint");
 const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");
 const ABSTRACT_SYNTAX = clauseAddressSchema.parse("CD-14#abstract-syntax");
+const SECOND_EDITION = editionSchema.parse("2");
 const TEAM_CLASS_SYNTAX = clauseAddressSchema.parse("team/CD-14#class-syntax");
 
 const CLASS_SYNTAX_OBJECT = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
@@ -327,6 +328,22 @@ describe("runCheck reports", () => {
     });
   });
 
+  it("reports each selected clause's edition and the latest beside it, as the selection reads them", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({
+            ...SELECTION_READING,
+            selection: { ...SELECTION_READING.selection, editions: [{ address: CLASS_SYNTAX, mechanism: AUDIT, edition: FIRST_EDITION, latest: SECOND_EDITION }] },
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { ...EMPTY_REPORT, editions: [{ address: CLASS_SYNTAX_OBJECT, mechanism: "audit", edition: "1", latest: "2" }] },
+    });
+  });
+
   it("lists the uncovered mechanical clauses of an adopted discipline", async () => {
     await expect(
       runCheck(
@@ -425,6 +442,18 @@ describe("runCheck runner dispatch", () => {
       expect.objectContaining({ files: ["src/a.ts", "vendored/kept.ts"], trackedPaths: ["src/a.ts", "vendored/kept.ts"] }),
     );
   });
+
+  it("points at the paid debt it names, counting a stale file carve-out", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }),
+          git: gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } }),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }] } });
+  });
+
 
   it("still forfeits a carve-out on a tracked path absent from the working tree that the change set touched", async () => {
     const runner = standaloneRunner({ runReturns: CLEAN_RUN });
@@ -986,7 +1015,9 @@ describe("runCheck handing each unit its input and reporting its answer", () => 
       runCheck(checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(REASON_ONLY_FACTORY)] }), git: FACTORY_ONLY_GIT })),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 } }] },
+      value: {
+        invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "evidence-refused" } }],
+      },
     });
   });
 
@@ -1000,5 +1031,62 @@ describe("runCheck handing each unit its input and reporting its answer", () => 
         }),
       ),
     ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], stale: [{ file: "src/factory.ts" }] } });
+  });
+});
+
+const carveOutOn = (file: string): StructuralExceptionEntry => ({ ...CARVE_OUT_ON_GONE, file });
+
+const unchangedGitTracking = (tracked: readonly RepoPath[]): GitPort =>
+  gitMeasuring({ trackedPaths: { outcome: "ok", value: tracked }, changedSince: { outcome: "ok", value: [] } });
+
+describe("runReachedCheck handing on only the debt on a file no longer on disk", () => {
+  it("hands on a stale file carve-out on a file no longer on disk, pointing at it", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/gone.ts" }], report: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1 }] } },
+    });
+  });
+
+  it("hands on a forfeited file carve-out on a file no longer on disk that the change set touched", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }),
+          git: gitMeasuring({
+            trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
+            changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/gone.ts")] },
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/gone.ts" }], report: { stale: [], forfeited: [{ kind: "file-carve-out", file: "src/gone.ts" }] } },
+    });
+  });
+
+  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/a.ts"))] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/a.ts" }], readFirst: [] } },
+    });
+  });
+
+  it("hands on and points at nothing for a stale file carve-out on a file on disk that git does not track", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/factory.ts"))] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/factory.ts" }], readFirst: [] } },
+    });
   });
 });

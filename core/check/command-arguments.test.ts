@@ -4,6 +4,7 @@ import {
   parseCheckArguments,
   parseInvocation,
   parseProjectArguments,
+  parsePruneDebtArguments,
   parseRecordDebtArguments,
   parseSplitRecordsArguments,
 } from "./command-arguments.ts";
@@ -149,5 +150,28 @@ describe("parseRecordDebtArguments", () => {
     { given: ["--repo", "/a", "--base-revision", "HEAD", "--leave", "src\\clock.ts"], problem: { kind: "path-invalid", option: LEAVE_OPTION, given: "src\\clock.ts" } },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
     expect(parseRecordDebtArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
+  });
+});
+
+describe("parsePruneDebtArguments", () => {
+  it.each([
+    { given: ["--repo", "/work/repo"], expected: { repo: "/work/repo", baseRevision: undefined, forfeiture: undefined } },
+    {
+      given: ["--forfeiture", "elsewhere", "--repo", "/work/repo", "--base-revision", "origin/main"],
+      expected: { repo: "/work/repo", baseRevision: "origin/main", forfeiture: "elsewhere" },
+    },
+  ] as const)("reads $given", ({ given, expected }) => {
+    expect(parsePruneDebtArguments({ arguments: given })).toEqual({ outcome: "ok", value: expected });
+  });
+
+  it.each([
+    { given: ["--base-revision", "origin/main"], problem: { kind: "option-required", subcommand: "prune-debt", option: REPO_OPTION } },
+    {
+      given: ["--repo", "/work/repo", "--forfeiture", "reported"],
+      problem: { kind: "choice-invalid", option: FORFEITURE_OPTION, choices: ["this-run", "elsewhere"], given: "reported" },
+    },
+    { given: ["--repo", "/work/repo", "--leave", "src/clock.ts"], problem: { kind: "option-unknown", subcommand: "prune-debt", given: "--leave" } },
+  ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
+    expect(parsePruneDebtArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
   });
 });

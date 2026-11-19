@@ -6,12 +6,13 @@ import { loadFailureOutcome, versionCommandOutcome } from "./command-outcome.ts"
 import { installedVersionOf } from "./installed-version.ts";
 import { type CommandRequest, printOutcome, runCheckCommand } from "./run-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
+import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "./run-split-records-command.ts";
 
 export type CommandHandler = (request: CommandRequest) => Promise<void>;
 
-type Subcommands = Readonly<Record<Subcommand, CommandHandler>>;
+export type Subcommands = Readonly<Record<Subcommand, CommandHandler>>;
 
 const thrownMessage = (request: { readonly thrown: unknown }): string =>
   request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
@@ -55,6 +56,7 @@ export const runToolCommand: CommandHandler = toolCommandOf({
     check: runCheckCommand,
     project: runProjectCommand,
     "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
+    "prune-debt": runPruneDebtCommand,
     "split-records": runSplitRecordsCommand,
   },
 });

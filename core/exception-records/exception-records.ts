@@ -21,6 +21,7 @@ import {
   whyChainFormOf,
   whyChainSchema,
 } from "../values/why-chain.ts";
+import type { DebtPair } from "./debt-pair.ts";
 import type {
   AuthorisedLocationEntry,
   ExceptionRecord,
@@ -59,6 +60,7 @@ export type ExceptionRepository = {
   readonly read: () => Result<readonly PlacedEntry[], LoadFailure>;
   readonly readAt: (request: { readonly revision: string }) => Result<readonly StructuralExceptionEntry[], GitFailure>;
   readonly add: (request: { readonly entries: readonly FileCarveOutEntry[] }) => Result<void, LoadFailure>;
+  readonly remove: (request: { readonly pairs: readonly DebtPair[] }) => Result<readonly DebtPair[], LoadFailure>;
   readonly moveToSplitLayout: () => Result<RecordsSplit, LoadFailure>;
 };
 

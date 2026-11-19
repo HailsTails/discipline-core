@@ -17,7 +17,7 @@ import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./comma
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type PackageLink, packageLinkOf, UNLINKED } from "./package-link.ts";
-import { projectCommandOf } from "./project-command.ts";
+import { projectCommandOf, pruneCommandOf } from "./tool-invocations.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "./shown-path.ts";
 
@@ -80,12 +80,13 @@ const checkRunOf = (request: {
   readonly report: Result<CheckReport, LoadFailure>;
   readonly output: ReportOutput;
   readonly projectCommand: string;
+  readonly pruneCommand: string;
 }): Result<CheckRun, LoadFailure> =>
   request.report.outcome === "failed"
     ? request.report
     : {
         outcome: "ok",
-        value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand },
+        value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand, pruneCommand: request.pruneCommand },
       };
 
 const checkRunIn = async (
@@ -98,6 +99,16 @@ const checkRunIn = async (
   const projectCommand = projectCommandOf({ path: request.path, moduleUrl: request.moduleUrl, repoRoot: request.repoRoot });
   if (projectCommand.outcome === "failed") {
     return projectCommand;
+  }
+  const pruneCommand = pruneCommandOf({
+    path: request.path,
+    moduleUrl: request.moduleUrl,
+    repoRoot: request.repoRoot,
+    baseRevision: request.arguments.baseRevision,
+    forfeiture: request.arguments.forfeiture,
+  });
+  if (pruneCommand.outcome === "failed") {
+    return pruneCommand;
   }
   const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: request.repoRoot });
   if (configured.outcome === "failed") {
@@ -125,6 +136,7 @@ const checkRunIn = async (
     report,
     output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: configured.value.reportOutput }),
     projectCommand: projectCommand.value,
+    pruneCommand: pruneCommand.value,
   });
 };
 

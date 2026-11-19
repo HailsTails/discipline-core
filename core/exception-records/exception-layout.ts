@@ -21,7 +21,8 @@ import {
   type RecordsSplit,
   type StructuralExceptionEntry,
 } from "./exception-records.ts";
-import { exceptionsTextWith, type WritableEntry } from "./exceptions-text.ts";
+import { type DebtPair, debtPairKey, entryPairKey } from "./debt-pair.ts";
+import { exceptionsTextWith, exceptionsTextWithout, type WritableEntry } from "./exceptions-text.ts";
 
 export type ExceptionLayoutPorts = {
   readonly fileText: FileTextPort;
@@ -348,6 +349,74 @@ const added = (request: LayoutRequest & { readonly entries: readonly WritableEnt
   return written.outcome === "failed" ? written : { outcome: "ok", value: undefined };
 };
 
+const indexesWritten = (request: LayoutRequest & { readonly file: RepoPath; readonly indexes: readonly number[] }): Result<void, LoadFailure> => {
+  const path = absoluteOf(request);
+  const current = request.fileText.read({ path });
+  if (current.outcome === "failed") {
+    return { outcome: "failed", error: { kind: "file-unreadable", path, detail: current.error.detail } };
+  }
+  const text = exceptionsTextWithout({ text: current.value, indexes: request.indexes });
+  if (text.outcome === "failed") {
+    return { outcome: "failed", error: { kind: "file-malformed", path, detail: text.error.detail } };
+  }
+  const written = request.fileText.write({ path, text: text.value });
+  return written.outcome === "failed" ? { outcome: "failed", error: { kind: "file-unwritable", path, detail: written.error.detail } } : written;
+};
+
+const heldFileCarveOuts = (request: { readonly placed: readonly PlacedEntry[]; readonly pairs: readonly DebtPair[] }): readonly PlacedEntry[] => {
+  const removing = new Set(request.pairs.map((pair) => debtPairKey(pair)));
+  return request.placed.filter(({ entry }) => {
+    const key = entryPairKey({ entry });
+    return entry.kind === "file-carve-out" && key !== undefined && removing.has(key);
+  });
+};
+
+const recordsFileRemoved = (request: LayoutRequest & { readonly file: RepoPath }): Result<void, LoadFailure> => {
+  const path = absoluteOf(request);
+  const removal = request.fileRemoval.remove({ path });
+  return removal.outcome === "failed"
+    ? { outcome: "failed", error: { kind: "file-unwritable", path, detail: removal.error.detail } }
+    : { outcome: "ok", value: undefined };
+};
+
+const emptiedSplitFile = (request: {
+  readonly placed: readonly PlacedEntry[];
+  readonly removing: readonly PlacedEntry[];
+}): "emptied" | "kept" => {
+  const [first] = request.removing;
+  return first !== undefined &&
+    first.place.layout === "split" &&
+    request.placed.filter(({ place }) => place.file === first.place.file).length === request.removing.length
+    ? "emptied"
+    : "kept";
+};
+
+const removedFrom = (
+  request: LayoutRequest & { readonly placed: readonly PlacedEntry[]; readonly file: RepoPath; readonly removing: readonly PlacedEntry[] },
+): Result<void, LoadFailure> =>
+  emptiedSplitFile(request) === "emptied"
+    ? recordsFileRemoved(request)
+    : indexesWritten({ ...request, indexes: request.removing.map(({ place }) => place.index) });
+
+const removed = (request: LayoutRequest & { readonly pairs: readonly DebtPair[] }): Result<readonly DebtPair[], LoadFailure> => {
+  const placed = workingEntries(request);
+  if (placed.outcome === "failed") {
+    return placed;
+  }
+  const held = heldFileCarveOuts({ placed: placed.value, pairs: request.pairs });
+  const byFile = [...Map.groupBy(held, ({ place }) => place.file)];
+  const written = byFile.reduce<Result<void, LoadFailure>>(
+    (sofar, [file, entries]) =>
+      sofar.outcome === "failed" ? sofar : removedFrom({ ...request, placed: placed.value, file, removing: entries }),
+    { outcome: "ok", value: undefined },
+  );
+  if (written.outcome === "failed") {
+    return written;
+  }
+  const heldKeys = new Set(held.flatMap(({ entry }) => entryPairKey({ entry }) ?? []));
+  return { outcome: "ok", value: request.pairs.filter((pair) => heldKeys.has(debtPairKey(pair))) };
+};
+
 const foreignKeysRefusal = (request: LayoutRequest & { readonly foreignKeys: readonly string[] }): Result<never, LoadFailure> =>
   unplaceable({
     ...request,
@@ -406,6 +475,7 @@ export const createExceptionRepository = (request: LayoutRequest): ExceptionRepo
   read: () => workingEntries(request),
   readAt: (at) => baseEntries({ ...request, revision: at.revision }),
   add: (addition) => added({ ...request, entries: addition.entries }),
+  remove: (removal) => removed({ ...request, pairs: removal.pairs }),
   moveToSplitLayout: () => splitOf(request),
 });
 
