@@ -1,6 +1,8 @@
 # CD-39 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Outside the cases: no symptom. [Every CD](../numbers.md) says where each number went.
+
+Read [the rule and its spirit](README.md) first; the [named pages](../README.md) govern where they differ. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
 

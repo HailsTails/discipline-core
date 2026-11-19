@@ -1,6 +1,8 @@
 # CD-41 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Symptoms: [Long function](../typescript/symptoms.md#long-function), [Tangled function](../typescript/symptoms.md#tangled-function) and [Orchestrator that computes](../typescript/symptoms.md#orchestrator-that-computes).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 
@@ -50,7 +52,7 @@ const settle = (orders: Order[]) => {
 ```ts
 const settle = (orders: Order[]) => orders.filter(isPaid).forEach(refundEligibleLines);
 ```
-Move each branch into a named helper so the orchestrator only composes calls.
+Move any computing or branching between calls into a named doer, so the orchestrator only composes calls.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file holds a function whose shape is fixed by an external contract. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. Judgement clauses cannot be selected and need no exception record. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

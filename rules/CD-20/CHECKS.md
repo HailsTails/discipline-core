@@ -1,6 +1,8 @@
 # CD-20 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Symptom: [Outside import past a boundary](../typescript/symptoms.md#outside-import-past-a-boundary).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## How it is checked
 

@@ -2,28 +2,14 @@
 
 ## Rule
 
-Every dependency on code the project does not own — a third-party library or the runtime's own standard library alike — is confined to a single wrapping port at the boundary; the rest of the codebase depends on that port, never the vendor or platform surface, runtime or type-only. A dependency swap then touches one file, the vendor's types never leak inward, and each confined capability is nameable and replaceable with a test double. There is no inline carve-out: a stdlib call in the middle of business logic is as much a violation as a scattered library import. Opening a new wrapping site for a new dependency is a deliberate, recorded decision.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Splits: Outside dependencies stay at boundaries; Ports declared inside; construction and ids cases.
+
+**Read.** [Outside dependencies stay at boundaries](../rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](../rules.md#ports-declared-inside), Builds the real implementations ([cases](../cases.md#one-place-decides)), Needs the current time, a random value, a new id or an outside ordering ([cases](../cases.md#external-behaviour-sits-at-a-boundary)), [World values through a port](../typescript/recipes.md#world-values-through-a-port) and [Adapter per outside party](../typescript/recipes.md#adapter-per-outside-party).
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** Depending on code you do not own hands that code a say in the shape of yours. The friction makes depending on your own port the easy path, so a swap touches one file, vendor types stay out, and every capability has a name and a test double.
-
-**What a finding points at.** Match the sites against these causes.
-- *A capability with no name.* Many files import the same library or runtime module. Name the capability, wrap it once, inject it.
-- *A port that leaks.* A wrapper exists but passes vendor types or objects through, so callers import the vendor anyway. Make the port speak your types.
-- *Decisions doing I/O.* A runtime call sits in the middle of business logic. Separate the decision from the effect; the effect arrives through a port.
-- *Construction spread everywhere.* Each module builds its own dependencies. Move construction to one composition root that passes ports in.
-
-**Where to go.** Each external capability has one wrapping file, recorded as its authorised location. Everything else imports your port. Opening a new wrapper is a recorded decision, not an inline one.
-
-**Reactions to distrust.**
-- "It's only the standard library." The same reasons apply: it cannot be replaced in a test and it ties logic to a platform. The rule makes no stdlib carve-out.
-- "Wrapping is boilerplate." One small file per capability, against the whole codebase knowing a vendor's surface.
-- "Exclude that folder." An excluded folder is a boundary nobody designed. Design it, then authorise the one file.
-
-**Principles behind it.**
-- *Dependency Inversion Principle* (Robert C. Martin, SOLID). Your code depends on an abstraction you own; the vendor detail depends on it, not the other way round.
-- *Ports and adapters* (Alistair Cockburn, hexagonal architecture). The application talks through ports; one adapter per outside system translates. Swapping the system means swapping the adapter.
-- *Functional core, imperative shell* (Gary Bernhardt). Decisions stay pure; effects live at the edge and arrive through ports.
+Start from the symptom a finding names: [Outside import past a boundary](../typescript/symptoms.md#outside-import-past-a-boundary) and [Outside type in a signature](../typescript/symptoms.md#outside-type-in-a-signature). Each symptom names the cases it may indicate and the rules they point at. The why is on [External behaviour sits at a boundary](../principles.md#external-behaviour-sits-at-a-boundary).

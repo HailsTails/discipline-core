@@ -2,14 +2,14 @@
 
 ## Rule
 
-Collapsed into [CD-15](../CD-15/README.md) — counted-loop iteration and
-element iteration are two faces of the same intent (iteration is functional
-transformation, not imperative looping). CD-15 now carries both. This id is
-retained as a redirect so existing citations resolve; it is not independently
-enforced.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Merges with CD-15.
+
+**Read.** [No hidden effects](../principles.md#no-hidden-effects) and [Functional iteration](../typescript/recipes.md#functional-iteration).
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-See [CD-15's Spirit section](../CD-15/README.md#spirit). A counted loop is the same signal as any other loop, plus a manual index that can drift out of bounds.
+Start from the symptom a finding names: [Loop keyword](../typescript/symptoms.md#loop-keyword). Each symptom names the cases it may indicate and the rules they point at. The why is on [No hidden effects](../principles.md#no-hidden-effects).

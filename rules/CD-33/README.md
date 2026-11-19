@@ -2,6 +2,8 @@
 
 ## Rule
 
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) says where each number went.
+
 A value whose type is branded sensitive redacts unconditionally wherever it surfaces — logs, errors, serialisation — with no opt-out. Branding sensitivity into the type means the redaction travels with the value by construction, rather than depending on every call site remembering to hide it.
 
 Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).

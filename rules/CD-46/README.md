@@ -2,6 +2,8 @@
 
 ## Rule
 
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ: only [debt](../records.md#debt) is forfeited on touch.
+
 A suppression or exemption is inherited debt held at rest, not a standing licence: it buys "leave this file alone", nothing more. The moment a change edits an exempt file, that file forfeits its exemption — the change must bring the whole file into compliance for the exempted rule (the new lines and the pre-existing ones the exemption was masking) and remove the exemption entry, in the same change. There is no partial credit and no extracting the touched code into a clean helper while the exempt file stays dirty. If full compliance is out of scope, the move is to not touch the file. This rule governs how every other exemption decays and can never itself be exempted.
 
 Review lens: none. A reviewer applies the rule text directly. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).

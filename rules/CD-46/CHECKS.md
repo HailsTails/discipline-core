@@ -1,6 +1,8 @@
 # CD-46 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Record kind: [Debt](../records.md#debt).
+
+Read [the rule and its spirit](README.md) first; the [named pages](../README.md) govern where they differ. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## How it is checked
 

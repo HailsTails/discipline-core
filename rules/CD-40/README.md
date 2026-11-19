@@ -2,28 +2,14 @@
 
 ## Rule
 
-A function takes a single named-field object argument rather than a positional parameter list, so every call site reads as a labelled contract instead of a sequence of unlabelled values whose meaning depends on order. Named fields also make adding or reordering parameters a safe, non-breaking change.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Cases of One word everywhere, Handed what it uses.
+
+**Read.** [One word everywhere](../rules.md#one-word-everywhere), [Handed what it uses](../rules.md#handed-what-it-uses) and [One argument object](../typescript/recipes.md#one-argument-object).
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** Positional arguments make meaning depend on order, and nothing checks the order. The friction makes a labelled call the easy one, and turns what each function needs into a named shape a reader can see.
-
-**What a finding points at.** Match the sites against these causes.
-- *Values that travel together without a name.* The same group of arguments passes through several functions. Name the group as one type.
-- *A function with several jobs.* It has many parameters because it serves many concerns. Split it.
-- *Flags steering behaviour.* An argument switches between modes. Split the function, or make the mode a named union.
-- *Asking for more than it uses.* Converting to one object invites passing a whole record. Take only the fields the function reads; tests then build only those.
-
-**Where to go.** Every function takes one object whose fields are named and minimal. Adding a field breaks no caller.
-
-**Reactions to distrust.**
-- "Two parameters is fine." The rule asks for one named object. Two positional values already have an order to get wrong.
-- "The library dictates this callback." Then the callback is the boundary. Hand off to a single-object function on its first line.
-- "An object is more typing." It is a few characters at the call site, against every reader guessing the order.
-
-**Principles behind it.**
-- *Function arguments* (Robert C. Martin, *Clean Code*). Each extra argument is something the reader must hold in mind and the caller can get wrong.
-- *Introduce Parameter Object* (Martin Fowler, *Refactoring*). The refactoring that names a group of values that travel together.
-- *Interface Segregation Principle* (Robert C. Martin, SOLID). The object asks for exactly the fields used, no more.
+Start from the symptom a finding names: [Positional parameters](../typescript/symptoms.md#positional-parameters). Each symptom names the cases it may indicate and the rules they point at. The why is on [Our code reads in the common language](../principles.md#our-code-reads-in-the-common-language) and [One place decides](../principles.md#one-place-decides).

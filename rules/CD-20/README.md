@@ -2,14 +2,14 @@
 
 ## Rule
 
-Collapsed into [CD-19](../CD-19/README.md) — confining the
-runtime's own standard library behind a wrapping port is the same intent as
-confining a third-party dependency (CD-20 was originally split out of CD-19). CD-19
-now covers both third-party and stdlib dependencies. This id is retained as a
-redirect so existing citations resolve; it is not independently enforced.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Merges with CD-19.
+
+**Read.** [Outside dependencies stay at boundaries](../rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](../rules.md#ports-declared-inside) and [Adapter per outside party](../typescript/recipes.md#adapter-per-outside-party).
 
 Review lens: [di-discipline](../../methods/lenses/di-discipline.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-See [CD-19's Spirit section](../CD-19/README.md#spirit). A runtime standard-library import is the same signal as any other unwrapped dependency: a capability with no port.
+Start from the symptom a finding names: [Outside import past a boundary](../typescript/symptoms.md#outside-import-past-a-boundary). Each symptom names the cases it may indicate and the rules they point at. The why is on [External behaviour sits at a boundary](../principles.md#external-behaviour-sits-at-a-boundary).

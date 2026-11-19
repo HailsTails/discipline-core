@@ -70,9 +70,9 @@ outer layer?*
 - **Inner code importing a storage/driver primitive.** Inner layers (domain,
   application) importing a database driver, a filesystem module, or any raw
   storage primitive is a finding against the repository-port rule: the inner code
-  reached around the port. The correct shape is a port type declared with the
-  domain, a default factory wired at boot, and an adapter file that composes the
-  driver behind the port.
+  reached around the port. The correct shape is a port declared in the domain,
+  in a module of its own, an adapter that fulfils it, and one entry-point module
+  that builds the adapter and passes it in.
 - **Type-only does not escape.** A type-only import still couples the consumer to
   the outer world's type shape; if the rules say type-only follows the same rule,
   read it the same way as a runtime import.
@@ -147,11 +147,10 @@ re-tagging the rule another lens owns):
   the boundary observation rather than inventing a layering rule that doesn't carry
   this lens tag. The wrapping-factory file *is* the permitted seam; the boundary
   violation is only the import that skips it.
-- **Default-factory siblings.** A permitted wrapping/adapter site should also ship
-  the default factory its DI rules require; the *internal shape* of the port
-  (capability naming, factory presence, generic binding) is the DI lens's lane.
-  Note a missing default-factory export as a sibling observation, not as a
-  clean-architecture finding of its own.
+- **Adapter built outside the root.** One entry-point module builds every
+  adapter and passes each one in; the *internal shape* of the port (capability
+  naming, generic binding) is the DI lens's lane. Note an adapter built anywhere
+  else as a sibling observation, not as a clean-architecture finding of its own.
 
 Vague phrasings ("this coupling feels wrong", "might leak data") are the lens's own
 failure mode — every finding names the specific boundary and the rule that draws it.

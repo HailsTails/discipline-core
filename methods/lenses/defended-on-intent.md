@@ -132,8 +132,8 @@ principle (e.g. "every dependency outside the unit boundary is replaced by a tes
 dependency injection, never reached around") — is "no substitution outside DI". The
 unlisted mechanism *is* substitution outside DI; it passes the letter and fails the
 intent. The structural reframing: the unit consumes the dependency as an
-injected port through its argument seam, production wires the real
-implementation in the wrapping-factory file, the test injects a test double directly;
+injected port through its argument seam, production builds the real
+implementation at the entry point and passes it in, the test injects a test double directly;
 the PASS retracts and becomes a DI/testing VIOLATION on the owning lens.
 
 The three properties that make a finding sound — and that an author can

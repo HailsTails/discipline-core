@@ -1,6 +1,8 @@
 # CD-1 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Symptoms: [Claimed type](../typescript/symptoms.md#claimed-type) and [Untyped value](../typescript/symptoms.md#untyped-value).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 
@@ -31,7 +33,7 @@ const parsed = JSON.parse(text) as any;
 ```ts
 const order = orderSchema.parse(JSON.parse(text));
 ```
-Give it a concrete type where it enters: parse it with a schema or a type guard at the boundary, checked at runtime.
+Give it a concrete type where it enters: parse it once with a schema in the adapter for whoever produced it, checked at runtime.
 
 In a test file, edition 2 of `CD-27#test-body-logic` flags `JSON.parse`; edition 1, the default, does not.
 
