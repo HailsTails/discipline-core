@@ -1,17 +1,13 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
-import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
+import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
+import { type DebtPair, debtPairKey, distinctDebtPairs, entryPairKey } from "./debt-pair.ts";
 import type { FileCarveOutEntry } from "./exception-record.ts";
 import type { PlacedEntry } from "./exception-records.ts";
 
 export const RECORD_DEBT_SUBCOMMAND = "record-debt";
-
-type DebtPair = {
-  readonly clause: ClauseAddress;
-  readonly file: RepoPath;
-};
 
 export type InheritedDebtOutcome =
   | (DebtPair & { readonly effect: "recorded" | "new-file" | "refused" })
@@ -33,39 +29,17 @@ export type InheritedDebtRequest = {
   readonly refusing: readonly ClauseAddress[];
 };
 
-const pairKey = (request: DebtPair): string => `${clauseAddressText({ address: request.clause })} ${request.file}`;
-
 const inlinePairs = (request: { readonly unrecorded: readonly AttributedNativeException[] }): readonly DebtPair[] =>
   request.unrecorded.flatMap((exception) =>
     exception.kind === "inline-disable" ? [{ clause: exception.clause, file: exception.file }] : [],
-  );
-
-const textOrder = (request: { readonly left: string; readonly right: string }): number => {
-  if (request.left === request.right) {
-    return 0;
-  }
-  return request.left < request.right ? -1 : 1;
-};
-
-const pairOrder = (request: { readonly left: DebtPair; readonly right: DebtPair }): number =>
-  request.left.file === request.right.file
-    ? textOrder({ left: clauseAddressText({ address: request.left.clause }), right: clauseAddressText({ address: request.right.clause }) })
-    : textOrder({ left: request.left.file, right: request.right.file });
-
-const distinctPairs = (request: { readonly pairs: readonly DebtPair[] }): readonly DebtPair[] =>
-  [...new Map(request.pairs.map((pair) => [pairKey(pair), { clause: pair.clause, file: pair.file }])).values()].toSorted(
-    (left, right) => pairOrder({ left, right }),
   );
 
 const recordedPairFiles = (request: { readonly existing: readonly PlacedEntry[] }): ReadonlyMap<string, RepoPath> =>
   new Map(
     request.existing
       .flatMap(({ entry, place }): readonly (readonly [string, RepoPath])[] => {
-        if (entry.kind === "clause-wide-carve-out") {
-          return [];
-        }
-        const clause = clauseAddressSchema.safeParse(entry.clause);
-        return clause.success ? [[`${clauseAddressText({ address: clause.data })} ${entry.file}`, place.file]] : [];
+        const key = entryPairKey({ entry });
+        return key === undefined ? [] : [[key, place.file]];
       })
       .toReversed(),
   );
@@ -83,7 +57,7 @@ const outcomeOf = (request: {
   if (request.refusing.has(clauseAddressText({ address: pair.clause }))) {
     return { ...pair, effect: "refused" };
   }
-  const heldIn = request.recorded.get(pairKey(pair));
+  const heldIn = request.recorded.get(debtPairKey(pair));
   if (heldIn !== undefined) {
     return { ...pair, effect: "already-recorded", heldIn };
   }
@@ -98,7 +72,7 @@ export const inheritedDebtOf = (request: InheritedDebtRequest): readonly Inherit
   const recorded = recordedPairFiles(request);
   const refusing = new Set(request.refusing.map((address) => clauseAddressText({ address })));
   const findingPairs = request.findings.map((finding) => ({ clause: finding.clause, file: finding.file }));
-  return distinctPairs({ pairs: [...findingPairs, ...inlinePairs(request)] }).map((pair) =>
+  return distinctDebtPairs({ pairs: [...findingPairs, ...inlinePairs(request)] }).map((pair) =>
     outcomeOf({ pair, debt: request, recorded, refusing }),
   );
 };

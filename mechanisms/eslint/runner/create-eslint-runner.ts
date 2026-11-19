@@ -58,6 +58,7 @@ import {
   pluginImportOf,
   projectionState,
 } from "./projection.ts";
+import { projectionHolding } from "./projection-holding.ts";
 import { projectionStateAt } from "./projection-states.ts";
 import {
   type ConfigRoot,
@@ -675,10 +676,12 @@ const ignoreExceptions = (request: {
 
 const overrideExceptions = (request: {
   readonly selected: readonly SelectedClause[];
+  readonly records: readonly ExceptionRecord[];
   readonly checked: CheckedFile;
 }): readonly NativeException[] =>
   request.selected
     .filter((entry) => ruleEnforcement({ checked: request.checked, ruleId: entry.ruleId }) === "weakened")
+    .filter((entry) => projectionHolding({ records: request.records, clause: entry.clause.address, file: request.checked.file }) === "not-held")
     .map(
       (entry): NativeException => ({
         kind: "config-override",
@@ -689,10 +692,13 @@ const overrideExceptions = (request: {
 
 const queryExceptions = (request: {
   readonly selected: readonly SelectedClause[];
+  readonly records: readonly ExceptionRecord[];
   readonly queried: QueriedFiles;
 }): readonly NativeException[] => [
   ...request.queried.ignored.flatMap((file) => ignoreExceptions({ selected: request.selected, file })),
-  ...request.queried.checked.flatMap((checked) => overrideExceptions({ selected: request.selected, checked })),
+  ...request.queried.checked.flatMap((checked) =>
+    overrideExceptions({ selected: request.selected, records: request.records, checked }),
+  ),
 ];
 
 const outsideRepository = (request: { readonly linted: LintedFile }): Outcome<RepoPath> => ({
@@ -996,7 +1002,7 @@ const governedReport = (request: {
       value: {
         hits: findings.value.flatMap((found) => found.hits),
         nativeExceptions: [
-          ...queryExceptions({ selected: request.selected, queried: request.queried }),
+          ...queryExceptions({ selected: request.selected, records: request.run.records, queried: request.queried }),
           ...findings.value.flatMap((found) => found.nativeExceptions),
           ...tracked.value,
         ],

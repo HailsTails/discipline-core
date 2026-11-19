@@ -6,6 +6,10 @@ export type WritableEntry = ExceptionEntry | StructuralExceptionEntry;
 
 type ListBounds = { readonly key: number; readonly open: number; readonly close: number };
 
+type EntrySpan = { readonly start: number; readonly end: number };
+
+type ListShape = { readonly bounds: ListBounds; readonly entries: readonly EntrySpan[] };
+
 type Scan = {
   readonly depth: number;
   readonly quoting: "outside" | "inside" | "escaping";
@@ -14,7 +18,11 @@ type Scan = {
   readonly lastSignificant: string;
   readonly opened: { readonly key: number; readonly open: number } | undefined;
   readonly bounds: ListBounds | undefined;
+  readonly entryStart: number;
+  readonly entries: readonly EntrySpan[];
 };
+
+type EntryPiece = EntrySpan & { readonly index: number; readonly before: string; readonly text: string };
 
 const EXCEPTIONS_KEY = "exceptions";
 
@@ -38,7 +46,11 @@ const STARTING_SCAN: Scan = {
   lastSignificant: "",
   opened: undefined,
   bounds: undefined,
+  entryStart: 0,
+  entries: [],
 };
+
+const ENTRY_DEPTH = TOP_LEVEL + 1;
 
 const quotedScan = (request: { readonly scan: Scan; readonly character: string; readonly position: number; readonly text: string }): Scan => {
   const { scan, character } = request;
@@ -66,6 +78,17 @@ const closedBounds = (request: { readonly scan: Scan; readonly position: number 
     ? { ...request.scan.opened, close: request.position }
     : request.scan.bounds;
 
+const listStanding = (request: { readonly scan: Scan }): "in-list" | "outside-list" =>
+  request.scan.opened !== undefined && request.scan.bounds === undefined ? "in-list" : "outside-list";
+
+const entryOpening = (request: { readonly scan: Scan; readonly position: number }): number =>
+  listStanding(request) === "in-list" && request.scan.depth === ENTRY_DEPTH ? request.position : request.scan.entryStart;
+
+const closedEntries = (request: { readonly scan: Scan; readonly position: number }): readonly EntrySpan[] =>
+  listStanding(request) === "in-list" && request.scan.depth === ENTRY_DEPTH + 1
+    ? [...request.scan.entries, { start: request.scan.entryStart, end: request.position }]
+    : request.scan.entries;
+
 const structuralScan = (request: { readonly scan: Scan; readonly character: string; readonly position: number }): Scan => {
   const { scan, character, position } = request;
   if (character === '"') {
@@ -73,23 +96,31 @@ const structuralScan = (request: { readonly scan: Scan; readonly character: stri
   }
   if (OPENERS.has(character)) {
     const opened = character === "[" ? listOpening({ scan, position }) : scan.opened;
-    return { ...scan, depth: scan.depth + 1, opened, lastSignificant: character };
+    return { ...scan, depth: scan.depth + 1, opened, entryStart: entryOpening({ scan, position }), lastSignificant: character };
   }
   if (CLOSERS.has(character)) {
-    return { ...scan, depth: scan.depth - 1, bounds: closedBounds({ scan, position }), lastSignificant: character };
+    return {
+      ...scan,
+      depth: scan.depth - 1,
+      bounds: closedBounds({ scan, position }),
+      entries: closedEntries({ scan, position }),
+      lastSignificant: character,
+    };
   }
   return WHITESPACE.test(character) ? scan : { ...scan, lastSignificant: character };
 };
 
-const listBoundsIn = (request: { readonly text: string }): ListBounds | undefined =>
-  request.text
+const listShapeIn = (request: { readonly text: string }): ListShape | undefined => {
+  const scan = request.text
     .split("")
     .map((character, position) => ({ character, position }))
     .reduce(
-      (scan, placed) =>
-        scan.quoting === "outside" ? structuralScan({ scan, ...placed }) : quotedScan({ scan, ...placed, text: request.text }),
+      (sofar, placed) =>
+        sofar.quoting === "outside" ? structuralScan({ scan: sofar, ...placed }) : quotedScan({ scan: sofar, ...placed, text: request.text }),
       STARTING_SCAN,
-    ).bounds;
+    );
+  return scan.bounds === undefined ? undefined : { bounds: scan.bounds, entries: scan.entries };
+};
 
 const renderedEntries = (request: {
   readonly entries: readonly WritableEntry[];
@@ -133,8 +164,57 @@ export const exceptionsTextWith = (request: {
   if (request.entries.length === 0) {
     return { outcome: "ok", value: request.text };
   }
-  const bounds = listBoundsIn({ text: request.text });
-  return bounds === undefined
+  const shape = listShapeIn({ text: request.text });
+  return shape === undefined
     ? { outcome: "failed", error: { detail: "holds no top-level exceptions list to add records to" } }
-    : { outcome: "ok", value: appendedText({ text: request.text, bounds, entries: request.entries }) };
+    : { outcome: "ok", value: appendedText({ text: request.text, bounds: shape.bounds, entries: request.entries }) };
+};
+
+const entryPiecesOf = (request: { readonly text: string; readonly shape: ListShape }): readonly EntryPiece[] => {
+  const { open } = request.shape.bounds;
+  const previousEnds = [open, ...request.shape.entries.map((span) => span.end)];
+  return request.shape.entries.map((span, index) => ({
+    ...span,
+    index,
+    before: request.text.slice((previousEnds[index] ?? open) + 1, span.start),
+    text: request.text.slice(span.start, span.end + 1),
+  }));
+};
+
+const textWithoutPieces = (request: {
+  readonly text: string;
+  readonly bounds: ListBounds;
+  readonly pieces: readonly EntryPiece[];
+  readonly removing: ReadonlySet<number>;
+}): string => {
+  const { text, bounds } = request;
+  const opening = text.slice(0, bounds.open + 1);
+  const closing = text.slice(bounds.close);
+  const [lead] = request.pieces;
+  const last = request.pieces.at(-1);
+  const [first, ...rest] = request.pieces.filter((piece) => !request.removing.has(piece.index));
+  if (lead === undefined || last === undefined || first === undefined) {
+    return `${opening}${closing}`;
+  }
+  const following = rest.map((piece) => `${piece.before}${piece.text}`).join("");
+  return `${opening}${lead.before}${first.text}${following}${text.slice(last.end + 1, bounds.close)}${closing}`;
+};
+
+export const exceptionsTextWithout = (request: {
+  readonly text: string;
+  readonly indexes: readonly number[];
+}): Result<string, { readonly detail: string }> => {
+  if (request.indexes.length === 0) {
+    return { outcome: "ok", value: request.text };
+  }
+  const shape = listShapeIn({ text: request.text });
+  if (shape === undefined) {
+    return { outcome: "failed", error: { detail: "holds no top-level exceptions list to remove records from" } };
+  }
+  const missing = request.indexes.find((index) => index >= shape.entries.length);
+  if (missing !== undefined) {
+    return { outcome: "failed", error: { detail: `holds no exceptions[${missing}] to remove` } };
+  }
+  const pieces = entryPiecesOf({ text: request.text, shape });
+  return { outcome: "ok", value: textWithoutPieces({ text: request.text, bounds: shape.bounds, pieces, removing: new Set(request.indexes) }) };
 };

@@ -1,18 +1,18 @@
 # Output contract
 
-This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures, the `hone project` lines, the `hone record-debt` lines and the `hone split-records` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
+This page lists everything the `hone` command prints, exactly as it prints it: the help, the version, the report, the load failures, the `hone project` lines, the `hone record-debt` lines, the `hone prune-debt` lines and the `hone split-records` lines. It says which parts a hook, CI job or agent can parse and rely on. [Compatibility](../README.md#compatibility) says which releases may change them.
 
 A test renders every kind of line the command can print, fills each template below with that line's own sample values, and requires the result to equal the printed line exactly: a line Hone can print that is not listed here fails the build, and so does a line listed here that Hone cannot print. The synopsis and help blocks below are compared with what the command prints, character for character.
 
 ## Streams and exit codes
 
-Hone prints everything to standard output: the report, the help, the version, `hone project`, `hone record-debt` and `hone split-records` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
+Hone prints everything to standard output: the report, the help, the version, `hone project`, `hone record-debt`, `hone prune-debt` and `hone split-records` lines and every load failure, including an error Hone did not expect. Hone writes nothing to standard error itself; Node can write its own warnings there, so a hook should not read output on standard error as a failure.
 
 The exit code is the signal a hook should act on:
 
-- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, `hone split-records` split the records or found nothing to split, or help or the version was printed;
+- `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, `hone prune-debt` removed every paid record or found none, `hone split-records` split the records or found nothing to split, or help or the version was printed;
 - `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line. Exit `1` always comes with one of those lines, and with nothing else;
-- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt` or `hone split-records` could not write or place, and an error Hone did not expect, which prints as `unexpected-error`.
+- `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt`, `hone prune-debt` or `hone split-records` could not write or place, and an error Hone did not expect, which prints as `unexpected-error`.
 
 A 1.0 hook can rely on this: run `hone check`, block on any non-zero exit, and show standard output as it came.
 
@@ -58,6 +58,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<folders>` | paths separated by `, ` | may hold a space |
 | `<folder>` | the folder that holds a `<slice>` | may hold a space |
 | `<project command>` | the command that runs `hone project` for this repository: `node`, the installed command's absolute path, `project --repo` and the repository's absolute path, each path with forward slashes and in double quotes when it holds a character other than a letter, digit or one of `_ . / @ : + -` | may hold a space |
+| `<prune command>` | the command that runs `hone prune-debt` for this repository: like `<project command>` with `prune-debt` in place of `project`, followed by `--base-revision` and `--forfeiture` with their values when the check was given them, each value written as a path is | may hold a space |
 | `<revision>`, `<git message>` | the `--base-revision` value as given and what git said, each as a JSON string in double quotes | may hold a space |
 | `<dir>` | the `--repo` value as typed | may hold a space |
 | `<url>` | the module URL Hone could not resolve, as given | may hold a space |
@@ -76,6 +77,7 @@ Paths are printed with forward slashes. A path inside the `--repo` folder is pri
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
 hone split-records --repo <dir>
 hone --help
 hone --version
@@ -94,6 +96,7 @@ commands:
   check          check the repository against the disciplines it selects and print the report, ending in its verdict
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
   record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
+  prune-debt     remove from the exception records each file carve-out whose debt the check finds paid, stale or forfeited with no finding or native exception left on its clause and file, printing each pair removed
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -168,6 +171,28 @@ exit codes:
   2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
 ```
 
+`hone prune-debt --help` prints:
+
+```text
+usage: hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+
+remove from the exception records each file carve-out whose debt the check finds paid, stale or forfeited with no finding or native exception left on its clause and file, printing each pair removed
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --base-revision <revision>
+      the revision the change is measured from; without it no file carve-out can be forfeited
+  --forfeiture <this-run|elsewhere>
+      assess file carve-out decay in this run or leave it to another, over assessment.forfeiture in disciplines.json; this-run when neither is set
+  --help, -h
+      print this help
+
+exit codes:
+  0  every paid record was removed, or none was paid
+  2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
+```
+
 `hone split-records --help` prints:
 
 ```text
@@ -213,7 +238,7 @@ exit codes:
 | `unmeasured` | failing | what this run could not measure |
 | `projectionProblems` | failing | ESLint projections that are out of date |
 | `assessment` | informational | concerns this run left to another run |
-| `readFirst` | guidance | where to read before changing code, for each clause with findings |
+| `readFirst` | guidance | where to read before changing code, for each clause with findings, and the command that removes recorded debt that is paid |
 
 `--report-output`, or `reportOutput` in `disciplines.json`, sets how much is printed. The verdict and the exit code are the same in every output.
 
@@ -316,8 +341,12 @@ Each section's entries take one of these shapes. A finding ends with ` fix: <fix
 | `readFirst` | `<clause>: read the "## <clause>" section of disciplines.assessment.md; its rule set has no rule page at <rule page>` |
 | `readFirst` | `<clause>: its rule set has no rule page at <rule page>; disciplines.assessment.md does not assess this clause` |
 | `readFirst` | `<clause>: its rule set has no rule page at <rule page>` |
+| `readFirst` | `prune-debt: 1 file carve-out under stale or forfeited still records debt that is paid; run <prune command> to remove what is paid, and commit the exception records it changes` |
+| `readFirst` | `prune-debt: <count> file carve-outs under stale or forfeited still record debt that is paid; run <prune command> to remove what is paid, and commit the exception records it changes` |
+| `readFirst` | `prune-debt: 1 file carve-out under stale or forfeited still records debt that is paid; run <prune command> to remove what is paid, then run <project command> and commit the exception records with every disciplines.<mechanism>.mjs it writes` |
+| `readFirst` | `prune-debt: <count> file carve-outs under stale or forfeited still record debt that is paid; run <prune command> to remove what is paid, then run <project command> and commit the exception records with every disciplines.<mechanism>.mjs it writes` |
 
-`readFirst` has one clause line per clause with findings, in the order the findings first name them. When `disciplines.assessment.md` is not written yet, or cannot be read, one note line comes first; it starts with `Start from each rule's Spirit below.` only when at least one clause line names a rule page. A clause line's first word is a clause address, which holds a `#`, followed by `:`; a note line's first word holds no `#`, which is how a tool tells them apart. The `<adoption guide>` is `ADOPTING.md` in the installed package, such as `node_modules/@hailstails/hone/ADOPTING.md`. A clause line names the clause's section in `disciplines.assessment.md` when the file has one, says `does not assess this clause` when the file is there without that section, and says neither when the file is not read. [The README](../README.md#commands) says how a section is matched.
+`readFirst` has one clause line per clause with findings, in the order the findings first name them, then, last, one `prune-debt` line when any `file-carve-out` under `stale` or `forfeited` records debt that is paid: one `hone prune-debt` would remove. It names `hone project` too when any of those records is for a clause whose mechanism, such as `eslint`, puts records into effect through a projection, and then names each such mechanism's projection file, joined by ` and every `. When `disciplines.assessment.md` is not written yet, or cannot be read, one note line comes first; it starts with `Start from each rule's Spirit below.` only when at least one clause line names a rule page. A clause line's first word is a clause address, which holds a `#`, followed by `:`; a note line's first word holds no `#`, which is how a tool tells them apart. The `<adoption guide>` is `ADOPTING.md` in the installed package, such as `node_modules/@hailstails/hone/ADOPTING.md`. A clause line names the clause's section in `disciplines.assessment.md` when the file has one, says `does not assess this clause` when the file is there without that section, and says neither when the file is not read. [The README](../README.md#commands) says how a section is matched.
 
 ## Load failures
 
@@ -371,8 +400,8 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 | Problem | Line |
 | --- | --- |
-| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project, record-debt or split-records; run hone --help for usage` |
-| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project, record-debt and split-records; run hone --help for usage` |
+| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt or split-records; run hone --help for usage` |
+| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project, record-debt, prune-debt and split-records; run hone --help for usage` |
 | `flag-extra` | `load failure: arguments-invalid hone <flag> takes nothing after it, not "<given>"; run hone --help for usage` |
 | `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in <option> <value>; run hone <command> --help for its options` |
 | `option-unknown` | `load failure: arguments-invalid hone <command> has no option "<given>"; run hone <command> --help for its options` |
@@ -408,6 +437,14 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `record-debt` | `<clause> new-file <file>: the base revision does not hold this file, so its debt was not inherited; fix it, or record it with its own reason` |
 | `record-debt` | `<clause> refused <file>: the clause's discipline refuses exceptions; fix it` |
 | `record-debt` | `<clause> nested-configuration <file>: the file loads the <mechanism> configuration in <config folder>, and <folder> holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the <mechanism> projection cannot put a record on this file into effect; fix it, or govern <folder> from this repository by removing <folder>/disciplines.json, then run record-debt again` |
+
+## hone prune-debt
+
+`hone prune-debt` runs the check with the `--base-revision` and `--forfeiture` it is given, then removes from the exception records each `file-carve-out` whose debt is paid, in whichever [layout](../README.md#the-split-layout) the repository keeps them, and prints one line for each clause and file it removed, ordered by file and then by clause. A record's debt is paid when the check lists it under `stale`, or lists it under `forfeited` with no finding, exempted finding or native exception left on its clause and file. It leaves an `authorised-location` and a `clause-wide-carve-out` under `stale` for a person, and keeps a forfeited record whose clause and file still hold a finding. It prints nothing when no debt is paid. It does not write the projection: with an `eslint` clause, run `hone project` after it, as the `readFirst` line says. The text of every other record in a file it changes is kept byte for byte.
+
+| Output | Line |
+| --- | --- |
+| `prune-debt` | `<clause> removed <file>` |
 
 ## hone split-records
 

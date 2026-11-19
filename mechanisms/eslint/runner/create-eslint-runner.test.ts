@@ -1458,7 +1458,7 @@ describe("native exceptions: ignores and configuration overrides over files", ()
     });
   });
 
-  it("reports the projected off on a recorded file as a config-override, leaving recording to governance", async () => {
+  it("reports no config-override on a file a record projects off, since that off is the projection's own", async () => {
     await expect(
       runnerOver({
         repository: projectionHolding({ text: FACTORY_LOCATION_PROJECTION }),
@@ -1471,9 +1471,26 @@ describe("native exceptions: ignores and configuration overrides over files", ()
       }).run(runRequest({ clauses: [CLASS_CLAUSE], records: [FACTORY_LOCATION] })),
     ).resolves.toEqual({
       outcome: "ok",
+      value: { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [] },
+    });
+  });
+
+  it("reports a config-override on a file no record holds, beside a file a record projects off", async () => {
+    await expect(
+      runnerOver({
+        repository: projectionHolding({ text: FACTORY_LOCATION_PROJECTION }),
+        eslint: eslintOver({
+          query: queryOver({
+            ignored: CHECKED,
+            states: { [`src/a.ts ${RULE_ID}`]: { state: "configured", severity: 1, options: [] }, [`src/factory.ts ${RULE_ID}`]: OFF },
+          }),
+        }),
+      }).run(runRequest({ clauses: [CLASS_CLAUSE], records: [FACTORY_LOCATION] })),
+    ).resolves.toEqual({
+      outcome: "ok",
       value: {
         hits: [],
-        nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }],
+        nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }],
         projection: "current",
         slices: [],
         unprojectedFolders: [],

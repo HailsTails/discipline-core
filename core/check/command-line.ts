@@ -1,11 +1,12 @@
 import type { ExitCode } from "../platform-ports/process-port.ts";
 import { RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
+import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 
 export const SPLIT_RECORDS_SUBCOMMAND = "split-records";
 
-export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
+export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, PRUNE_DEBT_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
@@ -109,6 +110,14 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     options: [REPO_OPTION, ADOPTION_BASE_REVISION_OPTION, LEAVE_OPTION],
     exits: [
       { code: 0, meaning: "every record needed was written, or none was needed" },
+      { code: 2, meaning: "a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly" },
+    ],
+  },
+  [PRUNE_DEBT_SUBCOMMAND]: {
+    summary: "remove from the exception records each file carve-out whose debt the check finds paid, stale or forfeited with no finding or native exception left on its clause and file, printing each pair removed",
+    options: [REPO_OPTION, BASE_REVISION_OPTION, FORFEITURE_OPTION],
+    exits: [
+      { code: 0, meaning: "every paid record was removed, or none was paid" },
       { code: 2, meaning: "a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly" },
     ],
   },

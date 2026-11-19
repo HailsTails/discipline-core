@@ -1,3 +1,4 @@
+import type { DebtPair } from "../exception-records/debt-pair.ts";
 import type { RecordsSplit } from "../exception-records/exception-records.ts";
 import { type InheritedDebtOutcome, RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
@@ -21,6 +22,7 @@ export type CheckRun = {
   readonly report: CheckReport;
   readonly output: ReportOutput;
   readonly projectCommand: string;
+  readonly pruneCommand: string;
 };
 
 const LOAD_FAILURE_CODE = 2;
@@ -88,7 +90,17 @@ export const recordDebtCommandOutcome = (request: {
     ? loadFailureOutcome({ failure: request.result.error })
     : { code: 0, text: request.result.value.map((outcome) => inheritedDebtLine({ outcome })).join("") };
 
-const recordsSplitText = (request: { readonly split: RecordsSplit }): string => {
+export const pruneDebtCommandOutcome = (request: {
+  readonly result: Result<readonly DebtPair[], LoadFailure>;
+}): CommandOutcome =>
+  request.result.outcome === "failed"
+    ? loadFailureOutcome({ failure: request.result.error })
+    : {
+        code: 0,
+        text: request.result.value.map((pair) => `${clauseAddressText({ address: pair.clause })} removed ${pair.file}\n`).join(""),
+      };
+
+const recordsSplitText =(request: { readonly split: RecordsSplit }): string => {
   const { split } = request;
   switch (split.effect) {
     case "split":

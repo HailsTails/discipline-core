@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { type RecordsDisk, recordsDisk } from "../../tests/records-disk.ts";
 import { createExceptionRepository, placementOf } from "./exception-layout.ts";
 import type { ExceptionRepository } from "./exception-records.ts";
+import { clauseAddressSchema } from "../values/clause-address.ts";
+import { repoPathSchema } from "../values/repo-path.ts";
 
 const SINGLE_TEXT = `{
   "version": 1,
@@ -364,6 +366,88 @@ describe("createExceptionRepository add", () => {
       "discipline-exceptions/file-carve-outs/cd-19.json": CARVE_OUTS_19_AND_SECOND_TEXT,
       "discipline-exceptions/file-carve-outs/cd-27.json": INHERITED_TEXT,
     });
+  });
+});
+
+const PORT_ONLY_TEXT = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "hone/CD-19#import-boundaries",
+      "file": "src/b.ts",
+      "reason": "awaiting the port"
+    }
+  ]
+}
+`;
+
+const CARVE_OUTS_19_ONLY_ADAPTER_TEXT = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-19#import-boundaries",
+      "file": "src/a.ts",
+      "reason": "held by the adapter"
+    }
+  ]
+}
+`;
+
+const EMPTIED_TEXT = `{
+  "version": 1,
+  "exceptions": []
+}
+`;
+
+const pairOf = (request: { readonly clause: string; readonly file: string }) => ({
+  clause: clauseAddressSchema.parse(request.clause),
+  file: repoPathSchema.parse(request.file),
+});
+
+const ADAPTER_PAIR = pairOf({ clause: "CD-19#import-boundaries", file: "src/a.ts" });
+
+const WIRE_PAIR = pairOf({ clause: "CD-6#identifier-names", file: "src/d.ts" });
+
+const PORT_PAIR = pairOf({ clause: "CD-19#import-boundaries", file: "src/b.ts" });
+
+describe("createExceptionRepository remove", () => {
+  it("removes each pair's file carve-out from its rule's file in the split layout, keeping every other record's text", () => {
+    const { repository, disk } = repositoryOver({ working: SPLIT_FILES, base: {} });
+
+    expect(repository.remove({ pairs: [ADAPTER_PAIR, WIRE_PAIR] })).toEqual({ outcome: "ok", value: [ADAPTER_PAIR, WIRE_PAIR] });
+    expect(disk.texts()).toEqual({
+      ...SPLIT_FILES,
+      "discipline-exceptions/file-carve-outs/cd-19.json": PORT_ONLY_TEXT,
+      "discipline-exceptions/file-carve-outs/cd-6.json": EMPTIED_TEXT,
+    });
+  });
+
+  it("removes a pair's file carve-out from discipline-exceptions.json, its clause written with the hone rule set named", () => {
+    const { repository, disk } = repositoryOver({ working: { "discipline-exceptions.json": CARVE_OUTS_19_TEXT }, base: {} });
+
+    expect(repository.remove({ pairs: [PORT_PAIR] })).toEqual({ outcome: "ok", value: [PORT_PAIR] });
+    expect(disk.texts()).toEqual({ "discipline-exceptions.json": CARVE_OUTS_19_ONLY_ADAPTER_TEXT });
+  });
+
+  it("leaves an authorised location on the pair's clause and file, and a pair no record holds, writing nothing", () => {
+    const { repository, disk } = repositoryOver({ working: SPLIT_FILES, base: {} });
+
+    expect(
+      repository.remove({ pairs: [pairOf({ clause: "CD-19#import-boundaries", file: "src/c.ts" }), pairOf({ clause: "CD-15#loops", file: "src/a.ts" })] }),
+    ).toEqual({ outcome: "ok", value: [] });
+    expect(disk.texts()).toEqual(SPLIT_FILES);
+  });
+
+  it("refuses a repository holding both layouts, writing nothing", () => {
+    const { repository, disk } = repositoryOver({ working: { ...SINGLE_FILES, ...SPLIT_FILES }, base: {} });
+
+    expect(repository.remove({ pairs: [ADAPTER_PAIR] })).toEqual({
+      outcome: "failed",
+      error: { kind: "records-in-both-layouts", path: "/repo/discipline-exceptions.json", folder: "/repo/discipline-exceptions" },
+    });
+    expect(disk.texts()).toEqual({ ...SINGLE_FILES, ...SPLIT_FILES });
   });
 });
 

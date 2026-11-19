@@ -37,6 +37,7 @@ import type {
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
 import { packageLinkOf } from "./package-link.ts";
+import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
@@ -402,7 +403,10 @@ const checkReportOf = (request: {
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
     ],
     assessment: partialAssessmentsOf({ assessment: request.assessment, records: request.inputs.records }),
-    readFirst: clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
+    readFirst: [
+      ...clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
+      ...paidDebtNotesOf({ governed, runs: request.runs }),
+    ],
   };
 };
 
