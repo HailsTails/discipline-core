@@ -35,25 +35,27 @@ const ruleSetTexts = import.meta.glob(
   { base: "../", query: "?raw", import: "default", eager: true },
 );
 
-const AUDIT_ROWS = rowsNamed({
-  rows: conformanceRows({
-    table: ruleSetTexts,
-    disciplines: foldersUnder({ table: ruleSetTexts, prefix: "./mechanisms/audit/" }),
-    mechanism: mechanismIdSchema.parse("audit"),
-    mechanismRoot: `${REPO_ROOT}/mechanisms/audit`,
-  }),
-  names: ["CD-1#any-cast", "CD-2#cast-expressions", "CD-14#class-syntax", "CD-15#loops", "CD-27#test-body-logic", "CD-27#test-body-logic edition 2"],
+const AUDIT_ROWS = conformanceRows({
+  table: ruleSetTexts,
+  disciplines: foldersUnder({ table: ruleSetTexts, prefix: "./mechanisms/audit/" }),
+  mechanism: mechanismIdSchema.parse("audit"),
+  mechanismRoot: `${REPO_ROOT}/mechanisms/audit`,
 });
 
-const ESLINT_ROWS = rowsNamed({
-  rows: conformanceRows({
-    table: ruleSetTexts,
-    disciplines: foldersUnder({ table: ruleSetTexts, prefix: "./mechanisms/eslint/" }),
-    mechanism: mechanismIdSchema.parse("eslint"),
-    mechanismRoot: `${REPO_ROOT}/mechanisms/eslint`,
-  }),
-  names: ["CD-1#explicit-any", "CD-1#implicit-any-let", "CD-2#non-null-assertions", "CD-14#class-syntax", "CD-14#static-only-class"],
+const ESLINT_ROWS = conformanceRows({
+  table: ruleSetTexts,
+  disciplines: foldersUnder({ table: ruleSetTexts, prefix: "./mechanisms/eslint/" }),
+  mechanism: mechanismIdSchema.parse("eslint"),
+  mechanismRoot: `${REPO_ROOT}/mechanisms/eslint`,
 });
+
+const CLAUSES_THAT_REACH_TEST_FILES = {
+  audit: [
+    "CD-1#any-cast", "CD-2#cast-expressions", "CD-6#identifier-names", "CD-14#class-syntax", "CD-15#loops", "CD-25#dependency-isolation",
+    "CD-27#test-body-logic", "CD-27#test-body-logic edition 2", "CD-43#boolean-signatures",
+  ],
+  eslint: ["CD-1#explicit-any", "CD-2#non-null-assertions", "CD-10#throw-only-error", "CD-14#class-syntax", "CD-40#parameter-count", "CD-41#function-length"],
+};
 
 const SECTIONS = allowedFormSectionsOf({ page: cd27ChecksPageOf({ repoRoot: REPO_ROOT }) });
 
@@ -70,9 +72,9 @@ describe("rules/CD-27/CHECKS.md, Allowed forms in a test", () => {
     expect(sectionNamesOf({ sections: SECTIONS })).toEqual(TEST_BODY_SECTIONS);
   });
 
-  it("selects every audit and ESLint clause the forms are held to", () => {
-    expect(AUDIT_ROWS).toHaveLength(6);
-    expect(ESLINT_ROWS).toHaveLength(5);
+  it("holds the forms to every audit and ESLint clause, among them those that reach a test file", () => {
+    expect(rowsNamed({ rows: AUDIT_ROWS, names: CLAUSES_THAT_REACH_TEST_FILES.audit })).toHaveLength(9);
+    expect(rowsNamed({ rows: ESLINT_ROWS, names: CLAUSES_THAT_REACH_TEST_FILES.eslint })).toHaveLength(6);
   });
 
   it.each(SECTIONS)("shows under $heading a flagged form whose finding names that section", async ({ flagged, section }) => {

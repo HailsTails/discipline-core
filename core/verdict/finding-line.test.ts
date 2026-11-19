@@ -13,7 +13,7 @@ const FINDING: Finding = {
   snippet: "class A {}",
 };
 
-const REMEDIED: Finding = { ...FINDING, remedy: { fix: "write a factory", section: "a-class" } };
+const REMEDIED: Finding = { ...FINDING, remedy: { fix: "write a factory", page: "node_modules/@hailstails/hone/rules/CD-14/CHECKS.md", section: "a-class" } };
 
 describe("escapedLineBreaks", () => {
   it("writes each line feed and carriage return as its escape", () => {
@@ -36,15 +36,15 @@ describe("findingLine", () => {
     expect(findingLine({ finding: FINDING })).toBe("CD-14#class-syntax audit src/a.ts:3:5 class A {}");
   });
 
-  it("renders the fix and the CHECKS.md section after the snippet", () => {
+  it("renders the fix, then the page and section it is given, after the snippet", () => {
     expect(findingLine({ finding: REMEDIED })).toBe(
-      "CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write a factory (CHECKS.md#a-class)",
+      "CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write a factory (node_modules/@hailstails/hone/rules/CD-14/CHECKS.md#a-class)",
     );
   });
 
   it("escapes a line break in the fix so the finding stays on one line", () => {
-    expect(findingLine({ finding: { ...FINDING, remedy: { fix: "write\na factory", section: "a-class" } } })).toBe(
-      String.raw`CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write\na factory (CHECKS.md#a-class)`,
+    expect(findingLine({ finding: { ...FINDING, remedy: { fix: "write\na factory", page: "rules/CD-14/CHECKS.md", section: "a-class" } } })).toBe(
+      String.raw`CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write\na factory (rules/CD-14/CHECKS.md#a-class)`,
     );
   });
 });

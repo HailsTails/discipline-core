@@ -128,7 +128,6 @@ export default [
       "mechanisms/audit/CD-2/cast-expressions.test.ts",
       "mechanisms/audit/CD-23/export-test-sibling.test.ts",
       "mechanisms/audit/CD-25/dependency-isolation.test.ts",
-      "mechanisms/audit/CD-27/test-body-logic.test.ts",
       "mechanisms/audit/CD-3/compiler-overrides.test.ts",
       "mechanisms/audit/CD-43/boolean-signatures.test.ts",
       "mechanisms/audit/CD-44/parameter-mutation.test.ts",

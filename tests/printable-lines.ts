@@ -82,8 +82,8 @@ const EDITION_READING: ClauseEditionReading = {
 const FINDING: Finding = { clause: LOOPS, mechanism: MECHANISM, file: FILE, anchor: { line: 15, column: 0 }, snippet: "const total = 0;\nreturn total;" };
 
 const REMEDIED_FINDING: Filled<Finding> = {
-  entry: { ...FINDING, remedy: { fix: "write the values out", section: "a-method-that-computes-a-value" } },
-  fills: { fix: "write the values out", section: "a-method-that-computes-a-value" },
+  entry: { ...FINDING, remedy: { fix: "write the values out", page: "node_modules/@hailstails/hone/rules/CD-27/CHECKS.md", section: "a-method-that-computes-a-value" } },
+  fills: { fix: "write the values out", "fix page": "node_modules/@hailstails/hone/rules/CD-27/CHECKS.md", section: "a-method-that-computes-a-value" },
 };
 
 const RECORDS: EveryKind<ExceptionRecord> = {

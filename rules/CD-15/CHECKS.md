@@ -28,7 +28,7 @@ const totals = orders.map((order) => order.total);
 ```
 Replace a counted loop with `Array.from({ length }, (_, position) => ...)`.
 
-In a test file, CD-27 flags `map` and `Array.from` too: write the values out instead, as [CD-27's allowed forms](../CD-27/CHECKS.md#allowed-forms-in-a-test) show.
+In a test file, `CD-27#test-body-logic` flags `map` at either edition, and its edition 2 flags `Array.from`: write the values out instead, as [CD-27's allowed forms](../CD-27/CHECKS.md#allowed-forms-in-a-test) show.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file drains an async stream and cannot use a functional form. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

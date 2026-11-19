@@ -125,6 +125,62 @@
             ]
           },
           {
+            "name": "join on a dynamic import of node:path",
+            "fileName": "dynamic-path.test.ts",
+            "source": "const path = await import(\"node:path\");\nexpect(path.join(\"a\", \"b\", \"c\")).toBe(\"a/b/c\");\n",
+            "expectedLines": [
+              2
+            ]
+          },
+          {
+            "name": "join on a required node:path",
+            "fileName": "required-path.test.ts",
+            "source": "const path = require(\"node:path\");\nexpect(path.join(\"a\", \"b\", \"c\")).toBe(\"a/b/c\");\n",
+            "expectedLines": [
+              2
+            ]
+          },
+          {
+            "name": "join on an import-equals of node:path",
+            "fileName": "import-equals-path.test.ts",
+            "source": "import path = require(\"node:path\");\nexpect(path.join(\"a\", \"b\", \"c\")).toBe(\"a/b/c\");\n",
+            "expectedLines": [
+              2
+            ]
+          },
+          {
+            "name": "join on a member destructured from node:path",
+            "fileName": "posix-path.test.ts",
+            "source": "import path from \"node:path\";\nconst { posix } = path;\nexpect(posix.join(\"a\", \"b\", \"c\")).toBe(\"a/b/c\");\n",
+            "expectedLines": [
+              3
+            ]
+          },
+          {
+            "name": "entries on an alias of Object",
+            "fileName": "object-alias.test.ts",
+            "source": "const o = Object;\nexpect(o.entries({ a: 1 })).toEqual([[\"a\", 1]]);\n",
+            "expectedLines": [
+              2
+            ]
+          },
+          {
+            "name": "find given an object as this",
+            "fileName": "find-this.test.ts",
+            "source": "declare const rows: readonly { readonly id: string }[];\ndeclare const isA: (row: { readonly id: string }) => boolean;\nexpect(rows.find(isA, {})).toEqual({ id: \"a\" });\n",
+            "expectedLines": [
+              3
+            ]
+          },
+          {
+            "name": "split given a splitter object",
+            "fileName": "split-protocol.test.ts",
+            "source": "declare const text: string;\ndeclare const splitter: (text: string) => string[];\nexpect(text.split({ [Symbol.split]: splitter })).toEqual([\"a\"]);\n",
+            "expectedLines": [
+              3
+            ]
+          },
+          {
             "name": "includes given an object",
             "fileName": "includes-object.test.ts",
             "source": "const rows = [{ id: \"a\" }];\nexpect(rows.includes({ id: \"a\" })).toBe(false);\n",

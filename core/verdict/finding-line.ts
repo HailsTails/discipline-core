@@ -10,7 +10,7 @@ export const locatedFindingLine = (request: { readonly finding: Finding }): stri
 const remedyNote = (request: { readonly finding: Finding }): string =>
   request.finding.remedy === undefined
     ? ""
-    : ` fix: ${escapedLineBreaks({ text: request.finding.remedy.fix })} (CHECKS.md#${request.finding.remedy.section})`;
+    : ` fix: ${escapedLineBreaks({ text: request.finding.remedy.fix })} (${request.finding.remedy.page}#${request.finding.remedy.section})`;
 
 export const findingLine = (request: { readonly finding: Finding }): string =>
   `${locatedFindingLine(request)}${remedyNote(request)}`;

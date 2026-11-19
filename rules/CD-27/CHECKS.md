@@ -17,8 +17,12 @@ Edition 1:
 - Test files only: `*.test.ts` and `*.test.tsx`. Generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
 - `if` statements, `try` statements, ternary expressions and `let` declarations.
 - A method call with a computing or mutating name, wherever it could be the string or array method of that name: `map`, `filter`, `reduce`, `find`, `forEach`, `join`, `slice`, `split`, `replace`, `includes`, `sort`, `trim`, `keys`, `values`, `push`, `pop`, `splice`, `fill` and similar string and array methods.
-- Not flagged: a call with one of those names that no string or array method could be, which is the unit's own API. It passes an object literal where no string or array method of that name takes one, such as `paths.join({ segments: ["a", "b"] })` or `repository.find({ id: "a" })`, or more arguments than any of them takes, such as `screen.keys("x", true, true)`.
-- Still flagged, though they look like that: a call on `Object`, `Array`, `JSON`, `Math` or another built-in namespace, such as `Object.entries({ a: 1 })`; a call on anything imported from a package or a `node:` module, such as `path.join("a", "b", "c")`; a call on a string or array literal; a call that spreads its arguments; a call given a variable, such as `paths.join(request)`; and a method that takes any value given an object, such as `rows.includes({ id: "a" })`, `rows.push({ id: "a" })` or `rows.reduce(sum, { total: 0 })`.
+- Not flagged: a call with one of those names whose arguments no string or array method of that name accepts, which makes it the unit's own API. Either it passes an object literal where none of them takes an object, such as `paths.join({ segments: ["a", "b"] })`, or it passes more arguments than any of them takes, such as `screen.keys("x", true, true)`.
+- Still flagged, though they look like that:
+  - a call whose receiver traces back, through the file's own declarations, to a built-in namespace such as `Object` or `Math`, a package or `node:` module (imported, required or loaded with `import()`), or a string or array literal;
+  - a call that spreads its arguments;
+  - an object at a position where a string or array method takes one, such as `rows.includes({ id: "a" })`, `rows.push({ id: "a" })`, `rows.reduce(sum, { total: 0 })`, `rows.find(isA, {})` or `text.split({ [Symbol.split]: splitter })`.
+- What this check cannot know: it reads names and syntax, not types, so it cannot tell what a receiver is. It flags the unit's own method given a variable, such as `repository.find(query)`, and it misses a string or array method it cannot trace, such as one taken off its receiver before the call. Only a check that reads types knows a receiver's identity, and Hone does not have one yet.
 - Loops are not flagged here; CD-15 covers them. `throw` is CD-10.
 
 Edition 2 also flags:
@@ -27,7 +31,7 @@ Edition 2 also flags:
 - `switch` statements.
 - Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method.
 
-Neither edition flags element access such as `calls[0]`, calls to free functions, or a method called through a computed key, such as `rows["map"]`. Helper files that tests import are not checked; only the test files themselves are.
+Neither edition flags element access such as `calls[0]`, calls to free functions, a method called through a computed key, such as `rows["map"]`, or text built with a template literal. Helper files that tests import are not checked; only the test files themselves are.
 
 ## What the ESLint check flags
 Needs ESLint adopted through the projection; see [the ESLint piece](../../mechanisms/eslint/CD-27/README.md).
@@ -55,10 +59,10 @@ expect(ids).toEqual(["a1", "b2"]);
 ```
 Write the expected value out. A method call in the act step is flagged too, so move such logic into the unit under test.
 
-Each finding ends with `fix:` and the section below that shows the allowed form for what it flagged, such as `(CHECKS.md#an-optional-chain-after-an-index)`.
+Each finding ends with `fix:` and the page and section that show the allowed form for what it flagged, such as `(node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#an-optional-chain-after-an-index)`.
 
 ## Allowed forms in a test
-Each section shows a flagged form first, then the forms to write instead. Every form to write instead passes each clause Hone ships that reaches a test file, which are CD-1, CD-2, CD-14, CD-15 and both editions of this clause, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
+Each section shows a flagged form first, then the forms to write instead. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
 
 ### Branching with if
 ```ts
@@ -112,19 +116,19 @@ it("refuses a missing file", async () => {
 
 ### A ternary
 ```ts
-declare const discountFor: (customer: { readonly premium: boolean }) => number;
-const premium = true;
-expect(discountFor({ premium })).toBe(premium ? 10 : 0);
+declare const discountFor: (customer: { readonly tier: "premium" | "standard" }) => number;
+const tier = "premium";
+expect(discountFor({ tier })).toBe(tier === "premium" ? 10 : 0);
 ```
 Write the value out, with one table row per case:
 
 ```ts
-declare const discountFor: (customer: { readonly premium: boolean }) => number;
+declare const discountFor: (customer: { readonly tier: "premium" | "standard" }) => number;
 it.each([
-  { premium: true, expected: 10 },
-  { premium: false, expected: 0 },
-])("gives $expected off when premium is $premium", ({ premium, expected }) => {
-  expect(discountFor({ premium })).toBe(expected);
+  { tier: "premium", expected: 10 },
+  { tier: "standard", expected: 0 },
+] as const)("gives $expected off to a $tier customer", ({ tier, expected }) => {
+  expect(discountFor({ tier })).toBe(expected);
 });
 ```
 
@@ -146,22 +150,22 @@ expect(save).toHaveBeenCalledWith("a");
 
 ### A method that picks or tests an element
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
-expect(listTasks().find((task) => task.id === "a")).toEqual({ id: "a", done: false });
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
+expect(listTasks().find((task) => task.id === "a")).toEqual({ id: "a", status: "open" });
 ```
 Assert on the whole array:
 
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
-expect(listTasks()).toContainEqual({ id: "a", done: false });
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
+expect(listTasks()).toContainEqual({ id: "a", status: "open" });
 ```
 
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
 expect(listTasks()).toEqual(expect.arrayContaining([expect.objectContaining({ id: "a" })]));
 ```
 
-The unit's own method with one of these names is not flagged when it is given an object, such as `repository.find({ id: "a" })`. Given a variable, such as `repository.find(query)`, it is still flagged, and no form in a test file avoids that finding.
+The check cannot tell the unit's own method with one of these names from an array method when it is given a variable, such as `repository.find(query)`. That is a limit of the check, described under [What the check flags](#what-the-check-flags).
 
 ### A method that computes a value
 ```ts
@@ -214,20 +218,20 @@ expect(found.name).toBe("Ada");
 
 ### An optional chain after an index
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
 expect(listTasks()[0]?.id).toBe("a");
 ```
 Compare the whole element:
 
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
 expect(listTasks()[0]).toMatchObject({ id: "a" });
 ```
 
 Or destructure it and assert it is defined before reading it:
 
 ```ts
-declare const listTasks: () => readonly { readonly id: string; readonly done: boolean }[];
+declare const listTasks: () => readonly { readonly id: string; readonly status: "open" | "done" }[];
 const [first] = listTasks();
 assert.isDefined(first);
 expect(first.id).toBe("a");
@@ -255,6 +259,40 @@ const run = vi.fn<(task: { readonly id: string }) => void>();
 start(run);
 expect(run).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: "a" }));
 ```
+
+Reading `run.mock.lastCall?.[0]` names this section too. Assert the last call:
+
+```ts
+declare const start: (run: (task: { readonly id: string }) => void) => void;
+const run = vi.fn<(task: { readonly id: string }) => void>();
+start(run);
+expect(run).toHaveBeenLastCalledWith({ id: "a" });
+```
+
+### An optional chain on a mock result
+```ts
+declare const settle: (price: (amount: number) => number) => void;
+const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
+settle(price);
+expect(price.mock.results[0]?.value).toBe(4);
+```
+Assert what it returned:
+
+```ts
+declare const settle: (price: (amount: number) => number) => void;
+const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
+settle(price);
+expect(price).toHaveReturnedWith(4);
+```
+
+```ts
+declare const settle: (price: (amount: number) => number) => void;
+const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
+settle(price);
+expect(price).toHaveNthReturnedWith(1, 4);
+```
+
+An optional chain on `mock.instances` or `mock.contexts` names [An optional chain after an index](#an-optional-chain-after-an-index).
 
 ### An optional chain on a property
 ```ts
@@ -291,6 +329,14 @@ assert.isDefined(enter);
 enter("a");
 ```
 
+A method that reads `this` loses it once taken off its object, so assert it is defined where it is and call it there:
+
+```ts
+declare const tracker: { readonly entered: readonly string[]; enter?(node: string): void };
+assert.isDefined(tracker.enter);
+tracker.enter("a");
+```
+
 ### A switch
 ```ts
 declare const areaOf: (shape: { readonly kind: "square"; readonly side: number } | { readonly kind: "circle"; readonly radius: number }) => number;
@@ -314,29 +360,19 @@ it.each([
 
 ### Serialising JSON
 ```ts
-declare const handle: (body: string) => number;
+declare const handle: (requestText: string) => number;
 expect(handle(JSON.stringify({ id: "a" }))).toBe(201);
 ```
-Write the JSON text out:
+This page shows no form to write instead. JSON text written out by hand moves the escaping into the test, and it can be less correct than the `JSON.stringify` it replaces.
 
-```ts
-declare const handle: (body: string) => number;
-expect(handle('{"id":"a"}')).toBe(201);
-```
+The check does not read template literals, so it does not flag JSON text a test builds from one, such as a function returning `` `{ "version": "${version}" }` ``. That is a limit of the check.
 
 ### Parsing JSON
 ```ts
 declare const render: (row: { readonly id: string }) => string;
 expect(JSON.parse(render({ id: "a" }))).toEqual({ id: "a" });
 ```
-Compare the raw text:
-
-```ts
-declare const render: (row: { readonly id: string }) => string;
-expect(render({ id: "a" })).toBe('{"id":"a"}');
-```
-
-Or read it back through the unit's own decoder:
+Read it back through the unit's own decoder:
 
 ```ts
 declare const render: (row: { readonly id: string }) => string;
@@ -344,7 +380,7 @@ declare const decode: (text: string) => { readonly id: string };
 expect(decode(render({ id: "a" }))).toEqual({ id: "a" });
 ```
 
-Reading text back as a structure, so that the order of its keys does not matter, has no form in a test file: `JSON.parse` is flagged there, and a unit with no decoder of its own has nothing else to read it with.
+A unit with no decoder of its own has no form on this page.
 
 ### Merging objects
 ```ts
@@ -379,40 +415,50 @@ expect(countsOf(["a"])).toEqual({ a: 1 });
 declare const pageOf: (rows: readonly { readonly id: number }[]) => readonly { readonly id: number }[];
 expect(pageOf(Array.from({ length: 3 }, (_, index) => ({ id: index })))).toHaveLength(3);
 ```
-Write the array out:
+Write a short array out:
 
 ```ts
 declare const pageOf: (rows: readonly { readonly id: number }[]) => readonly { readonly id: number }[];
 expect(pageOf([{ id: 0 }, { id: 1 }, { id: 2 }])).toHaveLength(3);
 ```
 
-An array too long to write out, such as one row past a page size of 1,000, has no form in a test file: a loop is CD-15, and `Array.from` and the array methods are flagged here.
+An array too long to read written out, such as one row past a page size of 1,000, has no form on this page.
 
 ### A Math call
 ```ts
-declare const roundedOf: (value: number) => number;
+declare const roundedOf: (amount: number) => number;
 expect(roundedOf(2.5)).toBe(Math.round(2.5));
 ```
 Write the number out:
 
 ```ts
-declare const roundedOf: (value: number) => number;
+declare const roundedOf: (amount: number) => number;
 expect(roundedOf(2.5)).toBe(3);
 ```
 
-### Logic inside a hand-written double
+### Logic inside a function the test passes on
 ```ts
-declare const isInstalled: (fileKind: { readonly isFile: (path: string) => boolean }) => boolean;
+declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file" | "missing" }) => "installed" | "missing";
 const installedFiles = ["bin/hone.js"];
-expect(isInstalled({ isFile: (path) => installedFiles.includes(path) })).toBe(true);
+expect(isInstalled({ kindOf: (path) => (installedFiles.includes(path) ? "file" : "missing") })).toBe("installed");
 ```
-A function written as a property or method of an object literal in a test file is read as a hand-written double, so any flagged construct inside it names this section. A double whose answer depends on its input is a fake, and [CD-25](../CD-25/CHECKS.md) says where a fake lives: written once as an in-memory implementation of the port, in its own module with its own tests, and passed in. Here `declare const inMemoryFileKind` stands for that module:
+A function a test writes as a property or method of an object literal, or gives to `vi.fn` or `mockImplementation`, is passed on: to the unit, to a table row, or to a double. Any flagged construct inside it names this section. Write its answer out. A stub that returns a written-out value:
 
 ```ts
-declare const isInstalled: (fileKind: { readonly isFile: (path: string) => boolean }) => boolean;
-declare const inMemoryFileKind: (files: readonly string[]) => { readonly isFile: (path: string) => boolean };
-expect(isInstalled(inMemoryFileKind(["bin/hone.js"]))).toBe(true);
+declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file" | "missing" }) => "installed" | "missing";
+expect(isInstalled({ kindOf: () => "file" })).toBe("installed");
 ```
+
+Or a `vi.fn` spy with a written-out return, and a written-out expectation of what it was asked:
+
+```ts
+declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file" | "missing" }) => "installed" | "missing";
+const kindOf = vi.fn<(path: string) => "file" | "missing">().mockReturnValue("file");
+expect(isInstalled({ kindOf })).toBe("installed");
+expect(kindOf).toHaveBeenCalledWith("bin/hone.js");
+```
+
+[CD-25](../CD-25/README.md) is the rule for test doubles.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs logic. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

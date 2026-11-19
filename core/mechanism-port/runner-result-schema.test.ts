@@ -66,17 +66,25 @@ describe("hitSchema", () => {
     expect(hitSchema.safeParse({ ...hit, anchor: { line: 0, column: 5 } }).success).toBe(false);
   });
 
-  it("accepts a hit whose piece names a fix and the section of the rule's CHECKS.md that shows it", () => {
-    const remedied = { ...hit, remedy: { fix: "write a factory", section: "a-class-and-its-factory" } };
+  it.each([
+    { name: "a page beside the rule", page: "CHECKS.md" },
+    { name: "a page in a folder of the rule", page: "pages/allowed-forms.md" },
+  ])("accepts a hit whose piece names a fix, $name, and the section that shows it", ({ page }) => {
+    const remedied = { ...hit, remedy: { fix: "write a factory", page, section: "a-class-and-its-factory" } };
 
     expect(hitSchema.safeParse(remedied)).toEqual({ success: true, data: remedied });
   });
 
   it.each([
-    { name: "an empty fix", remedy: { fix: "", section: "a-class" } },
-    { name: "a section with a space", remedy: { fix: "write a factory", section: "a class" } },
-    { name: "a section with a capital", remedy: { fix: "write a factory", section: "A-class" } },
-    { name: "a section with a leading hash", remedy: { fix: "write a factory", section: "#a-class" } },
+    { name: "an empty fix", remedy: { fix: "", page: "CHECKS.md", section: "a-class" } },
+    { name: "a section with a space", remedy: { fix: "write a factory", page: "CHECKS.md", section: "a class" } },
+    { name: "a section with a capital", remedy: { fix: "write a factory", page: "CHECKS.md", section: "A-class" } },
+    { name: "a section with a leading hash", remedy: { fix: "write a factory", page: "CHECKS.md", section: "#a-class" } },
+    { name: "no page", remedy: { fix: "write a factory", section: "a-class" } },
+    { name: "a page outside the rule's folder", remedy: { fix: "write a factory", page: "../CD-1/CHECKS.md", section: "a-class" } },
+    { name: "an absolute page", remedy: { fix: "write a factory", page: "/rules/CHECKS.md", section: "a-class" } },
+    { name: "a page with a backslash", remedy: { fix: "write a factory", page: "pages\\CHECKS.md", section: "a-class" } },
+    { name: "a page that is not Markdown", remedy: { fix: "write a factory", page: "CHECKS.html", section: "a-class" } },
   ])("refuses a remedy with $name", ({ remedy }) => {
     expect(hitSchema.safeParse({ ...hit, remedy }).success).toBe(false);
   });

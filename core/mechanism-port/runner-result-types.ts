@@ -4,6 +4,7 @@ import type { RepoPath } from "../values/repo-path-types.ts";
 
 export type Remedy = {
   readonly fix: string;
+  readonly page: string;
   readonly section: string;
 };
 

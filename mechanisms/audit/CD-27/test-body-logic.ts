@@ -19,9 +19,15 @@ type FormRequest = { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode };
 
 const SECOND_EDITION: Edition = editionSchema.parse("2");
 
-const firstEdition = (remedy: Remedy): TestBodyForm => ({ introducedIn: FIRST_EDITION, remedy });
+const ALLOWED_FORMS_PAGE = "CHECKS.md";
 
-const secondEdition = (remedy: Remedy): TestBodyForm => ({ introducedIn: SECOND_EDITION, remedy });
+type PageSection = Omit<Remedy, "page">;
+
+const onAllowedFormsPage = (section: PageSection): Remedy => ({ fix: section.fix, page: ALLOWED_FORMS_PAGE, section: section.section });
+
+const firstEdition = (section: PageSection): TestBodyForm => ({ introducedIn: FIRST_EDITION, remedy: onAllowedFormsPage(section) });
+
+const secondEdition = (section: PageSection): TestBodyForm => ({ introducedIn: SECOND_EDITION, remedy: onAllowedFormsPage(section) });
 
 const BRANCHING = firstEdition({
   fix: "write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it",
@@ -51,31 +57,32 @@ const INDEXED_OPTIONAL_CHAIN = secondEdition({
   section: "an-optional-chain-after-an-index",
 });
 const MOCK_CALL_OPTIONAL_CHAIN = secondEdition({
-  fix: "assert the call with toHaveBeenCalledWith or toHaveBeenNthCalledWith",
+  fix: "assert the call with toHaveBeenCalledWith, toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
   section: "an-optional-chain-on-a-mock-call",
+});
+const MOCK_RESULT_OPTIONAL_CHAIN = secondEdition({
+  fix: "assert what it returned with toHaveReturnedWith, toHaveNthReturnedWith or toHaveLastReturnedWith",
+  section: "an-optional-chain-on-a-mock-result",
 });
 const PROPERTY_OPTIONAL_CHAIN = secondEdition({
   fix: "compare the whole value with toMatchObject, or destructure it and assert.isDefined it before reading it",
   section: "an-optional-chain-on-a-property",
 });
-const OPTIONAL_CALL = secondEdition({
-  fix: "destructure the function, assert.isDefined it, then call it",
-  section: "an-optional-call",
-});
+const OPTIONAL_CALL = secondEdition({ fix: "assert.isDefined the function, then call it", section: "an-optional-call" });
 const SWITCH = secondEdition({ fix: "write one test per case, or one it.each table", section: "a-switch" });
-const JSON_STRINGIFY = secondEdition({ fix: "write the JSON text out as a string literal", section: "serialising-json" });
+const JSON_STRINGIFY = secondEdition({ fix: "the page shows no form to write instead, and why", section: "serialising-json" });
 const JSON_PARSE = secondEdition({
-  fix: "compare the raw text, or read it back through the unit's own decoder",
+  fix: "read it back through the unit's own decoder",
   section: "parsing-json",
 });
 const OBJECT_ASSIGN = secondEdition({ fix: "write the object out, spreading what it copies", section: "merging-objects" });
 const OBJECT_FROM_ENTRIES = secondEdition({ fix: "write the object out as a literal", section: "building-an-object-from-entries" });
-const ARRAY_FROM = secondEdition({ fix: "write the array out as a literal", section: "building-an-array-from-a-length" });
+const ARRAY_FROM = secondEdition({ fix: "write a short array out as a literal; the page shows no form for a long one", section: "building-an-array-from-a-length" });
 const MATH_CALL = secondEdition({ fix: "write the number out", section: "a-math-call" });
-const HAND_WRITTEN_DOUBLE: Remedy = {
-  fix: "a double with behaviour is a fake: write it once as an in-memory implementation of the port, in its own module with its own tests, as CD-25 says",
-  section: "logic-inside-a-hand-written-double",
-};
+const PASSED_ON_FUNCTION: Remedy = onAllowedFormsPage({
+  fix: "write its answer out: a stub that returns a written-out value, or a vi.fn spy with mockReturnValue and a written-out toHaveBeenCalledWith; CD-25 is the rule for test doubles",
+  section: "logic-inside-a-function-the-test-passes-on",
+});
 
 const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
   BRANCHING,
@@ -88,6 +95,7 @@ const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
   SHORT_CIRCUIT,
   INDEXED_OPTIONAL_CHAIN,
   MOCK_CALL_OPTIONAL_CHAIN,
+  MOCK_RESULT_OPTIONAL_CHAIN,
   PROPERTY_OPTIONAL_CHAIN,
   OPTIONAL_CALL,
   SWITCH,
@@ -99,10 +107,9 @@ const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
   MATH_CALL,
 ];
 
-export const TEST_BODY_SECTIONS: readonly string[] = [
-  ...FORMS_IN_PAGE_ORDER.map((form) => form.remedy.section),
-  "logic-inside-a-hand-written-double",
-];
+export const TEST_BODY_REMEDIES: readonly Remedy[] = [...FORMS_IN_PAGE_ORDER.map((form) => form.remedy), PASSED_ON_FUNCTION];
+
+export const TEST_BODY_SECTIONS: readonly string[] = TEST_BODY_REMEDIES.map((remedy) => remedy.section);
 
 const PICKING_METHODS: readonly string[] = [
   "at", "every", "filter", "find", "findIndex", "findLast", "findLastIndex", "includes", "indexOf", "lastIndexOf", "some",
@@ -133,26 +140,23 @@ const SHORT_CIRCUIT_TOKENS = (request: { readonly syntaxApi: SyntaxApi }): reado
   request.syntaxApi.SyntaxKind.AmpersandAmpersandEqualsToken,
 ];
 
-const MOCK_RECORDS: readonly string[] = ["calls", "results", "instances", "contexts"];
+type MockRecord = "calls" | "results" | "other";
 
-const MOCK_LATEST_RECORDS: readonly string[] = ["lastCall"];
-
-type MockReading = "mock-record" | "other";
-
-const mockPropertyReading = (request: FormRequest & { readonly names: readonly string[] }): MockReading =>
-  request.syntaxApi.isPropertyAccessExpression(request.node) &&
-  request.names.includes(request.node.name.text) &&
-  request.syntaxApi.isPropertyAccessExpression(request.node.expression) &&
-  request.node.expression.name.text === "mock"
-    ? "mock-record"
-    : "other";
-
-const mockRecordReading = (request: FormRequest): MockReading => {
+const mockRecordNamed = (request: FormRequest): MockRecord => {
   const { syntaxApi, node } = request;
-  if (mockPropertyReading({ syntaxApi, node, names: MOCK_LATEST_RECORDS }) === "mock-record") return "mock-record";
-  return syntaxApi.isElementAccessExpression(node)
-    ? mockPropertyReading({ syntaxApi, node: node.expression, names: MOCK_RECORDS })
-    : "other";
+  const isMockProperty = syntaxApi.isPropertyAccessExpression(node) && syntaxApi.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === "mock";
+  if (!isMockProperty) return "other";
+  if (node.name.text === "calls") return "calls";
+  return node.name.text === "results" ? "results" : "other";
+};
+
+const mockRecordReading = (request: FormRequest): MockRecord => {
+  const { syntaxApi, node } = request;
+  const readsLastCall = syntaxApi.isPropertyAccessExpression(node) && node.name.text === "lastCall" &&
+    syntaxApi.isPropertyAccessExpression(node.expression) && node.expression.name.text === "mock";
+  if (readsLastCall) return "calls";
+  return syntaxApi.isElementAccessExpression(node) ? mockRecordNamed({ syntaxApi, node: node.expression }) : "other";
 };
 
 const statementForm = (request: FormRequest): TestBodyForm | undefined => {
@@ -179,8 +183,6 @@ const namespaceForm = (request: FormRequest & { readonly name: string }): TestBo
 
 type CallTarget = "own-api" | "built-in-or-library";
 
-type ReceiverRoot = { readonly kind: "name"; readonly name: string } | { readonly kind: "literal" } | { readonly kind: "other" };
-
 const BUILT_IN_NAMESPACES: readonly string[] = [
   "Array", "Atomics", "Buffer", "Date", "Intl", "JSON", "Map", "Math", "Number", "Object", "Promise", "Reflect", "Set", "String",
   "Symbol", "URL", "URLSearchParams", "console", "crypto", "globalThis", "performance", "process",
@@ -198,10 +200,17 @@ const MOST_ARGUMENTS: ReadonlyMap<string, number> = new Map([
   ["fill", 4],
 ]);
 
-const OBJECT_POSITIONS: ReadonlyMap<string, { readonly from: number } | { readonly at: readonly number[] }> = new Map<
-  string,
-  { readonly from: number } | { readonly at: readonly number[] }
->([
+type ObjectPositions = { readonly from: number } | { readonly at: readonly number[] };
+
+const CALLBACK_METHODS_TAKING_THIS: readonly string[] = [
+  "every", "filter", "find", "findIndex", "findLast", "findLastIndex", "flatMap", "forEach", "map", "some",
+];
+
+const SYMBOL_PROTOCOL_METHODS: readonly string[] = ["match", "matchAll", "replace", "replaceAll", "search", "split"];
+
+const OBJECT_POSITIONS: ReadonlyMap<string, ObjectPositions> = new Map<string, ObjectPositions>([
+  ...CALLBACK_METHODS_TAKING_THIS.map((name): [string, ObjectPositions] => [name, { at: [1] }]),
+  ...SYMBOL_PROTOCOL_METHODS.map((name): [string, ObjectPositions] => [name, { at: [0] }]),
   ["includes", { at: [0] }],
   ["indexOf", { at: [0] }],
   ["lastIndexOf", { at: [0] }],
@@ -224,15 +233,75 @@ const objectFitsBuiltIn = (request: { readonly name: string; readonly position: 
   return fits ? "fits" : "never-fits";
 };
 
-const receiverRootOf = (request: FormRequest): ReceiverRoot => {
+const moduleTarget = (request: { readonly specifier: string }): CallTarget =>
+  request.specifier.startsWith(".") ? "own-api" : "built-in-or-library";
+
+const loadedModuleOf = (request: FormRequest): string | undefined => {
   const { syntaxApi, node } = request;
-  if (syntaxApi.isIdentifier(node)) return { kind: "name", name: node.text };
+  if (!syntaxApi.isCallExpression(node)) return undefined;
+  const loads = node.expression.kind === syntaxApi.SyntaxKind.ImportKeyword ||
+    (syntaxApi.isIdentifier(node.expression) && node.expression.text === "require");
+  const [specifier] = node.arguments;
+  return loads && specifier !== undefined && syntaxApi.isStringLiteralLike(specifier) ? specifier.text : undefined;
+};
+
+const bindsName = (request: { readonly syntaxApi: SyntaxApi; readonly binding: SyntaxNode; readonly name: string }): "binds" | "other" => {
+  const { syntaxApi, binding, name } = request;
+  if (syntaxApi.isIdentifier(binding)) return binding.text === name ? "binds" : "other";
+  if (!syntaxApi.isObjectBindingPattern(binding) && !syntaxApi.isArrayBindingPattern(binding)) return "other";
+  const binds = binding.elements.some((element) =>
+    syntaxApi.isBindingElement(element) && bindsName({ syntaxApi, binding: element.name, name }) === "binds");
+  return binds ? "binds" : "other";
+};
+
+const declarationsNamed = (request: FormRequest & { readonly name: string }): readonly SyntaxNode[] => {
+  const { syntaxApi, name } = request;
+  const declarations: SyntaxNode[] = [];
+  const visit = (node: SyntaxNode): void => {
+    const declares = (syntaxApi.isVariableDeclaration(node) && bindsName({ syntaxApi, binding: node.name, name }) === "binds") ||
+      (syntaxApi.isImportEqualsDeclaration(node) && node.name.text === name);
+    if (declares) declarations.push(node);
+    syntaxApi.forEachChild(node, visit);
+  };
+  visit(request.node.getSourceFile());
+  return declarations;
+};
+
+type OriginRequest = FormRequest & { readonly visited: readonly string[] };
+
+const declarationTarget = (request: OriginRequest): CallTarget => {
+  const { syntaxApi, node, visited } = request;
+  if (syntaxApi.isImportEqualsDeclaration(node)) {
+    const reference = node.moduleReference;
+    return syntaxApi.isExternalModuleReference(reference) && syntaxApi.isStringLiteralLike(reference.expression)
+      ? moduleTarget({ specifier: reference.expression.text })
+      : "own-api";
+  }
+  if (!syntaxApi.isVariableDeclaration(node) || node.initializer === undefined) return "own-api";
+  return originTarget({ syntaxApi, node: node.initializer, visited });
+};
+
+const nameTarget = (request: OriginRequest & { readonly name: string }): CallTarget => {
+  const { syntaxApi, node, name, visited } = request;
+  if (visited.includes(name)) return "own-api";
+  if (BUILT_IN_NAMESPACES.includes(name) || packageBindingsOf({ syntaxApi, node }).includes(name)) return "built-in-or-library";
+  const fromLibrary = declarationsNamed({ syntaxApi, node, name }).some((declaration) =>
+    declarationTarget({ syntaxApi, node: declaration, visited: [...visited, name] }) === "built-in-or-library");
+  return fromLibrary ? "built-in-or-library" : "own-api";
+};
+
+const originTarget = (request: OriginRequest): CallTarget => {
+  const { syntaxApi, node, visited } = request;
+  const loadedModule = loadedModuleOf({ syntaxApi, node });
+  if (loadedModule !== undefined) return moduleTarget({ specifier: loadedModule });
+  if (syntaxApi.isIdentifier(node)) return nameTarget({ syntaxApi, node, name: node.text, visited });
   if (syntaxApi.isStringLiteralLike(node) || syntaxApi.isArrayLiteralExpression(node) || syntaxApi.isTemplateExpression(node)) {
-    return { kind: "literal" };
+    return "built-in-or-library";
   }
   const isChain = syntaxApi.isPropertyAccessExpression(node) || syntaxApi.isElementAccessExpression(node) ||
-    syntaxApi.isCallExpression(node) || syntaxApi.isParenthesizedExpression(node) || syntaxApi.isNonNullExpression(node);
-  return isChain ? receiverRootOf({ syntaxApi, node: node.expression }) : { kind: "other" };
+    syntaxApi.isCallExpression(node) || syntaxApi.isParenthesizedExpression(node) || syntaxApi.isNonNullExpression(node) ||
+    syntaxApi.isAwaitExpression(node) || syntaxApi.isAsExpression(node) || syntaxApi.isSatisfiesExpression(node);
+  return isChain ? originTarget({ syntaxApi, node: node.expression, visited }) : "own-api";
 };
 
 const packageBindingsOf = (request: FormRequest): readonly string[] =>
@@ -249,13 +318,6 @@ const packageBindingsOf = (request: FormRequest): readonly string[] =>
     return name === undefined ? named : [name.text, ...named];
   });
 
-const receiverTarget = (request: FormRequest): CallTarget => {
-  const root = receiverRootOf(request);
-  if (root.kind === "literal") return "built-in-or-library";
-  if (root.kind === "other") return "own-api";
-  return BUILT_IN_NAMESPACES.includes(root.name) || packageBindingsOf(request).includes(root.name) ? "built-in-or-library" : "own-api";
-};
-
 const argumentsTarget = (request: { readonly syntaxApi: SyntaxApi; readonly call: CallExpression; readonly name: string }): CallTarget => {
   const { syntaxApi, call, name } = request;
   if (call.arguments.some((argument) => syntaxApi.isSpreadElement(argument))) return "built-in-or-library";
@@ -268,7 +330,7 @@ const argumentsTarget = (request: { readonly syntaxApi: SyntaxApi; readonly call
 
 const callTargetOf = (request: { readonly syntaxApi: SyntaxApi; readonly call: CallExpression; readonly method: PropertyAccessExpression }): CallTarget => {
   const { syntaxApi, call, method } = request;
-  if (receiverTarget({ syntaxApi, node: method.expression }) === "built-in-or-library") return "built-in-or-library";
+  if (originTarget({ syntaxApi, node: method.expression, visited: [] }) === "built-in-or-library") return "built-in-or-library";
   return argumentsTarget({ syntaxApi, call, name: method.name.text });
 };
 
@@ -293,7 +355,9 @@ const optionalChainForm = (request: FormRequest): TestBodyForm | undefined => {
   const isOptionalAccess = (syntaxApi.isPropertyAccessExpression(node) || syntaxApi.isElementAccessExpression(node)) &&
     node.questionDotToken !== undefined;
   if (!isOptionalAccess) return undefined;
-  if (mockRecordReading({ syntaxApi, node: node.expression }) === "mock-record") return MOCK_CALL_OPTIONAL_CHAIN;
+  const mockRecord = mockRecordReading({ syntaxApi, node: node.expression });
+  if (mockRecord === "calls") return MOCK_CALL_OPTIONAL_CHAIN;
+  if (mockRecord === "results") return MOCK_RESULT_OPTIONAL_CHAIN;
   return syntaxApi.isElementAccessExpression(node.expression) ? INDEXED_OPTIONAL_CHAIN : PROPERTY_OPTIONAL_CHAIN;
 };
 
@@ -306,7 +370,17 @@ const expressionForm = (request: FormRequest): TestBodyForm | undefined => {
   return callForm(request) ?? optionalChainForm(request);
 };
 
-type Enclosure = "hand-written-double" | "elsewhere";
+type Enclosure = "passed-on-function" | "elsewhere";
+
+const IMPLEMENTATION_TAKERS: readonly string[] = ["mockImplementation", "mockImplementationOnce"];
+
+const takesImplementation = (request: FormRequest): "takes" | "other" => {
+  const { syntaxApi, node } = request;
+  if (!syntaxApi.isCallExpression(node) || !syntaxApi.isPropertyAccessExpression(node.expression)) return "other";
+  const callee = node.expression;
+  const isViFn = callee.name.text === "fn" && syntaxApi.isIdentifier(callee.expression) && callee.expression.text === "vi";
+  return isViFn || IMPLEMENTATION_TAKERS.includes(callee.name.text) ? "takes" : "other";
+};
 
 const enclosingFunctionOf = (request: FormRequest): SyntaxNode | undefined => {
   if (request.syntaxApi.isSourceFile(request.node)) return undefined;
@@ -319,13 +393,14 @@ const enclosureOf = (request: FormRequest): Enclosure => {
   const enclosing = enclosingFunctionOf({ syntaxApi, node: request.node.parent });
   if (enclosing === undefined) return "elsewhere";
   const holder = syntaxApi.isPropertyAssignment(enclosing.parent) ? enclosing.parent.parent : enclosing.parent;
-  return syntaxApi.isObjectLiteralExpression(holder) ? "hand-written-double" : "elsewhere";
+  const passedOn = syntaxApi.isObjectLiteralExpression(holder) || takesImplementation({ syntaxApi, node: holder }) === "takes";
+  return passedOn ? "passed-on-function" : "elsewhere";
 };
 
 export const testBodyFormOf = (request: FormRequest): TestBodyForm | undefined => {
   const form = statementForm(request) ?? expressionForm(request);
   if (form === undefined) return undefined;
-  return enclosureOf(request) === "hand-written-double" ? { introducedIn: form.introducedIn, remedy: HAND_WRITTEN_DOUBLE } : form;
+  return enclosureOf(request) === "passed-on-function" ? { introducedIn: form.introducedIn, remedy: PASSED_ON_FUNCTION } : form;
 };
 
 const snippetAt = (request: { readonly source: string; readonly position: number }): string => {

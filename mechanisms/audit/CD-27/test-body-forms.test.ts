@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from "vitest";
 import { defaultParsePort } from "../../../tests/typescript-parse-port.ts";
 import type { SyntaxNode } from "../runner/typescript-parse.ts";
 import { syntaxNodeOf } from "../../../tests/syntax-node-of.ts";
-import { TEST_BODY_SECTIONS, testBodyFormOf } from "./test-body-logic.ts";
+import { TEST_BODY_REMEDIES, TEST_BODY_SECTIONS, testBodyFormOf } from "./test-body-logic.ts";
 
 const SYNTAX_API = defaultParsePort.syntaxApi;
 
@@ -36,8 +36,10 @@ const EXPRESSION_FORMS = [
   { name: "an optional property after an index", source: "tasks[0]?.id;", edition: "2", section: "an-optional-chain-after-an-index" },
   { name: "an optional element after an index", source: "rows[0]?.[1];", edition: "2", section: "an-optional-chain-after-an-index" },
   { name: "an optional chain on a mock call", source: "run.mock.calls[0]?.[0];", edition: "2", section: "an-optional-chain-on-a-mock-call" },
-  { name: "an optional chain on a mock result", source: "run.mock.results[0]?.value;", edition: "2", section: "an-optional-chain-on-a-mock-call" },
+  { name: "an optional chain on a mock result", source: "run.mock.results[0]?.value;", edition: "2", section: "an-optional-chain-on-a-mock-result" },
   { name: "an optional chain on a mock's last call", source: "run.mock.lastCall?.[0];", edition: "2", section: "an-optional-chain-on-a-mock-call" },
+  { name: "an optional chain on a mock instance", source: "Store.mock.instances[0]?.rows;", edition: "2", section: "an-optional-chain-after-an-index" },
+  { name: "an optional chain on a mock context", source: "run.mock.contexts[0]?.name;", edition: "2", section: "an-optional-chain-after-an-index" },
   { name: "an optional property", source: "result.value?.name;", edition: "2", section: "an-optional-chain-on-a-property" },
   { name: "an optional call", source: "observers.enter?.();", edition: "2", section: "an-optional-call" },
   { name: "an optional call of a computing method", source: "rows.map?.(idOf);", edition: "1", section: "a-method-that-computes-a-value" },
@@ -88,6 +90,7 @@ describe("testBodyFormOf", () => {
       introducedIn: "2",
       remedy: {
         fix: "compare the whole element with toMatchObject, or destructure it and assert.isDefined it before reading it",
+        page: "CHECKS.md",
         section: "an-optional-chain-after-an-index",
       },
     });
@@ -107,6 +110,7 @@ describe("TEST_BODY_SECTIONS", () => {
       "a-short-circuit",
       "an-optional-chain-after-an-index",
       "an-optional-chain-on-a-mock-call",
+      "an-optional-chain-on-a-mock-result",
       "an-optional-chain-on-a-property",
       "an-optional-call",
       "a-switch",
@@ -116,7 +120,71 @@ describe("TEST_BODY_SECTIONS", () => {
       "building-an-object-from-entries",
       "building-an-array-from-a-length",
       "a-math-call",
-      "logic-inside-a-hand-written-double",
+      "logic-inside-a-function-the-test-passes-on",
+    ]);
+  });
+});
+
+describe("TEST_BODY_REMEDIES", () => {
+  it("gives each section's fix, word for word, on CHECKS.md, in page order", () => {
+    expect(TEST_BODY_REMEDIES).toEqual([
+      {
+        fix: "write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it",
+        page: "CHECKS.md",
+        section: "branching-with-if",
+      },
+      {
+        fix: "assert the throw with expect(() => act()).toThrow or await expect(act()).rejects, or assert the failure the unit returns",
+        page: "CHECKS.md",
+        section: "a-try-block",
+      },
+      { fix: "write the value out, or give each case its own it.each row", page: "CHECKS.md", section: "a-ternary" },
+      { fix: "use const; record calls with vi.fn and assert them with toHaveBeenCalledWith", page: "CHECKS.md", section: "a-let" },
+      {
+        fix: "assert on the whole array with toEqual, toContain, toContainEqual or expect.arrayContaining",
+        page: "CHECKS.md",
+        section: "a-method-that-picks-or-tests-an-element",
+      },
+      {
+        fix: "write the expected value out, or match part of it with toMatchObject, toHaveLength or expect.stringContaining",
+        page: "CHECKS.md",
+        section: "a-method-that-computes-a-value",
+      },
+      { fix: "write the finished array out as a literal", page: "CHECKS.md", section: "a-method-that-mutates" },
+      { fix: "write the value it gives; to narrow a value that may be missing, assert.isDefined it", page: "CHECKS.md", section: "a-short-circuit" },
+      {
+        fix: "compare the whole element with toMatchObject, or destructure it and assert.isDefined it before reading it",
+        page: "CHECKS.md",
+        section: "an-optional-chain-after-an-index",
+      },
+      {
+        fix: "assert the call with toHaveBeenCalledWith, toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
+        page: "CHECKS.md",
+        section: "an-optional-chain-on-a-mock-call",
+      },
+      {
+        fix: "assert what it returned with toHaveReturnedWith, toHaveNthReturnedWith or toHaveLastReturnedWith",
+        page: "CHECKS.md",
+        section: "an-optional-chain-on-a-mock-result",
+      },
+      {
+        fix: "compare the whole value with toMatchObject, or destructure it and assert.isDefined it before reading it",
+        page: "CHECKS.md",
+        section: "an-optional-chain-on-a-property",
+      },
+      { fix: "assert.isDefined the function, then call it", page: "CHECKS.md", section: "an-optional-call" },
+      { fix: "write one test per case, or one it.each table", page: "CHECKS.md", section: "a-switch" },
+      { fix: "the page shows no form to write instead, and why", page: "CHECKS.md", section: "serialising-json" },
+      { fix: "read it back through the unit's own decoder", page: "CHECKS.md", section: "parsing-json" },
+      { fix: "write the object out, spreading what it copies", page: "CHECKS.md", section: "merging-objects" },
+      { fix: "write the object out as a literal", page: "CHECKS.md", section: "building-an-object-from-entries" },
+      { fix: "write a short array out as a literal; the page shows no form for a long one", page: "CHECKS.md", section: "building-an-array-from-a-length" },
+      { fix: "write the number out", page: "CHECKS.md", section: "a-math-call" },
+      {
+        fix: "write its answer out: a stub that returns a written-out value, or a vi.fn spy with mockReturnValue and a written-out toHaveBeenCalledWith; CD-25 is the rule for test doubles",
+        page: "CHECKS.md",
+        section: "logic-inside-a-function-the-test-passes-on",
+      },
     ]);
   });
 });
@@ -129,6 +197,13 @@ const DOUBLE_SITES = [
   { name: "a function expression property", source: "const port = { read: function () { return given ?? \"\"; } };", text: "given ??", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
   { name: "a double passed inline", source: "run({ fileKind: { isFile: (path) => path.endsWith(\".ts\") } });", text: "path.endsWith", kind: CALL, edition: "1" },
   { name: "a branch inside a method", source: "const port = { read(path) { if (path) {} } };", text: "if (path)", kind: SYNTAX_API.SyntaxKind.IfStatement, edition: "1" },
+  { name: "a function in an it.each row", source: "it.each([{ check: (rows) => rows.map(idOf) }])(\"checks\", run);", text: "rows.map", kind: CALL, edition: "1" },
+  { name: "an options callback", source: "run({ onProgress: (event) => event.done && seen(event) });", text: "event.done &&", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
+  { name: "a route map handler", source: "serve({ \"/tasks\": (request) => request.ids.map(idOf) });", text: "request.ids.map", kind: CALL, edition: "1" },
+  { name: "a fixture getter", source: "const fixture = { get rows() { return given ?? []; } };", text: "given ??", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
+  { name: "a vi.fn implementation", source: "const clock = { now: vi.fn(() => given ?? 1) };", text: "given ??", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
+  { name: "a bare vi.fn implementation", source: "const now = vi.fn(() => given ?? 1);", text: "given ??", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
+  { name: "a mockImplementation", source: "now.mockImplementation(() => given ?? 1);", text: "given ??", kind: SYNTAX_API.SyntaxKind.BinaryExpression, edition: "2" },
 ];
 
 const OUTSIDE_DOUBLE_SITES = [
@@ -138,17 +213,14 @@ const OUTSIDE_DOUBLE_SITES = [
   { name: "a callback inside a double's method", source: "const port = { all: () => run(() => rows.map(idOf)) };", text: "rows.map", section: "a-method-that-computes-a-value" },
 ];
 
-describe("testBodyFormOf inside a hand-written double", () => {
-  it.each(DOUBLE_SITES)("names the fake fix, at the construct's own edition, for logic in $name", ({ source, text, kind, edition }) => {
+describe("testBodyFormOf inside a function the test passes on", () => {
+  it.each(DOUBLE_SITES)("names the passed-on function fix, at the construct's own edition, for logic in $name", ({ source, text, kind, edition }) => {
     const node = syntaxNodeOf({ syntaxApi: SYNTAX_API, source, text, kind });
     assert.isDefined(node);
 
-    expect(testBodyFormOf({ syntaxApi: SYNTAX_API, node })).toEqual({
+    expect(testBodyFormOf({ syntaxApi: SYNTAX_API, node })).toMatchObject({
       introducedIn: edition,
-      remedy: {
-        fix: "a double with behaviour is a fake: write it once as an in-memory implementation of the port, in its own module with its own tests, as CD-25 says",
-        section: "logic-inside-a-hand-written-double",
-      },
+      remedy: { section: "logic-inside-a-function-the-test-passes-on" },
     });
   });
 
@@ -169,6 +241,8 @@ const RELEASED_OWN_API_CALLS = [
   { name: "a method given more arguments than any built-in of its name takes", source: "screen.keys(\"x\", true, true);", text: "screen.keys" },
   { name: "an entries method given an argument", source: "scenario.entries(output);", text: "scenario.entries" },
   { name: "a port imported from a relative module", source: "import { paths } from \"./paths.ts\";\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
+  { name: "a port built by a relative module's factory", source: "import { pathsOf } from \"./paths.ts\";\nconst paths = pathsOf();\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
+  { name: "a port destructured from a fixture", source: "const { paths } = harness();\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
 ];
 
 const FLAGGED_LOOK_ALIKES = [
@@ -192,6 +266,16 @@ const FLAGGED_LOOK_ALIKES = [
   { name: "a port method given a variable", source: "paths.join(request);", text: "paths.join" },
   { name: "a call that spreads its arguments", source: "screen.keys(...presses);", text: "screen.keys" },
   { name: "a callback method given a callback", source: "rows.find((row) => row.id === \"a\");", text: "rows.find" },
+  { name: "find given an object as this", source: "rows.find(isA, {});", text: "rows.find" },
+  { name: "map given an object as this", source: "rows.map(idOf, {});", text: "rows.map" },
+  { name: "some given an object with properties as this", source: "rows.some(isOpen, { strict: true });", text: "rows.some" },
+  { name: "find on a property of this given an object as this", source: "this.rows.find(isA, {});", text: "this.rows.find" },
+  { name: "find on an awaited value given an object as this", source: "(await load()).find(isA, {});", text: "(await load()).find" },
+  { name: "split given a splitter object", source: "text.split({ [Symbol.split]: splitter });", text: "text.split" },
+  { name: "replace given a replacer object", source: "text.replace({ [Symbol.replace]: replacer }, \"b\");", text: "text.replace" },
+  { name: "join on a member destructured from node:path", source: "import path from \"node:path\";\nconst { posix } = path;\nposix.join(\"a\", \"b\", \"c\");", text: "posix.join" },
+  { name: "entries on an alias of Object", source: "const o = Object;\no.entries({ a: 1 });", text: "o.entries" },
+  { name: "a library method on a value the library built", source: "import { z } from \"zod\";\nconst schema = z.string();\nschema.startsWith(\"x\", { message: \"m\" });", text: "schema.startsWith" },
 ];
 
 describe("testBodyFormOf on a listed method name that is the adopter's own API", () => {
