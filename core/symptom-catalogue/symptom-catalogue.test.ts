@@ -9,6 +9,7 @@ import {
   type Symptom,
   type SymptomCatalogue,
   type SymptomReading,
+  indicatedNamesOf,
   symptomReadingOf,
 } from "./symptom-catalogue.ts";
 
@@ -136,5 +137,22 @@ describe("symptomReadingOf", () => {
     },
   ])("$name", ({ finding, reading }) => {
     expect(symptomReadingOf({ catalogue: CATALOGUE, finding })).toEqual(reading);
+  });
+});
+
+describe("indicatedNamesOf", () => {
+  it("names each rule and principle the symptom may indicate once, in the order its cases first point at them", () => {
+    expect(
+      indicatedNamesOf({
+        symptom: {
+          ...REBINDING,
+          mayIndicate: [
+            { case: "Makes a new value", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
+            { case: "Checks a value that may be one of several outcomes", points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] },
+            { case: "Sends data out", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
+          ],
+        },
+      }),
+    ).toEqual(["no-hidden-effects", "straight-through-tests"]);
   });
 });

@@ -35,7 +35,7 @@ Edition 2 also flags:
 - `??`, `||` and `&&`, and their assignment forms `??=`, `||=` and `&&=`.
 - Optional chaining: `a?.b`, `a?.[key]` and `f?.()`.
 - `switch` statements.
-- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method. A finding on `JSON.stringify` or `JSON.parse` points at [CD-19](../CD-19/README.md); see [Serialising or parsing JSON](#serialising-or-parsing-json).
+- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method. A finding on `JSON.stringify` or `JSON.parse` names [Serialising or parsing JSON](#serialising-or-parsing-json).
 
 Neither edition flags element access such as `calls[0]`, calls to free functions, a method called through a computed key, such as `rows["map"]`, or text built with a template literal. Helper files that tests import are not checked; only the test files themselves are.
 
@@ -359,7 +359,14 @@ it.each([
 declare const render: (row: { readonly id: string }) => string;
 expect(JSON.parse(render({ id: "a" }))).toEqual({ id: "a" });
 ```
-A finding on `JSON.stringify` or `JSON.parse` names this section. [CD-19](../CD-19/README.md) is the rule for the runtime's standard library.
+A finding on `JSON.stringify` or `JSON.parse` names this section. Assert the object the unit gives back, written out:
+
+```ts
+declare const rowOf: (row: { readonly id: string }) => { readonly id: string };
+expect(rowOf({ id: "a" })).toEqual({ id: "a" });
+```
+
+A unit that gives back only text should hand over an object, leaving the text to the adapter at its edge.
 
 ### Merging objects
 ```ts
@@ -437,7 +444,7 @@ expect(isInstalled({ kindOf })).toBe("installed");
 expect(kindOf).toHaveBeenCalledExactlyOnceWith("bin/hone.js");
 ```
 
-[CD-25](../CD-25/README.md) is the rule for test doubles.
+The recipe is Stub with vi.fn.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs logic. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

@@ -70,13 +70,16 @@ const PROPERTY_OPTIONAL_CHAIN = secondEdition({
 });
 const OPTIONAL_CALL = secondEdition({ fix: "assert.isDefined the function, then call it", section: "an-optional-call" });
 const SWITCH = secondEdition({ fix: "write one test per case, or one it.each table", section: "a-switch" });
-const JSON_CALL = secondEdition({ fix: "CD-19 is the rule for the runtime's standard library", section: "serialising-or-parsing-json" });
+const JSON_CALL = secondEdition({
+  fix: "assert the object the unit gives back, written out; a unit that gives back only text should hand over an object, leaving the text to the adapter at its edge",
+  section: "serialising-or-parsing-json",
+});
 const OBJECT_ASSIGN = secondEdition({ fix: "write the object out, spreading what it copies; to give an Error a property, assign it", section: "merging-objects" });
 const OBJECT_FROM_ENTRIES = secondEdition({ fix: "write the object out as a literal", section: "building-an-object-from-entries" });
 const ARRAY_FROM = secondEdition({ fix: "write a short array out as a literal; the page shows no form for a long one", section: "building-an-array-from-a-length" });
 const MATH_CALL = secondEdition({ fix: "write the number out", section: "a-math-call" });
 const PASSED_ON_FUNCTION: Remedy = onAllowedFormsPage({
-  fix: "make it a vi.fn spy with a written-out mockReturnValue, and assert what it was asked with toHaveBeenCalledExactlyOnceWith; CD-25 is the rule for test doubles",
+  fix: "make it a vi.fn spy with a written-out mockReturnValue, and assert what it was asked with toHaveBeenCalledExactlyOnceWith; the recipe is Stub with vi.fn",
   section: "logic-inside-a-function-the-test-passes-on",
 });
 

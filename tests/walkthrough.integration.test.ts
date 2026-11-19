@@ -1,8 +1,10 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
-import { checkCommandOutcome } from "../core/check/command-outcome.ts";
+import { namedCheckCommandOutcome } from "../core/check/command-outcome.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import { runCheckCommand } from "../core/check/run-check-command.ts";
+import { runNamedCheckCommand } from "../core/check/run-named-check-command.ts";
+import { symptomGuideFor } from "../core/check/symptom-guide.ts";
+import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
@@ -18,6 +20,8 @@ const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 const PRUNE_COMMAND = "node core/check/tool-command.ts prune-debt --repo .";
 
 const path = createDefaultPathPort({});
+
+const ENTRY_URL = new URL("../core/check/tool-command.ts", import.meta.url).href;
 
 const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
   const resolved = path.resolve(request);
@@ -69,7 +73,17 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     git: trackingGit({ tracked: request.tracked }),
   }));
   assert(checked.outcome === "ok", `${request.repo} loads`);
-  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } });
+  const guide = symptomGuideFor({
+    process: { arguments: ["--repo", request.repo] },
+    path,
+    fileText: createDefaultFileTextPort({}),
+    moduleUrl: ENTRY_URL,
+    symptomCatalogueOf: createSymptomCatalogueRepository,
+  });
+  assert(guide.outcome === "ok", `${request.repo} reads the symptom catalogue`);
+  return namedCheckCommandOutcome({
+    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: guide.value } },
+  });
 };
 
 const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {
@@ -79,14 +93,14 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
     writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
   };
-  await runCheckCommand(
+  await runNamedCheckCommand(
     withSingleFileRecordsOf({
       process: processPort,
       path,
       fileText: createDefaultFileTextPort({}),
       modules: createDefaultModuleLoaderPort({}),
       git: trackingGit({ tracked: request.tracked }),
-      moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
+      moduleUrl: ENTRY_URL,
     }),
   );
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };

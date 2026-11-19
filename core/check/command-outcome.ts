@@ -7,7 +7,8 @@ import type { ExitCode } from "../platform-ports/process-port.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { NESTED_CONFIGURATION_ISSUE, renderReportText } from "../verdict/report-text.ts";
+import { NESTED_CONFIGURATION_ISSUE, renderNamedReportText, renderReportText } from "../verdict/report-text.ts";
+import type { SymptomGuide } from "../verdict/symptom-notes.ts";
 import { verdictOf } from "../verdict/verdict.ts";
 import { LEAVE_OPTION } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
@@ -43,6 +44,20 @@ export const checkCommandOutcome = (request: {
   request.result.outcome === "failed"
     ? loadFailureOutcome({ failure: request.result.error })
     : checkRunOutcome({ run: request.result.value });
+
+export type NamedCheckRun = CheckRun & { readonly guide: SymptomGuide };
+
+const namedCheckRunOutcome = (request: { readonly run: NamedCheckRun }): CommandOutcome => ({
+  code: verdictOf({ report: request.run.report }) === "pass" ? 0 : 1,
+  text: renderNamedReportText(request.run),
+});
+
+export const namedCheckCommandOutcome = (request: {
+  readonly result: Result<NamedCheckRun, LoadFailure>;
+}): CommandOutcome =>
+  request.result.outcome === "failed"
+    ? loadFailureOutcome({ failure: request.result.error })
+    : namedCheckRunOutcome({ run: request.result.value });
 
 export const projectCommandOutcome = (request: {
   readonly result: Result<readonly ProjectionWrite[], LoadFailure>;

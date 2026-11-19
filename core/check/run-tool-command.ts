@@ -4,7 +4,8 @@ import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
 import { loadFailureOutcome, versionCommandOutcome } from "./command-outcome.ts";
 import { installedVersionOf } from "./installed-version.ts";
-import { type CommandRequest, printOutcome, runCheckCommand } from "./run-check-command.ts";
+import { type CommandRequest, printOutcome } from "./run-check-command.ts";
+import { runNamedCheckCommand } from "./run-named-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
 import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
@@ -53,7 +54,7 @@ export const toolCommandOf =
 
 export const runToolCommand: CommandHandler = toolCommandOf({
   subcommands: {
-    check: runCheckCommand,
+    check: runNamedCheckCommand,
     project: runProjectCommand,
     "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
     "prune-debt": runPruneDebtCommand,
