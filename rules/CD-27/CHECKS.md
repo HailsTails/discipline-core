@@ -1,8 +1,8 @@
 # CD-27 checks
 
-Symptoms: [Branch in a test](../typescript/symptoms.md#branch-in-a-test), [Computed value in a test](../typescript/symptoms.md#computed-value-in-a-test), [Rebinding](../typescript/symptoms.md#rebinding), [Text past its reader](../typescript/symptoms.md#text-past-its-reader) and [Test switched off](../typescript/symptoms.md#test-switched-off).
+Symptoms: [Branch in a test](../typescript/symptoms.md#branch-in-a-test), [Computed value in a test](../typescript/symptoms.md#computed-value-in-a-test), [Rebinding](../typescript/symptoms.md#rebinding), [Text past its reader](../typescript/symptoms.md#text-past-its-reader) and [Test switched off](../typescript/symptoms.md#test-switched-off). The test-logic check also sees the `let` form of [Answer set in a hook](../typescript/symptoms.md#answer-set-in-a-hook), and `try`, a form of [Throw or catch in a test](../typescript/symptoms.md#throw-or-catch-in-a-test).
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 

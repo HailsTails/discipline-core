@@ -2,7 +2,7 @@
 
 Symptom: [Double with a body](../typescript/symptoms.md#double-with-a-body).
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 

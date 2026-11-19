@@ -2,7 +2,7 @@
 
 Symptom: [Claimed type](../typescript/symptoms.md#claimed-type).
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 
@@ -38,7 +38,7 @@ const name = user.name!;
 ## How to fix
 ```ts
 const user = userSchema.parse(response);
-const name = user.name ?? "anonymous";
+const name = user.name;
 ```
 Parse or narrow the value so the type follows from a check rather than from an assertion. For a value that may be absent, handle the absent case with a check or an early return; for a binding assigned later, initialise it where it is declared or make it a `const` built from what it needs.
 

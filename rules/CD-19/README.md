@@ -6,7 +6,7 @@ This numbered page is the earlier form of this rule. The [named pages](../README
 
 **Verdict.** Splits: Outside dependencies stay at boundaries; Ports declared inside; construction and ids cases.
 
-**Read.** [Outside dependencies stay at boundaries](../rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](../rules.md#ports-declared-inside) and [Adapter per outside party](../typescript/recipes.md#adapter-per-outside-party).
+**Read.** [Outside dependencies stay at boundaries](../rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](../rules.md#ports-declared-inside), Builds the real implementations ([cases](../cases.md#one-place-decides)), Needs the current time, a random value, a new id or an outside ordering ([cases](../cases.md#external-behaviour-sits-at-a-boundary)), [World values through a port](../typescript/recipes.md#world-values-through-a-port) and [Adapter per outside party](../typescript/recipes.md#adapter-per-outside-party).
 
 Review lens: [function-first](../../methods/lenses/function-first.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 

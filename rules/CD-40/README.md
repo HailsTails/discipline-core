@@ -12,4 +12,4 @@ Review lens: [function-first](../../methods/lenses/function-first.md). The lens 
 
 ## Spirit
 
-Start from the symptom a finding names: [Positional parameters](../typescript/symptoms.md#positional-parameters) and [Tuple as data](../typescript/symptoms.md#tuple-as-data). Each symptom names the cases it may indicate and the rules they point at. The why is on [Our code reads in the common language](../principles.md#our-code-reads-in-the-common-language) and [One place decides](../principles.md#one-place-decides).
+Start from the symptom a finding names: [Positional parameters](../typescript/symptoms.md#positional-parameters). Each symptom names the cases it may indicate and the rules they point at. The why is on [Our code reads in the common language](../principles.md#our-code-reads-in-the-common-language) and [One place decides](../principles.md#one-place-decides).

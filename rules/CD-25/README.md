@@ -12,4 +12,4 @@ Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-disci
 
 ## Spirit
 
-Start from the symptom a finding names: [Double with a body](../typescript/symptoms.md#double-with-a-body) and [Unasserted call](../typescript/symptoms.md#unasserted-call). Each symptom names the cases it may indicate and the rules they point at. The why is on [Tests are ours](../principles.md#tests-are-ours).
+Start from the symptom a finding names: [Double with a body](../typescript/symptoms.md#double-with-a-body). Each symptom names the cases it may indicate and the rules they point at. The why is on [Tests are ours](../principles.md#tests-are-ours).
