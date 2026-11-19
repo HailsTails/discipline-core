@@ -2,61 +2,79 @@ import { describe, expect, it } from "vitest";
 import type { Finding } from "../governance/governance.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import {
-  EMPTY_SYMPTOM_CATALOGUE,
-  principleNameSchema,
-  recipeNameSchema,
-  ruleNameSchema,
+  type Principle,
+  type Recipe,
+  type RecordKind,
+  type Rule,
   type Symptom,
   type SymptomCatalogue,
   type SymptomReading,
-  symptomNameSchema,
   symptomReadingOf,
 } from "./symptom-catalogue.ts";
 
+const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
+
+const STRAIGHT_THROUGH_TESTS: Rule = {
+  name: "straight-through-tests",
+  title: "Straight-through tests",
+  principle: { name: "tests-are-ours", title: "Tests are ours" },
+  standing: "accepted",
+};
+
+const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted" };
+
+const RESULT_UNION: Recipe = { name: "result-union", title: "Result union", standing: "accepted" };
+
+const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
+
+const AUTHORISED_LOCATION: RecordKind = {
+  name: "authorised-location",
+  title: "Authorised location",
+  phrase: "an authorised location",
+  todaysFormat: "authorised-location",
+};
+
 const BRANCH_IN_A_TEST: Symptom = {
-  name: symptomNameSchema.parse("branch-in-a-test"),
+  name: "branch-in-a-test",
   title: "Branch in a test",
   seen: "`if` in a test file.",
-  mayIndicate: [{ case: "Checks a value that may be one of several outcomes", points: [{ kind: "rule", name: ruleNameSchema.parse("straight-through-tests") }] }],
-  breachUsuallySits: "Often the unit's output type.",
-  recipes: [recipeNameSchema.parse("assert-to-narrow")],
-  answeredBy: [{ kind: "debt", when: "a known breach not yet paid" }],
+  mayIndicate: [{ case: "Checks a value that may be one of several outcomes", points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] }],
+  breachUsuallySits: "in the unit's output type",
+  recipes: [ASSERT_TO_NARROW],
+  correctUses: [],
 };
 
 const REBINDING: Symptom = {
-  name: symptomNameSchema.parse("rebinding"),
+  name: "rebinding",
   title: "Rebinding",
   seen: "A `let` assigned again.",
-  mayIndicate: [{ case: "Makes a new value", points: [{ kind: "principle", name: principleNameSchema.parse("no-hidden-effects") }] }],
-  breachUsuallySits: "The unit.",
+  mayIndicate: [{ case: "Makes a new value", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] }],
+  breachUsuallySits: "in the unit",
   recipes: [],
-  answeredBy: [{ kind: "debt", when: "a known breach not yet paid" }],
+  correctUses: [],
 };
 
 const CATALOGUE: SymptomCatalogue = {
-  principles: [],
-  rules: [],
-  recipes: [],
-  recordKinds: [],
+  principles: [NO_HIDDEN_EFFECTS],
+  rules: [STRAIGHT_THROUGH_TESTS],
+  recipes: [ASSERT_TO_NARROW, RESULT_UNION],
+  recordKinds: [AUTHORISED_LOCATION, DEBT],
+  alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
   symptoms: [BRANCH_IN_A_TEST, REBINDING],
   clauses: [
-    { clause: clauseAddressSchema.parse("CD-44#parameter-reassignment"), sight: { kind: "one-symptom", symptom: symptomNameSchema.parse("rebinding") } },
+    { clause: clauseAddressSchema.parse("CD-44#parameter-reassignment"), sight: { kind: "one-symptom", symptom: REBINDING } },
     {
       clause: clauseAddressSchema.parse("CD-27#test-body-logic"),
       sight: {
         kind: "symptom-by-form",
         forms: [
-          { section: "branching-with-if", symptom: symptomNameSchema.parse("branch-in-a-test") },
-          { section: "a-let", symptom: symptomNameSchema.parse("rebinding") },
+          { section: "branching-with-if", symptom: BRANCH_IN_A_TEST },
+          { section: "a-let", symptom: REBINDING },
         ],
       },
     },
-    {
-      clause: clauseAddressSchema.parse("CD-9#result-failures"),
-      sight: { kind: "method", recipe: recipeNameSchema.parse("result-union"), outcomeSeenBy: [symptomNameSchema.parse("rebinding")] },
-    },
+    { clause: clauseAddressSchema.parse("CD-9#result-failures"), sight: { kind: "method", recipe: RESULT_UNION, outcomeSeenBy: [REBINDING] } },
     { clause: clauseAddressSchema.parse("CD-32#pii-redaction"), sight: { kind: "outside-the-cases" } },
-    { clause: clauseAddressSchema.parse("CD-15#loops"), sight: { kind: "one-symptom", symptom: symptomNameSchema.parse("loop-keyword") } },
   ],
 };
 
@@ -116,24 +134,7 @@ describe("symptomReadingOf", () => {
       finding: { clause: clauseAddressSchema.parse("team/CD-44#parameter-reassignment") },
       reading: { reading: "not-in-catalogue" },
     },
-    {
-      name: "is not in the catalogue for a clause whose symptom the catalogue does not hold",
-      finding: { clause: clauseAddressSchema.parse("CD-15#loops") },
-      reading: { reading: "not-in-catalogue" },
-    },
   ])("$name", ({ finding, reading }) => {
     expect(symptomReadingOf({ catalogue: CATALOGUE, finding })).toEqual(reading);
-  });
-
-  it("is not in the catalogue for any clause when the catalogue is empty", () => {
-    expect(
-      symptomReadingOf({ catalogue: EMPTY_SYMPTOM_CATALOGUE, finding: { clause: clauseAddressSchema.parse("CD-44#parameter-reassignment") } }),
-    ).toEqual({ reading: "not-in-catalogue" });
-  });
-});
-
-describe("EMPTY_SYMPTOM_CATALOGUE", () => {
-  it("holds nothing", () => {
-    expect(EMPTY_SYMPTOM_CATALOGUE).toEqual({ principles: [], rules: [], recipes: [], recordKinds: [], symptoms: [], clauses: [] });
   });
 });

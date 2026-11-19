@@ -72,11 +72,11 @@
     { "name": "declared-not-bundled", "title": "Declared, not bundled", "standing": "proposed" }
   ],
   "recordKinds": [
-    { "name": "authorised-location", "title": "Authorised location", "todaysFormat": "authorised-location" },
-    { "name": "deviation", "title": "Deviation", "todaysFormat": "none-yet" },
-    { "name": "debt", "title": "Debt", "todaysFormat": "file-carve-out" },
-    { "name": "boundary-record", "title": "Boundary record", "todaysFormat": "authorised-location" },
-    { "name": "dependency-record", "title": "Dependency record", "todaysFormat": "none-yet" }
+    { "name": "authorised-location", "title": "Authorised location", "phrase": "an authorised location", "todaysFormat": "authorised-location" },
+    { "name": "deviation", "title": "Deviation", "phrase": "a deviation", "todaysFormat": "none-yet" },
+    { "name": "debt", "title": "Debt", "phrase": "debt", "todaysFormat": "file-carve-out" },
+    { "name": "boundary-record", "title": "Boundary record", "phrase": "a boundary record", "todaysFormat": "authorised-location" },
+    { "name": "dependency-record", "title": "Dependency record", "phrase": "a dependency record", "todaysFormat": "none-yet" }
   ],
   "symptoms": [
     {
@@ -87,12 +87,9 @@
         { "case": "Needs the current time", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] },
         { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "In the unit that should be passed the time; often a doer doing two jobs.",
+      "breachUsuallySits": "in the unit that should be passed the time, often a doer doing two jobs",
       "recipes": ["world-values-through-a-port"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in the clock's adapter" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on the clock adapter" }]
     },
     {
       "name": "ambient-randomness",
@@ -101,12 +98,9 @@
       "mayIndicate": [
         { "case": "Needs a random value or a new id", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "In the unit that should be passed the value; often a doer doing two jobs.",
+      "breachUsuallySits": "in the unit that should be passed the value, often a doer doing two jobs",
       "recipes": ["world-values-through-a-port"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in the adapter for random values or new ids" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on the adapter for random values or new ids" }]
     },
     {
       "name": "process-global-used-in-place",
@@ -117,12 +111,9 @@
         { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
         { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }] }
       ],
-      "breachUsuallySits": "A missing port; or an adapter not built at the entry point.",
+      "breachUsuallySits": "at a missing port, or at an adapter not built at the entry point",
       "recipes": ["world-values-through-a-port", "adapter-per-outside-party", "composition-root"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in the adapter that wraps the process" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on the adapter that wraps the process" }]
     },
     {
       "name": "outside-import-past-a-boundary",
@@ -132,12 +123,9 @@
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] },
         { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] }
       ],
-      "breachUsuallySits": "A missing adapter and port.",
+      "breachUsuallySits": "at a missing adapter and port",
       "recipes": ["adapter-per-outside-party", "port-in-the-domain"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in the adapter for that outside party" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on the adapter for that outside party" }]
     },
     {
       "name": "outside-type-in-a-signature",
@@ -146,12 +134,9 @@
       "mayIndicate": [
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "no-leak-across-a-boundary" }] }
       ],
-      "breachUsuallySits": "The adapter that hands the outside type inward.",
+      "breachUsuallySits": "in the adapter that hands the outside type inward",
       "recipes": ["adapter-per-outside-party"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "inside the adapter; beyond it, with a Conformist statement for an outside model adopted as ours" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on the adapter, or beyond it with a Conformist statement for an outside model adopted as ours" }]
     },
     {
       "name": "library-class-built-in-place",
@@ -161,12 +146,9 @@
         { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }] },
         { "case": "Keeps state or settings across calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
-      "breachUsuallySits": "A missing adapter.",
+      "breachUsuallySits": "at a missing adapter",
       "recipes": ["adapter-per-outside-party", "closure-factory"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in that dependency's adapter" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "boundary-record", "at": "on that dependency's adapter" }]
     },
     {
       "name": "text-past-its-reader",
@@ -178,12 +160,11 @@
         { "case": "Uses a system or service outside the program", "points": [{ "principle": "external-behaviour-sits-at-a-boundary" }] },
         { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "A port that takes or gives text where it should carry objects.",
+      "breachUsuallySits": "in a port that takes or gives text where it should carry objects",
       "recipes": ["adapter-per-outside-party", "map-out-at-the-adapter", "zod-at-the-producers-adapter", "whole-written-out-expectation"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "correct use, in the adapter for whoever produced or receives the text" },
-        { "kind": "authorised-location", "when": "at one test site, for this symptom alone" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
+      "correctUses": [
+        { "situation": "correct use", "kind": "boundary-record", "at": "on the adapter for whoever produced or receives the text" },
+        { "situation": "a use at one test site", "kind": "authorised-location", "at": "for this symptom alone" }
       ]
     },
     {
@@ -194,12 +175,9 @@
         { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
-      "breachUsuallySits": "The adapter, which hands the wire type inward instead of mapping it.",
+      "breachUsuallySits": "in the adapter, which hands the wire type inward instead of mapping it",
       "recipes": ["zod-at-the-producers-adapter"],
-      "answeredBy": [
-        { "kind": "boundary-record", "when": "with a Conformist statement, for an outside model adopted as ours" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "an outside model adopted as ours", "kind": "boundary-record", "at": "with a Conformist statement" }]
     },
     {
       "name": "claimed-type",
@@ -210,12 +188,9 @@
         { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }] },
         { "case": "Builds an input for a test with a cast", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
-      "breachUsuallySits": "The declaration: an input too wide, a generic not bounded, a missing parse.",
+      "breachUsuallySits": "in the declaration: an input too wide, a generic not bounded, a missing parse",
       "recipes": ["fix-the-declaration-not-the-value", "assert-to-narrow", "one-argument-object"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "in the adapter whose outside contract forces it" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "authorised-location", "at": "in the adapter whose outside contract forces it" }]
     },
     {
       "name": "untyped-value",
@@ -225,11 +200,9 @@
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
         { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
-      "breachUsuallySits": "The boundary that let an unknown shape in.",
+      "breachUsuallySits": "at the boundary that let an unknown shape in",
       "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "own-type-guard",
@@ -239,11 +212,9 @@
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
         { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
-      "breachUsuallySits": "A missing schema parse at the adapter, or a declaration too wide.",
+      "breachUsuallySits": "at a missing schema parse in the adapter, or in a declaration too wide",
       "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "type-derived-from-code",
@@ -253,12 +224,9 @@
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The producer, which has no named type.",
+      "breachUsuallySits": "in the producer, which has no named type",
       "recipes": ["named-exported-type"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "in the adapter for an outside dependency that gives no named type" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "authorised-location", "at": "in the adapter for an outside dependency that gives no named type" }]
     },
     {
       "name": "strictness-weakened",
@@ -267,11 +235,9 @@
       "mayIndicate": [
         { "case": "Sets how strictly the checker works", "points": [{ "principle": "the-type-checker-proves-it" }] }
       ],
-      "breachUsuallySits": "The base config or the project that overrides it.",
+      "breachUsuallySits": "in the base config or the project that overrides it",
       "recipes": ["shared-strict-base-config"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "default-on-a-closed-union",
@@ -280,11 +246,9 @@
       "mayIndicate": [
         { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
       ],
-      "breachUsuallySits": "The switch.",
+      "breachUsuallySits": "in the switch",
       "recipes": ["tagged-union-and-exhaustive-switch"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "boolean-in-a-signature",
@@ -294,11 +258,9 @@
         { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
         { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "A missing named kind, or a unit with two modes.",
+      "breachUsuallySits": "at a missing named kind, or in a unit with two modes",
       "recipes": ["tagged-union-and-exhaustive-switch"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "absence-standing-for-a-state",
@@ -308,11 +270,9 @@
         { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
         { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
-      "breachUsuallySits": "The type, which needs named kinds.",
+      "breachUsuallySits": "in the type, which needs named kinds",
       "recipes": ["tagged-union-and-exhaustive-switch"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "default-for-a-required-value",
@@ -323,11 +283,9 @@
         { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
-      "breachUsuallySits": "The declaration or the adapter: a missing value is a failure.",
+      "breachUsuallySits": "in the declaration or the adapter: a missing value is a failure",
       "recipes": ["zod-at-the-producers-adapter", "bounded-context-generic"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "throw-between-our-units",
@@ -337,12 +295,9 @@
         { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
         { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
-      "breachUsuallySits": "The unit, or a missing mapping at the adapter.",
+      "breachUsuallySits": "in the unit, or at a missing mapping in the adapter",
       "recipes": ["result-union", "failure-mapping-at-the-adapter"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "at an adapter whose caller's contract is exceptions" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "authorised-location", "at": "at an adapter whose caller's contract is exceptions" }]
     },
     {
       "name": "thrown-non-error",
@@ -351,11 +306,9 @@
       "mayIndicate": [
         { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
-      "breachUsuallySits": "The throw site.",
+      "breachUsuallySits": "at the throw site",
       "recipes": ["failure-mapping-at-the-adapter"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "failure-shaped-as-success",
@@ -364,11 +317,9 @@
       "mayIndicate": [
         { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
       ],
-      "breachUsuallySits": "The unit's return type.",
+      "breachUsuallySits": "in the unit's return type",
       "recipes": ["result-union"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "catch-all-failure-kind",
@@ -378,11 +329,9 @@
         { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
         { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
       ],
-      "breachUsuallySits": "The adapter, which did not name the outside failure.",
+      "breachUsuallySits": "in the adapter, which did not name the outside failure",
       "recipes": ["result-union", "failure-mapping-at-the-adapter"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "loop-keyword",
@@ -393,12 +342,9 @@
         { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
         { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "The unit.",
+      "breachUsuallySits": "in the unit",
       "recipes": ["functional-iteration"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "draining a stream in its source's adapter" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "draining a stream", "kind": "authorised-location", "at": "in its source's adapter" }]
     },
     {
       "name": "write-into-a-parameter",
@@ -407,11 +353,9 @@
       "mayIndicate": [
         { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] }
       ],
-      "breachUsuallySits": "The unit.",
+      "breachUsuallySits": "in the unit",
       "recipes": ["copy-never-write-in"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "rebinding",
@@ -421,11 +365,9 @@
         { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] },
         { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "The unit. No caller sees it, so on its own it shows no hidden effect; it is suspect for work done inline in steps.",
+      "breachUsuallySits": "in the unit: no caller sees it, so on its own it shows no hidden effect, but it is suspect for work done inline in steps",
       "recipes": ["copy-never-write-in", "functional-iteration"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "authored-class-or-this",
@@ -436,11 +378,9 @@
         { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
         { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
-      "breachUsuallySits": "The unit.",
+      "breachUsuallySits": "in the unit",
       "recipes": ["closure-factory"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "module-level-state",
@@ -449,11 +389,9 @@
       "mayIndicate": [
         { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
       ],
-      "breachUsuallySits": "A missing adapter for the state.",
+      "breachUsuallySits": "at a missing adapter for the state",
       "recipes": ["closure-factory"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "long-function",
@@ -467,11 +405,9 @@
         { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
         { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.",
+      "breachUsuallySits": "in the unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named",
       "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "tangled-function",
@@ -485,11 +421,9 @@
         { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
         { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.",
+      "breachUsuallySits": "in the unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named",
       "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "work-inside-a-condition",
@@ -499,11 +433,9 @@
         { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
         { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "The unit's questions.",
+      "breachUsuallySits": "in the unit's questions",
       "recipes": ["guard-clauses"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "orchestrator-that-computes",
@@ -512,11 +444,9 @@
       "mayIndicate": [
         { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "The orchestrator.",
+      "breachUsuallySits": "in the orchestrator",
       "recipes": ["composed-orchestrator"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "doer-calling-our-own-unit",
@@ -526,11 +456,9 @@
         { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "The unit, mixing two roles.",
+      "breachUsuallySits": "in the unit, which mixes two roles",
       "recipes": ["composed-orchestrator", "ports-in-the-argument"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "positional-parameters",
@@ -540,11 +468,9 @@
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] },
         { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
-      "breachUsuallySits": "The signature.",
+      "breachUsuallySits": "in the signature",
       "recipes": ["one-argument-object"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "tuple-as-data",
@@ -553,11 +479,9 @@
       "mayIndicate": [
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The data's type.",
+      "breachUsuallySits": "in the data's type",
       "recipes": ["one-argument-object"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "wide-input",
@@ -567,11 +491,9 @@
         { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] },
         { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
-      "breachUsuallySits": "The unit's declared input.",
+      "breachUsuallySits": "in the unit's declared input",
       "recipes": ["one-argument-object", "entity-module"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "wide-port",
@@ -580,11 +502,9 @@
       "mayIndicate": [
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "handed-what-it-uses" }, { "rule": "ports-declared-inside" }] }
       ],
-      "breachUsuallySits": "The port.",
+      "breachUsuallySits": "in the port",
       "recipes": ["narrow-ports"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "inner-layer-imports-outer",
@@ -593,11 +513,9 @@
       "mayIndicate": [
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
       ],
-      "breachUsuallySits": "The import, or a port declared on the wrong side.",
+      "breachUsuallySits": "in the import, or in a port declared on the wrong side",
       "recipes": ["port-in-the-domain"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "port-outside-the-domain",
@@ -606,11 +524,9 @@
       "mayIndicate": [
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] }
       ],
-      "breachUsuallySits": "The port's file.",
+      "breachUsuallySits": "in the port's file",
       "recipes": ["port-in-the-domain"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "adapter-built-outside-the-root",
@@ -619,11 +535,9 @@
       "mayIndicate": [
         { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }, { "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "The calling unit, which builds what it should be passed.",
+      "breachUsuallySits": "in the calling unit, which builds what it should be passed",
       "recipes": ["composition-root"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "port-named-for-a-mechanism",
@@ -633,11 +547,9 @@
         { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] },
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The port.",
+      "breachUsuallySits": "in the port",
       "recipes": ["port-in-the-domain"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "double-with-a-body",
@@ -646,12 +558,9 @@
       "mayIndicate": [
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "handed-what-it-uses" }, { "rule": "doer-or-orchestrator" }] }
       ],
-      "breachUsuallySits": "A port too wide, or a collaborator holding two decisions.",
+      "breachUsuallySits": "in a port too wide, or in a collaborator holding two decisions",
       "recipes": ["stub-with-vifn"],
-      "answeredBy": [
-        { "kind": "deviation", "when": "from Stub with vi.fn: a fake, where a stub cannot do the test" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "a fake, where a stub cannot do the test", "kind": "deviation", "at": "from Stub with vi.fn" }]
     },
     {
       "name": "module-or-global-patched",
@@ -660,11 +569,9 @@
       "mayIndicate": [
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "ports-declared-inside" }] }
       ],
-      "breachUsuallySits": "The unit, which imports what it should be passed.",
+      "breachUsuallySits": "in the unit, which imports what it should be passed",
       "recipes": ["ports-in-the-argument"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "branch-in-a-test",
@@ -673,11 +580,9 @@
       "mayIndicate": [
         { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }, { "rule": "kinds-are-named" }, { "rule": "failures-are-values" }] }
       ],
-      "breachUsuallySits": "Often the unit's output type: optional or loose shapes force the test to branch.",
+      "breachUsuallySits": "in the unit's output type, where optional or loose shapes force the test to branch",
       "recipes": ["assert-to-narrow", "iteach-over-typed-rows"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "computed-value-in-a-test",
@@ -686,11 +591,9 @@
       "mayIndicate": [
         { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "The test, or logic no unit owns.",
+      "breachUsuallySits": "in the test, or in logic no unit owns",
       "recipes": ["whole-written-out-expectation", "iteach-over-typed-rows"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "throw-or-catch-in-a-test",
@@ -700,11 +603,9 @@
         { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }] },
         { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
       ],
-      "breachUsuallySits": "Often the unit, which throws.",
+      "breachUsuallySits": "in the unit, which throws",
       "recipes": ["failure-asserted-as-a-value"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "unasserted-call",
@@ -713,11 +614,9 @@
       "mayIndicate": [
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "The test.",
+      "breachUsuallySits": "in the test",
       "recipes": ["stub-with-vifn"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "answer-set-in-a-hook",
@@ -728,11 +627,9 @@
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] },
         { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
-      "breachUsuallySits": "A double or a value shared across tests at file or suite scope; or state held in the unit's module.",
+      "breachUsuallySits": "in a double or a value shared across tests at file or suite scope, or in state held in the unit's module",
       "recipes": ["stub-with-vifn"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "test-switched-off",
@@ -741,11 +638,9 @@
       "mayIndicate": [
         { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
-      "breachUsuallySits": "The test file.",
+      "breachUsuallySits": "in the test file",
       "recipes": [],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "unit-without-a-running-test",
@@ -754,11 +649,9 @@
       "mayIndicate": [
         { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
-      "breachUsuallySits": "The missing test.",
+      "breachUsuallySits": "in the missing test",
       "recipes": ["companion-test-file"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "machine-touched-in-a-unit-test",
@@ -768,11 +661,9 @@
         { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] },
         { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "The unit, which has no port; or a test that is an integration test misnamed.",
+      "breachUsuallySits": "in the unit, which has no port, or in a test that is an integration test misnamed",
       "recipes": ["integration-test-owns-its-scratch", "integration-test-suffix", "ports-in-the-argument"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "inherited-environment-in-a-subprocess",
@@ -781,11 +672,9 @@
       "mayIndicate": [
         { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
-      "breachUsuallySits": "The spawn site.",
+      "breachUsuallySits": "at the spawn site",
       "recipes": ["integration-test-owns-its-scratch"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "behaviour-tested-away-from-its-owner",
@@ -795,11 +684,9 @@
         { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] },
         { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] }
       ],
-      "breachUsuallySits": "The test level.",
+      "breachUsuallySits": "in the level the test is written at",
       "recipes": ["companion-test-file", "integration-test-suffix"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "integration-heavy-suite",
@@ -808,11 +695,9 @@
       "mayIndicate": [
         { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
-      "breachUsuallySits": "Missing unit tests and ports.",
+      "breachUsuallySits": "in missing unit tests and ports",
       "recipes": ["integration-test-suffix", "companion-test-file"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "coverage-gate",
@@ -821,11 +706,9 @@
       "mayIndicate": [
         { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
-      "breachUsuallySits": "The config.",
+      "breachUsuallySits": "in the config",
       "recipes": ["companion-test-file"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "large-input-for-a-few-fields",
@@ -835,11 +718,9 @@
         { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
         { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
-      "breachUsuallySits": "The unit's declared input.",
+      "breachUsuallySits": "in the unit's declared input",
       "recipes": ["one-argument-object"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "test-of-the-type-checker",
@@ -848,11 +729,9 @@
       "mayIndicate": [
         { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "principle": "the-type-checker-proves-it" }] }
       ],
-      "breachUsuallySits": "The test.",
+      "breachUsuallySits": "in the test",
       "recipes": [],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "shorthand-name",
@@ -861,12 +740,9 @@
       "mayIndicate": [
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The name.",
+      "breachUsuallySits": "in the name",
       "recipes": ["whole-words"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "for a name an outside contract fixes" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "a name an outside contract fixes", "kind": "authorised-location" }]
     },
     {
       "name": "name-off-its-casing",
@@ -875,12 +751,9 @@
       "mayIndicate": [
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The name.",
+      "breachUsuallySits": "in the name",
       "recipes": [],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "for an outside contract's names, such as `PATH` or ESLint listener keys" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "an outside contract's names, such as `PATH` or ESLint listener keys", "kind": "authorised-location" }]
     },
     {
       "name": "drawer-path",
@@ -889,11 +762,9 @@
       "mayIndicate": [
         { "case": "Puts code in a file or folder", "points": [{ "rule": "one-reason-per-module" }] }
       ],
-      "breachUsuallySits": "The module's contents.",
+      "breachUsuallySits": "in the module's contents",
       "recipes": ["screaming-folders"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "types-only-file",
@@ -903,11 +774,9 @@
         { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] },
         { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] }
       ],
-      "breachUsuallySits": "The entity's module.",
+      "breachUsuallySits": "in the entity's module",
       "recipes": ["entity-module"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "prose-in-code",
@@ -916,11 +785,9 @@
       "mayIndicate": [
         { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "A name or type that does not carry the meaning.",
+      "breachUsuallySits": "in a name or type that does not carry the meaning",
       "recipes": ["meaning-in-names-not-comments"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "untracked-escape",
@@ -929,11 +796,9 @@
       "mayIndicate": [
         { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The record that is missing, and whatever rule the directive switches off.",
+      "breachUsuallySits": "in the record that is missing, and in whatever rule the directive switches off",
       "recipes": ["meaning-in-names-not-comments"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "many-spellings-of-one-concept",
@@ -942,11 +807,9 @@
       "mayIndicate": [
         { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
-      "breachUsuallySits": "The vocabulary.",
+      "breachUsuallySits": "in the vocabulary",
       "recipes": ["domain-vocabulary-list"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "outside-dependency-vocabulary-for-basic-logic",
@@ -956,11 +819,9 @@
         { "case": "Writes basic logic", "points": [{ "principle": "our-code-reads-in-the-common-language" }] },
         { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
       ],
-      "breachUsuallySits": "The dependency.",
+      "breachUsuallySits": "in the dependency",
       "recipes": [],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "duplicate-decision",
@@ -970,11 +831,9 @@
         { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
         { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
       ],
-      "breachUsuallySits": "Where the decision's home should be. A clone only surfaces a candidate.",
+      "breachUsuallySits": "where the decision's home should be; a clone only surfaces a candidate",
       "recipes": ["entity-module", "screaming-folders"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "change-spread-across-modules",
@@ -983,11 +842,9 @@
       "mayIndicate": [
         { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
       ],
-      "breachUsuallySits": "The module boundaries.",
+      "breachUsuallySits": "in the module boundaries",
       "recipes": ["screaming-folders"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "floating-version",
@@ -996,11 +853,9 @@
       "mayIndicate": [
         { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
       ],
-      "breachUsuallySits": "The manifest or workflow.",
+      "breachUsuallySits": "in the manifest or workflow",
       "recipes": ["exact-pins-and-a-lock-file"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "no-lock-file",
@@ -1009,11 +864,9 @@
       "mayIndicate": [
         { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
       ],
-      "breachUsuallySits": "The repository.",
+      "breachUsuallySits": "in the repository",
       "recipes": ["exact-pins-and-a-lock-file"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "dependency-without-a-record",
@@ -1022,12 +875,9 @@
       "mayIndicate": [
         { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
       ],
-      "breachUsuallySits": "The record.",
+      "breachUsuallySits": "in the missing record",
       "recipes": ["dependency-record"],
-      "answeredBy": [
-        { "kind": "dependency-record", "when": "naming the native way weighed and why it fell short" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "correct use", "kind": "dependency-record", "at": "naming the native way weighed and why it fell short" }]
     },
     {
       "name": "tool-fetched-at-run-time",
@@ -1036,11 +886,9 @@
       "mayIndicate": [
         { "case": "Takes an outside dependency", "points": [{ "rule": "tools-live-in-the-repo" }] }
       ],
-      "breachUsuallySits": "The script.",
+      "breachUsuallySits": "in the script",
       "recipes": ["repo-scripts-only"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     },
     {
       "name": "edit-inside-vendored-code",
@@ -1049,12 +897,9 @@
       "mayIndicate": [
         { "case": "Takes an outside dependency", "points": [{ "rule": "upstream-stays-untouched" }] }
       ],
-      "breachUsuallySits": "The change.",
+      "breachUsuallySits": "in the change",
       "recipes": ["extension-outside-the-vendored-code"],
-      "answeredBy": [
-        { "kind": "authorised-location", "when": "drift: an edit impossible to apply as an extension, stating when to drop it" },
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": [{ "situation": "drift, an edit impossible to apply as an extension", "kind": "authorised-location", "at": "stating when to drop it" }]
     },
     {
       "name": "bundled-dependency",
@@ -1063,11 +908,9 @@
       "mayIndicate": [
         { "case": "Ships code for others", "points": [{ "rule": "shipped-risk-declared" }] }
       ],
-      "breachUsuallySits": "The build config.",
+      "breachUsuallySits": "in the build config",
       "recipes": ["declared-not-bundled"],
-      "answeredBy": [
-        { "kind": "debt", "when": "a known breach not yet paid" }
-      ]
+      "correctUses": []
     }
   ],
   "clauses": [

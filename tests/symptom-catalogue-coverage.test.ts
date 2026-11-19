@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
-import { type SymptomCatalogue, symptomNameSchema } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { RecordKind, Symptom, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { catalogueCoverageOf, formSectionsOf, symptomNamesOf } from "./symptom-catalogue-coverage.ts";
@@ -19,24 +19,49 @@ const CD44_TEXT = `{
   ]
 }`;
 
-const CATALOGUE: SymptomCatalogue = {
+const symptomNamed = (name: string): Symptom => ({
+  name,
+  title: name,
+  seen: name,
+  mayIndicate: [],
+  breachUsuallySits: "in the unit",
+  recipes: [],
+  correctUses: [],
+});
+
+const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
+
+const AUTHORISED_LOCATION: RecordKind = {
+  name: "authorised-location",
+  title: "Authorised location",
+  phrase: "an authorised location",
+  todaysFormat: "authorised-location",
+};
+
+const NOTHING_CATALOGUED: SymptomCatalogue = {
   principles: [],
   rules: [],
   recipes: [],
-  recordKinds: [],
+  recordKinds: [AUTHORISED_LOCATION, DEBT],
+  alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
   symptoms: [],
+  clauses: [],
+};
+
+const CATALOGUE: SymptomCatalogue = {
+  ...NOTHING_CATALOGUED,
   clauses: [
     {
       clause: clauseAddressSchema.parse("CD-44#parameter-mutation"),
-      sight: { kind: "one-symptom", symptom: symptomNameSchema.parse("write-into-a-parameter") },
+      sight: { kind: "one-symptom", symptom: symptomNamed("write-into-a-parameter") },
     },
     {
       clause: clauseAddressSchema.parse("CD-27#test-body-logic"),
       sight: {
         kind: "symptom-by-form",
         forms: [
-          { section: "branching-with-if", symptom: symptomNameSchema.parse("branch-in-a-test") },
-          { section: "a-let", symptom: symptomNameSchema.parse("rebinding") },
+          { section: "branching-with-if", symptom: symptomNamed("branch-in-a-test") },
+          { section: "a-let", symptom: symptomNamed("rebinding") },
         ],
       },
     },
@@ -76,11 +101,7 @@ describe("catalogueCoverageOf", () => {
   it("names nothing missing when the catalogue lists each clause of the disciplines and no other", () => {
     const fileText = fileTextReading({ outcome: "ok", value: CD44_TEXT });
     const catalogue: SymptomCatalogue = {
-      principles: [],
-      rules: [],
-      recipes: [],
-      recordKinds: [],
-      symptoms: [],
+      ...NOTHING_CATALOGUED,
       clauses: [
         { clause: clauseAddressSchema.parse("CD-44#parameter-mutation"), sight: { kind: "outside-the-cases" } },
         { clause: clauseAddressSchema.parse("CD-44#parameter-reassignment"), sight: { kind: "outside-the-cases" } },
@@ -131,33 +152,9 @@ describe("formSectionsOf", () => {
 
 describe("symptomNamesOf", () => {
   it("lists each symptom's name in catalogue order", () => {
-    const catalogue: SymptomCatalogue = {
-      principles: [],
-      rules: [],
-      recipes: [],
-      recordKinds: [],
-      symptoms: [
-        {
-          name: symptomNameSchema.parse("rebinding"),
-          title: "Rebinding",
-          seen: "A `let` assigned again.",
-          mayIndicate: [],
-          breachUsuallySits: "The unit.",
-          recipes: [],
-          answeredBy: [],
-        },
-        {
-          name: symptomNameSchema.parse("loop-keyword"),
-          title: "Loop keyword",
-          seen: "`for` or `while`.",
-          mayIndicate: [],
-          breachUsuallySits: "The unit.",
-          recipes: [],
-          answeredBy: [],
-        },
-      ],
-      clauses: [],
-    };
-    expect(symptomNamesOf({ catalogue })).toEqual(["rebinding", "loop-keyword"]);
+    expect(symptomNamesOf({ catalogue: { ...NOTHING_CATALOGUED, symptoms: [symptomNamed("rebinding"), symptomNamed("loop-keyword")] } })).toEqual([
+      "rebinding",
+      "loop-keyword",
+    ]);
   });
 });

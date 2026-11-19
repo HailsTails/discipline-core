@@ -105,30 +105,35 @@ const reading = createSymptomCatalogueRepository({ fileText: FILE_TEXT, path: PA
 
 describe("rules/typescript/symptoms.json, read from this repository through the catalogue's reader", () => {
   it("reads into the typed catalogue", () => {
-    expect(reading.outcome).toBe("ok");
+    expect(reading).toMatchObject({ outcome: "ok", value: { held: "catalogue" } });
   });
 
   it("lists each clause of every rules/*/discipline.json exactly once, and no other clause", () => {
     assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
 
     expect(DISCIPLINES).toHaveLength(40);
-    expect(catalogueCoverageOf({ catalogue: reading.value, fileText: FILE_TEXT, path: PATH, ruleSetRoot: REPO_ROOT, disciplines: DISCIPLINES })).toEqual({
+    expect(
+      catalogueCoverageOf({ catalogue: reading.value.catalogue, fileText: FILE_TEXT, path: PATH, ruleSetRoot: REPO_ROOT, disciplines: DISCIPLINES }),
+    ).toEqual({
       uncatalogued: [],
       unknown: [],
       unreadable: [],
     });
-    expect(reading.value.clauses).toHaveLength(60);
+    expect(reading.value.catalogue.clauses).toHaveLength(60);
   });
 
   it("reads CD-27#test-body-logic by form, one symptom for each section its findings name, in the walker's order", () => {
     assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
 
-    expect(formSectionsOf({ catalogue: reading.value, clause: "CD-27#test-body-logic" })).toEqual(TEST_BODY_SECTIONS);
+    expect(formSectionsOf({ catalogue: reading.value.catalogue, clause: "CD-27#test-body-logic" })).toEqual(TEST_BODY_SECTIONS);
   });
 
   it("holds every symptom on the Step 5 page, in its order", () => {
     assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
 
-    expect(symptomNamesOf({ catalogue: reading.value })).toEqual(SYMPTOMS_ON_THE_STEP_5_PAGE);
+    expect(symptomNamesOf({ catalogue: reading.value.catalogue })).toEqual(SYMPTOMS_ON_THE_STEP_5_PAGE);
   });
 });

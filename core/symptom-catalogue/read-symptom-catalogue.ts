@@ -4,7 +4,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import { readVersionOneJson } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
-import { EMPTY_SYMPTOM_CATALOGUE, type SymptomCatalogue } from "./symptom-catalogue.ts";
+import type { CatalogueHolding } from "./symptom-catalogue.ts";
 import type { SymptomCatalogueRepository } from "./symptom-catalogue-repository.ts";
 import { symptomCatalogueOf } from "./symptom-catalogue-wire.ts";
 
@@ -16,10 +16,10 @@ type CatalogueSource = {
   readonly ruleSetRoot: AbsolutePath;
 };
 
-const readSymptomCatalogue = (request: CatalogueSource): Result<SymptomCatalogue, LoadFailure> => {
+const readSymptomCatalogue = (request: CatalogueSource): Result<CatalogueHolding, LoadFailure> => {
   const path = request.path.join({ segments: [request.ruleSetRoot, ...SYMPTOM_CATALOGUE_SEGMENTS] });
   if (request.fileText.exists({ path }) === "absent") {
-    return { outcome: "ok", value: EMPTY_SYMPTOM_CATALOGUE };
+    return { outcome: "ok", value: { held: "none" } };
   }
   const document = readVersionOneJson({ fileText: request.fileText, path });
   if (document.outcome === "failed") {
@@ -28,7 +28,7 @@ const readSymptomCatalogue = (request: CatalogueSource): Result<SymptomCatalogue
   const catalogue = symptomCatalogueOf({ document: document.value });
   return catalogue.outcome === "failed"
     ? { outcome: "failed", error: { kind: "file-malformed", path, detail: catalogue.error } }
-    : catalogue;
+    : { outcome: "ok", value: { held: "catalogue", catalogue: catalogue.value } };
 };
 
 export const createSymptomCatalogueRepository = (options: CatalogueSource): SymptomCatalogueRepository => ({
