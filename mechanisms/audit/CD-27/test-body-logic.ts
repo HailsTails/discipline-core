@@ -12,8 +12,10 @@ type Remedy = NonNullable<PieceHit["remedy"]>;
 
 export type TestBodyForm = {
   readonly introducedIn: Edition;
-  readonly remedy: Remedy;
+  readonly remedy?: Remedy;
 };
+
+type RemediedForm = TestBodyForm & { readonly remedy: Remedy };
 
 type FormRequest = { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode };
 
@@ -25,9 +27,9 @@ type PageSection = Omit<Remedy, "page">;
 
 const onAllowedFormsPage = (section: PageSection): Remedy => ({ fix: section.fix, page: ALLOWED_FORMS_PAGE, section: section.section });
 
-const firstEdition = (section: PageSection): TestBodyForm => ({ introducedIn: FIRST_EDITION, remedy: onAllowedFormsPage(section) });
+const firstEdition = (section: PageSection): RemediedForm => ({ introducedIn: FIRST_EDITION, remedy: onAllowedFormsPage(section) });
 
-const secondEdition = (section: PageSection): TestBodyForm => ({ introducedIn: SECOND_EDITION, remedy: onAllowedFormsPage(section) });
+const secondEdition = (section: PageSection): RemediedForm => ({ introducedIn: SECOND_EDITION, remedy: onAllowedFormsPage(section) });
 
 const BRANCHING = firstEdition({
   fix: "write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it",
@@ -57,11 +59,11 @@ const INDEXED_OPTIONAL_CHAIN = secondEdition({
   section: "an-optional-chain-after-an-index",
 });
 const MOCK_CALL_OPTIONAL_CHAIN = secondEdition({
-  fix: "assert the call with toHaveBeenCalledWith, toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
+  fix: "assert the call with toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
   section: "an-optional-chain-on-a-mock-call",
 });
 const MOCK_RESULT_OPTIONAL_CHAIN = secondEdition({
-  fix: "assert what it returned with toHaveReturnedWith, toHaveNthReturnedWith or toHaveLastReturnedWith",
+  fix: "assert what it returned with toHaveNthReturnedWith or toHaveLastReturnedWith",
   section: "an-optional-chain-on-a-mock-result",
 });
 const PROPERTY_OPTIONAL_CHAIN = secondEdition({
@@ -70,21 +72,18 @@ const PROPERTY_OPTIONAL_CHAIN = secondEdition({
 });
 const OPTIONAL_CALL = secondEdition({ fix: "assert.isDefined the function, then call it", section: "an-optional-call" });
 const SWITCH = secondEdition({ fix: "write one test per case, or one it.each table", section: "a-switch" });
-const JSON_STRINGIFY = secondEdition({ fix: "the page shows no form to write instead, and why", section: "serialising-json" });
-const JSON_PARSE = secondEdition({
-  fix: "read it back through the unit's own decoder",
-  section: "parsing-json",
-});
-const OBJECT_ASSIGN = secondEdition({ fix: "write the object out, spreading what it copies", section: "merging-objects" });
+const JSON_STRINGIFY: TestBodyForm = { introducedIn: SECOND_EDITION };
+const JSON_PARSE: TestBodyForm = { introducedIn: SECOND_EDITION };
+const OBJECT_ASSIGN = secondEdition({ fix: "write the object out, spreading what it copies; to give an Error a property, assign it", section: "merging-objects" });
 const OBJECT_FROM_ENTRIES = secondEdition({ fix: "write the object out as a literal", section: "building-an-object-from-entries" });
 const ARRAY_FROM = secondEdition({ fix: "write a short array out as a literal; the page shows no form for a long one", section: "building-an-array-from-a-length" });
 const MATH_CALL = secondEdition({ fix: "write the number out", section: "a-math-call" });
 const PASSED_ON_FUNCTION: Remedy = onAllowedFormsPage({
-  fix: "write its answer out: a stub that returns a written-out value, or a vi.fn spy with mockReturnValue and a written-out toHaveBeenCalledWith; CD-25 is the rule for test doubles",
+  fix: "make it a vi.fn spy with a written-out mockReturnValue, and assert what it was asked with toHaveBeenCalledExactlyOnceWith; CD-25 is the rule for test doubles",
   section: "logic-inside-a-function-the-test-passes-on",
 });
 
-const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
+const FORMS_IN_PAGE_ORDER: readonly RemediedForm[] = [
   BRANCHING,
   TRY_BLOCK,
   TERNARY,
@@ -99,8 +98,6 @@ const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
   PROPERTY_OPTIONAL_CHAIN,
   OPTIONAL_CALL,
   SWITCH,
-  JSON_STRINGIFY,
-  JSON_PARSE,
   OBJECT_ASSIGN,
   OBJECT_FROM_ENTRIES,
   ARRAY_FROM,
@@ -290,10 +287,40 @@ const nameTarget = (request: OriginRequest & { readonly name: string }): CallTar
   return fromLibrary ? "built-in-or-library" : "own-api";
 };
 
+const memberTarget = (request: OriginRequest & { readonly member: SyntaxNode }): CallTarget => {
+  const { syntaxApi, member, visited } = request;
+  if (syntaxApi.isShorthandPropertyAssignment(member)) {
+    return nameTarget({ syntaxApi, node: member, name: member.name.text, visited });
+  }
+  return syntaxApi.isPropertyAssignment(member) ? originTarget({ syntaxApi, node: member.initializer, visited }) : "own-api";
+};
+
+const heldMembersNamed = (request: FormRequest & { readonly holder: string; readonly member: string }): readonly SyntaxNode[] => {
+  const { syntaxApi, holder, member } = request;
+  return declarationsNamed({ syntaxApi, node: request.node, name: holder }).flatMap((declaration) => {
+    if (!syntaxApi.isVariableDeclaration(declaration) || !syntaxApi.isIdentifier(declaration.name)) return [];
+    const { initializer } = declaration;
+    if (initializer === undefined || !syntaxApi.isObjectLiteralExpression(initializer)) return [];
+    return initializer.properties.filter((property) =>
+      property.name !== undefined && syntaxApi.isIdentifier(property.name) && property.name.text === member);
+  });
+};
+
+const heldValueTarget = (request: OriginRequest): CallTarget | undefined => {
+  const { syntaxApi, node, visited } = request;
+  if (!syntaxApi.isPropertyAccessExpression(node) || !syntaxApi.isIdentifier(node.expression)) return undefined;
+  const members = heldMembersNamed({ syntaxApi, node, holder: node.expression.text, member: node.name.text });
+  if (members.length === 0) return undefined;
+  const fromLibrary = members.some((member) => memberTarget({ syntaxApi, node, member, visited }) === "built-in-or-library");
+  return fromLibrary ? "built-in-or-library" : "own-api";
+};
+
 const originTarget = (request: OriginRequest): CallTarget => {
   const { syntaxApi, node, visited } = request;
   const loadedModule = loadedModuleOf({ syntaxApi, node });
   if (loadedModule !== undefined) return moduleTarget({ specifier: loadedModule });
+  const held = heldValueTarget(request);
+  if (held !== undefined) return held;
   if (syntaxApi.isIdentifier(node)) return nameTarget({ syntaxApi, node, name: node.text, visited });
   if (syntaxApi.isStringLiteralLike(node) || syntaxApi.isArrayLiteralExpression(node) || syntaxApi.isTemplateExpression(node)) {
     return "built-in-or-library";
@@ -431,7 +458,8 @@ export const check: WalkerPiece = {
                   const position = node.getStart(sourceFile);
                   const anchor = anchorAt({ position });
                   const snippet = snippetAt({ source: sourceFile.text, position });
-                  hits.push(...reaching.map((clause) => ({ clause: clause.address, anchor, snippet, remedy: form.remedy })));
+                  const located = { anchor, snippet, ...(form.remedy === undefined ? {} : { remedy: form.remedy }) };
+                  hits.push(...reaching.map((clause) => ({ clause: clause.address, ...located })));
                 },
                 finish: () => hits,
               };

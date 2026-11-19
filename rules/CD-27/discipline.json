@@ -157,6 +157,14 @@
             ]
           },
           {
+            "name": "join on node:path held in an object literal",
+            "fileName": "held-path.test.ts",
+            "source": "import path from \"node:path\";\nconst deps = { path };\nexpect(deps.path.join(\"a\", \"b\", \"c\")).toBe(\"a/b/c\");\n",
+            "expectedLines": [
+              3
+            ]
+          },
+          {
             "name": "entries on an alias of Object",
             "fileName": "object-alias.test.ts",
             "source": "const o = Object;\nexpect(o.entries({ a: 1 })).toEqual([[\"a\", 1]]);\n",

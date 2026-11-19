@@ -19,17 +19,23 @@ Edition 1:
 - A method call with a computing or mutating name, wherever it could be the string or array method of that name: `map`, `filter`, `reduce`, `find`, `forEach`, `join`, `slice`, `split`, `replace`, `includes`, `sort`, `trim`, `keys`, `values`, `push`, `pop`, `splice`, `fill` and similar string and array methods.
 - Not flagged: a call with one of those names whose arguments no string or array method of that name accepts, which makes it the unit's own API. Either it passes an object literal where none of them takes an object, such as `paths.join({ segments: ["a", "b"] })`, or it passes more arguments than any of them takes, such as `screen.keys("x", true, true)`.
 - Still flagged, though they look like that:
-  - a call whose receiver traces back, through the file's own declarations, to a built-in namespace such as `Object` or `Math`, a package or `node:` module (imported, required or loaded with `import()`), or a string or array literal;
+  - a call whose receiver traces back to a built-in namespace such as `Object` or `Math`, a package or `node:` module (imported, required or loaded with `import()`), or a string or array literal. The trace follows variables declared in the test file, including destructuring and a property of an object literal declared there, such as `deps.path` after `const deps = { path }`;
   - a call that spreads its arguments;
   - an object at a position where a string or array method takes one, such as `rows.includes({ id: "a" })`, `rows.push({ id: "a" })`, `rows.reduce(sum, { total: 0 })`, `rows.find(isA, {})` or `text.split({ [Symbol.split]: splitter })`.
-- What this check cannot know: it reads names and syntax, not types, so it cannot tell what a receiver is. It flags the unit's own method given a variable, such as `repository.find(query)`, and it misses a string or array method it cannot trace, such as one taken off its receiver before the call. Only a check that reads types knows a receiver's identity, and Hone does not have one yet.
+- What this check cannot know: it reads names and syntax, not types, so it cannot tell what a receiver is.
+  - It flags the unit's own method given a variable, such as `repository.find(query)`.
+  - It misses a string or array method taken off its receiver before the call.
+  - It does not trace a receiver that is a function parameter, an `it.each` row, or a value from another module, even a relative module that re-exports a package; it reads these as the unit's own.
+  - It releases a method of another built-in or library type that shares a name, such as a stream's `values` or `reduce`, when that call passes an object or more arguments than the string or array method takes.
+
+  Only a check that reads types knows a receiver's identity, and Hone does not have one yet.
 - Loops are not flagged here; CD-15 covers them. `throw` is CD-10.
 
 Edition 2 also flags:
 - `??`, `||` and `&&`, and their assignment forms `??=`, `||=` and `&&=`.
 - Optional chaining: `a?.b`, `a?.[key]` and `f?.()`.
 - `switch` statements.
-- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method.
+- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method. A finding on `JSON.stringify` or `JSON.parse` has no `fix:`, and [Allowed forms in a test](#allowed-forms-in-a-test) has no section for either.
 
 Neither edition flags element access such as `calls[0]`, calls to free functions, a method called through a computed key, such as `rows["map"]`, or text built with a template literal. Helper files that tests import are not checked; only the test files themselves are.
 
@@ -59,7 +65,7 @@ expect(ids).toEqual(["a1", "b2"]);
 ```
 Write the expected value out. A method call in the act step is flagged too, so move such logic into the unit under test.
 
-Each finding ends with `fix:` and the page and section that show the allowed form for what it flagged, such as `(node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#an-optional-chain-after-an-index)`.
+A finding ends with `fix:` and the page and section that show the allowed form for what it flagged, where this page shows one, such as `(node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#an-optional-chain-after-an-index)`.
 
 ## Allowed forms in a test
 Each section shows a flagged form first, then the forms to write instead. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
@@ -244,14 +250,7 @@ const run = vi.fn<(task: { readonly id: string }) => void>();
 start(run);
 expect(run.mock.calls[0]?.[0].id).toBe("a");
 ```
-Assert the call:
-
-```ts
-declare const start: (run: (task: { readonly id: string }) => void) => void;
-const run = vi.fn<(task: { readonly id: string }) => void>();
-start(run);
-expect(run).toHaveBeenCalledWith({ id: "a" });
-```
+Assert that call by its position:
 
 ```ts
 declare const start: (run: (task: { readonly id: string }) => void) => void;
@@ -271,26 +270,23 @@ expect(run).toHaveBeenLastCalledWith({ id: "a" });
 
 ### An optional chain on a mock result
 ```ts
-declare const settle: (price: (amount: number) => number) => void;
-const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
-settle(price);
-expect(price.mock.results[0]?.value).toBe(4);
+declare const pricing: { readonly priceOf: (amount: number) => number };
+declare const settle: (prices: { readonly priceOf: (amount: number) => number }) => void;
+const priceOf = vi.spyOn(pricing, "priceOf");
+settle(pricing);
+expect(priceOf.mock.results[0]?.value).toBe(4);
 ```
-Assert what it returned:
+Assert what that call returned, by its position:
 
 ```ts
-declare const settle: (price: (amount: number) => number) => void;
-const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
-settle(price);
-expect(price).toHaveReturnedWith(4);
+declare const pricing: { readonly priceOf: (amount: number) => number };
+declare const settle: (prices: { readonly priceOf: (amount: number) => number }) => void;
+const priceOf = vi.spyOn(pricing, "priceOf");
+settle(pricing);
+expect(priceOf).toHaveNthReturnedWith(1, 4);
 ```
 
-```ts
-declare const settle: (price: (amount: number) => number) => void;
-const price = vi.fn<(amount: number) => number>().mockReturnValue(4);
-settle(price);
-expect(price).toHaveNthReturnedWith(1, 4);
-```
+`toHaveLastReturnedWith` asserts what the last call returned.
 
 An optional chain on `mock.instances` or `mock.contexts` names [An optional chain after an index](#an-optional-chain-after-an-index).
 
@@ -358,30 +354,6 @@ it.each([
 });
 ```
 
-### Serialising JSON
-```ts
-declare const handle: (requestText: string) => number;
-expect(handle(JSON.stringify({ id: "a" }))).toBe(201);
-```
-This page shows no form to write instead. JSON text written out by hand moves the escaping into the test, and it can be less correct than the `JSON.stringify` it replaces.
-
-The check does not read template literals, so it does not flag JSON text a test builds from one, such as a function returning `` `{ "version": "${version}" }` ``. That is a limit of the check.
-
-### Parsing JSON
-```ts
-declare const render: (row: { readonly id: string }) => string;
-expect(JSON.parse(render({ id: "a" }))).toEqual({ id: "a" });
-```
-Read it back through the unit's own decoder:
-
-```ts
-declare const render: (row: { readonly id: string }) => string;
-declare const decode: (text: string) => { readonly id: string };
-expect(decode(render({ id: "a" }))).toEqual({ id: "a" });
-```
-
-A unit with no decoder of its own has no form on this page.
-
 ### Merging objects
 ```ts
 const base = { method: "POST", path: "/tasks" } as const;
@@ -396,7 +368,14 @@ const request = { ...base, body: "a" };
 expect(request.body).toBe("a");
 ```
 
-A Node error with a `code`, as `Object.assign(new Error("ENOENT"), { code: "ENOENT" })` builds it, has no form in a test file: a class is CD-14, a cast is CD-2, and an object literal is not an `Error`.
+A spread copies an `Error`'s own properties into a plain object, which is not an `Error`. To give an `Error` a property, assign it:
+
+```ts
+declare const reasonOf: (error: Error & { readonly code?: string }) => string;
+const missing: Error & { code?: string } = new Error("ENOENT");
+missing.code = "ENOENT";
+expect(reasonOf(missing)).toBe("missing");
+```
 
 ### Building an object from entries
 ```ts
@@ -442,20 +421,13 @@ declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file
 const installedFiles = ["bin/hone.js"];
 expect(isInstalled({ kindOf: (path) => (installedFiles.includes(path) ? "file" : "missing") })).toBe("installed");
 ```
-A function a test writes as a property or method of an object literal, or gives to `vi.fn` or `mockImplementation`, is passed on: to the unit, to a table row, or to a double. Any flagged construct inside it names this section. Write its answer out. A stub that returns a written-out value:
-
-```ts
-declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file" | "missing" }) => "installed" | "missing";
-expect(isInstalled({ kindOf: () => "file" })).toBe("installed");
-```
-
-Or a `vi.fn` spy with a written-out return, and a written-out expectation of what it was asked:
+A function a test writes as a property or method of an object literal, or gives to `vi.fn` or `mockImplementation`, is passed on: to the unit, to a table row, or to a double. Any flagged construct inside it names this section. Make it a `vi.fn` spy with a written-out return, and write out what it was asked:
 
 ```ts
 declare const isInstalled: (fileKind: { readonly kindOf: (path: string) => "file" | "missing" }) => "installed" | "missing";
 const kindOf = vi.fn<(path: string) => "file" | "missing">().mockReturnValue("file");
 expect(isInstalled({ kindOf })).toBe("installed");
-expect(kindOf).toHaveBeenCalledWith("bin/hone.js");
+expect(kindOf).toHaveBeenCalledExactlyOnceWith("bin/hone.js");
 ```
 
 [CD-25](../CD-25/README.md) is the rule for test doubles.

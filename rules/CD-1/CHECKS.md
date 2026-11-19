@@ -33,7 +33,7 @@ const order = orderSchema.parse(JSON.parse(text));
 ```
 Give it a concrete type where it enters: parse it with a schema or a type guard at the boundary, checked at runtime.
 
-In a test file, edition 2 of `CD-27#test-body-logic` flags `JSON.parse`; edition 1, the default, does not. [CD-27's allowed forms](../CD-27/CHECKS.md#parsing-json) show what a test writes instead.
+In a test file, edition 2 of `CD-27#test-body-logic` flags `JSON.parse`; edition 1, the default, does not.
 
 ## Exceptions
 CD-1 is exempted like any other discipline: record an `authorised-location`, a `file-carve-out` for existing debt, or a clause-wide carve-out in `discipline-exceptions.json`. A carved or authorised file keeps its existing `any`; an `any` anywhere else still fails. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

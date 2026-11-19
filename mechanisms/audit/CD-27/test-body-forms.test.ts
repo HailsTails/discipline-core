@@ -44,8 +44,6 @@ const EXPRESSION_FORMS = [
   { name: "an optional call", source: "observers.enter?.();", edition: "2", section: "an-optional-call" },
   { name: "an optional call of a computing method", source: "rows.map?.(idOf);", edition: "1", section: "a-method-that-computes-a-value" },
   { name: "Object.keys", source: "Object.keys(value);", edition: "1", section: "a-method-that-computes-a-value" },
-  { name: "JSON.stringify", source: "JSON.stringify(value);", edition: "2", section: "serialising-json" },
-  { name: "JSON.parse", source: "JSON.parse(text);", edition: "2", section: "parsing-json" },
   { name: "Object.assign", source: "Object.assign(target, source);", edition: "2", section: "merging-objects" },
   { name: "Object.fromEntries", source: "Object.fromEntries(pairs);", edition: "2", section: "building-an-object-from-entries" },
   { name: "Array.from", source: "Array.from({ length: 3 });", edition: "2", section: "building-an-array-from-a-length" },
@@ -97,6 +95,17 @@ describe("testBodyFormOf", () => {
   });
 });
 
+const UNREMEDIED_FORMS = [
+  { name: "JSON.stringify", source: "JSON.stringify(value);" },
+  { name: "JSON.parse", source: "JSON.parse(text);" },
+];
+
+describe("testBodyFormOf on a form the page shows nothing to write instead of", () => {
+  it.each(UNREMEDIED_FORMS)("names $name as introduced in edition 2 with no fix", ({ source }) => {
+    expect(testBodyFormOf({ syntaxApi: SYNTAX_API, node: firstExpressionOf({ source }) })).toEqual({ introducedIn: "2" });
+  });
+});
+
 describe("TEST_BODY_SECTIONS", () => {
   it("lists each CHECKS.md section a finding can name, once, in page order", () => {
     expect(TEST_BODY_SECTIONS).toEqual([
@@ -114,8 +123,6 @@ describe("TEST_BODY_SECTIONS", () => {
       "an-optional-chain-on-a-property",
       "an-optional-call",
       "a-switch",
-      "serialising-json",
-      "parsing-json",
       "merging-objects",
       "building-an-object-from-entries",
       "building-an-array-from-a-length",
@@ -158,12 +165,12 @@ describe("TEST_BODY_REMEDIES", () => {
         section: "an-optional-chain-after-an-index",
       },
       {
-        fix: "assert the call with toHaveBeenCalledWith, toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
+        fix: "assert the call with toHaveBeenNthCalledWith or toHaveBeenLastCalledWith",
         page: "CHECKS.md",
         section: "an-optional-chain-on-a-mock-call",
       },
       {
-        fix: "assert what it returned with toHaveReturnedWith, toHaveNthReturnedWith or toHaveLastReturnedWith",
+        fix: "assert what it returned with toHaveNthReturnedWith or toHaveLastReturnedWith",
         page: "CHECKS.md",
         section: "an-optional-chain-on-a-mock-result",
       },
@@ -174,14 +181,12 @@ describe("TEST_BODY_REMEDIES", () => {
       },
       { fix: "assert.isDefined the function, then call it", page: "CHECKS.md", section: "an-optional-call" },
       { fix: "write one test per case, or one it.each table", page: "CHECKS.md", section: "a-switch" },
-      { fix: "the page shows no form to write instead, and why", page: "CHECKS.md", section: "serialising-json" },
-      { fix: "read it back through the unit's own decoder", page: "CHECKS.md", section: "parsing-json" },
-      { fix: "write the object out, spreading what it copies", page: "CHECKS.md", section: "merging-objects" },
+      { fix: "write the object out, spreading what it copies; to give an Error a property, assign it", page: "CHECKS.md", section: "merging-objects" },
       { fix: "write the object out as a literal", page: "CHECKS.md", section: "building-an-object-from-entries" },
       { fix: "write a short array out as a literal; the page shows no form for a long one", page: "CHECKS.md", section: "building-an-array-from-a-length" },
       { fix: "write the number out", page: "CHECKS.md", section: "a-math-call" },
       {
-        fix: "write its answer out: a stub that returns a written-out value, or a vi.fn spy with mockReturnValue and a written-out toHaveBeenCalledWith; CD-25 is the rule for test doubles",
+        fix: "make it a vi.fn spy with a written-out mockReturnValue, and assert what it was asked with toHaveBeenCalledExactlyOnceWith; CD-25 is the rule for test doubles",
         page: "CHECKS.md",
         section: "logic-inside-a-function-the-test-passes-on",
       },
@@ -242,6 +247,7 @@ const RELEASED_OWN_API_CALLS = [
   { name: "an entries method given an argument", source: "scenario.entries(output);", text: "scenario.entries" },
   { name: "a port imported from a relative module", source: "import { paths } from \"./paths.ts\";\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
   { name: "a port built by a relative module's factory", source: "import { pathsOf } from \"./paths.ts\";\nconst paths = pathsOf();\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
+  { name: "a port held in an object literal beside a library", source: "import path from \"node:path\";\nconst deps = { path, paths: pathsOf() };\ndeps.paths.join({ segments: [\"a\"] });", text: "deps.paths.join" },
   { name: "a port destructured from a fixture", source: "const { paths } = harness();\npaths.join({ segments: [\"a\"] });", text: "paths.join" },
 ];
 
@@ -266,6 +272,8 @@ const FLAGGED_LOOK_ALIKES = [
   { name: "a port method given a variable", source: "paths.join(request);", text: "paths.join" },
   { name: "a call that spreads its arguments", source: "screen.keys(...presses);", text: "screen.keys" },
   { name: "a callback method given a callback", source: "rows.find((row) => row.id === \"a\");", text: "rows.find" },
+  { name: "join on node:path held in an object literal", source: "import path from \"node:path\";\nconst deps = { path };\ndeps.path.join(\"a\", \"b\", \"c\");", text: "deps.path.join" },
+  { name: "join on node:path held under another name in an object literal", source: "import path from \"node:path\";\nconst deps = { files: path };\ndeps.files.join(\"a\", \"b\", \"c\");", text: "deps.files.join" },
   { name: "find given an object as this", source: "rows.find(isA, {});", text: "rows.find" },
   { name: "map given an object as this", source: "rows.map(idOf, {});", text: "rows.map" },
   { name: "some given an object with properties as this", source: "rows.some(isOpen, { strict: true });", text: "rows.some" },
