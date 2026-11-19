@@ -25,6 +25,7 @@ import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts
 import type { Result } from "../../../core/values/result.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
+import { type EslintRepository, eslintRepositoryOver } from "./eslint-repository.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import {
   type ConfigFileSearch,
@@ -40,11 +41,11 @@ import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plug
 import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { hitsCutFrom, messageReadingOf } from "./lint-hits.ts";
-import { linesReaderOf, sourceLinesFor } from "./source-lines.ts";
-import { CONFIG_FILE_NAMES, type ConfigLookup, configLookupOf, teamConfigLookup } from "./config-lookup.ts";
-import { type PackageJsonScan, type ScriptOption, scanPackageJson, type SelectedRule } from "./package-script-scanner.ts";
+import { sourceLinesFor } from "./source-lines.ts";
+import type { ConfigLookup } from "./config-lookup.ts";
+import { type PackageJsonScan, type ScriptOption, scannedPackageScripts, type SelectedRule } from "./package-script-scanner.ts";
 import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
-import { type CurrentProjection, currentProjection, PROJECTION_PATH, pluginImportOf, projectionState } from "./projection.ts";
+import { type CurrentProjection, PROJECTION_PATH, type ProjectionFiles, pluginImportOf, projectionState } from "./projection.ts";
 import {
   type ConfigRoot,
   configRootsOf,
@@ -61,15 +62,23 @@ import {
   slicedProjectionWrites,
   sliceTextOf,
 } from "./sliced-projection.ts";
-import { scriptSuppressionEntries, suppressionEntriesOf } from "./suppressions-scanner.ts";
+import { suppressionEntriesIn } from "./suppressions-scanner.ts";
 
-export type EslintRunnerPorts = {
+export type EslintPlatformPorts = {
   readonly fileText: FileTextPort;
   readonly fileRemoval: FileRemovalPort;
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
   readonly eslint: EslintPort;
   readonly moduleExtension: ModuleExtension;
+};
+
+export type EslintRunnerPorts = {
+  readonly repositoryAt: (request: { readonly repoRoot: AbsolutePath }) => EslintRepository;
+  readonly coreInstall: (request: { readonly installRoot: AbsolutePath }) => Result<CoreInstall, RunnerFailure>;
+  readonly modules: ModuleLoaderPort;
+  readonly path: PathPort;
+  readonly eslint: EslintPort;
 };
 
 type Outcome<Value> = Result<Value, RunnerFailure>;
@@ -350,29 +359,15 @@ const sliceOriginOf = (request: { readonly path: PathPort; readonly origin: Impo
   install: request.origin.install,
 });
 
-const configuredOnDisk = (request: {
-  readonly ports: EslintRunnerPorts;
-  readonly repoRoot: AbsolutePath;
-  readonly directory: RepoPath;
-}): "configured" | "unconfigured" =>
-  CONFIG_FILE_NAMES.some(
-    (name) =>
-      request.ports.fileText.exists({
-        path: request.ports.path.join({ segments: [request.repoRoot, request.directory, name] }),
-      }) === "present",
-  )
-    ? "configured"
-    : "unconfigured";
-
 const unconfiguredSlicesOf = (request: {
-  readonly ports: EslintRunnerPorts;
+  readonly repository: EslintRepository;
   readonly run: EmbeddedRunRequest;
   readonly roots: readonly ConfigRoot[];
 }): readonly SliceProblem[] =>
   request.roots.flatMap((root) =>
     root.placement === "package" &&
     request.run.declaredConfigRoots.includes(root.directory) &&
-    configuredOnDisk({ ports: request.ports, repoRoot: request.run.repoRoot, directory: root.directory }) === "unconfigured"
+    request.repository.folderConfiguration({ folder: root.directory }) === "unconfigured"
       ? [{ slice: slicePathOf({ root }), state: "unconfigured" as const }]
       : [],
   );
@@ -732,10 +727,11 @@ type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: 
 const lintedFindings = (request: {
   readonly linted: LintedFile;
   readonly selected: readonly SelectedClause[];
-  readonly ports: EslintRunnerPorts;
+  readonly path: PathPort;
+  readonly repository: EslintRepository;
   readonly repoRoot: AbsolutePath;
 }): Outcome<LintFindings> => {
-  const file = parseableFile({ linted: request.linted, path: request.ports.path, repoRoot: request.repoRoot });
+  const file = parseableFile({ linted: request.linted, path: request.path, repoRoot: request.repoRoot });
   if (file.outcome === "failed") {
     return file;
   }
@@ -746,7 +742,7 @@ const lintedFindings = (request: {
   const lines = sourceLinesFor({
     file: file.value,
     ruleHits: reading.value.ruleHits,
-    readLines: linesReaderOf({ fileText: request.ports.fileText, path: request.ports.path, repoRoot: request.repoRoot }),
+    readLines: request.repository.sourceLines,
   });
   return mappedOutcome({
     outcome: lines,
@@ -765,47 +761,26 @@ const directoryOf = (request: { readonly path: RepoPath }): RepoPath | "repo-roo
 const fileNameOf = (request: { readonly path: RepoPath }): string | undefined =>
   request.path.split("/").at(-1);
 
-const trackedText = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly repoPath: RepoPath;
-}): Outcome<string> => {
-  const text = request.fileText.read({
-    path: request.path.join({ segments: [request.repoRoot, request.repoPath] }),
-  });
-  return text.outcome === "failed"
-    ? { outcome: "failed", error: { kind: "file-unreadable", file: request.repoPath, detail: text.error.detail } }
-    : text;
-};
-
 const filesNamed = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly name: string;
 }): readonly RepoPath[] => request.trackedPaths.filter((path) => fileNameOf({ path }) === request.name);
 
-const suppressionsFileExceptions = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+const suppressionsExceptions = (request: {
+  readonly repository: EslintRepository;
   readonly location: RepoPath;
+  readonly keysRelativeTo: RepoPath | "repo-root";
   readonly selectedRules: readonly SelectedRule[];
 }): Outcome<readonly NativeException[]> => {
-  const text = trackedText({
-    fileText: request.fileText,
-    path: request.path,
-    repoRoot: request.repoRoot,
-    repoPath: request.location,
-  });
-  if (text.outcome === "failed") {
-    return text;
-  }
-  return suppressionEntriesOf({
-    location: request.location,
-    keysRelativeTo: directoryOf({ path: request.location }),
-    text: text.value,
-    selectedRules: request.selectedRules,
-  });
+  const suppressions = request.repository.suppressionsAt({ location: request.location });
+  return suppressions.outcome === "failed"
+    ? suppressions
+    : suppressionEntriesIn({
+        location: request.location,
+        keysRelativeTo: request.keysRelativeTo,
+        suppressions: suppressions.value,
+        selectedRules: request.selectedRules,
+      });
 };
 
 const causeOf = (request: { readonly verdict: OptionVerdict; readonly option: ScriptOption }): ScriptOptionCause | undefined => {
@@ -848,9 +823,7 @@ const unreadableScriptExceptions = (request: { readonly scan: PackageJsonScan })
   );
 
 const scannedPackageExceptions = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+  readonly repository: EslintRepository;
   readonly packagePath: RepoPath;
   readonly scan: PackageJsonScan;
   readonly selectedRules: readonly SelectedRule[];
@@ -862,10 +835,8 @@ const scannedPackageExceptions = (request: {
         scriptExceptions,
         { outcome: "ok", value: unreadableScriptExceptions({ scan: request.scan }) },
         ...request.scan.suppressionsLocations.map((scripted) =>
-        scriptSuppressionEntries({
-          fileText: request.fileText,
-          path: request.path,
-          repoRoot: request.repoRoot,
+        suppressionsExceptions({
+          repository: request.repository,
           location: scripted.location,
             keysRelativeTo: directoryOf({ path: request.packagePath }),
             selectedRules: request.selectedRules,
@@ -876,25 +847,18 @@ const scannedPackageExceptions = (request: {
   );
 
 const packageJsonExceptions = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+  readonly repository: EslintRepository;
   readonly packagePath: RepoPath;
   readonly selectedRules: readonly SelectedRule[];
   readonly judge: ScriptOptionJudge;
 }): Promise<Outcome<readonly NativeException[]>> => {
-  const text = trackedText({
-    fileText: request.fileText,
-    path: request.path,
-    repoRoot: request.repoRoot,
-    repoPath: request.packagePath,
-  });
-  if (text.outcome === "failed") {
-    return Promise.resolve(text);
+  const scripts = request.repository.packageScriptsAt({ packagePath: request.packagePath });
+  if (scripts.outcome === "failed") {
+    return Promise.resolve(scripts);
   }
-  const scan = scanPackageJson({
+  const scan = scannedPackageScripts({
     path: request.packagePath,
-    text: text.value,
+    scripts: scripts.value,
     selectedRules: request.selectedRules,
   });
   if (scan.outcome === "failed") {
@@ -904,16 +868,14 @@ const packageJsonExceptions = (request: {
 };
 
 const trackedExceptions = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
+  readonly repository: EslintRepository;
   readonly trackedPaths: readonly RepoPath[];
   readonly selectedRules: readonly SelectedRule[];
   readonly judge: ScriptOptionJudge;
 }): Promise<Outcome<readonly NativeException[]>> =>
   Promise.all([
     ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
-      Promise.resolve(suppressionsFileExceptions({ ...request, location })),
+      Promise.resolve(suppressionsExceptions({ ...request, location, keysRelativeTo: directoryOf({ path: location }) })),
     ),
     ...filesNamed({ trackedPaths: request.trackedPaths, name: PACKAGE_JSON_NAME }).map((packagePath) =>
       packageJsonExceptions({ ...request, packagePath }),
@@ -977,6 +939,7 @@ const governedReport = (request: {
   readonly selected: readonly SelectedClause[];
   readonly status: ProjectionStatus;
   readonly ports: EslintRunnerPorts;
+  readonly repository: EslintRepository;
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
   readonly lintedFiles: readonly LintedFile[];
@@ -984,7 +947,13 @@ const governedReport = (request: {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
       listedOutcome({
-        outcome: lintedFindings({ linted, selected: request.selected, ports: request.ports, repoRoot: request.run.repoRoot }),
+        outcome: lintedFindings({
+          linted,
+          selected: request.selected,
+          path: request.ports.path,
+          repository: request.repository,
+          repoRoot: request.run.repoRoot,
+        }),
       }),
     ),
   });
@@ -992,9 +961,7 @@ const governedReport = (request: {
     return Promise.resolve(findings);
   }
   return trackedExceptions({
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    repoRoot: request.run.repoRoot,
+    repository: request.repository,
     trackedPaths: request.run.trackedPaths,
     selectedRules: selectedRulesOf({ selected: request.selected }),
     judge: scriptOptionJudge({
@@ -1029,6 +996,7 @@ const lintedReport = (request: {
   readonly selected: readonly SelectedClause[];
   readonly status: ProjectionStatus;
   readonly ports: EslintRunnerPorts;
+  readonly repository: EslintRepository;
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> =>
@@ -1103,6 +1071,7 @@ const queriedReport = (request: {
   readonly attributedRoots: readonly ConfigRoot[];
   readonly nestedFolders: readonly RepoPath[];
   readonly ports: EslintRunnerPorts;
+  readonly repository: EslintRepository;
   readonly query: QueryInstance;
   readonly queried: Outcome<QueriedFiles>;
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
@@ -1136,6 +1105,7 @@ const governedRun = (request: {
   readonly roots: readonly ConfigRoot[];
   readonly lookup: ConfigLookup;
   readonly ports: EslintRunnerPorts;
+  readonly repository: EslintRepository;
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const lookup = request.lookup;
   const query = request.ports.eslint.createQueryInstance(
@@ -1170,13 +1140,13 @@ const projectionStatusOf = (request: {
   readonly current: CurrentProjection;
   readonly source: SliceSource;
   readonly roots: readonly ConfigRoot[];
-  readonly fileText: FileTextPort;
+  readonly projectionFiles: ProjectionFiles;
 }): Outcome<ProjectionStatus> => {
   const generated = sliceTextOf({ ...request.source, root: { placement: "repository" } });
   if (generated.outcome === "failed") {
     return generated;
   }
-  const slices = packageSliceProblemsOf({ ...request.source, fileText: request.fileText, roots: request.roots });
+  const slices = packageSliceProblemsOf({ ...request.source, projectionFiles: request.projectionFiles, roots: request.roots });
   if (slices.outcome === "failed") {
     return slices;
   }
@@ -1190,24 +1160,15 @@ const selectedRun = (request: {
   readonly origin: ImportOrigin;
   readonly ports: EslintRunnerPorts;
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
-  const current = currentProjection({
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    repoRoot: request.run.repoRoot,
-    file: PROJECTION_PATH,
-  });
+  const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
+  const current = repository.projectionFiles.currentAt({ file: PROJECTION_PATH });
   if (current.outcome === "failed") {
     return Promise.resolve(current);
   }
   if (current.value.presence === "absent") {
     return Promise.resolve(reportWith({ projection: "missing", slices: [] }));
   }
-  const lookup = teamConfigLookup({
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    repoRoot: request.run.repoRoot,
-    trackedPaths: request.run.trackedPaths,
-  });
+  const lookup = repository.teamConfigLookup({ trackedPaths: request.run.trackedPaths });
   if (lookup.outcome === "failed") {
     return Promise.resolve(lookup);
   }
@@ -1224,7 +1185,7 @@ const selectedRun = (request: {
       origin: sliceOriginOf({ path: request.ports.path, origin: request.origin }),
     },
     roots,
-    fileText: request.ports.fileText,
+    projectionFiles: repository.projectionFiles,
   });
   if (status.outcome === "failed") {
     return Promise.resolve(status);
@@ -1236,9 +1197,10 @@ const selectedRun = (request: {
   });
   return governedRun({
     ...request,
+    repository,
     status: {
       ...status.value,
-      slices: [...status.value.slices, ...unconfiguredSlicesOf({ ports: request.ports, run: request.run, roots })],
+      slices: [...status.value.slices, ...unconfiguredSlicesOf({ repository, run: request.run, roots })],
     },
     roots,
     lookup: lookup.value,
@@ -1287,12 +1249,7 @@ const importOriginOf = (request: {
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
 }): Outcome<ImportOrigin> => {
-  const install = coreInstallOf({
-    fileText: request.ports.fileText,
-    path: request.ports.path,
-    installRoot: request.installRoot,
-    moduleExtension: request.ports.moduleExtension,
-  });
+  const install = request.ports.coreInstall({ installRoot: request.installRoot });
   return install.outcome === "failed" ? install : { outcome: "ok", value: { repoRoot: request.repoRoot, install: install.value } };
 };
 
@@ -1316,8 +1273,9 @@ const projectedWrite = (request: {
   if (configured.outcome === "failed") {
     return Promise.resolve(configured);
   }
+  const repository = request.ports.repositoryAt({ repoRoot: request.request.repoRoot });
   const source = {
-    fileText: request.ports.fileText,
+    projectionFiles: repository.projectionFiles,
     clauses: projectionClausesOf({ configured: configured.value }),
     records: request.request.records,
     origin: sliceOriginOf({ path: request.ports.path, origin: origin.value }),
@@ -1325,16 +1283,10 @@ const projectedWrite = (request: {
   return Promise.resolve(
     slicedProjectionWrites({
       ...source,
-      fileRemoval: request.ports.fileRemoval,
       roots: configRootsOf({
         trackedPaths: request.request.trackedPaths,
         declared: request.request.declaredConfigRoots,
-        lookup: configLookupOf({
-          fileText: request.ports.fileText,
-          path: request.ports.path,
-          repoRoot: request.request.repoRoot,
-          trackedPaths: request.request.trackedPaths,
-        }),
+        lookup: repository.configLookup({ trackedPaths: request.request.trackedPaths }),
       }),
       trackedPaths: request.request.trackedPaths,
     }),
@@ -1363,10 +1315,19 @@ const ranClauses = (request: {
 
 export const ESLINT_PROJECTED_KINDS: readonly NativeException["kind"][] = ["config-override", "inline-disable"];
 
-export const createEslintRunner = (ports: EslintRunnerPorts): EmbeddedRunner => ({
+export const eslintRunnerOver = (ports: EslintRunnerPorts): EmbeddedRunner => ({
   exceptionPath: "embedded",
   projectedKinds: ESLINT_PROJECTED_KINDS,
   run: (request) => ranClauses({ run: request, ports }),
   conform: (request) => conformedCases({ clause: request.clause, cases: request.cases, ports }),
   project: (request) => projectedWrite({ request, ports }),
 });
+
+export const createEslintRunner = (platform: EslintPlatformPorts): EmbeddedRunner =>
+  eslintRunnerOver({
+    repositoryAt: ({ repoRoot }) => eslintRepositoryOver({ ...platform, repoRoot }),
+    coreInstall: ({ installRoot }) => coreInstallOf({ ...platform, installRoot }),
+    modules: platform.modules,
+    path: platform.path,
+    eslint: platform.eslint,
+  });

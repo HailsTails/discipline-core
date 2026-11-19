@@ -1,6 +1,7 @@
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { ProjectionWrite } from "../../../core/mechanism-port/runner-result-schema.ts";
+import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
@@ -330,3 +331,25 @@ export const writeProjection = (request: ProjectionFile & { readonly text: strin
   }
   return writtenProjection(request);
 };
+
+export type ProjectionFiles = {
+  readonly currentAt: (request: { readonly file: RepoPath }) => Result<CurrentProjection, RunnerFailure>;
+  readonly writeAt: (request: { readonly file: RepoPath; readonly text: string }) => Result<ProjectionWrite, RunnerFailure>;
+  readonly removeAt: (request: { readonly file: RepoPath }) => Result<void, RunnerFailure>;
+};
+
+export const projectionFilesOver = (request: {
+  readonly fileText: FileTextPort;
+  readonly fileRemoval: FileRemovalPort;
+  readonly path: PathPort;
+  readonly repoRoot: AbsolutePath;
+}): ProjectionFiles => ({
+  currentAt: ({ file }) => currentProjection({ ...request, file }),
+  writeAt: ({ file, text }) => writeProjection({ ...request, file, text }),
+  removeAt: ({ file }) => {
+    const removed = request.fileRemoval.remove({ path: request.path.join({ segments: [request.repoRoot, file] }) });
+    return removed.outcome === "failed"
+      ? { outcome: "failed", error: { kind: "tool-failed", detail: removed.error.detail } }
+      : { outcome: "ok", value: undefined };
+  },
+});

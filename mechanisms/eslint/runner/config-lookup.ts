@@ -95,6 +95,17 @@ const rootConfigFile = (request: Pick<LookupRequest, "fileText" | "path" | "repo
     (candidate) => request.fileText.exists({ path: candidate }) === "present",
   );
 
+export type FolderConfiguration = "configured" | "unconfigured";
+
+export const folderConfigurationOf = (
+  request: Pick<LookupRequest, "fileText" | "path" | "repoRoot"> & { readonly folder: RepoPath },
+): FolderConfiguration =>
+  CONFIG_FILE_NAMES.some(
+    (name) => request.fileText.exists({ path: request.path.join({ segments: [request.repoRoot, request.folder, name] }) }) === "present",
+  )
+    ? "configured"
+    : "unconfigured";
+
 const declaredLookup = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): EslintConfigLookup | undefined => {
   const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, SELECTION_FILE] }) });
   const json = text.outcome === "ok" ? parsedJson({ text: text.value }) : undefined;

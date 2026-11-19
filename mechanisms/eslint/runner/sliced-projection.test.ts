@@ -1,15 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
-import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
-import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
-import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
-import { projectionText } from "./projection.ts";
+import { type CurrentProjection, type ProjectionFiles, projectionText } from "./projection.ts";
 import type { ConfigRoot } from "./projection-slices.ts";
 import {
   packageSliceProblemsOf,
@@ -80,15 +77,17 @@ const PACKAGE_A_SLICE = projectionText({
 
 const EMPTY_PACKAGE_SLICE = projectionText({ selectedPieces: [PACKAGE_PIECE], records: [] });
 
-const noFiles = (request: { readonly write: FileTextPort["write"] }): FileTextPort => ({
-  read: ({ path }) => ({ outcome: "failed", error: { kind: "unreadable", path, detail: "ENOENT" } }),
-  exists: () => "absent",
-  write: request.write,
+const ABSENT: CurrentProjection = { presence: "absent" };
+
+const present = (text: string): CurrentProjection => ({ presence: "present", text });
+
+const REPOSITORY_PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
+
+const projectionFilesHolding = (current: CurrentProjection) => ({
+  currentAt: vi.fn<ProjectionFiles["currentAt"]>().mockReturnValue({ outcome: "ok", value: current }),
+  writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValue({ outcome: "ok", value: { path: REPOSITORY_PROJECTION, effect: "written" } }),
+  removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
-
-const writing = () => vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined });
-
-const removing = () => vi.fn<FileRemovalPort["remove"]>().mockReturnValue({ outcome: "ok", value: undefined });
 
 describe("sliceTextOf", () => {
   it("imports the plugin relative to the package folder and keeps only that package's records, re-pathed to it", () => {
@@ -133,7 +132,7 @@ describe("packageSliceProblemsOf", () => {
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        fileText: noFiles({ write: writing() }),
+        projectionFiles: projectionFilesHolding(ABSENT),
         roots: [REPOSITORY, PACKAGE_A],
       }),
     ).toEqual({ outcome: "ok", value: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }] });
@@ -145,46 +144,47 @@ describe("packageSliceProblemsOf", () => {
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        fileText: overlaidFileText({
-          base: noFiles({ write: writing() }),
-          files: { "/repo/packages/a/disciplines.eslint.mjs": EMPTY_PACKAGE_SLICE },
-        }),
+        projectionFiles: projectionFilesHolding(present(EMPTY_PACKAGE_SLICE)),
         roots: [REPOSITORY, PACKAGE_A],
       }),
     ).toEqual({ outcome: "ok", value: [{ slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" }] });
   });
 
-  it("names nothing for a current package slice and never names the repository root's projection", () => {
-    expect(
-      packageSliceProblemsOf({
+  it("names nothing for a current package slice and never reads or names the repository root's projection", () => {
+    const projectionFiles = projectionFilesHolding(present(PACKAGE_A_SLICE));
+    expect({
+      problems: packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        fileText: overlaidFileText({
-          base: noFiles({ write: writing() }),
-          files: { "/repo/packages/a/disciplines.eslint.mjs": PACKAGE_A_SLICE },
-        }),
+        projectionFiles,
         roots: [REPOSITORY, PACKAGE_A],
       }),
-    ).toEqual({ outcome: "ok", value: [] });
+      read: projectionFiles.currentAt.mock.calls,
+    }).toEqual({ problems: { outcome: "ok", value: [] }, read: [[{ file: "packages/a/disciplines.eslint.mjs" }]] });
   });
 });
 
 describe("slicedProjectionWrites over the config roots", () => {
   it("writes one slice per config root, the repository root first, each at its own folder", () => {
-    const write = writing();
+    const projectionFiles = {
+      ...projectionFilesHolding(ABSENT),
+      writeAt: vi
+        .fn<ProjectionFiles["writeAt"]>()
+        .mockReturnValueOnce({ outcome: "ok", value: { path: REPOSITORY_PROJECTION, effect: "written" } })
+        .mockReturnValueOnce({ outcome: "ok", value: { path: repoPathSchema.parse("packages/a/disciplines.eslint.mjs"), effect: "written" } }),
+    };
 
     expect({
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        fileText: noFiles({ write }),
-        fileRemoval: { remove: removing() },
+        projectionFiles,
         roots: [REPOSITORY, PACKAGE_A],
         trackedPaths: [],
       }),
-      written: write.mock.calls,
+      written: projectionFiles.writeAt.mock.calls,
     }).toEqual({
       result: {
         outcome: "ok",
@@ -194,8 +194,8 @@ describe("slicedProjectionWrites over the config roots", () => {
         ],
       },
       written: [
-        [{ path: "/repo/disciplines.eslint.mjs", text: expect.any(String) }],
-        [{ path: "/repo/packages/a/disciplines.eslint.mjs", text: PACKAGE_A_SLICE }],
+        [{ file: "disciplines.eslint.mjs", text: expect.any(String) }],
+        [{ file: "packages/a/disciplines.eslint.mjs", text: PACKAGE_A_SLICE }],
       ],
     });
   });
@@ -203,22 +203,18 @@ describe("slicedProjectionWrites over the config roots", () => {
 
 describe("slicedProjectionWrites over tracked slices outside every config root", () => {
   it("removes a tracked slice whose folder is no longer a config root when its bytes are exactly what Hone would write there", () => {
-    const remove = removing();
+    const projectionFiles = projectionFilesHolding(present(EMPTY_PACKAGE_SLICE));
 
     expect({
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
         origin: ORIGIN,
-        fileText: overlaidFileText({
-          base: noFiles({ write: writing() }),
-          files: { "/repo/packages/old/disciplines.eslint.mjs": EMPTY_PACKAGE_SLICE },
-        }),
-        fileRemoval: { remove },
+        projectionFiles,
         roots: [REPOSITORY],
         trackedPaths: [repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
       }),
-      removed: remove.mock.calls,
+      removed: projectionFiles.removeAt.mock.calls,
     }).toEqual({
       result: {
         outcome: "ok",
@@ -227,27 +223,23 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
           { path: "packages/old/disciplines.eslint.mjs", effect: "removed" },
         ],
       },
-      removed: [[{ path: "/repo/packages/old/disciplines.eslint.mjs" }]],
+      removed: [[{ file: "packages/old/disciplines.eslint.mjs" }]],
     });
   });
 
   it("leaves a tracked slice outside every config root in place when its bytes are not what Hone would write", () => {
-    const remove = removing();
+    const projectionFiles = projectionFilesHolding(present("export default [];\n"));
 
     expect({
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
         origin: ORIGIN,
-        fileText: overlaidFileText({
-          base: noFiles({ write: writing() }),
-          files: { "/repo/packages/old/disciplines.eslint.mjs": "export default [];\n" },
-        }),
-        fileRemoval: { remove },
+        projectionFiles,
         roots: [REPOSITORY],
         trackedPaths: [repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
       }),
-      removed: remove.mock.calls,
+      removed: projectionFiles.removeAt.mock.calls,
     }).toEqual({
       result: {
         outcome: "ok",
@@ -262,20 +254,17 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
 });
 
 describe("slicedProjectionWrites when a stale slice cannot be removed", () => {
-  it("is tool-failed with the port's detail when a stale slice cannot be removed", () => {
+  it("fails as the projection files fail when a stale slice cannot be removed", () => {
     expect(
       slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
         origin: ORIGIN,
-        fileText: overlaidFileText({
-          base: noFiles({ write: writing() }),
-          files: { "/repo/packages/old/disciplines.eslint.mjs": EMPTY_PACKAGE_SLICE },
-        }),
-        fileRemoval: {
-          remove: vi.fn<FileRemovalPort["remove"]>().mockReturnValue({
+        projectionFiles: {
+          ...projectionFilesHolding(present(EMPTY_PACKAGE_SLICE)),
+          removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({
             outcome: "failed",
-            error: { kind: "unremovable", path: "/repo/packages/old/disciplines.eslint.mjs", detail: "EPERM" },
+            error: { kind: "tool-failed", detail: "EPERM" },
           }),
         },
         roots: [REPOSITORY],
@@ -286,19 +275,18 @@ describe("slicedProjectionWrites when a stale slice cannot be removed", () => {
 });
 
 describe("slicedProjectionWrites on Windows paths", () => {
-  it("writes a package slice at its Windows form under the repo root", () => {
-    const write = writing();
+  it("writes a package slice at its repository path, importing the piece by a forward-slash path from the package folder", () => {
+    const projectionFiles = projectionFilesHolding(ABSENT);
 
     slicedProjectionWrites({
       clauses: [{ ...CLASS_CLAUSE, pieceRoot: "C:\\repo\\mechanisms\\eslint\\CD-14" }],
       records: [],
       origin: WINDOWS_ORIGIN,
-      fileText: noFiles({ write }),
-      fileRemoval: { remove: removing() },
+      projectionFiles,
       roots: [PACKAGE_A],
       trackedPaths: [],
     });
 
-    expect(write.mock.calls).toEqual([[{ path: "C:\\repo\\packages\\a\\disciplines.eslint.mjs", text: EMPTY_PACKAGE_SLICE }]]);
+    expect(projectionFiles.writeAt.mock.calls).toEqual([[{ file: "packages/a/disciplines.eslint.mjs", text: EMPTY_PACKAGE_SLICE }]]);
   });
 });
