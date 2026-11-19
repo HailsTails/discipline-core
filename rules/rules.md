@@ -110,6 +110,8 @@ No rule. The principle, now covering data and failures, plus One reason per modu
 - **Cases served:** Names something; Explains something in prose.
 - **Source:** Evans's ubiquitous language, across the whole codebase.
 
+One word everywhere keeps "no meaning rests on position". A unit whose signature is ours takes one argument; a callback shaped by an outside API takes what that API passes.
+
 Casing is a check under this rule. Writing basic logic in the language's own constructs is a case; the principle gives it.
 
 ## Outside risk is carried on purpose
@@ -143,5 +145,5 @@ Casing is a check under this rule. Writing basic logic in the language's own con
 Proposed, not accepted.
 
 - **Proposed wording:** "Every outside dependency we ship is declared to whoever runs it, never hidden inside our build."
-- **Case it would serve:** What we ship is visible to an adopter's scanner.
+- **Case it would serve:** [Ships code for others](cases.md#proposed-cases) (proposed): what we ship is visible to an adopter's scanner.
 - **Source:** The NTIA SBOM: a formal record of what we ship.

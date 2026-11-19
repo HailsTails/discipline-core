@@ -105,6 +105,7 @@ Outside dependency: what was called a package. An internal package is our own co
 | Computed value in a test | seen | syntax | reuse | as above | as above |
 | Throw or catch in a test | seen | syntax | reuse | — / `catch` | none |
 | Unasserted call | seen | syntax, types | new | — / — | none |
+| Answer set in a hook | seen | syntax | partial | — / an answer given by `mockReturnValue`, `mockResolvedValue` or `mockImplementation` in a hook | none |
 | Test switched off | seen | syntax | reuse | — / `.todo` | `.todo` not flagged: a miss |
 | Unit without a running test | seen | files, graph | reuse | — / an empty or non-running sibling | `__tests__` skipped by default, on purpose (noise; the practice is not adopted). `exclude` is scope. |
 | Machine touched in a unit test | seen → breach (the unit with no port) | syntax; the suffix | new | — / — | integration test suffix: recipe ("keep pyramid checkable") |
@@ -188,7 +189,7 @@ A default that quietly narrows a rule, which no codebase chose, still fails.
 | Edition defaults | "Edition defaults would be for backwards compatability since we went npm." An existing adopter keeps the behaviour it installed. |
 | `confinedPackages` empty by default | "packages is empty because we can't define the universe and if we just said imports at all we would catch internal packages." Seeing every outside dependency needs a way to tell it from an internal package; until then the list is the adopter's to fill. |
 | `__tests__` skipped by default | "probably because of noise level and the fact I don't adopt that folder practice deliberately at all." |
-| `.spec.ts` not treated as a test file by most checks | "Spec is also just not a naming practice I use." Then: "It honestly should be config for user to declare file naming structure so we can match their conventions." The Companion test file and Integration test suffix recipes stay the default. |
+| `.spec.ts` not treated as a test file by most checks | "Spec is also just not a naming practice I use." Then: "It honestly should be config for user to declare file naming structure so we can match their conventions." Hone has no such config yet; the Companion test file and Integration test suffix recipes are the convention it reads. |
 | Generated folders skipped (`node_modules`, `dist` and the like) | not code of ours |
 | Reading `.test.js` and `.test.mjs` in the subprocess-environment check | it widens one check, not narrows a rule |
 | Suite-body exemption | "A test suite's body is a list of cases, not a coordinator." |

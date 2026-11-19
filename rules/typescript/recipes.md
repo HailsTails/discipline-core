@@ -21,7 +21,7 @@ Outside dependency: what was called a package. An internal package is our own co
 - **You can tell because:** No double has a body, a branch or a table. Every call the unit makes is asserted.
 - **Industry name:** stub and spy; Test Stub (Meszaros, *xUnit Test Patterns*).
 
-A fake is not a recipe. It is a [deviation record](../records.md#deviation).
+A fake is not a recipe. It is a [deviation record](../records.md#deviation), and the bar it must meet is: "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things."
 
 #### Ports in the argument
 
@@ -56,7 +56,7 @@ A fake is not a recipe. It is a [deviation record](../records.md#deviation).
 #### Failure asserted as a value
 
 - **Method:** A failure is checked as the returned variant: `expect(result).toEqual({ outcome: "failure", ... })`. An adapter whose caller's contract is a throw is checked with `expect(call).toThrow(...)`.
-- **Chosen because:** "more error throwing, not allowed". A `try` or `catch` in a test is a branch that decides whether the test passes.
+- **Chosen because (proposed):** "more error throwing, not allowed". A `try` or `catch` in a test is a branch that decides whether the test passes.
 - **You can tell because:** No `try`, `catch` or `throw` in any test.
 - **Industry name:** none; it follows from Failures are values.
 
@@ -81,7 +81,7 @@ A fake is not a recipe. It is a [deviation record](../records.md#deviation).
 - **Method:** Only an integration test touches a real file or subprocess. It makes its own temporary directory, gives every subprocess an explicit environment, and removes the directory after. The environment comes from a unit of ours with its own test, not a test helper.
 - **Chosen because (proposed):** An ambient setting broke the shared checkout three times; each fix to one instance left the class open.
 - **You can tell because:** No unit test touches disk or spawns a process. No integration test reads `process.env` or inherits git settings.
-- **Industry name:** hermetic test; Fresh Fixture (Meszaros).
+- **Industry name:** Fresh Fixture (Meszaros).
 
 ## One place decides
 
@@ -150,14 +150,14 @@ Entity module also serves One reason per module.
 
 The principle decides.
 
-#### Copy, never write in
+### Copy, never write in
 
 - **Method:** A changed value is a new one: `{ ...order, total }` or `[...items].sort()`. Nothing writes to, deletes from, or rebinds a parameter.
 - **Chosen because:** "this is giving mutation of input args vibes, not okay"; "pure functions are required".
 - **You can tell because:** No assignment to a parameter or its fields.
 - **Industry name:** immutability; Value Object (Fowler); functional core.
 
-#### Closure factory
+### Closure factory
 
 - **Method:** Settings and changing state live in a factory, `createX({ settings })`. It returns an object of functions that close over private bindings. We author no `class`. A library's class is built only in its adapter.
 - **Chosen because:** "this is a bunch of nullable and state management mess". Proposed: Once a method travels as a value, its `this` is a fact the checker does not prove.
@@ -204,21 +204,21 @@ The principle decides.
 
 The principle decides.
 
-#### Zod at the producer's adapter
+### Zod at the producer's adapter
 
 - **Method:** The adapter for whoever produced the data parses it once with a Zod schema. The `z.infer` type is the wire type and stays in the adapter. The adapter maps it to a domain type of ours. A missing required value, environment included, is a failure, never a default.
 - **Chosen because:** "my insistence on not writing complex logic to parse for cd 4 by being explicit on the tool and method"; "Hand rolled is potentially a messy and lossy option?"; "Zod is the wire."
 - **You can tell because:** No schema, `z.infer` type or text past the adapter. Each crossing is parsed once.
 - **Industry name:** parse, don't validate (King).
 
-#### Map out at the adapter
+### Map out at the adapter
 
 - **Method:** Business logic hands the adapter our own value. Only the adapter turns it into the receiver's form (`JSON.stringify`, a status, a header).
 - **Chosen because:** "As we should be runtime objects not json as soon as we leave a boundary".
 - **You can tell because:** No outside form is built in business logic.
 - **Industry name:** anticorruption layer (Evans).
 
-#### Failure mapping at the adapter
+### Failure mapping at the adapter
 
 - **Method:** The adapter turns a library's throw into a failure variant of ours. At the program's edge, it turns our failure into the caller's form: an exit code, a status, or a throw where that caller's contract is exceptions.
 - **Chosen because (proposed):** "They are about speaking the language of the caller at the boundary."
@@ -304,7 +304,7 @@ Failure mapping at the adapter also serves Failures are values.
 - **Method:** What a comment would say goes into a name, a type or a union. The only annotations are a tracked pointer such as `(#42)` and a tool directive covered by a record.
 - **Chosen because:** "If the code isn't self explanatory that's the problem. You shouldn't need usage notes at all."
 - **You can tell because:** No comment or JSDoc in our code.
-- **Industry name:** Comments (Martin, *Clean Code*), with no good-comments exception.
+- **Industry name:** none; ours. It is stricter than Martin's *Clean Code*, which keeps a section on good comments.
 
 [One argument object](#one-argument-object) also serves this rule.
 
@@ -321,7 +321,7 @@ Casing is a check that runs the adopter's own lint. It is not a recipe. Basic lo
 - **You can tell because:** Every entry in `package.json` has a record.
 - **Industry name:** architecture decision record (Nygard).
 
-An adopter is not handed our risk. This is a case under Outside dependencies justified. A peer dependency is a direct dependency of ours, so it needs a record. The risk it weighs is carried by whoever runs it, the adopter included.
+Proposed, not accepted: the case [An adopter is not handed our risk](../cases.md#proposed-cases), under Outside dependencies justified. A peer dependency is a direct dependency of ours, so it needs a record. The risk it weighs is carried by whoever runs it, the adopter included.
 
 ### Fixed versions
 
@@ -347,12 +347,12 @@ An adopter is not handed our risk. This is a case under Outside dependencies jus
 
 - **Method:** A change is made through the vendored code's extension points or config, in a folder of ours.
 - **Chosen because:** "this must be justified as additional drift as impossible to apply as an extension instead".
-- **You can tell because:** No diff inside the vendored folder. An edit there is an [authorised location](../records.md#authorised-location) on Edit inside vendored code.
+- **You can tell because:** No diff inside the vendored folder. An edit there breaches Upstream stays untouched. It is held only by an [authorised location](../records.md#authorised-location) on Edit inside vendored code that names its case and when it should be dropped.
 - **Industry name:** Open-Closed Principle (Martin).
 
 ### Shipped risk declared
 
-Proposed, not accepted: the rule and this recipe.
+Proposed, not accepted: the rule, its case [Ships code for others](../cases.md#proposed-cases), and this recipe.
 
 #### Declared, not bundled
 

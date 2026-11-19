@@ -606,7 +606,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Bundled dependency
 
 - **Seen:** Published build output that holds a dependency's code that the package manifest does not declare.
-- **May indicate:** Ships code for others → Shipped risk declared (proposed, not accepted). "Do we still bundle Zod which means a Zod cve won't show up accurately?"
+- **May indicate:** Ships code for others (proposed) → Shipped risk declared (proposed, not accepted). "Do we still bundle Zod which means a Zod cve won't show up accurately?"
 - **Breach usually sits:** The build config.
 - **Seen by:** files (build output).
 - **Check today:** new.

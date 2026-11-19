@@ -38,6 +38,8 @@ Two tests for a rule:
 
 Rules, principles, cases, recipes and symptoms are named, not numbered. A name's id is the name, hyphenated. [Every CD](numbers.md) maps each old number to its new names. Selections, records and findings still use the numbered clause addresses, and each numbered folder still holds its discipline's `CHECKS.md`.
 
+The numbered `README.md` pages are the earlier form of these rules. Where they differ, the pages here govern. Findings still link to the numbered pages until they are replaced; [Every CD](numbers.md#every-numbered-discipline) lists each one with its title, clauses, files checked and review lens.
+
 ## Words used the same way everywhere
 
 - **Business logic:** all code outside a recorded boundary.

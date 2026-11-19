@@ -65,7 +65,7 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 ## What is not a record
 
 - **Scope.** "Exclude is any codebases choice to say this is not in scope. It's never bound by any rules."
-- **Adopter config:** layer folders, casing, test-file naming and folder-scoped conventions. "A simple manifest of top level folders is config. Not hand kept manifest." A folder setting never switches a rule off.
+- **Adopter config:** layer folders, casing, test-file naming and folder-scoped conventions. Hone does not read these as config yet. "A simple manifest of top level folders is config. Not hand kept manifest." A folder setting never switches a rule off.
 - **A threshold.** "Line and complexity are symptoms that flag many things." Where a symptom fires is a check setting.
 - **A named ban.** "Lodash is banned. Personal rule." No record lifts it.
 - **A tracked pointer.** A TODO is tracked when it holds a reference to an issue or spec, in the form the adopter's config declares for its tracker (`#42`, `owner/repo#42`, `PROJ-7`), and nothing else. It is a pointer, not an explanation. A TODO beside a breach does not hold the breach: the breach still needs a record of its own.
@@ -74,27 +74,34 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 
 A record must contain what its kind states. Anything less is refused, as follows.
 
-| Refused | Why | A machine refuses it from the form? |
+| Refused | Why | Does Hone refuse it from the form today? |
 |---|---|---|
-| A why that only restates the symptom ("needed here", "the check flags this") | the why-chain's purpose: "to ensure an agent has thought deeply about what its doing" | Partly. Today's why-chain checks refuse stock restatements and answers with no new cause. A reworded restatement is left to review. |
-| A thought-through record that names no case, or a case not in the [case list](cases.md) | a thought-through use names its case | Yes: a missing or unknown case name. Whether the case is true is left to review. |
-| An authorised location on a symptom that no case makes correct, such as a branch in a test | "who the heck added an authorised location for an if in a test?" | Yes. The [symptoms](typescript/symptoms.md) say which have a correct use. For the rest, only debt is accepted. |
-| A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Partly. The form must name the recipe and use its reason's words. Whether the reason fails here is left to review. |
-| A fake with no showing that a stub cannot do the test | the stub is the recipe | No; review. |
-| A record for a named ban | "Lodash is banned." | Yes. |
+| A why that only restates the symptom ("needed here", "the check flags this") | the why-chain's purpose: "to ensure an agent has thought deeply about what its doing" | Partly, as today: the why-chain checks refuse stock restatements and answers with no new cause. A reworded restatement is left to review. |
+| A thought-through record that names no case, or a case not in the [case list](cases.md) | a thought-through use names its case | Not yet enforced. In the model a machine refuses a missing or unknown case name; whether the case is true is left to review. |
+| An authorised location on a symptom that no case makes correct, such as a branch in a test | "who the heck added an authorised location for an if in a test?" | Not yet enforced. In the model the [symptoms](typescript/symptoms.md) say which have a correct use, and for the rest only debt is accepted. |
+| A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Not yet enforced. In the model the form must name the recipe and use its reason's words; whether the reason fails here is left to review. |
+| A fake with no showing that a stub cannot do the test | "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things." | No; review. |
+| A record for a named ban | "Lodash is banned." | Not yet enforced. |
 | Debt written by the tool for a file the base did not hold | today's `new-file` | Yes, as today. |
-| A record standing in for a design fix, where friction points at the design | "if we have such a complex test that needs exemption we have a code architecture problem" | No. A machine can show records clustering on one symptom or one cause. Only review rules on it. |
+| A record standing in for a design fix, where friction points at the design | "if we have such a complex test that needs exemption we have a code architecture problem" | No; review. A machine can show records clustering on one symptom or one cause. Only review rules on it. |
 | An option that weakens the whole run (`--rule`, `-c`) | today | Yes, as today: it cannot be recorded. |
 
 This is a list of what each record must contain. It is not a ladder of exceptions.
 
 ## The cost side
 
+**What holds today:**
 - An authorised location costs a five-step why-chain with a root check and an owner.
 - Debt is visible in every report, fails the run when it forfeits on touch, and fails when stale.
 - An unrecorded inline disable fails the run.
 - The diff of the records is the review.
 - Hotfixes do not block on debt: forfeiture can be assessed elsewhere ("blocking a hot fix on debt is not suitable practice").
+
+**What the model adds:**
+- A thought-through record names its case and the rule owed. It no longer answers only "why this file".
+- A deviation must engage the recipe's own reason.
+- Records are per symptom, so a record cannot quietly hold a new form of a clause, and paying one symptom is visible.
+- Records are counted per symptom and cause. That makes friction measurable ("Always look for what friction is trying to tell us"), without a new step.
 
 **What an agent gets when it cannot fix:** two honest exits, debt (visible, and it forfeits) or a thought-through record (it costs the reasoning). Neither is "give up and ask": "telling agents to give up and ask me has in experience made them just never even try and increased my workload".
 
@@ -138,6 +145,6 @@ Records today are written in these formats. Each answers one of the kinds.
 | `file-carve-out` (clause, file, optional reason) | Debt | Names a clause, not a symptom. One record on the test-logic clause covers up to four symptoms. |
 | `clause-wide-carve-out` | Not a record: the clause is not adopted | It sits in the records, not the selection. |
 | `provenance` (imported) | The same kind, imported | Nothing. |
-| Legacy why-chains | Unchanged | Accepted while unchanged against the base. |
+| Legacy why-chains | The kind of the record that holds them | Accepted while unchanged against the base. |
 | Inline disables and `@ts-*` directives | Held by a record of their symptom | The record names the clause, not the symptom. |
 | — | Deviation, Dependency record | No format yet. |

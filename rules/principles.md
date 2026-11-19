@@ -29,7 +29,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Must hold:** A unit changes nothing: it gives back the value it returns and calls ports passed in to it.
 - **Protects:** Every effect is visible at the call site, and no unit works by holding state and changing it.
 - **Reason to change:** What a call affects changes.
-- **Breach:** In the function that writes to something it was not passed, changes its input, or changes a value of its own after making it.
+- **Breach:** In the function that writes to something it was not passed, changes its input, or changes a value of its own after making it. Shows as tests that patch a global to see an effect.
 - **Rules under it:** none. The principle decides.
 - **Source:** This is Bernhardt's functional core, imperative shell: decisions stay pure and effects stay in sight.
 
@@ -47,7 +47,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Must hold:** Data and failures cross a boundary only through an adapter that maps between their outside form and a type of our own.
 - **Protects:** A sender's change of shape stops at the adapter.
 - **Reason to change:** The shape of the data we receive changes.
-- **Breach:** In the adapter that is missing or passes the outside form inward.
+- **Breach:** In the adapter that is missing or passes the outside form inward. Shows far inward: presence checks, re-parsing, casts.
 - **Outside data:** anything read at a boundary, our own stored rows and files included.
 - **Record:** an externally defined model adopted as the definitive thing. Evans's *Conformist*. It is a statement on a [boundary record](records.md#boundary-record).
 - **Rules under it:** none. The principle decides.
@@ -58,7 +58,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Must hold:** Every fact the code relies on about a value is proven by the type checker.
 - **Protects:** A wrong shape, an unhandled case or an unhandled failure fails the build, not production.
 - **Reason to change:** A type gains a case or changes shape.
-- **Breach:** At the declaration that admits too much.
+- **Breach:** At the declaration that admits too much. Shows at uses: casts.
 - **Rules under it:** [Failures are values](rules.md#failures-are-values), [Declared, not asserted](rules.md#declared-not-asserted), [Kinds are named](rules.md#kinds-are-named).
 - **Source:** Minsky makes illegal states unrepresentable; King parses once at the edge, so the types carry the proof.
 
@@ -67,7 +67,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Must hold:** The meaning of our code is carried only by language constructs engineers in the space already know and by the domain's own names.
 - **Protects:** An engineer reads our code knowing two languages only: the programming language and the domain.
 - **Reason to change:** Who reads the code changes.
-- **Breach:** At the declaration or call that borrows a library's vocabulary or leaves meaning to prose.
+- **Breach:** At the declaration or call that borrows a library's vocabulary or leaves meaning to prose. Shows as comments and utility-type outside dependencies.
 - **Rules under it:** [One word everywhere](rules.md#one-word-everywhere).
 - **Source:** This is Evans's ubiquitous language, held across the whole codebase rather than one context.
 

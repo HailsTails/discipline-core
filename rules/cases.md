@@ -66,6 +66,8 @@ Cases name no language, tool or library.
 | Explains something in prose | Language; Checker | The meaning goes in a name or a type. The only annotations are a pointer to a tracked issue and a tool directive. |
 | Writes basic logic (branching, matching, transforming, results) | Language; Outside risk | In the language's own constructs. No outside dependency's vocabulary stands in for it. |
 
+Meaning by name, never by position: a unit whose signature is ours takes one argument; a callback shaped by an outside API takes what that API passes.
+
 ## Outside risk is carried on purpose
 
 | Case | Owes | What to do |
@@ -73,6 +75,15 @@ Cases name no language, tool or library.
 | Takes an outside dependency | Outside risk; Language, Boundary, One place | A record names the native way weighed and why it was not enough. It is used only inside the recorded boundary that needs it, with no wrapper, and its types and vocabulary never reach business logic. It never makes one of our decisions. |
 
 Outside dependency: what was called a package. An internal package is our own code. An internal package falls under One place decides and the layering, not this case.
+
+### Proposed cases
+
+Proposed, not accepted.
+
+| Case | Owes | What to do |
+|---|---|---|
+| Ships code for others | Outside risk | What we ship is visible to an adopter's scanner. It is the case of the proposed rule [Shipped risk declared](rules.md#shipped-risk-declared). |
+| An adopter is not handed our risk | Outside risk | A case under [Outside dependencies justified](rules.md#outside-dependencies-justified). A peer dependency is a direct dependency of ours, so it needs a record. The risk it weighs is carried by whoever runs it, the adopter included. |
 
 ## Outside the cases
 
