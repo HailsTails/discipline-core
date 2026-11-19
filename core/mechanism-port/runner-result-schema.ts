@@ -63,12 +63,22 @@ export type InlineDisable = Extract<NativeException, { readonly kind: "inline-di
 
 export type ProjectionState = "current" | "out-of-date" | "missing" | "not-included";
 
+const CHECKS_SECTION = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const remedySchema = z
+  .object({
+    fix: z.string().min(1),
+    section: z.string().regex(CHECKS_SECTION),
+  })
+  .readonly();
+
 export const hitSchema = z
   .object({
     clause: clauseAddressObjectSchema,
     file: repoPathSchema,
     anchor: anchorSchema,
     snippet: snippetSchema,
+    remedy: remedySchema.optional(),
   })
   .readonly();
 

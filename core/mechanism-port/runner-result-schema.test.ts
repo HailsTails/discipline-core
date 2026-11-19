@@ -65,6 +65,21 @@ describe("hitSchema", () => {
   it("refuses a hit anchored at line 0", () => {
     expect(hitSchema.safeParse({ ...hit, anchor: { line: 0, column: 5 } }).success).toBe(false);
   });
+
+  it("accepts a hit whose piece names a fix and the section of the rule's CHECKS.md that shows it", () => {
+    const remedied = { ...hit, remedy: { fix: "write a factory", section: "a-class-and-its-factory" } };
+
+    expect(hitSchema.safeParse(remedied)).toEqual({ success: true, data: remedied });
+  });
+
+  it.each([
+    { name: "an empty fix", remedy: { fix: "", section: "a-class" } },
+    { name: "a section with a space", remedy: { fix: "write a factory", section: "a class" } },
+    { name: "a section with a capital", remedy: { fix: "write a factory", section: "A-class" } },
+    { name: "a section with a leading hash", remedy: { fix: "write a factory", section: "#a-class" } },
+  ])("refuses a remedy with $name", ({ remedy }) => {
+    expect(hitSchema.safeParse({ ...hit, remedy }).success).toBe(false);
+  });
 });
 
 describe("caseVerdictSchema", () => {

@@ -35,6 +35,7 @@ These are not stable, so a minor release may change them:
 - the wording after `load failure: arguments-invalid`, written for the person who typed the command;
 - the text after a load failure's values, which says what to do next: the repair text of `selection-absent`, `judgement-clause-listed`, `config-root-untracked` and `why-chains-required`, and everything after the kind in `toolchain-unavailable` and `toolchain-shadowed`;
 - the `readFirst` lines and their leading note, written for a person;
+- the words of a finding's `<fix>`, and which `<section>` it names;
 - the words of an `unmeasured` or `projectionProblems` line after the `:` that ends its leading fields (its kind and reason, or its mechanism, state and slice), which say why and what to do next;
 - the words of a `hone record-debt` line after the `:` that follows its file, which say why no record was written and what to do instead.
 
@@ -61,6 +62,8 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 | `<dir>` | the `--repo` value as typed | may hold a space |
 | `<url>` | the module URL Hone could not resolve, as given | may hold a space |
 | `<snippet>` | the source text at a finding: at most 200 characters, or the first 200 followed by `…` when it is longer | may hold a space |
+| `<fix>` | what to write instead of the form a finding flags, as the clause's piece words it | may hold a space |
+| `<section>` | the section of the clause's `CHECKS.md`, beside its rule page, that shows that form and what to write instead: lowercase letters, digits and hyphens | never |
 | `<comment>`, `<script>`, `<option>`, `<source>` | the native exception's comment, the `package.json` script name and the option in it (or the whole script, when a quote in it has no partner), or where an imported record came from | may hold a space |
 | `<detail>`, `<given>`, `<values>`, `<rule set>`, `<other rule set>`, `<clause with its rule set>`, `<version found>`, `<other package>`, `<range>` | text from the input, a tool or the command as typed | may hold a space |
 
@@ -236,7 +239,7 @@ The verdict line reads `(partial assessment)` whenever the report has an `assess
 
 ## Report lines
 
-Each section's entries take one of these shapes. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
+Each section's entries take one of these shapes. A finding ends with ` fix: <fix> (CHECKS.md#<section>)` when its clause's piece names what to write instead of the form it flagged, as `CD-27#test-body-logic` does; an exempted finding never carries it. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
 
 | Section | Line |
 | --- | --- |
@@ -245,6 +248,7 @@ Each section's entries take one of these shapes. An exempted finding repeats ` e
 | `notRun` | `<clause> adopted, mechanism not run: enforced by review` |
 | `editions` | `<clause> <mechanism> edition <edition> of <latest>` |
 | `findings` | `<clause> <mechanism> <file>:<line>:<column> <snippet>` |
+| `findings` | `<clause> <mechanism> <file>:<line>:<column> <snippet> fix: <fix> (CHECKS.md#<section>)` |
 | `exempted` | `<clause> <mechanism> <file>:<line>:<column> <snippet> exempted by <record kind>` |
 | `exempted` | `<clause> <mechanism> <file>:<line>:<column> <snippet> exempted by <record kind> imported from <source>` |
 | `uncovered` | `<clause>` |

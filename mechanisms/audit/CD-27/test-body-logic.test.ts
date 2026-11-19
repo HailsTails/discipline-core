@@ -29,6 +29,7 @@ const TEAM_SECOND_EDITION_CLAUSE: RunnerClause = { ...SECOND_EDITION_CLAUSE, add
 type SourceObservations = {
   readonly tree: SyntaxTree;
   readonly observers: SourceObservers;
+  readonly enter: NonNullable<SourceObservers["enter"]>;
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
   readonly finish: PreparedWalkerCheck["finish"];
 };
@@ -41,7 +42,10 @@ const sourceObservations = (request: { readonly source: string; readonly clauses
   assert(selected.value.kind === "syntax");
   const tree = SYNTAX_API.createSourceFile(FILE, request.source, SYNTAX_API.ScriptTarget.Latest, true);
   const anchorAt = vi.fn<(request: { readonly position: number }) => Anchor>().mockReturnValue({ line: 1, column: 0 });
-  return { tree, observers: selected.value.begin({ sourceFile: tree, anchorAt }), anchorAt, finish: prepared.value.finish };
+  const observers = selected.value.begin({ sourceFile: tree, anchorAt });
+  const { enter } = observers;
+  assert.isDefined(enter);
+  return { tree, observers, enter, anchorAt, finish: prepared.value.finish };
 };
 
 describe("CD-27 existing whole-test-file logic observations", () => {
@@ -75,19 +79,19 @@ describe("CD-27 existing whole-test-file logic observations", () => {
     assert(secondBinding !== undefined);
     observed.anchorAt.mockReturnValueOnce({ line: 1, column: 0 }).mockReturnValueOnce({ line: 2, column: 0 }).mockReturnValueOnce({ line: 3, column: 0 }).mockReturnValueOnce({ line: 4, column: 0 });
 
-    observed.observers.enter?.({ node: statements.getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(1, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(2, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: letStatement });
-    observed.observers.enter?.({ node: letStatement.declarationList });
-    observed.observers.enter?.({ node: firstBinding });
-    observed.observers.enter?.({ node: secondBinding });
+    observed.enter({ node: statements.getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(1, observed.tree) });
+    observed.enter({ node: statements.getChildAt(2, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: letStatement });
+    observed.enter({ node: letStatement.declarationList });
+    observed.enter({ node: firstBinding });
+    observed.enter({ node: secondBinding });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "if(x)f(); try{}catch(e){} x?y:z; let a,b; " },
-      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "try{}catch(e){} x?y:z; let a,b; " },
-      { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "x?y:z; let a,b; " },
-      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "let a,b; " },
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "if(x)f(); try{}catch(e){} x?y:z; let a,b; ", remedy: expect.objectContaining({ section: "branching-with-if" }) },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "try{}catch(e){} x?y:z; let a,b; ", remedy: expect.objectContaining({ section: "a-try-block" }) },
+      { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "x?y:z; let a,b; ", remedy: expect.objectContaining({ section: "a-ternary" }) },
+      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "let a,b; ", remedy: expect.objectContaining({ section: "a-let" }) },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 0 }], [{ position: 10 }], [{ position: 26 }], [{ position: 33 }]]);
     expect(observed.finish()).toEqual({ outcome: "ok", value: [] });
@@ -103,18 +107,16 @@ describe("CD-27 existing whole-test-file logic observations", () => {
     assert(SYNTAX_API.isArrowFunction(callback));
     observed.anchorAt.mockReturnValueOnce({ line: 1, column: 0 }).mockReturnValueOnce({ line: 2, column: 0 }).mockReturnValueOnce({ line: 3, column: 10 });
 
-    observed.observers.enter?.({ node: statements.getChildAt(0, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(1, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: testCall });
-    observed.observers.enter?.({ node: callback });
-    observed.observers.enter?.({ node: callback.body });
-    observed.observers.leave?.({ node: callback });
-    observed.observers.leave?.({ node: testCall });
+    observed.enter({ node: statements.getChildAt(0, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(1, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: testCall });
+    observed.enter({ node: callback });
+    observed.enter({ node: callback.body });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f);\r r.push(1);\r it('',()=>s.filter(f));\r " },
-      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "r.push(1);\r it('',()=>s.filter(f));\r " },
-      { clause: ADDRESS, anchor: { line: 3, column: 10 }, snippet: "s.filter(f));\r " },
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f);\r r.push(1);\r it('',()=>s.filter(f));\r ", remedy: expect.objectContaining({ section: "a-method-that-computes-a-value" }) },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "r.push(1);\r it('',()=>s.filter(f));\r ", remedy: expect.objectContaining({ section: "a-method-that-mutates" }) },
+      { clause: ADDRESS, anchor: { line: 3, column: 10 }, snippet: "s.filter(f));\r ", remedy: expect.objectContaining({ section: "a-method-that-picks-or-tests-an-element" }) },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 0 }], [{ position: 11 }], [{ position: 33 }]]);
   });
@@ -122,10 +124,10 @@ describe("CD-27 existing whole-test-file logic observations", () => {
   it("adds the original ellipsis at exactly eighty source characters without collapsing whitespace", () => {
     const observed = sourceObservations({ source: "r.map(f);\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", clauses: [CLAUSE] });
 
-    observed.observers.enter?.({ node: observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(0, observed.tree) });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f); abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr…" },
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f); abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr…", remedy: expect.objectContaining({ section: "a-method-that-computes-a-value" }) },
     ]);
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 0 });
   });
@@ -139,18 +141,18 @@ describe("CD-27 existing whole-test-file logic observations", () => {
     const typeDeclaration = statements.getChildAt(10, observed.tree);
     assert(SYNTAX_API.isTypeAliasDeclaration(typeDeclaration));
 
-    observed.observers.enter?.({ node: statements.getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(1, observed.tree) });
-    observed.observers.enter?.({ node: forStatement });
-    observed.observers.enter?.({ node: forStatement.initializer });
-    observed.observers.enter?.({ node: statements.getChildAt(3, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(4, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(5, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(6, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(7, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(8, observed.tree).getChildAt(0, observed.tree) });
-    observed.observers.enter?.({ node: statements.getChildAt(9, observed.tree) });
-    observed.observers.enter?.({ node: typeDeclaration.type });
+    observed.enter({ node: statements.getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(1, observed.tree) });
+    observed.enter({ node: forStatement });
+    observed.enter({ node: forStatement.initializer });
+    observed.enter({ node: statements.getChildAt(3, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(4, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(5, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(6, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(7, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(8, observed.tree).getChildAt(0, observed.tree) });
+    observed.enter({ node: statements.getChildAt(9, observed.tree) });
+    observed.enter({ node: typeDeclaration.type });
 
     expect(observed.observers.finish()).toEqual([]);
     expect(observed.anchorAt).not.toHaveBeenCalled();
@@ -166,37 +168,39 @@ const firstExpressionOf = (request: { readonly source: string; readonly clauses:
 };
 
 const SECOND_EDITION_EXPRESSIONS = [
-  { name: "nullish coalescing", source: "a ?? b;" },
-  { name: "logical or", source: "a || b;" },
-  { name: "logical and", source: "a && b;" },
-  { name: "nullish assignment", source: "a ??= b;" },
-  { name: "logical or assignment", source: "a ||= b;" },
-  { name: "logical and assignment", source: "a &&= b;" },
-  { name: "optional property access", source: "a?.b;" },
-  { name: "optional element access", source: "a?.[0];" },
-  { name: "optional call", source: "f?.(1);" },
-  { name: "JSON.stringify", source: "JSON.stringify(value);" },
-  { name: "JSON.parse", source: "JSON.parse(text);" },
-  { name: "Object.assign", source: "Object.assign(target, source);" },
-  { name: "Object.fromEntries", source: "Object.fromEntries(pairs);" },
-  { name: "Array.from", source: "Array.from(items);" },
-  { name: "a Math method", source: "Math.max(a, b);" },
+  { name: "nullish coalescing", source: "a ?? b;", section: "a-short-circuit" },
+  { name: "logical or", source: "a || b;", section: "a-short-circuit" },
+  { name: "logical and", source: "a && b;", section: "a-short-circuit" },
+  { name: "nullish assignment", source: "a ??= b;", section: "a-short-circuit" },
+  { name: "logical or assignment", source: "a ||= b;", section: "a-short-circuit" },
+  { name: "logical and assignment", source: "a &&= b;", section: "a-short-circuit" },
+  { name: "optional property access", source: "a?.b;", section: "an-optional-chain-on-a-property" },
+  { name: "optional element access", source: "a?.[0];", section: "an-optional-chain-on-a-property" },
+  { name: "optional call", source: "f?.(1);", section: "an-optional-call" },
+  { name: "JSON.stringify", source: "JSON.stringify(value);", section: "serialising-json" },
+  { name: "JSON.parse", source: "JSON.parse(text);", section: "parsing-json" },
+  { name: "Object.assign", source: "Object.assign(target, source);", section: "merging-objects" },
+  { name: "Object.fromEntries", source: "Object.fromEntries(pairs);", section: "building-an-object-from-entries" },
+  { name: "Array.from", source: "Array.from(items);", section: "building-an-array-from-a-length" },
+  { name: "a Math method", source: "Math.max(a, b);", section: "a-math-call" },
 ];
 
 describe("CD-27 second-edition logic observations", () => {
-  it.each(SECOND_EDITION_EXPRESSIONS)("flags $name under the second edition", ({ source }) => {
+  it.each(SECOND_EDITION_EXPRESSIONS)("flags $name under the second edition with the $section fix", ({ source, section }) => {
     const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });
 
-    observed.observers.enter?.({ node: expression });
+    observed.enter({ node: expression });
 
-    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: source }]);
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: source, remedy: expect.objectContaining({ section }) },
+    ]);
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 0 });
   });
 
   it.each(SECOND_EDITION_EXPRESSIONS)("keeps $name unflagged under the first edition", ({ source }) => {
     const { observed, expression } = firstExpressionOf({ source, clauses: [CLAUSE] });
 
-    observed.observers.enter?.({ node: expression });
+    observed.enter({ node: expression });
 
     expect(observed.observers.finish()).toEqual([]);
   });
@@ -205,27 +209,27 @@ describe("CD-27 second-edition logic observations", () => {
     const second = sourceObservations({ source: "switch (x) {}", clauses: [SECOND_EDITION_CLAUSE] });
     const first = sourceObservations({ source: "switch (x) {}", clauses: [CLAUSE] });
 
-    second.observers.enter?.({ node: second.tree.getChildAt(0, second.tree).getChildAt(0, second.tree) });
-    first.observers.enter?.({ node: first.tree.getChildAt(0, first.tree).getChildAt(0, first.tree) });
+    second.enter({ node: second.tree.getChildAt(0, second.tree).getChildAt(0, second.tree) });
+    first.enter({ node: first.tree.getChildAt(0, first.tree).getChildAt(0, first.tree) });
 
-    expect(second.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "switch (x) {}" }]);
+    expect(second.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "switch (x) {}", remedy: expect.objectContaining({ section: "a-switch" }) }]);
     expect(first.observers.finish()).toEqual([]);
   });
 
   it("keeps flagging first-edition logic under the second edition", () => {
     const { observed, expression } = firstExpressionOf({ source: "r.map(f);", clauses: [SECOND_EDITION_CLAUSE] });
 
-    observed.observers.enter?.({ node: expression });
+    observed.enter({ node: expression });
 
-    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f);" }]);
+    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "r.map(f);", remedy: expect.objectContaining({ section: "a-method-that-computes-a-value" }) }]);
   });
 
   it("attributes a second-edition hit only to the clauses running the second edition", () => {
     const { observed, expression } = firstExpressionOf({ source: "a ?? b;", clauses: [CLAUSE, TEAM_SECOND_EDITION_CLAUSE] });
 
-    observed.observers.enter?.({ node: expression });
+    observed.enter({ node: expression });
 
-    expect(observed.observers.finish()).toEqual([{ clause: TEAM_ADDRESS, anchor: { line: 1, column: 0 }, snippet: "a ?? b;" }]);
+    expect(observed.observers.finish()).toEqual([{ clause: TEAM_ADDRESS, anchor: { line: 1, column: 0 }, snippet: "a ?? b;", remedy: expect.objectContaining({ section: "a-short-circuit" }) }]);
   });
 
   it.each([
@@ -242,7 +246,7 @@ describe("CD-27 second-edition logic observations", () => {
   ])("keeps $name unflagged under the second edition", ({ source }) => {
     const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });
 
-    observed.observers.enter?.({ node: expression });
+    observed.enter({ node: expression });
 
     expect(observed.observers.finish()).toEqual([]);
   });
