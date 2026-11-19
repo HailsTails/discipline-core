@@ -1,4 +1,4 @@
-import { readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
@@ -107,16 +107,18 @@ const checkRunIn = async (
     requested: { forfeiture: request.arguments.forfeiture },
     configured: configured.value.assessment,
   });
+  const moduleExtension = moduleExtensionOf({ moduleUrl: request.moduleUrl });
   const report = await runCheck({
     repoRoot: request.repoRoot,
     installRoot: request.installRoot,
-    moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
+    moduleExtension,
     baseRevision: request.arguments.baseRevision,
     assessment,
     fileText: request.fileText,
     modules: request.modules,
     path: request.path,
     git: request.git,
+    selectionRepository: createSelectionRepository({ ...request, moduleExtension }),
     exceptionRepository: request.exceptionRepositoryOf({ repoRoot: request.repoRoot }),
   });
   return checkRunOf({

@@ -107,7 +107,6 @@ export default [
       "core/check/load-failure-text.test.ts",
       "core/check/mechanism-dispatch.test.ts",
       "core/check/run-check-command.test.ts",
-      "core/check/run-check.test.ts",
       "core/check/run-project-command.test.ts",
       "core/check/run-project.test.ts",
       "core/check/vendor-imports.test.ts",

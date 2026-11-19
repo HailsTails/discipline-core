@@ -1,4 +1,4 @@
-import { readSelection, type SelectionReading } from "../consumer-selection/consumer-selection.ts";
+import { readSelection, type SelectionReading, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
 import {
   type InheritedDebtOutcome,
@@ -55,6 +55,7 @@ const debtOutcomesOf = async (request: DebtRequest): Promise<DebtResult> => {
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: request.arguments.baseRevision,
     assessment: ASSESSED_IN_THIS_RUN,
+    selectionRepository: selectionRepositoryHolding({ reading: request.selection }),
   });
   if (reached.outcome === "failed") {
     return reached;
