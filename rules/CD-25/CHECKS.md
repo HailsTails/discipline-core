@@ -24,10 +24,10 @@ const clock = { now: vi.fn(() => 1) };
 ```ts
 const clock = { now: vi.fn().mockReturnValue(1) };
 ```
-Return a canned value: that double is a stub. If the double needs logic, the seam is probably too wide, or the double is a fake that belongs in a shared in-memory implementation of the port with its own tests.
+Return a canned value: that double is a stub. If the double needs logic, the seam is probably too wide.
 
 ## Exceptions
-A double that legitimately needs behaviour is a fake: write it once as an in-memory implementation of the port, in its own module with its own tests, and pass it in. That is the home for the behaviour, not an exception for a test file. For debt in one file, add a `file-carve-out` entry to `discipline-exceptions.json` at the repository root: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+For debt in one file, add a `file-carve-out` entry to `discipline-exceptions.json` at the repository root: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
