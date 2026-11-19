@@ -15,7 +15,7 @@ const PACKAGE_MANIFEST = "package.json";
 
 type LinkRequest = {
   readonly path: PathPort;
-  readonly fileText: FileTextPort;
+  readonly fileText: Pick<FileTextPort, "read" | "exists">;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
 };

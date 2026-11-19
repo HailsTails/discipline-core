@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type ClauseBinding, readSelection, type Selection } from "../consumer-selection/consumer-selection.ts";
+import type { ClauseBinding, Selection, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseRoot } from "../consumer-selection/selection.ts";
 import {
   type ExceptionRecord,
@@ -47,11 +47,12 @@ export type CheckRequest = {
   readonly moduleExtension: ModuleExtension;
   readonly baseRevision: string | undefined;
   readonly assessment: Assessment;
-  readonly fileText: FileTextPort;
+  readonly fileText: Pick<FileTextPort, "read" | "exists">;
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
   readonly git: GitPort;
-  readonly exceptionRepository: ExceptionRepository;
+  readonly selectionRepository: SelectionRepository;
+  readonly exceptionRepository: Pick<ExceptionRepository, "read" | "readAt">;
 };
 
 export type ExceptionBaselineReader = (request: {
@@ -169,7 +170,7 @@ const loadMechanisms = async (
   });
 
 export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInputs, LoadFailure>> => {
-  const reading = readSelection(request);
+  const reading = request.selectionRepository.read({});
   if (reading.outcome === "failed") {
     return reading;
   }

@@ -1,3 +1,4 @@
+import { createSelectionRepository, type SelectionRepository } from "../core/consumer-selection/consumer-selection.ts";
 import { createExceptionRepository, type ExceptionLayoutPorts } from "../core/exception-records/exception-layout.ts";
 import type { ExceptionRepository, ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
 import type { DirectoryEntry } from "../core/platform-ports/file-system-port.ts";
@@ -5,6 +6,7 @@ import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createPathPort, type PathPort } from "../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../core/values/absolute-path.ts";
+import type { ModuleExtension } from "../core/values/install-layout.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
 
 export type RecordsDisk = {
@@ -114,9 +116,22 @@ export const singleFileRepositoriesOver = (request: {
 }): ExceptionRepositoryOf =>
   ({ repoRoot }) => singleFileRepositoryOver({ ...request, repoRoot });
 
-export const withSingleFileRecords = <Request extends { readonly repoRoot: AbsolutePath; readonly fileText: FileTextPort; readonly path: PathPort; readonly git: GitPort }>(
+type DiskRequest = {
+  readonly repoRoot: AbsolutePath;
+  readonly installRoot: AbsolutePath;
+  readonly moduleExtension: ModuleExtension;
+  readonly fileText: FileTextPort;
+  readonly path: PathPort;
+  readonly git: GitPort;
+};
+
+export const withSingleFileRecords = <Request extends DiskRequest>(
   request: Request,
-): Request & { readonly exceptionRepository: ExceptionRepository } => ({ ...request, exceptionRepository: singleFileRepositoryOver(request) });
+): Request & { readonly selectionRepository: SelectionRepository; readonly exceptionRepository: ExceptionRepository } => ({
+  ...request,
+  selectionRepository: createSelectionRepository(request),
+  exceptionRepository: singleFileRepositoryOver(request),
+});
 
 export const withSingleFileRecordsOf = <Request extends { readonly fileText: FileTextPort; readonly path: PathPort; readonly git: GitPort }>(
   request: Request,
