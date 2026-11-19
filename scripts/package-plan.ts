@@ -3,6 +3,7 @@ import { parsedJson } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { Result } from "../core/values/result.ts";
 import { CHANGELOG_FILE } from "./changelog.ts";
 import { PUBLIC_TYPE_ENTRIES } from "./package-declarations.ts";
+import { dataShippingOf } from "./shipped-data.ts";
 
 export type PlanFailure = { readonly kind: "piece-invalid"; readonly path: string; readonly detail: string };
 
@@ -51,8 +52,6 @@ export type DocumentAuthor = "release" | "maintainer";
 
 export const documentAuthorOf = (request: { readonly path: string }): DocumentAuthor =>
   RELEASE_WRITTEN_DOCUMENTS.has(request.path) ? "release" : "maintainer";
-
-const SHIPPED_DATA = [/^rules\/[^/]+\/discipline\.json$/, /^rules\/.+\.md$/, /^methods\/.+\.md$/, /^mechanisms\/.+\.md$/];
 
 const PACKAGE_IMPORTED_MECHANISMS: ReadonlySet<string> = new Set(["eslint"]);
 
@@ -175,7 +174,7 @@ const parsedPieces = (request: { readonly pieces: readonly PieceText[] }): Resul
 const copiedPathsIn = (request: { readonly sourcePaths: readonly string[] }): readonly string[] =>
   shippedPaths(request).filter(
     (path) =>
-      SHIPPED_DOCUMENTS.has(path) || documentAuthorOf({ path }) === "release" || SHIPPED_DATA.some((pattern) => pattern.test(path)),
+      SHIPPED_DOCUMENTS.has(path) || documentAuthorOf({ path }) === "release" || dataShippingOf({ path }) === "shipped",
   );
 
 export const packagePlanOf = (request: {

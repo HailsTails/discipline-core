@@ -1,0 +1,1162 @@
+{
+  "version": 1,
+  "principles": [
+    { "name": "tests-are-ours", "title": "Tests are ours" },
+    { "name": "one-place-decides", "title": "One place decides" },
+    { "name": "no-hidden-effects", "title": "No hidden effects" },
+    { "name": "external-behaviour-sits-at-a-boundary", "title": "External behaviour sits at a boundary" },
+    { "name": "no-leak-across-a-boundary", "title": "No leak across a boundary" },
+    { "name": "the-type-checker-proves-it", "title": "The type checker proves it" },
+    { "name": "our-code-reads-in-the-common-language", "title": "Our code reads in the common language" },
+    { "name": "outside-risk-is-carried-on-purpose", "title": "Outside risk is carried on purpose" }
+  ],
+  "rules": [
+    { "name": "written-out-answers", "title": "Written-out answers", "principle": "tests-are-ours", "standing": "accepted" },
+    { "name": "straight-through-tests", "title": "Straight-through tests", "principle": "tests-are-ours", "standing": "accepted" },
+    { "name": "tested-where-its-owned", "title": "Tested where it's owned", "principle": "tests-are-ours", "standing": "accepted" },
+    { "name": "doer-or-orchestrator", "title": "Doer or orchestrator", "principle": "one-place-decides", "standing": "accepted" },
+    { "name": "handed-what-it-uses", "title": "Handed what it uses", "principle": "one-place-decides", "standing": "accepted" },
+    { "name": "guard-first", "title": "Guard first", "principle": "one-place-decides", "standing": "accepted" },
+    { "name": "one-reason-per-module", "title": "One reason per module", "principle": "one-place-decides", "standing": "accepted" },
+    { "name": "outside-dependencies-stay-at-boundaries", "title": "Outside dependencies stay at boundaries", "principle": "external-behaviour-sits-at-a-boundary", "standing": "accepted" },
+    { "name": "ports-declared-inside", "title": "Ports declared inside", "principle": "external-behaviour-sits-at-a-boundary", "standing": "accepted" },
+    { "name": "failures-are-values", "title": "Failures are values", "principle": "the-type-checker-proves-it", "standing": "accepted" },
+    { "name": "declared-not-asserted", "title": "Declared, not asserted", "principle": "the-type-checker-proves-it", "standing": "accepted" },
+    { "name": "kinds-are-named", "title": "Kinds are named", "principle": "the-type-checker-proves-it", "standing": "accepted" },
+    { "name": "one-word-everywhere", "title": "One word everywhere", "principle": "our-code-reads-in-the-common-language", "standing": "accepted" },
+    { "name": "outside-dependencies-justified", "title": "Outside dependencies justified", "principle": "outside-risk-is-carried-on-purpose", "standing": "accepted" },
+    { "name": "fixed-versions", "title": "Fixed versions", "principle": "outside-risk-is-carried-on-purpose", "standing": "accepted" },
+    { "name": "tools-live-in-the-repo", "title": "Tools live in the repo", "principle": "outside-risk-is-carried-on-purpose", "standing": "accepted" },
+    { "name": "upstream-stays-untouched", "title": "Upstream stays untouched", "principle": "outside-risk-is-carried-on-purpose", "standing": "accepted" },
+    { "name": "shipped-risk-declared", "title": "Shipped risk declared", "principle": "outside-risk-is-carried-on-purpose", "standing": "proposed" }
+  ],
+  "recipes": [
+    { "name": "stub-with-vifn", "title": "Stub with vi.fn", "standing": "accepted" },
+    { "name": "ports-in-the-argument", "title": "Ports in the argument", "standing": "accepted" },
+    { "name": "iteach-over-typed-rows", "title": "it.each over typed rows", "standing": "accepted" },
+    { "name": "assert-to-narrow", "title": "Assert to narrow", "standing": "accepted" },
+    { "name": "whole-written-out-expectation", "title": "Whole written-out expectation", "standing": "accepted" },
+    { "name": "failure-asserted-as-a-value", "title": "Failure asserted as a value", "standing": "accepted" },
+    { "name": "companion-test-file", "title": "Companion test file", "standing": "accepted" },
+    { "name": "integration-test-suffix", "title": "Integration test suffix", "standing": "accepted" },
+    { "name": "integration-test-owns-its-scratch", "title": "Integration test owns its scratch", "standing": "accepted" },
+    { "name": "composed-orchestrator", "title": "Composed orchestrator", "standing": "accepted" },
+    { "name": "functional-iteration", "title": "Functional iteration", "standing": "accepted" },
+    { "name": "one-argument-object", "title": "One argument object", "standing": "accepted" },
+    { "name": "narrow-ports", "title": "Narrow ports", "standing": "accepted" },
+    { "name": "entity-module", "title": "Entity module", "standing": "accepted" },
+    { "name": "guard-clauses", "title": "Guard clauses", "standing": "accepted" },
+    { "name": "screaming-folders", "title": "Screaming folders", "standing": "accepted" },
+    { "name": "copy-never-write-in", "title": "Copy, never write in", "standing": "accepted" },
+    { "name": "closure-factory", "title": "Closure factory", "standing": "accepted" },
+    { "name": "adapter-per-outside-party", "title": "Adapter per outside party", "standing": "accepted" },
+    { "name": "port-in-the-domain", "title": "Port in the domain", "standing": "accepted" },
+    { "name": "world-values-through-a-port", "title": "World values through a port", "standing": "accepted" },
+    { "name": "composition-root", "title": "Composition root", "standing": "accepted" },
+    { "name": "zod-at-the-producers-adapter", "title": "Zod at the producer's adapter", "standing": "accepted" },
+    { "name": "map-out-at-the-adapter", "title": "Map out at the adapter", "standing": "accepted" },
+    { "name": "failure-mapping-at-the-adapter", "title": "Failure mapping at the adapter", "standing": "accepted" },
+    { "name": "result-union", "title": "Result union", "standing": "accepted" },
+    { "name": "named-exported-type", "title": "Named, exported type", "standing": "accepted" },
+    { "name": "fix-the-declaration-not-the-value", "title": "Fix the declaration, not the value", "standing": "accepted" },
+    { "name": "bounded-context-generic", "title": "Bounded context generic", "standing": "accepted" },
+    { "name": "shared-strict-base-config", "title": "Shared strict base config", "standing": "accepted" },
+    { "name": "tagged-union-and-exhaustive-switch", "title": "Tagged union and exhaustive switch", "standing": "accepted" },
+    { "name": "domain-vocabulary-list", "title": "Domain vocabulary list", "standing": "accepted" },
+    { "name": "whole-words", "title": "Whole words", "standing": "accepted" },
+    { "name": "meaning-in-names-not-comments", "title": "Meaning in names, not comments", "standing": "accepted" },
+    { "name": "dependency-record", "title": "Dependency record", "standing": "accepted" },
+    { "name": "exact-pins-and-a-lock-file", "title": "Exact pins and a lock file", "standing": "accepted" },
+    { "name": "repo-scripts-only", "title": "Repo scripts only", "standing": "accepted" },
+    { "name": "extension-outside-the-vendored-code", "title": "Extension outside the vendored code", "standing": "accepted" },
+    { "name": "declared-not-bundled", "title": "Declared, not bundled", "standing": "proposed" }
+  ],
+  "recordKinds": [
+    { "name": "authorised-location", "title": "Authorised location", "todaysFormat": "authorised-location" },
+    { "name": "deviation", "title": "Deviation", "todaysFormat": "none-yet" },
+    { "name": "debt", "title": "Debt", "todaysFormat": "file-carve-out" },
+    { "name": "boundary-record", "title": "Boundary record", "todaysFormat": "authorised-location" },
+    { "name": "dependency-record", "title": "Dependency record", "todaysFormat": "none-yet" }
+  ],
+  "symptoms": [
+    {
+      "name": "date-used-directly",
+      "title": "Date used directly",
+      "seen": "Any use of `Date` (`Date.now()`, `new Date()`, `new Date(value)`, `Date.parse`) or `performance.now()` outside the places that handle dates.",
+      "mayIndicate": [
+        { "case": "Needs the current time", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "In the unit that should be passed the time; often a doer doing two jobs.",
+      "recipes": ["world-values-through-a-port"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in the clock's adapter" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "ambient-randomness",
+      "title": "Ambient randomness",
+      "seen": "`Math.random()`, `crypto.randomUUID()` or `crypto.getRandomValues()` outside their adapter.",
+      "mayIndicate": [
+        { "case": "Needs a random value or a new id", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "In the unit that should be passed the value; often a doer doing two jobs.",
+      "recipes": ["world-values-through-a-port"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in the adapter for random values or new ids" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "process-global-used-in-place",
+      "title": "Process global used in place",
+      "seen": "`process.env`, `process.argv`, `process.exit`, `process.on`, `console.*` or `globalThis` read outside an adapter.",
+      "mayIndicate": [
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }] }
+      ],
+      "breachUsuallySits": "A missing port; or an adapter not built at the entry point.",
+      "recipes": ["world-values-through-a-port", "adapter-per-outside-party", "composition-root"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in the adapter that wraps the process" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "outside-import-past-a-boundary",
+      "title": "Outside import past a boundary",
+      "seen": "An import, `import()` or `require` of an outside dependency or runtime module (`node:*`) in a file with no boundary record.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] },
+        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] }
+      ],
+      "breachUsuallySits": "A missing adapter and port.",
+      "recipes": ["adapter-per-outside-party", "port-in-the-domain"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in the adapter for that outside party" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "outside-type-in-a-signature",
+      "title": "Outside type in a signature",
+      "seen": "A type from an outside dependency or runtime library in a business-logic parameter, field or return, imported or inferred.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "no-leak-across-a-boundary" }] }
+      ],
+      "breachUsuallySits": "The adapter that hands the outside type inward.",
+      "recipes": ["adapter-per-outside-party"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "inside the adapter; beyond it, with a Conformist statement for an outside model adopted as ours" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "library-class-built-in-place",
+      "title": "Library class built in place",
+      "seen": "`new` on a class from an outside dependency, outside that dependency's adapter.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }] },
+        { "case": "Keeps state or settings across calls", "points": [{ "principle": "no-hidden-effects" }] }
+      ],
+      "breachUsuallySits": "A missing adapter.",
+      "recipes": ["adapter-per-outside-party", "closure-factory"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in that dependency's adapter" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "text-past-its-reader",
+      "title": "Text past its reader",
+      "seen": "`JSON.parse`, `JSON.stringify` or a YAML parse or dump outside the adapter for whoever produced or receives the text, tests included.",
+      "mayIndicate": [
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "Uses a system or service outside the program", "points": [{ "principle": "external-behaviour-sits-at-a-boundary" }] },
+        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "A port that takes or gives text where it should carry objects.",
+      "recipes": ["adapter-per-outside-party", "map-out-at-the-adapter", "zod-at-the-producers-adapter", "whole-written-out-expectation"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "correct use, in the adapter for whoever produced or receives the text" },
+        { "kind": "authorised-location", "when": "at one test site, for this symptom alone" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "schema-past-its-adapter",
+      "title": "Schema past its adapter",
+      "seen": "A schema, a `.parse` call or a `z.infer` type outside the producer's adapter, or the same value parsed twice.",
+      "mayIndicate": [
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+      ],
+      "breachUsuallySits": "The adapter, which hands the wire type inward instead of mapping it.",
+      "recipes": ["zod-at-the-producers-adapter"],
+      "answeredBy": [
+        { "kind": "boundary-record", "when": "with a Conformist statement, for an outside model adopted as ours" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "claimed-type",
+      "title": "Claimed type",
+      "seen": "`as T` other than `as const`, `<T>x`, `x!` or `x!:`, including `as unknown` and any cast whose type holds `any`.",
+      "mayIndicate": [
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "Builds an input for a test with a cast", "points": [{ "rule": "handed-what-it-uses" }] }
+      ],
+      "breachUsuallySits": "The declaration: an input too wide, a generic not bounded, a missing parse.",
+      "recipes": ["fix-the-declaration-not-the-value", "assert-to-narrow", "one-argument-object"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "in the adapter whose outside contract forces it" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "untyped-value",
+      "title": "Untyped value",
+      "seen": "`any` in a type position, or a `let` with no type and no initial value.",
+      "mayIndicate": [
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+      ],
+      "breachUsuallySits": "The boundary that let an unknown shape in.",
+      "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "own-type-guard",
+      "title": "Own type guard",
+      "seen": "A function of ours whose return type is `x is T` or `asserts x is T`.",
+      "mayIndicate": [
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+      ],
+      "breachUsuallySits": "A missing schema parse at the adapter, or a declaration too wide.",
+      "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "type-derived-from-code",
+      "title": "Type derived from code",
+      "seen": "`ReturnType<typeof x>`, `Parameters<typeof x>` or `typeof x` used as a type of our own.",
+      "mayIndicate": [
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The producer, which has no named type.",
+      "recipes": ["named-exported-type"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "in the adapter for an outside dependency that gives no named type" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "strictness-weakened",
+      "title": "Strictness weakened",
+      "seen": "A project whose resolved compiler options leave a strict flag off.",
+      "mayIndicate": [
+        { "case": "Sets how strictly the checker works", "points": [{ "principle": "the-type-checker-proves-it" }] }
+      ],
+      "breachUsuallySits": "The base config or the project that overrides it.",
+      "recipes": ["shared-strict-base-config"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "default-on-a-closed-union",
+      "title": "Default on a closed union",
+      "seen": "`default:` in a `switch` over a closed union.",
+      "mayIndicate": [
+        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
+      ],
+      "breachUsuallySits": "The switch.",
+      "recipes": ["tagged-union-and-exhaustive-switch"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "boolean-in-a-signature",
+      "title": "Boolean in a signature",
+      "seen": "A `boolean` parameter, field, or return that stands for a mode or state.",
+      "mayIndicate": [
+        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "A missing named kind, or a unit with two modes.",
+      "recipes": ["tagged-union-and-exhaustive-switch"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "absence-standing-for-a-state",
+      "title": "Absence standing for a state",
+      "seen": "A field typed `T | null` or `T | undefined`, or optional, whose absence means a state rather than \"not given\".",
+      "mayIndicate": [
+        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
+        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
+      ],
+      "breachUsuallySits": "The type, which needs named kinds.",
+      "recipes": ["tagged-union-and-exhaustive-switch"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "default-for-a-required-value",
+      "title": "Default for a required value",
+      "seen": "`??`, `||` or a parameter default that supplies a required config, context or environment value.",
+      "mayIndicate": [
+        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+      ],
+      "breachUsuallySits": "The declaration or the adapter: a missing value is a failure.",
+      "recipes": ["zod-at-the-producers-adapter", "bounded-context-generic"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "throw-between-our-units",
+      "title": "Throw between our units",
+      "seen": "`throw` outside an adapter whose caller's contract is exceptions.",
+      "mayIndicate": [
+        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+      ],
+      "breachUsuallySits": "The unit, or a missing mapping at the adapter.",
+      "recipes": ["result-union", "failure-mapping-at-the-adapter"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "at an adapter whose caller's contract is exceptions" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "thrown-non-error",
+      "title": "Thrown non-error",
+      "seen": "`throw` of a literal, an object or a template.",
+      "mayIndicate": [
+        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+      ],
+      "breachUsuallySits": "The throw site.",
+      "recipes": ["failure-mapping-at-the-adapter"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "failure-shaped-as-success",
+      "title": "Failure shaped as success",
+      "seen": "A failed path that returns `null`, `false`, `[]`, `undefined` or a default, or a `catch` that returns one.",
+      "mayIndicate": [
+        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
+      ],
+      "breachUsuallySits": "The unit's return type.",
+      "recipes": ["result-union"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "catch-all-failure-kind",
+      "title": "Catch-all failure kind",
+      "seen": "A failure variant such as `unknown`, `other` or a bare message string, carrying no named cause.",
+      "mayIndicate": [
+        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
+      ],
+      "breachUsuallySits": "The adapter, which did not name the outside failure.",
+      "recipes": ["result-union", "failure-mapping-at-the-adapter"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "loop-keyword",
+      "title": "Loop keyword",
+      "seen": "`for`, `for…of`, `for…in`, `for await`, `while` or `do`.",
+      "mayIndicate": [
+        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "The unit.",
+      "recipes": ["functional-iteration"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "draining a stream in its source's adapter" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "write-into-a-parameter",
+      "title": "Write into a parameter",
+      "seen": "Assigning to or deleting a parameter's field, or calling an in-place method (`push`, `sort`, `splice`) on a parameter.",
+      "mayIndicate": [
+        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] }
+      ],
+      "breachUsuallySits": "The unit.",
+      "recipes": ["copy-never-write-in"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "rebinding",
+      "title": "Rebinding",
+      "seen": "A `let` assigned again, or a parameter reassigned, incremented or destructured into.",
+      "mayIndicate": [
+        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "The unit. No caller sees it, so on its own it shows no hidden effect; it is suspect for work done inline in steps.",
+      "recipes": ["copy-never-write-in", "functional-iteration"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "authored-class-or-this",
+      "title": "Authored class or this",
+      "seen": "The `class` keyword in our code, `static`-only classes included, or `this` read outside a class.",
+      "mayIndicate": [
+        { "case": "Keeps state or settings across calls", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+      ],
+      "breachUsuallySits": "The unit.",
+      "recipes": ["closure-factory"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "module-level-state",
+      "title": "Module-level state",
+      "seen": "A module-scope `let`, or a module-scope collection that functions change.",
+      "mayIndicate": [
+        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
+      ],
+      "breachUsuallySits": "A missing adapter for the state.",
+      "recipes": ["closure-factory"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "long-function",
+      "title": "Long function",
+      "seen": "A function body over the line limit.",
+      "mayIndicate": [
+        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
+        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
+        { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.",
+      "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "tangled-function",
+      "title": "Tangled function",
+      "seen": "A function over the cognitive-complexity limit.",
+      "mayIndicate": [
+        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
+        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
+        { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.",
+      "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "work-inside-a-condition",
+      "title": "Work inside a condition",
+      "seen": "An `if` inside another `if`, or an `else` after a branch that always exits.",
+      "mayIndicate": [
+        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "The unit's questions.",
+      "recipes": ["guard-clauses"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "orchestrator-that-computes",
+      "title": "Orchestrator that computes",
+      "seen": "A function that calls two or more units of ours and also branches, computes or reshapes between the calls.",
+      "mayIndicate": [
+        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "The orchestrator.",
+      "recipes": ["composed-orchestrator"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "doer-calling-our-own-unit",
+      "title": "Doer calling our own unit",
+      "seen": "A function with logic that imports and calls a business-logic unit of ours that is not a port.",
+      "mayIndicate": [
+        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "The unit, mixing two roles.",
+      "recipes": ["composed-orchestrator", "ports-in-the-argument"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "positional-parameters",
+      "title": "Positional parameters",
+      "seen": "A function of ours, whose shape no outside API fixes, that has two or more parameters.",
+      "mayIndicate": [
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] },
+        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
+      ],
+      "breachUsuallySits": "The signature.",
+      "recipes": ["one-argument-object"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "tuple-as-data",
+      "title": "Tuple as data",
+      "seen": "An array literal or type of fixed mixed positions used as a value, such as `[key, value]` pairs or `pair[1]`.",
+      "mayIndicate": [
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The data's type.",
+      "recipes": ["one-argument-object"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "wide-input",
+      "title": "Wide input",
+      "seen": "A parameter type holding fields the unit never reads.",
+      "mayIndicate": [
+        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] }
+      ],
+      "breachUsuallySits": "The unit's declared input.",
+      "recipes": ["one-argument-object", "entity-module"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "wide-port",
+      "title": "Wide port",
+      "seen": "A port with methods its consumer never calls.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "handed-what-it-uses" }, { "rule": "ports-declared-inside" }] }
+      ],
+      "breachUsuallySits": "The port.",
+      "recipes": ["narrow-ports"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "inner-layer-imports-outer",
+      "title": "Inner layer imports outer",
+      "seen": "A domain or business-logic file that imports an adapter or infrastructure file.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
+      ],
+      "breachUsuallySits": "The import, or a port declared on the wrong side.",
+      "recipes": ["port-in-the-domain"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "port-outside-the-domain",
+      "title": "Port outside the domain",
+      "seen": "A port interface declared in an adapter's module, or beside its default adapter.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] }
+      ],
+      "breachUsuallySits": "The port's file.",
+      "recipes": ["port-in-the-domain"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "adapter-built-outside-the-root",
+      "title": "Adapter built outside the root",
+      "seen": "A call to an adapter's factory anywhere but the entry point.",
+      "mayIndicate": [
+        { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }, { "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "The calling unit, which builds what it should be passed.",
+      "recipes": ["composition-root"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "port-named-for-a-mechanism",
+      "title": "Port named for a mechanism",
+      "seen": "A port named for a technology (`HttpClient`, `Fs`, `Sqlite`) rather than a capability.",
+      "mayIndicate": [
+        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The port.",
+      "recipes": ["port-in-the-domain"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "double-with-a-body",
+      "title": "Double with a body",
+      "seen": "A double that has a function body at all: `vi.fn(impl)`, `mockImplementation`, or a hand-written function or object double. A body that only returns a value is included.",
+      "mayIndicate": [
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "handed-what-it-uses" }, { "rule": "doer-or-orchestrator" }] }
+      ],
+      "breachUsuallySits": "A port too wide, or a collaborator holding two decisions.",
+      "recipes": ["stub-with-vifn"],
+      "answeredBy": [
+        { "kind": "deviation", "when": "from Stub with vi.fn: a fake, where a stub cannot do the test" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "module-or-global-patched",
+      "title": "Module or global patched",
+      "seen": "`vi.mock`, `vi.stubGlobal`, a spy on a global, or `process.env` set in a test.",
+      "mayIndicate": [
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "ports-declared-inside" }] }
+      ],
+      "breachUsuallySits": "The unit, which imports what it should be passed.",
+      "recipes": ["ports-in-the-argument"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "branch-in-a-test",
+      "title": "Branch in a test",
+      "seen": "`if`, a ternary, `&&`, `||`, `??`, `?.` or `switch` in a test file.",
+      "mayIndicate": [
+        { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }, { "rule": "kinds-are-named" }, { "rule": "failures-are-values" }] }
+      ],
+      "breachUsuallySits": "Often the unit's output type: optional or loose shapes force the test to branch.",
+      "recipes": ["assert-to-narrow", "iteach-over-typed-rows"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "computed-value-in-a-test",
+      "title": "Computed value in a test",
+      "seen": "A test that builds or picks a value: array methods, `find`, `Math.*`, `Object.assign`, `Object.fromEntries`, `Array.from` or a spread over a list. Calls on the unit's own API are not included.",
+      "mayIndicate": [
+        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "The test, or logic no unit owns.",
+      "recipes": ["whole-written-out-expectation", "iteach-over-typed-rows"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "throw-or-catch-in-a-test",
+      "title": "Throw or catch in a test",
+      "seen": "`throw`, `try` or `catch` in a test file.",
+      "mayIndicate": [
+        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
+      ],
+      "breachUsuallySits": "Often the unit, which throws.",
+      "recipes": ["failure-asserted-as-a-value"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "unasserted-call",
+      "title": "Unasserted call",
+      "seen": "A stub or spy passed to the unit whose calls the test never asserts.",
+      "mayIndicate": [
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "The test.",
+      "recipes": ["stub-with-vifn"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "answer-set-in-a-hook",
+      "title": "Answer set in a hook",
+      "seen": "A test hook that gives a stub its answer (`mockReturnValue`, `mockResolvedValue`, `mockImplementation`) or reassigns a value the tests read. A plain reset in `afterEach` is not this symptom.",
+      "mayIndicate": [
+        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] },
+        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
+      ],
+      "breachUsuallySits": "A double or a value shared across tests at file or suite scope; or state held in the unit's module.",
+      "recipes": ["stub-with-vifn"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "test-switched-off",
+      "title": "Test switched off",
+      "seen": "`.only`, `.skip`, `fit` or `xit`.",
+      "mayIndicate": [
+        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+      ],
+      "breachUsuallySits": "The test file.",
+      "recipes": [],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "unit-without-a-running-test",
+      "title": "Unit without a running test",
+      "seen": "A file with a runtime export and no `name.test.ts` beside it that imports and runs it.",
+      "mayIndicate": [
+        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+      ],
+      "breachUsuallySits": "The missing test.",
+      "recipes": ["companion-test-file"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "machine-touched-in-a-unit-test",
+      "title": "Machine touched in a unit test",
+      "seen": "A unit test that reads or writes files, spawns a process, opens a socket or makes a temp directory.",
+      "mayIndicate": [
+        { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] },
+        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "The unit, which has no port; or a test that is an integration test misnamed.",
+      "recipes": ["integration-test-owns-its-scratch", "integration-test-suffix", "ports-in-the-argument"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "inherited-environment-in-a-subprocess",
+      "title": "Inherited environment in a subprocess",
+      "seen": "A process spawned in a test with no explicit environment, or one built from `process.env`.",
+      "mayIndicate": [
+        { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] }
+      ],
+      "breachUsuallySits": "The spawn site.",
+      "recipes": ["integration-test-owns-its-scratch"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "behaviour-tested-away-from-its-owner",
+      "title": "Behaviour tested away from its owner",
+      "seen": "A unit test that asserts what a collaborator does, or an integration test that pins a rule a unit owns.",
+      "mayIndicate": [
+        { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] },
+        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] }
+      ],
+      "breachUsuallySits": "The test level.",
+      "recipes": ["companion-test-file", "integration-test-suffix"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "integration-heavy-suite",
+      "title": "Integration-heavy suite",
+      "seen": "More integration tests, or more integration test cases, than the bindings to the outside they cover.",
+      "mayIndicate": [
+        { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }] }
+      ],
+      "breachUsuallySits": "Missing unit tests and ports.",
+      "recipes": ["integration-test-suffix", "companion-test-file"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "coverage-gate",
+      "title": "Coverage gate",
+      "seen": "A coverage percentage threshold in test config.",
+      "mayIndicate": [
+        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+      ],
+      "breachUsuallySits": "The config.",
+      "recipes": ["companion-test-file"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "large-input-for-a-few-fields",
+      "title": "Large input for a few fields",
+      "seen": "A test that writes a large object, or casts, to give the unit the few fields it reads.",
+      "mayIndicate": [
+        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
+      ],
+      "breachUsuallySits": "The unit's declared input.",
+      "recipes": ["one-argument-object"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "test-of-the-type-checker",
+      "title": "Test of the type checker",
+      "seen": "A test that asserts only what the types already prove, such as exhaustiveness.",
+      "mayIndicate": [
+        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "principle": "the-type-checker-proves-it" }] }
+      ],
+      "breachUsuallySits": "The test.",
+      "recipes": [],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "shorthand-name",
+      "title": "Shorthand name",
+      "seen": "A name of single letters, an abbreviation or a filler word (`data`, `result`, `options`, `tx`), at any scope.",
+      "mayIndicate": [
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The name.",
+      "recipes": ["whole-words"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "for a name an outside contract fixes" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "name-off-its-casing",
+      "title": "Name off its casing",
+      "seen": "An identifier or file name outside the adopter's casing convention.",
+      "mayIndicate": [
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The name.",
+      "recipes": [],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "for an outside contract's names, such as `PATH` or ESLint listener keys" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "drawer-path",
+      "title": "Drawer path",
+      "seen": "A file or folder named utils, helpers, types, common, shared or the like.",
+      "mayIndicate": [
+        { "case": "Puts code in a file or folder", "points": [{ "rule": "one-reason-per-module" }] }
+      ],
+      "breachUsuallySits": "The module's contents.",
+      "recipes": ["screaming-folders"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "types-only-file",
+      "title": "Types-only file",
+      "seen": "A file that declares only types and is not a port declaration.",
+      "mayIndicate": [
+        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] }
+      ],
+      "breachUsuallySits": "The entity's module.",
+      "recipes": ["entity-module"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "prose-in-code",
+      "title": "Prose in code",
+      "seen": "Any comment or JSDoc other than a tracked pointer or a covered tool directive.",
+      "mayIndicate": [
+        { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "A name or type that does not carry the meaning.",
+      "recipes": ["meaning-in-names-not-comments"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "untracked-escape",
+      "title": "Untracked escape",
+      "seen": "A TODO, linter directive or `@ts-*` directive with no tracked reference and no record.",
+      "mayIndicate": [
+        { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The record that is missing, and whatever rule the directive switches off.",
+      "recipes": ["meaning-in-names-not-comments"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "many-spellings-of-one-concept",
+      "title": "Many spellings of one concept",
+      "seen": "One domain concept named two or more ways across the code or the wire.",
+      "mayIndicate": [
+        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+      ],
+      "breachUsuallySits": "The vocabulary.",
+      "recipes": ["domain-vocabulary-list"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "outside-dependency-vocabulary-for-basic-logic",
+      "title": "Outside dependency vocabulary for basic logic",
+      "seen": "An import of a utility or functional outside dependency (lodash, fp-ts) for branching, matching, transforming or results.",
+      "mayIndicate": [
+        { "case": "Writes basic logic", "points": [{ "principle": "our-code-reads-in-the-common-language" }] },
+        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
+      ],
+      "breachUsuallySits": "The dependency.",
+      "recipes": [],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "duplicate-decision",
+      "title": "Duplicate decision",
+      "seen": "The same decision written in two or more places.",
+      "mayIndicate": [
+        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
+      ],
+      "breachUsuallySits": "Where the decision's home should be. A clone only surfaces a candidate.",
+      "recipes": ["entity-module", "screaming-folders"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "change-spread-across-modules",
+      "title": "Change spread across modules",
+      "seen": "One change for one reason touches many modules, or two modules always change together.",
+      "mayIndicate": [
+        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
+      ],
+      "breachUsuallySits": "The module boundaries.",
+      "recipes": ["screaming-folders"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "floating-version",
+      "title": "Floating version",
+      "seen": "A range (`^`, `~`, `*`, `x`) or a tag (`latest`, `lts`) for an outside dependency, a runtime or a CI action.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
+      ],
+      "breachUsuallySits": "The manifest or workflow.",
+      "recipes": ["exact-pins-and-a-lock-file"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "no-lock-file",
+      "title": "No lock file",
+      "seen": "A repository with dependencies and no committed lock file.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
+      ],
+      "breachUsuallySits": "The repository.",
+      "recipes": ["exact-pins-and-a-lock-file"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "dependency-without-a-record",
+      "title": "Dependency without a record",
+      "seen": "A direct dependency, tools included, with no record of the native way weighed.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
+      ],
+      "breachUsuallySits": "The record.",
+      "recipes": ["dependency-record"],
+      "answeredBy": [
+        { "kind": "dependency-record", "when": "naming the native way weighed and why it fell short" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "tool-fetched-at-run-time",
+      "title": "Tool fetched at run time",
+      "seen": "`npx`, `dlx`, `bunx` or a download-and-run in a script, CI step or doc.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "tools-live-in-the-repo" }] }
+      ],
+      "breachUsuallySits": "The script.",
+      "recipes": ["repo-scripts-only"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "edit-inside-vendored-code",
+      "title": "Edit inside vendored code",
+      "seen": "A change to a file inside a vendored folder.",
+      "mayIndicate": [
+        { "case": "Takes an outside dependency", "points": [{ "rule": "upstream-stays-untouched" }] }
+      ],
+      "breachUsuallySits": "The change.",
+      "recipes": ["extension-outside-the-vendored-code"],
+      "answeredBy": [
+        { "kind": "authorised-location", "when": "drift: an edit impossible to apply as an extension, stating when to drop it" },
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    },
+    {
+      "name": "bundled-dependency",
+      "title": "Bundled dependency",
+      "seen": "Published build output that holds a dependency's code that the package manifest does not declare.",
+      "mayIndicate": [
+        { "case": "Ships code for others", "points": [{ "rule": "shipped-risk-declared" }] }
+      ],
+      "breachUsuallySits": "The build config.",
+      "recipes": ["declared-not-bundled"],
+      "answeredBy": [
+        { "kind": "debt", "when": "a known breach not yet paid" }
+      ]
+    }
+  ],
+  "clauses": [
+    { "clause": "CD-1#any-cast", "sight": { "kind": "one-symptom", "symptom": "claimed-type" } },
+    { "clause": "CD-1#explicit-any", "sight": { "kind": "one-symptom", "symptom": "untyped-value" } },
+    { "clause": "CD-1#implicit-any-let", "sight": { "kind": "one-symptom", "symptom": "untyped-value" } },
+    { "clause": "CD-2#cast-expressions", "sight": { "kind": "one-symptom", "symptom": "claimed-type" } },
+    { "clause": "CD-2#non-null-assertions", "sight": { "kind": "one-symptom", "symptom": "claimed-type" } },
+    { "clause": "CD-3#strict", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#no-unchecked-indexed-access", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#exact-optional-property-types", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#no-implicit-override", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#no-fallthrough-cases-in-switch", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#no-property-access-from-index-signature", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-3#use-unknown-in-catch-variables", "sight": { "kind": "one-symptom", "symptom": "strictness-weakened" } },
+    { "clause": "CD-4#boundary-validation", "sight": { "kind": "method", "recipe": "zod-at-the-producers-adapter", "outcomeSeenBy": ["schema-past-its-adapter"] } },
+    { "clause": "CD-5#comments-directives", "sight": { "kind": "one-symptom", "symptom": "untracked-escape" } },
+    { "clause": "CD-6#identifier-names", "sight": { "kind": "one-symptom", "symptom": "shorthand-name" } },
+    { "clause": "CD-6#naming-convention", "sight": { "kind": "one-symptom", "symptom": "name-off-its-casing" } },
+    { "clause": "CD-7#categorical-paths", "sight": { "kind": "one-symptom", "symptom": "drawer-path" } },
+    { "clause": "CD-7#filename-case", "sight": { "kind": "one-symptom", "symptom": "name-off-its-casing" } },
+    { "clause": "CD-7a#factory-return-types", "sight": { "kind": "one-symptom", "symptom": "type-derived-from-code" } },
+    { "clause": "CD-8#switch-defaults", "sight": { "kind": "one-symptom", "symptom": "default-on-a-closed-union" } },
+    { "clause": "CD-9#result-failures", "sight": { "kind": "method", "recipe": "result-union", "outcomeSeenBy": ["throw-between-our-units", "failure-shaped-as-success"] } },
+    { "clause": "CD-10#throws-in-tests", "sight": { "kind": "one-symptom", "symptom": "throw-or-catch-in-a-test" } },
+    { "clause": "CD-10#throw-only-error", "sight": { "kind": "one-symptom", "symptom": "thrown-non-error" } },
+    { "clause": "CD-11#error-envelopes", "sight": { "kind": "method", "recipe": "result-union", "outcomeSeenBy": ["catch-all-failure-kind", "authored-class-or-this"] } },
+    { "clause": "CD-12#repository-ports", "sight": { "kind": "method", "recipe": "port-in-the-domain", "outcomeSeenBy": ["port-outside-the-domain", "inner-layer-imports-outer"] } },
+    { "clause": "CD-13#layer-boundaries", "sight": { "kind": "one-symptom", "symptom": "inner-layer-imports-outer" } },
+    { "clause": "CD-14#class-syntax", "sight": { "kind": "one-symptom", "symptom": "authored-class-or-this" } },
+    { "clause": "CD-14#static-only-class", "sight": { "kind": "one-symptom", "symptom": "authored-class-or-this" } },
+    { "clause": "CD-14#library-construction", "sight": { "kind": "one-symptom", "symptom": "library-class-built-in-place" } },
+    { "clause": "CD-15#loops", "sight": { "kind": "one-symptom", "symptom": "loop-keyword" } },
+    { "clause": "CD-17#clock-sources", "sight": { "kind": "one-symptom", "symptom": "date-used-directly" } },
+    { "clause": "CD-18#process-lifecycle-ports", "sight": { "kind": "one-symptom", "symptom": "process-global-used-in-place" } },
+    { "clause": "CD-19#import-boundaries", "sight": { "kind": "one-symptom", "symptom": "outside-import-past-a-boundary" } },
+    { "clause": "CD-21#default-factories", "sight": { "kind": "method", "recipe": "composition-root", "outcomeSeenBy": ["adapter-built-outside-the-root", "port-outside-the-domain"] } },
+    { "clause": "CD-22#middleware-context", "sight": { "kind": "method", "recipe": "bounded-context-generic", "outcomeSeenBy": ["default-for-a-required-value"] } },
+    { "clause": "CD-23#export-test-sibling", "sight": { "kind": "one-symptom", "symptom": "unit-without-a-running-test" } },
+    { "clause": "CD-25#dependency-isolation", "sight": { "kind": "one-symptom", "symptom": "double-with-a-body" } },
+    { "clause": "CD-26#module-mocking", "sight": { "kind": "one-symptom", "symptom": "module-or-global-patched" } },
+    {
+      "clause": "CD-27#test-body-logic",
+      "sight": {
+        "kind": "symptom-by-form",
+        "forms": [
+          { "section": "branching-with-if", "symptom": "branch-in-a-test" },
+          { "section": "a-try-block", "symptom": "throw-or-catch-in-a-test" },
+          { "section": "a-ternary", "symptom": "branch-in-a-test" },
+          { "section": "a-let", "symptom": "rebinding" },
+          { "section": "a-method-that-picks-or-tests-an-element", "symptom": "computed-value-in-a-test" },
+          { "section": "a-method-that-computes-a-value", "symptom": "computed-value-in-a-test" },
+          { "section": "a-method-that-mutates", "symptom": "computed-value-in-a-test" },
+          { "section": "a-short-circuit", "symptom": "branch-in-a-test" },
+          { "section": "an-optional-chain-after-an-index", "symptom": "branch-in-a-test" },
+          { "section": "an-optional-chain-on-a-mock-call", "symptom": "branch-in-a-test" },
+          { "section": "an-optional-chain-on-a-mock-result", "symptom": "branch-in-a-test" },
+          { "section": "an-optional-chain-on-a-property", "symptom": "branch-in-a-test" },
+          { "section": "an-optional-call", "symptom": "branch-in-a-test" },
+          { "section": "a-switch", "symptom": "branch-in-a-test" },
+          { "section": "serialising-or-parsing-json", "symptom": "text-past-its-reader" },
+          { "section": "merging-objects", "symptom": "computed-value-in-a-test" },
+          { "section": "building-an-object-from-entries", "symptom": "computed-value-in-a-test" },
+          { "section": "building-an-array-from-a-length", "symptom": "computed-value-in-a-test" },
+          { "section": "a-math-call", "symptom": "computed-value-in-a-test" },
+          { "section": "logic-inside-a-function-the-test-passes-on", "symptom": "double-with-a-body" }
+        ]
+      }
+    },
+    { "clause": "CD-27#focused-tests", "sight": { "kind": "one-symptom", "symptom": "test-switched-off" } },
+    { "clause": "CD-27#skipped-tests", "sight": { "kind": "one-symptom", "symptom": "test-switched-off" } },
+    { "clause": "CD-28#unit-responsibility", "sight": { "kind": "one-symptom", "symptom": "behaviour-tested-away-from-its-owner" } },
+    { "clause": "CD-29#test-pyramid", "sight": { "kind": "one-symptom", "symptom": "integration-heavy-suite" } },
+    { "clause": "CD-30#composition-only", "sight": { "kind": "one-symptom", "symptom": "behaviour-tested-away-from-its-owner" } },
+    { "clause": "CD-31#no-coverage-thresholds", "sight": { "kind": "one-symptom", "symptom": "coverage-gate" } },
+    { "clause": "CD-32#pii-redaction", "sight": { "kind": "outside-the-cases" } },
+    { "clause": "CD-33#sensitive-brands", "sight": { "kind": "outside-the-cases" } },
+    { "clause": "CD-34#no-repo-secrets", "sight": { "kind": "outside-the-cases" } },
+    { "clause": "CD-39#cite-by-id", "sight": { "kind": "outside-the-cases" } },
+    { "clause": "CD-40#parameter-count", "sight": { "kind": "one-symptom", "symptom": "positional-parameters" } },
+    { "clause": "CD-40#named-object-argument", "sight": { "kind": "one-symptom", "symptom": "positional-parameters" } },
+    { "clause": "CD-41#cognitive-complexity", "sight": { "kind": "one-symptom", "symptom": "tangled-function" } },
+    { "clause": "CD-41#function-length", "sight": { "kind": "one-symptom", "symptom": "long-function" } },
+    { "clause": "CD-41#orchestration-only", "sight": { "kind": "one-symptom", "symptom": "orchestrator-that-computes" } },
+    { "clause": "CD-42#useless-else", "sight": { "kind": "one-symptom", "symptom": "work-inside-a-condition" } },
+    { "clause": "CD-43#boolean-signatures", "sight": { "kind": "one-symptom", "symptom": "boolean-in-a-signature" } },
+    { "clause": "CD-44#parameter-mutation", "sight": { "kind": "one-symptom", "symptom": "write-into-a-parameter" } },
+    { "clause": "CD-44#parameter-reassignment", "sight": { "kind": "one-symptom", "symptom": "rebinding" } },
+    { "clause": "CD-45#parse-once", "sight": { "kind": "one-symptom", "symptom": "schema-past-its-adapter" } },
+    { "clause": "CD-47#hermetic-git-spawns", "sight": { "kind": "one-symptom", "symptom": "inherited-environment-in-a-subprocess" } }
+  ]
+}
