@@ -123,10 +123,21 @@ The command does not refuse to run again later, and has no flag for it. Forfeitu
 
 ### Pruning paid debt
 
-A `file-carve-out` is debt, and once the debt is paid the record should go. `hone prune-debt` removes each `file-carve-out` whose debt the check finds paid:
+A `file-carve-out` is debt, and once the debt is paid the record should go. Debt is paid only when this run measured the record's clause on its file and found it clean, or when the file no longer exists. `hone prune-debt` removes each `file-carve-out` whose debt the check finds paid:
 
 - one under `stale`: it exempts no finding and holds no native exception;
 - one under `forfeited` whose clause and file hold no finding, exempted or not, and no native exception: the change that touched the file paid the debt the record held.
+
+The check measured a clause on a file when all of these hold:
+
+- git tracks the file and `"exclude"` does not name it or a folder holding it;
+- the clause's mechanism is given that file: `eslint` is given the tracked `.ts`, `.tsx`, `.mts` and `.cts` files, `audit` every tracked file;
+- the mechanism ran, with its projection current where it has one, and that projection reaches the file: no folder holding it has its own configuration or a slice `unmeasured` or `projectionProblems` lists.
+
+A stale record on a file the check did not measure is unmeasured debt, not paid debt. The command keeps it and no `readFirst` line counts it, and the run stays red while it is listed. Hone needs one of two things from you:
+
+- **Bring the file under the check.** Track it, take it out of `"exclude"`, rename it back to a file its mechanism is given, or fix what `unmeasured` and `projectionProblems` list so the projection reaches it. The next check then measures it, and `hone prune-debt` removes the record if the file is clean.
+- **Delete the record by hand** if the file is meant to stay outside the check, for example a file now ignored by git. Its debt is no longer Hone's to measure, so no command removes it for you.
 
 A forfeited record whose file still breaks its clause stays, and keeps failing the run until the file is fixed. An `authorised-location` or `clause-wide-carve-out` under `stale` carries a person's judgement, so the command leaves it for a person to delete.
 
@@ -136,7 +147,7 @@ The command runs the check with the `--base-revision` and `--forfeiture` it is g
 prune-debt: 3 file carve-outs under stale or forfeited still record debt that is paid; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop --base-revision origin/main to remove what is paid, then run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit the exception records with every disciplines.eslint.mjs it writes
 ```
 
-It prints `<clause> removed <file>` for each record it removed, ordered by file and then by clause, and nothing when no debt is paid. Like `hone record-debt`, it writes the exception records in whichever layout the repository keeps them, keeps every other record's text byte for byte, stages and commits nothing, and does not write the projection: run `hone project` after it when any clause is `eslint`, so the projection drops the records' off-switches. A records file whose records it all removed is left holding an empty list. It has no dry run, as no other Hone command has: the `stale` lines, and the `forfeited` lines whose file has no finding on that clause, name what it removes, and the diff of the records is the review.
+It prints `<clause> removed <file>` for each record it removed, ordered by file and then by clause, and nothing when no debt is paid. Like `hone record-debt`, it writes the exception records in whichever layout the repository keeps them, keeps every other record's text byte for byte, stages and commits nothing, and does not write the projection: run `hone project` after it when any clause is `eslint`, so the projection drops the records' off-switches. When it removes the last record from a file, it follows the layout: in [the split layout](#the-split-layout) it deletes that rule's file, as `hone split-records` writes a file only for a rule that holds records; a single `discipline-exceptions.json` is left holding an empty list. It has no dry run, as no other Hone command has: the `stale` lines, and the `forfeited` lines whose file has no finding on that clause, name what it can remove, and the diff of the records is the review.
 
 For an `eslint` clause, the off-switch the projection writes for a record is Hone's own. The check does not list it as a `config-override`, so it never counts as a native exception the record holds, and a record whose file no longer breaks its clause is `stale` like any other. A `config-override` on a clause and file no record holds is reported as before. While a record holds a file, the team's own off-switch for that rule and file cannot be told from the projection's, and the record holds the file either way. Once the record is removed, a team off-switch placed after the projection is listed under `unrecorded` as a `config-override`, and one placed before it never takes effect, since the projection turns the rule on after it, so ESLint and the check both flag the file. A team block placed after the projection that sets a recorded file's rule to `"warn"` or `"error"` leaves the projection out of effect, and the check says `not-included`, as before.
 

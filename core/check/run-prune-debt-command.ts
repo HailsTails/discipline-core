@@ -5,14 +5,12 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import { type Assessment, assessmentInEffect } from "../values/assessment.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import type { CheckReport } from "../verdict/check-report.ts";
 import { parsePruneDebtArguments, type PruneDebtArguments } from "./command-arguments.ts";
 import { pruneDebtCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { reportedPaidDebtOf } from "./reported-paid-debt.ts";
 import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from "./run-check-command.ts";
-import { runCheck } from "./run-check.ts";
+import { type ReachedCheck, runReachedCheck } from "./run-check.ts";
 
 type PruneResult = Result<readonly DebtPair[], LoadFailure>;
 
@@ -23,7 +21,7 @@ export type RunSettingsReader = {
 export type PruneCheck = (request: {
   readonly baseRevision: string | undefined;
   readonly assessment: Assessment;
-}) => Promise<Result<CheckReport, LoadFailure>>;
+}) => Promise<Result<Pick<ReachedCheck, "paidDebt">, LoadFailure>>;
 
 export type PruneDebtPorts = {
   readonly runSettings: RunSettingsReader;
@@ -38,11 +36,11 @@ export const paidDebtRemoved = async (
   if (configured.outcome === "failed") {
     return configured;
   }
-  const report = await request.check({
+  const checked = await request.check({
     baseRevision: request.arguments.baseRevision,
     assessment: assessmentInEffect({ requested: { forfeiture: request.arguments.forfeiture }, configured: configured.value.assessment }),
   });
-  return report.outcome === "failed" ? report : request.exceptionRepository.remove({ pairs: reportedPaidDebtOf(report.value) });
+  return checked.outcome === "failed" ? checked : request.exceptionRepository.remove({ pairs: checked.value.paidDebt });
 };
 
 const pruneDebtPortsOver = (
@@ -52,7 +50,7 @@ const pruneDebtPortsOver = (
   return {
     runSettings: { read: (_request) => readRunSettings(request) },
     check: ({ baseRevision, assessment }) =>
-      runCheck({
+      runReachedCheck({
         ...request,
         moduleExtension,
         baseRevision,
