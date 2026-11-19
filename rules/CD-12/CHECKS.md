@@ -1,5 +1,7 @@
 # CD-12 checks
 
+Recipe: [Port in the domain](../typescript/recipes.md#port-in-the-domain). The outcome it protects is seen by [Port outside the domain](../typescript/symptoms.md#port-outside-the-domain).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

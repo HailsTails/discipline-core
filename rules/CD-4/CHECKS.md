@@ -1,5 +1,7 @@
 # CD-4 checks
 
+Recipe: [Zod at the producer's adapter](../typescript/recipes.md#zod-at-the-producers-adapter). The outcome it protects is seen by [Schema past its adapter](../typescript/symptoms.md#schema-past-its-adapter).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

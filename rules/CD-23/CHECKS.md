@@ -1,5 +1,7 @@
 # CD-23 checks
 
+Symptom: [Unit without a running test](../typescript/symptoms.md#unit-without-a-running-test).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
@@ -24,11 +26,11 @@ This is `src/price.ts` with no `src/price.test.ts` beside it.
 Add `src/price.test.ts` next to the file, with at least one test of its behaviour.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file only wires exports together and has no behaviour of its own to test. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. The form accepts an `authorised-location` for this clause, as for any; in spirit a unit that only wires has a test of its wiring, and a reviewer refuses one. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-23#export-test-sibling", "file": "src/index.ts", "reason": "..." }
+  { "kind": "file-carve-out", "clause": "CD-23#export-test-sibling", "file": "src/legacy/report.ts" }
 ] }
 ```
 

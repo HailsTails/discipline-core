@@ -1,5 +1,7 @@
 # CD-29 checks
 
+Symptom: [Integration-heavy suite](../typescript/symptoms.md#integration-heavy-suite).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

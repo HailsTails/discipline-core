@@ -1,5 +1,7 @@
 # CD-7a checks
 
+Symptom: [Type derived from code](../typescript/symptoms.md#type-derived-from-code).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

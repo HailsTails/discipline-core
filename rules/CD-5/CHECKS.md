@@ -1,5 +1,7 @@
 # CD-5 checks
 
+Symptoms: [Untracked escape](../typescript/symptoms.md#untracked-escape) and [Prose in code](../typescript/symptoms.md#prose-in-code).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
@@ -38,7 +40,7 @@ const first = items[0]!;
 ```ts
 const first = items[0];
 ```
-Remove the need for the directive. If it must stay, add a tracked reference to the work that removes it: `// biome-ignore lint/style/noNonNullAssertion: until items is typed as a non-empty tuple (#42)`. The reference satisfies this clause only. A directive that escapes a selected clause, such as an `eslint-disable` naming a selected rule or a `@ts-expect-error` under `CD-2#cast-expressions`, still needs a file record on that clause, and that record does not satisfy this clause.
+Remove the need for the directive. If it must stay, add a tracked reference to the work that removes it: `// biome-ignore lint/style/noNonNullAssertion: until items is typed as non-empty (#42)`. The reference satisfies this clause only. A directive that escapes a selected clause, such as an `eslint-disable` naming a selected rule or a `@ts-expect-error` under `CD-2#cast-expressions`, still needs a file record on that clause, and that record does not satisfy this clause.
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a file legitimately carries untracked directives, such as generated code. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

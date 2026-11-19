@@ -1,5 +1,7 @@
 # CD-27 checks
 
+Symptoms: [Branch in a test](../typescript/symptoms.md#branch-in-a-test), [Computed value in a test](../typescript/symptoms.md#computed-value-in-a-test), [Rebinding](../typescript/symptoms.md#rebinding), [Text past its reader](../typescript/symptoms.md#text-past-its-reader) and [Test switched off](../typescript/symptoms.md#test-switched-off).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
@@ -440,11 +442,11 @@ expect(kindOf).toHaveBeenCalledExactlyOnceWith("bin/hone.js");
 [CD-25](../CD-25/README.md) is the rule for test doubles.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs logic. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. The form accepts an `authorised-location` for this clause, as for any; in spirit [Branch in a test](../typescript/symptoms.md#branch-in-a-test) and [Computed value in a test](../typescript/symptoms.md#computed-value-in-a-test) have no correct use, and a reviewer refuses one. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-27#test-body-logic", "file": "src/legacy/report.test.ts", "reason": "..." }
+  { "kind": "file-carve-out", "clause": "CD-27#test-body-logic", "file": "src/legacy/report.test.ts" }
 ] }
 ```
 

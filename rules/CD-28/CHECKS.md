@@ -1,5 +1,7 @@
 # CD-28 checks
 
+Symptoms: [Behaviour tested away from its owner](../typescript/symptoms.md#behaviour-tested-away-from-its-owner) and [Unasserted call](../typescript/symptoms.md#unasserted-call).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

@@ -1,5 +1,7 @@
 # CD-7 checks
 
+Symptoms: [Drawer path](../typescript/symptoms.md#drawer-path) and [Name off its casing](../typescript/symptoms.md#name-off-its-casing).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses

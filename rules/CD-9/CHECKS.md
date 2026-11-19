@@ -1,5 +1,7 @@
 # CD-9 checks
 
+Recipe: [Result union](../typescript/recipes.md#result-union). The outcome it protects is seen by [Throw between our units](../typescript/symptoms.md#throw-between-our-units).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

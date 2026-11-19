@@ -1,5 +1,7 @@
 # CD-40 checks
 
+Symptom: [Positional parameters](../typescript/symptoms.md#positional-parameters).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses

@@ -1,5 +1,7 @@
 # CD-3 checks
 
+Symptom: [Strictness weakened](../typescript/symptoms.md#strictness-weakened).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

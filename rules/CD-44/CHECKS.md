@@ -1,5 +1,7 @@
 # CD-44 checks
 
+Symptoms: [Write into a parameter](../typescript/symptoms.md#write-into-a-parameter) and [Rebinding](../typescript/symptoms.md#rebinding).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

@@ -2,13 +2,13 @@
 
 ## Rule
 
-Reviews and rationale cite specific rules by their identifier, not vague appeals to "the standards". A citation anchors a finding to the named rule and its intent, so remediation is precise and the disagreement, if any, is about the rule rather than about taste.
+Reviews and rationale cite specific rules by their name, not vague appeals to "the standards". A citation anchors a finding to the named rule and its intent, so remediation is precise and the disagreement, if any, is about the rule rather than about taste.
 
 Review lens: none. A reviewer applies the rule text directly. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** "This doesn't meet our standards" cannot be acted on or argued with. Citing the rule by its identifier turns a finding into something precise.
+**What the friction is for.** "This doesn't meet our standards" cannot be acted on or argued with. Citing the rule by its name turns a finding into something precise.
 
 **What a finding points at.** Match the reviews against these causes.
 - *Findings argued from taste.* No rule is cited, so the disagreement is personal. Cite the rule, or say none applies.

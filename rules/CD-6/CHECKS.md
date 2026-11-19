@@ -1,5 +1,7 @@
 # CD-6 checks
 
+Symptoms: [Shorthand name](../typescript/symptoms.md#shorthand-name) and [Name off its casing](../typescript/symptoms.md#name-off-its-casing).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses

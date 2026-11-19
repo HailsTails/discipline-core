@@ -1,5 +1,7 @@
 # CD-22 checks
 
+Recipe: [Bounded context generic](../typescript/recipes.md#bounded-context-generic). The outcome it protects is seen by [Default for a required value](../typescript/symptoms.md#default-for-a-required-value).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

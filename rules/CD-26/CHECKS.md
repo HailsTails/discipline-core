@@ -1,5 +1,7 @@
 # CD-26 checks
 
+Symptom: [Module or global patched](../typescript/symptoms.md#module-or-global-patched).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
@@ -25,11 +27,11 @@ const subject = createSubject({ store: storeStub });
 Pass the collaborator in as a dependency and hand the test a stub.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs to intercept a module. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. The form accepts an `authorised-location` for this clause, as for any; in spirit [Module or global patched](../typescript/symptoms.md#module-or-global-patched) has no correct use, and a reviewer refuses one. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-26#module-mocking", "file": "src/legacy/payments.test.ts", "reason": "..." }
+  { "kind": "file-carve-out", "clause": "CD-26#module-mocking", "file": "src/legacy/payments.test.ts" }
 ] }
 ```
 

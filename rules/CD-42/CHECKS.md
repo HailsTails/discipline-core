@@ -1,5 +1,7 @@
 # CD-42 checks
 
+Symptom: [Work inside a condition](../typescript/symptoms.md#work-inside-a-condition).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

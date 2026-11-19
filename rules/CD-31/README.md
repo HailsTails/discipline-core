@@ -2,22 +2,14 @@
 
 ## Rule
 
-Coverage is a diagnostic to read, not a gate to pass. A percentage threshold rewards tests written to move a number; the real floor is the every-file test sibling. Chasing a coverage figure produces assertion-free tests that raise the metric and protect nothing.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Check of [Tested where it's owned](../rules.md#tested-where-its-owned).
+
+**Read.** [Tested where it's owned](../rules.md#tested-where-its-owned).
 
 Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** A coverage target rewards running code, not checking it. Without the target, nothing rewards a test that moves the number and checks nothing. The floor comes from every unit having its own test, and coverage stays something to read.
-
-**What a finding points at.** Match the configuration against these causes.
-- *A number standing in for a floor.* The threshold exists because nothing guaranteed every unit a test. The every-file sibling rule is that floor.
-- *Tests written to move the number.* Tests with no real assertions appear. Remove them; read coverage as a diagnostic.
-
-**Where to go.** Coverage is read to find untested behaviour, never gated.
-
-**Reactions to distrust.**
-- "Without a target, coverage will drop." The sibling rule holds the floor; the number is for reading.
-
-**Principles behind it.**
-- *Goodhart's law*, in Marilyn Strathern's phrasing: "When a measure becomes a target, it ceases to be a good measure."
+Start from the symptom a finding names: [Coverage gate](../typescript/symptoms.md#coverage-gate). Each symptom names the cases it may indicate and the rules they point at. The why is on [Tests are ours](../principles.md#tests-are-ours).

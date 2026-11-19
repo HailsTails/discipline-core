@@ -1,5 +1,7 @@
 # CD-18 checks
 
+Symptom: [Process global used in place](../typescript/symptoms.md#process-global-used-in-place).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

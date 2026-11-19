@@ -1,5 +1,7 @@
 # CD-21 checks
 
+Recipe: [Composition root](../typescript/recipes.md#composition-root). The outcome it protects is seen by [Adapter built outside the root](../typescript/symptoms.md#adapter-built-outside-the-root).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

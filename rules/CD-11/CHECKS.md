@@ -1,5 +1,7 @@
 # CD-11 checks
 
+Recipe: [Result union](../typescript/recipes.md#result-union). The outcome it protects is seen by [Failure shaped as success](../typescript/symptoms.md#failure-shaped-as-success).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

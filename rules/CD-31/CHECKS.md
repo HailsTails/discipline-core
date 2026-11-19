@@ -1,5 +1,7 @@
 # CD-31 checks
 
+Symptom: [Coverage gate](../typescript/symptoms.md#coverage-gate).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses

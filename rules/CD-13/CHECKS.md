@@ -1,5 +1,7 @@
 # CD-13 checks
 
+Symptom: [Inner layer imports outer](../typescript/symptoms.md#inner-layer-imports-outer).
+
 Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
