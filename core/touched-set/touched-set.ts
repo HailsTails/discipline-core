@@ -26,7 +26,7 @@ export const baseRevisionAvailabilityOf = (request: {
 export const computeTouchedSet = (request: {
   readonly repoRoot: AbsolutePath;
   readonly baseRevision: string | undefined;
-  readonly git: GitPort;
+  readonly git: Pick<GitPort, "changedSince">;
 }): TouchedSet => {
   if (request.baseRevision === undefined) {
     return { measured: "no", base: { state: "not-given" } };

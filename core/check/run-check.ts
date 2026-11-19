@@ -5,14 +5,9 @@ import {
   type ExceptionRecord,
   type ExceptionBaseline,
   type ExceptionRepository,
-  importedEntriesIn,
-  importSourcesOf,
   type InvalidRecord,
-  legacyChainsIn,
   parseExceptionEntries,
-  recordImportOf,
   type StructuralExceptionEntry,
-  UNMEASURED_EXCEPTION_BASELINE,
 } from "../exception-records/exception-records.ts";
 import { applyGovernance, type Finding } from "../governance/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
@@ -23,10 +18,10 @@ import {
   runnerModuleSchema,
 } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
+import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
-import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
+import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
@@ -34,14 +29,13 @@ import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import { whyChainFormOf } from "../values/why-chain.ts";
 import type {
   CheckReport,
-  PartialAssessment,
   ProjectionProblem,
   Unmeasured,
 } from "../verdict/check-report.ts";
 import { clauseReadingsOf } from "./clause-readings.ts";
+import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
 import { packageLinkOf } from "./package-link.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
@@ -214,106 +208,6 @@ export const recordsOf = (request: {
   readonly mechanism: MechanismId;
 }): readonly ExceptionRecord[] =>
   request.records.filter((record) => record.mechanism === request.mechanism);
-
-const forfeitureUnmeasured = (request: {
-  readonly touched: TouchedSet;
-  readonly records: readonly ExceptionRecord[];
-}): readonly Unmeasured[] =>
-  request.touched.measured === "no" && request.records.some((record) => record.kind === "file-carve-out")
-    ? [{ kind: "forfeiture-unmeasured", base: request.touched.base }]
-    : [];
-
-const fileCarveOutsIn = (request: { readonly records: readonly ExceptionRecord[] }): number =>
-  request.records.filter((record) => record.kind === "file-carve-out").length;
-
-const touchedSetFor = (request: {
-  readonly check: CheckRequest;
-  readonly records: readonly ExceptionRecord[];
-}): TouchedSet => {
-  if (request.check.assessment.forfeiture === "elsewhere") {
-    return { measured: "elsewhere" };
-  }
-  return fileCarveOutsIn(request) > 0 ? computeTouchedSet(request.check) : { measured: "yes", paths: new Set() };
-};
-
-const partialAssessmentsOf = (request: {
-  readonly assessment: Assessment;
-  readonly inputs: LoadedInputs;
-}): readonly PartialAssessment[] =>
-  request.assessment.forfeiture === "elsewhere"
-    ? [{ concern: "forfeiture", assessedBy: "elsewhere", fileCarveOuts: fileCarveOutsIn(request.inputs) }]
-    : [];
-
-const importedRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
-  request.records.some((record) => recordImportOf({ record }).imported === "yes")
-    ? "present"
-    : "absent";
-
-const legacyChainRecords = (request: { readonly records: readonly ExceptionRecord[] }): "present" | "absent" =>
-  request.records.some((record) => whyChainFormOf({ chain: record.whyChain }) === "legacy")
-    ? "present"
-    : "absent";
-
-const legacyChainUnmeasured = (request: {
-  readonly exceptionBaseline: ExceptionBaseline;
-  readonly records: readonly ExceptionRecord[];
-}): readonly Unmeasured[] =>
-  request.exceptionBaseline.measured === "no" && legacyChainRecords({ records: request.records }) === "present"
-    ? [{ kind: "legacy-chain-unmeasured", base: request.exceptionBaseline.base }]
-    : [];
-
-const importUnmeasured = (request: {
-  readonly exceptionBaseline: ExceptionBaseline;
-  readonly records: readonly ExceptionRecord[];
-}): readonly Unmeasured[] =>
-  request.exceptionBaseline.measured === "no" && importedRecords({ records: request.records }) === "present"
-    ? [{ kind: "import-unmeasured", base: request.exceptionBaseline.base }]
-    : [];
-
-const textsInBase = (request: {
-  readonly check: CheckRequest;
-  readonly baseRevision: string;
-  readonly files: readonly RepoPath[];
-}): Result<ReadonlyMap<RepoPath, string>, GitFailure> => {
-  const readings = request.files.map((file) => ({
-    file,
-    reading: request.check.git.textInBase({ repoRoot: request.check.repoRoot, baseRevision: request.baseRevision, file }),
-  }));
-  const failed = readings.find(({ reading }) => reading.outcome === "failed");
-  if (failed !== undefined && failed.reading.outcome === "failed") {
-    return failed.reading;
-  }
-  return {
-    outcome: "ok",
-    value: new Map(
-      readings.flatMap(({ file, reading }): readonly (readonly [RepoPath, string])[] =>
-        reading.outcome === "ok" && reading.value.presence === "present-in-base" ? [[file, reading.value.text]] : [],
-      ),
-    ),
-  };
-};
-
-const exceptionBaselineOf = (request: {
-  readonly check: CheckRequest;
-  readonly entries: readonly StructuralExceptionEntry[];
-}): ExceptionBaseline => {
-  const { baseRevision } = request.check;
-  if (
-    baseRevision === undefined ||
-    (importedEntriesIn({ entries: request.entries }) === "absent" && legacyChainsIn({ entries: request.entries }) === "absent")
-  ) {
-    return UNMEASURED_EXCEPTION_BASELINE;
-  }
-  const entriesAtBase = request.check.exceptionRepository.readAt({ revision: baseRevision });
-  if (entriesAtBase.outcome === "failed") {
-    return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: entriesAtBase.error }) };
-  }
-  const texts = textsInBase({ check: request.check, baseRevision, files: importSourcesOf({ entries: request.entries }) });
-  if (texts.outcome === "failed") {
-    return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: texts.error }) };
-  }
-  return { measured: "yes", entriesAtBase: entriesAtBase.value, sourceTextsAtBase: texts.value };
-};
 
 const projectionOutcome = (request: {
   readonly run: MechanismRun;
@@ -499,16 +393,14 @@ const checkReportOf = (request: {
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
     unmeasured: [
-      ...forfeitureUnmeasured({ touched: request.touched, records: request.inputs.records }),
-      ...importUnmeasured(request.inputs),
-      ...legacyChainUnmeasured(request.inputs),
+      ...unmeasuredOf({ touched: request.touched, ...request.inputs }),
       ...projections.flatMap((projection) => projection.unmeasured),
     ],
     projectionProblems: [
       ...projections.flatMap((projection) => projection.problems),
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
     ],
-    assessment: partialAssessmentsOf(request),
+    assessment: partialAssessmentsOf({ assessment: request.assessment, records: request.inputs.records }),
     readFirst: clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
   };
 };
