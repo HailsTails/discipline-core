@@ -2,6 +2,28 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 1.4.0
+
+### Features
+
+- a CD-27 test-body-logic finding names the allowed form for what it flagged, and CHECKS.md shows each one, proven against every audit and ESLint clause Hone ships (#171)
+- list paid ESLint debt as stale, and add hone prune-debt to remove the records of deleted files (#191)
+
+### Fixes
+
+- CD-41 function-length does not measure a test suite's describe body (#170)
+- a CD-27 test-body-logic finding on JSON.stringify or JSON.parse points at CD-19 (#186)
+
+### Other changes
+
+- Hone's ESLint pieces observe sites through one boundary over ESLint's rule contract (#166)
+- the ESLint runner reads lint messages and source lines through two units of their own (#177)
+- CD-25 names stubs and spies with written-out answers as a unit test's doubles, and reads a double that needs behaviour as a finding (#180)
+- hone check's measurement rules move from run-check into a unit of their own (#179)
+- the ESLint runner reads its repository through readers named for what it asks, and its tests stub them (#181)
+- CD-17, CD-27, CD-12 and the review lenses name a stub where they offered a fake clock or an in-memory fake (#188)
+- hone check takes its selection through a repository, and its orchestration tests pass written-out objects (#183)
+
 ## 1.3.0
 
 ### Features
