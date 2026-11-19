@@ -4,7 +4,7 @@
 
 A unit test replaces everything outside the unit under test with a test double, injected through the unit's own seam — no real I/O, no real collaborators. The test exercises exactly one unit's logic, with every dependency a controlled double, so a failure points at that unit and nowhere else.
 
-**Test doubles.** These rules use Gerard Meszaros's names from *xUnit Test Patterns*, and only in these senses. A *dummy* is passed but never used. A *stub* returns canned answers. A *spy* is a stub that also records how it was called, for the test to assert afterwards. A *mock* is set up with expectations and verifies them itself. A *fake* is a working, lightweight implementation, such as an in-memory repository. The doubles a unit test builds itself are dummies, stubs and spies. A double that needs behaviour is a fake: it is written once as an in-memory implementation of the port, with its own tests, and passed in like any other double (a fake clock that the test advances is one), not built inline in a test.
+**Test doubles.** These rules use Gerard Meszaros's names from *xUnit Test Patterns*, and only in these senses. A *dummy* is passed but never used. A *stub* returns canned answers. A *spy* is a stub that also records how it was called, for the test to assert afterwards. A *mock* is set up with expectations and verifies them itself. A *fake* is a working, lightweight implementation, such as an in-memory repository. The doubles a unit test uses are dummies, stubs and spies, with their answers written out. A double that needs behaviour of its own is a finding about the unit's seam or its collaborator.
 
 Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
@@ -15,10 +15,10 @@ Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-disci
 **What a finding points at.** Match the sites against these causes.
 - *A seam wider than its use.* The double needs logic because the port does many things or takes rich input. Narrow the port, and its inputs, to what this unit uses; a stub then answers its one question.
 - *Behaviour hiding in a collaborator.* The double re-implements logic the unit relies on. That logic is a unit of its own with its own tests; a stub returns its result.
-- *Real I/O in a unit test.* Files, on-disk fixtures, network, the clock. A dependency was reached for, not injected. Inject a port and give the test a stub, or the port's shared in-memory fake.
+- *Real I/O in a unit test.* Files, on-disk fixtures, network, the clock. A dependency was reached for, not injected. Inject a port and give the test a stub.
 - *An integration test with a unit suffix.* It wires several units over real backings. Move it to the integration layer, and keep that layer thin.
 
-**Where to go.** Unit tests give every collaborator a stub or spy with canned answers, or the port's shared in-memory fake. On-disk fixtures are integration test tools: used at a bare minimum, only where the composition under test demands a real backing.
+**Where to go.** Unit tests give every collaborator a stub or spy with canned answers. On-disk fixtures are integration test tools: used at a bare minimum, only where the composition under test demands a real backing.
 
 **Reactions to distrust.**
 - "It's just tests." The test is the unit's first consumer. A collaborator that is hard to replace with a double is a design finding.

@@ -36,6 +36,8 @@ import type {
 } from "../verdict/check-report.ts";
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
+import { packageLinkOf } from "./package-link.ts";
+import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
 
@@ -355,6 +357,19 @@ const mechanismRuns = async (request: {
 const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readonly Finding[] =>
   request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
 
+const remediedFindingsOf = (request: {
+  readonly check: CheckRequest;
+  readonly inputs: LoadedInputs;
+  readonly runs: readonly MechanismRun[];
+}): readonly Finding[] => {
+  const findings = findingsOf(request);
+  if (!findings.some((finding) => finding.remedy !== undefined)) {
+    return findings;
+  }
+  const link = packageLinkOf(request.check);
+  return shownRemediesOf({ ...request.check, link, clauseRoots: request.inputs.clauseRoots, findings });
+};
+
 const checkReportOf = (request: {
   readonly check: CheckRequest;
   readonly assessment: Assessment;
@@ -363,7 +378,7 @@ const checkReportOf = (request: {
   readonly touched: TouchedSet;
 }): CheckReport => {
   const governed = applyGovernance({
-    findings: findingsOf(request),
+    findings: remediedFindingsOf(request),
     records: request.inputs.records,
     touched: request.touched,
     runs: request.runs,

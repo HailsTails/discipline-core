@@ -1,5 +1,5 @@
 import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
-import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
+import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
@@ -20,12 +20,7 @@ import type {
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
-
-const escapedLineBreaks = (request: { readonly text: string }): string =>
-  request.text.replaceAll("\n", "\\n").replaceAll("\r", "\\r");
-
-const findingLine = (request: { readonly finding: Finding }): string =>
-  `${clauseAddressText({ address: request.finding.clause })} ${request.finding.mechanism} ${request.finding.file}:${request.finding.anchor.line}:${request.finding.anchor.column} ${escapedLineBreaks({ text: request.finding.snippet })}`;
+import { escapedLineBreaks, findingLine, locatedFindingLine } from "./finding-line.ts";
 
 const importNote = (request: { readonly record: ExceptionRecord }): string => {
   const recordImport = recordImportOf(request);
@@ -33,7 +28,7 @@ const importNote = (request: { readonly record: ExceptionRecord }): string => {
 };
 
 const exemptedLine = (request: { readonly exempted: ExemptedFinding }): string =>
-  `${findingLine({ finding: request.exempted.finding })}${request.exempted.by
+  `${locatedFindingLine({ finding: request.exempted.finding })}${request.exempted.by
     .map((record) => ` exempted by ${record.kind}${importNote({ record })}`)
     .join("")}`;
 
