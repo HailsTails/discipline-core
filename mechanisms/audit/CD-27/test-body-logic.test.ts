@@ -177,34 +177,14 @@ const SECOND_EDITION_EXPRESSIONS = [
   { name: "optional property access", source: "a?.b;", section: "an-optional-chain-on-a-property" },
   { name: "optional element access", source: "a?.[0];", section: "an-optional-chain-on-a-property" },
   { name: "optional call", source: "f?.(1);", section: "an-optional-call" },
+  { name: "JSON.stringify", source: "JSON.stringify(value);", section: "serialising-or-parsing-json" },
+  { name: "JSON.parse", source: "JSON.parse(text);", section: "serialising-or-parsing-json" },
   { name: "Object.assign", source: "Object.assign(target, source);", section: "merging-objects" },
   { name: "Object.fromEntries", source: "Object.fromEntries(pairs);", section: "building-an-object-from-entries" },
   { name: "Array.from", source: "Array.from(items);", section: "building-an-array-from-a-length" },
   { name: "a Math method", source: "Math.max(a, b);", section: "a-math-call" },
 ];
 
-const UNREMEDIED_SECOND_EDITION_EXPRESSIONS = [
-  { name: "JSON.stringify", source: "JSON.stringify(value);" },
-  { name: "JSON.parse", source: "JSON.parse(text);" },
-];
-
-describe("CD-27 second-edition logic observations the page shows no form for", () => {
-  it.each(UNREMEDIED_SECOND_EDITION_EXPRESSIONS)("flags $name under the second edition with no fix", ({ source }) => {
-    const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });
-
-    observed.enter({ node: expression });
-
-    expect(observed.observers.finish()).toEqual([{ clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: source }]);
-  });
-
-  it.each(UNREMEDIED_SECOND_EDITION_EXPRESSIONS)("keeps $name unflagged under the first edition", ({ source }) => {
-    const { observed, expression } = firstExpressionOf({ source, clauses: [CLAUSE] });
-
-    observed.enter({ node: expression });
-
-    expect(observed.observers.finish()).toEqual([]);
-  });
-});
 describe("CD-27 second-edition logic observations", () => {
   it.each(SECOND_EDITION_EXPRESSIONS)("flags $name under the second edition with the $section fix", ({ source, section }) => {
     const { observed, expression } = firstExpressionOf({ source, clauses: [SECOND_EDITION_CLAUSE] });

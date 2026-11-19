@@ -12,10 +12,8 @@ type Remedy = NonNullable<PieceHit["remedy"]>;
 
 export type TestBodyForm = {
   readonly introducedIn: Edition;
-  readonly remedy?: Remedy;
+  readonly remedy: Remedy;
 };
-
-type RemediedForm = TestBodyForm & { readonly remedy: Remedy };
 
 type FormRequest = { readonly syntaxApi: SyntaxApi; readonly node: SyntaxNode };
 
@@ -27,9 +25,9 @@ type PageSection = Omit<Remedy, "page">;
 
 const onAllowedFormsPage = (section: PageSection): Remedy => ({ fix: section.fix, page: ALLOWED_FORMS_PAGE, section: section.section });
 
-const firstEdition = (section: PageSection): RemediedForm => ({ introducedIn: FIRST_EDITION, remedy: onAllowedFormsPage(section) });
+const firstEdition = (section: PageSection): TestBodyForm => ({ introducedIn: FIRST_EDITION, remedy: onAllowedFormsPage(section) });
 
-const secondEdition = (section: PageSection): RemediedForm => ({ introducedIn: SECOND_EDITION, remedy: onAllowedFormsPage(section) });
+const secondEdition = (section: PageSection): TestBodyForm => ({ introducedIn: SECOND_EDITION, remedy: onAllowedFormsPage(section) });
 
 const BRANCHING = firstEdition({
   fix: "write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it",
@@ -72,8 +70,7 @@ const PROPERTY_OPTIONAL_CHAIN = secondEdition({
 });
 const OPTIONAL_CALL = secondEdition({ fix: "assert.isDefined the function, then call it", section: "an-optional-call" });
 const SWITCH = secondEdition({ fix: "write one test per case, or one it.each table", section: "a-switch" });
-const JSON_STRINGIFY: TestBodyForm = { introducedIn: SECOND_EDITION };
-const JSON_PARSE: TestBodyForm = { introducedIn: SECOND_EDITION };
+const JSON_CALL = secondEdition({ fix: "CD-19 is the rule for the runtime's standard library", section: "serialising-or-parsing-json" });
 const OBJECT_ASSIGN = secondEdition({ fix: "write the object out, spreading what it copies; to give an Error a property, assign it", section: "merging-objects" });
 const OBJECT_FROM_ENTRIES = secondEdition({ fix: "write the object out as a literal", section: "building-an-object-from-entries" });
 const ARRAY_FROM = secondEdition({ fix: "write a short array out as a literal; the page shows no form for a long one", section: "building-an-array-from-a-length" });
@@ -83,7 +80,7 @@ const PASSED_ON_FUNCTION: Remedy = onAllowedFormsPage({
   section: "logic-inside-a-function-the-test-passes-on",
 });
 
-const FORMS_IN_PAGE_ORDER: readonly RemediedForm[] = [
+const FORMS_IN_PAGE_ORDER: readonly TestBodyForm[] = [
   BRANCHING,
   TRY_BLOCK,
   TERNARY,
@@ -98,6 +95,7 @@ const FORMS_IN_PAGE_ORDER: readonly RemediedForm[] = [
   PROPERTY_OPTIONAL_CHAIN,
   OPTIONAL_CALL,
   SWITCH,
+  JSON_CALL,
   OBJECT_ASSIGN,
   OBJECT_FROM_ENTRIES,
   ARRAY_FROM,
@@ -121,8 +119,8 @@ const COMPUTING_METHODS: readonly string[] = [
 const MUTATING_METHODS: readonly string[] = ["copyWithin", "fill", "pop", "push", "reverse", "shift", "splice", "unshift"];
 
 const NAMESPACE_CALLS: ReadonlyMap<string, TestBodyForm> = new Map([
-  ["JSON.stringify", JSON_STRINGIFY],
-  ["JSON.parse", JSON_PARSE],
+  ["JSON.stringify", JSON_CALL],
+  ["JSON.parse", JSON_CALL],
   ["Object.assign", OBJECT_ASSIGN],
   ["Object.fromEntries", OBJECT_FROM_ENTRIES],
   ["Array.from", ARRAY_FROM],
@@ -458,8 +456,7 @@ export const check: WalkerPiece = {
                   const position = node.getStart(sourceFile);
                   const anchor = anchorAt({ position });
                   const snippet = snippetAt({ source: sourceFile.text, position });
-                  const located = { anchor, snippet, ...(form.remedy === undefined ? {} : { remedy: form.remedy }) };
-                  hits.push(...reaching.map((clause) => ({ clause: clause.address, ...located })));
+                  hits.push(...reaching.map((clause) => ({ clause: clause.address, anchor, snippet, remedy: form.remedy })));
                 },
                 finish: () => hits,
               };

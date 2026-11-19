@@ -44,6 +44,8 @@ const EXPRESSION_FORMS = [
   { name: "an optional call", source: "observers.enter?.();", edition: "2", section: "an-optional-call" },
   { name: "an optional call of a computing method", source: "rows.map?.(idOf);", edition: "1", section: "a-method-that-computes-a-value" },
   { name: "Object.keys", source: "Object.keys(value);", edition: "1", section: "a-method-that-computes-a-value" },
+  { name: "JSON.stringify", source: "JSON.stringify(value);", edition: "2", section: "serialising-or-parsing-json" },
+  { name: "JSON.parse", source: "JSON.parse(text);", edition: "2", section: "serialising-or-parsing-json" },
   { name: "Object.assign", source: "Object.assign(target, source);", edition: "2", section: "merging-objects" },
   { name: "Object.fromEntries", source: "Object.fromEntries(pairs);", edition: "2", section: "building-an-object-from-entries" },
   { name: "Array.from", source: "Array.from({ length: 3 });", edition: "2", section: "building-an-array-from-a-length" },
@@ -95,17 +97,6 @@ describe("testBodyFormOf", () => {
   });
 });
 
-const UNREMEDIED_FORMS = [
-  { name: "JSON.stringify", source: "JSON.stringify(value);" },
-  { name: "JSON.parse", source: "JSON.parse(text);" },
-];
-
-describe("testBodyFormOf on a form the page shows nothing to write instead of", () => {
-  it.each(UNREMEDIED_FORMS)("names $name as introduced in edition 2 with no fix", ({ source }) => {
-    expect(testBodyFormOf({ syntaxApi: SYNTAX_API, node: firstExpressionOf({ source }) })).toEqual({ introducedIn: "2" });
-  });
-});
-
 describe("TEST_BODY_SECTIONS", () => {
   it("lists each CHECKS.md section a finding can name, once, in page order", () => {
     expect(TEST_BODY_SECTIONS).toEqual([
@@ -123,6 +114,7 @@ describe("TEST_BODY_SECTIONS", () => {
       "an-optional-chain-on-a-property",
       "an-optional-call",
       "a-switch",
+      "serialising-or-parsing-json",
       "merging-objects",
       "building-an-object-from-entries",
       "building-an-array-from-a-length",
@@ -181,6 +173,7 @@ describe("TEST_BODY_REMEDIES", () => {
       },
       { fix: "assert.isDefined the function, then call it", page: "CHECKS.md", section: "an-optional-call" },
       { fix: "write one test per case, or one it.each table", page: "CHECKS.md", section: "a-switch" },
+      { fix: "CD-19 is the rule for the runtime's standard library", page: "CHECKS.md", section: "serialising-or-parsing-json" },
       { fix: "write the object out, spreading what it copies; to give an Error a property, assign it", page: "CHECKS.md", section: "merging-objects" },
       { fix: "write the object out as a literal", page: "CHECKS.md", section: "building-an-object-from-entries" },
       { fix: "write a short array out as a literal; the page shows no form for a long one", page: "CHECKS.md", section: "building-an-array-from-a-length" },
