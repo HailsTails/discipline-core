@@ -1,5 +1,5 @@
 import type { AST, Rule, SourceCode } from "../../runner/eslint-instance.ts";
-import { functionSiteOf, siteRule } from "../../runner/rule-sites.ts";
+import { type CallSite, functionSiteOf, siteRule } from "../../runner/rule-sites.ts";
 
 type FunctionScore = { readonly node: Rule.Node; readonly score: number };
 
@@ -13,6 +13,14 @@ type Walk = {
 };
 
 type LogicalRun = "starts-run" | "continues-run";
+
+type CalleeNode = CallSite["callee"];
+
+type MemberCallee = Extract<CalleeNode, { readonly type: "MemberExpression" }>;
+
+type CalleeChain = { readonly root: string; readonly members: readonly string[] };
+
+type CallbackRole = "suite-body" | "callable";
 
 const MAX_COGNITIVE_COMPLEXITY = 15;
 
@@ -33,6 +41,27 @@ const ACCESSOR_KINDS: ReadonlySet<string> = new Set(["get", "set"]);
 const MEMBER_TYPES: ReadonlySet<string> = new Set(["MethodDefinition", "Property", "TSAbstractMethodDefinition"]);
 
 const BRACES: ReadonlySet<string> = new Set(["{", "}"]);
+
+const SUITE_ROOTS: ReadonlySet<string> = new Set(["describe", "suite", "fdescribe", "xdescribe", "fsuite", "xsuite"]);
+
+const SUITE_MODIFIERS: ReadonlySet<string> = new Set([
+  "each",
+  "for",
+  "only",
+  "skip",
+  "todo",
+  "concurrent",
+  "sequential",
+  "shuffle",
+  "skipIf",
+  "runIf",
+]);
+
+const PLAYWRIGHT_SUITE = {
+  root: "test",
+  member: "describe",
+  modifiers: new Set(["only", "skip", "fixme", "serial", "parallel"]),
+} as const;
 
 const LINE_BREAK = /\r\n|[\r\n]/gu;
 
@@ -222,6 +251,60 @@ const accessorDisposition = (request: { readonly node: Rule.Node }): "accessor" 
     : "callable";
 };
 
+const memberNameOf = (request: { readonly member: MemberCallee }): string | undefined => {
+  const property = request.member.property;
+  if (property.type === "Identifier" && !request.member.computed) {
+    return property.name;
+  }
+  return property.type === "Literal" && typeof property.value === "string" ? property.value : undefined;
+};
+
+const calleeChainOf = (request: { readonly callee: CalleeNode; readonly members: readonly string[] }): CalleeChain | undefined => {
+  const callee = request.callee;
+  if (callee.type === "Identifier") {
+    return { root: callee.name, members: request.members };
+  }
+  if (callee.type === "CallExpression") {
+    return calleeChainOf({ callee: callee.callee, members: request.members });
+  }
+  if (callee.type === "TaggedTemplateExpression") {
+    return calleeChainOf({ callee: callee.tag, members: request.members });
+  }
+  if (callee.type !== "MemberExpression") {
+    return undefined;
+  }
+  const name = memberNameOf({ member: callee });
+  return name === undefined ? undefined : calleeChainOf({ callee: callee.object, members: [name, ...request.members] });
+};
+
+const modifiedSuiteRole = (request: {
+  readonly members: readonly string[];
+  readonly modifiers: ReadonlySet<string>;
+}): CallbackRole => (request.members.every((member) => request.modifiers.has(member)) ? "suite-body" : "callable");
+
+const chainRole = (request: { readonly chain: CalleeChain | undefined }): CallbackRole => {
+  const chain = request.chain;
+  if (chain === undefined) {
+    return "callable";
+  }
+  if (SUITE_ROOTS.has(chain.root)) {
+    return modifiedSuiteRole({ members: chain.members, modifiers: SUITE_MODIFIERS });
+  }
+  const [first, ...rest] = chain.members;
+  return chain.root === PLAYWRIGHT_SUITE.root && first === PLAYWRIGHT_SUITE.member
+    ? modifiedSuiteRole({ members: rest, modifiers: PLAYWRIGHT_SUITE.modifiers })
+    : "callable";
+};
+
+const callbackRole = (request: { readonly node: Rule.Node }): CallbackRole => {
+  const call = request.node.parent;
+  if (call?.type !== "CallExpression" || call.callee === request.node) {
+    return "callable";
+  }
+  const curried = call.parent?.type === "CallExpression" && call.parent.callee === call;
+  return curried ? "callable" : chainRole({ chain: calleeChainOf({ callee: call.callee, members: [] }) });
+};
+
 const functionLineCount = (request: { readonly body: Rule.Node; readonly sourceCode: SourceCode }): number =>
   request.sourceCode
     .getTokens(request.body)
@@ -276,7 +359,12 @@ const cognitiveComplexity = siteRule({
 });
 
 const reportLongFunction = (request: { readonly context: Rule.RuleContext; readonly node: Rule.Node }): void => {
-  if (accessorDisposition({ node: request.node }) === "accessor" || !("body" in request.node) || !isNode(request.node.body)) {
+  if (
+    accessorDisposition({ node: request.node }) === "accessor" ||
+    callbackRole({ node: request.node }) === "suite-body" ||
+    !("body" in request.node) ||
+    !isNode(request.node.body)
+  ) {
     return;
   }
   const lines = functionLineCount({ body: request.node.body, sourceCode: request.context.sourceCode });

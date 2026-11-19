@@ -96,6 +96,14 @@
             "expectedLines": [
               1
             ]
+          },
+          {
+            "name": "an it callback inside a describe",
+            "fileName": "src/steps.test.ts",
+            "source": "describe(\"steps\", () => {\n  it(\"runs\", () => {\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n      step();\n  });\n});\n",
+            "expectedLines": [
+              2
+            ]
           }
         ],
         "allow": [
@@ -109,6 +117,12 @@
             "name": "closing brace lines are not counted",
             "fileName": "src/steps.ts",
             "source": "export function steps(): void {\n  step0();\n  step1();\n  step2();\n  step3();\n  step4();\n  step5();\n  step6();\n  step7();\n  step8();\n  step9();\n  step10();\n  step11();\n  step12();\n  step13();\n  step14();\n  step15();\n  step16();\n  step17();\n  step18();\n  step19();\n  step20();\n  step21();\n  step22();\n  step23();\n  step24();\n  step25();\n  step26();\n  step27();\n  step28();\n  step29();\n  step30();\n  step31();\n  step32();\n  step33();\n  step34();\n  step35();\n  step36();\n  step37();\n  step38();\n  step39();\n  step40();\n  step41();\n  step42();\n  step43();\n  if (ready0) {\n    run();\n  }\n  if (ready1) {\n    run();\n  }\n  if (ready2) {\n    run();\n  }\n}\n",
+            "expectedLines": []
+          },
+          {
+            "name": "a describe callback is not a function to shorten",
+            "fileName": "src/steps.test.ts",
+            "source": "describe(\"steps\", () => {\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n    step();\n});\n",
             "expectedLines": []
           }
         ]
