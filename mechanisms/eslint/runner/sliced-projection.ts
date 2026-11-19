@@ -2,8 +2,6 @@ import type { ExceptionRecord } from "../../../core/exception-records/exception-
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { ProjectionWrite } from "../../../core/mechanism-port/runner-result-schema.ts";
-import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
-import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import type { ClauseAddress } from "../../../core/values/clause-address.ts";
@@ -13,13 +11,13 @@ import type { Result } from "../../../core/values/result.ts";
 import type { CoreInstall } from "./core-install.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
 import {
-  currentProjection,
   type ProjectedPiece,
+  type ProjectionFiles,
   pluginImportOf,
   projectionState,
   projectionText,
-  writeProjection,
 } from "./projection.ts";
+import { type ProjectionStates, projectionStateAt } from "./projection-states.ts";
 import { type ConfigRoot, orphanedSliceDirectoriesOf, sliceRecordsOf, slicePathOf } from "./projection-slices.ts";
 
 export type ProjectionClause = {
@@ -109,19 +107,14 @@ export const sliceTextOf = (request: SliceSource & { readonly root: ConfigRoot }
 };
 
 const packageSliceProblem = (
-  request: SliceSource & { readonly fileText: FileTextPort; readonly root: ConfigRoot },
+  request: SliceSource & { readonly states: ProjectionStates; readonly root: ConfigRoot },
 ): Outcome<readonly SliceProblem[]> => {
   const slice = slicePathOf(request);
   const generated = sliceTextOf(request);
   if (generated.outcome === "failed") {
     return generated;
   }
-  const current = currentProjection({
-    fileText: request.fileText,
-    path: request.origin.path,
-    repoRoot: request.origin.repoRoot,
-    file: slice,
-  });
+  const current = projectionStateAt({ states: request.states, file: slice });
   if (current.outcome === "failed") {
     return current;
   }
@@ -130,13 +123,18 @@ const packageSliceProblem = (
 };
 
 export const packageSliceProblemsOf = (
-  request: SliceSource & { readonly fileText: FileTextPort; readonly roots: readonly ConfigRoot[] },
-): Outcome<readonly SliceProblem[]> =>
-  gatheredOutcomes({
-    outcomes: request.roots
-      .filter((root) => root.placement === "package")
-      .map((root) => packageSliceProblem({ ...request, root })),
-  });
+  request: SliceSource & { readonly projectionFiles: ProjectionFiles; readonly roots: readonly ConfigRoot[] },
+): Outcome<readonly SliceProblem[]> => {
+  const packageRoots = request.roots.filter((root) => root.placement === "package");
+  if (packageRoots.length === 0) {
+    return { outcome: "ok", value: [] };
+  }
+  const states = request.projectionFiles.currentOf({ files: packageRoots.map((root) => slicePathOf({ root })) });
+  if (states.outcome === "failed") {
+    return states;
+  }
+  return gatheredOutcomes({ outcomes: packageRoots.map((root) => packageSliceProblem({ ...request, states: states.value, root })) });
+};
 
 type RootPlan = { readonly file: RepoPath; readonly text: string };
 
@@ -145,32 +143,24 @@ type OrphanPlan = { readonly file: RepoPath; readonly decision: "remove" | "leav
 type SlicePlan = { readonly roots: readonly RootPlan[]; readonly orphans: readonly OrphanPlan[] };
 
 type PlanRequest = SliceSource & {
-  readonly fileText: FileTextPort;
+  readonly projectionFiles: ProjectionFiles;
   readonly roots: readonly ConfigRoot[];
   readonly trackedPaths: readonly RepoPath[];
 };
 
-const currentSliceOf = (request: { readonly fileText: FileTextPort; readonly origin: SliceOrigin; readonly file: RepoPath }) =>
-  currentProjection({ fileText: request.fileText, path: request.origin.path, repoRoot: request.origin.repoRoot, file: request.file });
-
-const rootPlan = (request: SliceSource & { readonly fileText: FileTextPort; readonly root: ConfigRoot }): Outcome<RootPlan> => {
+const rootPlan = (request: SliceSource & { readonly root: ConfigRoot }): Outcome<RootPlan> => {
   const generated = sliceTextOf(request);
-  if (generated.outcome === "failed") {
-    return generated;
-  }
-  const file = slicePathOf(request);
-  const current = currentSliceOf({ ...request, file });
-  return current.outcome === "failed" ? current : { outcome: "ok", value: { file, text: generated.value } };
+  return generated.outcome === "failed" ? generated : { outcome: "ok", value: { file: slicePathOf(request), text: generated.value } };
 };
 
-const orphanPlan = (request: SliceSource & { readonly fileText: FileTextPort; readonly directory: RepoPath }): Outcome<OrphanPlan> => {
+const orphanPlan = (request: SliceSource & { readonly states: ProjectionStates; readonly directory: RepoPath }): Outcome<OrphanPlan> => {
   const root: ConfigRoot = { placement: "package", directory: request.directory };
   const file = slicePathOf({ root });
   const regenerated = sliceTextOf({ ...request, root });
   if (regenerated.outcome === "failed") {
     return regenerated;
   }
-  const current = currentSliceOf({ ...request, file });
+  const current = projectionStateAt({ states: request.states, file });
   if (current.outcome === "failed") {
     return current;
   }
@@ -181,58 +171,53 @@ const orphanPlan = (request: SliceSource & { readonly fileText: FileTextPort; re
 };
 
 const slicePlanOf = (request: PlanRequest): Outcome<SlicePlan> => {
+  const orphanDirectories = orphanedSliceDirectoriesOf(request);
+  const states = request.projectionFiles.currentOf({
+    files: [
+      ...request.roots.map((root) => slicePathOf({ root })),
+      ...orphanDirectories.map((directory) => slicePathOf({ root: { placement: "package", directory } })),
+    ],
+  });
+  if (states.outcome === "failed") {
+    return states;
+  }
   const roots = gatheredOutcomes({ outcomes: request.roots.map((root) => listedOutcome({ outcome: rootPlan({ ...request, root }) })) });
   if (roots.outcome === "failed") {
     return roots;
   }
   const orphans = gatheredOutcomes({
-    outcomes: orphanedSliceDirectoriesOf(request).map((directory) => listedOutcome({ outcome: orphanPlan({ ...request, directory }) })),
+    outcomes: orphanDirectories.map((directory) => listedOutcome({ outcome: orphanPlan({ ...request, states: states.value, directory }) })),
   });
   return orphans.outcome === "failed" ? orphans : { outcome: "ok", value: { roots: roots.value, orphans: orphans.value } };
 };
 
 const appliedOrphan = (request: {
-  readonly fileRemoval: FileRemovalPort;
-  readonly origin: SliceOrigin;
+  readonly projectionFiles: ProjectionFiles;
   readonly orphan: OrphanPlan;
 }): Outcome<ProjectionWrite> => {
   if (request.orphan.decision === "leave") {
     return { outcome: "ok", value: { path: request.orphan.file, effect: "left-in-place" } };
   }
-  const removed = request.fileRemoval.remove({
-    path: request.origin.path.join({ segments: [request.origin.repoRoot, request.orphan.file] }),
-  });
-  return removed.outcome === "failed"
-    ? { outcome: "failed", error: { kind: "tool-failed", detail: removed.error.detail } }
-    : { outcome: "ok", value: { path: request.orphan.file, effect: "removed" } };
+  const removed = request.projectionFiles.removeAt({ file: request.orphan.file });
+  return removed.outcome === "failed" ? removed : { outcome: "ok", value: { path: request.orphan.file, effect: "removed" } };
 };
 
 const appliedPlan = (request: {
-  readonly fileText: FileTextPort;
-  readonly fileRemoval: FileRemovalPort;
-  readonly origin: SliceOrigin;
+  readonly projectionFiles: ProjectionFiles;
   readonly plan: SlicePlan;
 }): Outcome<readonly ProjectionWrite[]> =>
   gatheredOutcomes({
     outcomes: [
       ...request.plan.roots.map((root) =>
         listedOutcome({
-          outcome: writeProjection({
-            fileText: request.fileText,
-            path: request.origin.path,
-            repoRoot: request.origin.repoRoot,
-            file: root.file,
-            text: root.text,
-          }),
+          outcome: request.projectionFiles.writeAt({ file: root.file, text: root.text }),
         }),
       ),
       ...request.plan.orphans.map((orphan) => listedOutcome({ outcome: appliedOrphan({ ...request, orphan }) })),
     ],
   });
 
-export const slicedProjectionWrites = (
-  request: PlanRequest & { readonly fileRemoval: FileRemovalPort },
-): Outcome<readonly ProjectionWrite[]> => {
+export const slicedProjectionWrites = (request: PlanRequest): Outcome<readonly ProjectionWrite[]> => {
   const plan = slicePlanOf(request);
   return plan.outcome === "failed" ? plan : appliedPlan({ ...request, plan: plan.value });
 };
