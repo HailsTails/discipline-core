@@ -39,7 +39,12 @@ const directiveAt = (request: { readonly clause: Finding["clause"]; readonly fil
   reach: "one-clause",
 });
 
-const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [] };
+const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], unrunMechanisms: [], excluded: [] };
+
+const CHECKOUT = repoPathSchema.parse("src/checkout.ts");
+const PRICES = repoPathSchema.parse("src/prices.ts");
+const TOTALS = repoPathSchema.parse("src/totals.ts");
+const PACKAGE_JSON = repoPathSchema.parse("package.json");
 
 describe("paidDebtOf choosing stale records", () => {
   it("names each stale file carve-out, ordered by file and then clause", () => {
@@ -125,7 +130,7 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
             kind: "command-line-option",
             clause: LOOPS,
             mechanism: ESLINT,
-            location: repoPathSchema.parse("package.json"),
+            location: PACKAGE_JSON,
             script: "lint",
             option: "--rule hone/no-for-of: off",
             cause: { kind: "weakens-run" },
@@ -139,5 +144,59 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
     expect(
       paidDebtOf({ ...NOTHING, stale: [carveOut({ clause: LOOPS, file: BASKET })], forfeited: [carveOut({ clause: LOOPS, file: BASKET })] }),
     ).toEqual([{ clause: LOOPS, file: BASKET }]);
+  });
+});
+
+describe("paidDebtOf leaving debt it could not measure", () => {
+  it("leaves a stale file carve-out whose mechanism did not run, naming one whose mechanism ran", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        stale: [carveOut({ clause: LOOPS, file: BASKET }), { kind: "file-carve-out", clause: LOOPS, mechanism: AUDIT, file: LEGACY }],
+        unrunMechanisms: [ESLINT],
+      }),
+    ).toEqual([{ clause: LOOPS, file: LEGACY }]);
+  });
+
+  it("leaves a forfeited file carve-out whose mechanism did not run", () => {
+    expect(paidDebtOf({ ...NOTHING, forfeited: [carveOut({ clause: LOOPS, file: BASKET })], unrunMechanisms: [ESLINT] })).toEqual([]);
+  });
+
+  it("leaves a stale file carve-out on a file the selection excludes, as an exact file or under a folder", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        stale: [carveOut({ clause: LOOPS, file: BASKET }), carveOut({ clause: LOOPS, file: LEGACY }), carveOut({ clause: LOOPS, file: CHECKOUT })],
+        excluded: [BASKET, repoPathSchema.parse("src/legacy")],
+      }),
+    ).toEqual([{ clause: LOOPS, file: CHECKOUT }]);
+  });
+
+  it("names a stale file carve-out on a file that only shares a name prefix with an excluded folder", () => {
+    expect(
+      paidDebtOf({ ...NOTHING, stale: [carveOut({ clause: LOOPS, file: BASKET })], excluded: [repoPathSchema.parse("src/bask")] }),
+    ).toEqual([{ clause: LOOPS, file: BASKET }]);
+  });
+});
+
+describe("paidDebtOf keeping a forfeited record each native exception on its file holds", () => {
+  it("keeps a forfeited file carve-out held by an ignore, a config override, a suppression entry or an inline rule config on its clause and file", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [
+          carveOut({ clause: LOOPS, file: BASKET }),
+          carveOut({ clause: LOOPS, file: CHECKOUT }),
+          carveOut({ clause: LOOPS, file: PRICES }),
+          carveOut({ clause: LOOPS, file: TOTALS }),
+        ],
+        unrecorded: [
+          { kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET },
+          { kind: "config-override", clause: LOOPS, mechanism: ESLINT, file: CHECKOUT },
+          { kind: "suppression-entry", clause: LOOPS, mechanism: ESLINT, file: PRICES, location: repoPathSchema.parse("eslint-suppressions.json") },
+          { kind: "inline-rule-config", clause: LOOPS, mechanism: ESLINT, file: TOTALS, line: 1, text: "/* eslint hone/no-for-of: off */" },
+        ],
+      }),
+    ).toEqual([]);
   });
 });

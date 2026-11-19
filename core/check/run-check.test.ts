@@ -454,6 +454,18 @@ describe("runCheck runner dispatch", () => {
     ).resolves.toMatchObject({ outcome: "ok", value: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }] } });
   });
 
+  it("points at no paid debt for a stale file carve-out on a file the selection excludes", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, excluded: [repoPathSchema.parse("src/gone.ts")] }),
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }),
+          git: gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } }),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { stale: [{ kind: "file-carve-out", file: "src/gone.ts" }], readFirst: [] } });
+  });
+
   it("still forfeits a carve-out on a tracked path absent from the working tree that the change set touched", async () => {
     const runner = standaloneRunner({ runReturns: CLEAN_RUN });
     const checked = await runCheck(

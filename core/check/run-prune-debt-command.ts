@@ -1,41 +1,67 @@
-import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import { createSelectionRepository, readRunSettings, type RunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { DebtPair } from "../exception-records/debt-pair.ts";
 import type { ExceptionRepository } from "../exception-records/exception-records.ts";
-import { paidDebtOf } from "../exception-records/paid-debt.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
-import { assessmentInEffect } from "../values/assessment.ts";
+import { type Assessment, assessmentInEffect } from "../values/assessment.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
+import type { CheckReport } from "../verdict/check-report.ts";
 import { parsePruneDebtArguments, type PruneDebtArguments } from "./command-arguments.ts";
 import { pruneDebtCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
+import { reportedPaidDebtOf } from "./reported-paid-debt.ts";
 import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from "./run-check-command.ts";
 import { runCheck } from "./run-check.ts";
 
-type PruneRequest = CommandRequest & {
-  readonly arguments: PruneDebtArguments;
-  readonly repoRoot: AbsolutePath;
-  readonly installRoot: AbsolutePath;
-  readonly exceptionRepository: ExceptionRepository;
-};
-
 type PruneResult = Result<readonly DebtPair[], LoadFailure>;
 
-const paidDebtRemoved = async (request: PruneRequest): Promise<PruneResult> => {
-  const configured = readRunSettings({ fileText: request.fileText, path: request.path, repoRoot: request.repoRoot });
+export type RunSettingsReader = {
+  readonly read: (request: Record<string, never>) => Result<RunSettings, LoadFailure>;
+};
+
+export type PruneCheck = (request: {
+  readonly baseRevision: string | undefined;
+  readonly assessment: Assessment;
+}) => Promise<Result<CheckReport, LoadFailure>>;
+
+export type PruneDebtPorts = {
+  readonly runSettings: RunSettingsReader;
+  readonly check: PruneCheck;
+  readonly exceptionRepository: Pick<ExceptionRepository, "remove">;
+};
+
+export const paidDebtRemoved = async (
+  request: PruneDebtPorts & { readonly arguments: Pick<PruneDebtArguments, "baseRevision" | "forfeiture"> },
+): Promise<PruneResult> => {
+  const configured = request.runSettings.read({});
   if (configured.outcome === "failed") {
     return configured;
   }
-  const moduleExtension = moduleExtensionOf({ moduleUrl: request.moduleUrl });
-  const report = await runCheck({
-    ...request,
-    moduleExtension,
+  const report = await request.check({
     baseRevision: request.arguments.baseRevision,
     assessment: assessmentInEffect({ requested: { forfeiture: request.arguments.forfeiture }, configured: configured.value.assessment }),
-    selectionRepository: createSelectionRepository({ ...request, moduleExtension }),
   });
-  return report.outcome === "failed" ? report : request.exceptionRepository.remove({ pairs: paidDebtOf(report.value) });
+  return report.outcome === "failed" ? report : request.exceptionRepository.remove({ pairs: reportedPaidDebtOf(report.value) });
+};
+
+const pruneDebtPortsOver = (
+  request: CommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: AbsolutePath },
+): PruneDebtPorts => {
+  const moduleExtension = moduleExtensionOf({ moduleUrl: request.moduleUrl });
+  return {
+    runSettings: { read: (_request) => readRunSettings(request) },
+    check: ({ baseRevision, assessment }) =>
+      runCheck({
+        ...request,
+        moduleExtension,
+        baseRevision,
+        assessment,
+        selectionRepository: createSelectionRepository({ ...request, moduleExtension }),
+        exceptionRepository: request.exceptionRepositoryOf({ repoRoot: request.repoRoot }),
+      }),
+    exceptionRepository: request.exceptionRepositoryOf({ repoRoot: request.repoRoot }),
+  };
 };
 
 const pruneDebtResult = async (request: CommandRequest): Promise<PruneResult> => {
@@ -52,11 +78,8 @@ const pruneDebtResult = async (request: CommandRequest): Promise<PruneResult> =>
     installRoot.outcome === "failed"
       ? installRoot
       : await paidDebtRemoved({
-          ...request,
+          ...pruneDebtPortsOver({ ...request, repoRoot: repoRoot.value, installRoot: installRoot.value }),
           arguments: parsed.value,
-          repoRoot: repoRoot.value,
-          installRoot: installRoot.value,
-          exceptionRepository: request.exceptionRepositoryOf({ repoRoot: repoRoot.value }),
         });
   return withShownPaths({ path: request.path, fileText: request.fileText, repoRoot: repoRoot.value, installRoot, run });
 };

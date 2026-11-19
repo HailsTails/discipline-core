@@ -1,9 +1,19 @@
+import type { DebtPair } from "../exception-records/debt-pair.ts";
 import { debtPairKey } from "../exception-records/debt-pair.ts";
-import { paidDebtOf } from "../exception-records/paid-debt.ts";
+import { type PaidDebtRequest, paidDebtOf } from "../exception-records/paid-debt.ts";
 import type { GovernanceResult } from "../governance/governance.ts";
 import type { MechanismId } from "../values/identifiers.ts";
-import type { PaidDebtNote } from "../verdict/check-report.ts";
+import type { RepoPath } from "../values/repo-path.ts";
+import type { PaidDebtNote, Unmeasured } from "../verdict/check-report.ts";
 import type { MechanismRun } from "./mechanism-dispatch.ts";
+
+export type ReportedDebt = Omit<PaidDebtRequest, "unrunMechanisms"> & { readonly unmeasured: readonly Unmeasured[] };
+
+const unrunMechanismsOf = (request: { readonly unmeasured: readonly Unmeasured[] }): readonly MechanismId[] =>
+  request.unmeasured.flatMap((entry) => (entry.kind === "mechanism-not-run" ? [entry.mechanism] : []));
+
+export const reportedPaidDebtOf = (request: ReportedDebt): readonly DebtPair[] =>
+  paidDebtOf({ ...request, unrunMechanisms: unrunMechanismsOf(request) });
 
 const paidMechanismsOf = (request: {
   readonly governed: GovernanceResult;
@@ -17,9 +27,11 @@ const paidMechanismsOf = (request: {
 
 export const paidDebtNotesOf = (request: {
   readonly governed: GovernanceResult;
+  readonly unmeasured: readonly Unmeasured[];
+  readonly excluded: readonly RepoPath[];
   readonly runs: readonly Pick<MechanismRun, "mechanism" | "projection">[];
 }): readonly PaidDebtNote[] => {
-  const paid = paidDebtOf(request.governed);
+  const paid = reportedPaidDebtOf({ ...request.governed, unmeasured: request.unmeasured, excluded: request.excluded });
   if (paid.length === 0) {
     return [];
   }

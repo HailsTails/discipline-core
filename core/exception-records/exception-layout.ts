@@ -371,6 +371,33 @@ const heldFileCarveOuts = (request: { readonly placed: readonly PlacedEntry[]; r
   });
 };
 
+const recordsFileRemoved = (request: LayoutRequest & { readonly file: RepoPath }): Result<void, LoadFailure> => {
+  const path = absoluteOf(request);
+  const removal = request.fileRemoval.remove({ path });
+  return removal.outcome === "failed"
+    ? { outcome: "failed", error: { kind: "file-unwritable", path, detail: removal.error.detail } }
+    : { outcome: "ok", value: undefined };
+};
+
+const emptiedSplitFile = (request: {
+  readonly placed: readonly PlacedEntry[];
+  readonly removing: readonly PlacedEntry[];
+}): "emptied" | "kept" => {
+  const [first] = request.removing;
+  return first !== undefined &&
+    first.place.layout === "split" &&
+    request.placed.filter(({ place }) => place.file === first.place.file).length === request.removing.length
+    ? "emptied"
+    : "kept";
+};
+
+const removedFrom = (
+  request: LayoutRequest & { readonly placed: readonly PlacedEntry[]; readonly file: RepoPath; readonly removing: readonly PlacedEntry[] },
+): Result<void, LoadFailure> =>
+  emptiedSplitFile(request) === "emptied"
+    ? recordsFileRemoved(request)
+    : indexesWritten({ ...request, indexes: request.removing.map(({ place }) => place.index) });
+
 const removed = (request: LayoutRequest & { readonly pairs: readonly DebtPair[] }): Result<readonly DebtPair[], LoadFailure> => {
   const placed = workingEntries(request);
   if (placed.outcome === "failed") {
@@ -380,7 +407,7 @@ const removed = (request: LayoutRequest & { readonly pairs: readonly DebtPair[] 
   const byFile = [...Map.groupBy(held, ({ place }) => place.file)];
   const written = byFile.reduce<Result<void, LoadFailure>>(
     (sofar, [file, entries]) =>
-      sofar.outcome === "failed" ? sofar : indexesWritten({ ...request, file, indexes: entries.map(({ place }) => place.index) }),
+      sofar.outcome === "failed" ? sofar : removedFrom({ ...request, placed: placed.value, file, removing: entries }),
     { outcome: "ok", value: undefined },
   );
   if (written.outcome === "failed") {
@@ -390,7 +417,7 @@ const removed = (request: LayoutRequest & { readonly pairs: readonly DebtPair[] 
   return { outcome: "ok", value: request.pairs.filter((pair) => heldKeys.has(debtPairKey(pair))) };
 };
 
-const foreignKeysRefusal =(request: LayoutRequest & { readonly foreignKeys: readonly string[] }): Result<never, LoadFailure> =>
+const foreignKeysRefusal = (request: LayoutRequest & { readonly foreignKeys: readonly string[] }): Result<never, LoadFailure> =>
   unplaceable({
     ...request,
     file: SINGLE_FILE,

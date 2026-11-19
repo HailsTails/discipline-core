@@ -413,14 +413,14 @@ const WIRE_PAIR = pairOf({ clause: "CD-6#identifier-names", file: "src/d.ts" });
 const PORT_PAIR = pairOf({ clause: "CD-19#import-boundaries", file: "src/b.ts" });
 
 describe("createExceptionRepository remove", () => {
-  it("removes each pair's file carve-out from its rule's file in the split layout, keeping every other record's text", () => {
+  it("removes each pair's file carve-out from its rule's file in the split layout, keeping every other record's text, and deletes a rule's file once its last record is gone", () => {
     const { repository, disk } = repositoryOver({ working: SPLIT_FILES, base: {} });
 
     expect(repository.remove({ pairs: [ADAPTER_PAIR, WIRE_PAIR] })).toEqual({ outcome: "ok", value: [ADAPTER_PAIR, WIRE_PAIR] });
     expect(disk.texts()).toEqual({
-      ...SPLIT_FILES,
+      "discipline-exceptions/authorised-locations/cd-19.json": LOCATIONS_19_TEXT,
+      "discipline-exceptions/clause-wide-carve-outs/team/tm-1.json": TEAM_WIDE_TEXT,
       "discipline-exceptions/file-carve-outs/cd-19.json": PORT_ONLY_TEXT,
-      "discipline-exceptions/file-carve-outs/cd-6.json": EMPTIED_TEXT,
     });
   });
 
@@ -429,6 +429,13 @@ describe("createExceptionRepository remove", () => {
 
     expect(repository.remove({ pairs: [PORT_PAIR] })).toEqual({ outcome: "ok", value: [PORT_PAIR] });
     expect(disk.texts()).toEqual({ "discipline-exceptions.json": CARVE_OUTS_19_ONLY_ADAPTER_TEXT });
+  });
+
+  it("keeps discipline-exceptions.json, holding an empty list, once its last record is gone", () => {
+    const { repository, disk } = repositoryOver({ working: { "discipline-exceptions.json": CARVE_OUTS_19_TEXT }, base: {} });
+
+    expect(repository.remove({ pairs: [ADAPTER_PAIR, PORT_PAIR] })).toEqual({ outcome: "ok", value: [ADAPTER_PAIR, PORT_PAIR] });
+    expect(disk.texts()).toEqual({ "discipline-exceptions.json": EMPTIED_TEXT });
   });
 
   it("leaves an authorised location on the pair's clause and file, and a pair no record holds, writing nothing", () => {

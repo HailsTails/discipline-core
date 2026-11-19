@@ -9,6 +9,7 @@ import {
   checkCommandOutcome,
   inheritedDebtLine,
   projectCommandOutcome,
+  pruneDebtCommandOutcome,
   splitRecordsCommandOutcome,
   versionCommandOutcome,
 } from "./command-outcome.ts";
@@ -247,5 +248,32 @@ describe("inheritedDebtLine", () => {
     ).toBe(
       "CD-15#loops nested-configuration nested/src/n.ts: the file loads the eslint configuration in nested/src, and nested holds its own disciplines.json; nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72), so the eslint projection cannot put a record on this file into effect; fix it, or govern nested from this repository by removing nested/disciplines.json, then run record-debt again\n",
     );
+  });
+});
+
+describe("pruneDebtCommandOutcome", () => {
+  it("exits 0 and prints nothing when no debt is paid", () => {
+    expect(pruneDebtCommandOutcome({ result: { outcome: "ok", value: [] } })).toEqual({ code: 0, text: "" });
+  });
+
+  it("exits 0 and prints one <clause> removed <file> line per removed pair, in the order given", () => {
+    expect(
+      pruneDebtCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: [
+            { clause: clauseAddressSchema.parse("CD-14#class-syntax"), file: repoPathSchema.parse("src/a.ts") },
+            { clause: clauseAddressSchema.parse("CD-15#loops"), file: repoPathSchema.parse("src/b.ts") },
+          ],
+        },
+      }),
+    ).toEqual({ code: 0, text: "CD-14#class-syntax removed src/a.ts\nCD-15#loops removed src/b.ts\n" });
+  });
+
+  it("exits 2 and prints the load failure line on a failure", () => {
+    expect(pruneDebtCommandOutcome({ result: { outcome: "failed", error: { kind: "runner-missing", mechanism: WALKER } } })).toEqual({
+      code: 2,
+      text: "load failure: runner-missing audit\n",
+    });
   });
 });

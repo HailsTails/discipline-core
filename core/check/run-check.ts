@@ -27,6 +27,7 @@ import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
+import { pathExclusionOf } from "../values/path-exclusion.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type {
@@ -37,7 +38,7 @@ import type {
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
 import { packageLinkOf } from "./package-link.ts";
-import { paidDebtNotesOf } from "./paid-debt-notes.ts";
+import { paidDebtNotesOf } from "./reported-paid-debt.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
@@ -268,16 +269,6 @@ const workingTreePaths = (request: {
       }) === "present",
   );
 
-const exclusion = (request: {
-  readonly trackedPath: RepoPath;
-  readonly excluded: readonly RepoPath[];
-}): "excluded" | "checked" =>
-  request.excluded.some(
-    (excludedPath) => request.trackedPath === excludedPath || request.trackedPath.startsWith(`${excludedPath}/`),
-  )
-    ? "excluded"
-    : "checked";
-
 const presentTrackedPaths = (request: {
   readonly check: TreeRequest;
   readonly excluded: readonly RepoPath[];
@@ -287,7 +278,7 @@ const presentTrackedPaths = (request: {
     return failed({ kind: "git-failed", detail: `${tracked.error.command}: ${tracked.error.detail}` });
   }
   const checked = tracked.value.filter(
-    (trackedPath) => exclusion({ trackedPath, excluded: request.excluded }) === "checked",
+    (trackedPath) => pathExclusionOf({ path: trackedPath, excluded: request.excluded }) === "checked",
   );
   return { outcome: "ok", value: workingTreePaths({ check: request.check, tracked: checked }) };
 };
@@ -386,6 +377,10 @@ const checkReportOf = (request: {
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
+  const unmeasured = [
+    ...unmeasuredOf({ touched: request.touched, ...request.inputs }),
+    ...projections.flatMap((projection) => projection.unmeasured),
+  ];
   return {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
@@ -394,10 +389,7 @@ const checkReportOf = (request: {
     ...governed,
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
-    unmeasured: [
-      ...unmeasuredOf({ touched: request.touched, ...request.inputs }),
-      ...projections.flatMap((projection) => projection.unmeasured),
-    ],
+    unmeasured,
     projectionProblems: [
       ...projections.flatMap((projection) => projection.problems),
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
@@ -405,7 +397,7 @@ const checkReportOf = (request: {
     assessment: partialAssessmentsOf({ assessment: request.assessment, records: request.inputs.records }),
     readFirst: [
       ...clauseReadingsOf({ ...request.check, findings: governed.findings, clauseRoots: request.inputs.clauseRoots }),
-      ...paidDebtNotesOf({ governed, runs: request.runs }),
+      ...paidDebtNotesOf({ governed, unmeasured, excluded: request.inputs.excluded, runs: request.runs }),
     ],
   };
 };
