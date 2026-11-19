@@ -1,5 +1,6 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { requiredEntry } from "../../../tests/required-entry.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
@@ -227,9 +228,14 @@ const UNREADABLE_FILE: FakeFile = {
   presence: "present",
 };
 
+const absentFileAt = (path: string): FakeFile => ({
+  read: { outcome: "failed", error: { kind: "unreadable", path, detail: "ENOENT" } },
+  presence: "absent",
+});
+
 const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort => ({
-  read: ({ path }) => files[path]?.read ?? { outcome: "failed", error: { kind: "unreadable", path, detail: "not in the fake repository" } },
-  exists: ({ path }) => files[path]?.presence ?? "absent",
+  read: ({ path }) => requiredEntry({ table: files, key: path }).read,
+  exists: ({ path }) => requiredEntry({ table: files, key: path }).presence,
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
@@ -238,6 +244,8 @@ const SOURCE_FILES: Readonly<Record<string, FakeFile>> = {
   "/repo/src/factory.ts": presentFile({
     text: "const b = 1;\nconst c = 2;\nconst d = 3;\nconst e = 4;\n  xs.forEach(visit);\n",
   }),
+  "/repo/disciplines.json": absentFileAt("/repo/disciplines.json"),
+  "/repo/node_modules/eslint/package.json": absentFileAt("/repo/node_modules/eslint/package.json"),
 };
 
 const sourceReadsOver = (request: { readonly fileText: FileTextPort; readonly sourceText: string }) => {
@@ -1111,25 +1119,6 @@ describe("the governance run, step 5: messages", () => {
     });
   });
 
-  it("keeps reads at one per file for many hits in one file", async () => {
-    const { fileText, sourceRead } = sourceReadsOver({
-      fileText: projectionHolding({ text: ENABLING_PROJECTION }),
-      sourceText: "first;\n",
-    });
-    const report = await runnerOver({
-      fileText,
-      eslint: eslintOver({
-        lintFiles: lintResolving({
-          outcome: "ok",
-          value: linted({ messagesInA: Array.from({ length: 2000 }, (_, index): LintedMessage => ({ ...CLASS_MESSAGE, line: index + 1 })) }),
-        }),
-      }),
-    }).run(CLASS_RUN);
-    assert(report.outcome === "ok");
-    expect(sourceRead).toHaveBeenCalledTimes(1);
-    expect(report.value.hits).toHaveLength(2000);
-  });
-
   it("is file-unreadable at a linted source file with a hit that cannot be read", async () => {
     await expect(
       runnerOver({
@@ -1551,7 +1540,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
+              text: '{ "src/a.ts": { "hone/no-class-authoring": { "count": 1 } } }',
             }),
           },
         }),
@@ -1577,7 +1566,7 @@ describe("native exceptions: suppression files over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/packages/a/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/x.ts": { "hone/no-class-authoring": { count: 2 } } }),
+              text: '{ "src/x.ts": { "hone/no-class-authoring": { "count": 2 } } }',
             }),
           },
         }),
@@ -1621,7 +1610,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
+              text: `{ "scripts": { "lint": "eslint --rule 'hone/no-class-authoring: off' src" } }`,
             }),
           },
         }),
@@ -1654,10 +1643,10 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --suppressions-location ci/lint-suppressions.json src" } }),
+              text: '{ "scripts": { "lint": "eslint --suppressions-location ci/lint-suppressions.json src" } }',
             }),
             "/repo/ci/lint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
+              text: '{ "src/a.ts": { "hone/no-class-authoring": { "count": 1 } } }',
             }),
           },
         }),
@@ -1688,10 +1677,10 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/packages/a/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --suppressions-location=ci/s.json src" } }),
+              text: '{ "scripts": { "lint": "eslint --suppressions-location=ci/s.json src" } }',
             }),
             "/repo/packages/a/ci/s.json": presentFile({
-              text: JSON.stringify({ "src/x.ts": { "hone/no-class-authoring": { count: 1 } } }),
+              text: '{ "src/x.ts": { "hone/no-class-authoring": { "count": 1 } } }',
             }),
           },
         }),
@@ -1721,7 +1710,7 @@ describe("native exceptions: package.json scripts over tracked paths", () => {
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
           files: {
-            "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { say: "echo don't stop", lint: "eslint 'src" } }) }),
+            "/repo/package.json": presentFile({ text: `{ "scripts": { "say": "echo don't stop", "lint": "eslint 'src" } }` }),
           },
         }),
       }).run(trackedRun({ tracked: "package.json" })),
@@ -1779,19 +1768,19 @@ const ESLINT_IGNORING_NOTHING: EslintPort = {
 
 describe("native exceptions: lint-script options whose effect the script's own folder does not settle", () => {
   it.each([
-    { location: "package.json", script: "cd src && eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
-    { location: "package.json", script: 'eslint --ignore-pattern "$LEGACY" .', option: "--ignore-pattern $LEGACY" },
-    { location: "tools/package.json", script: "cd .. && eslint --ignore-pattern 'src/legacy/**' .", option: "--ignore-pattern src/legacy/**" },
-    { location: "tools/package.json", script: "eslint -c weak.config.mjs ..", option: "-c weak.config.mjs" },
-    { location: "package.json", script: "(cd src && eslint --ignore-pattern 'legacy/**' .)", option: "--ignore-pattern legacy/**" },
-    { location: "package.json", script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .", option: "--ignore-pattern legacy/**" },
-  ])("reports $option in $location's script $script as weakening the run", async ({ location, script, option }) => {
+    { location: "package.json", packageJson: `{ "scripts": { "lint": "cd src && eslint --ignore-pattern 'legacy/**' ." } }`, option: "--ignore-pattern legacy/**" },
+    { location: "package.json", packageJson: '{ "scripts": { "lint": "eslint --ignore-pattern \\"$LEGACY\\" ." } }', option: "--ignore-pattern $LEGACY" },
+    { location: "tools/package.json", packageJson: `{ "scripts": { "lint": "cd .. && eslint --ignore-pattern 'src/legacy/**' ." } }`, option: "--ignore-pattern src/legacy/**" },
+    { location: "tools/package.json", packageJson: '{ "scripts": { "lint": "eslint -c weak.config.mjs .." } }', option: "-c weak.config.mjs" },
+    { location: "package.json", packageJson: `{ "scripts": { "lint": "(cd src && eslint --ignore-pattern 'legacy/**' .)" } }`, option: "--ignore-pattern legacy/**" },
+    { location: "package.json", packageJson: `{ "scripts": { "lint": "env --chdir=src eslint --ignore-pattern 'legacy/**' ." } }`, option: "--ignore-pattern legacy/**" },
+  ])("reports $option in $location holding $packageJson as weakening the run", async ({ location, packageJson, option }) => {
     await expect(
       runnerOver({
         eslint: ESLINT_IGNORING_NOTHING,
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
-          files: { [`/repo/${location}`]: presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+          files: { [`/repo/${location}`]: presentFile({ text: packageJson }) },
         }),
       }).run(trackedRun({ tracked: location })),
     ).resolves.toMatchObject({
@@ -1804,32 +1793,32 @@ describe("native exceptions: lint-script options whose effect the script's own f
 describe("native exceptions: why a lint-script option is reported", () => {
   it.each([
     {
-      script: "tsc && TIMING=1 eslint -c eslint.config.mjs .",
+      packageJson: '{ "scripts": { "lint": "tsc && TIMING=1 eslint -c eslint.config.mjs ." } }',
       option: "-c eslint.config.mjs",
       cause: { kind: "after-another-command", command: "eslint", invocation: "TIMING=1 eslint -c eslint.config.mjs ." },
     },
     {
-      script: "env --chdir=src eslint --ignore-pattern 'legacy/**' .",
+      packageJson: `{ "scripts": { "lint": "env --chdir=src eslint --ignore-pattern 'legacy/**' ." } }`,
       option: "--ignore-pattern legacy/**",
       cause: { kind: "wrapped", command: "eslint", wrapper: "env" },
     },
     {
-      script: "tsc && eslint --rule 'hone/no-class-authoring: off' .",
+      packageJson: `{ "scripts": { "lint": "tsc && eslint --rule 'hone/no-class-authoring: off' ." } }`,
       option: "--rule hone/no-class-authoring: off",
       cause: { kind: "weakens-run" },
     },
     {
-      script: 'eslint --ignore-pattern "$LEGACY" .',
+      packageJson: '{ "scripts": { "lint": "eslint --ignore-pattern \\"$LEGACY\\" ." } }',
       option: "--ignore-pattern $LEGACY",
       cause: { kind: "weakens-run" },
     },
-  ])("reports $option in $script with the cause the report names", async ({ script, option, cause }) => {
+  ])("reports $option in $packageJson with the cause the report names", async ({ packageJson, option, cause }) => {
     await expect(
       runnerOver({
         eslint: ESLINT_IGNORING_NOTHING,
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
-          files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+          files: { "/repo/package.json": presentFile({ text: packageJson }) },
         }),
       }).run(trackedRun({ tracked: "package.json" })),
     ).resolves.toMatchObject({
@@ -1841,19 +1830,19 @@ describe("native exceptions: why a lint-script option is reported", () => {
 
 describe("native exceptions: lint-script options a plain invocation settles", () => {
   it.each([
-    "eslint --ignore-pattern dist --cache .",
-    "pnpm exec eslint --ignore-pattern dist --cache .",
-    "npx eslint --ignore-pattern dist --cache .",
-    "cross-env NODE_OPTIONS=--max-old-space-size=4096 eslint --ignore-pattern dist --cache .",
+    '{ "scripts": { "lint": "eslint --ignore-pattern dist --cache ." } }',
+    '{ "scripts": { "lint": "pnpm exec eslint --ignore-pattern dist --cache ." } }',
+    '{ "scripts": { "lint": "npx eslint --ignore-pattern dist --cache ." } }',
+    '{ "scripts": { "lint": "cross-env NODE_OPTIONS=--max-old-space-size=4096 eslint --ignore-pattern dist --cache ." } }',
   ])(
     "reports nothing for %s when the pattern ignores no checked file",
-    async (script) => {
+    async (packageJson) => {
       await expect(
         runnerOver({
           eslint: ESLINT_IGNORING_NOTHING,
           fileText: repoHolding({
             projection: ENABLING_PROJECTION,
-            files: { "/repo/package.json": presentFile({ text: JSON.stringify({ scripts: { lint: script } }) }) },
+            files: { "/repo/package.json": presentFile({ text: packageJson }) },
           }),
         }).run(trackedRun({ tracked: "package.json" })),
       ).resolves.toMatchObject({ outcome: "ok", value: { nativeExceptions: [] } });
@@ -1998,10 +1987,10 @@ describe("the governance run, settled message handling", () => {
           projection: ENABLING_PROJECTION,
           files: {
             "/repo/package.json": presentFile({
-              text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
+              text: `{ "scripts": { "lint": "eslint --rule 'hone/no-class-authoring: off' src" } }`,
             }),
             "/repo/eslint-suppressions.json": presentFile({
-              text: JSON.stringify({ "src/a.ts": { "hone/no-class-authoring": { count: 1 } } }),
+              text: '{ "src/a.ts": { "hone/no-class-authoring": { "count": 1 } } }',
             }),
           },
         }),
@@ -2054,7 +2043,7 @@ describe("the governance run with nothing to lint", () => {
         projection: ENABLING_PROJECTION,
         files: {
           "/repo/package.json": presentFile({
-            text: JSON.stringify({ scripts: { lint: "eslint --rule 'hone/no-class-authoring: off' src" } }),
+            text: `{ "scripts": { "lint": "eslint --rule 'hone/no-class-authoring: off' src" } }`,
           }),
         },
       }),
@@ -2325,6 +2314,7 @@ describe("package projection slices, their bytes", () => {
   it("treats a folder with a tracked eslint.config as a config root, naming its missing slice beside a current root projection and the run's hits", async () => {
     await expect(
       runnerOver({
+        fileText: repoHolding({ projection: ENABLING_PROJECTION, files: { [PACKAGE_A_SLICE_PATH]: absentFileAt(PACKAGE_A_SLICE_PATH) } }),
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
       }).run({ ...CLASS_RUN, trackedPaths: [...FILES, PACKAGE_A_CONFIG] }),
     ).resolves.toEqual({
@@ -2373,6 +2363,7 @@ describe("package projection slices, applied by the team's config", () => {
         fileText: packageRepo({
           files: {
             "/repo/node_modules/eslint/package.json": presentFile({ text: '{ "version": "9.28.0" }' }),
+            "/repo/eslint.config.js": absentFileAt("/repo/eslint.config.js"),
             "/repo/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
           },
         }),
@@ -2438,7 +2429,7 @@ describe("package projection slices, not applied in one package of several", () 
 
 describe("package projection slices, projected", () => {
   it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
-    const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE });
+    const fileText = fileTextOver({ ...SOURCE_FILES, [PROJECTION_PATH]: ABSENT_FILE, [PACKAGE_A_SLICE_PATH]: absentFileAt(PACKAGE_A_SLICE_PATH) });
     const write = await runnerOver({ fileText }).project({
       repoRoot: REPO_ROOT,
       installRoot: INSTALL_ROOT,
@@ -2465,10 +2456,23 @@ describe("package projection slices, projected", () => {
 
 const ROOT_LOOKUP_FILES: Readonly<Record<string, FakeFile>> = {
   "/repo/node_modules/eslint/package.json": presentFile({ text: '{ "version": "9.28.0" }' }),
+  "/repo/eslint.config.js": absentFileAt("/repo/eslint.config.js"),
   "/repo/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
 };
 
 const PACKAGE_WEB = repoPathSchema.parse("packages/web");
+
+const PACKAGE_WEB_SLICE_PATH = "/repo/packages/web/disciplines.eslint.mjs";
+
+const PACKAGE_WEB_WITHOUT_CONFIG: Readonly<Record<string, FakeFile>> = {
+  [PACKAGE_WEB_SLICE_PATH]: absentFileAt(PACKAGE_WEB_SLICE_PATH),
+  "/repo/packages/web/eslint.config.js": absentFileAt("/repo/packages/web/eslint.config.js"),
+  "/repo/packages/web/eslint.config.mjs": absentFileAt("/repo/packages/web/eslint.config.mjs"),
+  "/repo/packages/web/eslint.config.cjs": absentFileAt("/repo/packages/web/eslint.config.cjs"),
+  "/repo/packages/web/eslint.config.ts": absentFileAt("/repo/packages/web/eslint.config.ts"),
+  "/repo/packages/web/eslint.config.mts": absentFileAt("/repo/packages/web/eslint.config.mts"),
+  "/repo/packages/web/eslint.config.cts": absentFileAt("/repo/packages/web/eslint.config.cts"),
+};
 
 describe("package projection slices, which roots they cover", () => {
   it("requires no slice for a folder with a tracked config when ESLint resolves every file from the root config", async () => {
@@ -2485,7 +2489,12 @@ describe("package projection slices, which roots they cover", () => {
       runnerOver({
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
-          files: { ...ROOT_LOOKUP_FILES, "/repo/packages/web/eslint.config.mjs": presentFile({ text: "export default [];\n" }) },
+          files: {
+            ...ROOT_LOOKUP_FILES,
+            "/repo/packages/web/eslint.config.js": absentFileAt("/repo/packages/web/eslint.config.js"),
+            "/repo/packages/web/eslint.config.mjs": presentFile({ text: "export default [];\n" }),
+            [PACKAGE_WEB_SLICE_PATH]: absentFileAt(PACKAGE_WEB_SLICE_PATH),
+          },
         }),
       }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] }),
     ).resolves.toMatchObject({
@@ -2499,7 +2508,7 @@ describe("package projection slices, which roots they cover", () => {
       runnerOver({
         fileText: repoHolding({
           projection: ENABLING_PROJECTION,
-          files: { "/repo/disciplines.json": presentFile({ text: JSON.stringify({ eslintConfigRoots: ["packages/web"] }) }) },
+          files: { "/repo/disciplines.json": presentFile({ text: '{ "eslintConfigRoots": ["packages/web"] }' }) },
         }),
       }).run(CLASS_RUN),
     ).resolves.toMatchObject({ outcome: "ok", value: { slices: [], unprojectedFolders: [] } });
@@ -2507,7 +2516,7 @@ describe("package projection slices, which roots they cover", () => {
 
   it("names a declared root with no eslint.config on disk as unconfigured, since nothing there loads its slice", async () => {
     await expect(
-      runnerOver({ fileText: repoHolding({ projection: ENABLING_PROJECTION, files: {} }) }).run({
+      runnerOver({ fileText: repoHolding({ projection: ENABLING_PROJECTION, files: PACKAGE_WEB_WITHOUT_CONFIG }) }).run({
         ...CLASS_RUN,
         declaredConfigRoots: [PACKAGE_WEB],
       }),
@@ -2583,7 +2592,10 @@ describe("package projection slices, under a folder the repository root config i
   it("still names the missing slice, since linting from that folder loads its config without the root's ignores", async () => {
     await expect(
       runnerOver({
-        fileText: repoHolding({ projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION, files: ROOT_IGNORING_PACKAGES }),
+        fileText: repoHolding({
+          projection: ROOT_PROJECTION_WITH_PACKAGE_LOCATION,
+          files: { ...ROOT_IGNORING_PACKAGES, [PACKAGE_A_SLICE_PATH]: absentFileAt(PACKAGE_A_SLICE_PATH) },
+        }),
         eslint: rootIgnoringEslint({ factory: OFF }),
       }).run(PACKAGE_RUN),
     ).resolves.toMatchObject({

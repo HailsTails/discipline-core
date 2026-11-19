@@ -29,11 +29,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
-      "file": "core/check/run-check.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
       "file": "core/check/run-project-command.test.ts"
     },
     {
@@ -220,11 +215,6 @@
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
       "file": "mechanisms/eslint/runner/eslint-toolchain.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
-      "file": "mechanisms/eslint/runner/native-exceptions.integration.test.ts"
     },
     {
       "kind": "file-carve-out",

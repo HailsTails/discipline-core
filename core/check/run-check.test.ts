@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { recordsDisk, singleFileRepositoryOver } from "../../tests/records-disk.ts";
 import { createExceptionRepository } from "../exception-records/exception-layout.ts";
-import { requiredEntry } from "../../tests/required-entry.ts";
-import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { requiredEntry, requiredSegmentsEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { BaseFileText, GitFailure, GitPort } from "../platform-ports/git-port.ts";
@@ -103,7 +102,7 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
 };
 
 const TABLE_PATH: PathPort = {
-  join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
+  join: ({ segments }) => requiredSegmentsEntry({ table: JOINED_PATHS, segments }),
   relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
   joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
@@ -112,147 +111,192 @@ const TABLE_PATH: PathPort = {
   fromFileUrl: vi.fn<PathPort["fromFileUrl"]>(),
 };
 
-const CASES = {
-  flag: [{ name: "flagged", fileName: "src/a.ts", source: "class A {}\n", expectedLines: [1] }],
-  allow: [{ name: "allowed", fileName: "src/b.ts", source: "const b = 1;\n", expectedLines: [] }],
-};
+const CLASS_SYNTAX_CLAUSE_JSON = `{
+  "kind": "mechanical",
+  "id": "class-syntax",
+  "summary": "no class syntax",
+  "mechanisms": ["audit"],
+  "anchor": { "kind": "keyword", "keyword": "class" },
+  "cases": {
+    "flag": [{ "name": "flagged", "fileName": "src/a.ts", "source": "class A {}\\n", "expectedLines": [1] }],
+    "allow": [{ "name": "allowed", "fileName": "src/b.ts", "source": "const b = 1;\\n", "expectedLines": [] }]
+  }
+}`;
 
-const CLASS_SYNTAX_DEFINITION = {
-  kind: "mechanical",
-  id: "class-syntax",
-  summary: "no class syntax",
-  mechanisms: ["audit"],
-  anchor: { kind: "keyword", keyword: "class" },
-  cases: CASES,
-};
+const ABSTRACT_SYNTAX_CLAUSE_JSON = `{
+  "kind": "mechanical",
+  "id": "abstract-syntax",
+  "summary": "no abstract syntax",
+  "mechanisms": ["audit"],
+  "anchor": { "kind": "keyword", "keyword": "abstract" },
+  "cases": {
+    "flag": [{ "name": "flagged", "fileName": "src/a.ts", "source": "class A {}\\n", "expectedLines": [1] }],
+    "allow": [{ "name": "allowed", "fileName": "src/b.ts", "source": "const b = 1;\\n", "expectedLines": [] }]
+  }
+}`;
 
-const ABSTRACT_SYNTAX_DEFINITION = {
-  kind: "mechanical",
-  id: "abstract-syntax",
-  summary: "no abstract syntax",
-  mechanisms: ["audit"],
-  anchor: { kind: "keyword", keyword: "abstract" },
-  cases: CASES,
-};
-
-const DISCIPLINE = JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] });
-
-const DISCIPLINE_WITH_TWO_CLAUSES = JSON.stringify({
-  version: 1,
-  id: "CD-14",
-  clauses: [CLASS_SYNTAX_DEFINITION, ABSTRACT_SYNTAX_DEFINITION],
-});
-
-const PIECE = JSON.stringify({
-  version: 1,
-  discipline: "CD-14",
-  mechanism: "audit",
-  clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }],
-});
-
-const PIECE_WITH_TWO_CLAUSES = JSON.stringify({
-  version: 1,
-  discipline: "CD-14",
-  mechanism: "audit",
-  clauses: [
-    { clause: "class-syntax", settings: { module: "class-syntax.ts" } },
-    { clause: "abstract-syntax", settings: { module: "abstract-syntax.ts" } },
-  ],
-});
-
-const SELECTION = JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" } });
-
-const SELECTION_EXCLUDING_VENDOR = JSON.stringify({
-  version: 1,
-  ruleSets: {},
-  clauses: { "CD-14#class-syntax": "audit" },
-  exclude: ["vendor", "src/generated.ts"],
-});
-
-const SELECTION_OF_TWO_CLAUSES = JSON.stringify({
-  version: 1,
-  ruleSets: {},
-  clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "audit" },
-});
-
-const EXCEPTIONS_WITH_FILE_CARVE_OUT = JSON.stringify({
-  version: 1,
-  exceptions: [
+const CAUSAL_WHY_CHAIN_TEXT = `{
+  "whys": [
     {
-      kind: "file-carve-out",
-      clause: "CD-14#class-syntax",
-      file: "src/legacy.ts",
-      reason: "legacy class awaiting paydown",
-      whyChain: CAUSAL_WHY_CHAIN,
-    },
-  ],
-});
-
-const EXCEPTIONS_WITH_FILE_CARVE_OUT_ON_GONE = JSON.stringify({
-  version: 1,
-  exceptions: [
-    {
-      kind: "file-carve-out",
-      clause: "CD-14#class-syntax",
-      file: "src/gone.ts",
-      reason: "legacy class awaiting paydown",
-      whyChain: CAUSAL_WHY_CHAIN,
-    },
-  ],
-});
-
-const EXCEPTIONS_WITH_LEGACY_CHAIN = JSON.stringify({
-  version: 1,
-  exceptions: [
-    {
-      kind: "authorised-location",
-      clause: "CD-14#class-syntax",
-      file: "src/factory.ts",
-      reason: "the wrapping factory for the library",
-      whyChain: LEGACY_WHY_CHAIN,
-    },
-  ],
-});
-
-const EXCEPTIONS_WITH_AUTHORISED_LOCATION = JSON.stringify({
-  version: 1,
-  exceptions: [
-    {
-      kind: "authorised-location",
-      clause: "CD-14#class-syntax",
-      file: "src/factory.ts",
-      reason: "the wrapping factory for the library",
-      provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" },
-    },
-  ],
-});
-
-const EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT = JSON.stringify({
-  version: 1,
-  exceptions: [
-    {
-      kind: "authorised-location",
-      clause: "CD-14#class-syntax",
-      file: "src/factory.ts",
-      reason: "the wrapping factory for the library",
-      provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" },
+      "why": "Why does the audit refuse tracker ids in carve-out names?",
+      "because": "The audit's name matcher accepts only lowercase slugs, and tracker ids carry uppercase letters.",
+      "evidence": "tools/audit/name-matcher.ts:14"
     },
     {
-      kind: "file-carve-out",
-      clause: "CD-14#class-syntax",
-      file: "src/legacy.ts",
-      reason: "legacy class awaiting paydown",
-      whyChain: CAUSAL_WHY_CHAIN,
+      "why": "Why does the name matcher accept only lowercase slugs?",
+      "because": "It was copied from the branch-name validator, which lowercases because git refs fold case on Windows.",
+      "evidence": "tools/git/branch-name.ts:8"
     },
+    {
+      "why": "Why was the matcher copied from the branch-name validator?",
+      "because": "No shared slug type existed when the audit landed, so each tool wrote its own pattern.",
+      "evidence": "PR #212, merged 2026-07-02"
+    },
+    {
+      "why": "Why did no shared slug type exist when the audit landed?",
+      "because": "The values package that now holds RepoPath was split out two months after the audit.",
+      "evidence": "packages/values/package.json:3"
+    },
+    {
+      "why": "Why was the values package split out after the audit?",
+      "because": "The split waited on the monorepo move, which left older tools on their own patterns.",
+      "evidence": "docs/decisions/0007-monorepo.md:21"
+    }
   ],
-});
+  "rootCause": "Older tools still carry patterns written before the monorepo move gave them shared value types.",
+  "rootCheck": "\`git grep -n slugPattern tools/\` today still returns tools/audit/name-matcher.ts:14 and no import from packages/values.",
+  "readback": "Older tools still carry pre-monorepo patterns, therefore the audit never adopted the shared slug type, therefore its matcher copied the branch-name validator's lowercase rule, therefore the audit refuses tracker ids in carve-out names.",
+  "owner": "capture 01a0b421"
+}`;
 
-const SELECTION_WITH_OPTIONAL_WHY_CHAINS = JSON.stringify({
-  version: 1,
-  ruleSets: {},
-  clauses: { "CD-14#class-syntax": "audit" },
-  fileExceptionWhyChains: "optional",
-});
+const LEGACY_WHY_TEXT = '{ "why": "why is the exception taken", "because": "the matcher cannot express the tracker id", "evidence": "tools/why-chain-check.ts:9" }';
+
+const LEGACY_WHY_CHAIN_TEXT = `{
+  "whys": [${LEGACY_WHY_TEXT}, ${LEGACY_WHY_TEXT}, ${LEGACY_WHY_TEXT}, ${LEGACY_WHY_TEXT}, ${LEGACY_WHY_TEXT}],
+  "rootCause": "the audit's matcher predates the tracker id format",
+  "owner": "capture 01a0b421"
+}`;
+
+const DISCIPLINE = `{ "version": 1, "id": "CD-14", "clauses": [${CLASS_SYNTAX_CLAUSE_JSON}] }`;
+
+const DISCIPLINE_WITH_TWO_CLAUSES = `{ "version": 1, "id": "CD-14", "clauses": [${CLASS_SYNTAX_CLAUSE_JSON}, ${ABSTRACT_SYNTAX_CLAUSE_JSON}] }`;
+
+const PIECE = `{
+  "version": 1,
+  "discipline": "CD-14",
+  "mechanism": "audit",
+  "clauses": [{ "clause": "class-syntax", "settings": { "module": "class-syntax.ts" } }]
+}`;
+
+const PIECE_WITH_TWO_CLAUSES = `{
+  "version": 1,
+  "discipline": "CD-14",
+  "mechanism": "audit",
+  "clauses": [
+    { "clause": "class-syntax", "settings": { "module": "class-syntax.ts" } },
+    { "clause": "abstract-syntax", "settings": { "module": "abstract-syntax.ts" } }
+  ]
+}`;
+
+const SELECTION = '{ "version": 1, "ruleSets": {}, "clauses": { "CD-14#class-syntax": "audit" } }';
+
+const SELECTION_EXCLUDING_VENDOR = `{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": { "CD-14#class-syntax": "audit" },
+  "exclude": ["vendor", "src/generated.ts"]
+}`;
+
+const SELECTION_OF_TWO_CLAUSES = `{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "audit" }
+}`;
+
+const EXCEPTIONS_WITH_FILE_CARVE_OUT = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/legacy.ts",
+      "reason": "legacy class awaiting paydown",
+      "whyChain": ${CAUSAL_WHY_CHAIN_TEXT}
+    }
+  ]
+}`;
+
+const EXCEPTIONS_WITH_FILE_CARVE_OUT_ON_GONE = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/gone.ts",
+      "reason": "legacy class awaiting paydown",
+      "whyChain": ${CAUSAL_WHY_CHAIN_TEXT}
+    }
+  ]
+}`;
+
+const EXCEPTIONS_WITH_LEGACY_CHAIN = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/factory.ts",
+      "reason": "the wrapping factory for the library",
+      "whyChain": ${LEGACY_WHY_CHAIN_TEXT}
+    }
+  ]
+}`;
+
+const EXCEPTIONS_WITH_AUTHORISED_LOCATION = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/factory.ts",
+      "reason": "the wrapping factory for the library",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": "fictional unit fixture core/check/run-check.test.ts; not historical authorisation"
+      }
+    }
+  ]
+}`;
+
+const EXCEPTIONS_WITH_IMPORTED_LOCATION_AND_FILE_CARVE_OUT = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/factory.ts",
+      "reason": "the wrapping factory for the library",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": "fictional unit fixture core/check/run-check.test.ts; not historical authorisation"
+      }
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/legacy.ts",
+      "reason": "legacy class awaiting paydown",
+      "whyChain": ${CAUSAL_WHY_CHAIN_TEXT}
+    }
+  ]
+}`;
+
+const SELECTION_WITH_OPTIONAL_WHY_CHAINS = `{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": { "CD-14#class-syntax": "audit" },
+  "fileExceptionWhyChains": "optional"
+}`;
 
 const REASONED_LOCATION = {
   kind: "authorised-location",
@@ -268,7 +312,23 @@ const REASONED_CARVE_OUT = {
   reason: "legacy class awaiting paydown",
 } as const;
 
-const EXCEPTIONS_WITH_REASONED_RECORDS = JSON.stringify({ version: 1, exceptions: [REASONED_LOCATION, REASONED_CARVE_OUT] });
+const EXCEPTIONS_WITH_REASONED_RECORDS = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/factory.ts",
+      "reason": "the wrapping factory for the library"
+    },
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/legacy.ts",
+      "reason": "legacy class awaiting paydown"
+    }
+  ]
+}`;
 
 const WORKING_TREE: Readonly<Record<string, FakeFile>> = {
   "/repo/README.md": presentFile({ text: "" }),
@@ -299,7 +359,7 @@ const INSTALL: Readonly<Record<string, FakeFile>> = {
 const TEAM_INSTALL: Readonly<Record<string, FakeFile>> = {
   ...WORKING_TREE,
   [SELECTION_PATH]: presentFile({
-    text: JSON.stringify({ version: 1, ruleSets: { team: "rules/team" }, clauses: { "team/CD-14#class-syntax": "audit" } }),
+    text: '{ "version": 1, "ruleSets": { "team": "rules/team" }, "clauses": { "team/CD-14#class-syntax": "audit" } }',
   }),
   [EXCEPTIONS_PATH]: ABSENT_FILE,
   [TEAM_DISCIPLINE_PATH]: presentFile({ text: DISCIPLINE }),
@@ -377,17 +437,18 @@ const presentAtBase = (request: { readonly text: string }): Result<BaseFileText,
 const gitReporting = (request: {
   readonly trackedPaths: Result<readonly RepoPath[], GitFailure>;
   readonly changedSince: Result<readonly RepoPath[], GitFailure>;
-  readonly textInBase?: Result<BaseFileText, GitFailure>;
+  readonly textInBase: Result<BaseFileText, GitFailure>;
 }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue(request.trackedPaths),
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
-  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(request.textInBase ?? ABSENT_AT_BASE),
+  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(request.textInBase),
 });
 
 const MEASURED_GIT = gitReporting({
   trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
   changedSince: { outcome: "ok", value: CHANGED_PATHS },
+  textInBase: ABSENT_AT_BASE,
 });
 
 const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => {
@@ -469,10 +530,17 @@ describe("runCheck reports", () => {
           fileText: fileTextOver({
             ...INSTALL,
             [EXCEPTIONS_PATH]: presentFile({
-              text: JSON.stringify({
-                version: 1,
-                exceptions: [{ kind: "authorised-location", clause: "CD-15#no-for-of", file: "src/a.ts", reason: "loop" }],
-              }),
+              text: `{
+                "version": 1,
+                "exceptions": [
+                  {
+                    "kind": "authorised-location",
+                    "clause": "CD-15#no-for-of",
+                    "file": "src/a.ts",
+                    "reason": "loop"
+                  }
+                ]
+              }`,
             }),
           }),
         }),
@@ -520,6 +588,7 @@ describe("runCheck forfeiture measurement", () => {
               outcome: "failed",
               error: { kind: "git-failed", command: "git diff", detail: "bad revision 'main'" },
             },
+            textInBase: ABSENT_AT_BASE,
           }),
         }),
       ),
@@ -648,7 +717,7 @@ describe("runCheck forfeiture measurement", () => {
   });
 
   it("reads nothing at the base revision when no record is imported", async () => {
-    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE });
 
     await runCheck(checkRequest({ git, fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }) }));
 
@@ -656,7 +725,7 @@ describe("runCheck forfeiture measurement", () => {
   });
 
   it("measures the change set once when a file carve-out exists", async () => {
-    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE });
     await runCheck(
       checkRequest({
         fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_FILE_CARVE_OUT }) }),
@@ -667,13 +736,13 @@ describe("runCheck forfeiture measurement", () => {
   });
 
   it("does not measure the change set when no file carve-out exists", async () => {
-    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE });
     await expect(runCheck(checkRequest({ git }))).resolves.toEqual({ outcome: "ok", value: EMPTY_REPORT });
     expect(git.changedSince).not.toHaveBeenCalled();
   });
 
   it("does not measure the change set for records that are not file carve-outs", async () => {
-    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE });
     await runCheck(
       checkRequest({
         fileText: fileTextOver({ ...INSTALL, [EXCEPTIONS_PATH]: presentFile({ text: EXCEPTIONS_WITH_LEGACY_CHAIN }) }),
@@ -701,6 +770,7 @@ describe("runCheck forfeiture measurement", () => {
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
             changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] },
+            textInBase: ABSENT_AT_BASE,
           }),
         }),
       ),
@@ -716,6 +786,7 @@ describe("runCheck forfeiture assessed elsewhere", () => {
     gitReporting({
       trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
       changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] },
+      textInBase: ABSENT_AT_BASE,
     });
 
   const withFileCarveOut = (overrides: Partial<CheckRequest>): CheckRequest =>
@@ -882,6 +953,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] },
             changedSince: { outcome: "ok", value: [] },
+            textInBase: ABSENT_AT_BASE,
           }),
         }),
       ),
@@ -908,7 +980,17 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           fileText: fileTextOver({
             ...INSTALL,
             [SELECTION_PATH]: presentFile({ text: SELECTION_WITH_OPTIONAL_WHY_CHAINS }),
-            [EXCEPTIONS_PATH]: presentFile({ text: JSON.stringify({ version: 1, exceptions: [REASONED_CARVE_OUT] }) }),
+            [EXCEPTIONS_PATH]: presentFile({ text: `{
+              "version": 1,
+              "exceptions": [
+                {
+                  "kind": "file-carve-out",
+                  "clause": "CD-14#class-syntax",
+                  "file": "src/legacy.ts",
+                  "reason": "legacy class awaiting paydown"
+                }
+              ]
+            }` }),
           }),
         }),
       ),
@@ -923,7 +1005,17 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           fileText: fileTextOver({
             ...INSTALL,
             [SELECTION_PATH]: presentFile({ text: SELECTION_WITH_OPTIONAL_WHY_CHAINS }),
-            [EXCEPTIONS_PATH]: presentFile({ text: JSON.stringify({ version: 1, exceptions: [REASONED_LOCATION] }) }),
+            [EXCEPTIONS_PATH]: presentFile({ text: `{
+              "version": 1,
+              "exceptions": [
+                {
+                  "kind": "authorised-location",
+                  "clause": "CD-14#class-syntax",
+                  "file": "src/factory.ts",
+                  "reason": "the wrapping factory for the library"
+                }
+              ]
+            }` }),
           }),
         }),
       ),
@@ -931,7 +1023,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
   });
 
   it("reads nothing at the base revision for reason-only records", async () => {
-    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] } });
+    const git = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE });
 
     await runCheck(checkRequest({ git, fileText: installWithReasonedRecords({ selection: SELECTION_WITH_OPTIONAL_WHY_CHAINS }) }));
 
@@ -946,6 +1038,7 @@ describe("runCheck for a repository whose disciplines.json makes file exception 
           git: gitReporting({
             trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
             changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] },
+            textInBase: ABSENT_AT_BASE,
           }),
         }),
       ),
@@ -1080,6 +1173,7 @@ describe("runCheck runner dispatch", () => {
         git: gitReporting({
           trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("README.md"), repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
           changedSince: { outcome: "ok", value: [] },
+          textInBase: ABSENT_AT_BASE,
         }),
       }),
     );
@@ -1105,6 +1199,7 @@ describe("runCheck runner dispatch", () => {
             ],
           },
           changedSince: { outcome: "ok", value: [] },
+          textInBase: ABSENT_AT_BASE,
         }),
       }),
     );
@@ -1123,6 +1218,7 @@ describe("runCheck runner dispatch", () => {
         git: gitReporting({
           trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
           changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/gone.ts")] },
+          textInBase: ABSENT_AT_BASE,
         }),
       }),
     );
@@ -1208,7 +1304,7 @@ describe("runCheck load failures", () => {
         checkRequest({
           fileText: fileTextOver({
             ...INSTALL,
-            [SELECTION_PATH]: presentFile({ text: JSON.stringify({ version: 2, ruleSets: {}, clauses: {} }) }),
+            [SELECTION_PATH]: presentFile({ text: '{ "version": 2, "ruleSets": {}, "clauses": {} }' }),
           }),
         }),
       ),
@@ -1225,7 +1321,7 @@ describe("runCheck load failures", () => {
           fileText: fileTextOver({
             ...INSTALL,
             [EXCEPTIONS_PATH]: presentFile({
-              text: JSON.stringify({ version: 1, exceptions: [{ kind: "blanket-waiver", clause: "CD-14#class-syntax" }] }),
+              text: '{ "version": 1, "exceptions": [{ "kind": "blanket-waiver", "clause": "CD-14#class-syntax" }] }',
             }),
           }),
         }),
@@ -1239,7 +1335,7 @@ describe("runCheck load failures", () => {
         checkRequest({
           fileText: fileTextOver({
             ...INSTALL,
-            [DISCIPLINE_PATH]: presentFile({ text: JSON.stringify({ version: 1, id: "CD-15", clauses: [CLASS_SYNTAX_DEFINITION] }) }),
+            [DISCIPLINE_PATH]: presentFile({ text: `{ "version": 1, "id": "CD-15", "clauses": [${CLASS_SYNTAX_CLAUSE_JSON}] }` }),
           }),
         }),
       ),
@@ -1295,6 +1391,7 @@ describe("runCheck load failures", () => {
           git: gitReporting({
             trackedPaths: { outcome: "failed", error: { kind: "git-failed", command: "git ls-files", detail: "not a git repository" } },
             changedSince: { outcome: "ok", value: CHANGED_PATHS },
+            textInBase: ABSENT_AT_BASE,
           }),
         }),
       ),
@@ -1342,35 +1439,66 @@ const embeddedRunnerReporting = (request: { readonly report: unknown }) => ({
     .mockResolvedValue({ outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "unchanged" } }),
 });
 
-const TWO_MECHANISM_DISCIPLINE = JSON.stringify({
-  version: 1,
-  id: "CD-14",
-  clauses: [CLASS_SYNTAX_DEFINITION, { ...ABSTRACT_SYNTAX_DEFINITION, mechanisms: ["lint"] }],
-});
+const TWO_MECHANISM_DISCIPLINE = `{
+  "version": 1,
+  "id": "CD-14",
+  "clauses": [
+    ${CLASS_SYNTAX_CLAUSE_JSON},
+    {
+      "kind": "mechanical",
+      "id": "abstract-syntax",
+      "summary": "no abstract syntax",
+      "mechanisms": ["lint"],
+      "anchor": { "kind": "keyword", "keyword": "abstract" },
+      "cases": {
+        "flag": [{ "name": "flagged", "fileName": "src/a.ts", "source": "class A {}\\n", "expectedLines": [1] }],
+        "allow": [{ "name": "allowed", "fileName": "src/b.ts", "source": "const b = 1;\\n", "expectedLines": [] }]
+      }
+    }
+  ]
+}`;
 
-const LINT_PIECE = JSON.stringify({
-  version: 1,
-  discipline: "CD-14",
-  mechanism: "lint",
-  clauses: [{ clause: "abstract-syntax", settings: { module: "abstract-syntax.ts" } }],
-});
+const LINT_PIECE = `{
+  "version": 1,
+  "discipline": "CD-14",
+  "mechanism": "lint",
+  "clauses": [{ "clause": "abstract-syntax", "settings": { "module": "abstract-syntax.ts" } }]
+}`;
 
-const TWO_MECHANISM_EXCEPTIONS = JSON.stringify({
-      version: 1,
-      exceptions: [
-        { kind: "authorised-location", clause: "CD-14#class-syntax", file: "src/walker.ts", reason: "audit location", provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" } },
-        { kind: "authorised-location", clause: "CD-14#abstract-syntax", file: "src/lint.ts", reason: "lint location", provenance: { kind: "existing-authorisation", source: "fictional unit fixture core/check/run-check.test.ts; not historical authorisation" } },
-      ],
-    });
+const TWO_MECHANISM_EXCEPTIONS = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#class-syntax",
+      "file": "src/walker.ts",
+      "reason": "audit location",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": "fictional unit fixture core/check/run-check.test.ts; not historical authorisation"
+      }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-14#abstract-syntax",
+      "file": "src/lint.ts",
+      "reason": "lint location",
+      "provenance": {
+        "kind": "existing-authorisation",
+        "source": "fictional unit fixture core/check/run-check.test.ts; not historical authorisation"
+      }
+    }
+  ]
+}`;
 
 const TWO_MECHANISM_INSTALL: Readonly<Record<string, FakeFile>> = {
   ...INSTALL,
   [SELECTION_PATH]: presentFile({
-    text: JSON.stringify({
-      version: 1,
-      ruleSets: {},
-      clauses: { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "lint" },
-    }),
+    text: `{
+      "version": 1,
+      "ruleSets": {},
+      "clauses": { "CD-14#class-syntax": "audit", "CD-14#abstract-syntax": "lint" }
+    }`,
   }),
   [EXCEPTIONS_PATH]: presentFile({ text: TWO_MECHANISM_EXCEPTIONS }),
   [DISCIPLINE_PATH]: presentFile({ text: TWO_MECHANISM_DISCIPLINE }),
@@ -1595,14 +1723,17 @@ describe("runCheck with an embedded runner", () => {
   });
 });
 
-const CLASS_SYNTAX_CARVE_OUT = {
-  kind: "clause-wide-carve-out",
-  clause: "CD-14#class-syntax",
-  reason: "class syntax is not adopted yet",
-  whyChain: CAUSAL_WHY_CHAIN,
-} as const;
-
-const EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX = JSON.stringify({ version: 1, exceptions: [CLASS_SYNTAX_CARVE_OUT] });
+const EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "clause-wide-carve-out",
+      "clause": "CD-14#class-syntax",
+      "reason": "class syntax is not adopted yet",
+      "whyChain": ${CAUSAL_WHY_CHAIN_TEXT}
+    }
+  ]
+}`;
 
 const TWO_CLAUSE_INSTALL: Readonly<Record<string, FakeFile>> = {
   ...INSTALL,
@@ -1612,11 +1743,11 @@ const TWO_CLAUSE_INSTALL: Readonly<Record<string, FakeFile>> = {
 
 const ABSTRACT_SYNTAX_CLAUSE = expect.objectContaining({ address: ABSTRACT_SYNTAX_OBJECT });
 
-const NOT_ADOPTING_CLASS_SYNTAX = JSON.stringify({
-  version: 1,
-  ruleSets: {},
-  clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" },
-});
+const NOT_ADOPTING_CLASS_SYNTAX = `{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "audit" }
+}`;
 
 const twoClauseInstall = (request: { readonly selection: string; readonly exceptions: FakeFile }) =>
   fileTextOver({ ...TWO_CLAUSE_INSTALL, [SELECTION_PATH]: presentFile({ text: request.selection }), [EXCEPTIONS_PATH]: request.exceptions });
@@ -1628,7 +1759,11 @@ describe("runCheck clauses not adopted", () => {
       checkRequest({
         modules,
         fileText: twoClauseInstall({
-          selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" } }),
+          selection: `{
+            "version": 1,
+            "ruleSets": {},
+            "clauses": { "CD-14#class-syntax": "not-adopted", "CD-14#abstract-syntax": "not-adopted" }
+          }`,
           exceptions: ABSENT_FILE,
         }),
       }),
@@ -1673,21 +1808,21 @@ describe("runCheck clauses not adopted", () => {
   });
 });
 
-const SELECTION_DECLARING_ROOTS = (roots: readonly string[]): string =>
-  JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, eslintConfigRoots: roots });
+const selectionDeclaringRoot = (root: string): string =>
+  `{ "version": 1, "ruleSets": {}, "clauses": { "CD-14#class-syntax": "audit" }, "eslintConfigRoots": ["${root}"] }`;
 
 const CURRENT_REPORT = { hits: [], nativeExceptions: [], projection: "current" };
 
-const declaringCheck = (request: { readonly roots: readonly string[]; readonly runner: unknown }) =>
+const declaringCheck = (request: { readonly root: string; readonly runner: unknown }) =>
   checkRequest({
-    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_DECLARING_ROOTS(request.roots) }) }),
+    fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: selectionDeclaringRoot(request.root) }) }),
     modules: modulesLoading({ runner: request.runner }),
   });
 
 describe("runCheck with ESLint config roots declared in disciplines.json", () => {
   it("hands an embedded runner each declared folder git tracks, spelled as git spells it", async () => {
     const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
-    await runCheck(declaringCheck({ roots: ["src"], runner }));
+    await runCheck(declaringCheck({ root: "src", runner }));
     expect(runner.run.mock.calls).toEqual([[expect.objectContaining({ declaredConfigRoots: ["src"] })]]);
   });
 
@@ -1697,7 +1832,7 @@ describe("runCheck with ESLint config roots declared in disciplines.json", () =>
     { name: "a tracked folder spelled in another case", root: "SRC" },
   ])("is the load failure config-root-untracked for $name, running nothing", async ({ root }) => {
     const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
-    await expect(runCheck(declaringCheck({ roots: [root], runner }))).resolves.toEqual({
+    await expect(runCheck(declaringCheck({ root, runner }))).resolves.toEqual({
       outcome: "failed",
       error: { kind: "config-root-untracked", root },
     });
@@ -1706,13 +1841,13 @@ describe("runCheck with ESLint config roots declared in disciplines.json", () =>
 
   it("is the load failure config-root-untracked for a tracked folder the selection excludes", async () => {
     const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
-    const selection = JSON.stringify({
-      version: 1,
-      ruleSets: {},
-      clauses: { "CD-14#class-syntax": "audit" },
-      exclude: ["src"],
-      eslintConfigRoots: ["src"],
-    });
+    const selection = `{
+      "version": 1,
+      "ruleSets": {},
+      "clauses": { "CD-14#class-syntax": "audit" },
+      "exclude": ["src"],
+      "eslintConfigRoots": ["src"]
+    }`;
     await expect(
       runCheck(
         checkRequest({
@@ -1731,7 +1866,11 @@ describe("runCheck clauses adopted but not run", () => {
       checkRequest({
         modules: modulesLoading({ runner }),
         fileText: twoClauseInstall({
-          selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" } }),
+          selection: `{
+            "version": 1,
+            "ruleSets": {},
+            "clauses": { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" }
+          }`,
           exceptions: ABSENT_FILE,
         }),
       }),
@@ -1747,7 +1886,11 @@ describe("runCheck clauses adopted but not run", () => {
       runCheck(
         checkRequest({
           fileText: twoClauseInstall({
-            selection: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" } }),
+            selection: `{
+              "version": 1,
+              "ruleSets": {},
+              "clauses": { "CD-14#class-syntax": "not-run", "CD-14#abstract-syntax": "audit" }
+            }`,
             exceptions: presentFile({ text: EXCEPTIONS_CARVING_OUT_CLASS_SYNTAX }),
           }),
         }),
@@ -1799,11 +1942,21 @@ const layoutCheck = (request: {
     modules: modulesLoading({
       runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/factory.ts" }], nativeExceptions: [] } } }),
     }),
-    git: gitReporting({ trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] }, changedSince: { outcome: "ok", value: [] } }),
+    git: gitReporting({ trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] }, changedSince: { outcome: "ok", value: [] }, textInBase: ABSENT_AT_BASE }),
   });
 };
 
-const REASONED_CARVE_OUT_TEXT = JSON.stringify({ version: 1, exceptions: [REASONED_CARVE_OUT] });
+const REASONED_CARVE_OUT_TEXT = `{
+  "version": 1,
+  "exceptions": [
+    {
+      "kind": "file-carve-out",
+      "clause": "CD-14#class-syntax",
+      "file": "src/legacy.ts",
+      "reason": "legacy class awaiting paydown"
+    }
+  ]
+}`;
 
 const SINGLE_REASONED_RECORDS = { "discipline-exceptions.json": REASONED_CARVE_OUT_TEXT };
 
@@ -1817,7 +1970,7 @@ const touchedLegacyLayoutCheck = (request: {
   return checkRequest({
     exceptionRepository: createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }),
     fileText: fileTextOver({ ...INSTALL, [SELECTION_PATH]: presentFile({ text: SELECTION_WITH_OPTIONAL_WHY_CHAINS }) }),
-    git: gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] } }),
+    git: gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/legacy.ts")] }, textInBase: ABSENT_AT_BASE }),
   });
 };
 

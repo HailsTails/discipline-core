@@ -1,18 +1,14 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
-import { runCheck } from "../../../core/check/run-check.ts";
+import { loadRunner, runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
-import {
-  type LoadedRunner,
-  type RunnerClause,
-  runnerModuleSchema,
-} from "../../../core/mechanism-port/runner-module-schema.ts";
+import type { LoadedRunner, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { createDefaultFileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
-import { createDefaultFileTextPort, type FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../../../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
-import { createDefaultPathPort, createPathPort } from "../../../core/platform-ports/path-port.ts";
+import { createDefaultPathPort } from "../../../core/platform-ports/path-port.ts";
 import { type ClauseDefinition, readDisciplineFile } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { DEFAULT_ASSESSMENT } from "../../../core/values/assessment.ts";
@@ -21,7 +17,6 @@ import { disciplineIdSchema, mechanismIdSchema } from "../../../core/values/iden
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
-import cd14Discipline from "../../../rules/CD-14/discipline.json" with { type: "json" };
 import { runner as walkerRunner } from "../../audit/runner/runner.ts";
 import { createEslintRunner } from "./create-eslint-runner.ts";
 import {
@@ -482,43 +477,32 @@ describe.each(ESLINT_LINES)("FR-3 over real files: the ESLint runner on real %s 
 type MechanicalCases = Extract<ClauseDefinition, { readonly kind: "mechanical" }>["cases"];
 
 const classSyntaxCases = (): MechanicalCases => {
-  const loaded = readDisciplineFile({
-    fileText: {
-      read: () => ({ outcome: "ok", value: JSON.stringify(cd14Discipline) }),
-      exists: () => "present",
-      write: vi.fn<FileTextPort["write"]>(),
-    },
-    path: createPathPort({ flavour: "posix", workingDirectory: () => "/install" }),
-    ruleSetRoot: absolutePathSchema.parse("/install"),
-    discipline: disciplineIdSchema.parse("CD-14"),
-  });
+  const loaded = readDisciplineFile({ fileText, path, ruleSetRoot: INSTALL_ROOT, discipline: disciplineIdSchema.parse("CD-14") });
   assert(loaded.outcome === "ok", "CD-14 discipline.json reads through the rule-set reader");
   const [classSyntax, libraryConstruction, staticOnlyClass, ...surplus] = loaded.value.clauses;
-  assert(classSyntax?.id === "class-syntax", "CD-14 declares class-syntax as its first clause");
+  assert.isDefined(classSyntax, "CD-14 declares a first clause");
+  assert.isDefined(libraryConstruction, "CD-14 declares a second clause");
+  assert.isDefined(staticOnlyClass, "CD-14 declares a third clause");
+  assert(classSyntax.id === "class-syntax", "CD-14 declares class-syntax as its first clause");
   assert(classSyntax.kind === "mechanical", "CD-14 declares class-syntax as a mechanical clause");
-  assert(
-    libraryConstruction?.id === "library-construction",
-    "CD-14 declares the library-construction judgement clause second",
-  );
-  assert(staticOnlyClass?.id === "static-only-class", "CD-14 declares the static-only-class clause third");
+  assert(libraryConstruction.id === "library-construction", "CD-14 declares the library-construction judgement clause second");
+  assert(staticOnlyClass.id === "static-only-class", "CD-14 declares the static-only-class clause third");
   assert(surplus.length === 0, "CD-14 declares exactly three clauses");
   return classSyntax.cases;
 };
 
 const CLASS_SYNTAX_CASES = classSyntaxCases();
 
-const exportedRunnerOf = (request: { readonly namespace: unknown }): unknown => {
-  assert(
-    typeof request.namespace === "object" && request.namespace !== null && "runner" in request.namespace,
-    "the runner module exports runner",
-  );
-  return request.namespace.runner;
-};
-
 const coreLoadedEslintRunner = async (request: { readonly line: EslintLine }): Promise<LoadedRunner> => {
-  const loaded = await runnerModulesOn({ line: request.line, base: modules }).load({ path: `${INSTALL_ROOT}/mechanisms/eslint/runner/runner.ts` });
+  const loaded = await loadRunner({
+    installRoot: INSTALL_ROOT,
+    moduleExtension: ".ts",
+    modules: runnerModulesOn({ line: request.line, base: modules }),
+    path,
+    mechanism: mechanismIdSchema.parse("eslint"),
+  });
   assert(loaded.outcome === "ok", "core loads the ESLint runner module");
-  return runnerModuleSchema.parse(exportedRunnerOf({ namespace: loaded.value }));
+  return loaded.value;
 };
 
 describe.each(ESLINT_LINES)("checkConformance over the ESLint runner as core loads it, on real %s", (line) => {
@@ -537,9 +521,9 @@ const ESLINT_PACKAGE_JSON = "node_modules/eslint/package.json";
 
 const LINT_SCRIPT_PACKAGE_JSON = "package.json";
 
-const eslintVersion = (request: { readonly version: string }): string => JSON.stringify({ name: "eslint", version: request.version });
+const eslintVersion = (request: { readonly version: string }): string => `{ "name": "eslint", "version": "${request.version}" }`;
 
-const lintScript = (request: { readonly command: string }): string => JSON.stringify({ scripts: { lint: request.command } });
+const lintScript = (request: { readonly command: string }): string => `{ "scripts": { "lint": "${request.command}" } }`;
 
 const monorepoRun = async (request: {
   readonly line: EslintLine;
