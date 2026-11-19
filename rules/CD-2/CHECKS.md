@@ -40,6 +40,8 @@ const name = user.name ?? "anonymous";
 ```
 Parse or narrow the value so the type follows from a check rather than from an assertion. For a value that may be absent, handle the absent case with a check, a fallback or an early return; for a binding assigned later, initialise it where it is declared or make it a `const` built from what it needs.
 
+In a test file, `CD-27#test-body-logic` flags an `if` check at either edition, and its edition 2 flags the `??` fallback: there, `assert.isDefined` a value that may be missing before reading it, as [CD-27's allowed forms](../CD-27/CHECKS.md#a-short-circuit) show.
+
 When handing a value across a boundary truly forces a cast, such as a library that types its schemas loosely or a database driver that returns unparsed rows, put the cast in the one adapter file at that boundary and record that file as an `authorised-location` with a why-chain. With clean boundaries that is one file and one record; casts scattered across many files are the sign the boundary is missing.
 
 ## Exceptions
