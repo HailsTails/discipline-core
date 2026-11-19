@@ -89,6 +89,6 @@ Proposed, not accepted.
 
 - **Sensitive data:** safety is their why; no principle forces them.
 - **Records and debt:** see [records](records.md).
-- **A named ban:** no record lifts it.
+- **A named ban:** no record makes it correct. Existing use is still held as debt, like any symptom.
 - **How rules and checks are written:** spirit pure, strict wording, checks imperfect by design.
 - **Process:** root cause over a guard, no deferring, no ask-me exits, no parallel machinery.

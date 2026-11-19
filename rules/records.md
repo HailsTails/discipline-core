@@ -67,7 +67,7 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 - **Scope.** "Exclude is any codebases choice to say this is not in scope. It's never bound by any rules."
 - **Adopter config:** layer folders, casing, test-file naming and folder-scoped conventions. Hone does not read these as config yet. "A simple manifest of top level folders is config. Not hand kept manifest." A folder setting never switches a rule off.
 - **A threshold.** "Line and complexity are symptoms that flag many things." Where a symptom fires is a check setting.
-- **A named ban.** "Lodash is banned. Personal rule." No record lifts it.
+- **A named ban.** "Lodash is banned. Personal rule." No record makes it correct. Existing use is still held as debt, like any symptom: "All rules have to allow the checks to be debt. As existing repos need the opportunity to adopt and improve. Debt is debt. Not blockers."
 - **A tracked pointer.** A TODO is tracked when it holds a reference to an issue or spec, in the form the adopter's config declares for its tracker (`#42`, `owner/repo#42`, `PROJ-7`), and nothing else. It is a pointer, not an explanation. A TODO beside a breach does not hold the breach: the breach still needs a record of its own.
 
 ## What is refused
@@ -81,7 +81,7 @@ A record must contain what its kind states. Anything less is refused, as follows
 | An authorised location on a symptom that no case makes correct, such as a branch in a test | "who the heck added an authorised location for an if in a test?" | Not yet enforced. In the model the [symptoms](typescript/symptoms.md) say which have a correct use, and for the rest only debt is accepted. |
 | A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Not yet enforced. In the model the form must name the recipe and use its reason's words; whether the reason fails here is left to review. |
 | A fake with no showing that a stub cannot do the test | "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things." | No; review. |
-| A record for a named ban | "Lodash is banned." | Not yet enforced. |
+| A record that makes a named ban correct (an authorised location, a deviation or a dependency record). Debt is not refused. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
 | Debt written by the tool for a file the base did not hold | today's `new-file` | Yes, as today. |
 | A record standing in for a design fix, where friction points at the design | "if we have such a complex test that needs exemption we have a code architecture problem" | No; review. A machine can show records clustering on one symptom or one cause. Only review rules on it. |
 | An option that weakens the whole run (`--rule`, `-c`) | today | Yes, as today: it cannot be recorded. |
