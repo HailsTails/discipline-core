@@ -6,7 +6,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { checkedFilesOf, projectMechanism, runMechanism } from "./mechanism-dispatch.ts";
+import { projectMechanism, runMechanism } from "./mechanism-dispatch.ts";
 import { FIRST_EDITION } from "../values/edition.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
@@ -547,15 +547,5 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         unprojectedFolders: [],
       },
     });
-  });
-});
-
-describe("checkedFilesOf the files a run is asked to measure", () => {
-  it("is every tracked path for a standalone runner", () => {
-    expect(checkedFilesOf({ exceptionPath: "standalone", run: RUN_REQUEST })).toEqual(RUN_REQUEST.trackedPaths);
-  });
-
-  it("is the TypeScript files for an embedded runner", () => {
-    expect(checkedFilesOf({ exceptionPath: "embedded", run: RUN_REQUEST })).toEqual(RUN_REQUEST.files);
   });
 });

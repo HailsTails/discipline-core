@@ -10,7 +10,7 @@ import {
   type StructuralExceptionEntry,
 } from "../exception-records/exception-records.ts";
 import type { DebtPair } from "../exception-records/debt-pair.ts";
-import { type MeasuredFiles, paidDebtOf } from "../exception-records/paid-debt.ts";
+import { paidDebtOf } from "../exception-records/paid-debt.ts";
 import { applyGovernance, type Finding, type GovernanceResult } from "../governance/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import {
@@ -29,7 +29,6 @@ import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
-import { pathExclusionOf } from "../values/path-exclusion.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type {
@@ -40,11 +39,10 @@ import type {
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
 import { packageLinkOf } from "./package-link.ts";
-import { measuredFilesOf } from "./measured-files.ts";
 import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { checkedFilesOf, type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
+import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
@@ -272,6 +270,16 @@ const workingTreePaths = (request: {
       }) === "present",
   );
 
+const exclusion = (request: {
+  readonly trackedPath: RepoPath;
+  readonly excluded: readonly RepoPath[];
+}): "excluded" | "checked" =>
+  request.excluded.some(
+    (excludedPath) => request.trackedPath === excludedPath || request.trackedPath.startsWith(`${excludedPath}/`),
+  )
+    ? "excluded"
+    : "checked";
+
 const presentTrackedPaths = (request: {
   readonly check: TreeRequest;
   readonly excluded: readonly RepoPath[];
@@ -281,7 +289,7 @@ const presentTrackedPaths = (request: {
     return failed({ kind: "git-failed", detail: `${tracked.error.command}: ${tracked.error.detail}` });
   }
   const checked = tracked.value.filter(
-    (trackedPath) => pathExclusionOf({ path: trackedPath, excluded: request.excluded }) === "checked",
+    (trackedPath) => exclusion({ trackedPath, excluded: request.excluded }) === "checked",
   );
   return { outcome: "ok", value: workingTreePaths({ check: request.check, tracked: checked }) };
 };
@@ -310,11 +318,6 @@ export const checkedTreeOf = (request: {
     : failed({ kind: "config-root-untracked", root: untracked });
 };
 
-const runFilesOf = (request: { readonly tracked: readonly RepoPath[] }): Pick<RunRequest, "files" | "trackedPaths"> => ({
-  files: request.tracked.filter((trackedPath) => TYPESCRIPT_FILE.test(trackedPath)),
-  trackedPaths: request.tracked,
-});
-
 const runRequestOf = (request: {
   readonly check: CheckRequest;
   readonly tracked: readonly RepoPath[];
@@ -322,7 +325,8 @@ const runRequestOf = (request: {
 }): RunRequest => ({
   repoRoot: request.check.repoRoot,
   installRoot: request.check.installRoot,
-  ...runFilesOf(request),
+  files: request.tracked.filter((trackedPath) => TYPESCRIPT_FILE.test(trackedPath)),
+  trackedPaths: request.tracked,
   clauses: request.loaded.clauses,
 });
 
@@ -370,19 +374,6 @@ const remediedFindingsOf = (request: {
   return shownRemediesOf({ ...request.check, link, clauseRoots: request.inputs.clauseRoots, findings });
 };
 
-const measuredOf = (request: {
-  readonly tree: CheckedTree;
-  readonly inputs: LoadedInputs;
-  readonly runs: readonly MechanismRun[];
-}): readonly MeasuredFiles[] => {
-  const run = runFilesOf(request.tree);
-  return request.inputs.mechanisms.flatMap((loaded) =>
-    request.runs
-      .filter((mechanismRun) => mechanismRun.mechanism === loaded.mechanism)
-      .map((mechanismRun) => measuredFilesOf({ run: mechanismRun, checkedFiles: checkedFilesOf({ exceptionPath: loaded.runner.exceptionPath, run }) })),
-  );
-};
-
 const absentFilesOf = (request: {
   readonly check: TreeRequest;
   readonly governed: Pick<GovernanceResult, "stale" | "forfeited">;
@@ -405,7 +396,6 @@ const checkReportOf = (request: {
   readonly assessment: Assessment;
   readonly inputs: LoadedInputs;
   readonly runs: readonly MechanismRun[];
-  readonly measured: readonly MeasuredFiles[];
   readonly touched: TouchedSet;
 }): CheckedReport => {
   const governed = applyGovernance({
@@ -415,11 +405,7 @@ const checkReportOf = (request: {
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
-  const unmeasured = [
-    ...unmeasuredOf({ touched: request.touched, ...request.inputs }),
-    ...projections.flatMap((projection) => projection.unmeasured),
-  ];
-  const paidDebt = paidDebtOf({ ...governed, measured: request.measured, absent: absentFilesOf({ check: request.check, governed }) });
+  const paidDebt = paidDebtOf({ ...governed, absent: absentFilesOf({ check: request.check, governed }) });
   const report: CheckReport = {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
@@ -428,7 +414,10 @@ const checkReportOf = (request: {
     ...governed,
     uncovered: request.inputs.selection.uncovered,
     invalidRecords: request.inputs.invalidRecords,
-    unmeasured,
+    unmeasured: [
+      ...unmeasuredOf({ touched: request.touched, ...request.inputs }),
+      ...projections.flatMap((projection) => projection.unmeasured),
+    ],
     projectionProblems: [
       ...projections.flatMap((projection) => projection.problems),
       ...request.runs.flatMap((run) => sliceProblemsOf({ run })),
@@ -473,7 +462,6 @@ export const runReachedCheck = async (request: CheckRequest): Promise<Result<Rea
         assessment: request.assessment,
         inputs: inputs.value,
         runs: runs.value,
-        measured: measuredOf({ tree: tree.value, inputs: inputs.value, runs: runs.value }),
         touched: touchedSetFor({ check: request, records: inputs.value.records }),
       }),
       unprojected: unprojectedOf({ runs: runs.value }),

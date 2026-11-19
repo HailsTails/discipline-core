@@ -9,7 +9,7 @@ commands:
   check          check the repository against the disciplines it selects and print the report, ending in its verdict
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
   record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
-  prune-debt     remove from the exception records each file carve-out whose debt the check finds paid, stale or forfeited with no finding or native exception left on its clause and file, printing each pair removed
+  prune-debt     remove from the exception records each stale or forfeited file carve-out whose file no longer exists, printing each pair removed
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -55,7 +55,7 @@ exit codes:
 
 const PRUNE_DEBT_HELP = `usage: hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
 
-remove from the exception records each file carve-out whose debt the check finds paid, stale or forfeited with no finding or native exception left on its clause and file, printing each pair removed
+remove from the exception records each stale or forfeited file carve-out whose file no longer exists, printing each pair removed
 
 options:
   --repo <dir>

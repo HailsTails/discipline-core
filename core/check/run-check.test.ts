@@ -1039,24 +1039,44 @@ const carveOutOn = (file: string): StructuralExceptionEntry => ({ ...CARVE_OUT_O
 const unchangedGitTracking = (tracked: readonly RepoPath[]): GitPort =>
   gitMeasuring({ trackedPaths: { outcome: "ok", value: tracked }, changedSince: { outcome: "ok", value: [] } });
 
-describe("runReachedCheck handing on only the debt it measured clean or found gone", () => {
-  it("hands on a stale file carve-out on a tracked file its mechanism measured clean, pointing at it", async () => {
+describe("runReachedCheck handing on only the debt on a file no longer on disk", () => {
+  it("hands on a stale file carve-out on a file no longer on disk, pointing at it", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/gone.ts" }], report: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1 }] } },
+    });
+  });
+
+  it("hands on a forfeited file carve-out on a file no longer on disk that the change set touched", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }),
+          git: gitMeasuring({
+            trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
+            changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/gone.ts")] },
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/gone.ts" }], report: { stale: [], forfeited: [{ kind: "file-carve-out", file: "src/gone.ts" }] } },
+    });
+  });
+
+  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists", async () => {
     await expect(
       runReachedCheck(
         checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/a.ts"))] }), git: unchangedGitTracking(TRACKED_PATHS) }),
       ),
     ).resolves.toMatchObject({
       outcome: "ok",
-      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }], report: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1 }] } },
+      value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/a.ts" }], readFirst: [] } },
     });
-  });
-
-  it("hands on a stale file carve-out on a file no longer on disk", async () => {
-    await expect(
-      runReachedCheck(
-        checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }), git: unchangedGitTracking(TRACKED_PATHS) }),
-      ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/gone.ts" }] } });
   });
 
   it("hands on and points at nothing for a stale file carve-out on a file on disk that git does not track", async () => {
@@ -1068,34 +1088,5 @@ describe("runReachedCheck handing on only the debt it measured clean or found go
       outcome: "ok",
       value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/factory.ts" }], readFirst: [] } },
     });
-  });
-
-  it("hands on and points at nothing for a stale file carve-out on a file the selection excludes", async () => {
-    await expect(
-      runReachedCheck(
-        checkRequest({
-          selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, excluded: [repoPathSchema.parse("vendored")] }),
-          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("vendored/kept.ts"))] }),
-          git: unchangedGitTracking([...TRACKED_PATHS, repoPathSchema.parse("vendored/kept.ts")]),
-        }),
-      ),
-    ).resolves.toMatchObject({
-      outcome: "ok",
-      value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "vendored/kept.ts" }], readFirst: [] } },
-    });
-  });
-
-  it("hands on a carve-out on a TypeScript file an embedded runner measured, and not one on a tracked file it was not given", async () => {
-    await expect(
-      runReachedCheck(
-        checkRequest({
-          modules: modulesLoading({ runner: embeddedRunnerReporting({ report: CURRENT_REPORT }) }),
-          exceptionRepository: exceptionRepositoryHolding({
-            working: [firstInSingleFile(carveOutOn("src/a.ts")), secondInSingleFile(carveOutOn("src/e.js"))],
-          }),
-          git: unchangedGitTracking(TRACKED_PATHS),
-        }),
-      ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }] } });
   });
 });

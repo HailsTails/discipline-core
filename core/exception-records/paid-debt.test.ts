@@ -39,20 +39,20 @@ const directiveAt = (request: { readonly clause: Finding["clause"]; readonly fil
   reach: "one-clause",
 });
 
-const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], measured: [], absent: [] };
+const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], absent: [] };
 
 const CHECKOUT = repoPathSchema.parse("src/checkout.ts");
 const PRICES = repoPathSchema.parse("src/prices.ts");
 const TOTALS = repoPathSchema.parse("src/totals.ts");
 const PACKAGE_JSON = repoPathSchema.parse("package.json");
 
-const MEASURED: PaidDebtRequest = { ...NOTHING, measured: [{ mechanism: ESLINT, files: [BASKET, LEGACY, CHECKOUT, PRICES, TOTALS] }] };
+const GONE: PaidDebtRequest = { ...NOTHING, absent: [BASKET, LEGACY, CHECKOUT, PRICES, TOTALS] };
 
 describe("paidDebtOf choosing stale records", () => {
   it("names each stale file carve-out, ordered by file and then clause", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         stale: [carveOut({ clause: LOOPS, file: LEGACY }), carveOut({ clause: CASTS, file: BASKET }), carveOut({ clause: LOOPS, file: BASKET })],
       }),
     ).toEqual([
@@ -65,7 +65,7 @@ describe("paidDebtOf choosing stale records", () => {
   it("leaves a stale authorised location and a stale clause-wide carve-out to a person", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         stale: [
           { kind: "authorised-location", clause: LOOPS, mechanism: AUDIT, file: BASKET, reason: "the one loop over the clock" },
           { kind: "clause-wide-carve-out", clause: CASTS, mechanism: ESLINT, reason: "casts carved out during migration", whyChain: CAUSAL_WHY_CHAIN },
@@ -77,13 +77,13 @@ describe("paidDebtOf choosing stale records", () => {
 
 describe("paidDebtOf choosing forfeited records by their own clause and file", () => {
   it("names a forfeited file carve-out whose clause and file hold no finding and no native exception", () => {
-    expect(paidDebtOf({ ...MEASURED, forfeited: [carveOut({ clause: LOOPS, file: BASKET })] })).toEqual([{ clause: LOOPS, file: BASKET }]);
+    expect(paidDebtOf({ ...GONE, forfeited: [carveOut({ clause: LOOPS, file: BASKET })] })).toEqual([{ clause: LOOPS, file: BASKET }]);
   });
 
   it("keeps a forfeited file carve-out whose clause and file still hold a finding", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
         findings: [findingAt({ clause: LOOPS, file: BASKET })],
       }),
@@ -93,7 +93,7 @@ describe("paidDebtOf choosing forfeited records by their own clause and file", (
   it("keeps a forfeited file carve-out whose clause and file hold a finding another record exempts", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
         exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [carveOut({ clause: LOOPS, file: BASKET })] }],
       }),
@@ -103,7 +103,7 @@ describe("paidDebtOf choosing forfeited records by their own clause and file", (
   it("keeps a forfeited file carve-out whose clause and file hold an unrecorded inline disable", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
         unrecorded: [directiveAt({ clause: LOOPS, file: BASKET })],
       }),
@@ -115,7 +115,7 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
   it("names a forfeited file carve-out whose findings are all on another clause or another file", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
         findings: [findingAt({ clause: CASTS, file: BASKET }), findingAt({ clause: LOOPS, file: LEGACY })],
       }),
@@ -125,7 +125,7 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
   it("names a forfeited file carve-out whose file is held only by a script option, which names no file", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
         unrecorded: [
           {
@@ -144,44 +144,31 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
 
   it("names a pair once when it is both stale and forfeited", () => {
     expect(
-      paidDebtOf({ ...MEASURED, stale: [carveOut({ clause: LOOPS, file: BASKET })], forfeited: [carveOut({ clause: LOOPS, file: BASKET })] }),
+      paidDebtOf({ ...GONE, stale: [carveOut({ clause: LOOPS, file: BASKET })], forfeited: [carveOut({ clause: LOOPS, file: BASKET })] }),
     ).toEqual([{ clause: LOOPS, file: BASKET }]);
   });
 });
 
-describe("paidDebtOf naming only debt measured clean or gone", () => {
-  it("leaves a stale file carve-out on a file its mechanism was not given, naming one on a file it measured", () => {
+describe("paidDebtOf naming only debt on a file no longer on disk", () => {
+  it("leaves a stale and a forfeited file carve-out on files that still exist, naming one on a file no longer on disk", () => {
     expect(
       paidDebtOf({
         ...NOTHING,
         stale: [carveOut({ clause: LOOPS, file: BASKET }), carveOut({ clause: LOOPS, file: CHECKOUT })],
-        measured: [{ mechanism: ESLINT, files: [CHECKOUT] }],
+        forfeited: [carveOut({ clause: LOOPS, file: LEGACY })],
+        absent: [CHECKOUT],
       }),
     ).toEqual([{ clause: LOOPS, file: CHECKOUT }]);
   });
 
-  it("leaves a stale file carve-out on a file only another mechanism measured", () => {
-    expect(
-      paidDebtOf({ ...NOTHING, stale: [carveOut({ clause: LOOPS, file: BASKET })], measured: [{ mechanism: AUDIT, files: [BASKET] }] }),
-    ).toEqual([]);
-  });
-
-  it("leaves a forfeited file carve-out on a file nothing measured", () => {
-    expect(paidDebtOf({ ...NOTHING, forfeited: [carveOut({ clause: LOOPS, file: BASKET })] })).toEqual([]);
-  });
-
-  it("names a stale and a forfeited file carve-out on files no longer on disk, though nothing measured them", () => {
+  it("keeps a stale file carve-out on a file no longer on disk whose clause and file hold an unrecorded ignore", () => {
     expect(
       paidDebtOf({
-        ...NOTHING,
+        ...GONE,
         stale: [carveOut({ clause: LOOPS, file: BASKET })],
-        forfeited: [carveOut({ clause: LOOPS, file: LEGACY })],
-        absent: [BASKET, LEGACY],
+        unrecorded: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
       }),
-    ).toEqual([
-      { clause: LOOPS, file: BASKET },
-      { clause: LOOPS, file: LEGACY },
-    ]);
+    ).toEqual([]);
   });
 });
 
@@ -189,7 +176,7 @@ describe("paidDebtOf keeping a forfeited record each native exception on its fil
   it("keeps a forfeited file carve-out held by an ignore, a config override, a suppression entry or an inline rule config on its clause and file", () => {
     expect(
       paidDebtOf({
-        ...MEASURED,
+        ...GONE,
         forfeited: [
           carveOut({ clause: LOOPS, file: BASKET }),
           carveOut({ clause: LOOPS, file: CHECKOUT }),

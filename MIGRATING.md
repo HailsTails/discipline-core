@@ -354,22 +354,23 @@ From then on, `hone record-debt` adds each record to its discipline's file, and 
 
 ## 17. Pruning paid ESLint debt
 
-Earlier releases never listed an `eslint` file record as `stale`. The off-switch `hone project` writes for a record counted as a `config-override` that the record held, so a record kept its rule off after its file stopped breaking the clause, and a new violation there went unreported. A forfeited `eslint` record's off-switch was also listed under `unrecorded` as a `config-override`. The check no longer counts the projection's own off-switches as native exceptions, and the new `hone prune-debt` removes debt that is paid.
+Earlier releases never listed an `eslint` file record as `stale`. The off-switch `hone project` writes for a record counted as a `config-override` that the record held, so a record kept its rule off after its file stopped breaking the clause, and a new violation there went unreported. A forfeited `eslint` record's off-switch was also listed under `unrecorded` as a `config-override`. The check no longer counts the projection's own off-switches as native exceptions, and the new `hone prune-debt` removes the records of files that no longer exist.
 
 1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check against the branch's base. If none of your `eslint` debt is paid, nothing changes.
-2. **If some is, the run fails.** Each paid record is listed under `stale` as `<clause> eslint file-carve-out <file>`, and the report ends with one `readFirst` line naming the command to run, such as:
+2. **If some is, the run fails.** Each paid record is listed under `stale` as `<clause> eslint file-carve-out <file>`.
+3. **Delete each of those records by hand** when its file still exists, then run `npm run --silent hone:project`, which prints `disciplines.eslint.mjs written`. A stale `authorised-location` or `clause-wide-carve-out` is left for a person in the same way.
+4. **Run `hone prune-debt` for records whose file is gone.** When a stale or forfeited record names a file that no longer exists, the report ends with one `readFirst` line naming the command to run, such as:
 
    ```text
    prune-debt: 3 file carve-outs under stale or forfeited still record debt that is paid; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop --base-revision origin/main to remove what is paid, then run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit the exception records with every disciplines.eslint.mjs it writes
    ```
 
-3. **Run the two commands it names.** From the repository root that is:
+   From the repository root that is:
 
    ```bash
    node_modules/.bin/hone prune-debt --repo . --base-revision origin/main
    npm run --silent hone:project
    ```
 
-   `hone prune-debt` prints `<clause> removed <file>` for each record it removed, and `hone project` prints `disciplines.eslint.mjs written`. A stale `authorised-location` or `clause-wide-carve-out` is left for a person: delete it by hand, then run `hone:project` again.
-4. **Commit the exception records and `disciplines.eslint.mjs`**, and each package slice `hone project` writes. The check passes.
+   `hone prune-debt` prints `<clause> removed <file>` for each record it removed. Commit the exception records and `disciplines.eslint.mjs`, and each package slice `hone project` writes. The check passes.
 5. **Look for a team override that surfaces.** An off-switch your own config places after the projection, for a rule and file a removed record held, was hidden behind the record. It is now listed under `unrecorded` as a `config-override`; [ADOPTING.md](ADOPTING.md#6-read-the-report) step 6 says what to do with it.

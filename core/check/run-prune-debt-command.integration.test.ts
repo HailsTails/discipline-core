@@ -15,12 +15,12 @@ const FIXTURE = `${import.meta.dirname}/../../tests/test-fixtures/prune-debt`;
 
 const TOOL_COMMAND_URL = new URL("./tool-command.ts", import.meta.url).href;
 
-const SETTLED_PAIR = { clause: clauseAddressSchema.parse("CD-15#loops"), file: repoPathSchema.parse("notes/settled.md") };
+const GONE_PAIR = { clause: clauseAddressSchema.parse("CD-15#loops"), file: repoPathSchema.parse("src/gone.ts") };
 
 const FIXTURE_TRACKED = [
   repoPathSchema.parse("discipline-exceptions.json"),
   repoPathSchema.parse("disciplines.json"),
-  repoPathSchema.parse("notes/settled.md"),
+  repoPathSchema.parse("src/kept.ts"),
 ];
 
 const processGiven = (argumentsGiven: readonly string[]): ProcessPort => ({
@@ -52,14 +52,14 @@ const pruning = (request: {
   moduleUrl: request.moduleUrl,
 });
 
-const removingWhatItIsGiven = () => vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [SETTLED_PAIR] });
+const removingWhatItIsGiven = () => vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [GONE_PAIR] });
 
 describe("runPruneDebtCommand over a repository on disk, through this install's audit runner", () => {
-  it("removes the carve-out on the tracked file the audit measured clean, keeps the one on a file git does not track, and exits 0", async () => {
+  it("removes the carve-out on a file no longer on disk, keeps the one on a file that still exists, and exits 0", async () => {
     const process = processGiven(["--repo", FIXTURE]);
     const remove = removingWhatItIsGiven();
     await runPruneDebtCommand(pruning({ process, git: gitTrackingTheFixture(), remove, moduleUrl: TOOL_COMMAND_URL }));
-    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [SETTLED_PAIR] });
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [GONE_PAIR] });
     expect(process.exitWith).toHaveBeenCalledExactlyOnceWith({ code: 0 });
   });
 
@@ -87,7 +87,7 @@ describe("runPruneDebtCommand over a repository on disk, through this install's 
 
 describe("runPruneDebtCommand failing before it reaches the records", () => {
   it("exits 2 with the arguments-invalid line, removing nothing, when an argument is unknown", async () => {
-    const process = processGiven(["--repo", FIXTURE, "--leave", "notes/settled.md"]);
+    const process = processGiven(["--repo", FIXTURE, "--leave", "src/kept.ts"]);
     const remove = vi.fn<ExceptionRepository["remove"]>();
     await runPruneDebtCommand(pruning({ process, git: gitTrackingTheFixture(), remove, moduleUrl: TOOL_COMMAND_URL }));
     expect(process.writeOut).toHaveBeenCalledExactlyOnceWith({ text: expect.stringMatching(/^load failure: arguments-invalid /) });
@@ -96,7 +96,7 @@ describe("runPruneDebtCommand failing before it reaches the records", () => {
   });
 
   it("exits 2 with the selection-absent line, removing nothing, when --repo holds no disciplines.json", async () => {
-    const process = processGiven(["--repo", `${FIXTURE}/notes`]);
+    const process = processGiven(["--repo", `${FIXTURE}/src`]);
     const remove = vi.fn<ExceptionRepository["remove"]>();
     await runPruneDebtCommand(pruning({ process, git: gitTrackingTheFixture(), remove, moduleUrl: TOOL_COMMAND_URL }));
     expect(process.writeOut).toHaveBeenCalledExactlyOnceWith({ text: expect.stringMatching(/^load failure: selection-absent /) });

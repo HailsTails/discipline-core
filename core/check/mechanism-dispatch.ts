@@ -52,18 +52,6 @@ export type MechanismProjectionRequest = {
 
 const standaloneResultSchema = runnerResultSchema({ value: standaloneRunReportSchema });
 
-export const checkedFilesOf = (request: {
-  readonly exceptionPath: LoadedRunner["exceptionPath"];
-  readonly run: Pick<RunRequest, "files" | "trackedPaths">;
-}): readonly RepoPath[] => {
-  switch (request.exceptionPath) {
-    case "standalone":
-      return request.run.trackedPaths;
-    case "embedded":
-      return request.run.files;
-  }
-};
-
 type FiledClause = Pick<Hit, "clause" | "file">;
 
 const unrequestedHit = <Filed extends FiledClause>(request: {
@@ -104,14 +92,13 @@ const standaloneRun = (request: {
     return parsed.data;
   }
   const report = parsed.data.value;
-  const checkedFiles = checkedFilesOf({ exceptionPath: "standalone", run: request.run });
-  const unrequested = unrequestedHit({ hits: report.hits, run: request.run, checkedFiles });
+  const unrequested = unrequestedHit({ hits: report.hits, run: request.run, checkedFiles: request.run.trackedPaths });
   if (unrequested !== undefined) {
     return runnerInvalidOutput({
       detail: `a hit names ${clauseAddressText({ address: unrequested.clause })} in ${unrequested.file}, which the request did not hold`,
     });
   }
-  const unrequestedInline = unrequestedHit({ hits: report.nativeExceptions, run: request.run, checkedFiles });
+  const unrequestedInline = unrequestedHit({ hits: report.nativeExceptions, run: request.run, checkedFiles: request.run.trackedPaths });
   if (unrequestedInline !== undefined) {
     return runnerInvalidOutput({
       detail: `a native exception names ${clauseAddressText({ address: unrequestedInline.clause })} in ${unrequestedInline.file}, which the request did not hold`,
@@ -161,7 +148,7 @@ const embeddedRun = (request: {
     return parsed.data;
   }
   const report = parsed.data.value;
-  const unrequested = unrequestedHit({ hits: report.hits, run: request.run, checkedFiles: checkedFilesOf({ exceptionPath: "embedded", run: request.run }) });
+  const unrequested = unrequestedHit({ hits: report.hits, run: request.run, checkedFiles: request.run.files });
   if (unrequested !== undefined) {
     return runnerInvalidOutput({
       detail: `a hit names ${clauseAddressText({ address: unrequested.clause })} in ${unrequested.file}, which the request did not hold`,
