@@ -15,9 +15,9 @@ the code: every technical binding a unit needs — wall-clock time, process and
 signal lifecycle, standard-library capabilities (filesystem, crypto, path, net),
 and third-party services — arrives through a named port the unit receives as a
 constructor parameter or function argument, never reached for through a global,
-an ambient import, or the module system. Each port ships a default factory in
-its own module so production wires the real implementation once at the
-composition root and tests inject a test double of the same shape. The test face is the
+an ambient import, or the module system. The port's interface is declared in
+the domain, in a module of its own; one entry-point module builds every
+adapter and passes each one in, and tests inject a test double of the same shape. The test face is the
 mirror image: a unit test replaces *everything* outside the unit's boundary with a
 test double, and it delivers those doubles the same way production delivers the
 real ones — through the
@@ -72,18 +72,15 @@ reached for through the module system). Walk the diff for both.
   violation-in-waiting even if it currently delegates to a helper that itself
   holds the raw call. The composition pathway must terminate at an injected port,
   not at a buried global.
-- **Missing default factory.** For every port type added or changed in the diff,
-  confirm a sibling default-factory function exists in the same module (the
-  production implementation). A port shipped without its default forces every
-  consumer to hand-roll the wiring and predicts test-side module-mocking
-  downstream — flag the absence preemptively. Conversely, consumers that
-  construct an ad-hoc object literal matching the port shape outside test code,
-  instead of importing the default factory, are reaching around the port.
+- **Adapter built outside the root.** One entry-point module builds every
+  adapter and passes each one in. A call to an adapter's factory anywhere but
+  the entry point is a finding: the calling unit builds what it should be
+  passed. No port is declared in an adapter's module or in its consumer's.
 - **Composition-root threading.** The boot path (the service-run entrypoint, the
-  app start module, the kernel composition) must call each default factory and
+  app start module, the kernel composition) must build each adapter and
   pass the port into the unit that declared it. A unit that *declares* a port
   parameter but is never wired to one in the boot path is a threading violation;
-  a boot path that constructs a port inline instead of importing its factory is
+  a unit outside the boot path that builds an adapter itself is
   the same gap from the other end.
 - **Type-level context constraint.** Where the rules require context-consuming
   middleware (or any generic that reads kernel-shipped context fields) to bind
@@ -157,7 +154,7 @@ lens's own failure mode.
 ## Output shape
 
 Report **two-sided** counts the review asks for: a production-side
-block (ambient-binding violations by capability, missing default factories,
+block (ambient-binding violations by capability, adapters built outside the root,
 threading gaps, unbound context generics) and a test-side block
 (module-interception violations by mechanism, spy classifications, structural
 boundary gaps). Every finding is

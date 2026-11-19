@@ -1,6 +1,6 @@
 # Disciplines assessment
 
-What this repository's checks are telling us, and where the code is going. Each clause section sharpens that rule's Spirit section for this codebase; it does not repeat the rule. Read a clause's section before changing code to make its check pass.
+What this repository's checks are telling us, and where the code is going. Each clause section sharpens what the symptoms page says for this codebase; it does not repeat the rule. Read a clause's section before changing code to make its check pass.
 
 ## Rules adopted
 
@@ -26,7 +26,7 @@ Applied in review with the lens each rule page names.
 
 ## <clause address>
 
-- **Cause here:** <a cause from the rule's Spirit list, named as the rule names it>. <How it shows in this codebase.>
+- **Cause here:** <a case or breach site from the symptom's "May indicate" or "Breach usually sits", named as the symptoms page names it>. <How it shows in this codebase.>
 - **Sites:** <count> at <commit>, in <folders or files>. For example <file:line>, <file:line>.
 - **Forward goal:** <the cleaner design, in this codebase's terms>.
 - **Steps:** 1. <the step that unlocks the rest> 2. <the next step>

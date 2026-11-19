@@ -2,30 +2,14 @@
 
 ## Rule
 
-A test may not touch its environment or cause any real side effect on anything real. "Anything real" is everything the test did not itself create and does not itself dispose: the developer's repository, their user configuration and home directory, any network or live service, shared filesystem paths, the system clock, and the ambient process environment.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
 
-A test replaces the real subsystem with a test double. Spawning it is permitted in exactly one closed case: the subsystem's own observable behaviour is the assertion's subject and no test double can stand in for it. Setup, realism and convenience never qualify; state which assertion cannot be written against a test double, and if that sentence cannot be written, the test does not qualify. A qualifying test brings its own instance in a location it created and removes it afterwards; it never borrows the machine's.
+**Verdict.** Cases under [Tested where it's owned](../rules.md#tested-where-its-owned).
 
-Real git is the mechanically checked class: a test that spawns a real `git` subprocess passes an explicit hermetic environment at that call site, and never inherits the ambient one.
+**Read.** [Tested where it's owned](../rules.md#tested-where-its-owned) and [Integration test owns its scratch](../typescript/recipes.md#integration-test-owns-its-scratch).
 
 Review lens: [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** A test that touches real things can damage them, and can pass or fail depending on the machine. The friction makes replacing the subsystem with a test double the easy path, so tests are safe to run anywhere and give the same answer every time.
-
-**What a finding points at.** Match the sites against these causes.
-- *A subsystem reached directly.* The code under test calls the real process, network, or filesystem. Inject a port and pass a test double.
-- *Environment inherited by accident.* A spawned process picks up the developer's settings. Pass an explicit, created environment, or replace the process with a test double.
-- *Setup that borrows the machine.* The test uses shared paths, home configuration, or the system clock. Create what it needs and remove it afterwards, or use a test double.
-- *A real call used for convenience.* Realism or setup speed is the reason. Those never qualify; use a test double.
-
-**Where to go.** Tests replace every real subsystem with a test double. The rare test whose subject is a subsystem's own behaviour brings its own instance and removes it.
-
-**Reactions to distrust.**
-- "It works on my machine." That is the problem: it depends on your machine.
-- "A test double is more work." Once per subsystem, against every developer's environment being at risk.
-
-**Principles behind it.**
-- *Hermetic tests.* A test depends only on what it creates, so its result is the same on every machine.
-- *Erratic Test* (a test smell in Gerard Meszaros, *xUnit Test Patterns*). Tests that share or leak real resources pass or fail by circumstance.
+Start from the symptom a finding names: [Inherited environment in a subprocess](../typescript/symptoms.md#inherited-environment-in-a-subprocess) and [Machine touched in a unit test](../typescript/symptoms.md#machine-touched-in-a-unit-test). Each symptom names the cases it may indicate and the rules they point at. The why is on [Tests are ours](../principles.md#tests-are-ours).

@@ -1,6 +1,8 @@
 # CD-16 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics.
+Symptom: [Loop keyword](../typescript/symptoms.md#loop-keyword).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics.
 
 ## How it is checked
 

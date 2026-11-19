@@ -2,6 +2,8 @@
 
 ## Rule
 
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ. Rules are referred to by name; a clause address is still how a check is cited today, as [Every CD](../numbers.md) says.
+
 Reviews and rationale cite specific rules by their identifier, not vague appeals to "the standards". A citation anchors a finding to the named rule and its intent, so remediation is precise and the disagreement, if any, is about the rule rather than about taste.
 
 Review lens: none. A reviewer applies the rule text directly. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).

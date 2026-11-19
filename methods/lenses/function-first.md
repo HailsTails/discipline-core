@@ -31,13 +31,11 @@ Four facets of the same stance:
   the transformation as data. Counted loops name a counter where the operation
   is what matters. Side-effect-only iteration is the one place an imperative
   shape survives, and even then under a `void`-returning callback.
-- **Third-party imports confined to wrapping factories.** A library is an
-  external dependency the domain should not see directly. Each library is
-  imported in exactly one wrapping-factory file (runtime *and* type-only); every
-  other module consumes the kernel-supplied factory output. The wrapping factory
-  *is* the function-first boundary for the library — it is where the unavoidable
-  `new X(...)` and the raw import are quarantined behind a function-shaped
-  surface.
+- **Outside dependencies confined to their adapter.** An outside dependency or
+  runtime module is imported only in the adapter file for the party it reaches
+  (runtime *and* type-only). That adapter fulfils a port and returns our types.
+  Nothing re-exports the outside dependency. A library's class is built only in
+  its adapter.
 - **Single-object-argument functions.** Every authored function takes exactly
   one parameter; multiple values pass as named fields on an object. Positional
   multi-argument signatures are forbidden except for callbacks whose signature is
@@ -73,9 +71,9 @@ per-declaration not per-export — is suspect until classified. For each, decide
 one of three buckets:
 
 - **justified.** The declaration is the single permitted authored class at its
-  named site, OR it is a `new X(...)` for an external-library class whose
-  wrapping-factory file the rules name AND the instance is held inside the
-  closure and never re-exported as a class. Cite the carve-out; no replacement.
+  named site, OR it is a `new X(...)` for an external-library class in
+  the adapter for the party it reaches, with a boundary record, AND the instance
+  is held inside the closure and never re-exported as a class. Cite the carve-out; no replacement.
 - **closure-candidate.** The class carries genuine instance state that is
   *mutated* across method calls (counters, caches, accumulating buffers,
   subscription registries, in-flight tracking). Replacement: a factory closing
@@ -135,15 +133,15 @@ counter-shaped `for`, not a direction. An async-iterator loop has no source-side
 carve-out unless the rules grant one — lift it into a Promise-reduce pipeline or
 an event `forEach` handler by shape.
 
-### Wrapping-factory pass
+### Adapter pass
 
-Every raw third-party import (runtime *or* type-only) and every `new X(...)` for
-an external-library class is a candidate. For each: is the importing/instantiating
-file on the rules' closed list of wrapping-factory files for that library? If
-yes → justified. If the library is on the list but the file is not, the import is
-in the wrong place — a function-first finding with a DI/port cross-reference (the
-raw import escaping its wrapping factory is both a structural and a
-boundary-discipline defect; name the boundary lens as the cross-reference). A
+Every raw outside-dependency import (runtime *or* type-only) and every `new X(...)`
+for an external-library class is a candidate. For each: is the importing or
+instantiating file the adapter for the party it reaches, with a boundary record?
+If yes → justified. If not, the import is in the wrong place — a function-first
+finding with a DI/port cross-reference (the raw import escaping its adapter is
+both a structural and a boundary-discipline defect; name the boundary lens as the
+cross-reference). A
 `new X(...)` for a class the codebase itself authored is a finding twice over —
 the class should not have been authored, and the instantiation is the symptom.
 
