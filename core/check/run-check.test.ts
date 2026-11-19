@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { SelectionReading, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../exception-records/exception-records.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
-import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
@@ -24,7 +23,6 @@ const ASSESSMENT_PATH = "/repo/disciplines.assessment.md";
 const RULE_PAGE_PATH = "/install/rules/CD-14/README.md";
 const RUNNER_PATH = "/install/mechanisms/audit/runner/runner.ts";
 const LINT_RUNNER_PATH = "/install/mechanisms/lint/runner/runner.ts";
-const HARNESS_SEGMENT = /(?:^|\/)\.(?:claude|kiro|codex|cursor|aidlc|opencode|github|copilot)(?:\/|$)/;
 
 const AUDIT = mechanismIdSchema.parse("audit");
 const LINT = mechanismIdSchema.parse("lint");
@@ -50,10 +48,9 @@ const ABSENT_FILE: FakeFile = {
   presence: "absent",
 };
 
-const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort => ({
+const fileTextOver = (files: Readonly<Record<string, FakeFile>>): CheckRequest["fileText"] => ({
   read: ({ path }) => files[path].read,
   exists: ({ path }) => files[path].presence,
-  write: vi.fn<FileTextPort["write"]>(),
 });
 
 const INSTALL: Readonly<Record<string, FakeFile>> = {
@@ -158,12 +155,17 @@ const secondInSingleFile = (entry: StructuralExceptionEntry): PlacedEntry => ({
   entry,
 });
 
-const exceptionRepositoryHolding = (request: {
+const exceptionRepositoryHolding = (request: { readonly working: readonly PlacedEntry[] }): Pick<ExceptionRepository, "read" | "readAt"> => ({
+  read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: request.working }),
+  readAt: vi.fn<ExceptionRepository["readAt"]>(),
+});
+
+const exceptionRepositoryAtBase = (request: {
   readonly working: readonly PlacedEntry[];
-  readonly base: readonly StructuralExceptionEntry[];
+  readonly base: ReturnType<ExceptionRepository["readAt"]>;
 }): Pick<ExceptionRepository, "read" | "readAt"> => ({
   read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: request.working }),
-  readAt: vi.fn<ExceptionRepository["readAt"]>().mockReturnValue({ outcome: "ok", value: request.base }),
+  readAt: vi.fn<ExceptionRepository["readAt"]>().mockReturnValue(request.base),
 });
 
 const NO_RECORDS: Pick<ExceptionRepository, "read" | "readAt"> = {
@@ -181,8 +183,6 @@ const TRACKED_PATHS: readonly RepoPath[] = [
   repoPathSchema.parse("src/e.js"),
   repoPathSchema.parse("src/f.json"),
 ];
-
-const CHANGED_PATHS: readonly RepoPath[] = [repoPathSchema.parse("src/a.ts")];
 
 const CLASS_SYNTAX_READING_FIRST = {
   kind: "clause",
@@ -231,25 +231,24 @@ const modulesLoading = (module: unknown): ModuleLoaderPort => ({
   load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: module }),
 });
 
-const gitReporting = (request: {
-  readonly trackedPaths: Result<readonly RepoPath[], GitFailure>;
-  readonly changedSince: Result<readonly RepoPath[], GitFailure>;
-}): GitPort => ({
+const gitReporting = (request: { readonly trackedPaths: Result<readonly RepoPath[], GitFailure> }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue(request.trackedPaths),
-  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
+  changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
 });
 
-const MEASURED_GIT = gitReporting({
-  trackedPaths: { outcome: "ok", value: TRACKED_PATHS },
-  changedSince: { outcome: "ok", value: CHANGED_PATHS },
+const gitMeasuring = (request: {
+  readonly trackedPaths: Result<readonly RepoPath[], GitFailure>;
+  readonly changedSince: Result<readonly RepoPath[], GitFailure>;
+}): GitPort => ({
+  ...gitReporting(request),
+  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue(request.changedSince),
 });
 
-const FACTORY_ONLY_GIT = gitReporting({
-  trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] },
-  changedSince: { outcome: "ok", value: [] },
-});
+const TRACKED_GIT = gitReporting({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS } });
+
+const FACTORY_ONLY_GIT = gitReporting({ trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/factory.ts")] } });
 
 const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
   repoRoot: REPO_ROOT,
@@ -260,7 +259,7 @@ const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({
   fileText: fileTextOver(INSTALL),
   modules: modulesLoading({ runner: standaloneRunner({ runReturns: CLEAN_RUN }) }),
   path: POSIX_PATH,
-  git: MEASURED_GIT,
+  git: TRACKED_GIT,
   selectionRepository: selectionRepositoryReading(SELECTION_READING),
   exceptionRepository: NO_RECORDS,
   ...overrides,
@@ -297,7 +296,7 @@ describe("runCheck reports", () => {
     await expect(
       runCheck(
         checkRequest({
-          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(AUTHORISED_FACTORY)], base: [AUTHORISED_FACTORY] }),
+          exceptionRepository: exceptionRepositoryAtBase({ working: [firstInSingleFile(AUTHORISED_FACTORY)], base: { outcome: "ok", value: [AUTHORISED_FACTORY] } }),
           modules: modulesLoading({
             runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/factory.ts" }], nativeExceptions: [] } } }),
           }),
@@ -319,7 +318,6 @@ describe("runCheck reports", () => {
         checkRequest({
           exceptionRepository: exceptionRepositoryHolding({
             working: [firstInSingleFile({ kind: "authorised-location", clause: "CD-15#no-for-of", file: "src/a.ts", reason: "loop" })],
-            base: [],
           }),
         }),
       ),
@@ -382,7 +380,7 @@ describe("runCheck runner dispatch", () => {
 
   it("reads the selection and the exception records once each", async () => {
     const selectionRepository = selectionRepositoryReading(SELECTION_READING);
-    const exceptionRepository = exceptionRepositoryHolding({ working: [], base: [] });
+    const exceptionRepository = exceptionRepositoryHolding({ working: [] });
     await runCheck(checkRequest({ selectionRepository, exceptionRepository }));
     expect(selectionRepository.read).toHaveBeenCalledExactlyOnceWith({});
     expect(exceptionRepository.read).toHaveBeenCalledExactlyOnceWith();
@@ -395,7 +393,6 @@ describe("runCheck runner dispatch", () => {
         modules: modulesLoading({ runner }),
         git: gitReporting({
           trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("README.md"), repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
-          changedSince: { outcome: "ok", value: [] },
         }),
       }),
     );
@@ -421,7 +418,6 @@ describe("runCheck runner dispatch", () => {
               repoPathSchema.parse("vendored/kept.ts"),
             ],
           },
-          changedSince: { outcome: "ok", value: [] },
         }),
       }),
     );
@@ -434,9 +430,9 @@ describe("runCheck runner dispatch", () => {
     const runner = standaloneRunner({ runReturns: CLEAN_RUN });
     const checked = await runCheck(
       checkRequest({
-        exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)], base: [] }),
+        exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(CARVE_OUT_ON_GONE)] }),
         modules: modulesLoading({ runner }),
-        git: gitReporting({
+        git: gitMeasuring({
           trackedPaths: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("src/gone.ts")] },
           changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/gone.ts")] },
         }),
@@ -446,17 +442,24 @@ describe("runCheck runner dispatch", () => {
     expect(runner.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ files: ["src/a.ts"], trackedPaths: ["src/a.ts"] }));
   });
 
-  it("touches only the consumer files and the install, none under a harness directory, and writes nothing", async () => {
+  it("probes only the tracked files, the assessment file and the rule page of the clause it reports, and reads only the install's manifest", async () => {
     const fileText = fileTextOver(INSTALL);
     const reads = vi.spyOn(fileText, "read");
-    const existenceChecks = vi.spyOn(fileText, "exists");
-    const modules = modulesLoading({ runner: standaloneRunner({ runReturns: CLEAN_RUN }) });
-    const report = await runCheck(checkRequest({ fileText, modules }));
-    expect(report).toEqual({ outcome: "ok", value: EMPTY_REPORT });
-    expect(reads).not.toHaveBeenCalledWith({ path: expect.stringMatching(HARNESS_SEGMENT) });
-    expect(existenceChecks).not.toHaveBeenCalledWith({ path: expect.stringMatching(HARNESS_SEGMENT) });
-    expect(modules.load).not.toHaveBeenCalledWith({ path: expect.stringMatching(HARNESS_SEGMENT) });
-    expect(fileText.write).not.toHaveBeenCalled();
+    const probes = vi.spyOn(fileText, "exists");
+    await runCheck(checkRequest({ fileText, modules: modulesLoading({ runner: hitRunner() }) }));
+    expect(probes.mock.calls).toEqual([
+      [{ path: "/repo/README.md" }],
+      [{ path: "/repo/package.json" }],
+      [{ path: "/repo/src/a.ts" }],
+      [{ path: "/repo/src/b.tsx" }],
+      [{ path: "/repo/src/c.mts" }],
+      [{ path: "/repo/src/d.cts" }],
+      [{ path: "/repo/src/e.js" }],
+      [{ path: "/repo/src/f.json" }],
+      [{ path: ASSESSMENT_PATH }],
+      [{ path: RULE_PAGE_PATH }],
+    ]);
+    expect(reads).toHaveBeenCalledExactlyOnceWith({ path: "/install/package.json" });
   });
 
   it("roots a named rule set's piece under the consumer's rule-set directory and still loads the install's runner", async () => {
@@ -558,7 +561,6 @@ describe("runCheck load failures", () => {
         checkRequest({
           git: gitReporting({
             trackedPaths: { outcome: "failed", error: { kind: "git-failed", command: "git ls-files", detail: "not a git repository" } },
-            changedSince: { outcome: "ok", value: CHANGED_PATHS },
           }),
         }),
       ),
@@ -638,6 +640,15 @@ const WALKER_RECORD = {
   mechanism: "audit",
   file: "src/walker.ts",
   reason: "audit location",
+  provenance: { kind: "existing-authorisation", source: FIXTURE_SOURCE },
+};
+
+const LINT_RECORD = {
+  kind: "authorised-location",
+  clause: ABSTRACT_SYNTAX_OBJECT,
+  mechanism: "lint",
+  file: "src/lint.ts",
+  reason: "lint location",
   provenance: { kind: "existing-authorisation", source: FIXTURE_SOURCE },
 };
 
@@ -753,7 +764,7 @@ describe("runCheck with an embedded runner", () => {
     await expect(
       runCheck(
         checkRequest({
-          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(AUTHORISED_FACTORY)], base: [AUTHORISED_FACTORY] }),
+          exceptionRepository: exceptionRepositoryAtBase({ working: [firstInSingleFile(AUTHORISED_FACTORY)], base: { outcome: "ok", value: [AUTHORISED_FACTORY] } }),
           modules: modulesLoading({
             runner: embeddedRunnerReporting({
               report: {
@@ -771,24 +782,19 @@ describe("runCheck with an embedded runner", () => {
 
   it("hands the runner's run only the records of its own mechanism", async () => {
     const runner = embeddedRunnerReporting({ report: { hits: [], nativeExceptions: [], projection: "current" } });
-    const lintRunner = standaloneRunner({ runReturns: CLEAN_RUN });
-    const report = await runCheck(
+    await runCheck(
       checkRequest({
         selectionRepository: selectionRepositoryReading(TWO_MECHANISM_READING),
-        exceptionRepository: exceptionRepositoryHolding({
+        exceptionRepository: exceptionRepositoryAtBase({
           working: [firstInSingleFile(WALKER_LOCATION), secondInSingleFile(LINT_LOCATION)],
-          base: [WALKER_LOCATION, LINT_LOCATION],
+          base: { outcome: "ok", value: [WALKER_LOCATION, LINT_LOCATION] },
         }),
-        modules: {
-          load: vi
-            .fn<ModuleLoaderPort["load"]>()
-            .mockResolvedValueOnce({ outcome: "ok", value: { runner } })
-            .mockResolvedValueOnce({ outcome: "ok", value: { runner: lintRunner } }),
-        },
+        modules: modulesLoading({ runner }),
       }),
     );
-    expect(report.outcome).toBe("ok");
-    expect(runner.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ records: [WALKER_RECORD] }));
+    expect(runner.run).toHaveBeenCalledTimes(2);
+    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({ records: [WALKER_RECORD] }));
+    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({ records: [LINT_RECORD] }));
   });
 });
 
@@ -902,5 +908,97 @@ describe("runCheck pointing a failing clause at where to read first", () => {
     await runCheck(checkRequest({ fileText }));
     expect(reads).not.toHaveBeenCalledWith({ path: ASSESSMENT_PATH });
     expect(checks).not.toHaveBeenCalledWith({ path: ASSESSMENT_PATH });
+    expect(reads).not.toHaveBeenCalledWith({ path: RULE_PAGE_PATH });
+    expect(checks).not.toHaveBeenCalledWith({ path: RULE_PAGE_PATH });
+  });
+});
+
+const LEGACY_CHAIN_FACTORY: StructuralExceptionEntry = {
+  kind: "authorised-location",
+  clause: "CD-14#class-syntax",
+  file: "src/factory.ts",
+  reason: "the wrapping factory for the library",
+  whyChain: LEGACY_WHY_CHAIN,
+};
+
+const REASON_ONLY_FACTORY: StructuralExceptionEntry = {
+  kind: "authorised-location",
+  clause: "CD-14#class-syntax",
+  file: "src/factory.ts",
+  reason: "the wrapping factory for the library",
+};
+
+const BASE_UNREADABLE: GitFailure = { kind: "git-failed", command: "git show", detail: "fatal: not a tree object" };
+
+const NO_FOR_OF = clauseAddressSchema.parse("CD-15#no-for-of");
+
+const legacyChainCheck = (base: ReturnType<ExceptionRepository["readAt"]>) =>
+  checkRequest({
+    exceptionRepository: exceptionRepositoryAtBase({ working: [firstInSingleFile(LEGACY_CHAIN_FACTORY)], base }),
+    git: FACTORY_ONLY_GIT,
+  });
+
+describe("runCheck handing each unit its input and reporting its answer", () => {
+  it("reports what the measurement leaves unmeasured: a legacy chain, when the records cannot be read at the base revision", async () => {
+    await expect(runCheck(legacyChainCheck({ outcome: "failed", error: BASE_UNREADABLE }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } }] },
+    });
+  });
+
+  it("asks for the records at the base revision it was given", async () => {
+    const check = legacyChainCheck({ outcome: "ok", value: [] });
+    await runCheck(check);
+    expect(check.exceptionRepository.readAt).toHaveBeenCalledExactlyOnceWith({ revision: "main" });
+  });
+
+  it("judges the records against the baseline it measured, refusing a legacy chain the base revision does not hold", async () => {
+    await expect(runCheck(legacyChainCheck({ outcome: "ok", value: [] }))).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 }, problem: { kind: "why-chain-refused" } }] },
+    });
+  });
+
+  it("judges the records against the selection, naming a record on a clause not adopted and one on a clause not run", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({
+            ...SELECTION_READING,
+            selection: { ...SELECTION_READING.selection, notAdopted: [ABSTRACT_SYNTAX], notRun: [NO_FOR_OF] },
+          }),
+          exceptionRepository: exceptionRepositoryHolding({
+            working: [
+              firstInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-14#abstract-syntax", whyChain: CAUSAL_WHY_CHAIN }),
+              secondInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-15#no-for-of", whyChain: CAUSAL_WHY_CHAIN }),
+            ],
+          }),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [{ problem: { kind: "clause-not-adopted" } }, { problem: { kind: "clause-not-run" } }] },
+    });
+  });
+
+  it("judges an authorised location by the why-chain rule the selection reads: refused for a reason alone when chains are required", async () => {
+    await expect(
+      runCheck(checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(REASON_ONLY_FACTORY)] }), git: FACTORY_ONLY_GIT })),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { invalidRecords: [{ place: { layout: "single-file", file: "discipline-exceptions.json", index: 0 } }] },
+    });
+  });
+
+  it("judges an authorised location by the why-chain rule the selection reads: held for a reason alone when chains are optional", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, fileExceptionWhyChains: "optional" }),
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(REASON_ONLY_FACTORY)] }),
+          git: FACTORY_ONLY_GIT,
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { invalidRecords: [], stale: [{ file: "src/factory.ts" }] } });
   });
 });

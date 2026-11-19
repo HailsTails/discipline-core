@@ -15,7 +15,7 @@ type AssessmentHeadings =
 
 type ReadingRequest = {
   readonly repoRoot: AbsolutePath;
-  readonly fileText: FileTextPort;
+  readonly fileText: Pick<FileTextPort, "read" | "exists">;
   readonly path: PathPort;
 };
 

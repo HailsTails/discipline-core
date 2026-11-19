@@ -2,6 +2,7 @@ import { createSelectionRepository } from "../consumer-selection/consumer-select
 import { type ExceptionRecord, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
 import type { ProjectionRequest } from "../mechanism-port/runner-module-schema.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
+import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { Result } from "../values/result.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { projectMechanism } from "./mechanism-dispatch.ts";
@@ -16,7 +17,9 @@ import {
   runnerFailed,
 } from "./run-check.ts";
 
-export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment" | "selectionRepository">;
+export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment" | "selectionRepository" | "fileText"> & {
+  readonly fileText: FileTextPort;
+};
 
 type ProjectionInputs = {
   readonly project: ProjectRequest;

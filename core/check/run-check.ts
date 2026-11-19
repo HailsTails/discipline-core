@@ -47,7 +47,7 @@ export type CheckRequest = {
   readonly moduleExtension: ModuleExtension;
   readonly baseRevision: string | undefined;
   readonly assessment: Assessment;
-  readonly fileText: FileTextPort;
+  readonly fileText: Pick<FileTextPort, "read" | "exists">;
   readonly modules: ModuleLoaderPort;
   readonly path: PathPort;
   readonly git: GitPort;
