@@ -90,7 +90,7 @@ Commit `package.json`, the lockfile and the tarball if it is a file in the repos
 
 ## 3. Read what each discipline means
 
-[rules/numbers.md](rules/numbers.md#every-numbered-discipline) lists every discipline, and [rules/README.md](rules/README.md) explains how the named pages read. Each discipline has two pages. `rules/<ID>/README.md` quotes the rule, names its review lens, and gives its spirit: what the friction is for, what a finding usually points at, the direction to go, and the principles behind it. `rules/<ID>/CHECKS.md` holds the mechanics: the Clauses table, exactly what each check flags, a violation and its fix, and how to record an exception. Read the rule page first; [the spirit of the rules](rules/SPIRIT.md) explains the approach for the whole set. A discipline's clause addresses are in its CHECKS.md Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the rule page names (step 9).
+[rules/numbers.md](rules/numbers.md#every-numbered-discipline) lists every discipline, and [rules/README.md](rules/README.md) explains how the named pages read. Rules are referred to by name; a number is only a clause address. Each numbered discipline has two pages. `rules/<ID>/README.md` gives its verdict, the named rules, recipes and symptoms to read, and its review lens. `rules/<ID>/CHECKS.md` holds the mechanics: the Clauses table, exactly what each check flags, a violation and its fix, and how to record an exception. Read the named pages first; [the spirit of the rules](rules/SPIRIT.md) explains the approach for the whole set. A discipline's clause addresses are in its CHECKS.md Clauses table, for example `CD-14#class-syntax`, with the mechanism that checks each clause. A clause whose mechanism is `review` is a judgement clause: it is applied in review, not by a check, with the review lens the rule page names (step 9).
 
 A check covers only what its CHECKS.md says it flags. Read the whole rule, not only the Clauses table: where a rule asks for more than its check can see, CHECKS.md says which part is left to review, and the rule's review lens covers that part.
 
@@ -267,13 +267,13 @@ A team that assesses decay in CI leaves `assessment` unset and runs `npm run --s
 
 The trade: a push that bypasses the hook, for example with `git push --no-verify`, leaves no later gate, so carve-out debt can stop decaying unnoticed. Every run that leaves decay to another run says so in its report (step 6). With `eslint` clauses, the repository's own `eslint` run also reports them in the editor, from the projection.
 
-Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. When a check fails, read the section for the failing clause in `disciplines.assessment.md` and the Spirit section of the clause's rule page before changing anything; do not add an exception, exclusion or setting to make it pass. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in `disciplines.assessment.md` with their review lenses." Copying the rule pages does not make an agent read them; the instruction does. Step 5a writes `disciplines.assessment.md`.
+Tell any coding agent working in the repository, in its project instructions: "Read the rule pages under `node_modules/@hailstails/hone/rules/` for the disciplines in `disciplines.json` before editing. When a check fails, read the section for the failing clause in `disciplines.assessment.md` and, in node_modules/@hailstails/hone/rules/typescript/symptoms.md, the "May indicate" and "Breach usually sits" lines of each symptom the clause's rule page names, before changing anything; do not add an exception, exclusion or setting to make it pass. Before handing off, run the repository's validation command, report its exit code and findings, and apply the judgement rules listed in `disciplines.assessment.md` with their review lenses." Copying the rule pages does not make an agent read them; the instruction does. Step 5a writes `disciplines.assessment.md`.
 
 ### 5a. Write the assessment
 
 The first run on an existing codebase usually fails, often with many findings. Each finding is a signal about the design: a missing boundary, an earlier choice that forces the workaround, a port wider than its use. Before fixing or recording anything, write down what the signals mean in this codebase, in `<repo>/disciplines.assessment.md`. Whoever later hits a red check then has more to go on than the assumption that the friction is unnecessary: the file says what that clause points at here and where the code is going.
 
-Each rule page's Spirit section lists the usual causes behind its findings. The assessment does not repeat them. It says which cause applies here, where, the forward goal in this codebase's terms, and the steps toward it.
+Each symptom on [the symptoms page](rules/typescript/symptoms.md) lists the cases it may indicate and where the breach usually sits. The assessment does not repeat them. It says which cause applies here, where, the forward goal in this codebase's terms, and the steps toward it.
 
 Start from the template the package ships:
 
@@ -293,8 +293,8 @@ Draft disciplines.assessment.md from node_modules/@hailstails/hone/methods/asses
 For each clause in the report's findings section whose findings will not all be fixed in this change:
 1. Measure. Count its findings and group them by folder, by the value, library or dependency involved, and by the shape of the code.
 2. Read the code at several sites in each group, not only the report lines.
-3. Read the clause's rule page, node_modules/@hailstails/hone/rules/<ID>/README.md, in full, and its Spirit section closely.
-4. Match each group against the causes listed under "What a finding points at". Name the cause exactly as the rule names it. If no listed cause fits, say so and describe what the sites show; do not pick the closest.
+3. Read the clause's rule page, node_modules/@hailstails/hone/rules/<ID>/README.md, and, in node_modules/@hailstails/hone/rules/typescript/symptoms.md, each symptom it names, closely.
+4. Match each group against the symptom's "May indicate" and "Breach usually sits" lines. Name the cause exactly as the symptoms page names it. If no listed cause fits, say so and describe what the sites show; do not pick the closest.
 5. Write the clause's section from the template: the cause, the count and example sites as file:line, the forward goal in this codebase's terms, and the steps that change the code toward it, starting with the step that unlocks the others.
 
 Exclusions, exceptions, settings and not adopting a clause are never a cause, a goal or a step. The Debt line says how existing debt is held while the steps are taken; write it last, after the rest of the section. A section that gives only counts, or whose steps are about recording exceptions, is not done.
@@ -350,7 +350,7 @@ To print less, set `"reportOutput"` in `disciplines.json` for the repository, or
 
 ## 7. Record exceptions
 
-Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the rule page's Spirit section and the clause's section in `disciplines.assessment.md` (step 5a), then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
+Before recording anything, take the chain in [the spirit of the rules](rules/SPIRIT.md#when-the-check-is-red): measure the sites for each failing clause, ask what each group points at using the "May indicate" and "Breach usually sits" lines of each symptom on [the symptoms page](rules/typescript/symptoms.md) and the clause's section in `disciplines.assessment.md` (step 5a), then decide. Fix the cause where you can; exceptions are not the first move. Where a file legitimately needs what a clause forbids, record it in `<repo>/discipline-exceptions.json`:
 
 - `authorised-location`: the clause does not apply to this one file, for example the single adapter that reads the real clock.
 - `file-carve-out`: known debt in one file. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`. An `eslint-disable` comment or a `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` directive already in a file is debt of this kind on the clause it escapes; a new one in a file with no record is `unrecorded`.

@@ -1,6 +1,8 @@
 # CD-10 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Symptoms: [Throw or catch in a test](../typescript/symptoms.md#throw-or-catch-in-a-test) and [Thrown non-error](../typescript/symptoms.md#thrown-non-error).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
 
@@ -38,11 +40,11 @@ it("loads the account", () => {
 Assert on the whole result. Branching in tests is also reported by CD-27.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` when a test file legitimately needs a throw, such as a shared test harness. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. The form accepts an `authorised-location` for this clause, as for any; in spirit [Throw or catch in a test](../typescript/symptoms.md#throw-or-catch-in-a-test) has no correct use, and a reviewer refuses one. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [
-  { "kind": "authorised-location", "clause": "CD-10#throws-in-tests", "file": "src/legacy/harness.test.ts", "reason": "..." }
+  { "kind": "file-carve-out", "clause": "CD-10#throws-in-tests", "file": "src/legacy/charge.test.ts" }
 ] }
 ```
 

@@ -2,6 +2,8 @@
 
 ## Rule
 
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) says where each number went.
+
 Structured logs redact personally-identifying data by default; a field becomes loggable only by explicitly opting in as safe. Redaction is the default so a new field is never accidentally leaked into logs — safety is the resting state, exposure the deliberate exception.
 
 Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).

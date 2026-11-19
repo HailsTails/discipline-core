@@ -1,6 +1,8 @@
 # CD-19 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
+Symptom: [Outside import past a boundary](../typescript/symptoms.md#outside-import-past-a-boundary).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: what each check flags and misses, how to fix a flagged site, and how to record an exception.
 
 ## Clauses
 
@@ -15,7 +17,7 @@ Read [the rule and its spirit](README.md) first. This page is the mechanics: wha
 - The source rule covers every third-party dependency; the check covers only the listed packages. The rest is left to review.
 
 ## Settings
-List each package the repository confines behind a wrapping port in `disciplines.json`, then record each wrapping file as an `authorised-location`:
+List each outside dependency the repository confines to its adapter in `disciplines.json`, then record each adapter file as an `authorised-location`:
 
 ```json
 "clauseSettings": {
@@ -32,13 +34,13 @@ import { v4 } from "uuid";
 
 ## How to fix
 ```ts
-import { createFileReader } from "./file-reader.ts";
-import { createIdGenerator } from "./id-generator.ts";
+import type { FileReader } from "./file-reader.ts";
+import type { IdGenerator } from "./id-generator.ts";
 ```
-Import your own port. Only the wrapping file imports the library.
+Import your own port and take it in the unit's argument. Only the adapter for that outside party imports the library.
 
 ## Exceptions
-Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` for the file that is the wrapping boundary for that dependency. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+Add an entry to `discipline-exceptions.json` at the repository root. Use `authorised-location` for the file that is the adapter for that outside dependency. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
 
 ```json
 { "version": 1, "exceptions": [

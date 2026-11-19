@@ -1,6 +1,8 @@
 # CD-44 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Symptoms: [Write into a parameter](../typescript/symptoms.md#write-into-a-parameter) and [Rebinding](../typescript/symptoms.md#rebinding).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
 

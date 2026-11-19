@@ -2,28 +2,14 @@
 
 ## Rule
 
-Test doubles are supplied through the unit's own injected dependencies, never by intercepting the module system. A module-mock, the test runner's name for replacing a module through the module system and not a mock in [the test-double sense](../CD-25/README.md#rule), is a signal that the dependency injection is wrong: if a unit reaches for a collaborator the test cannot substitute through the signature, the collaborator should have been a port. Fix the seam, don't mock the module.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Symptom of Written-out answers, Ports declared inside.
+
+**Read.** [Written-out answers](../rules.md#written-out-answers), [Ports declared inside](../rules.md#ports-declared-inside) and [Ports in the argument](../typescript/recipes.md#ports-in-the-argument).
 
 Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** If a test can only control a dependency by intercepting imports, production cannot swap it either. The friction makes passing the collaborator in the easy route, so the unit is the same code under test and in production.
-
-**What a finding points at.** Match the sites against these causes.
-- *A collaborator imported, not received.* The unit reaches its dependency through an import. Make it a port the unit receives in its argument.
-- *No place that wires.* Nothing builds the real dependencies and passes them in, so imports are the only wiring there is. Create one composition root.
-- *A port too big to stub.* Replacing the whole module is easier than writing doubles for a wide port. Narrow the port to what this unit uses.
-- *Ambient capabilities.* Time, randomness, environment or the filesystem read directly. Same cause; see CD-17 and CD-19.
-
-**Where to go.** Every collaborator arrives through the unit's own signature. Tests hand in test doubles exactly the way production hands in the real thing. Start with the module mocked most often; one port at a time.
-
-**Reactions to distrust.**
-- "It's just tests." The module-mock is the test reporting the design. The fix is in the unit.
-- "The framework's docs mock modules." A framework idiom does not make the seam right. Wrap the framework behind a port.
-- "Rewiring is too big." It is one port at a time, and each one removes a module-mock for good.
-
-**Principles behind it.**
-- *Dependency Inversion Principle* (Robert C. Martin, SOLID). The unit depends on an abstraction it is given, not on a concrete module it imports.
-- *Dependency injection and the composition root.* Dependencies are built in one place and passed in, so any of them can be replaced without touching the unit.
-- *Ports and adapters* (Alistair Cockburn, hexagonal architecture). A test is one more adapter plugged into the same port.
+Start from the symptom a finding names: [Module or global patched](../typescript/symptoms.md#module-or-global-patched). Each symptom names the cases it may indicate and the rules they point at. The why is on [Tests are ours](../principles.md#tests-are-ours) and [External behaviour sits at a boundary](../principles.md#external-behaviour-sits-at-a-boundary).

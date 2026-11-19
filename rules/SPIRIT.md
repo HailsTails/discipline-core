@@ -13,7 +13,7 @@ A finding is rarely about the line it names. It is a signal about the design aro
 Take this chain, in order.
 
 1. **Measure.** Count the sites for the failing clause. Group them by folder, by the value or dependency involved, and by who wrote them when.
-2. **Ask what each group points at.** Read the rule's Spirit section and match each group against its usual causes. Most groups share one cause.
+2. **Ask what each group points at.** Read the symptom's "May indicate" and "Breach usually sits" lines on [the symptoms page](typescript/symptoms.md) and match each group against them. Most groups share one cause.
 3. **Then decide.** Name the cause, where it lives, the forward goal, and the first step that unlocks it. Fix the cause and the sites go with it.
 
 Exclusions and settings are not the first move. Reaching for one before step 2 hides the signal before anyone has read it. A count that looks like noise is usually one missing boundary seen from many places.
@@ -43,8 +43,8 @@ Tests are not exempt. A test that needs a cast, a test double with logic, a modu
 
 ## Older than these rules
 
-Each rule encodes lessons programmers learned before us and wrote down under names you can look up: the SOLID principles, ports and adapters, "parse, don't validate", making illegal states unrepresentable, the test pyramid, the kinds of test double, and others. Each rule page names the principles behind it, with one line on how each applies. Read them to learn the pattern and the reasoning, not only the rule.
+Each rule encodes lessons programmers learned before us and wrote down under names you can look up: the SOLID principles, ports and adapters, "parse, don't validate", making illegal states unrepresentable, the test pyramid, the kinds of test double, and others. [The sources page](sources.md) names the source behind each principle, rule and recipe, and how the item relates to it. Read them to learn the pattern and the reasoning, not only the rule.
 
 ## Who does what
 
-Each rule's Spirit section names the usual causes behind its findings and the direction each points, so a reader can tell which one they have. The repository's own assessment then sharpens that to what is specific to the codebase and its intentions: which cause applies, where, the forward goal and the steps. It does not repeat the rule.
+Each symptom on [the symptoms page](typescript/symptoms.md) names the cases it may indicate and where the breach usually sits, so a reader can tell which one they have. The repository's own assessment then sharpens that to what is specific to the codebase and its intentions: which cause applies, where, the forward goal and the steps. It does not repeat the rule.

@@ -2,24 +2,14 @@
 
 ## Rule
 
-Operational error envelopes are plain, tagged data — constructed by a factory, inspected by a type guard, dispatched by an exhaustive switch on the tag — never authored classes extending the runtime's error type. Data-shaped errors compose, narrow, and serialise; class hierarchies for operational failure do not. The only authored error class is the single startup-invariant one the throw rule permits.
+This numbered page is the earlier form of this rule. The [named pages](../README.md) govern where they differ, and [Every CD](../numbers.md) maps each number to its names.
+
+**Verdict.** Recipe for [Failures are values](../rules.md#failures-are-values).
+
+**Read.** [Failures are values](../rules.md#failures-are-values) and [Result union](../typescript/recipes.md#result-union).
 
 Review lens: [errors-as-data](../../methods/lenses/errors-as-data.md). The lens reviews the whole rule, including what no check flags. How it is checked: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
 ## Spirit
 
-**What the friction is for.** Errors are values the code passes, narrows and serialises. The friction makes plain tagged data the easy shape, so errors compose like any other data.
-
-**What a finding points at.** Match the sites against these causes.
-- *Error hierarchies built by inheritance.* Error kinds are subclasses. Make them variants of one tagged union.
-- *Errors carrying behaviour.* Error objects have methods. Move the behaviour into functions that take the error.
-- *Errors that cannot cross a boundary.* Class instances lose their type when serialised. Plain data survives.
-
-**Where to go.** Each error is plain data with a tag, built by a factory and dispatched by an exhaustive switch.
-
-**Reactions to distrust.**
-- "Stack traces need the error class." Operational failures are expected outcomes, not bugs; they need context, not a trace.
-
-**Principles behind it.**
-- *Make illegal states unrepresentable* (Yaron Minsky). A closed union lists exactly the failures that exist; an open class hierarchy admits any subclass.
-- *Algebraic data types.* A tagged union of error variants is checked for exhaustiveness wherever it is handled.
+Start from the symptom a finding names: [Failure shaped as success](../typescript/symptoms.md#failure-shaped-as-success) and [Catch-all failure kind](../typescript/symptoms.md#catch-all-failure-kind). Each symptom names the cases it may indicate and the rules they point at. The why is on [The type checker proves it](../principles.md#the-type-checker-proves-it).

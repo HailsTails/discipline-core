@@ -1,6 +1,8 @@
 # CD-8 checks
 
-Read [the rule and its spirit](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
+Symptom: [Default on a closed union](../typescript/symptoms.md#default-on-a-closed-union).
+
+Read [the verdict and the named pages it points at](README.md) first. This page is the mechanics: how the rule is checked, and how to record an exception where the rule allows one.
 
 ## Clauses
 

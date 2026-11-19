@@ -374,3 +374,11 @@ Earlier releases never listed an `eslint` file record as `stale`. The off-switch
 
    `hone prune-debt` prints `<clause> removed <file>` for each record it removed. Commit the exception records and `disciplines.eslint.mjs`, and each package slice `hone project` writes. The check passes.
 5. **Look for a team override that surfaces.** An off-switch your own config places after the projection, for a rule and file a removed record held, was hidden behind the record. It is now listed under `unrecorded` as a `config-override`; [ADOPTING.md](ADOPTING.md#6-read-the-report) step 6 says what to do with it.
+
+## 18. Rules by name
+
+Rules, principles, cases, recipes and symptoms are now referred to by name, not by number. [rules/README.md](rules/README.md) explains how the named pages read.
+
+Nothing must be migrated. Selections, exception records and findings still use the numbered clause addresses, such as `CD-14#class-syntax`, and load and print as before. Each numbered `rules/<ID>/README.md` now gives its verdict and the named pages to read; its `CHECKS.md` still holds the check mechanics.
+
+[Every CD](rules/numbers.md) maps each number to its new names.
