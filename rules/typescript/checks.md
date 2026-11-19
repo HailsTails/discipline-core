@@ -8,7 +8,7 @@ Correct use at an authorised location is never margin: "it flagging the one allo
 
 Today's checks are addressed by clause. [Every CD](../numbers.md#every-mechanical-clause) gives the symptom each mechanical clause sees.
 
-Package: an outside dependency. An internal package is our own code. Telling an outside dependency from an internal package needs the workspace layout, which is files and config Hone can read.
+Outside dependency: what was called a package. An internal package is our own code. Telling an outside dependency from an internal package needs the workspace layout, which is files and config Hone can read.
 
 **Columns.**
 - **Reports:** *seen* (where the symptom is), or *seen → breach* (it could also name the breach, given what follows the arrow).
@@ -43,7 +43,7 @@ Package: an outside dependency. An internal package is our own code. Telling an 
 
 | Check for | Reports | Needs | Today | Margin | Settings traced to |
 |---|---|---|---|---|---|
-| Claimed type | seen → breach (the declaration, by types) | syntax | reuse | — / `any` reached through a package's types | `as const` allowed: Declared, not asserted |
+| Claimed type | seen → breach (the declaration, by types) | syntax | reuse | — / `any` reached through an outside dependency's types | `as const` allowed: Declared, not asserted |
 | Untyped value | seen | syntax | reuse | — / — | none |
 | Own type guard | seen | syntax | new | — / — | none |
 | Type derived from code | seen | syntax | reuse | text in comments / `Parameters<typeof>`, `typeof` alone | none |
@@ -126,7 +126,7 @@ Package: an outside dependency. An internal package is our own code. Telling an 
 | Prose in code | seen | syntax | new | — / — | tracked pointer form: [records](../records.md#what-is-not-a-record) |
 | Untracked escape | seen | syntax | reuse | — / — | reference form "need a digit": **nothing** |
 | Many spellings of one concept | seen | files (the vocabulary list) | new | — / — | the Domain vocabulary list recipe |
-| Package vocabulary for basic logic | seen | graph; workspace layout | new | — / — | which outside dependencies: nothing yet |
+| Outside dependency vocabulary for basic logic | seen | graph; workspace layout | new | — / — | which outside dependencies: nothing yet |
 | Duplicate decision | — | person; clones surface candidates | only review | review owes the ruling ("reasons to change") | — |
 | Change spread across modules | seen | history | new | — / — | none |
 
@@ -136,7 +136,7 @@ Package: an outside dependency. An internal package is our own code. Telling an 
 |---|---|---|---|---|---|
 | Floating version | seen | files | new | — / — | Fixed versions |
 | No lock file | seen | files | new | — / — | Fixed versions |
-| Dependency without a record | seen | files; records | new | — / — | Packages justified |
+| Dependency without a record | seen | files; records | new | — / — | Outside dependencies justified |
 | Tool fetched at run time | seen | files | new | — / — | Tools live in the repo |
 | Edit inside vendored code | seen | history | new | — / — | which folder is vendored: a boundary record |
 | Bundled dependency | seen | build output | new | — / — | Shipped risk declared (proposed, not accepted) |

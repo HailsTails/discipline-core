@@ -19,7 +19,7 @@ Where the thing seen is correct use, a [record](../records.md) covers it. The re
 
 **Check today** is how near today's checks come, from the [checks page](checks.md): reuse, partial, review (only a review clause covers it), new (nothing covers it), or only review (a person sees it).
 
-Package: an outside dependency. An internal package is our own code.
+Outside dependency: what was called a package. An internal package is our own code.
 
 ## The outside world reached directly
 
@@ -49,24 +49,24 @@ Package: an outside dependency. An internal package is our own code.
 
 ### Outside import past a boundary
 
-- **Seen:** An import, `import()` or `require` of a package or runtime module (`node:*`) in a file with no boundary record.
-- **May indicate:** Uses a system or service outside the program, Takes a package → Packages stay at boundaries; Ports declared inside.
+- **Seen:** An import, `import()` or `require` of an outside dependency or runtime module (`node:*`) in a file with no boundary record.
+- **May indicate:** Uses a system or service outside the program, Takes an outside dependency → Outside dependencies stay at boundaries; Ports declared inside.
 - **Breach usually sits:** A missing adapter and port. Correct use: boundary record.
 - **Seen by:** graph.
 - **Check today:** partial.
 
 ### Outside type in a signature
 
-- **Seen:** A type from a package or runtime library in a business-logic parameter, field or return, imported or inferred.
-- **May indicate:** Uses a system or service outside the program → Packages stay at boundaries; No leak.
+- **Seen:** A type from an outside dependency or runtime library in a business-logic parameter, field or return, imported or inferred.
+- **May indicate:** Uses a system or service outside the program → Outside dependencies stay at boundaries; No leak.
 - **Breach usually sits:** The adapter that hands the outside type inward.
 - **Seen by:** types.
 - **Check today:** new.
 
 ### Library class built in place
 
-- **Seen:** `new` on a class from a package, outside that package's adapter.
-- **May indicate:** Takes a package → Packages stay at boundaries; Keeps state or settings across calls → No hidden effects.
+- **Seen:** `new` on a class from an outside dependency, outside that dependency's adapter.
+- **May indicate:** Takes an outside dependency → Outside dependencies stay at boundaries; Keeps state or settings across calls → No hidden effects.
 - **Breach usually sits:** A missing adapter. Correct use: boundary record.
 - **Seen by:** types.
 - **Check today:** review.
@@ -320,7 +320,7 @@ Package: an outside dependency. An internal package is our own code.
 ### Inner layer imports outer
 
 - **Seen:** A domain or business-logic file that imports an adapter or infrastructure file.
-- **May indicate:** Uses a system or service outside the program → Ports declared inside; Packages stay at boundaries; External behaviour sits at a boundary.
+- **May indicate:** Uses a system or service outside the program → Ports declared inside; Outside dependencies stay at boundaries; External behaviour sits at a boundary.
 - **Breach usually sits:** The import, or a port declared on the wrong side.
 - **Seen by:** app.
 - **Check today:** review.
@@ -537,10 +537,10 @@ Package: an outside dependency. An internal package is our own code.
 - **Seen by:** person; the vocabulary list makes it checkable.
 - **Check today:** new.
 
-### Package vocabulary for basic logic
+### Outside dependency vocabulary for basic logic
 
-- **Seen:** An import of a utility or functional package (lodash, fp-ts) for branching, matching, transforming or results.
-- **May indicate:** Writes basic logic → Our code reads in the common language; Takes a package → Packages justified.
+- **Seen:** An import of a utility or functional outside dependency (lodash, fp-ts) for branching, matching, transforming or results.
+- **May indicate:** Writes basic logic → Our code reads in the common language; Takes an outside dependency → Outside dependencies justified.
 - **Breach usually sits:** The dependency.
 - **Seen by:** graph.
 - **Check today:** new.
@@ -565,8 +565,8 @@ Package: an outside dependency. An internal package is our own code.
 
 ### Floating version
 
-- **Seen:** A range (`^`, `~`, `*`, `x`) or a tag (`latest`, `lts`) for a package, a runtime or a CI action.
-- **May indicate:** Takes a package → Fixed versions.
+- **Seen:** A range (`^`, `~`, `*`, `x`) or a tag (`latest`, `lts`) for an outside dependency, a runtime or a CI action.
+- **May indicate:** Takes an outside dependency → Fixed versions.
 - **Breach usually sits:** The manifest or workflow.
 - **Seen by:** files.
 - **Check today:** new.
@@ -574,7 +574,7 @@ Package: an outside dependency. An internal package is our own code.
 ### No lock file
 
 - **Seen:** A repository with dependencies and no committed lock file.
-- **May indicate:** Takes a package → Fixed versions.
+- **May indicate:** Takes an outside dependency → Fixed versions.
 - **Breach usually sits:** The repository.
 - **Seen by:** files.
 - **Check today:** new.
@@ -582,7 +582,7 @@ Package: an outside dependency. An internal package is our own code.
 ### Dependency without a record
 
 - **Seen:** A direct dependency, tools included, with no record of the native way weighed.
-- **May indicate:** Takes a package → Packages justified.
+- **May indicate:** Takes an outside dependency → Outside dependencies justified.
 - **Breach usually sits:** The record.
 - **Seen by:** files.
 - **Check today:** new.
@@ -590,7 +590,7 @@ Package: an outside dependency. An internal package is our own code.
 ### Tool fetched at run time
 
 - **Seen:** `npx`, `dlx`, `bunx` or a download-and-run in a script, CI step or doc.
-- **May indicate:** Takes a package → Tools live in the repo.
+- **May indicate:** Takes an outside dependency → Tools live in the repo.
 - **Breach usually sits:** The script.
 - **Seen by:** files.
 - **Check today:** new.
@@ -598,7 +598,7 @@ Package: an outside dependency. An internal package is our own code.
 ### Edit inside vendored code
 
 - **Seen:** A change to a file inside a vendored folder.
-- **May indicate:** Takes a package → Upstream stays untouched.
+- **May indicate:** Takes an outside dependency → Upstream stays untouched.
 - **Breach usually sits:** The change. Correct use: an authorised location (drift).
 - **Seen by:** history.
 - **Check today:** new.

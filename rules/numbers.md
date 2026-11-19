@@ -21,19 +21,19 @@ Rules, principles, cases, recipes and symptoms are named, not numbered. This is 
 | [CD-5](CD-5/README.md) | Splits | One word everywhere; Declared, not asserted; records |
 | [CD-6](CD-6/README.md) | Keeps | [One word everywhere](rules.md#one-word-everywhere); casing a check |
 | [CD-7](CD-7/README.md) | Splits | One reason per module; One word everywhere; filename case a check |
-| [CD-7a](CD-7a/README.md) | Symptom | of [Packages stay at boundaries](rules.md#packages-stay-at-boundaries) |
+| [CD-7a](CD-7a/README.md) | Symptom | of [Outside dependencies stay at boundaries](rules.md#outside-dependencies-stay-at-boundaries) |
 | [CD-8](CD-8/README.md) | Symptom | of [Kinds are named](rules.md#kinds-are-named) |
 | [CD-9](CD-9/README.md) | Keeps | [Failures are values](rules.md#failures-are-values) |
 | [CD-10](CD-10/README.md) | Splits | Failures are values; Straight-through tests; throw-only-error a check |
 | [CD-11](CD-11/README.md) | Recipe | for [Failures are values](rules.md#failures-are-values) |
 | [CD-12](CD-12/README.md) | Recipe | for [Ports declared inside](rules.md#ports-declared-inside) |
 | [CD-13](CD-13/README.md) | Keeps | [Ports declared inside](rules.md#ports-declared-inside) |
-| [CD-14](CD-14/README.md) | Splits | no-class recipe; Packages stay at boundaries; state a case |
+| [CD-14](CD-14/README.md) | Splits | no-class recipe; Outside dependencies stay at boundaries; state a case |
 | [CD-15](CD-15/README.md) | Cases | of [No hidden effects](principles.md#no-hidden-effects) |
 | [CD-16](CD-16/README.md) | Merges | with CD-15 |
 | [CD-17](CD-17/README.md) | Cases | under Handed what it uses and One reason per module |
 | [CD-18](CD-18/README.md) | Cases | under [Ports declared inside](rules.md#ports-declared-inside) |
-| [CD-19](CD-19/README.md) | Splits | Packages stay at boundaries; Ports declared inside; construction and ids cases |
+| [CD-19](CD-19/README.md) | Splits | Outside dependencies stay at boundaries; Ports declared inside; construction and ids cases |
 | [CD-20](CD-20/README.md) | Merges | with CD-19 |
 | [CD-21](CD-21/README.md) | Cases | built at the entry point |
 | [CD-22](CD-22/README.md) | Recipe | for [Declared, not asserted](rules.md#declared-not-asserted) |

@@ -64,15 +64,15 @@ Cases name no language, tool or library.
 |---|---|---|
 | Names something | Language; One place | The domain's word, the same everywhere, at every scope. Values that travel together are named fields, never a position. If only a generic word fits, split it. An outside contract's names stay in its boundary. |
 | Explains something in prose | Language; Checker | The meaning goes in a name or a type. The only annotations are a pointer to a tracked issue and a tool directive. |
-| Writes basic logic (branching, matching, transforming, results) | Language; Outside risk | In the language's own constructs. No package's vocabulary stands in for it. |
+| Writes basic logic (branching, matching, transforming, results) | Language; Outside risk | In the language's own constructs. No outside dependency's vocabulary stands in for it. |
 
 ## Outside risk is carried on purpose
 
 | Case | Owes | What to do |
 |---|---|---|
-| Takes a package | Outside risk; Language, Boundary, One place | A record names the native way weighed and why it was not enough. It is used only inside the recorded boundary that needs it, with no wrapper, and its types and vocabulary never reach business logic. It never makes one of our decisions. |
+| Takes an outside dependency | Outside risk; Language, Boundary, One place | A record names the native way weighed and why it was not enough. It is used only inside the recorded boundary that needs it, with no wrapper, and its types and vocabulary never reach business logic. It never makes one of our decisions. |
 
-Package: an outside dependency. An internal package is our own code. An internal package falls under One place decides and the layering, not this case.
+Outside dependency: what was called a package. An internal package is our own code. An internal package falls under One place decides and the layering, not this case.
 
 ## Outside the cases
 

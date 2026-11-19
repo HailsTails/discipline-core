@@ -8,7 +8,7 @@ So every recipe says why it was chosen, and binds as far as that reason holds. *
 
 Where a reason is marked **proposed**, it is not yet accepted.
 
-Package: an outside dependency. An internal package is our own code.
+Outside dependency: what was called a package. An internal package is our own code.
 
 ## Tests are ours
 
@@ -168,11 +168,11 @@ The principle decides.
 
 ## External behaviour sits at a boundary
 
-### Packages stay at boundaries
+### Outside dependencies stay at boundaries
 
 #### Adapter per outside party
 
-- **Method:** A package or runtime module is imported only in the adapter file for the party it reaches. That adapter fulfils a port and returns our types. Nothing re-exports the package. `JSON.parse` is called inside the adapter for whoever produced the JSON.
+- **Method:** An outside dependency or runtime module is imported only in the adapter file for the party it reaches. That adapter fulfils a port and returns our types. Nothing re-exports the outside dependency. `JSON.parse` is called inside the adapter for whoever produced the JSON.
 - **Chosen because:** "I didn't want a json parse wrapper. I wanted a boundary on whoever made json"; "Json parse has no contract… Http fetch library for example has complexity to bind".
 - **You can tell because:** Each package import sits in a file with a boundary record.
 - **Industry name:** Adapter; Gateway; anti-corruption layer; Hexagonal Architecture (Cockburn).
@@ -308,11 +308,11 @@ Failure mapping at the adapter also serves Failures are values.
 
 [One argument object](#one-argument-object) also serves this rule.
 
-Casing is a check that runs the adopter's own lint. It is not a recipe. Basic logic in the language's own constructs is a case under the principle; its recipe is the native array and object methods, chosen because a package language for them is "language obscuring standard operations".
+Casing is a check that runs the adopter's own lint. It is not a recipe. Basic logic in the language's own constructs is a case under the principle; its recipe is the native array and object methods, chosen because an outside dependency's language for them is "language obscuring standard operations".
 
 ## Outside risk is carried on purpose
 
-### Packages justified
+### Outside dependencies justified
 
 #### Dependency record
 
@@ -321,7 +321,7 @@ Casing is a check that runs the adopter's own lint. It is not a recipe. Basic lo
 - **You can tell because:** Every entry in `package.json` has a record.
 - **Industry name:** architecture decision record (Nygard).
 
-An adopter is not handed our risk. This is a case under Packages justified. A peer dependency is a direct dependency of ours, so it needs a record. The risk it weighs is carried by whoever runs it, the adopter included.
+An adopter is not handed our risk. This is a case under Outside dependencies justified. A peer dependency is a direct dependency of ours, so it needs a record. The risk it weighs is carried by whoever runs it, the adopter included.
 
 ### Fixed versions
 

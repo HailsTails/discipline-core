@@ -42,7 +42,7 @@ Five kinds cover everything.
 
 ### Dependency record
 
-- **Answers:** Packages justified, and Dependency without a record.
+- **Answers:** Outside dependencies justified, and Dependency without a record.
 - **Must state:** The outside dependency; the native way weighed; why it fell short. For a peer dependency, the risk to whoever runs it.
 - **Scope:** One direct outside dependency.
 - **Stale or paid when:** Stale when the dependency is removed.

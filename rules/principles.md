@@ -39,7 +39,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Protects:** A change in a service, a runtime, a clock or a protocol never edits business logic.
 - **Reason to change:** The thing we call changes its behaviour.
 - **Breach:** In the business-logic file that makes the call. Shows as a vendor or adapter import in business logic, a module mock, or a result that differs per machine.
-- **Rules under it:** [Packages stay at boundaries](rules.md#packages-stay-at-boundaries), [Ports declared inside](rules.md#ports-declared-inside).
+- **Rules under it:** [Outside dependencies stay at boundaries](rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](rules.md#ports-declared-inside).
 - **Source:** This is Cockburn's ports and adapters, and Martin's rule that dependencies point inwards.
 
 ## No leak across a boundary
@@ -76,9 +76,9 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Must hold:** No outside code or tool is used by us, or changes version, except by a recorded decision of ours.
 - **Protects:** The upkeep we carry for other people's code (upgrades, vulnerabilities, drift) is upkeep we chose.
 - **Reason to change:** The risk an outside party's code puts on our upkeep changes: a release, a vulnerability, a compromise, an abandoned project.
-- **Breach:** In the manifest, the lock file, the pipeline or a vendored copy. Shows as a package with no record, a version that floats, a tool fetched at run time, a copy of upstream code that has drifted.
+- **Breach:** In the manifest, the lock file, the pipeline or a vendored copy. Shows as an outside dependency with no record, a version that floats, a tool fetched at run time, a copy of upstream code that has drifted.
 - **Differs from External behaviour sits at a boundary:** that principle keeps an outside change from editing business logic. This one decides whether the outside thing is here at all, and at which version.
-- **Rules under it:** [Packages justified](rules.md#packages-justified), [Fixed versions](rules.md#fixed-versions), [Tools live in the repo](rules.md#tools-live-in-the-repo), [Upstream stays untouched](rules.md#upstream-stays-untouched). Proposed, not accepted: [Shipped risk declared](rules.md#shipped-risk-declared).
+- **Rules under it:** [Outside dependencies justified](rules.md#outside-dependencies-justified), [Fixed versions](rules.md#fixed-versions), [Tools live in the repo](rules.md#tools-live-in-the-repo), [Upstream stays untouched](rules.md#upstream-stays-untouched). Proposed, not accepted: [Shipped risk declared](rules.md#shipped-risk-declared).
 - **Source:** This follows Twelve-Factor, OpenSSF and the SBOM: every dependency is declared, pinned and recorded.
 
 ## Not principles

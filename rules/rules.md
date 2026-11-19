@@ -60,12 +60,12 @@ No rule. The principle decides. State that changes between calls lives only in a
 
 ## External behaviour sits at a boundary
 
-Package: an outside dependency. An internal package is our own code, under One reason per module and the layering.
+Outside dependency: what was called a package. An internal package is our own code, under One reason per module and the layering.
 
-### Packages stay at boundaries
+### Outside dependencies stay at boundaries
 
-- **What must hold:** Production code uses a package only inside a recorded boundary, and no type from a package or a runtime library appears in business logic.
-- **Cases served:** Uses a system or service outside the program; Takes a package.
+- **What must hold:** Production code uses an outside dependency only inside a recorded boundary, and no type from an outside dependency or a runtime library appears in business logic.
+- **Cases served:** Uses a system or service outside the program; Takes an outside dependency.
 - **Source:** Freeman and Pryce wrap outside types thinly; this rule does so for every outside dependency.
 
 ### Ports declared inside
@@ -74,7 +74,7 @@ Package: an outside dependency. An internal package is our own code, under One r
 - **Cases served:** Uses a system or service outside the program; Causes an effect.
 - **Source:** Martin's DIP: the abstraction belongs to the side that uses it.
 
-The clock, random values, new ids and outside ordering are a case: the principle plus Ports declared inside give it. A package is not wrapped: it is used inside the boundary that needs it.
+The clock, random values, new ids and outside ordering are a case: the principle plus Ports declared inside give it. An outside dependency is not wrapped: it is used inside the boundary that needs it.
 
 ## No leak across a boundary
 
@@ -114,28 +114,28 @@ Casing is a check under this rule. Writing basic logic in the language's own con
 
 ## Outside risk is carried on purpose
 
-### Packages justified
+### Outside dependencies justified
 
 - **What must hold:** Every direct dependency, tools included, has a record that names the native way it was weighed against and why that way was not enough.
-- **Cases served:** Takes a package.
+- **Cases served:** Takes an outside dependency.
 - **Source:** Ours: a written reason for every outside dependency.
 
 ### Fixed versions
 
 - **What must hold:** Every version we run is fixed exactly in the repository, by a pin or a lock file.
-- **Cases served:** Takes a package.
+- **Cases served:** Takes an outside dependency.
 - **Source:** OpenSSF Scorecard pins dependencies against supply-chain compromise.
 
 ### Tools live in the repo
 
 - **What must hold:** Every tool we run is a dependency of the repository; none is fetched when it runs.
-- **Cases served:** Takes a package.
+- **Cases served:** Takes an outside dependency.
 - **Source:** Twelve-Factor: no reliance on system-wide tools.
 
 ### Upstream stays untouched
 
 - **What must hold:** Vendored outside code is never edited; our change sits in an extension of ours outside it.
-- **Cases served:** Takes a package.
+- **Cases served:** Takes an outside dependency.
 - **Source:** Martin's Open-Closed Principle, applied to code we do not own.
 
 ### Shipped risk declared

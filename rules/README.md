@@ -46,7 +46,7 @@ Rules, principles, cases, recipes and symptoms are named, not numbered. A name's
 - **Adapter:** a unit inside a recorded boundary that fulfils a port.
 - **Passed in:** given as an argument or to the factory that built the unit. Never imported.
 - **One decision:** one reason to change.
-- **Package:** an outside dependency. An internal package is our own code.
+- **Outside dependency:** what was called a package. An internal package is our own code.
 
 ## The pages
 
