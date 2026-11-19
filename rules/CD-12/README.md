@@ -18,7 +18,7 @@ Review lens: [clean-architecture](../../methods/lenses/clean-architecture.md). T
 **Where to go.** The domain depends on repository ports. Adapters compose the driver behind them.
 
 **Reactions to distrust.**
-- "We'll never change the database." The port is also what lets tests use an in-memory fake of storage.
+- "We'll never change the database." The port is also what lets tests stub storage.
 
 **Principles behind it.**
 - *Repository* (Martin Fowler, *Patterns of Enterprise Application Architecture*). A collection-like interface between the domain and data mapping.

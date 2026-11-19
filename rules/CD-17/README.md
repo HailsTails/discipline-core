@@ -2,7 +2,7 @@
 
 ## Rule
 
-Time is an injected capability, not an ambient global: domain code never calls the runtime's now-primitives directly, it reads the current instant through a clock port. Real time enters through exactly one clock abstraction; tests inject a fake clock and advance it deterministically. Bare time construction anywhere else makes behaviour impossible to replace with a test double, and non-deterministic.
+Time is an injected capability, not an ambient global: domain code never calls the runtime's now-primitives directly, it reads the current instant through a clock port. Real time enters through exactly one clock abstraction; tests inject a stub clock that returns written-out instants. Bare time construction anywhere else makes behaviour impossible to replace with a test double, and non-deterministic.
 
 Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-discipline](../../methods/lenses/test-discipline.md). The lens reviews the whole rule, including what no check flags. What each check flags, how to fix a flagged site, and how to record an exception: [CHECKS.md](CHECKS.md). The thinking behind every rule: [the spirit of the rules](../SPIRIT.md).
 
@@ -13,8 +13,8 @@ Review lens: [di-discipline](../../methods/lenses/di-discipline.md), [test-disci
 **What a finding points at.** Match the sites against these causes.
 - *Decisions that read the clock.* Business logic asks for the current time in the middle of a calculation. Pass the instant in, or inject the clock.
 - *Time stamped in many places.* Many sites stamp records or events. One clock port at the edge; the instant travels inward as data.
-- *Tests that wait or depend on wall time.* Flaky or slow tests point at a missing clock port. Inject a fake clock and advance it.
-- *Tests that build their own instants.* A test making dates for itself is choosing time outside the clock. Take instants from the fake clock.
+- *Tests that wait or depend on wall time.* Flaky or slow tests point at a missing clock port. Inject a stub clock that returns written-out instants.
+- *Tests that build their own instants.* A test making dates for itself is choosing time outside the clock. Take instants from the stub clock.
 
 **Where to go.** One clock abstraction reads real time. Everything else receives an instant or the clock. Tests set the time they need.
 
