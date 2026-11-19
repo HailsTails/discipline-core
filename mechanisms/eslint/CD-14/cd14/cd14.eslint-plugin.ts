@@ -1,5 +1,6 @@
 import type { ESLint, Rule } from "eslint";
 import { defaultNativeRuleSources, type NativeRuleSources, typescriptEslintRules } from "../../runner/native-rules.ts";
+import { type ClassSite, siteRule } from "../../runner/rule-sites.ts";
 
 export type ClassSyntax = {
 	readonly filename: string;
@@ -71,7 +72,15 @@ const reportAtClassKeyword = ({
 	}
 	context.report({ loc: keyword.loc, messageId: "noClass" });
 };
-const noClassAuthoring: Rule.RuleModule = {
+const classKindOf = ({ node }: { readonly node: ClassSite }): ClassSyntax["kind"] => {
+	switch (node.type) {
+		case "ClassDeclaration":
+			return "declaration";
+		case "ClassExpression":
+			return "expression";
+	}
+};
+const noClassAuthoring = siteRule({
 	meta: {
 		type: "problem",
 		docs: { description: "Disallow authored runtime classes (CD-14)" },
@@ -81,7 +90,7 @@ const noClassAuthoring: Rule.RuleModule = {
 				"CD-14: use functions and closure-backed factories instead of authoring a class.",
 		},
 	},
-	create(context) {
+	observe: (context) => {
 		const reportClass = ({
 			node,
 			kind,
@@ -99,11 +108,10 @@ const noClassAuthoring: Rule.RuleModule = {
 			reportAtClassKeyword({ context, node });
 		};
 		return {
-			ClassDeclaration: (node) => reportClass({ node, kind: "declaration" }),
-			ClassExpression: (node) => reportClass({ node, kind: "expression" }),
+			classes: (node) => reportClass({ node, kind: classKindOf({ node }) }),
 		};
 	},
-};
+});
 const eslintPlugin = <Plugin extends ESLint.Plugin>(plugin: Plugin): Plugin => plugin;
 export const createPlugin = (sources: NativeRuleSources): ClassAuthoringPlugin =>
 	eslintPlugin({

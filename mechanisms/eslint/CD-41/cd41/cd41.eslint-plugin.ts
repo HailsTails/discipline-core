@@ -1,4 +1,5 @@
 import type { AST, Rule, SourceCode } from "../../runner/eslint-instance.ts";
+import { type CallSite, functionSiteOf, siteRule } from "../../runner/rule-sites.ts";
 
 type FunctionScore = { readonly node: Rule.Node; readonly score: number };
 
@@ -13,15 +14,17 @@ type Walk = {
 
 type LogicalRun = "starts-run" | "continues-run";
 
+type CalleeNode = CallSite["callee"];
+
+type MemberCallee = Extract<CalleeNode, { readonly type: "MemberExpression" }>;
+
+type CalleeChain = { readonly root: string; readonly members: readonly string[] };
+
+type CallbackRole = "suite-body" | "callable";
+
 const MAX_COGNITIVE_COMPLEXITY = 15;
 
 const MAX_FUNCTION_LINES = 50;
-
-const FUNCTION_TYPES: ReadonlySet<string> = new Set([
-  "FunctionDeclaration",
-  "FunctionExpression",
-  "ArrowFunctionExpression",
-]);
 
 const LOOP_TYPES: ReadonlySet<string> = new Set([
   "ForStatement",
@@ -38,6 +41,27 @@ const ACCESSOR_KINDS: ReadonlySet<string> = new Set(["get", "set"]);
 const MEMBER_TYPES: ReadonlySet<string> = new Set(["MethodDefinition", "Property", "TSAbstractMethodDefinition"]);
 
 const BRACES: ReadonlySet<string> = new Set(["{", "}"]);
+
+const SUITE_ROOTS: ReadonlySet<string> = new Set(["describe", "suite", "fdescribe", "xdescribe", "fsuite", "xsuite"]);
+
+const SUITE_MODIFIERS: ReadonlySet<string> = new Set([
+  "each",
+  "for",
+  "only",
+  "skip",
+  "todo",
+  "concurrent",
+  "sequential",
+  "shuffle",
+  "skipIf",
+  "runIf",
+]);
+
+const PLAYWRIGHT_SUITE = {
+  root: "test",
+  member: "describe",
+  modifiers: new Set(["only", "skip", "fixme", "serial", "parallel"]),
+} as const;
 
 const LINE_BREAK = /\r\n|[\r\n]/gu;
 
@@ -137,10 +161,24 @@ const walkedIf = (request: Walk): WalkedScore =>
     increment: 1 + request.nesting,
   });
 
-const NESTING_STRUCTURES: Readonly<Record<string, ReadonlySet<string>>> = {
-  SwitchStatement: new Set(["cases"]),
-  ConditionalExpression: new Set(["consequent", "alternate"]),
-  CatchClause: new Set(["body"]),
+const SWITCH_NESTED_KEYS: ReadonlySet<string> = new Set(["cases"]);
+
+const CONDITIONAL_NESTED_KEYS: ReadonlySet<string> = new Set(["consequent", "alternate"]);
+
+const CATCH_NESTED_KEYS: ReadonlySet<string> = new Set(["body"]);
+
+const nestedKeysOf = (request: { readonly node: Rule.Node }): ReadonlySet<string> | undefined => {
+  const node = request.node;
+  if (LOOP_TYPES.has(node.type)) {
+    return LOOP_BODY_KEYS;
+  }
+  if (node.type === "SwitchStatement") {
+    return SWITCH_NESTED_KEYS;
+  }
+  if (node.type === "ConditionalExpression") {
+    return CONDITIONAL_NESTED_KEYS;
+  }
+  return node.type === "CatchClause" ? CATCH_NESTED_KEYS : undefined;
 };
 
 const structureIncrement = (request: Walk): number => {
@@ -163,7 +201,7 @@ const walkedTry = (request: Walk): WalkedScore => {
 
 const walked = (request: Walk): WalkedScore => {
   const node = request.node;
-  if (FUNCTION_TYPES.has(node.type)) {
+  if (functionSiteOf({ node }) !== undefined) {
     const nested = scoredFunction({ node, nesting: request.nesting + 1, sourceCode: request.sourceCode });
     return { own: 0, nested: [{ node, score: nested.own }, ...nested.nested] };
   }
@@ -173,7 +211,7 @@ const walked = (request: Walk): WalkedScore => {
   if (node.type === "TryStatement") {
     return walkedTry(request);
   }
-  const nestedKeys = LOOP_TYPES.has(node.type) ? LOOP_BODY_KEYS : NESTING_STRUCTURES[node.type];
+  const nestedKeys = nestedKeysOf({ node });
   if (nestedKeys !== undefined) {
     return withOwn({ score: walkedChildren({ ...request, nestedKeys }), increment: 1 + request.nesting });
   }
@@ -213,6 +251,60 @@ const accessorDisposition = (request: { readonly node: Rule.Node }): "accessor" 
     : "callable";
 };
 
+const memberNameOf = (request: { readonly member: MemberCallee }): string | undefined => {
+  const property = request.member.property;
+  if (property.type === "Identifier" && !request.member.computed) {
+    return property.name;
+  }
+  return property.type === "Literal" && typeof property.value === "string" ? property.value : undefined;
+};
+
+const calleeChainOf = (request: { readonly callee: CalleeNode; readonly members: readonly string[] }): CalleeChain | undefined => {
+  const callee = request.callee;
+  if (callee.type === "Identifier") {
+    return { root: callee.name, members: request.members };
+  }
+  if (callee.type === "CallExpression") {
+    return calleeChainOf({ callee: callee.callee, members: request.members });
+  }
+  if (callee.type === "TaggedTemplateExpression") {
+    return calleeChainOf({ callee: callee.tag, members: request.members });
+  }
+  if (callee.type !== "MemberExpression") {
+    return undefined;
+  }
+  const name = memberNameOf({ member: callee });
+  return name === undefined ? undefined : calleeChainOf({ callee: callee.object, members: [name, ...request.members] });
+};
+
+const modifiedSuiteRole = (request: {
+  readonly members: readonly string[];
+  readonly modifiers: ReadonlySet<string>;
+}): CallbackRole => (request.members.every((member) => request.modifiers.has(member)) ? "suite-body" : "callable");
+
+const chainRole = (request: { readonly chain: CalleeChain | undefined }): CallbackRole => {
+  const chain = request.chain;
+  if (chain === undefined) {
+    return "callable";
+  }
+  if (SUITE_ROOTS.has(chain.root)) {
+    return modifiedSuiteRole({ members: chain.members, modifiers: SUITE_MODIFIERS });
+  }
+  const [first, ...rest] = chain.members;
+  return chain.root === PLAYWRIGHT_SUITE.root && first === PLAYWRIGHT_SUITE.member
+    ? modifiedSuiteRole({ members: rest, modifiers: PLAYWRIGHT_SUITE.modifiers })
+    : "callable";
+};
+
+const callbackRole = (request: { readonly node: Rule.Node }): CallbackRole => {
+  const call = request.node.parent;
+  if (call?.type !== "CallExpression" || call.callee === request.node) {
+    return "callable";
+  }
+  const curried = call.parent?.type === "CallExpression" && call.parent.callee === call;
+  return curried ? "callable" : chainRole({ chain: calleeChainOf({ callee: call.callee, members: [] }) });
+};
+
 const functionLineCount = (request: { readonly body: Rule.Node; readonly sourceCode: SourceCode }): number =>
   request.sourceCode
     .getTokens(request.body)
@@ -223,7 +315,15 @@ const functionLineCount = (request: { readonly body: Rule.Node; readonly sourceC
       return lines + (request.sourceCode.text.slice(triviaStart, token.range[0]).match(LINE_BREAK)?.length ?? 0);
     }, 0);
 
-const cognitiveComplexity: Rule.RuleModule = {
+const enclosure = (request: { readonly node: Rule.Node }): "enclosed" | "outermost" => {
+  const parent = request.node.parent;
+  if (parent === null) {
+    return "outermost";
+  }
+  return functionSiteOf({ node: parent }) === undefined ? enclosure({ node: parent }) : "enclosed";
+};
+
+const cognitiveComplexity = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Limit each function's cognitive complexity to 15 (CD-41)" },
@@ -233,7 +333,7 @@ const cognitiveComplexity: Rule.RuleModule = {
         "CD-41: this function's cognitive complexity is {{score}}, above the limit of {{max}}; move the branching into helpers it composes.",
     },
   },
-  create: (context) => {
+  observe: (context) => {
     const reportScored = (scored: FunctionScore): void => {
       const loc = functionNameLoc({ node: scored.node, sourceCode: context.sourceCode });
       if (loc === undefined) {
@@ -246,7 +346,7 @@ const cognitiveComplexity: Rule.RuleModule = {
       });
     };
     const scoreOutermost = (node: Rule.Node): void => {
-      if (context.sourceCode.getAncestors(node).some((ancestor) => FUNCTION_TYPES.has(ancestor.type))) {
+      if (enclosure({ node }) === "enclosed") {
         return;
       }
       const scored = scoredFunction({ node, nesting: 0, sourceCode: context.sourceCode });
@@ -254,16 +354,17 @@ const cognitiveComplexity: Rule.RuleModule = {
         .filter((entry) => entry.score > MAX_COGNITIVE_COMPLEXITY)
         .forEach(reportScored);
     };
-    return {
-      FunctionDeclaration: scoreOutermost,
-      FunctionExpression: scoreOutermost,
-      ArrowFunctionExpression: scoreOutermost,
-    };
+    return { functions: scoreOutermost };
   },
-};
+});
 
 const reportLongFunction = (request: { readonly context: Rule.RuleContext; readonly node: Rule.Node }): void => {
-  if (accessorDisposition({ node: request.node }) === "accessor" || !("body" in request.node) || !isNode(request.node.body)) {
+  if (
+    accessorDisposition({ node: request.node }) === "accessor" ||
+    callbackRole({ node: request.node }) === "suite-body" ||
+    !("body" in request.node) ||
+    !isNode(request.node.body)
+  ) {
     return;
   }
   const lines = functionLineCount({ body: request.node.body, sourceCode: request.context.sourceCode });
@@ -277,7 +378,7 @@ const reportLongFunction = (request: { readonly context: Rule.RuleContext; reado
   });
 };
 
-const functionLength: Rule.RuleModule = {
+const functionLength = siteRule({
   meta: {
     type: "suggestion",
     docs: { description: "Limit each function body to 50 lines (CD-41)" },
@@ -286,12 +387,8 @@ const functionLength: Rule.RuleModule = {
       functionLength: "CD-41: this function body has {{lines}} lines, above the limit of {{max}}; split it into helpers.",
     },
   },
-  create: (context) => ({
-    FunctionDeclaration: (node) => reportLongFunction({ context, node }),
-    FunctionExpression: (node) => reportLongFunction({ context, node }),
-    ArrowFunctionExpression: (node) => reportLongFunction({ context, node }),
-  }),
-};
+  observe: (context) => ({ functions: (node) => reportLongFunction({ context, node }) }),
+});
 
 export default {
   meta: { name: "hone-cd41", version: "0.0.0-local" },

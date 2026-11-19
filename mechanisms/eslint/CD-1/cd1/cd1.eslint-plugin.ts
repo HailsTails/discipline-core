@@ -1,5 +1,6 @@
 import type { Rule } from "../../runner/eslint-instance.ts";
 import { defaultNativeRuleSources, type NativeRuleSources, typescriptEslintRules } from "../../runner/native-rules.ts";
+import { siteRule } from "../../runner/rule-sites.ts";
 
 type DeclaredBinding = {
   readonly init?: unknown;
@@ -25,7 +26,7 @@ const governedFile = (request: { readonly filename: string }): "governed" | "not
 const loopHeadDisposition = (request: { readonly node: Rule.Node }): "loop-head" | "statement" =>
   request.node.parent !== null && LOOP_HEADS.has(request.node.parent.type) ? "loop-head" : "statement";
 
-const implicitAnyLet: Rule.RuleModule = {
+const implicitAnyLet = siteRule({
   meta: {
     type: "problem",
     docs: { description: "Disallow let and var declarations with neither a type nor an initialiser (CD-1)" },
@@ -34,8 +35,8 @@ const implicitAnyLet: Rule.RuleModule = {
       implicitAny: "CD-1: give this variable a type annotation or an initialiser so it is not implicitly any.",
     },
   },
-  create: (context) => ({
-    VariableDeclaration: (node) => {
+  observe: (context) => ({
+    variableDeclarations: (node) => {
       if (node.kind === "const" || governedFile({ filename: context.filename }) === "not-governed") {
         return;
       }
@@ -49,7 +50,7 @@ const implicitAnyLet: Rule.RuleModule = {
       context.report({ node: implicit.id, messageId: "implicitAny" });
     },
   }),
-};
+});
 
 export const createPlugin = (sources: NativeRuleSources) => ({
   meta: { name: "hone-cd1", version: "0.0.0-local" },
