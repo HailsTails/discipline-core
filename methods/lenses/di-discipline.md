@@ -117,10 +117,9 @@ reached for through the module system). Walk the diff for both.
   attached to**: a DI-delivered test double (permitted) or an imported binding
   (violation).
 - **Test doubles through the seam are not module interception.** A test that
-  constructs a stub or spy as an object literal, a factory-built stub, a shared
-  in-memory fake of a port, or a recording spy function, and delivers it through
-  the unit's constructor or argument, is the exact pattern the discipline
-  channels toward — not a finding. In common speech "mock" covers both a double
+  constructs a stub or spy as an object literal, a factory-built stub, or a
+  recording spy function, and delivers it through the unit's constructor or
+  argument, is the exact pattern the discipline channels toward — not a finding. In common speech "mock" covers both a double
   passed through the seam and module interception. In the taxonomy a mock is only
   a double that verifies expectations set on it, and module interception is not a
   double at all: the rules permit doubles through the seam and forbid
@@ -149,7 +148,7 @@ raw global call on a "convenience" path; a default factory present but the boot
 path constructing the port inline beside it; a middleware generic that compiles
 because its context happens to carry the field, yet is unbound so a different
 pipeline would crash; a spy that looks like clean observation but is attached to
-an imported module; an in-memory fake that is actually wired through module
+an imported module; a stub that is actually wired through module
 interception rather than the seam. A finding here must explain *how the code reads
 DI-clean yet the dependency is still reached for ambiently*, grounded in the
 specific loaded rule. Vague phrasings ("tight coupling", "hard to test") are the

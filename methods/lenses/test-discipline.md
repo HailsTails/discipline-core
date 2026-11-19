@@ -20,7 +20,7 @@ recur across codebases under different names:
   threshold.
 - **Zero-everything tests.** A test body is a straight line: arrange → act →
   assert. No control flow, no loops, no branches, no mutated capture, no
-  unpredictability. N cases means N tests. Uniform cases, such as the rows of a table, are one parameterised test over the rows (the framework's `each`), never a loop inside a test body, and never one hand-written test per row. Variability is supplied by injected test doubles (stubs with canned answers, or a fake clock that the test advances), never computed inside the test.
+  unpredictability. N cases means N tests. Uniform cases, such as the rows of a table, are one parameterised test over the rows (the framework's `each`), never a loop inside a test body, and never one hand-written test per row. Variability is supplied by injected test doubles (stubs with canned answers), never computed inside the test.
 - **Assert only the unit's own responsibility.** A test inspects what its unit
   produces and how it calls its collaborators — never the internal logic of a
   delegate reached transitively.
