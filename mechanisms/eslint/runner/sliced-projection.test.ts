@@ -7,6 +7,7 @@ import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import { type CurrentProjection, type ProjectionFiles, projectionText } from "./projection.ts";
+import type { ProjectionStates } from "./projection-states.ts";
 import type { ConfigRoot } from "./projection-slices.ts";
 import {
   packageSliceProblemsOf,
@@ -83,8 +84,12 @@ const present = (text: string): CurrentProjection => ({ presence: "present", tex
 
 const REPOSITORY_PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
 
-const projectionFilesHolding = (current: CurrentProjection) => ({
-  currentAt: vi.fn<ProjectionFiles["currentAt"]>().mockReturnValue({ outcome: "ok", value: current }),
+const PACKAGE_A_SLICE_FILE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
+
+const OLD_SLICE_FILE = repoPathSchema.parse("packages/old/disciplines.eslint.mjs");
+
+const projectionFilesHolding = (states: ProjectionStates) => ({
+  currentOf: vi.fn<ProjectionFiles["currentOf"]>().mockReturnValue({ outcome: "ok", value: states }),
   writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValue({ outcome: "ok", value: { path: REPOSITORY_PROJECTION, effect: "written" } }),
   removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
@@ -132,10 +137,28 @@ describe("packageSliceProblemsOf", () => {
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        projectionFiles: projectionFilesHolding(ABSENT),
+        projectionFiles: projectionFilesHolding(new Map([[PACKAGE_A_SLICE_FILE, ABSENT]])),
         roots: [REPOSITORY, PACKAGE_A],
       }),
     ).toEqual({ outcome: "ok", value: [{ slice: "packages/a/disciplines.eslint.mjs", state: "missing" }] });
+  });
+
+  it("fails as the projection files fail when the package slices cannot be read", () => {
+    expect(
+      packageSliceProblemsOf({
+        clauses: [CLASS_CLAUSE],
+        records: [carveOutInLegacy],
+        origin: ORIGIN,
+        projectionFiles: {
+          ...projectionFilesHolding(new Map()),
+          currentOf: vi.fn<ProjectionFiles["currentOf"]>().mockReturnValue({
+            outcome: "failed",
+            error: { kind: "file-unreadable", file: PACKAGE_A_SLICE_FILE, detail: "EACCES" },
+          }),
+        },
+        roots: [REPOSITORY, PACKAGE_A],
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "file-unreadable", file: "packages/a/disciplines.eslint.mjs", detail: "EACCES" } });
   });
 
   it("names a package slice whose bytes differ from its generation as out-of-date", () => {
@@ -144,31 +167,56 @@ describe("packageSliceProblemsOf", () => {
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
-        projectionFiles: projectionFilesHolding(present(EMPTY_PACKAGE_SLICE)),
+        projectionFiles: projectionFilesHolding(new Map([[PACKAGE_A_SLICE_FILE, present(EMPTY_PACKAGE_SLICE)]])),
         roots: [REPOSITORY, PACKAGE_A],
       }),
     ).toEqual({ outcome: "ok", value: [{ slice: "packages/a/disciplines.eslint.mjs", state: "out-of-date" }] });
   });
 
+  it("names nothing and asks for no slice when no config root is a package", () => {
+    const projectionFiles = projectionFilesHolding(new Map());
+    expect(
+      packageSliceProblemsOf({ clauses: [CLASS_CLAUSE], records: [], origin: ORIGIN, projectionFiles, roots: [REPOSITORY] }),
+    ).toEqual({ outcome: "ok", value: [] });
+    expect(projectionFiles.currentOf).not.toHaveBeenCalled();
+  });
+
   it("names nothing for a current package slice and never reads or names the repository root's projection", () => {
-    const projectionFiles = projectionFilesHolding(present(PACKAGE_A_SLICE));
-    expect({
-      problems: packageSliceProblemsOf({
+    const projectionFiles = projectionFilesHolding(new Map([[PACKAGE_A_SLICE_FILE, present(PACKAGE_A_SLICE)]]));
+    expect(
+      packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
         origin: ORIGIN,
         projectionFiles,
         roots: [REPOSITORY, PACKAGE_A],
       }),
-      read: projectionFiles.currentAt.mock.calls,
-    }).toEqual({ problems: { outcome: "ok", value: [] }, read: [[{ file: "packages/a/disciplines.eslint.mjs" }]] });
+    ).toEqual({ outcome: "ok", value: [] });
+    expect(projectionFiles.currentOf).toHaveBeenCalledExactlyOnceWith({ files: [PACKAGE_A_SLICE_FILE] });
   });
 });
 
 describe("slicedProjectionWrites over the config roots", () => {
+  it("asks once for the state of every config root's slice", () => {
+    const projectionFiles = projectionFilesHolding(new Map());
+
+    slicedProjectionWrites({
+      clauses: [CLASS_CLAUSE],
+      records: [],
+      origin: ORIGIN,
+      projectionFiles,
+      roots: [REPOSITORY, PACKAGE_A],
+      trackedPaths: [OLD_SLICE_FILE],
+    });
+
+    expect(projectionFiles.currentOf).toHaveBeenCalledExactlyOnceWith({
+      files: [REPOSITORY_PROJECTION, PACKAGE_A_SLICE_FILE, OLD_SLICE_FILE],
+    });
+  });
+
   it("writes one slice per config root, the repository root first, each at its own folder", () => {
     const projectionFiles = {
-      ...projectionFilesHolding(ABSENT),
+      ...projectionFilesHolding(new Map()),
       writeAt: vi
         .fn<ProjectionFiles["writeAt"]>()
         .mockReturnValueOnce({ outcome: "ok", value: { path: REPOSITORY_PROJECTION, effect: "written" } })
@@ -203,7 +251,7 @@ describe("slicedProjectionWrites over the config roots", () => {
 
 describe("slicedProjectionWrites over tracked slices outside every config root", () => {
   it("removes a tracked slice whose folder is no longer a config root when its bytes are exactly what Hone would write there", () => {
-    const projectionFiles = projectionFilesHolding(present(EMPTY_PACKAGE_SLICE));
+    const projectionFiles = projectionFilesHolding(new Map([[OLD_SLICE_FILE, present(EMPTY_PACKAGE_SLICE)]]));
 
     expect({
       result: slicedProjectionWrites({
@@ -212,7 +260,7 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
         origin: ORIGIN,
         projectionFiles,
         roots: [REPOSITORY],
-        trackedPaths: [repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
+        trackedPaths: [OLD_SLICE_FILE],
       }),
       removed: projectionFiles.removeAt.mock.calls,
     }).toEqual({
@@ -228,7 +276,7 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
   });
 
   it("leaves a tracked slice outside every config root in place when its bytes are not what Hone would write", () => {
-    const projectionFiles = projectionFilesHolding(present("export default [];\n"));
+    const projectionFiles = projectionFilesHolding(new Map([[OLD_SLICE_FILE, present("export default [];\n")]]));
 
     expect({
       result: slicedProjectionWrites({
@@ -237,7 +285,7 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
         origin: ORIGIN,
         projectionFiles,
         roots: [REPOSITORY],
-        trackedPaths: [repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
+        trackedPaths: [OLD_SLICE_FILE],
       }),
       removed: projectionFiles.removeAt.mock.calls,
     }).toEqual({
@@ -261,14 +309,14 @@ describe("slicedProjectionWrites when a stale slice cannot be removed", () => {
         records: [],
         origin: ORIGIN,
         projectionFiles: {
-          ...projectionFilesHolding(present(EMPTY_PACKAGE_SLICE)),
+          ...projectionFilesHolding(new Map([[OLD_SLICE_FILE, present(EMPTY_PACKAGE_SLICE)]])),
           removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({
             outcome: "failed",
             error: { kind: "tool-failed", detail: "EPERM" },
           }),
         },
         roots: [REPOSITORY],
-        trackedPaths: [repoPathSchema.parse("packages/old/disciplines.eslint.mjs")],
+        trackedPaths: [OLD_SLICE_FILE],
       }),
     ).toEqual({ outcome: "failed", error: { kind: "tool-failed", detail: "EPERM" } });
   });
@@ -276,7 +324,7 @@ describe("slicedProjectionWrites when a stale slice cannot be removed", () => {
 
 describe("slicedProjectionWrites on Windows paths", () => {
   it("writes a package slice at its repository path, importing the piece by a forward-slash path from the package folder", () => {
-    const projectionFiles = projectionFilesHolding(ABSENT);
+    const projectionFiles = projectionFilesHolding(new Map());
 
     slicedProjectionWrites({
       clauses: [{ ...CLASS_CLAUSE, pieceRoot: "C:\\repo\\mechanisms\\eslint\\CD-14" }],

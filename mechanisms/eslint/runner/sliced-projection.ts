@@ -17,6 +17,7 @@ import {
   projectionState,
   projectionText,
 } from "./projection.ts";
+import { type ProjectionStates, projectionStateAt } from "./projection-states.ts";
 import { type ConfigRoot, orphanedSliceDirectoriesOf, sliceRecordsOf, slicePathOf } from "./projection-slices.ts";
 
 export type ProjectionClause = {
@@ -106,14 +107,14 @@ export const sliceTextOf = (request: SliceSource & { readonly root: ConfigRoot }
 };
 
 const packageSliceProblem = (
-  request: SliceSource & { readonly projectionFiles: ProjectionFiles; readonly root: ConfigRoot },
+  request: SliceSource & { readonly states: ProjectionStates; readonly root: ConfigRoot },
 ): Outcome<readonly SliceProblem[]> => {
   const slice = slicePathOf(request);
   const generated = sliceTextOf(request);
   if (generated.outcome === "failed") {
     return generated;
   }
-  const current = request.projectionFiles.currentAt({ file: slice });
+  const current = projectionStateAt({ states: request.states, file: slice });
   if (current.outcome === "failed") {
     return current;
   }
@@ -123,12 +124,17 @@ const packageSliceProblem = (
 
 export const packageSliceProblemsOf = (
   request: SliceSource & { readonly projectionFiles: ProjectionFiles; readonly roots: readonly ConfigRoot[] },
-): Outcome<readonly SliceProblem[]> =>
-  gatheredOutcomes({
-    outcomes: request.roots
-      .filter((root) => root.placement === "package")
-      .map((root) => packageSliceProblem({ ...request, root })),
-  });
+): Outcome<readonly SliceProblem[]> => {
+  const packageRoots = request.roots.filter((root) => root.placement === "package");
+  if (packageRoots.length === 0) {
+    return { outcome: "ok", value: [] };
+  }
+  const states = request.projectionFiles.currentOf({ files: packageRoots.map((root) => slicePathOf({ root })) });
+  if (states.outcome === "failed") {
+    return states;
+  }
+  return gatheredOutcomes({ outcomes: packageRoots.map((root) => packageSliceProblem({ ...request, states: states.value, root })) });
+};
 
 type RootPlan = { readonly file: RepoPath; readonly text: string };
 
@@ -142,24 +148,19 @@ type PlanRequest = SliceSource & {
   readonly trackedPaths: readonly RepoPath[];
 };
 
-const rootPlan = (request: SliceSource & { readonly projectionFiles: ProjectionFiles; readonly root: ConfigRoot }): Outcome<RootPlan> => {
+const rootPlan = (request: SliceSource & { readonly root: ConfigRoot }): Outcome<RootPlan> => {
   const generated = sliceTextOf(request);
-  if (generated.outcome === "failed") {
-    return generated;
-  }
-  const file = slicePathOf(request);
-  const current = request.projectionFiles.currentAt({ file });
-  return current.outcome === "failed" ? current : { outcome: "ok", value: { file, text: generated.value } };
+  return generated.outcome === "failed" ? generated : { outcome: "ok", value: { file: slicePathOf(request), text: generated.value } };
 };
 
-const orphanPlan = (request: SliceSource & { readonly projectionFiles: ProjectionFiles; readonly directory: RepoPath }): Outcome<OrphanPlan> => {
+const orphanPlan = (request: SliceSource & { readonly states: ProjectionStates; readonly directory: RepoPath }): Outcome<OrphanPlan> => {
   const root: ConfigRoot = { placement: "package", directory: request.directory };
   const file = slicePathOf({ root });
   const regenerated = sliceTextOf({ ...request, root });
   if (regenerated.outcome === "failed") {
     return regenerated;
   }
-  const current = request.projectionFiles.currentAt({ file });
+  const current = projectionStateAt({ states: request.states, file });
   if (current.outcome === "failed") {
     return current;
   }
@@ -170,12 +171,22 @@ const orphanPlan = (request: SliceSource & { readonly projectionFiles: Projectio
 };
 
 const slicePlanOf = (request: PlanRequest): Outcome<SlicePlan> => {
+  const orphanDirectories = orphanedSliceDirectoriesOf(request);
+  const states = request.projectionFiles.currentOf({
+    files: [
+      ...request.roots.map((root) => slicePathOf({ root })),
+      ...orphanDirectories.map((directory) => slicePathOf({ root: { placement: "package", directory } })),
+    ],
+  });
+  if (states.outcome === "failed") {
+    return states;
+  }
   const roots = gatheredOutcomes({ outcomes: request.roots.map((root) => listedOutcome({ outcome: rootPlan({ ...request, root }) })) });
   if (roots.outcome === "failed") {
     return roots;
   }
   const orphans = gatheredOutcomes({
-    outcomes: orphanedSliceDirectoriesOf(request).map((directory) => listedOutcome({ outcome: orphanPlan({ ...request, directory }) })),
+    outcomes: orphanDirectories.map((directory) => listedOutcome({ outcome: orphanPlan({ ...request, states: states.value, directory }) })),
   });
   return orphans.outcome === "failed" ? orphans : { outcome: "ok", value: { roots: roots.value, orphans: orphans.value } };
 };

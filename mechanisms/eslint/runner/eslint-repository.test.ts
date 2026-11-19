@@ -19,6 +19,12 @@ const PACKAGE_A = repoPathSchema.parse("packages/a");
 
 const SLICE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
 
+const ROOT_PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
+
+const SOURCE = repoPathSchema.parse("src/a.ts");
+
+const ESLINT_9_PACKAGE = '{ "version": "9.28.0" }';
+
 type ReadAnswer = ReturnType<FileTextPort["read"]>;
 
 const fileTextReading = (answer: ReadAnswer) => ({
@@ -121,14 +127,35 @@ describe("eslintRepositoryOver, a folder's own ESLint config", () => {
 });
 
 describe("eslintRepositoryOver, projection files", () => {
-  it("reads a projection under the repository root", () => {
+  it("reads each asked projection under the repository root and gives its state keyed by its path", () => {
     const fileText = fileTextReading({ outcome: "ok", value: "export default [];\n" });
     const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
-    expect(repository.projectionFiles.currentAt({ file: SLICE })).toEqual({
+    expect(repository.projectionFiles.currentOf({ files: [ROOT_PROJECTION, SLICE] })).toEqual({
       outcome: "ok",
-      value: { presence: "present", text: "export default [];\n" },
+      value: new Map([
+        [ROOT_PROJECTION, { presence: "present", text: "export default [];\n" }],
+        [SLICE, { presence: "present", text: "export default [];\n" }],
+      ]),
     });
-    expect(fileText.read.mock.calls).toEqual([[{ path: "/repo/packages/a/disciplines.eslint.mjs" }]]);
+    expect(fileText.read).toHaveBeenNthCalledWith(1, { path: "/repo/disciplines.eslint.mjs" });
+    expect(fileText.read).toHaveBeenNthCalledWith(2, { path: "/repo/packages/a/disciplines.eslint.mjs" });
+  });
+
+  it("gives a projection that is not on disk as absent", () => {
+    const fileText = { ...fileTextReading(UNREADABLE), exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent") };
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.projectionFiles.currentOf({ files: [SLICE] })).toEqual({
+      outcome: "ok",
+      value: new Map([[SLICE, { presence: "absent" }]]),
+    });
+  });
+
+  it("fails as file-unreadable, naming the projection, when one asked projection cannot be read", () => {
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.projectionFiles.currentOf({ files: [SLICE] })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-unreadable", file: "packages/a/disciplines.eslint.mjs", detail: "EACCES" },
+    });
   });
 
   it("writes a projection under the repository root when its bytes differ", () => {
@@ -172,7 +199,7 @@ describe("eslintRepositoryOver, projection files", () => {
       path: createPathPort({ flavour: "windows", workingDirectory: () => "C:\\repo" }),
       repoRoot: absolutePathSchema.parse("C:\\repo"),
     });
-    repository.projectionFiles.currentAt({ file: repoPathSchema.parse("disciplines.eslint.mjs") });
+    repository.projectionFiles.currentOf({ files: [ROOT_PROJECTION] });
     repository.suppressionsAt({ location: repoPathSchema.parse("src/eslint-suppressions.json") });
     expect(fileText.read.mock.calls).toEqual([
       [{ path: "C:\\repo\\disciplines.eslint.mjs" }],
@@ -190,5 +217,59 @@ describe("eslintRepositoryOver, projection files", () => {
     });
     repository.projectionFiles.writeAt({ file: SLICE, text: "export default [];\n" });
     expect(fileText.write.mock.calls).toEqual([[{ path: "C:\\repo\\packages\\a\\disciplines.eslint.mjs", text: "export default [];\n" }]]);
+  });
+});
+
+describe("eslintRepositoryOver, the config lookup", () => {
+  it("decides the repository-root lookup when ESLint 9 is installed and disciplines.json declares none, reading both under the root", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.configLookup({ trackedPaths: [] })).toBe("repository-root");
+    expect(fileText.read).toHaveBeenNthCalledWith(1, { path: "/repo/disciplines.json" });
+    expect(fileText.read).toHaveBeenNthCalledWith(2, { path: "/repo/node_modules/eslint/package.json" });
+  });
+
+  it("decides nearest-to-file when the installed ESLint cannot be read", () => {
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
+  });
+
+  it("takes the lookup disciplines.json declares over the one ESLint 9 would give", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: '{ "version": "9.28.0", "eslintConfigLookup": "nearest-to-file" }' });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
+    expect(fileText.read).toHaveBeenCalledExactlyOnceWith({ path: "/repo/disciplines.json" });
+  });
+
+  it("names the repository root's eslint.config.js as the team config under the repository-root lookup", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.teamConfigLookup({ trackedPaths: [] })).toEqual({
+      outcome: "ok",
+      value: { kind: "repository-root", configFile: "/repo/eslint.config.js" },
+    });
+    expect(fileText.exists).toHaveBeenCalledExactlyOnceWith({ path: "/repo/eslint.config.js" });
+  });
+
+  it("gives the nearest-to-file team config lookup when the installed ESLint cannot be read", () => {
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.teamConfigLookup({ trackedPaths: [] })).toEqual({ outcome: "ok", value: { kind: "nearest-to-file" } });
+  });
+});
+
+describe("eslintRepositoryOver, source lines", () => {
+  it("reads a source file under the repository root and gives its lines", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: "class A {}\r\nxs.forEach(visit);\n" });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.sourceLines({ file: SOURCE })).toEqual({ outcome: "ok", value: ["class A {}", "xs.forEach(visit);", ""] });
+    expect(fileText.read).toHaveBeenCalledExactlyOnceWith({ path: "/repo/src/a.ts" });
+  });
+
+  it("fails as file-unreadable, naming the source file, when it cannot be read", () => {
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.sourceLines({ file: SOURCE })).toEqual({
+      outcome: "failed",
+      error: { kind: "file-unreadable", file: "src/a.ts", detail: "EACCES" },
+    });
   });
 });

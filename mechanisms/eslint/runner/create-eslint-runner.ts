@@ -41,11 +41,24 @@ import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plug
 import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { hitsCutFrom, messageReadingOf } from "./lint-hits.ts";
-import { sourceLinesFor } from "./source-lines.ts";
+import { type LinesReader, sourceLinesFor } from "./source-lines.ts";
 import type { ConfigLookup } from "./config-lookup.ts";
-import { type PackageJsonScan, type ScriptOption, scannedPackageScripts, type SelectedRule } from "./package-script-scanner.ts";
+import {
+  type PackageJsonScan,
+  type PackageScriptsReader,
+  type ScriptOption,
+  scannedPackageScripts,
+  type SelectedRule,
+} from "./package-script-scanner.ts";
 import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
-import { type CurrentProjection, PROJECTION_PATH, type ProjectionFiles, pluginImportOf, projectionState } from "./projection.ts";
+import {
+  type CurrentProjection,
+  PROJECTION_PATH,
+  type ProjectionFiles,
+  pluginImportOf,
+  projectionState,
+} from "./projection.ts";
+import { projectionStateAt } from "./projection-states.ts";
 import {
   type ConfigRoot,
   configRootsOf,
@@ -62,7 +75,7 @@ import {
   slicedProjectionWrites,
   sliceTextOf,
 } from "./sliced-projection.ts";
-import { suppressionEntriesIn } from "./suppressions-scanner.ts";
+import { type SuppressionsReader, suppressionEntriesIn } from "./suppressions-scanner.ts";
 
 export type EslintPlatformPorts = {
   readonly fileText: FileTextPort;
@@ -360,14 +373,14 @@ const sliceOriginOf = (request: { readonly path: PathPort; readonly origin: Impo
 });
 
 const unconfiguredSlicesOf = (request: {
-  readonly repository: EslintRepository;
+  readonly folderConfiguration: EslintRepository["folderConfiguration"];
   readonly run: EmbeddedRunRequest;
   readonly roots: readonly ConfigRoot[];
 }): readonly SliceProblem[] =>
   request.roots.flatMap((root) =>
     root.placement === "package" &&
     request.run.declaredConfigRoots.includes(root.directory) &&
-    request.repository.folderConfiguration({ folder: root.directory }) === "unconfigured"
+    request.folderConfiguration({ folder: root.directory }) === "unconfigured"
       ? [{ slice: slicePathOf({ root }), state: "unconfigured" as const }]
       : [],
   );
@@ -728,7 +741,7 @@ const lintedFindings = (request: {
   readonly linted: LintedFile;
   readonly selected: readonly SelectedClause[];
   readonly path: PathPort;
-  readonly repository: EslintRepository;
+  readonly sourceLines: LinesReader;
   readonly repoRoot: AbsolutePath;
 }): Outcome<LintFindings> => {
   const file = parseableFile({ linted: request.linted, path: request.path, repoRoot: request.repoRoot });
@@ -742,7 +755,7 @@ const lintedFindings = (request: {
   const lines = sourceLinesFor({
     file: file.value,
     ruleHits: reading.value.ruleHits,
-    readLines: request.repository.sourceLines,
+    readLines: request.sourceLines,
   });
   return mappedOutcome({
     outcome: lines,
@@ -767,12 +780,12 @@ const filesNamed = (request: {
 }): readonly RepoPath[] => request.trackedPaths.filter((path) => fileNameOf({ path }) === request.name);
 
 const suppressionsExceptions = (request: {
-  readonly repository: EslintRepository;
+  readonly suppressionsAt: SuppressionsReader;
   readonly location: RepoPath;
   readonly keysRelativeTo: RepoPath | "repo-root";
   readonly selectedRules: readonly SelectedRule[];
 }): Outcome<readonly NativeException[]> => {
-  const suppressions = request.repository.suppressionsAt({ location: request.location });
+  const suppressions = request.suppressionsAt({ location: request.location });
   return suppressions.outcome === "failed"
     ? suppressions
     : suppressionEntriesIn({
@@ -823,7 +836,7 @@ const unreadableScriptExceptions = (request: { readonly scan: PackageJsonScan })
   );
 
 const scannedPackageExceptions = (request: {
-  readonly repository: EslintRepository;
+  readonly suppressionsAt: SuppressionsReader;
   readonly packagePath: RepoPath;
   readonly scan: PackageJsonScan;
   readonly selectedRules: readonly SelectedRule[];
@@ -836,7 +849,7 @@ const scannedPackageExceptions = (request: {
         { outcome: "ok", value: unreadableScriptExceptions({ scan: request.scan }) },
         ...request.scan.suppressionsLocations.map((scripted) =>
         suppressionsExceptions({
-          repository: request.repository,
+          suppressionsAt: request.suppressionsAt,
           location: scripted.location,
             keysRelativeTo: directoryOf({ path: request.packagePath }),
             selectedRules: request.selectedRules,
@@ -847,12 +860,13 @@ const scannedPackageExceptions = (request: {
   );
 
 const packageJsonExceptions = (request: {
-  readonly repository: EslintRepository;
+  readonly packageScriptsAt: PackageScriptsReader;
+  readonly suppressionsAt: SuppressionsReader;
   readonly packagePath: RepoPath;
   readonly selectedRules: readonly SelectedRule[];
   readonly judge: ScriptOptionJudge;
 }): Promise<Outcome<readonly NativeException[]>> => {
-  const scripts = request.repository.packageScriptsAt({ packagePath: request.packagePath });
+  const scripts = request.packageScriptsAt({ packagePath: request.packagePath });
   if (scripts.outcome === "failed") {
     return Promise.resolve(scripts);
   }
@@ -868,7 +882,8 @@ const packageJsonExceptions = (request: {
 };
 
 const trackedExceptions = (request: {
-  readonly repository: EslintRepository;
+  readonly packageScriptsAt: PackageScriptsReader;
+  readonly suppressionsAt: SuppressionsReader;
   readonly trackedPaths: readonly RepoPath[];
   readonly selectedRules: readonly SelectedRule[];
   readonly judge: ScriptOptionJudge;
@@ -951,7 +966,7 @@ const governedReport = (request: {
           linted,
           selected: request.selected,
           path: request.ports.path,
-          repository: request.repository,
+          sourceLines: request.repository.sourceLines,
           repoRoot: request.run.repoRoot,
         }),
       }),
@@ -961,7 +976,8 @@ const governedReport = (request: {
     return Promise.resolve(findings);
   }
   return trackedExceptions({
-    repository: request.repository,
+    packageScriptsAt: request.repository.packageScriptsAt,
+    suppressionsAt: request.repository.suppressionsAt,
     trackedPaths: request.run.trackedPaths,
     selectedRules: selectedRulesOf({ selected: request.selected }),
     judge: scriptOptionJudge({
@@ -1161,7 +1177,11 @@ const selectedRun = (request: {
   readonly ports: EslintRunnerPorts;
 }): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
-  const current = repository.projectionFiles.currentAt({ file: PROJECTION_PATH });
+  const states = repository.projectionFiles.currentOf({ files: [PROJECTION_PATH] });
+  if (states.outcome === "failed") {
+    return Promise.resolve(states);
+  }
+  const current = projectionStateAt({ states: states.value, file: PROJECTION_PATH });
   if (current.outcome === "failed") {
     return Promise.resolve(current);
   }
@@ -1200,7 +1220,7 @@ const selectedRun = (request: {
     repository,
     status: {
       ...status.value,
-      slices: [...status.value.slices, ...unconfiguredSlicesOf({ repository, run: request.run, roots })],
+      slices: [...status.value.slices, ...unconfiguredSlicesOf({ folderConfiguration: repository.folderConfiguration, run: request.run, roots })],
     },
     roots,
     lookup: lookup.value,

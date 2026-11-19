@@ -5,6 +5,7 @@ import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
+import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import {
   type ClauseAddress,
   clauseAddressText,
@@ -15,6 +16,7 @@ import type { Result } from "../../../core/values/result.ts";
 import type { CoreInstall } from "./core-install.ts";
 import { enabledRuleEntry, reservedNamespace } from "./eslint-instance.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
+import type { ProjectionStates } from "./projection-states.ts";
 
 export type ProjectedClause = {
   readonly address: ClauseAddress;
@@ -332,8 +334,20 @@ export const writeProjection = (request: ProjectionFile & { readonly text: strin
   return writtenProjection(request);
 };
 
+const fileState = (request: ProjectionFile): Result<readonly [RepoPath, CurrentProjection], RunnerFailure> => {
+  const current = currentProjection(request);
+  return current.outcome === "failed" ? current : { outcome: "ok", value: [request.file, current.value] };
+};
+
+export const currentProjectionsOf = (
+  request: Omit<ProjectionFile, "file"> & { readonly files: readonly RepoPath[] },
+): Result<ProjectionStates, RunnerFailure> => {
+  const states = gatheredOutcomes({ outcomes: request.files.map((file) => listedOutcome({ outcome: fileState({ ...request, file }) })) });
+  return states.outcome === "failed" ? states : { outcome: "ok", value: new Map(states.value) };
+};
+
 export type ProjectionFiles = {
-  readonly currentAt: (request: { readonly file: RepoPath }) => Result<CurrentProjection, RunnerFailure>;
+  readonly currentOf: (request: { readonly files: readonly RepoPath[] }) => Result<ProjectionStates, RunnerFailure>;
   readonly writeAt: (request: { readonly file: RepoPath; readonly text: string }) => Result<ProjectionWrite, RunnerFailure>;
   readonly removeAt: (request: { readonly file: RepoPath }) => Result<void, RunnerFailure>;
 };
@@ -344,7 +358,7 @@ export const projectionFilesOver = (request: {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
 }): ProjectionFiles => ({
-  currentAt: ({ file }) => currentProjection({ ...request, file }),
+  currentOf: ({ files }) => currentProjectionsOf({ ...request, files }),
   writeAt: ({ file, text }) => writeProjection({ ...request, file, text }),
   removeAt: ({ file }) => {
     const removed = request.fileRemoval.remove({ path: request.path.join({ segments: [request.repoRoot, file] }) });

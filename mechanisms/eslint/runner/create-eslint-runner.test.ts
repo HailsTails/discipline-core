@@ -1,4 +1,4 @@
-import { describe, expect, it, type Mock, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
@@ -30,6 +30,7 @@ import type {
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
 import type { PackageScripts } from "./package-script-scanner.ts";
 import type { CurrentProjection, ProjectionFiles } from "./projection.ts";
+import type { ProjectionStates } from "./projection-states.ts";
 import type { SuppressionsFile } from "./suppressions-scanner.ts";
 
 type EslintFakeParts = {
@@ -44,7 +45,7 @@ const PIECE_ROOT = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14"
 const LOOPS_PIECE_ROOT = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-15";
 const PLUGIN_MODULE_PATH = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 const LOOPS_MODULE_PATH = "/repo/node_modules/@hailstails/hone/mechanisms/eslint/CD-15/loops/loops.eslint-plugin.ts";
-const PROJECTION_FILE = "disciplines.eslint.mjs";
+const PROJECTION_FILE = repoPathSchema.parse("disciplines.eslint.mjs");
 const RULE_ID = "hone/no-class-authoring";
 const LOOPS_RULE_ID = "loops/no-for-of";
 
@@ -208,13 +209,13 @@ export default [
 ];
 `;
 
-const present = (text: string): Result<CurrentProjection, RunnerFailure> => ({ outcome: "ok", value: { presence: "present", text } });
+const present = (text: string): CurrentProjection => ({ presence: "present", text });
 
-const ABSENT_PROJECTION: Result<CurrentProjection, RunnerFailure> = { outcome: "ok", value: { presence: "absent" } };
+const ABSENT_PROJECTION: CurrentProjection = { presence: "absent" };
 
-const unreadableProjection = (file: string): Result<CurrentProjection, RunnerFailure> => ({
+const unreadableProjection = (file: RepoPath): Result<never, RunnerFailure> => ({
   outcome: "failed",
-  error: { kind: "file-unreadable", file: repoPathSchema.parse(file), detail: "EACCES" },
+  error: { kind: "file-unreadable", file, detail: "EACCES" },
 });
 
 const writtenAt = (file: string): Result<ProjectionWrite, RunnerFailure> => ({
@@ -222,21 +223,21 @@ const writtenAt = (file: string): Result<ProjectionWrite, RunnerFailure> => ({
   value: { path: repoPathSchema.parse(file), effect: "written" },
 });
 
-const projectionFilesReading = (currentAt: Mock<ProjectionFiles["currentAt"]>) => ({
-  currentAt,
+const projectionFilesAnswering = (answer: Result<ProjectionStates, RunnerFailure>) => ({
+  currentOf: vi.fn<ProjectionFiles["currentOf"]>().mockReturnValue(answer),
   writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValue(writtenAt(PROJECTION_FILE)),
   removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
-const reading = (answer: Result<CurrentProjection, RunnerFailure>) => vi.fn<ProjectionFiles["currentAt"]>().mockReturnValue(answer);
+const projectionFilesHolding = (states: ProjectionStates) => projectionFilesAnswering({ outcome: "ok", value: states });
 
-const readingInTurn = () => vi.fn<ProjectionFiles["currentAt"]>();
+const rootHolding = (current: CurrentProjection) => projectionFilesHolding(new Map([[PROJECTION_FILE, current]]));
 
 const LINES_OF_A: Result<readonly string[], RunnerFailure> = { outcome: "ok", value: ["const a = 1;", "", "  class A {}", ""] };
 
-const LINES_OF_FACTORY: Result<readonly string[], RunnerFailure> = {
+const LINES_OF_BOTH_PIECES: Result<readonly string[], RunnerFailure> = {
   outcome: "ok",
-  value: ["const b = 1;", "const c = 2;", "const d = 3;", "const e = 4;", "  xs.forEach(visit);", ""],
+  value: ["const a = 1;", "", "  class A {}", "", "  xs.forEach(visit);", ""],
 };
 
 const NEAREST_TO_FILE: Result<ConfigLookup, RunnerFailure> = { outcome: "ok", value: { kind: "nearest-to-file" } };
@@ -247,7 +248,7 @@ const ROOT_CONFIG_LOOKUP: Result<ConfigLookup, RunnerFailure> = {
 };
 
 const repositoryHolding = (overrides: Partial<EslintRepository>): EslintRepository => ({
-  projectionFiles: projectionFilesReading(reading(present(ENABLING_PROJECTION))),
+  projectionFiles: rootHolding(present(ENABLING_PROJECTION)),
   configLookup: vi.fn<EslintRepository["configLookup"]>().mockReturnValue("nearest-to-file"),
   teamConfigLookup: vi.fn<EslintRepository["teamConfigLookup"]>().mockReturnValue(NEAREST_TO_FILE),
   folderConfiguration: vi.fn<EslintRepository["folderConfiguration"]>().mockReturnValue("configured"),
@@ -265,7 +266,7 @@ const resolvingFromRoot = (overrides: Partial<EslintRepository>): EslintReposito
   });
 
 const projectionHolding = (request: { readonly text: string }): EslintRepository =>
-  repositoryHolding({ projectionFiles: projectionFilesReading(reading(present(request.text))) });
+  repositoryHolding({ projectionFiles: rootHolding(present(request.text)) });
 
 const scriptsAnswering = (scripts: PackageScripts) =>
   vi.fn<EslintRepository["packageScriptsAt"]>().mockReturnValue({ outcome: "ok", value: scripts });
@@ -595,7 +596,7 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
   it("is missing with no hits and no native exceptions when disciplines.eslint.mjs is absent, building no ESLint instance", async () => {
     const eslint = eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) });
     const report = await runnerOver({
-      repository: repositoryHolding({ projectionFiles: projectionFilesReading(reading(ABSENT_PROJECTION)) }),
+      repository: repositoryHolding({ projectionFiles: rootHolding(ABSENT_PROJECTION) }),
       eslint,
     }).run(CLASS_RUN);
     expect({
@@ -632,12 +633,10 @@ describe("the governance run, step 2: the projection's presence and bytes", () =
   });
 
   it("reads the projection at disciplines.eslint.mjs, passing on that it cannot be read", async () => {
-    const projectionFiles = projectionFilesReading(reading(unreadableProjection(PROJECTION_FILE)));
+    const projectionFiles = projectionFilesAnswering(unreadableProjection(PROJECTION_FILE));
     const report = await runnerOver({ repository: repositoryHolding({ projectionFiles }) }).run(CLASS_RUN);
-    expect({ report, read: projectionFiles.currentAt.mock.calls }).toEqual({
-      report: { outcome: "failed", error: { kind: "file-unreadable", file: "disciplines.eslint.mjs", detail: "EACCES" } },
-      read: [[{ file: PROJECTION_FILE }]],
-    });
+    expect(report).toEqual({ outcome: "failed", error: { kind: "file-unreadable", file: "disciplines.eslint.mjs", detail: "EACCES" } });
+    expect(projectionFiles.currentOf).toHaveBeenCalledExactlyOnceWith({ files: [PROJECTION_FILE] });
   });
 });
 
@@ -1014,8 +1013,8 @@ describe("the governance run, step 5: messages", () => {
     await expect(
       runnerOver({
         repository: repositoryHolding({
-          projectionFiles: projectionFilesReading(reading(present("export default [];\n"))),
-          sourceLines: vi.fn<EslintRepository["sourceLines"]>().mockReturnValueOnce(LINES_OF_A).mockReturnValueOnce(LINES_OF_FACTORY),
+          projectionFiles: rootHolding(present("export default [];\n")),
+          sourceLines: vi.fn<EslintRepository["sourceLines"]>().mockReturnValue(LINES_OF_BOTH_PIECES),
         }),
         eslint: eslintOver({
           query: queryOver({
@@ -1346,7 +1345,7 @@ const projectRequest = (request: {
 
 describe("project", () => {
   it("writes the projection generated from the clauses and records to disciplines.eslint.mjs at the repository root", async () => {
-    const projectionFiles = projectionFilesReading(reading(ABSENT_PROJECTION));
+    const projectionFiles = rootHolding(ABSENT_PROJECTION);
     const write = await runnerOver({ repository: repositoryHolding({ projectionFiles }) }).project(
       projectRequest({ trackedPaths: [], records: [FACTORY_LOCATION] }),
     );
@@ -1357,7 +1356,7 @@ describe("project", () => {
   });
 
   it("imports a shipped piece of a packaged core install by the package name the core install gives", async () => {
-    const projectionFiles = projectionFilesReading(reading(ABSENT_PROJECTION));
+    const projectionFiles = rootHolding(ABSENT_PROJECTION);
     const coreInstall = vi.fn<EslintRunnerPorts["coreInstall"]>().mockReturnValue({
       outcome: "ok",
       value: { form: "package", root: INSTALL_ROOT, name: "@hailstails/hone" },
@@ -1370,7 +1369,7 @@ describe("project", () => {
   });
 
   it("passes on that the core install cannot be named, writing nothing", async () => {
-    const projectionFiles = projectionFilesReading(reading(ABSENT_PROJECTION));
+    const projectionFiles = rootHolding(ABSENT_PROJECTION);
     const failure: Result<never, RunnerFailure> = {
       outcome: "failed",
       error: { kind: "tool-failed", detail: "the core install's /repo/node_modules/@hailstails/hone/package.json names no package" },
@@ -2039,11 +2038,11 @@ describe("the governance run on Windows paths", () => {
     });
     expect({
       repositories: repositoryAt.mock.calls,
-      projections: vi.mocked(repository.projectionFiles.currentAt).mock.calls,
+      projections: vi.mocked(repository.projectionFiles.currentOf).mock.calls,
       suppressions: suppressionsAt.mock.calls,
     }).toEqual({
       repositories: [[{ repoRoot: WINDOWS_REPO_ROOT }]],
-      projections: [[{ file: PROJECTION_FILE }]],
+      projections: [[{ files: [PROJECTION_FILE] }]],
       suppressions: [[{ location: "src/eslint-suppressions.json" }]],
     });
   });
@@ -2139,7 +2138,7 @@ describe("plugin namespace ownership", () => {
 });
 
 const PACKAGE_A_CONFIG = repoPathSchema.parse("packages/a/eslint.config.mjs");
-const PACKAGE_A_SLICE_FILE = "packages/a/disciplines.eslint.mjs";
+const PACKAGE_A_SLICE_FILE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
 const PACKAGE_FILE_A = repoPathSchema.parse("packages/a/src/a.ts");
 const PACKAGE_FACTORY = repoPathSchema.parse("packages/a/src/factory.ts");
 
@@ -2194,19 +2193,30 @@ const PACKAGE_LOCATION_LOST = queryOver({
   states: { [`packages/a/src/a.ts ${RULE_ID}`]: ERROR, [`packages/a/src/factory.ts ${RULE_ID}`]: ERROR },
 });
 
-const packageRepository = (request: { readonly slice: Result<CurrentProjection, RunnerFailure> }): EslintRepository =>
+const packageRepository = (request: { readonly slice: CurrentProjection }): EslintRepository =>
   repositoryHolding({
-    projectionFiles: projectionFilesReading(readingInTurn().mockReturnValueOnce(present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION)).mockReturnValueOnce(request.slice)),
+    projectionFiles: projectionFilesHolding(
+      new Map([
+        [PROJECTION_FILE, present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION)],
+        [PACKAGE_A_SLICE_FILE, request.slice],
+      ]),
+    ),
   });
 
 describe("package projection slices, their bytes", () => {
   it("treats a folder with a tracked eslint.config as a config root, naming its missing slice beside a current root projection and the run's hits", async () => {
-    const projectionFiles = projectionFilesReading(readingInTurn().mockReturnValueOnce(present(ENABLING_PROJECTION)).mockReturnValueOnce(ABSENT_PROJECTION));
+    const projectionFiles = projectionFilesHolding(
+      new Map([
+        [PROJECTION_FILE, present(ENABLING_PROJECTION)],
+        [PACKAGE_A_SLICE_FILE, ABSENT_PROJECTION],
+      ]),
+    );
     const report = await runnerOver({
       repository: repositoryHolding({ projectionFiles }),
       eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [CLASS_MESSAGE] }) }) }),
     }).run({ ...CLASS_RUN, trackedPaths: [...FILES, PACKAGE_A_CONFIG] });
-    expect({ report, reads: projectionFiles.currentAt.mock.calls }).toEqual({
+    expect(projectionFiles.currentOf).toHaveBeenCalledWith({ files: [PACKAGE_A_SLICE_FILE] });
+    expect({ report }).toEqual({
       report: {
         outcome: "ok",
         value: {
@@ -2217,7 +2227,6 @@ describe("package projection slices, their bytes", () => {
           unprojectedFolders: [],
         },
       },
-      reads: [[{ file: PROJECTION_FILE }], [{ file: PACKAGE_A_SLICE_FILE }]],
     });
   });
 
@@ -2253,7 +2262,7 @@ describe("package projection slices, applied by the team's config", () => {
     await expect(
       runnerOver({
         repository: resolvingFromRoot({
-          projectionFiles: projectionFilesReading(reading(present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION))),
+          projectionFiles: rootHolding(present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION)),
         }),
         eslint: eslintOver({ query: PACKAGE_LOCATION_LOST }),
       }).run(PACKAGE_RUN),
@@ -2295,7 +2304,13 @@ describe("package projection slices, not applied in one package of several", () 
     await expect(
       runnerOver({
         repository: repositoryHolding({
-          projectionFiles: projectionFilesReading(readingInTurn().mockReturnValueOnce(present(ROOT_PROJECTION_WITH_TWO_PACKAGE_LOCATIONS)).mockReturnValueOnce(present(PACKAGE_A_SLICE)).mockReturnValueOnce(present(PACKAGE_A_SLICE))),
+          projectionFiles: projectionFilesHolding(
+            new Map([
+              [PROJECTION_FILE, present(ROOT_PROJECTION_WITH_TWO_PACKAGE_LOCATIONS)],
+              [PACKAGE_A_SLICE_FILE, present(PACKAGE_A_SLICE)],
+              [repoPathSchema.parse("packages/b/disciplines.eslint.mjs"), present(PACKAGE_A_SLICE)],
+            ]),
+          ),
         }),
         eslint: eslintOver({
           query: queryOver({
@@ -2314,7 +2329,12 @@ describe("package projection slices, not applied in one package of several", () 
 describe("package projection slices, projected", () => {
   it("projects the root projection and each package's slice, the package's records relative to its folder", async () => {
     const projectionFiles = {
-      ...projectionFilesReading(readingInTurn().mockReturnValueOnce(ABSENT_PROJECTION).mockReturnValueOnce(ABSENT_PROJECTION)),
+      ...projectionFilesHolding(
+        new Map([
+          [PROJECTION_FILE, ABSENT_PROJECTION],
+          [PACKAGE_A_SLICE_FILE, ABSENT_PROJECTION],
+        ]),
+      ),
       writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValueOnce(writtenAt(PROJECTION_FILE)).mockReturnValueOnce(writtenAt(PACKAGE_A_SLICE_FILE)),
     };
     const write = await runnerOver({ repository: repositoryHolding({ projectionFiles }) }).project(
@@ -2338,6 +2358,8 @@ describe("package projection slices, projected", () => {
 
 const PACKAGE_WEB = repoPathSchema.parse("packages/web");
 
+const PACKAGE_WEB_SLICE_FILE = repoPathSchema.parse("packages/web/disciplines.eslint.mjs");
+
 describe("package projection slices, which roots they cover", () => {
   it("requires no slice for a folder with a tracked config when ESLint resolves every file from the root config", async () => {
     await expect(
@@ -2352,7 +2374,12 @@ describe("package projection slices, which roots they cover", () => {
     await expect(
       runnerOver({
         repository: resolvingFromRoot({
-          projectionFiles: projectionFilesReading(readingInTurn().mockReturnValueOnce(present(ENABLING_PROJECTION)).mockReturnValueOnce(ABSENT_PROJECTION)),
+          projectionFiles: projectionFilesHolding(
+          new Map([
+            [PROJECTION_FILE, present(ENABLING_PROJECTION)],
+            [PACKAGE_WEB_SLICE_FILE, ABSENT_PROJECTION],
+          ]),
+        ),
         }),
       }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] }),
     ).resolves.toMatchObject({
@@ -2365,7 +2392,12 @@ describe("package projection slices, which roots they cover", () => {
     const folderConfiguration = vi.fn<EslintRepository["folderConfiguration"]>().mockReturnValue("unconfigured");
     const report = await runnerOver({
       repository: repositoryHolding({
-        projectionFiles: projectionFilesReading(readingInTurn().mockReturnValueOnce(present(ENABLING_PROJECTION)).mockReturnValueOnce(ABSENT_PROJECTION)),
+        projectionFiles: projectionFilesHolding(
+          new Map([
+            [PROJECTION_FILE, present(ENABLING_PROJECTION)],
+            [PACKAGE_WEB_SLICE_FILE, ABSENT_PROJECTION],
+          ]),
+        ),
         folderConfiguration,
       }),
     }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] });
@@ -2382,7 +2414,7 @@ describe("package projection slices, which roots they cover", () => {
   });
 
   it("projects only the root slice for a folder with a tracked config when ESLint resolves every file from the root config", async () => {
-    const projectionFiles = projectionFilesReading(reading(ABSENT_PROJECTION));
+    const projectionFiles = rootHolding(ABSENT_PROJECTION);
     await runnerOver({ repository: resolvingFromRoot({ projectionFiles }) }).project(projectRequest({ trackedPaths: [PACKAGE_A_CONFIG], records: [] }));
     expect(projectionFiles.writeAt.mock.calls).toEqual([[{ file: PROJECTION_FILE, text: ENABLING_PROJECTION }]]);
   });
@@ -2402,11 +2434,13 @@ const rootIgnoringEslint = (request: { readonly factory: RuleState }): EslintPor
     ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>().mockResolvedValue(FILE_IGNORED),
   });
 
-const projectedUnderIgnoringRoot = async (request: {
-  readonly rootProjection: Result<CurrentProjection, RunnerFailure>;
-  readonly slice: Result<CurrentProjection, RunnerFailure>;
-}) => {
-  const projectionFiles = projectionFilesReading(readingInTurn().mockReturnValueOnce(request.rootProjection).mockReturnValueOnce(request.slice));
+const projectedUnderIgnoringRoot = async (request: { readonly rootProjection: CurrentProjection }) => {
+  const projectionFiles = projectionFilesHolding(
+    new Map([
+      [PROJECTION_FILE, request.rootProjection],
+      [PACKAGE_A_SLICE_FILE, present(ENABLING_PROJECTION)],
+    ]),
+  );
   const eslint = rootIgnoringEslint({ factory: OFF });
   const write = await runnerOver({ repository: repositoryHolding({ projectionFiles }), eslint }).project(
     projectRequest({ trackedPaths: [PACKAGE_A_CONFIG], records: [PACKAGE_FACTORY_LOCATION] }),
@@ -2454,31 +2488,20 @@ describe("package projection slices, under a folder the repository root config i
 });
 
 describe("package projection slices, projected under a folder the repository root config ignores", () => {
-  it("rewrites an out-of-date slice there", async () => {
-    await expect(
-      projectedUnderIgnoringRoot({ rootProjection: present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION), slice: present(ENABLING_PROJECTION) }),
-    ).resolves.toMatchObject({
+  it("hands the package slice there its own text, beside the root projection, asking no config about any folder", async () => {
+    await expect(projectedUnderIgnoringRoot({ rootProjection: present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION) })).resolves.toEqual({
+      write: expect.anything(),
       fileWrites: [
         [{ file: PROJECTION_FILE, text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }],
         [{ file: PACKAGE_A_SLICE_FILE, text: PACKAGE_A_SLICE }],
       ],
+      asked: [],
     });
   });
 
-  it("recreates a deleted slice there", async () => {
-    await expect(
-      projectedUnderIgnoringRoot({ rootProjection: present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION), slice: ABSENT_PROJECTION }),
-    ).resolves.toMatchObject({
-      fileWrites: [
-        [{ file: PROJECTION_FILE, text: ROOT_PROJECTION_WITH_PACKAGE_LOCATION }],
-        [{ file: PACKAGE_A_SLICE_FILE, text: PACKAGE_A_SLICE }],
-      ],
-    });
-  });
-
-  it("writes the same slices whether or not the root projection exists yet, asking no config about any folder", async () => {
-    const first = await projectedUnderIgnoringRoot({ rootProjection: ABSENT_PROJECTION, slice: ABSENT_PROJECTION });
-    const second = await projectedUnderIgnoringRoot({ rootProjection: present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION), slice: ABSENT_PROJECTION });
+  it("hands the same texts whether or not the root projection exists yet", async () => {
+    const first = await projectedUnderIgnoringRoot({ rootProjection: ABSENT_PROJECTION });
+    const second = await projectedUnderIgnoringRoot({ rootProjection: present(ROOT_PROJECTION_WITH_PACKAGE_LOCATION) });
     const written = {
       write: expect.anything(),
       fileWrites: [
@@ -2543,8 +2566,8 @@ describe("package projection slices, a folder holding its own disciplines.json",
 });
 
 describe("package projection slices, a run that cannot finish", () => {
-  it("writes and removes nothing when one slice cannot be rendered", async () => {
-    const projectionFiles = projectionFilesReading(readingInTurn().mockReturnValueOnce(ABSENT_PROJECTION).mockReturnValueOnce(present(ENABLING_PROJECTION)).mockReturnValueOnce(unreadableProjection(PACKAGE_A_SLICE_FILE)));
+  it("writes and removes nothing when one slice cannot be read", async () => {
+    const projectionFiles = projectionFilesAnswering(unreadableProjection(PACKAGE_A_SLICE_FILE));
     const write = await runnerOver({ repository: repositoryHolding({ projectionFiles }) }).project(
       projectRequest({ trackedPaths: [PACKAGE_A_CONFIG, repoPathSchema.parse("packages/old/disciplines.eslint.mjs")], records: [] }),
     );
