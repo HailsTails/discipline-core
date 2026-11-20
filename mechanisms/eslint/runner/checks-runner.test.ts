@@ -47,11 +47,17 @@ const REQUEST: ChecksRunRequest = {
   declaredConfigLookup: undefined,
 };
 
-const NOT_READY = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } };
+const NOT_READY_DECLARED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } };
+
+const NOT_READY_PACKAGE_WEB = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["packages/web/eslint.config.mjs"] } } };
+
+const NOT_READY_PACKAGE_LEGACY = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["legacy/eslint.config.mjs"] } } };
+
+const NOT_READY_NESTED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "nested-repositories", paths: ["vendor/lib"] } } };
 
 describe("checksRunnerOver", () => {
   it("is not ready for a repository that declares ESLint config roots, before touching any port", async () => {
-    expect(await runner.run({ ...REQUEST, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY);
+    expect(await runner.run({ ...REQUEST, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY_DECLARED);
   });
 
   it("is not ready for a repository holding a nested repository with files to check", async () => {
@@ -61,7 +67,30 @@ describe("checksRunnerOver", () => {
         files: [repoPathSchema.parse("vendor/lib/src/a.ts")],
         trackedPaths: [repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/src/a.ts")],
       }),
-    ).toEqual(NOT_READY);
+    ).toEqual(NOT_READY_NESTED);
+  });
+
+  it("names the nested repository, and not its own lint config as a package config of this one, when that repository holds one", async () => {
+    expect(
+      await runner.run({
+        ...REQUEST,
+        files: [repoPathSchema.parse("vendor/lib/src/a.ts")],
+        trackedPaths: [
+          repoPathSchema.parse("vendor/lib/hone.config.json"),
+          repoPathSchema.parse("vendor/lib/eslint.config.mjs"),
+          repoPathSchema.parse("vendor/lib/src/a.ts"),
+        ],
+      }),
+    ).toEqual(NOT_READY_NESTED);
+  });
+
+  it("does not report a nested repository's lint config as a package config of this one when the nested repository holds no file to check", async () => {
+    const outcome = await runner.run({
+      ...REQUEST,
+      files: [],
+      trackedPaths: [repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/eslint.config.mjs")],
+    });
+    expect(outcome).toEqual({ outcome: "ok", value: expect.anything() });
   });
 
   it("is not ready for a repository holding a nested disciplines.json folder with its own eslint.config.*, before touching any port", async () => {
@@ -76,7 +105,7 @@ describe("checksRunnerOver", () => {
       ],
     });
     expect({ outcome, queried: vi.mocked(eslint.createQueryInstance).mock.calls, governed: vi.mocked(eslint.createGovernanceInstance).mock.calls }).toEqual({
-      outcome: NOT_READY,
+      outcome: NOT_READY_PACKAGE_LEGACY,
       queried: [],
       governed: [],
     });
@@ -89,7 +118,7 @@ describe("checksRunnerOver", () => {
       trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("packages/web/src/a.ts")],
     });
     expect({ outcome, queried: vi.mocked(eslint.createQueryInstance).mock.calls, governed: vi.mocked(eslint.createGovernanceInstance).mock.calls }).toEqual({
-      outcome: NOT_READY,
+      outcome: NOT_READY_PACKAGE_WEB,
       queried: [],
       governed: [],
     });
@@ -101,7 +130,7 @@ describe("checksRunnerOver", () => {
       declaredConfigLookup: "nearest-to-file",
       trackedPaths: [repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("src/a.ts")],
     });
-    expect(outcome).toEqual(NOT_READY);
+    expect(outcome).toEqual(NOT_READY_PACKAGE_WEB);
   });
 
   it("does not count a subfolder config as a root when the repository declares a repository-root lookup", async () => {
@@ -287,7 +316,7 @@ describe("checksRunnerOver, giving the projection as project", () => {
   });
 
   it("is not ready for a repository that declares ESLint config roots", async () => {
-    expect(await projectingRunner().runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY);
+    expect(await projectingRunner().runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY_DECLARED);
   });
 
   it("gives the text a run then reports as current, so the two read one source", async () => {

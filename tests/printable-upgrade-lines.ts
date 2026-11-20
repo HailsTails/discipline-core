@@ -54,7 +54,17 @@ const SAMPLES: readonly Sample[] = [
     },
     fills: { roots: "packages/a, packages/b", check: "loop-keyword#loops", mechanism: "eslint", engines: "eslint or oxlint", name: "Not A Name" },
   },
-  { failure: { kind: "plan-refused", refusal: { kind: "projection-failed", detail: "the detail" } }, fills: {} },
+  { failure: { kind: "plan-refused", refusal: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } } }, fills: { detail: "load failure: unknown-check names#names" } },
+  {
+    failure: {
+      kind: "plan-refused",
+      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["packages/a/eslint.config.mjs"] } } },
+    },
+    fills: {
+      detail:
+        "load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found packages/a/eslint.config.mjs; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs",
+    },
+  },
   { failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } }, fills: { count: "0" } },
   { failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] } }, fills: { records: "loop-keyword#loops in src/b.ts" } },
   { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: CONFIG, projection: PROJECTION } } }, fills: {} },

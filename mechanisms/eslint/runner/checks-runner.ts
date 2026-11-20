@@ -7,11 +7,11 @@ import type { Result } from "../../../core/values/result.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
 import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
-import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck } from "./checks-run-types.ts";
+import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, NotReadyCause, SelectedCheck } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
 import { CHECKS_PROJECTION_PATH, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
-import { nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
+import { nestedVersionTwoFoldersOf, nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
 import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
 import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
@@ -22,7 +22,7 @@ import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
-import { packageConfigRootCountOf } from "./checks-config-roots.ts";
+import { packageConfigFilesOf } from "./checks-config-roots.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { conformedCases, loadedPieceClauseOf } from "./eslint-conform.ts";
 import { honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
@@ -79,15 +79,23 @@ const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly pla
 const lookupOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): EslintConfigLookup =>
   configLookupDeclaring({ ...lookupRequestOf(request), declared: request.run.declaredConfigLookup });
 
-const packageConfigRootsOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): number =>
-  packageConfigRootCountOf({ trackedPaths: request.run.trackedPaths, declared: request.run.declaredConfigRoots, lookup: lookupOf(request) });
+const notReadyFor = (request: { readonly cause: NotReadyCause; readonly paths: readonly string[] }): Outcome<never> => ({
+  outcome: "failed",
+  error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: request.cause, paths: request.paths } },
+});
 
-const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): Outcome<never> | undefined =>
-  request.run.declaredConfigRoots.length > 0 ||
-  packageConfigRootsOver(request) > 0 ||
-  nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }).length > 0
-    ? { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }
-    : undefined;
+const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): Outcome<never> | undefined => {
+  const { run } = request;
+  if (run.declaredConfigRoots.length > 0) {
+    return notReadyFor({ cause: "declared-roots", paths: run.declaredConfigRoots });
+  }
+  const nested = nestedVersionTwoRepositoriesOf({ trackedPaths: run.trackedPaths, files: run.files });
+  if (nested.length > 0) {
+    return notReadyFor({ cause: "nested-repositories", paths: nested });
+  }
+  const packages = packageConfigFilesOf({ trackedPaths: run.trackedPaths, lookup: lookupOf(request), nestedRepositories: nestedVersionTwoFoldersOf({ trackedPaths: run.trackedPaths }) });
+  return packages.length > 0 ? notReadyFor({ cause: "package-configs", paths: packages }) : undefined;
+};
 
 const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: ChecksRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
   const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request), settingsFile: SETTINGS_FILE_NAME });

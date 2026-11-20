@@ -123,7 +123,7 @@ describe("versionTwoRunOver", () => {
   });
 
   it("fails with the engines' failure", async () => {
-    const notReady: RunLoadFailure = { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } };
+    const notReady: RunLoadFailure = { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } };
     const stages = stagesGiving({ engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "failed", error: notReady }) });
     expect(await versionTwoRunOver({ stages, arguments: NO_ARGUMENTS })).toEqual({ outcome: "failed", error: notReady });
   });

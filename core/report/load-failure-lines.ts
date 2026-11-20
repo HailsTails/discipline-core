@@ -98,13 +98,40 @@ const catalogueFields = (request: { readonly failure: CatalogueNotRead }): reado
   }
 };
 
+const MOST_FOLDERS_NAMED = 3;
+
+const foldersText = (request: { readonly folders: readonly string[] }): string => {
+  const unnamed = request.folders.length - MOST_FOLDERS_NAMED;
+  const named = request.folders.slice(0, MOST_FOLDERS_NAMED).join(", ");
+  return unnamed > 0 ? `${named} and ${unnamed} more` : named;
+};
+
+const configRootsFields = (request: { readonly what: Extract<NotReadyYet, { readonly thing: "eslint-config-roots" }> }): readonly string[] => {
+  const { what } = request;
+  const folders = foldersText({ folders: what.paths });
+  switch (what.cause) {
+    case "declared-roots":
+      return ["eslint-config-roots:", `this release does not run eslintConfigRoots on version 2 files yet; remove it from ${SETTINGS_FILE_NAME} to run on the repository root`];
+    case "package-configs":
+      return [
+        "eslint-config-roots:",
+        `this release does not run a repository with lint configs below its root on version 2 files yet; found ${folders}; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs`,
+      ];
+    case "nested-repositories":
+      return [
+        "eslint-config-roots:",
+        `this release does not run a repository that holds other version 2 repositories yet; folders holding ${SETTINGS_FILE_NAME}: ${folders}; move them out of this repository, and run each on its own with --repo`,
+      ];
+  }
+};
+
 const notReadyFields = (request: { readonly what: NotReadyYet }): readonly string[] => {
   const { what } = request;
   switch (what.thing) {
     case "command":
       return [`${what.command}:`, `this release runs ${what.command} on version 1 files only, and this repository holds ${SETTINGS_FILE_NAME}`];
     case "eslint-config-roots":
-      return ["eslint-config-roots:", `this release does not run eslintConfigRoots on version 2 files yet; remove it from ${SETTINGS_FILE_NAME} to run on the repository root`];
+      return configRootsFields({ what });
   }
 };
 

@@ -56,7 +56,23 @@ const FAILURE_SAMPLES: FailureSamples = {
   "settings-in-both-versions": [{ entry: { kind: "settings-in-both-versions", repo: "/work/shop" }, fills: { dir: "/work/shop" } }],
   "not-ready-yet": [
     { entry: { kind: "not-ready-yet", what: { thing: "command", command: "record-debt" } }, fills: { command: "record-debt" } },
-    { entry: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } }, fills: {} },
+    { entry: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } }, fills: {} },
+    {
+      entry: {
+        kind: "not-ready-yet",
+        what: {
+          thing: "eslint-config-roots",
+          cause: "package-configs",
+          paths: ["packages/a/eslint.config.mjs", "packages/b/eslint.config.mjs", "packages/c/eslint.config.mjs", "packages/d/eslint.config.mjs", "packages/e/eslint.config.mjs"],
+        },
+      },
+      fills: { "config files": "packages/a/eslint.config.mjs, packages/b/eslint.config.mjs, packages/c/eslint.config.mjs and 2 more" },
+    },
+    {
+      entry: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["packages/a/eslint.config.mjs"] } },
+      fills: { "config files": "packages/a/eslint.config.mjs" },
+    },
+    { entry: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "nested-repositories", paths: ["vendor/lib", "vendor/tool"] } }, fills: { folders: "vendor/lib, vendor/tool" } },
   ],
   "unknown-check": [{ entry: { kind: "unknown-check", check: "claimed-type#casts" }, fills: { check: "claimed-type#casts" } }, { entry: { kind: "unknown-check", check: "my check#x y" }, fills: { check: "my check#x y" } }],
   "review-only-listed": [{ entry: { kind: "review-only-listed", check: "names#names" }, fills: { check: "names#names" } }],

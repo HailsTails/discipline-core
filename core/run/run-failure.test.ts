@@ -8,9 +8,9 @@ const ESLINT_ENGINE = { name: "eslint", mechanism: ESLINT };
 
 describe("runFailureOf", () => {
   it("passes a not-ready-yet failure through", () => {
-    expect(runFailureOf({ engines: [], source: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } })).toEqual({
+    expect(runFailureOf({ engines: [], source: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } })).toEqual({
       kind: "not-ready-yet",
-      what: { thing: "eslint-config-roots" },
+      what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] },
     });
   });
 

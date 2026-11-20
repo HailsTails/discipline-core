@@ -1,22 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { configuredDirectoriesOf, packageConfigRootCountOf } from "./checks-config-roots.ts";
+import { configuredDirectoriesOf, packageConfigFilesOf } from "./checks-config-roots.ts";
 
 const TRACKED = [
   repoPathSchema.parse("eslint.config.mjs"),
   repoPathSchema.parse("package.json"),
   repoPathSchema.parse("packages/a/eslint.config.js"),
+  repoPathSchema.parse("packages/a/eslint.config.mjs"),
   repoPathSchema.parse("packages/a/src/a.ts"),
   repoPathSchema.parse("packages/b/tools/eslint.config.ts"),
 ];
 
-const PACKAGE_A = repoPathSchema.parse("packages/a");
-
-const PACKAGE_C = repoPathSchema.parse("packages/c");
-
 describe("configuredDirectoriesOf", () => {
   it("names every directory holding an ESLint config, the repository root as an empty name, when each file looks up its nearest config", () => {
-    expect(configuredDirectoriesOf({ trackedPaths: TRACKED, lookup: "nearest-to-file" })).toEqual(["", "packages/a", "packages/b/tools"]);
+    expect(configuredDirectoriesOf({ trackedPaths: TRACKED, lookup: "nearest-to-file" })).toEqual(["", "packages/a", "packages/a", "packages/b/tools"]);
   });
 
   it("names none when only the repository root's config is looked up", () => {
@@ -24,16 +21,20 @@ describe("configuredDirectoriesOf", () => {
   });
 });
 
-describe("packageConfigRootCountOf", () => {
-  it("counts the configured directories below the repository root", () => {
-    expect(packageConfigRootCountOf({ trackedPaths: TRACKED, declared: [], lookup: "nearest-to-file" })).toBe(2);
+describe("packageConfigFilesOf", () => {
+  it("names each ESLint config below the repository root, and not the one at the root", () => {
+    expect(packageConfigFilesOf({ trackedPaths: TRACKED, lookup: "nearest-to-file", nestedRepositories: [] })).toEqual([
+      "packages/a/eslint.config.js",
+      "packages/a/eslint.config.mjs",
+      "packages/b/tools/eslint.config.ts",
+    ]);
   });
 
-  it("counts none for a root-only lookup", () => {
-    expect(packageConfigRootCountOf({ trackedPaths: TRACKED, declared: [], lookup: "repository-root" })).toBe(0);
+  it("names none for a root-only lookup", () => {
+    expect(packageConfigFilesOf({ trackedPaths: TRACKED, lookup: "repository-root", nestedRepositories: [] })).toEqual([]);
   });
 
-  it("counts a declared directory once when it is also configured, and once more when it is not", () => {
-    expect(packageConfigRootCountOf({ trackedPaths: TRACKED, declared: [PACKAGE_A, PACKAGE_C], lookup: "nearest-to-file" })).toBe(3);
+  it("leaves out an ESLint config inside a nested repository, which belongs to that repository", () => {
+    expect(packageConfigFilesOf({ trackedPaths: TRACKED, lookup: "nearest-to-file", nestedRepositories: ["packages/a"] })).toEqual(["packages/b/tools/eslint.config.ts"]);
   });
 });

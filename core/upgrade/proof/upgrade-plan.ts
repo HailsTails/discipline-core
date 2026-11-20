@@ -1,5 +1,6 @@
 import type { ConsumerSelectionFile } from "../../consumer-selection/selection-file.ts";
 import { recordsTextOf } from "../../records/records-edit.ts";
+import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { SETTINGS_FILE_NAME } from "../../settings/settings-sources.ts";
 import { type SettingsFile, settingsTextOf } from "../../settings/settings-file.ts";
@@ -25,7 +26,7 @@ export type VersionOneReading = {
   readonly versionOneProjection: RepoPath | undefined;
 };
 
-export type ProjectionFailure = { readonly kind: "projection-failed"; readonly detail: string };
+export type ProjectionFailure = { readonly kind: "projection-failed"; readonly failure: RunLoadFailure };
 
 export type ProjectionFilesOf = (request: {
   readonly settings: SettingsFile;

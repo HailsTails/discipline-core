@@ -47,6 +47,11 @@ export type ChecksRunReport = {
   readonly misnamedRuleIds: readonly MisnamedRuleId[];
 };
 
-export type NotReadyYetFailure = { readonly kind: "not-ready-yet"; readonly what: { readonly thing: "eslint-config-roots" } };
+export type NotReadyCause = "declared-roots" | "package-configs" | "nested-repositories";
+
+export type NotReadyYetFailure = {
+  readonly kind: "not-ready-yet";
+  readonly what: { readonly thing: "eslint-config-roots"; readonly cause: NotReadyCause; readonly paths: readonly string[] };
+};
 
 export type ChecksRunFailure = RunnerFailure | NotReadyYetFailure;

@@ -71,7 +71,7 @@ describe("checksProjectResultSchema", () => {
   });
 
   it("accepts a not-ready-yet failure", () => {
-    const notReady = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } };
+    const notReady = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } };
     expect(checksProjectResultSchema.safeParse(notReady)).toEqual({ success: true, data: notReady });
   });
 
@@ -91,8 +91,13 @@ describe("checksRunResultSchema", () => {
   });
 
   it("accepts the not-ready-yet failure the ESLint runner gives for config roots", () => {
-    const failed = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } };
+    const failed = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } };
     expect(checksRunResultSchema.safeParse(failed)).toEqual({ success: true, data: failed });
+  });
+
+  it("rejects a not-ready-yet failure that names no path", () => {
+    const failed = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: [] } } };
+    expect(checksRunResultSchema.safeParse(failed).success).toBe(false);
   });
 
   it("rejects a misnamed rule id of an unknown kind", () => {

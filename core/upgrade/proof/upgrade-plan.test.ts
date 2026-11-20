@@ -111,8 +111,11 @@ describe("upgradePlanOf", () => {
   });
 
   it("refuses when the projection could not be made", async () => {
-    const failed = vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "failed", error: { kind: "projection-failed", detail: "eslint missing" } });
-    await expect(upgradePlanOf(requestOver({ projectionFilesOf: failed }))).resolves.toEqual({ outcome: "failed", error: { kind: "projection-failed", detail: "eslint missing" } });
+    const failed = vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "failed", error: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } } });
+    await expect(upgradePlanOf(requestOver({ projectionFilesOf: failed }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } },
+    });
   });
 
   it("refuses when the team config would have to import other than exactly one projected file", async () => {

@@ -140,7 +140,7 @@ describe("versionTwoProjectCommandOf", () => {
   });
 
   it("prints the not-ready-yet line and exits 2 when the engine's config roots are not ready", async () => {
-    const notReady: RunLoadFailure = { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } };
+    const notReady: RunLoadFailure = { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } };
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver: stagesOverProjecting({ projected: { outcome: "failed", error: notReady } }) });
     expect(ran).toEqual({
       writes: [[{ text: "load failure: not-ready-yet eslint-config-roots: this release does not run eslintConfigRoots on version 2 files yet; remove it from hone.config.json to run on the repository root\n" }]],
