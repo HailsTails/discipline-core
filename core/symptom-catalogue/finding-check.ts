@@ -1,6 +1,6 @@
 import type { Finding } from "../governance/governance.ts";
 import { checkNamedAt, checksOf } from "./check-address.ts";
-import { type Check, type Symptom, type SymptomCatalogue, symptomReadingOf } from "./symptom-catalogue.ts";
+import { type Check, type Engine, type Symptom, type SymptomCatalogue, symptomReadingOf } from "./symptom-catalogue.ts";
 
 export type FindingCheck =
   | { readonly resolved: "check"; readonly check: Check }
@@ -9,13 +9,13 @@ export type FindingCheck =
 
 const NOTHING: FindingCheck = { resolved: "none" };
 
-const measuredBy = (request: { readonly check: Check; readonly finding: Pick<Finding, "mechanism"> }): boolean =>
-  request.check.engines.some((engine) => engine.mechanism === request.finding.mechanism);
+const measuringEngineOf = (request: { readonly check: Check; readonly finding: Pick<Finding, "mechanism"> }): Engine | undefined =>
+  request.check.engines.find((engine) => engine.mechanism === request.finding.mechanism);
 
 const ofSymptom = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding; readonly symptom: Symptom }): FindingCheck => {
   const candidates = checksOf({ catalogue: request.catalogue, clause: request.finding.clause })
     .filter((check) => check.symptom.name === request.symptom.name)
-    .filter((check) => measuredBy({ check, finding: request.finding }));
+    .filter((check) => measuringEngineOf({ check, finding: request.finding }) !== undefined);
   const [only, ...others] = candidates;
   return only !== undefined && others.length === 0 ? { resolved: "check", check: only } : { resolved: "symptom-only", symptom: request.symptom };
 };
@@ -31,7 +31,7 @@ export const checkOfFinding = (request: { readonly catalogue: SymptomCatalogue; 
     case "unnamed":
       return ofReading(request);
     case "check":
-      return measuredBy({ check: named.check, finding: request.finding }) ? { resolved: "check", check: named.check } : NOTHING;
+      return measuringEngineOf({ check: named.check, finding: request.finding }) !== undefined ? { resolved: "check", check: named.check } : NOTHING;
     case "not-of-the-clause":
       return NOTHING;
   }
