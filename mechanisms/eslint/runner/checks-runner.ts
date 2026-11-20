@@ -11,12 +11,17 @@ import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFile
 import { nestedVersionTwoRepositoriesOf } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
 import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
-import { CHECKS_PLUGIN_NAMESPACE } from "./check-rule-id.ts";
+import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
+import { cachedGoverningIgnores } from "./governing-config.ts";
 import { coreInstallOf } from "./core-install.ts";
 import { eslintRepositoryOver } from "./eslint-repository.ts";
 import { MISNAMED_DISABLE_RULE, MISNAMED_DISABLE_RULE_ID, misnamedDisableRule } from "./misnamed-disable-rule.ts";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
+import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
+import type { QueryInstance } from "./eslint-instance.ts";
+import { configRootsOf } from "./projection-slices.ts";
+import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
 import { checksPluginImportOf, type ProjectionFailure, projectedChecksOf } from "./projected-checks.ts";
 import { projectionState } from "./projection.ts";
@@ -57,10 +62,38 @@ const versionOneRuleIdsOf = (request: { readonly bindings: ChecksRunRequest["bin
     return settings.success ? [`${settings.data.pluginNamespace}/${settings.data.rule}`] : [];
   });
 
-const notReadyOver = (request: { readonly run: ChecksRunRequest }): Outcome<never> | undefined =>
-  request.run.declaredConfigRoots.length > 0 || nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }).length > 0
+const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }) => ({
+  fileText: request.platform.fileText,
+  path: request.platform.path,
+  repoRoot: request.run.repoRoot,
+  trackedPaths: request.run.trackedPaths,
+});
+
+const lookupOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): EslintConfigLookup =>
+  configLookupDeclaring({ ...lookupRequestOf(request), declared: request.run.declaredConfigLookup });
+
+const configRootsOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): number =>
+  configRootsOf({ trackedPaths: request.run.trackedPaths, declared: request.run.declaredConfigRoots, lookup: lookupOf(request) }).length;
+
+const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): Outcome<never> | undefined =>
+  request.run.declaredConfigRoots.length > 0 ||
+  configRootsOver(request) > 1 ||
+  nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }).length > 0
     ? { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }
     : undefined;
+
+const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: EslintRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
+  const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request) });
+  if (lookup.outcome === "failed") {
+    return lookup;
+  }
+  return {
+    outcome: "ok",
+    value: request.ports.eslint.createQueryInstance(
+      lookup.value.kind === "repository-root" ? { repoRoot: request.run.repoRoot, configFile: lookup.value.configFile } : { repoRoot: request.run.repoRoot },
+    ),
+  };
+};
 
 const loadedPlugin = (request: { readonly plugin: ChecksPlugin; readonly checkRuleIds: readonly string[] }): Result<LoadedEslintPlugin, RunnerFailure> => {
   const loaded = eslintPluginModuleSchema.safeParse({
@@ -114,6 +147,7 @@ type LintRequest = {
   readonly selected: readonly SelectedCheck[];
   readonly plugin: LoadedEslintPlugin;
   readonly queried: QueriedFiles;
+  readonly query: QueryInstance;
   readonly ports: EslintRunnerPorts;
   readonly versionOneRuleIds: readonly string[];
 };
@@ -133,7 +167,7 @@ const lintedReport = async (request: LintRequest & { readonly projection: Checks
   }
   const findings = gatheredOutcomes({
     outcomes: linted.value.map((file) =>
-      listedOutcome({ outcome: lintedFindingsOf({ linted: file, path: ports.path, repoRoot: run.repoRoot, sourceLines: repository.sourceLines, selected: request.selected, versionOneRuleIds: request.versionOneRuleIds }) }),
+      listedOutcome({ outcome: lintedFindingsOf({ linted: file, path: ports.path, repoRoot: run.repoRoot, sourceLines: repository.sourceLines, selected: request.selected, checkRuleIds: eslintRuleIdsOf({ checks: run.checks }), versionOneRuleIds: request.versionOneRuleIds }) }),
     ),
   });
   if (findings.outcome === "failed") {
@@ -144,7 +178,7 @@ const lintedReport = async (request: LintRequest & { readonly projection: Checks
     suppressionsAt: repository.suppressionsAt,
     trackedPaths: run.trackedPaths,
     selected: request.selected,
-    judge: scriptOptionJudge({ query: ports.eslint.createQueryInstance({ repoRoot: run.repoRoot }), eslint: ports.eslint, path: ports.path, repoRoot: run.repoRoot, checked: request.queried.checked.map((checked) => checked.file) }),
+    judge: scriptOptionJudge({ query: request.query, eslint: ports.eslint, path: ports.path, repoRoot: run.repoRoot, checked: request.queried.checked.map((checked) => checked.file) }),
   });
   return tracked.outcome === "failed"
     ? tracked
@@ -160,18 +194,23 @@ const lintedReport = async (request: LintRequest & { readonly projection: Checks
       };
 };
 
-const queriedRun = async (request: Omit<LintRequest, "queried"> & { readonly projection: ChecksProjectionState }): Promise<Outcome<ChecksRunReport>> => {
+const queriedRun = async (request: Omit<LintRequest, "queried" | "query"> & { readonly platform: EslintPlatformPorts; readonly projection: ChecksProjectionState }): Promise<Outcome<ChecksRunReport>> => {
+  const query = queryInstanceOf(request);
+  if (query.outcome === "failed") {
+    return query;
+  }
   const queried = await queriedFilesOf({
-    query: request.ports.eslint.createQueryInstance({ repoRoot: request.run.repoRoot }),
+    query: query.value,
     files: request.run.files,
     ruleIds: request.selected.map((entry) => entry.ruleId),
+    location: { path: request.ports.path, repoRoot: request.run.repoRoot, governingIgnoreOf: cachedGoverningIgnores({ eslint: request.ports.eslint }) },
   });
   if (queried.outcome === "failed") {
     return queried;
   }
   return projectionEffectOf({ selected: request.selected, answered: request.run.answered, queried: queried.value }) === "not-in-effect"
     ? reportAs({ projection: "not-included" })
-    : lintedReport({ ...request, queried: queried.value });
+    : lintedReport({ ...request, query: query.value, queried: queried.value });
 };
 
 const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly ports: EslintRunnerPorts; readonly platform: EslintPlatformPorts }): Promise<Outcome<ChecksRunReport>> => {
@@ -187,14 +226,14 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
   if (state.outcome === "failed" || state.value === "missing") {
     return state.outcome === "failed" ? state : reportAs({ projection: "missing" });
   }
-  const plugin = await builtPlugin({ ...request, checkRuleIds: selected.value.map((entry) => entry.ruleId) });
+  const plugin = await builtPlugin({ ...request, checkRuleIds: eslintRuleIdsOf({ checks: request.run.checks }) });
   return plugin.outcome === "failed"
     ? plugin
-    : queriedRun({ run: request.run, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), projection: state.value });
+    : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), projection: state.value });
 };
 
 export const checksRunnerOver = (request: { readonly ports: EslintRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
-  run: (run) => Promise.resolve(notReadyOver({ run })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
+  run: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
 });
 
 export const createChecksRunner = (platform: EslintPlatformPorts): ChecksRunner =>

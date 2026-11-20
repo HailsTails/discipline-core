@@ -13,7 +13,7 @@ import { type LinesReader, sourceLinesFor } from "./source-lines.ts";
 
 type Outcome<Value> = Result<Value, RunnerFailure>;
 
-export type FileFindings = {
+type FileFindings = {
   readonly hits: readonly Hit[];
   readonly nativeExceptions: readonly NativeException[];
   readonly measured: readonly MeasuredPair[];
@@ -26,6 +26,7 @@ type FileRequest = {
   readonly repoRoot: AbsolutePath;
   readonly sourceLines: LinesReader;
   readonly selected: readonly SelectedCheck[];
+  readonly checkRuleIds: readonly string[];
   readonly versionOneRuleIds: readonly string[];
 };
 
@@ -97,7 +98,7 @@ export const lintedFindingsOf = (request: FileRequest): Outcome<FileFindings> =>
           misnamedRuleIds: misnamedRuleIdsIn({
             file: file.value,
             messages: request.linted.messages,
-            checkRuleIds: request.selected.map((entry) => entry.ruleId),
+            checkRuleIds: request.checkRuleIds,
             versionOneRuleIds: request.versionOneRuleIds,
           }),
         },

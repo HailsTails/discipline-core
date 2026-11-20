@@ -1,10 +1,11 @@
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
-import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import type { AnsweredFile } from "./checks-projection.ts";
+import { type AnsweredFile, CHECKS_PROJECTION_PATH } from "./checks-projection.ts";
 import type { SelectedCheck } from "./checks-run-types.ts";
+import { SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
+import { type ConfigLocation, queriedFiles } from "./create-eslint-runner.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
 
@@ -20,48 +21,18 @@ export type QueriedFiles = {
   readonly checked: readonly CheckedFile[];
 };
 
-export type ProjectionEffect = "in-effect" | "not-in-effect";
-
-type QueriedFile = { readonly file: RepoPath; readonly ignored: "ignored" } | ({ readonly ignored: "checked" } & CheckedFile);
+type ProjectionEffect = "in-effect" | "not-in-effect";
 
 type Holding = "holds" | "does-not-hold";
 
-const statesOf = (request: { readonly query: QueryInstance; readonly file: RepoPath; readonly ruleIds: readonly string[] }): Promise<Outcome<CheckedFile["states"]>> =>
-  Promise.all(
-    request.ruleIds.map((ruleId) =>
-      request.query.ruleState({ file: request.file, ruleId }).then((state): Outcome<CheckedFile["states"]> => (state.outcome === "failed" ? state : { outcome: "ok", value: [{ ruleId, state: state.value }] })),
-    ),
-  ).then((outcomes) => gatheredOutcomes({ outcomes }));
-
-const queriedFileOf = (request: { readonly query: QueryInstance; readonly file: RepoPath; readonly ruleIds: readonly string[] }): Promise<Outcome<QueriedFile>> =>
-  request.query.ignoredState({ file: request.file }).then(async (ignored): Promise<Outcome<QueriedFile>> => {
-    if (ignored.outcome === "failed") {
-      return ignored;
-    }
-    if (ignored.value === "ignored") {
-      return { outcome: "ok", value: { file: request.file, ignored: "ignored" } };
-    }
-    const states = await statesOf(request);
-    return states.outcome === "failed" ? states : { outcome: "ok", value: { file: request.file, ignored: "checked", states: states.value } };
-  });
+const VERSION_TWO_NAMES: ConfigLocation["names"] = { settingsFile: SETTINGS_FILE_NAME, projectionFile: CHECKS_PROJECTION_PATH };
 
 export const queriedFilesOf = (request: {
   readonly query: QueryInstance;
   readonly files: readonly RepoPath[];
   readonly ruleIds: readonly string[];
-}): Promise<Outcome<QueriedFiles>> =>
-  Promise.all(request.files.map((file) => queriedFileOf({ ...request, file }).then((outcome) => listedOutcome({ outcome })))).then((outcomes) => {
-    const queried = gatheredOutcomes({ outcomes });
-    return queried.outcome === "failed"
-      ? queried
-      : {
-          outcome: "ok",
-          value: {
-            ignored: queried.value.flatMap((entry) => (entry.ignored === "ignored" ? [entry.file] : [])),
-            checked: queried.value.flatMap((entry) => (entry.ignored === "checked" ? [{ file: entry.file, states: entry.states }] : [])),
-          },
-        };
-  });
+  readonly location: Omit<ConfigLocation, "names">;
+}): Promise<Outcome<QueriedFiles>> => queriedFiles({ ...request, location: { ...request.location, names: VERSION_TWO_NAMES } });
 
 const stateOf = (request: { readonly checked: CheckedFile; readonly ruleId: string }): RuleState | undefined =>
   request.checked.states.find((entry) => entry.ruleId === request.ruleId)?.state;

@@ -427,11 +427,14 @@ const queriedFileOf = (request: {
   return checkedQueriedFile({ query: request.query, file: request.file, ruleIds: request.ruleIds });
 };
 
-type ConfigLocation = {
+export type ConfigLocation = {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly governingIgnoreOf: GoverningIgnores;
+  readonly names: { readonly settingsFile: string; readonly projectionFile: string };
 };
+
+const VERSION_ONE_NAMES: ConfigLocation["names"] = { settingsFile: "disciplines.json", projectionFile: "disciplines.eslint.mjs" };
 
 const FULL_STOP = ".";
 
@@ -442,7 +445,7 @@ const configRepair = (request: { readonly configFile: string; readonly location:
   const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
   return folder === "." || folder === ""
     ? "Fix that config."
-    : `Fix that config. Only if ${folder} holds nothing Hone should check, add it to exclude in disciplines.json instead.`;
+    : `Fix that config. Only if ${folder} holds nothing Hone should check, add it to exclude in ${request.location.names.settingsFile} instead.`;
 };
 
 const foundConfigDetail = (request: {
@@ -468,7 +471,7 @@ const unloadableConfigDetail = (request: {
     case "found":
       return foundConfigDetail({ file: request.file, message, configFile: request.search.path, location: request.location });
     case "none":
-      return `no eslint.config.* applies to ${request.file}. Create one at the repository root that spreads disciplines.eslint.mjs last, as ADOPTING.md step 4a shows.`;
+      return `no eslint.config.* applies to ${request.file}. Create one at the repository root that spreads ${request.location.names.projectionFile} last, as ADOPTING.md step 4a shows.`;
     case "unknown":
       return `the ESLint config for ${request.file} failed to load: ${message} Fix that config.`;
   }
@@ -546,7 +549,7 @@ const partitionedFiles = (request: { readonly queried: readonly QueriedFile[] })
   checked: request.queried.flatMap((entry) => checkedFileOf({ entry })),
 });
 
-const queriedFiles = (request: {
+export const queriedFiles = (request: {
   readonly query: QueryInstance;
   readonly files: readonly RepoPath[];
   readonly ruleIds: readonly string[];
@@ -1164,6 +1167,7 @@ const governedRun = (request: {
       path: request.ports.path,
       repoRoot: request.run.repoRoot,
       governingIgnoreOf: cachedGoverningIgnores({ eslint: request.ports.eslint }),
+      names: VERSION_ONE_NAMES,
     },
   }).then((queried) =>
     queriedReport({

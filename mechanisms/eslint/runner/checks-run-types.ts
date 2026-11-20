@@ -1,5 +1,6 @@
 import type { Hit, MeasuredPair, NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
+import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { ClauseAddress } from "../../../core/values/clause-address.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
@@ -17,6 +18,7 @@ export type ChecksRunRequest = {
   readonly bindings: readonly ProjectedBinding[];
   readonly answered: readonly AnsweredFile[];
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly declaredConfigLookup: EslintConfigLookup | undefined;
 };
 
 export type SelectedCheck = {
