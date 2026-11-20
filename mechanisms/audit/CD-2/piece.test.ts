@@ -81,6 +81,7 @@ describe("CD-2 audit piece.json", () => {
           expectationOn({ line: 3, text: `// ${EXPECTATION} until lines is typed (#42)` }),
           expectationOn({ line: 6, text: `// ${IGNORE}` }),
         ],
+        measured: [{ clause: ADDRESS, file: TEST_FILE }],
       },
     });
   });

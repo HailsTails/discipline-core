@@ -15,6 +15,7 @@ import {
   unlinkedCaseSentencesOn,
   unlistedCaseNamesOn,
   unservedCaseNamesOn,
+  unowedPointersOf,
 } from "./catalogue-pages.ts";
 
 const CASES_PAGE = `# Cases
@@ -290,8 +291,41 @@ describe("owesOfCatalogue", () => {
     ]);
   });
 });
-describe("caseNamesOffTheirTitles", () => {
-  type NamingRow = { readonly name: string; readonly entry: Pick<Case, "name" | "title">; readonly off: readonly string[] };
+
+describe("unowedPointersOf", () => {
+  it("names each pointer of an indication whose case does not owe it, by its title, and none that it owes", () => {
+    const onePlace: Principle = { name: "one-place-decides", title: "One place decides" };
+    const doer: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: onePlace, standing: "accepted" };
+    const builds: Case = {
+      name: "builds-the-real-implementations",
+      title: "Builds the real implementations",
+      standing: "accepted",
+      owes: [{ kind: "principle", principle: onePlace }],
+    };
+    expect(
+      unowedPointersOf({
+        catalogue: {
+          symptoms: [
+            {
+              name: "wide-port",
+              mayIndicate: [
+                {
+                  case: builds,
+                  points: [
+                    { kind: "principle", principle: onePlace },
+                    { kind: "rule", rule: doer },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toEqual([{ symptom: "wide-port", case: "builds-the-real-implementations", pointer: "Doer or orchestrator" }]);
+  });
+});
+
+describe("caseNamesOffTheirTitles", () => {  type NamingRow = { readonly name: string; readonly entry: Pick<Case, "name" | "title">; readonly off: readonly string[] };
 
   it.each<NamingRow>([
     { name: "a name that is its title, hyphenated", entry: { name: "does-one-job", title: "Does one job" }, off: [] },

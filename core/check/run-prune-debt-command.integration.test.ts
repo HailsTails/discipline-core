@@ -7,7 +7,7 @@ import { createDefaultModuleLoaderPort } from "../platform-ports/module-loader-p
 import { createDefaultPathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
-import { repoPathSchema } from "../values/repo-path.ts";
+import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { CommandRequest } from "./run-check-command.ts";
 import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 
@@ -15,12 +15,25 @@ const FIXTURE = `${import.meta.dirname}/../../tests/test-fixtures/prune-debt`;
 
 const TOOL_COMMAND_URL = new URL("./tool-command.ts", import.meta.url).href;
 
-const GONE_PAIR = { clause: clauseAddressSchema.parse("CD-15#loops"), file: repoPathSchema.parse("src/gone.ts") };
+const LOOPS = clauseAddressSchema.parse("CD-15#loops");
+
+const GONE_PAIR = { clause: LOOPS, file: repoPathSchema.parse("src/gone.ts") };
+
+const KEPT_PAIR = { clause: LOOPS, file: repoPathSchema.parse("src/kept.ts") };
 
 const FIXTURE_TRACKED = [
   repoPathSchema.parse("discipline-exceptions.json"),
   repoPathSchema.parse("disciplines.json"),
   repoPathSchema.parse("src/kept.ts"),
+];
+
+const TRACKED_WITHOUT_KEPT = [repoPathSchema.parse("discipline-exceptions.json"), repoPathSchema.parse("disciplines.json")];
+
+const TRACKED_WITH_LEGACY_SCRIPT = [
+  repoPathSchema.parse("discipline-exceptions.json"),
+  repoPathSchema.parse("disciplines.json"),
+  repoPathSchema.parse("src/kept.ts"),
+  repoPathSchema.parse("src/legacy.js"),
 ];
 
 const processGiven = (argumentsGiven: readonly string[]): ProcessPort => ({
@@ -30,8 +43,8 @@ const processGiven = (argumentsGiven: readonly string[]): ProcessPort => ({
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const gitTrackingTheFixture = (): GitPort => ({
-  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: FIXTURE_TRACKED }),
+const gitTracking = (tracked: readonly RepoPath[]): GitPort => ({
+  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: tracked }),
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: [] }),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
@@ -52,15 +65,31 @@ const pruning = (request: {
   moduleUrl: request.moduleUrl,
 });
 
+const gitTrackingTheFixture = (): GitPort => gitTracking(FIXTURE_TRACKED);
+
 const removingWhatItIsGiven = () => vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [GONE_PAIR] });
 
 describe("runPruneDebtCommand over a repository on disk, through this install's audit runner", () => {
-  it("removes the carve-out on a file no longer on disk, keeps the one on a file that still exists, and exits 0", async () => {
+  it("removes the carve-out on a file no longer on disk and the one on a file still on disk the audit runner measured clean, and exits 0", async () => {
     const process = processGiven(["--repo", FIXTURE]);
     const remove = removingWhatItIsGiven();
     await runPruneDebtCommand(pruning({ process, git: gitTrackingTheFixture(), remove, moduleUrl: TOOL_COMMAND_URL }));
-    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [GONE_PAIR] });
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [GONE_PAIR, KEPT_PAIR] });
     expect(process.exitWith).toHaveBeenCalledExactlyOnceWith({ code: 0 });
+  });
+
+  it("keeps the carve-out on a file still on disk that git no longer tracks, which no runner was handed", async () => {
+    const remove = removingWhatItIsGiven();
+    await runPruneDebtCommand(pruning({ process: processGiven(["--repo", FIXTURE]), git: gitTracking(TRACKED_WITHOUT_KEPT), remove, moduleUrl: TOOL_COMMAND_URL }));
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [GONE_PAIR] });
+  });
+
+  it("keeps the carve-out on a JavaScript file still holding its loop, which the audit runner is handed and skips", async () => {
+    const remove = removingWhatItIsGiven();
+    await runPruneDebtCommand(
+      pruning({ process: processGiven(["--repo", FIXTURE]), git: gitTracking(TRACKED_WITH_LEGACY_SCRIPT), remove, moduleUrl: TOOL_COMMAND_URL }),
+    );
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [GONE_PAIR, KEPT_PAIR] });
   });
 
   it("asks git for the files changed since the --base-revision it is given", async () => {

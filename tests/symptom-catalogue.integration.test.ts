@@ -13,12 +13,14 @@ import {
   owesOfCatalogue,
   owesOnPages,
   type ProseLink,
+  type UnowedPointer,
   proposedReasonsOf,
   reasonMismatchesOf,
   recipeReasonsOnPage,
   unlinkedCaseSentencesOn,
   unlistedCaseNamesOn,
   unservedCaseNamesOn,
+  unowedPointersOf,
 } from "./catalogue-pages.ts";
 import { foldersUnder } from "./conformance-rows.ts";
 import {
@@ -229,6 +231,40 @@ const PROSE_LINKS: readonly ProseLink[] = [
   },
 ];
 
+const TIME_OR_RANDOM = "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering";
+
+const GIVES_BACK = "states-what-the-unit-gives-back-for-one-case-or-several";
+
+const PUTS_CODE = "puts-code-in-a-file-or-folder";
+
+const COLLABORATOR = "uses-what-a-collaborator-gives-back";
+
+const SEVERAL_OUTCOMES = "checks-a-value-that-may-be-one-of-several-outcomes";
+
+const ITS_TEST = "gives-each-unit-its-test";
+
+const UNOWED_POINTERS: readonly UnowedPointer[] = [
+  { symptom: "date-used-directly", case: TIME_OR_RANDOM, pointer: "Written-out answers" },
+  { symptom: "ambient-randomness", case: TIME_OR_RANDOM, pointer: "Written-out answers" },
+  { symptom: "outside-import-past-a-boundary", case: "takes-an-outside-dependency", pointer: "Ports declared inside" },
+  { symptom: "text-past-its-reader", case: GIVES_BACK, pointer: "Written-out answers" },
+  { symptom: "module-level-state", case: "keeps-state-or-settings-across-calls", pointer: "External behaviour sits at a boundary" },
+  { symptom: "long-function", case: PUTS_CODE, pointer: "One word everywhere" },
+  { symptom: "long-function", case: "names-something", pointer: "One reason per module" },
+  { symptom: "tangled-function", case: PUTS_CODE, pointer: "One word everywhere" },
+  { symptom: "tangled-function", case: "names-something", pointer: "One reason per module" },
+  { symptom: "wide-port", case: "uses-a-system-or-service-outside-the-program", pointer: "Handed what it uses" },
+  { symptom: "double-with-a-body", case: COLLABORATOR, pointer: "Handed what it uses" },
+  { symptom: "double-with-a-body", case: COLLABORATOR, pointer: "Doer or orchestrator" },
+  { symptom: "module-or-global-patched", case: COLLABORATOR, pointer: "Ports declared inside" },
+  { symptom: "branch-in-a-test", case: SEVERAL_OUTCOMES, pointer: "Kinds are named" },
+  { symptom: "branch-in-a-test", case: SEVERAL_OUTCOMES, pointer: "Failures are values" },
+  { symptom: "computed-value-in-a-test", case: GIVES_BACK, pointer: "Written-out answers" },
+  { symptom: "behaviour-tested-away-from-its-owner", case: "tests-across-units-or-against-a-real-system", pointer: "Written-out answers" },
+  { symptom: "behaviour-tested-away-from-its-owner", case: ITS_TEST, pointer: "Written-out answers" },
+  { symptom: "test-of-the-type-checker", case: ITS_TEST, pointer: "The type checker proves it" },
+];
+
 const reading = createSymptomCatalogueRepository({ fileText: FILE_TEXT, path: PATH, ruleSetRoot: REPO_ROOT }).read({});
 
 describe("rules/typescript/symptoms.json, read from this repository through the catalogue's reader", () => {
@@ -319,6 +355,13 @@ describe("rules/typescript/symptoms.json, read from this repository through the 
     expect(owesOfCatalogue({ catalogue: reading.value.catalogue })).toEqual(
       owesOnPages({ casesPage: CASES_PAGE.value, rulesPage: RULES_PAGE.value, links: PROSE_LINKS }),
     );
+  });
+
+  it("lists every indication that points at something its case does not owe, as the table for review writes them out", () => {
+    assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
+
+    expect(unowedPointersOf({ catalogue: reading.value.catalogue })).toEqual(UNOWED_POINTERS);
   });
 
   it("lists every sentence on rules/rules.md that makes a case of rules, and finds each listed sentence on its page", () => {

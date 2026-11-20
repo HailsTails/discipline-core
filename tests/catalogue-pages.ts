@@ -1,4 +1,4 @@
-import type { Case, Recipe, RecipeReason, Standing, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Indication, Pointed, Recipe, RecipeReason, Standing, Symptom, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 
 export type PageCase = { readonly title: string; readonly standing: Standing };
 
@@ -206,6 +206,25 @@ export const owesOfCatalogue = (request: { readonly catalogue: Pick<SymptomCatal
     principles: entry.owes.flatMap((point) => (point.kind === "principle" ? [point.principle.name] : [])),
     rules: entry.owes.flatMap((point) => (point.kind === "rule" ? [point.rule.title] : [])),
   }));
+
+export type UnowedPointer = { readonly symptom: string; readonly case: string; readonly pointer: string };
+
+const pointedName = (request: { readonly point: Pointed }): string =>
+  request.point.kind === "principle" ? request.point.principle.title : request.point.rule.title;
+
+type IndicatingSymptom = Pick<Symptom, "name" | "mayIndicate">;
+
+const unowedOf = (request: { readonly symptom: IndicatingSymptom; readonly indication: Indication }): readonly UnowedPointer[] => {
+  const owed = request.indication.case.owes.map((point) => pointedName({ point }));
+  return request.indication.points
+    .map((point) => pointedName({ point }))
+    .filter((pointer) => !owed.includes(pointer))
+    .map((pointer) => ({ symptom: request.symptom.name, case: request.indication.case.name, pointer }));
+};
+
+export const unowedPointersOf = (request: { readonly catalogue: { readonly symptoms: readonly IndicatingSymptom[] } }): readonly UnowedPointer[] =>
+  request.catalogue.symptoms.flatMap((symptom) => symptom.mayIndicate.flatMap((indication) => unowedOf({ symptom, indication })));
+
 const PARENTHETICAL = /\s*\([^)]*\)/g;
 
 const caseNameOfTitle = (request: { readonly title: string }): string =>

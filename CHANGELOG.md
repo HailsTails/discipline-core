@@ -2,6 +2,20 @@
 
 Every release of Hone, newest first. `pnpm run release-pull-request` writes each new section from the commits merged to `main` since the previous release tag, whose subjects are the squash-merged pull request titles; README.md's Compatibility section says what each kind of release may change. The sections below were written by hand from the merged pull requests when the changelog started.
 
+## 1.5.0
+
+### Features
+
+- add the TypeScript symptom catalogue and its typed reader (#199)
+- prune-debt removes paid debt on a file that still exists (#203)
+- a finding names its symptom (#202)
+
+### Other changes
+
+- pages for principles, cases, rules, records and the TypeScript layer (#197)
+- numbered rule pages point at the named pages (#201)
+- the install-proof plan test holds no debt (#208)
+
 ## 1.4.0
 
 ### Features

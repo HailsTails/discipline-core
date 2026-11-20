@@ -3,6 +3,7 @@ import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain
 import type { SelectionReading, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../exception-records/exception-records.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
+import type { MeasuredPair } from "../mechanism-port/runner-result-types.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
@@ -1039,7 +1040,279 @@ const carveOutOn = (file: string): StructuralExceptionEntry => ({ ...CARVE_OUT_O
 const unchangedGitTracking = (tracked: readonly RepoPath[]): GitPort =>
   gitMeasuring({ trackedPaths: { outcome: "ok", value: tracked }, changedSince: { outcome: "ok", value: [] } });
 
-describe("runReachedCheck handing on only the debt on a file no longer on disk", () => {
+const CARVE_OUT_ON_A = firstInSingleFile(carveOutOn("src/a.ts"));
+
+const runnerMeasuring = (measured: readonly MeasuredPair[]): ModuleLoaderPort =>
+  modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured } } }) });
+
+const CLAUSE_WIDE_CLASS_SYNTAX: StructuralExceptionEntry = {
+  kind: "clause-wide-carve-out",
+  clause: "CD-14#class-syntax",
+  reason: "the team's config turns class-syntax off where it migrates",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const STALE_CARVE_OUT_ON_A = {
+  kind: "file-carve-out",
+  clause: CLASS_SYNTAX_OBJECT,
+  mechanism: "audit",
+  file: "src/a.ts",
+  reason: "legacy class awaiting paydown",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+describe("runReachedCheck handing on debt on a file still on disk from what its runner measured", () => {
+  it("hands on a stale file carve-out whose clause its runner measured on that file, pointing at it", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: { ...EMPTY_REPORT, stale: [STALE_CARVE_OUT_ON_A], readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }] },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a stale file carve-out on a file still on disk when its mechanism did not run, its projection missing", async () => {
+    await expect(
+      runReachedCheck({ ...embeddedCheck({ hits: [], nativeExceptions: [], projection: "missing" }), exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: { ...EMPTY_REPORT, stale: [STALE_CARVE_OUT_ON_A], unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "missing" }] },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("refuses the run, handing on nothing, when a runner claims a file the selection excludes", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, excluded: [repoPathSchema.parse("src")] }),
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "runner-failed",
+        mechanism: "audit",
+        failure: { kind: "runner-invalid-output", detail: "a measured pair names CD-14#class-syntax in src/a.ts, which the request did not hold" },
+      },
+    });
+  });
+
+  it("hands on nothing for a forfeited file carve-out whose rule a config override turns off on its file, though a clause-wide carve-out records that override", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(CLAUSE_WIDE_CLASS_SYNTAX)] }),
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }],
+                projection: "current",
+                measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }],
+              },
+            }),
+          }),
+          git: gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts")] } }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { paidDebt: [], report: { ...EMPTY_REPORT, forfeited: [STALE_CARVE_OUT_ON_A] }, unprojected: [] },
+    });
+  });
+
+  it("hands on nothing for a stale file carve-out on a file its runner was handed but did not measure", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/e.js"))] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { paidDebt: [], report: { ...EMPTY_REPORT, stale: [{ ...STALE_CARVE_OUT_ON_A, file: "src/e.js" }] }, unprojected: [] },
+    });
+  });
+});
+
+const AUTHORISED_ON_A: StructuralExceptionEntry = {
+  kind: "authorised-location",
+  clause: "CD-14#class-syntax",
+  file: "src/a.ts",
+  reason: "the one class the library's extension point requires",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const AUTHORISED_ON_A_RECORD = {
+  kind: "authorised-location",
+  clause: CLASS_SYNTAX_OBJECT,
+  mechanism: "audit",
+  file: "src/a.ts",
+  reason: "the one class the library's extension point requires",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const runnerHittingAndMeasuringA = modulesLoading({
+  runner: standaloneRunner({
+    runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }] } },
+  }),
+});
+
+const gitChangingA = gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts")] } });
+
+describe("runReachedCheck handing on debt whose every finding an authorised location answers", () => {
+  it("hands on a forfeited file carve-out on a measured pair whose finding an authorised location in force exempts", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(AUTHORISED_ON_A)] }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [AUTHORISED_ON_A_RECORD] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a forfeited file carve-out whose finding a legacy-chain authorised location exempts while the records at the base revision cannot be read", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryAtBase({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN })],
+            base: { outcome: "failed", error: BASE_UNREADABLE },
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [{ ...AUTHORISED_ON_A_RECORD, whyChain: LEGACY_WHY_CHAIN }] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on a forfeited file carve-out whose finding a legacy-chain authorised location exempts once the base revision holds that location unchanged", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryAtBase({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN })],
+            base: { outcome: "ok", value: [{ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN }] },
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [{ ...AUTHORISED_ON_A_RECORD, whyChain: LEGACY_WHY_CHAIN }] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a file carve-out in force beside an authorised location on its pair, which leaves both doubly held", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(AUTHORISED_ON_A)] }),
+          modules: runnerHittingAndMeasuringA,
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+          doublyHeld: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", mechanism: "audit" }],
+          readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a forfeited file carve-out whose finding only a refused authorised location would answer", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ kind: "authorised-location", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "no chain" })],
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          invalidRecords: [
+            { place: { layout: "single-file", file: "discipline-exceptions.json", index: 1 }, problem: { kind: "evidence-refused", detail: "✖ Invalid input" } },
+          ],
+          readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST],
+        },
+        unprojected: [],
+      },
+    });
+  });
+});
+
+describe("runReachedCheck handing on debt on a file no longer on disk", () => {
   it("hands on a stale file carve-out on a file no longer on disk, pointing at it", async () => {
     await expect(
       runReachedCheck(
@@ -1068,7 +1341,7 @@ describe("runReachedCheck handing on only the debt on a file no longer on disk",
     });
   });
 
-  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists", async () => {
+  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists and no runner said it measured", async () => {
     await expect(
       runReachedCheck(
         checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/a.ts"))] }), git: unchangedGitTracking(TRACKED_PATHS) }),
