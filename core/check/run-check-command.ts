@@ -12,13 +12,13 @@ import { type ReportOutput, reportOutputInEffect } from "../values/report-output
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import { type CheckLocations, checkLocationsFor } from "./check-locations.ts";
-import type { CheckArguments } from "./command-arguments.ts";
-import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
-import type { LoadFailure } from "./load-failure.ts";
-import { type PackageLink, packageLinkOf, UNLINKED } from "./package-link.ts";
-import { projectCommandOf, pruneCommandOf } from "./tool-invocations.ts";
+import type { CheckArguments } from "../command-line/command-arguments.ts";
+import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "../command-line/command-outcome.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import { type PackageLink, packageLinkOf, UNLINKED } from "../command-line/package-link.ts";
+import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
 import { runCheck } from "./run-check.ts";
-import { shownFailureOf } from "./shown-path.ts";
+import { shownFailureOf } from "../command-line/shown-path.ts";
 
 export type CommandRequest = {
   readonly process: ProcessPort;

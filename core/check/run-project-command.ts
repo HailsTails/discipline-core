@@ -1,11 +1,11 @@
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
-import { parseProjectArguments } from "./command-arguments.ts";
-import { projectCommandOutcome } from "./command-outcome.ts";
+import { parseProjectArguments } from "../command-line/command-arguments.ts";
+import { projectCommandOutcome } from "../command-line/command-outcome.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
-import { installRootOf } from "./install-root.ts";
-import type { LoadFailure } from "./load-failure.ts";
+import { installRootOf } from "../command-line/install-root.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
 import { type CommandRequest, printOutcome, withShownPaths } from "./run-check-command.ts";
 import { runProject } from "./run-project.ts";

@@ -1,4 +1,4 @@
-import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../command-line/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";

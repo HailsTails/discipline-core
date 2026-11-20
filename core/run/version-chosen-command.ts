@@ -1,4 +1,4 @@
-import type { Subcommand } from "../check/command-line.ts";
+import type { Subcommand } from "../command-line/command-line.ts";
 import { printOutcome, type CommandRequest } from "../check/run-check-command.ts";
 import { runLoadFailureLine } from "../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";

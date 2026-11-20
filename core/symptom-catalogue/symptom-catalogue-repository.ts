@@ -1,4 +1,4 @@
-import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../command-line/load-failure.ts";
 import type { Result } from "../values/result.ts";
 import type { CatalogueHolding } from "./symptom-catalogue.ts";
 

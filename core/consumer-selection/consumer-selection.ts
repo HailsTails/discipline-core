@@ -5,7 +5,7 @@ import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import { z } from "zod";
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import {

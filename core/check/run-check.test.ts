@@ -14,7 +14,7 @@ import { editionSchema, FIRST_EDITION } from "../values/edition.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { LoadFailure } from "./load-failure.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import { type CheckRequest, runCheck, runReachedCheck } from "./run-check.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
