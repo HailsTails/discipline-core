@@ -103,7 +103,7 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
 
   it("finds, in what the version 2 folders reach without entering version 1, each dynamic load that no relative path names, as written, only as listed here, so a computed load the graph cannot follow is reviewed and not waved through", () => {
     expect(unresolvedLoadsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne })).toEqual([
-      { file: "./core/platform-ports/module-loader-port.ts", specifier: "pathToFileURL(request.path", form: "dynamic" },
+      { file: "./core/platform-ports/module-loader-port.ts", specifier: "pathToFileURL(request.path).href", form: "dynamic" },
     ]);
   });
 });

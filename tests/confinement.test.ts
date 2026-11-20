@@ -25,26 +25,6 @@ import {
   sourcesNotNamed,
   unresolvedLoadsReached,
 } from "./confinement.ts";
-import { requiredEntry } from "./required-entry.ts";
-
-declare global {
-  interface ImportMeta {
-    readonly glob: (
-      patterns: readonly string[],
-      options: { readonly base: string; readonly query: "?raw"; readonly import: "default"; readonly eager: true },
-    ) => Readonly<Record<string, string>>;
-  }
-}
-
-const dynamicLoadFixtures = import.meta.glob(["./tests/test-fixtures/dynamic-loads/*.txt"], {
-  base: "../",
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
-
-const fixtureText = (request: { readonly name: string }): string =>
-  requiredEntry({ table: dynamicLoadFixtures, key: `./tests/test-fixtures/dynamic-loads/${request.name}.txt` });
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
 
@@ -289,9 +269,10 @@ describe("the reach leaving a start without entering what is held", () => {
     ]);
   });
 
-  it("lists each whole import statement into the held files, resolved from its own file", () => {
+  it("lists each whole import or re-export statement into the held files, resolved from its own file", () => {
     expect(importStatementsLeaving(leaving)).toEqual([
       { file: "./core/run/start.ts", statement: 'import { h } from "../held/h.ts";' },
+      { file: "./core/run/start.ts", statement: 'export type { T } from "../held/t.ts";' },
       { file: "./core/mid/a.ts", statement: 'import { b } from "../held/b.ts";' },
     ]);
   });
@@ -337,10 +318,15 @@ describe("a dynamic load written as a template literal without substitutions", (
 
 describe("unresolvedLoadsReached", () => {
   const sources = {
-    "./core/run/start.ts": fixtureText({ name: "package-and-computed-loads" }),
+    "./core/run/start.ts": `import { a } from "./a.ts";
+const relative = await import("./a.ts");
+const named = await import("zod");
+const computed = await import(\`\${folder}/mod.ts\`);
+const viaVariable = await import(modulePath);
+`,
     "./core/run/a.ts": "export const a = 1;\n",
-    "./core/held/h.ts": fixtureText({ name: "variable-load" }),
-    "./core/unreached/u.ts": fixtureText({ name: "variable-load" }),
+    "./core/held/h.ts": "const hidden = await import(somewhere);\n",
+    "./core/unreached/u.ts": "const hidden = await import(elsewhere);\n",
   };
 
   it("lists each dynamic load in the reached files that no relative path names, as written, and none it cannot enter", () => {
@@ -348,6 +334,37 @@ describe("unresolvedLoadsReached", () => {
       { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
       { file: "./core/run/start.ts", specifier: `\`\${folder}/mod.ts\``, form: "dynamic" },
       { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
+    ]);
+  });
+});
+
+describe("the loads the guards read, by the syntax and not by the text", () => {
+  const sources = {
+    "./core/run/forms.ts": `const concatenated = await import("../values/" + "x.ts");
+const escapedString = await import("../verd\\x69ct/x.ts");
+const backtick = await import(\`../verdict/b.ts\`);
+const escapedBacktick = await import(\`../verd\\x69ct/c.ts\`);
+const commented = await import(/* note */ "../verdict/d.ts");
+const required = require(\`../verdict/e.ts\`);
+const sampleText = "import('../verdict/f.ts')";
+// import("../verdict/g.ts")
+`,
+  };
+  const request = { sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/verdict\// };
+
+  it("lists a load into a watched folder however its path is written, an escape, a backtick or a comment in the call included, and none that sits in a string or a comment", () => {
+    expect(importEdgesLeaving({ ...request, reaching: /^\.\/core\/verdict\// })).toEqual([
+      { file: "./core/run/forms.ts", specifier: "../verdict/x.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/b.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/c.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/d.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/e.ts", form: "dynamic" },
+    ]);
+  });
+
+  it("lists a load whose path is built by concatenation by its exact text, so it is pinned and not read as a relative path", () => {
+    expect(unresolvedLoadsReached(request)).toEqual([
+      { file: "./core/run/forms.ts", specifier: `"../values/" + "x.ts"`, form: "dynamic" },
     ]);
   });
 });
