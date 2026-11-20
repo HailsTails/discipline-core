@@ -4,11 +4,11 @@ import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
 import { escapedGlobPath } from "./projection.ts";
 import { CHECKS_PLUGIN_NAMESPACE } from "./check-rule-id.ts";
 
-export type ProjectedCheck = { readonly symptom: string; readonly ruleId: string; readonly options: RuleOptions };
+export type ProjectedCheck = { readonly symptom: string; readonly check: string; readonly ruleId: string; readonly options: RuleOptions };
 
-export type AnsweredFile = { readonly symptom: string; readonly file: RepoPath };
+export type AnsweredFile = { readonly symptom: string; readonly check?: string; readonly file: RepoPath };
 
-type AnsweredGroup = { readonly symptoms: readonly string[]; readonly files: readonly RepoPath[] };
+type AnsweredGroup = { readonly reaches: readonly string[]; readonly files: readonly RepoPath[] };
 
 type RuleEntry = { readonly ruleId: string; readonly entry: string };
 
@@ -21,6 +21,8 @@ const CHECKS_BLOCK = `${CHECKS_PLUGIN_NAMESPACE}/checks`;
 const ANSWERED_BLOCK = `${CHECKS_PLUGIN_NAMESPACE}/answered`;
 
 const LIST_SEPARATOR = ", ";
+
+const CHECK_SEPARATOR = "#";
 
 const quoted = (request: { readonly text: string }): string => JSON.stringify(request.text);
 
@@ -44,25 +46,33 @@ const codeUnitOrder = (request: { readonly left: string; readonly right: string 
 const checksBlock = (request: { readonly checks: readonly ProjectedCheck[] }): string =>
   `{ name: ${quoted({ text: CHECKS_BLOCK })}, files: [${quoted({ text: SOURCE_FILES })}], plugins: { ${CHECKS_PLUGIN_NAMESPACE} }, rules: ${rulesText({ rules: enabledRules(request) })} }`;
 
+const reachOfAnswer = (request: { readonly answer: AnsweredFile }): string =>
+  request.answer.check === undefined ? request.answer.symptom : `${request.answer.symptom}${CHECK_SEPARATOR}${request.answer.check}`;
+
+const reachesOfCheck = (request: { readonly check: ProjectedCheck }): readonly string[] => [
+  request.check.symptom,
+  `${request.check.symptom}${CHECK_SEPARATOR}${request.check.check}`,
+];
+
 const answeredGroupsOf = (request: { readonly checks: readonly ProjectedCheck[]; readonly answered: readonly AnsweredFile[] }): readonly AnsweredGroup[] => {
-  const projectedSymptoms = new Set(request.checks.map((check) => check.symptom));
-  const projectedAnswers = request.answered.filter((answer) => projectedSymptoms.has(answer.symptom));
-  const symptomsByFile = [...Map.groupBy(projectedAnswers, (answer) => answer.file)].map(([file, answers]) => ({
+  const projectedReaches = new Set(request.checks.flatMap((check) => reachesOfCheck({ check })));
+  const projectedAnswers = request.answered.filter((answer) => projectedReaches.has(reachOfAnswer({ answer })));
+  const reachesByFile = [...Map.groupBy(projectedAnswers, (answer) => answer.file)].map(([file, answers]) => ({
     file,
-    symptoms: [...new Set(answers.map((answer) => answer.symptom))].toSorted(),
+    reaches: [...new Set(answers.map((answer) => reachOfAnswer({ answer })))].toSorted(),
   }));
-  return [...Map.groupBy(symptomsByFile, (entry) => entry.symptoms.join(LIST_SEPARATOR))]
-    .map(([symptoms, entries]) => ({ symptoms: symptoms.split(LIST_SEPARATOR), files: entries.map((entry) => entry.file).toSorted() }))
-    .toSorted((left, right) => codeUnitOrder({ left: left.symptoms.join(LIST_SEPARATOR), right: right.symptoms.join(LIST_SEPARATOR) }));
+  return [...Map.groupBy(reachesByFile, (entry) => entry.reaches.join(LIST_SEPARATOR))]
+    .map(([reaches, entries]) => ({ reaches: reaches.split(LIST_SEPARATOR), files: entries.map((entry) => entry.file).toSorted() }))
+    .toSorted((left, right) => codeUnitOrder({ left: left.reaches.join(LIST_SEPARATOR), right: right.reaches.join(LIST_SEPARATOR) }));
 };
 
 const answeredBlock = (request: { readonly group: AnsweredGroup; readonly checks: readonly ProjectedCheck[] }): string => {
   const offRules = request.checks
-    .filter((check) => request.group.symptoms.includes(check.symptom))
+    .filter((check) => reachesOfCheck({ check }).some((reach) => request.group.reaches.includes(reach)))
     .map((check) => ({ ruleId: check.ruleId, entry: quoted({ text: "off" }) }))
     .toSorted((left, right) => codeUnitOrder({ left: left.ruleId, right: right.ruleId }));
   const files = request.group.files.map((file) => quoted({ text: escapedGlobPath({ path: file }) })).join(LIST_SEPARATOR);
-  return `{ name: ${quoted({ text: `${ANSWERED_BLOCK}/${request.group.symptoms.join(LIST_SEPARATOR)}` })}, files: [${files}], rules: ${rulesText({ rules: offRules })} }`;
+  return `{ name: ${quoted({ text: `${ANSWERED_BLOCK}/${request.group.reaches.join(LIST_SEPARATOR)}` })}, files: [${files}], rules: ${rulesText({ rules: offRules })} }`;
 };
 
 export const checksProjectionText = (request: {

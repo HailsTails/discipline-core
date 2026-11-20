@@ -1,91 +1,127 @@
-import { assert, describe, expect, it } from "vitest";
-import { symptomCatalogueOf } from "../../../core/symptom-catalogue/symptom-catalogue-wire.ts";
-import SYMPTOMS from "../../../rules/typescript/symptoms.json" with { type: "json" };
-import { checkOfRuleId, eslintRuleIdsOf } from "./check-rule-id.ts";
-import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
-import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
-import { createDefaultPathPort } from "../../../core/platform-ports/path-port.ts";
+import { describe, expect, it, vi } from "vitest";
+import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import type { ModuleLoad, ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
+import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
-import { honePluginAt } from "./hone-plugin.ts";
+import { SKIPPED_TESTS_CHECK } from "../../../tests/checks-plugin-catalogue.ts";
+import cd27Plugin from "../CD-27/cd27/cd27.eslint-plugin.ts";
+import { type HonePluginFailure, honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
 
-const CATALOGUE = symptomCatalogueOf({ document: SYMPTOMS });
+const PIECE_FILE = "/install/mechanisms/eslint/CD-27/piece.json";
 
-assert(CATALOGUE.outcome === "ok");
+const PLUGIN_MODULE_PATH = "/install/mechanisms/eslint/CD-27/cd27/cd27.eslint-plugin.ts";
 
-const path = createDefaultPathPort({});
+const PIECE_TEXT =
+  '{"discipline":"CD-27","clauses":[{"clause":"skipped-tests","settings":{"pluginNamespace":"hone-cd27","pluginModule":"cd27/cd27.eslint-plugin.ts","rule":"skipped-tests"}}]}';
 
-const honePlugin = await honePluginAt({
-  checks: CATALOGUE.value.checks,
-  installRoot: absolutePathSchema.parse(path.join({ segments: [import.meta.dirname, "..", "..", ".."] })),
-  fileText: createDefaultFileTextPort({}),
-  path,
-  modules: createDefaultModuleLoaderPort({}),
-});
+const PIECE_READ: ReturnType<FileTextPort["read"]> = { outcome: "ok", value: PIECE_TEXT };
 
-const ESLINT_CHECKS: readonly { readonly ruleId: string; readonly symptom: string; readonly check: string }[] = [
-  { ruleId: "hone/untyped-value/explicit-any", symptom: "untyped-value", check: "explicit-any" },
-  { ruleId: "hone/untyped-value/implicit-any-let", symptom: "untyped-value", check: "implicit-any-let" },
-  { ruleId: "hone/claimed-type/non-null-assertions", symptom: "claimed-type", check: "non-null-assertions" },
-  { ruleId: "hone/name-off-its-casing/naming-convention", symptom: "name-off-its-casing", check: "naming-convention" },
-  { ruleId: "hone/name-off-its-casing/filename-case", symptom: "name-off-its-casing", check: "filename-case" },
-  { ruleId: "hone/thrown-non-error/throw-only-error", symptom: "thrown-non-error", check: "throw-only-error" },
-  { ruleId: "hone/authored-class-or-this/class-keyword", symptom: "authored-class-or-this", check: "class-keyword" },
-  { ruleId: "hone/authored-class-or-this/static-members-only", symptom: "authored-class-or-this", check: "static-members-only" },
-  { ruleId: "hone/test-switched-off/focused-tests", symptom: "test-switched-off", check: "focused-tests" },
-  { ruleId: "hone/test-switched-off/skipped-tests", symptom: "test-switched-off", check: "skipped-tests" },
-  { ruleId: "hone/positional-parameters/parameter-count", symptom: "positional-parameters", check: "parameter-count" },
-  { ruleId: "hone/tangled-function/cognitive-complexity", symptom: "tangled-function", check: "cognitive-complexity" },
-  { ruleId: "hone/long-function/function-length", symptom: "long-function", check: "function-length" },
-  { ruleId: "hone/work-inside-a-condition/else-after-an-exit", symptom: "work-inside-a-condition", check: "else-after-an-exit" },
-  { ruleId: "hone/rebinding/parameter-reassignment", symptom: "rebinding", check: "parameter-reassignment" },
-];
+const PLUGIN_LOADED: ModuleLoad = { outcome: "ok", value: { default: cd27Plugin } };
 
-describe("honePluginAt, over this repository's catalogue and pieces", () => {
-  it("is the one plugin, named for its export", () => {
-    expect(honePlugin.meta).toEqual({ name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" });
+const pluginBuiltFrom = (request: { readonly read: ReturnType<FileTextPort["read"]>; readonly load: ModuleLoad }) => {
+  const read = vi.fn<FileTextPort["read"]>().mockReturnValue(request.read);
+  const load = vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue(request.load);
+  const built = honePluginAt({
+    checks: [SKIPPED_TESTS_CHECK],
+    installRoot: absolutePathSchema.parse("/install"),
+    fileText: { read, exists: vi.fn<FileTextPort["exists"]>(), write: vi.fn<FileTextPort["write"]>() },
+    path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
+    modules: { load },
   });
+  return { built, read, load };
+};
 
-  it("gives every check the catalogue runs on ESLint exactly one rule id", () => {
-    expect(eslintRuleIdsOf({ checks: CATALOGUE.value.checks })).toEqual([
-      "hone/untyped-value/explicit-any",
-      "hone/untyped-value/implicit-any-let",
-      "hone/claimed-type/non-null-assertions",
-      "hone/name-off-its-casing/naming-convention",
-      "hone/name-off-its-casing/filename-case",
-      "hone/thrown-non-error/throw-only-error",
-      "hone/authored-class-or-this/class-keyword",
-      "hone/authored-class-or-this/static-members-only",
-      "hone/test-switched-off/focused-tests",
-      "hone/test-switched-off/skipped-tests",
-      "hone/positional-parameters/parameter-count",
-      "hone/tangled-function/cognitive-complexity",
-      "hone/long-function/function-length",
-      "hone/work-inside-a-condition/else-after-an-exit",
-      "hone/rebinding/parameter-reassignment",
-    ]);
-  });
-
-  it("holds a rule under every one of those ids and no other", () => {
-    expect(honePlugin.rules).toEqual({
-      "untyped-value/explicit-any": expect.anything(),
-      "untyped-value/implicit-any-let": expect.anything(),
-      "claimed-type/non-null-assertions": expect.anything(),
-      "name-off-its-casing/naming-convention": expect.anything(),
-      "name-off-its-casing/filename-case": expect.anything(),
-      "thrown-non-error/throw-only-error": expect.anything(),
-      "authored-class-or-this/class-keyword": expect.anything(),
-      "authored-class-or-this/static-members-only": expect.anything(),
-      "test-switched-off/focused-tests": expect.anything(),
-      "test-switched-off/skipped-tests": expect.anything(),
-      "positional-parameters/parameter-count": expect.anything(),
-      "tangled-function/cognitive-complexity": expect.anything(),
-      "long-function/function-length": expect.anything(),
-      "work-inside-a-condition/else-after-an-exit": expect.anything(),
-      "rebinding/parameter-reassignment": expect.anything(),
+describe("honePluginAt", () => {
+  it("builds the plugin from the piece of each ESLint check's discipline and the plugin module that piece names", async () => {
+    expect(await pluginBuiltFrom({ read: PIECE_READ, load: PLUGIN_LOADED }).built).toEqual({
+      outcome: "ok",
+      value: { meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" }, rules: { "test-switched-off/skipped-tests": expect.anything() } },
     });
   });
 
-  it.each(ESLINT_CHECKS)("resolves $ruleId back to its check", ({ ruleId, symptom, check }) => {
-    expect(checkOfRuleId({ checks: CATALOGUE.value.checks, ruleId })).toMatchObject({ found: "check", check: { name: check, symptom: { name: symptom } } });
+  it("reads the discipline's piece under the install root", async () => {
+    const { built, read } = pluginBuiltFrom({ read: PIECE_READ, load: PLUGIN_LOADED });
+    await built;
+    expect(read).toHaveBeenCalledWith({ path: PIECE_FILE });
+  });
+
+  it("loads the plugin module from beside the piece", async () => {
+    const { built, load } = pluginBuiltFrom({ read: PIECE_READ, load: PLUGIN_LOADED });
+    await built;
+    expect(load).toHaveBeenCalledWith({ path: PLUGIN_MODULE_PATH });
+  });
+
+  it("fails naming a piece that cannot be read", async () => {
+    expect(
+      await pluginBuiltFrom({ read: { outcome: "failed", error: { kind: "unreadable", path: PIECE_FILE, detail: "ENOENT" } }, load: PLUGIN_LOADED }).built,
+    ).toEqual({ outcome: "failed", error: { kind: "piece-unreadable", pieceFile: PIECE_FILE, detail: "ENOENT" } });
+  });
+
+  it("fails naming a piece that is not JSON", async () => {
+    expect(await pluginBuiltFrom({ read: { outcome: "ok", value: "not json" }, load: PLUGIN_LOADED }).built).toMatchObject({
+      outcome: "failed",
+      error: { kind: "piece-unreadable", pieceFile: PIECE_FILE },
+    });
+  });
+
+  it("fails naming a piece that names no plugin module", async () => {
+    expect(await pluginBuiltFrom({ read: { outcome: "ok", value: '{"clauses":"none"}' }, load: PLUGIN_LOADED }).built).toMatchObject({
+      outcome: "failed",
+      error: { kind: "piece-source-invalid", pieceFile: PIECE_FILE },
+    });
+  });
+
+  it("fails naming a plugin module that cannot be loaded", async () => {
+    expect(
+      await pluginBuiltFrom({
+        read: PIECE_READ,
+        load: { outcome: "failed", error: { kind: "module-unloadable", path: PLUGIN_MODULE_PATH, detail: "SyntaxError" } },
+      }).built,
+    ).toEqual({ outcome: "failed", error: { kind: "plugin-unloadable", path: PLUGIN_MODULE_PATH, detail: "SyntaxError" } });
+  });
+
+  it("fails naming a plugin module that exports nothing", async () => {
+    expect(await pluginBuiltFrom({ read: PIECE_READ, load: { outcome: "ok", value: "not a module" } }).built).toMatchObject({
+      outcome: "failed",
+      error: { kind: "plugin-invalid", pieceFile: PIECE_FILE, pluginModule: "cd27/cd27.eslint-plugin.ts" },
+    });
+  });
+
+  it("fails naming a plugin module whose default export is not an ESLint plugin", async () => {
+    expect(await pluginBuiltFrom({ read: PIECE_READ, load: { outcome: "ok", value: { default: { rules: "none" } } } }).built).toMatchObject({
+      outcome: "failed",
+      error: { kind: "plugin-invalid", pieceFile: PIECE_FILE, pluginModule: "cd27/cd27.eslint-plugin.ts" },
+    });
+  });
+});
+
+describe("honePluginFailureText", () => {
+  it.each<{ readonly failure: HonePluginFailure; readonly text: string }>([
+    {
+      failure: { kind: "piece-unreadable", pieceFile: PIECE_FILE, detail: "ENOENT" },
+      text: "the piece /install/mechanisms/eslint/CD-27/piece.json cannot be read: ENOENT",
+    },
+    {
+      failure: { kind: "piece-source-invalid", pieceFile: PIECE_FILE, detail: "clauses: expected array" },
+      text: "the piece /install/mechanisms/eslint/CD-27/piece.json is not an ESLint piece: clauses: expected array",
+    },
+    {
+      failure: { kind: "plugin-unloadable", path: PLUGIN_MODULE_PATH, detail: "SyntaxError" },
+      text: "the plugin module /install/mechanisms/eslint/CD-27/cd27/cd27.eslint-plugin.ts cannot be loaded: SyntaxError",
+    },
+    {
+      failure: { kind: "plugin-invalid", pieceFile: PIECE_FILE, pluginModule: "cd27/cd27.eslint-plugin.ts", detail: "rules: expected record" },
+      text: "the plugin module cd27/cd27.eslint-plugin.ts of the piece /install/mechanisms/eslint/CD-27/piece.json is not an ESLint plugin: rules: expected record",
+    },
+    {
+      failure: { kind: "piece-rule-missing", pieceFile: PIECE_FILE, rule: "skipped-tests" },
+      text: "the piece /install/mechanisms/eslint/CD-27/piece.json runs the rule skipped-tests, which its plugin module does not hold",
+    },
+    {
+      failure: { kind: "check-rule-missing", ruleId: "hone/test-switched-off/skipped-tests" },
+      text: "the check hone/test-switched-off/skipped-tests runs on ESLint, but no piece of this install holds its rule",
+    },
+  ])("says $failure.kind as $text", ({ failure, text }) => {
+    expect(honePluginFailureText({ failure })).toBe(text);
   });
 });

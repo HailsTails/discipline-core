@@ -4,17 +4,18 @@ import { CHECKS_PROJECTION_PATH, type ProjectedCheck, checksProjectionText } fro
 
 const PACKAGE_IMPORT = "@hailstails/hone/eslint-plugin";
 
-const SKIPPED_TESTS: ProjectedCheck = { symptom: "test-switched-off", ruleId: "hone/test-switched-off/skipped-tests", options: [] };
+const SKIPPED_TESTS: ProjectedCheck = { symptom: "test-switched-off", check: "skipped-tests", ruleId: "hone/test-switched-off/skipped-tests", options: [] };
 
-const FOCUSED_TESTS: ProjectedCheck = { symptom: "test-switched-off", ruleId: "hone/test-switched-off/focused-tests", options: [] };
+const FOCUSED_TESTS: ProjectedCheck = { symptom: "test-switched-off", check: "focused-tests", ruleId: "hone/test-switched-off/focused-tests", options: [] };
 
 const PARAMETER_COUNT: ProjectedCheck = {
   symptom: "positional-parameters",
+  check: "parameter-count",
   ruleId: "hone/positional-parameters/parameter-count",
   options: [{ max: 2, countVoidThis: true }],
 };
 
-const NON_NULL_ASSERTIONS: ProjectedCheck = { symptom: "claimed-type", ruleId: "hone/claimed-type/non-null-assertions", options: [] };
+const NON_NULL_ASSERTIONS: ProjectedCheck = { symptom: "claimed-type", check: "non-null-assertions", ruleId: "hone/claimed-type/non-null-assertions", options: [] };
 
 describe("CHECKS_PROJECTION_PATH", () => {
   it("is hone.eslint.mjs at the repository root", () => {
@@ -53,6 +54,37 @@ export default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins
 { name: "hone/answered/claimed-type, test-switched-off", files: ["src/c.ts"], rules: { "hone/claimed-type/non-null-assertions": "off", "hone/test-switched-off/focused-tests": "off", "hone/test-switched-off/skipped-tests": "off" } },
 { name: "hone/answered/test-switched-off", files: ["src/a.test.ts", "src/b.test.ts"], rules: { "hone/test-switched-off/focused-tests": "off", "hone/test-switched-off/skipped-tests": "off" } }];
 `,
+    );
+  });
+
+  it("switches off, on a file whose record names one check of its symptom, only that check's rule", () => {
+    expect(
+      checksProjectionText({
+        pluginImport: PACKAGE_IMPORT,
+        checks: [SKIPPED_TESTS, FOCUSED_TESTS],
+        answered: [
+          { symptom: "test-switched-off", check: "skipped-tests", file: repoPathSchema.parse("src/a.test.ts") },
+          { symptom: "test-switched-off", file: repoPathSchema.parse("src/b.test.ts") },
+        ],
+      }),
+    ).toBe(
+      `import hone from "@hailstails/hone/eslint-plugin";
+export default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins: { hone }, rules: { "hone/test-switched-off/focused-tests": "error", "hone/test-switched-off/skipped-tests": "error" } },
+{ name: "hone/answered/test-switched-off", files: ["src/b.test.ts"], rules: { "hone/test-switched-off/focused-tests": "off", "hone/test-switched-off/skipped-tests": "off" } },
+{ name: "hone/answered/test-switched-off#skipped-tests", files: ["src/a.test.ts"], rules: { "hone/test-switched-off/skipped-tests": "off" } }];
+`,
+    );
+  });
+
+  it("writes no block for a record whose check does not run on ESLint", () => {
+    expect(
+      checksProjectionText({
+        pluginImport: PACKAGE_IMPORT,
+        checks: [SKIPPED_TESTS],
+        answered: [{ symptom: "test-switched-off", check: "test-body", file: repoPathSchema.parse("src/a.test.ts") }],
+      }),
+    ).toBe(
+      'import hone from "@hailstails/hone/eslint-plugin";\nexport default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins: { hone }, rules: { "hone/test-switched-off/skipped-tests": "error" } }];\n',
     );
   });
 

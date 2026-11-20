@@ -1,28 +1,56 @@
 import { installRootOfApiEntry } from "../core/check/install-root.ts";
+import { loadFailureText } from "../core/check/load-failure-text.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
-import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
+import { createSymptomCatalogueRepository, SYMPTOM_CATALOGUE_SEGMENTS } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
-import { checksPluginOf } from "../mechanisms/eslint/runner/checks-plugin.ts";
-import { honePluginAt } from "../mechanisms/eslint/runner/hone-plugin.ts";
+import type { Result } from "../core/values/result.ts";
+import { TOOL_IDENTITY } from "../core/values/tool-identity.ts";
+import { honePluginAt, honePluginFailureText } from "../mechanisms/eslint/runner/hone-plugin.ts";
 
-export type HonePlugin = { readonly meta: { readonly name: string; readonly version: string }; readonly rules: Readonly<Record<string, object>> };
+export type HoneNodeVisit = { visit(...nodes: unknown[]): void }["visit"];
 
-const EMPTY_PLUGIN: HonePlugin = checksPluginOf({ checks: [], sources: [] });
+export type HoneRuleVisitor = Readonly<Record<string, HoneNodeVisit | undefined>>;
+
+export type HoneRule = { create(context: never): HoneRuleVisitor };
+
+export type HonePlugin = {
+  readonly meta: { readonly name: string; readonly version: string };
+  readonly rules: Readonly<Record<string, HoneRule>>;
+};
 
 const path = createDefaultPathPort({});
 
-const installRoot = installRootOfApiEntry({ path, moduleUrl: import.meta.url });
-
 const fileText = createDefaultFileTextPort({});
 
-const pluginAt = async (request: { readonly installRoot: AbsolutePath }): Promise<HonePlugin> => {
+const pluginAt = async (request: { readonly installRoot: AbsolutePath }): Promise<Result<HonePlugin, string>> => {
   const catalogue = createSymptomCatalogueRepository({ fileText, path, ruleSetRoot: request.installRoot }).read({});
-  const checks = catalogue.outcome === "ok" && catalogue.value.held === "catalogue" ? catalogue.value.catalogue.checks : [];
-  return honePluginAt({ checks, installRoot: request.installRoot, fileText, path, modules: createDefaultModuleLoaderPort({}) });
+  if (catalogue.outcome === "failed") {
+    return { outcome: "failed", error: loadFailureText({ failure: catalogue.error }) };
+  }
+  if (catalogue.value.held === "none") {
+    return { outcome: "failed", error: `this install holds no ${SYMPTOM_CATALOGUE_SEGMENTS.join("/")} under ${request.installRoot}` };
+  }
+  const plugin = await honePluginAt({
+    checks: catalogue.value.catalogue.checks,
+    installRoot: request.installRoot,
+    fileText,
+    path,
+    modules: createDefaultModuleLoaderPort({}),
+  });
+  return plugin.outcome === "failed" ? { outcome: "failed", error: honePluginFailureText({ failure: plugin.error }) } : plugin;
 };
 
-const plugin: HonePlugin = installRoot.outcome === "ok" ? await pluginAt({ installRoot: installRoot.value }) : EMPTY_PLUGIN;
+const installRoot = installRootOfApiEntry({ path, moduleUrl: import.meta.url });
+
+const built: Result<HonePlugin, string> =
+  installRoot.outcome === "failed" ? { outcome: "failed", error: loadFailureText({ failure: installRoot.error }) } : await pluginAt({ installRoot: installRoot.value });
+
+if (built.outcome === "failed") {
+  throw new Error(`${TOOL_IDENTITY.packageName}/eslint-plugin cannot be built: ${built.error}`);
+}
+
+const plugin: HonePlugin = built.value;
 
 export default plugin;

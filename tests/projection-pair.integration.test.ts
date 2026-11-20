@@ -43,6 +43,8 @@ const LEGACY = repoPathSchema.parse("src/legacy.ts");
 
 const WIDE = repoPathSchema.parse("src/wide.ts");
 
+const SKIPPING = repoPathSchema.parse("src/skipping.test.ts");
+
 const VERSION_ONE_RECORDS: readonly ExceptionRecord[] = [
   { kind: "file-carve-out", clause: clauseAddressSchema.parse("CD-2#non-null-assertions"), mechanism: ESLINT, file: LEGACY },
   {
@@ -53,15 +55,26 @@ const VERSION_ONE_RECORDS: readonly ExceptionRecord[] = [
     reason: "a reducer rebinds its accumulator",
   },
   { kind: "file-carve-out", clause: clauseAddressSchema.parse("CD-40#parameter-count"), mechanism: ESLINT, file: WIDE },
+  { kind: "file-carve-out", clause: clauseAddressSchema.parse("CD-27#skipped-tests"), mechanism: ESLINT, file: SKIPPING },
 ];
 
 const VERSION_TWO_ANSWERED: readonly AnsweredFile[] = [
   { symptom: "claimed-type", file: LEGACY },
   { symptom: "rebinding", file: LEGACY },
   { symptom: "positional-parameters", file: WIDE },
+  { symptom: "test-switched-off", check: "skipped-tests", file: SKIPPING },
 ];
 
-const PROBED_FILES: readonly string[] = ["src/kept.ts", "src/legacy.ts", "src/wide.ts"];
+const PROBED_FILES: readonly string[] = [
+  "src/kept.ts",
+  "src/legacy.ts",
+  "src/wide.ts",
+  "src/view.tsx",
+  "tools/build.mts",
+  "index.cts",
+  "packages/web/src/deep/kept.ts",
+  "src/skipping.test.ts",
+];
 
 const specifierOf: SpecifierOf = ({ modulePath }) => {
   const location = path.relative({ from: import.meta.dirname, to: modulePath });
@@ -169,6 +182,13 @@ describe.each(ESLINT_LINES)("on %s, the version 1 projection and its version 2 f
       "hone/rebinding/parameter-reassignment": [0, { props: false }],
       "hone/positional-parameters/parameter-count": [2, { max: 2, countVoidThis: true }],
       "hone/test-switched-off/skipped-tests": [2],
+    });
+  });
+
+  it("switch off, on a file a record answers for one check of a symptom with two, only that check's rule", async () => {
+    expect(await resolvedRules({ line, config: VERSION_TWO_CONFIG, file: "src/skipping.test.ts" })).toMatchObject({
+      "hone/test-switched-off/skipped-tests": [0],
+      "hone/test-switched-off/focused-tests": [2],
     });
   });
 

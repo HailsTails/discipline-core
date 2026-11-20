@@ -1,54 +1,103 @@
 import { describe, expect, it } from "vitest";
-import { CHECKS_PLUGIN_CATALOGUE } from "../../../tests/checks-plugin-catalogue.ts";
+import { CHECKS_PLUGIN_CATALOGUE, SKIPPED_TESTS_CHECK } from "../../../tests/checks-plugin-catalogue.ts";
 import cd2Plugin from "../CD-2/cd2/cd2.eslint-plugin.ts";
 import CD_2_PIECE from "../CD-2/piece.json" with { type: "json" };
 import cd27Plugin from "../CD-27/cd27/cd27.eslint-plugin.ts";
 import CD_27_PIECE from "../CD-27/piece.json" with { type: "json" };
 import cd40Plugin from "../CD-40/cd40/cd40.eslint-plugin.ts";
 import CD_40_PIECE from "../CD-40/piece.json" with { type: "json" };
-import { checksPluginOf, inSymptomWords } from "./checks-plugin.ts";
+import { checksPluginOf, inSymptomWords, reportInSymptomWords } from "./checks-plugin.ts";
 
-const SOURCES = [
-  { piece: CD_2_PIECE, plugin: cd2Plugin },
-  { piece: CD_27_PIECE, plugin: cd27Plugin },
-  { piece: CD_40_PIECE, plugin: cd40Plugin },
-];
+const CD_2_SOURCE = { pieceFile: "/install/mechanisms/eslint/CD-2/piece.json", pluginModule: "cd2/cd2.eslint-plugin.ts", piece: CD_2_PIECE, plugin: cd2Plugin };
 
-const PLUGIN = checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: SOURCES });
+const CD_27_SOURCE = { pieceFile: "/install/mechanisms/eslint/CD-27/piece.json", pluginModule: "cd27/cd27.eslint-plugin.ts", piece: CD_27_PIECE, plugin: cd27Plugin };
+
+const CD_40_SOURCE = { pieceFile: "/install/mechanisms/eslint/CD-40/piece.json", pluginModule: "cd40/cd40.eslint-plugin.ts", piece: CD_40_PIECE, plugin: cd40Plugin };
+
+const PLUGIN = checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: [CD_2_SOURCE, CD_27_SOURCE, CD_40_SOURCE] });
 
 describe("checksPluginOf", () => {
   it("names itself as the package's one plugin export", () => {
-    expect(PLUGIN.meta).toEqual({ name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" });
+    expect(PLUGIN).toMatchObject({ outcome: "ok", value: { meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" } } });
   });
 
   it("holds one rule for each check on ESLint, named <symptom>/<check>, and none for a check that runs elsewhere", () => {
-    expect(PLUGIN.rules).toEqual({
-      "test-switched-off/skipped-tests": expect.anything(),
-      "claimed-type/non-null-assertions": expect.anything(),
-      "positional-parameters/parameter-count": expect.anything(),
-    });
-  });
-
-  it("gives each rule the meta of the piece's rule it runs, its messages under the symptom's title", () => {
-    expect(PLUGIN.rules).toMatchObject({
-      "test-switched-off/skipped-tests": {
-        meta: {
-          type: "problem",
-          schema: [],
-          messages: { modifiedTest: "Test switched off: remove the skip so the test runs, or delete the test." },
+    expect(PLUGIN).toEqual({
+      outcome: "ok",
+      value: {
+        meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" },
+        rules: {
+          "test-switched-off/skipped-tests": expect.anything(),
+          "claimed-type/non-null-assertions": expect.anything(),
+          "positional-parameters/parameter-count": expect.anything(),
         },
       },
     });
   });
 
-  it("holds no rule for a check whose piece is not among its sources", () => {
-    expect(checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: [{ piece: CD_27_PIECE, plugin: cd27Plugin }] }).rules).toEqual({
-      "test-switched-off/skipped-tests": expect.anything(),
+  it("gives each rule the meta of the piece's rule it runs, its messages under the symptom's title", () => {
+    expect(PLUGIN).toMatchObject({
+      outcome: "ok",
+      value: {
+        rules: {
+          "test-switched-off/skipped-tests": {
+            meta: { type: "problem", schema: [], messages: { modifiedTest: "Test switched off: remove the skip so the test runs, or delete the test." } },
+          },
+        },
+      },
     });
   });
 
-  it("holds no rule from a source that is not a piece and its plugin", () => {
-    expect(checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: [{ piece: { clauses: "none" }, plugin: cd27Plugin }] }).rules).toEqual({});
+  it("fails naming the rule id of an ESLint check whose piece is not among its sources", () => {
+    expect(checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: [CD_27_SOURCE] })).toEqual({
+      outcome: "failed",
+      error: { kind: "check-rule-missing", ruleId: "hone/claimed-type/non-null-assertions" },
+    });
+  });
+
+  it("fails naming the piece file of a source that is not an ESLint piece", () => {
+    expect(
+      checksPluginOf({ checks: [SKIPPED_TESTS_CHECK], sources: [{ ...CD_27_SOURCE, piece: { clauses: "none" } }] }),
+    ).toMatchObject({ outcome: "failed", error: { kind: "piece-source-invalid", pieceFile: "/install/mechanisms/eslint/CD-27/piece.json" } });
+  });
+
+  it("fails naming the piece file and module of a plugin that is not an ESLint plugin", () => {
+    expect(checksPluginOf({ checks: [SKIPPED_TESTS_CHECK], sources: [{ ...CD_27_SOURCE, plugin: { rules: "none" } }] })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "plugin-invalid", pieceFile: "/install/mechanisms/eslint/CD-27/piece.json", pluginModule: "cd27/cd27.eslint-plugin.ts" },
+    });
+  });
+
+  it("fails naming the piece file and rule a piece's plugin module does not hold", () => {
+    expect(checksPluginOf({ checks: [SKIPPED_TESTS_CHECK], sources: [{ ...CD_27_SOURCE, plugin: cd40Plugin }] })).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-rule-missing", pieceFile: "/install/mechanisms/eslint/CD-27/piece.json", rule: "focused-tests" },
+    });
+  });
+});
+
+describe("reportInSymptomWords", () => {
+  it("drops the numbered lead from each text the report passes its message", () => {
+    expect(
+      reportInSymptomWords({
+        descriptor: {
+          loc: { line: 1, column: 0 },
+          messageId: "restrictedSyntax",
+          data: { message: "CD-2: a non-null assertion claims a value the compiler cannot see; narrow it with a check instead." },
+        },
+      }),
+    ).toEqual({
+      loc: { line: 1, column: 0 },
+      messageId: "restrictedSyntax",
+      data: { message: "a non-null assertion claims a value the compiler cannot see; narrow it with a check instead." },
+    });
+  });
+
+  it("passes a report that carries no data on unchanged", () => {
+    expect(reportInSymptomWords({ descriptor: { loc: { line: 1, column: 0 }, messageId: "modifiedTest" } })).toEqual({
+      loc: { line: 1, column: 0 },
+      messageId: "modifiedTest",
+    });
   });
 });
 

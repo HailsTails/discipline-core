@@ -27,6 +27,10 @@ describe("the declarations the public type entries ship, emitted in memory by th
     });
   });
 
+  it("reach from the eslint-plugin entry only its own declaration, which names its plugin type in its own words, never ESLint's", () => {
+    expect(reach.entries).toMatchObject({ "eslint-plugin": { reached: ["api/eslint-plugin.d.ts"] } });
+  });
+
   it("reach no internal port, toolchain or tool identity from the audit entry", () => {
     expect(reach.entries).toMatchObject({
       audit: {

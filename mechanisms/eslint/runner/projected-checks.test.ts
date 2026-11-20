@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ClauseBinding } from "../../../core/consumer-selection/selection.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
+import type { Check } from "../../../core/symptom-catalogue/symptom-catalogue.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
-import { CHECKS_PLUGIN_CATALOGUE } from "../../../tests/checks-plugin-catalogue.ts";
+import { CHECKS_PLUGIN_CATALOGUE, SKIPPED_TESTS_CHECK } from "../../../tests/checks-plugin-catalogue.ts";
 import { checksPluginImportOf, projectedChecksOf } from "./projected-checks.ts";
 
 const ESLINT = mechanismIdSchema.parse("eslint");
@@ -48,6 +49,8 @@ const WALKER_BINDING: ClauseBinding = {
   },
 };
 
+const OTHER_RULE_SET_CHECK: Check = { ...SKIPPED_TESTS_CHECK, clause: clauseAddressSchema.parse("acme/CD-27#skipped-tests") };
+
 const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
 describe("projectedChecksOf", () => {
@@ -57,8 +60,8 @@ describe("projectedChecksOf", () => {
     ).toEqual({
       outcome: "ok",
       value: [
-        { symptom: "test-switched-off", ruleId: "hone/test-switched-off/skipped-tests", options: [] },
-        { symptom: "positional-parameters", ruleId: "hone/positional-parameters/parameter-count", options: [{ max: 2, countVoidThis: true }] },
+        { symptom: "test-switched-off", check: "skipped-tests", ruleId: "hone/test-switched-off/skipped-tests", options: [] },
+        { symptom: "positional-parameters", check: "parameter-count", ruleId: "hone/positional-parameters/parameter-count", options: [{ max: 2, countVoidThis: true }] },
       ],
     });
   });
@@ -70,6 +73,24 @@ describe("projectedChecksOf", () => {
         bindings: [{ mechanism: ESLINT, clause: { ...SKIPPED_TESTS_BINDING.clause, settings: { module: "skipped-tests.ts" } } }],
       }),
     ).toMatchObject({ outcome: "failed", error: { kind: "piece-invalid", pieceRoot: "/install/mechanisms/eslint/CD-27" } });
+  });
+
+  it("refuses an ESLint binding whose clause no check runs on ESLint, naming its clause", () => {
+    expect(
+      projectedChecksOf({
+        checks: CHECKS_PLUGIN_CATALOGUE.checks,
+        bindings: [{ mechanism: ESLINT, clause: { ...SKIPPED_TESTS_BINDING.clause, address: clauseAddressSchema.parse("CD-27#focused-tests") } }],
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "check-unknown", address: "CD-27#focused-tests" } });
+  });
+
+  it("refuses an ESLint binding whose check is another rule set's, which the plugin holds no rule for, naming its clause", () => {
+    expect(
+      projectedChecksOf({
+        checks: [OTHER_RULE_SET_CHECK],
+        bindings: [{ mechanism: ESLINT, clause: { ...SKIPPED_TESTS_BINDING.clause, address: clauseAddressSchema.parse("acme/CD-27#skipped-tests") } }],
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "check-outside-rule-set", address: "acme/CD-27#skipped-tests" } });
   });
 });
 
