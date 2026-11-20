@@ -131,9 +131,11 @@ const owingNotesOf = (request: { readonly record: AuthorisedLocation }): readonl
   return holding.held === "stated" && holding.owing.matches === "not-the-catalogue" ? [holding.owing.note] : [];
 };
 
+export const catalogueNotesOf = (request: { readonly record: AuthorisedLocation }): readonly CatalogueNote[] => [...reachNotesOf(request), ...owingNotesOf(request)];
+
 const notesOf = (request: { readonly placed: PlacedRecord }): readonly RecordNote[] => {
   const { place, record } = request.placed;
-  return record.kind === "authorised-location" ? [...reachNotesOf({ record }), ...owingNotesOf({ record })].map((note) => ({ place, note })) : [];
+  return record.kind === "authorised-location" ? catalogueNotesOf({ record }).map((note) => ({ place, note })) : [];
 };
 
 const readingOf = (request: { readonly judged: readonly Judged[]; readonly base: RecordsAtBase }): RecordsReading => {

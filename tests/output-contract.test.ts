@@ -5,7 +5,7 @@ import { repoPathSchema } from "../core/values/repo-path.ts";
 import type { Case, Principle, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../core/verdict/symptom-notes.ts";
-import { contractGaps, documentedLinesIn, documentedRolesIn, type EntryFills, filledTemplate, reportLinesOf } from "./output-contract.ts";
+import { contractGaps, contractPartsOf, documentedLinesIn, documentedRolesIn, type EntryFills, filledTemplate, reportLinesOf } from "./output-contract.ts";
 
 const DOC =
   "| Section | Role |\n| --- | --- |\n| `findings` | failing | each place a clause is broken |\n\n| Section | Line |\n| --- | --- |\n| `findings` | `<clause> <mechanism> <file>:<line>:<column> <snippet>` |\n| `verdict` | `verdict: fail (partial assessment)` |\n| `<clause>` | a clause address |\n";
@@ -196,5 +196,18 @@ describe("reportLinesOf", () => {
       { label: "heading", text: "findings (1)", fills: { section: "findings", count: "1" } },
       { label: "verdict", text: "verdict: fail", fills: {} },
     ]);
+  });
+});
+
+describe("contractPartsOf", () => {
+  it("splits the page at its version 2 heading, the heading opening the version 2 part", () => {
+    expect(contractPartsOf({ text: "# Output contract\n\n| `x` | `one` |\n\n# Version 2\n\n| `x` | `two` |\n" })).toEqual({
+      versionOne: "# Output contract\n\n| `x` | `one` |\n\n",
+      versionTwo: "# Version 2\n\n| `x` | `two` |\n",
+    });
+  });
+
+  it("holds the whole page as version 1 when it has no version 2 heading", () => {
+    expect(contractPartsOf({ text: "# Output contract\n\n| `x` | `one` |\n" })).toEqual({ versionOne: "# Output contract\n\n| `x` | `one` |\n", versionTwo: "" });
   });
 });

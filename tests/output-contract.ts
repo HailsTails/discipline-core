@@ -28,11 +28,15 @@ export type DocumentedRole = {
   readonly role: string;
 };
 
-export type EntryFills = (request: { readonly section: SectionName; readonly position: number }) => Fills;
+export type EntryFills<Section extends string = SectionName> = (request: { readonly section: Section; readonly position: number }) => Fills;
+
+export type ContractParts = { readonly versionOne: string; readonly versionTwo: string };
+
+const VERSION_TWO_HEADING = "\n# Version 2\n";
 
 const TEMPLATE_ROW = /^\| `([^`]+)` \| `([^`]+)` \|$/;
 
-const ROLE_ROW = /^\| `([^`]+)` \| (failing|informational|guidance) \|/;
+const ROLE_ROW = /^\| `([^`]+)` \| (failing|next-step|informational|guidance) \|/;
 
 const PLACEHOLDER = /<([^<>]+)>/g;
 
@@ -80,32 +84,44 @@ export const contractGaps = (request: {
   ),
 });
 
-type Attribution = {
-  readonly section: SectionName | undefined;
+type Attribution<Section extends string> = {
+  readonly section: Section | undefined;
   readonly position: number;
   readonly lines: readonly PrintedLine[];
 };
 
-type Heading = { readonly section: SectionName; readonly count: string };
+type Heading<Section extends string> = { readonly section: Section; readonly count: string };
 
-const headingOf = (request: { readonly line: string }): Heading | undefined => {
+const headingOf = <Section extends string>(request: { readonly line: string; readonly sections: readonly Section[] }): Heading<Section> | undefined => {
   const heading = HEADING_LINE.exec(request.line);
-  const section = SECTION_NAMES.find((name) => name === heading?.[1]);
+  const section = request.sections.find((name) => name === heading?.[1]);
   return section === undefined || heading === null ? undefined : { section, count: heading[2] };
 };
 
 const attributed =
-  (request: { readonly entryFills: EntryFills }) =>
-  (sofar: Attribution, line: string): Attribution => {
-    const heading = headingOf({ line });
+  <Section extends string>(request: { readonly entryFills: EntryFills<Section>; readonly sections: readonly Section[]; readonly first: Section }) =>
+  (sofar: Attribution<Section>, line: string): Attribution<Section> => {
+    const heading = headingOf({ line, sections: request.sections });
     if (heading !== undefined) {
       const fills = { section: heading.section, count: heading.count };
       return { section: heading.section, position: 0, lines: [...sofar.lines, { label: HEADING_LABEL, text: line, fills }] };
     }
-    const section = sofar.section ?? SECTION_NAMES[0];
+    const section = sofar.section ?? request.first;
     const fills = request.entryFills({ section, position: sofar.position });
     return { ...sofar, position: sofar.position + 1, lines: [...sofar.lines, { label: section, text: line, fills }] };
   };
+
+export const sectionedLinesOf = <Section extends string>(request: {
+  readonly text: string;
+  readonly sections: readonly Section[];
+  readonly first: Section;
+  readonly entryFills: EntryFills<Section>;
+}): readonly PrintedLine[] => {
+  const lines = request.text.split("\n").slice(0, -1);
+  const start: Attribution<Section> = { section: undefined, position: 0, lines: [] };
+  const entries = lines.slice(0, -1).reduce(attributed(request), start);
+  return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "", fills: {} }];
+};
 
 export const reportLinesOf = (request: {
   readonly report: CheckReport;
@@ -114,10 +130,12 @@ export const reportLinesOf = (request: {
   readonly pruneCommand: string;
   readonly entryFills: EntryFills;
   readonly guide: SymptomGuide;
-}): readonly PrintedLine[] => {
-  const lines = renderGuidedReportText(request).split("\n").slice(0, -1);
-  const entries = lines.slice(0, -1).reduce<Attribution>(attributed(request), { section: undefined, position: 0, lines: [] });
-  return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "", fills: {} }];
+}): readonly PrintedLine[] =>
+  sectionedLinesOf({ text: renderGuidedReportText(request), sections: SECTION_NAMES, first: "excluded", entryFills: request.entryFills });
+
+export const contractPartsOf = (request: { readonly text: string }): ContractParts => {
+  const at = request.text.indexOf(VERSION_TWO_HEADING);
+  return at === -1 ? { versionOne: request.text, versionTwo: "" } : { versionOne: request.text.slice(0, at + 1), versionTwo: request.text.slice(at + 1) };
 };
 
 export const contractTextAt = (request: { readonly path: string }): string => {
