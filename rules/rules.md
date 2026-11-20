@@ -9,7 +9,7 @@ Each rule passes two tests: it names no language feature, and the other rules to
 ### Written-out answers
 
 - **What must hold:** Every collaborator whose result the code under test uses is passed in; the test writes out each result it gives back, and checks what the code returns and every call it makes.
-- **Cases served:** Uses what a collaborator gives back; Causes an effect (writes, logs, sends, exits).
+- **Cases served:** Uses what a collaborator gives back; Causes an effect (writes, logs, sends, exits); Needs the current time, a random value, a new id or an outside ordering.
 - **Source:** Meszaros calls this Literal Value: the test states its inputs and answers in place.
 
 ### Straight-through tests
@@ -37,7 +37,7 @@ Both halves answer one reason to change, which test owns a behaviour, so it stay
 ### Handed what it uses
 
 - **What must hold:** A unit is handed only what it uses: a port holds only the methods its one consumer calls; a doer takes only the fields it reads, or the entity whose module it is in; an orchestrator may pass an entity whole.
-- **Cases served:** Does one job; Gives a value its type (declares it, or needs it narrower).
+- **Cases served:** Does one job; Gives a value its type (declares it, or needs it narrower); Uses a system or service outside the program.
 - **Source:** This is dependency injection, as Fowler describes it, serving Martin's DIP.
 
 ### Guard first
@@ -78,7 +78,7 @@ The clock, random values, new ids and outside ordering are a case: the principle
 
 ## No leak across a boundary
 
-No rule. The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways. That is a case.
+No rule. The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways, so both Reads data from outside (request, file, environment, stored row, response) and Sends data out of the program owe it. Each is a case.
 
 ## The type checker proves it
 

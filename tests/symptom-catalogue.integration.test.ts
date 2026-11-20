@@ -13,7 +13,6 @@ import {
   owesOfCatalogue,
   owesOnPages,
   type ProseLink,
-  type UnowedPointer,
   proposedReasonsOf,
   reasonMismatchesOf,
   recipeReasonsOnPage,
@@ -130,16 +129,16 @@ const NOTES_OF_SYMPTOMS_WITH_A_CORRECT_USE = [
   "date-used-directly: Date used directly. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#date-used-directly",
   "ambient-randomness: Ambient randomness. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers. The breach usually sits in the unit that should be passed the value, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the adapter for random values or new ids (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#ambient-randomness",
   "process-global-used-in-place: Process global used in place. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; causes an effect (writes, logs, sends, exits) → Ports declared inside; builds the real implementations → Ports declared inside. The breach usually sits at a missing port, or at an adapter not built at the entry point. Recipes: World values through a port; Adapter per outside party; Composition root. Correct use: a boundary record on the adapter that wraps the process (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#process-global-used-in-place",
-  "outside-import-past-a-boundary: Outside import past a boundary. May indicate: uses a system or service outside the program → Outside dependencies stay at boundaries, Ports declared inside; takes an outside dependency → Outside dependencies stay at boundaries, Ports declared inside. The breach usually sits at a missing adapter and port. Recipes: Adapter per outside party; Port in the domain. Correct use: a boundary record on the adapter for that outside party (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#outside-import-past-a-boundary",
+  "outside-import-past-a-boundary: Outside import past a boundary. May indicate: uses a system or service outside the program → Outside dependencies stay at boundaries, Ports declared inside; takes an outside dependency → Outside dependencies stay at boundaries. The breach usually sits at a missing adapter and port. Recipes: Adapter per outside party; Port in the domain. Correct use: a boundary record on the adapter for that outside party (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#outside-import-past-a-boundary",
   "outside-type-in-a-signature: Outside type in a signature. May indicate: uses a system or service outside the program → Outside dependencies stay at boundaries, No leak across a boundary. The breach usually sits in the adapter that hands the outside type inward. Recipe: Adapter per outside party. Correct use: a boundary record on the adapter, or beyond it with a Conformist statement for an outside model adopted as ours (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#outside-type-in-a-signature",
   "library-class-built-in-place: Library class built in place. May indicate: takes an outside dependency → Outside dependencies stay at boundaries; keeps state or settings across calls → No hidden effects. The breach usually sits at a missing adapter. Recipes: Adapter per outside party; Closure factory. Correct use: a boundary record on that dependency's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#library-class-built-in-place",
-  "text-past-its-reader: Text past its reader. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; sends data out of the program → No leak across a boundary; uses a system or service outside the program → External behaviour sits at a boundary; states what the unit gives back, for one case or several → Straight-through tests, Written-out answers. The breach usually sits in a port that takes or gives text where it should carry objects. Recipes: Adapter per outside party; Map out at the adapter; Zod at the producer's adapter; Whole written-out expectation. Correct use: a boundary record on the adapter for whoever produced or receives the text (today: authorised-location). A use at one test site: an authorised location for this symptom alone (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#text-past-its-reader",
+  "text-past-its-reader: Text past its reader. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; sends data out of the program → No leak across a boundary; uses a system or service outside the program → External behaviour sits at a boundary; states what the unit gives back, for one case or several → Straight-through tests. The breach usually sits in a port that takes or gives text where it should carry objects. Recipes: Adapter per outside party; Map out at the adapter; Zod at the producer's adapter; Whole written-out expectation. Correct use: a boundary record on the adapter for whoever produced or receives the text (today: authorised-location). A use at one test site: an authorised location for this symptom alone (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#text-past-its-reader",
   "schema-past-its-adapter: Schema past its adapter. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; gives a value its type (declares it, or needs it narrower) → Declared, not asserted. The breach usually sits in the adapter, which hands the wire type inward instead of mapping it. Recipe: Zod at the producer's adapter. An outside model adopted as ours: a boundary record with a Conformist statement (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#schema-past-its-adapter",
   "claimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#claimed-type",
   "type-derived-from-code: Type derived from code. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; names something → One word everywhere. The breach usually sits in the producer, which has no named type. Recipe: Named, exported type. Correct use: an authorised location in the adapter for an outside dependency that gives no named type (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#type-derived-from-code",
   "throw-between-our-units: Throw between our units. May indicate: an operation can fail → Failures are values; sends data out of the program → No leak across a boundary. The breach usually sits in the unit, or at a missing mapping in the adapter. Recipes: Result union; Failure mapping at the adapter. Correct use: an authorised location at an adapter whose caller's contract is exceptions (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#throw-between-our-units",
   "loop-keyword: Loop keyword. May indicate: makes a new value from what it has → No hidden effects; causes an effect (writes, logs, sends, exits) → Ports declared inside; coordinates other units → Doer or orchestrator. The breach usually sits in the unit. Recipe: Functional iteration. Draining a stream: an authorised location in its source's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-keyword",
-  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Written-out answers, Handed what it uses, Doer or orchestrator. The breach usually sits in a port too wide, or in a collaborator holding two decisions. Recipe: Stub with vi.fn. A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#double-with-a-body",
+  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Written-out answers; does one job: the port the stub stands in for → Handed what it uses; does one job: the collaborator the stub stands in for → Doer or orchestrator. The breach usually sits in a port too wide, or in a collaborator holding two decisions. Recipe: Stub with vi.fn. A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#double-with-a-body",
   "shorthand-name: Shorthand name. May indicate: names something → One word everywhere. The breach usually sits in the name. Recipe: Whole words. A name an outside contract fixes: an authorised location (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#shorthand-name",
   "name-off-its-casing: Name off its casing. May indicate: names something → One word everywhere. The breach usually sits in the name. An outside contract's names, such as `PATH` or ESLint listener keys: an authorised location (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#name-off-its-casing",
   "dependency-without-a-record: Dependency without a record. May indicate: takes an outside dependency → Outside dependencies justified. The breach usually sits in the missing record. Recipe: Dependency record. Correct use: a dependency record naming the native way weighed and why it fell short (no record format yet). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#dependency-without-a-record",
@@ -222,47 +221,14 @@ const PROSE_LINKS: readonly ProseLink[] = [
     cases: ["Needs the current time, a random value, a new id or an outside ordering"],
   },
   {
-    sentence: "The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways. That is a case.",
+    sentence:
+      "The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways, so both Reads data from outside (request, file, environment, stored row, response) and Sends data out of the program owe it.",
     cases: ["Reads data from outside (request, file, environment, stored row, response)", "Sends data out of the program"],
   },
   {
     sentence: "A case under [Outside dependencies justified](rules.md#outside-dependencies-justified).",
     cases: ["An adopter is not handed our risk"],
   },
-];
-
-const TIME_OR_RANDOM = "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering";
-
-const GIVES_BACK = "states-what-the-unit-gives-back-for-one-case-or-several";
-
-const PUTS_CODE = "puts-code-in-a-file-or-folder";
-
-const COLLABORATOR = "uses-what-a-collaborator-gives-back";
-
-const SEVERAL_OUTCOMES = "checks-a-value-that-may-be-one-of-several-outcomes";
-
-const ITS_TEST = "gives-each-unit-its-test";
-
-const UNOWED_POINTERS: readonly UnowedPointer[] = [
-  { symptom: "date-used-directly", case: TIME_OR_RANDOM, pointer: "Written-out answers" },
-  { symptom: "ambient-randomness", case: TIME_OR_RANDOM, pointer: "Written-out answers" },
-  { symptom: "outside-import-past-a-boundary", case: "takes-an-outside-dependency", pointer: "Ports declared inside" },
-  { symptom: "text-past-its-reader", case: GIVES_BACK, pointer: "Written-out answers" },
-  { symptom: "module-level-state", case: "keeps-state-or-settings-across-calls", pointer: "External behaviour sits at a boundary" },
-  { symptom: "long-function", case: PUTS_CODE, pointer: "One word everywhere" },
-  { symptom: "long-function", case: "names-something", pointer: "One reason per module" },
-  { symptom: "tangled-function", case: PUTS_CODE, pointer: "One word everywhere" },
-  { symptom: "tangled-function", case: "names-something", pointer: "One reason per module" },
-  { symptom: "wide-port", case: "uses-a-system-or-service-outside-the-program", pointer: "Handed what it uses" },
-  { symptom: "double-with-a-body", case: COLLABORATOR, pointer: "Handed what it uses" },
-  { symptom: "double-with-a-body", case: COLLABORATOR, pointer: "Doer or orchestrator" },
-  { symptom: "module-or-global-patched", case: COLLABORATOR, pointer: "Ports declared inside" },
-  { symptom: "branch-in-a-test", case: SEVERAL_OUTCOMES, pointer: "Kinds are named" },
-  { symptom: "branch-in-a-test", case: SEVERAL_OUTCOMES, pointer: "Failures are values" },
-  { symptom: "computed-value-in-a-test", case: GIVES_BACK, pointer: "Written-out answers" },
-  { symptom: "behaviour-tested-away-from-its-owner", case: "tests-across-units-or-against-a-real-system", pointer: "Written-out answers" },
-  { symptom: "behaviour-tested-away-from-its-owner", case: ITS_TEST, pointer: "Written-out answers" },
-  { symptom: "test-of-the-type-checker", case: ITS_TEST, pointer: "The type checker proves it" },
 ];
 
 const reading = createSymptomCatalogueRepository({ fileText: FILE_TEXT, path: PATH, ruleSetRoot: REPO_ROOT }).read({});
@@ -357,11 +323,11 @@ describe("rules/typescript/symptoms.json, read from this repository through the 
     );
   });
 
-  it("lists every indication that points at something its case does not owe, as the table for review writes them out", () => {
+  it("points every indication only at what its case owes", () => {
     assert(reading.outcome === "ok");
     assert(reading.value.held === "catalogue");
 
-    expect(unowedPointersOf({ catalogue: reading.value.catalogue })).toEqual(UNOWED_POINTERS);
+    expect(unowedPointersOf({ catalogue: reading.value.catalogue })).toEqual([]);
   });
 
   it("lists every sentence on rules/rules.md that makes a case of rules, and finds each listed sentence on its page", () => {
