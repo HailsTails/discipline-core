@@ -123,7 +123,7 @@ The command does not refuse to run again later, and has no flag for it. Forfeitu
 
 ### Pruning paid debt
 
-A `file-carve-out` is debt, and once the debt is paid the record should go. `hone prune-debt` removes the records whose debt is paid: each `file-carve-out` under `stale` or `forfeited` whose file is gone from the repository, or whose clause its mechanism measured on its file, unless the report still lists a finding or a native exception on its clause and file. Only the mechanism knows what it measured. A file it was handed and skipped, a file outside the checked set and a run that did not happen are not measured, so their records stay.
+A `file-carve-out` is debt, and once the debt is paid the record should go. `hone prune-debt` removes the records whose debt is paid: each `file-carve-out` under `stale` or `forfeited` whose file is gone from the repository, or whose clause its mechanism measured on its file, unless its clause and file still hold a finding no record answers, a finding only debt exempts, or any native exception. A finding an `authorised-location` in force exempts is answered, so a forfeited `file-carve-out` beside it goes; while the `file-carve-out` is still in force, the two are `doublyHeld` and the command removes neither. Only the mechanism knows what it measured. A file it was handed and skipped, a file outside the checked set and a run that did not happen are not measured, so their records stay.
 
 Every other record stays for a person:
 

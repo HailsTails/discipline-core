@@ -1114,7 +1114,7 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
     });
   });
 
-  it("hands on a forfeited file carve-out whose rule a config override turns off on its file, when a clause-wide carve-out records that override", async () => {
+  it("hands on nothing for a forfeited file carve-out whose rule a config override turns off on its file, though a clause-wide carve-out records that override", async () => {
     await expect(
       runReachedCheck(
         checkRequest({
@@ -1134,11 +1134,7 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
       ),
     ).resolves.toEqual({
       outcome: "ok",
-      value: {
-        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
-        report: { ...EMPTY_REPORT, forfeited: [STALE_CARVE_OUT_ON_A], readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: ["audit"] }] },
-        unprojected: [],
-      },
+      value: { paidDebt: [], report: { ...EMPTY_REPORT, forfeited: [STALE_CARVE_OUT_ON_A] }, unprojected: [] },
     });
   });
 
@@ -1154,6 +1150,110 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
     ).resolves.toEqual({
       outcome: "ok",
       value: { paidDebt: [], report: { ...EMPTY_REPORT, stale: [{ ...STALE_CARVE_OUT_ON_A, file: "src/e.js" }] }, unprojected: [] },
+    });
+  });
+});
+
+const AUTHORISED_ON_A: StructuralExceptionEntry = {
+  kind: "authorised-location",
+  clause: "CD-14#class-syntax",
+  file: "src/a.ts",
+  reason: "the one class the library's extension point requires",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const AUTHORISED_ON_A_RECORD = {
+  kind: "authorised-location",
+  clause: CLASS_SYNTAX_OBJECT,
+  mechanism: "audit",
+  file: "src/a.ts",
+  reason: "the one class the library's extension point requires",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const runnerHittingAndMeasuringA = modulesLoading({
+  runner: standaloneRunner({
+    runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [], measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }] } },
+  }),
+});
+
+const gitChangingA = gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts")] } });
+
+describe("runReachedCheck handing on debt whose every finding an authorised location answers", () => {
+  it("hands on a forfeited file carve-out on a measured pair whose finding an authorised location in force exempts", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(AUTHORISED_ON_A)] }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [AUTHORISED_ON_A_RECORD] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a file carve-out in force beside an authorised location on its pair, which leaves both doubly held", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(AUTHORISED_ON_A)] }),
+          modules: runnerHittingAndMeasuringA,
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+          doublyHeld: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts", mechanism: "audit" }],
+          readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on nothing for a forfeited file carve-out whose finding only a refused authorised location would answer", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ kind: "authorised-location", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "no chain" })],
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          invalidRecords: [
+            { place: { layout: "single-file", file: "discipline-exceptions.json", index: 1 }, problem: { kind: "evidence-refused", detail: "✖ Invalid input" } },
+          ],
+          readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST],
+        },
+        unprojected: [],
+      },
     });
   });
 });

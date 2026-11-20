@@ -114,6 +114,50 @@ describe("runPruneDebtCommand over a repository on disk, through this install's 
   });
 });
 
+const ANSWERED_FIXTURE = `${import.meta.dirname}/../../tests/test-fixtures/prune-debt-answered`;
+
+const ANSWERED = repoPathSchema.parse("src/answered.ts");
+const DOUBLY = repoPathSchema.parse("src/doubly.ts");
+const REFUSED = repoPathSchema.parse("src/refused.ts");
+
+const ANSWERED_TRACKED = [
+  repoPathSchema.parse("discipline-exceptions.json"),
+  repoPathSchema.parse("disciplines.json"),
+  ANSWERED,
+  DOUBLY,
+  REFUSED,
+];
+
+const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
+  trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: ANSWERED_TRACKED }),
+  changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: changed }),
+  contentInBase: vi.fn<GitPort["contentInBase"]>(),
+  textInBase: vi.fn<GitPort["textInBase"]>(),
+});
+
+describe("runPruneDebtCommand over debt whose every finding an authorised location answers, through this install's audit runner", () => {
+  it("removes the forfeited carve-out whose loop an authorised location answers, and keeps the doubly held one and the one beside a refused authorised location", async () => {
+    const remove = vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [{ clause: LOOPS, file: ANSWERED }] });
+    await runPruneDebtCommand(
+      pruning({
+        process: processGiven(["--repo", ANSWERED_FIXTURE, "--base-revision", "origin/main"]),
+        git: gitChanging([ANSWERED, REFUSED]),
+        remove,
+        moduleUrl: TOOL_COMMAND_URL,
+      }),
+    );
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [{ clause: LOOPS, file: ANSWERED }] });
+  });
+
+  it("removes nothing when no file changed, since a carve-out in force beside an authorised location is doubly held, not paid", async () => {
+    const remove = vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [] });
+    await runPruneDebtCommand(
+      pruning({ process: processGiven(["--repo", ANSWERED_FIXTURE, "--base-revision", "origin/main"]), git: gitChanging([]), remove, moduleUrl: TOOL_COMMAND_URL }),
+    );
+    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [] });
+  });
+});
+
 describe("runPruneDebtCommand failing before it reaches the records", () => {
   it("exits 2 with the arguments-invalid line, removing nothing, when an argument is unknown", async () => {
     const process = processGiven(["--repo", FIXTURE, "--leave", "src/kept.ts"]);

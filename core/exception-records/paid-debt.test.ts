@@ -39,7 +39,7 @@ const directiveAt = (request: { readonly clause: Finding["clause"]; readonly fil
   reach: "one-clause",
 });
 
-const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], absent: [], measured: [] };
+const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], nativeExceptions: [], absent: [], measured: [] };
 
 const CHECKOUT = repoPathSchema.parse("src/checkout.ts");
 const PRICES = repoPathSchema.parse("src/prices.ts");
@@ -100,12 +100,12 @@ describe("paidDebtOf choosing forfeited records by their own clause and file", (
     ).toEqual([]);
   });
 
-  it("keeps a forfeited file carve-out whose clause and file hold an unrecorded inline disable", () => {
+  it("keeps a forfeited file carve-out whose clause and file hold an inline disable", () => {
     expect(
       paidDebtOf({
         ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
-        unrecorded: [directiveAt({ clause: LOOPS, file: BASKET })],
+        nativeExceptions: [directiveAt({ clause: LOOPS, file: BASKET })],
       }),
     ).toEqual([]);
   });
@@ -127,7 +127,7 @@ describe("paidDebtOf naming forfeited records beside other entries", () => {
       paidDebtOf({
         ...GONE,
         forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
-        unrecorded: [
+        nativeExceptions: [
           {
             kind: "command-line-option",
             clause: LOOPS,
@@ -161,12 +161,12 @@ describe("paidDebtOf naming only debt on a file no longer on disk", () => {
     ).toEqual([{ clause: LOOPS, file: CHECKOUT }]);
   });
 
-  it("keeps a stale file carve-out on a file no longer on disk whose clause and file hold an unrecorded ignore", () => {
+  it("keeps a stale file carve-out on a file no longer on disk whose clause and file hold an ignore", () => {
     expect(
       paidDebtOf({
         ...GONE,
         stale: [carveOut({ clause: LOOPS, file: BASKET })],
-        unrecorded: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
+        nativeExceptions: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
       }),
     ).toEqual([]);
   });
@@ -207,12 +207,99 @@ describe("paidDebtOf naming debt on a file still on disk that its mechanism meas
     ).toEqual([]);
   });
 
-  it("keeps a stale file carve-out whose measured clause and file hold an unrecorded ignore", () => {
+  it("keeps a stale file carve-out whose measured clause and file hold an ignore", () => {
     expect(
       paidDebtOf({
         ...NOTHING,
         stale: [carveOut({ clause: LOOPS, file: BASKET })],
-        unrecorded: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
+        nativeExceptions: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+});
+
+const AUTHORISED_BASKET_LOOP: ExceptionRecord = {
+  kind: "authorised-location",
+  clause: LOOPS,
+  mechanism: ESLINT,
+  file: BASKET,
+  reason: "the one loop over the clock",
+};
+
+const LOOPS_CLAUSE_WIDE: ExceptionRecord = {
+  kind: "clause-wide-carve-out",
+  clause: LOOPS,
+  mechanism: ESLINT,
+  reason: "loops carved out during migration",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+describe("paidDebtOf naming debt whose every finding an authorised location answers", () => {
+  it("names a forfeited file carve-out on a measured pair whose only finding an authorised location in force exempts", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [AUTHORISED_BASKET_LOOP] }],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([{ clause: LOOPS, file: BASKET }]);
+  });
+
+  it("keeps a forfeited file carve-out whose finding an authorised location exempts when its pair was not measured", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [AUTHORISED_BASKET_LOOP] }],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a forfeited file carve-out whose finding only a clause-wide carve-out exempts, since that is debt too", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [LOOPS_CLAUSE_WIDE] }],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a forfeited file carve-out whose pair holds one finding an authorised location exempts and one no record answers", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [AUTHORISED_BASKET_LOOP] }],
+        findings: [findingAt({ clause: LOOPS, file: BASKET })],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a forfeited file carve-out whose finding an authorised location exempts while a native exception on its pair suppresses others", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [AUTHORISED_BASKET_LOOP] }],
+        nativeExceptions: [directiveAt({ clause: LOOPS, file: BASKET })],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("paidDebtOf keeping debt a native suppression on its pair may hide, recorded or not", () => {
+  it("keeps a forfeited file carve-out on a measured pair whose rule a config override turns off, though a clause-wide carve-out records the override", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        nativeExceptions: [{ kind: "config-override", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
         measured: [{ clause: LOOPS, file: BASKET }],
       }),
     ).toEqual([]);
@@ -230,7 +317,7 @@ describe("paidDebtOf keeping a forfeited record each native exception on its fil
           carveOut({ clause: LOOPS, file: PRICES }),
           carveOut({ clause: LOOPS, file: TOTALS }),
         ],
-        unrecorded: [
+        nativeExceptions: [
           { kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET },
           { kind: "config-override", clause: LOOPS, mechanism: ESLINT, file: CHECKOUT },
           { kind: "suppression-entry", clause: LOOPS, mechanism: ESLINT, file: PRICES, location: repoPathSchema.parse("eslint-suppressions.json") },

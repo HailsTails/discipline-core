@@ -385,7 +385,7 @@ Nothing must be migrated. Selections, exception records and findings still use t
 
 ## 19. Pruning paid debt on files that still exist
 
-`hone prune-debt` used to remove a `file-carve-out` only when its file no longer existed. Each mechanism now reports which clause it measured on which file, and the command also removes a stale or forfeited `file-carve-out` whose clause its mechanism measured on its file, when no finding or native exception still holds it. A file the mechanism skipped, a file outside the checked set and a run that did not happen are not measured, so their records stay.
+`hone prune-debt` used to remove a `file-carve-out` only when its file no longer existed. Each mechanism now reports which clause it measured on which file, and the command also removes a stale or forfeited `file-carve-out` whose clause its mechanism measured on its file, when no finding or native exception still holds it. A finding an `authorised-location` in force exempts no longer holds it, since that finding is answered; a finding only debt exempts, and any native exception on the pair, recorded or not, still do. A file the mechanism skipped, a file outside the checked set and a run that did not happen are not measured, so their records stay.
 
 1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. A record whose debt is paid on a file that still exists now brings the `prune-debt` line to the end of `readFirst`.
 2. **Run the command it names,** then `npm run --silent hone:project` when any clause is `eslint`, and commit what they change.
