@@ -10,7 +10,6 @@ import type {
   MeasuredPair,
   NativeException,
   ProjectionWrite,
-  ScriptOptionCause,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
@@ -25,33 +24,28 @@ import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-o
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
+import { mappedOutcome } from "./checks-outcomes.ts";
+import { type CheckedFile, type ConfigLocation, queriedFiles, type QueriedFiles } from "./checks-queried-files.ts";
+import { trackedExceptionsOfRules } from "./checks-tracked-exceptions.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import { type EslintRepository, eslintRepositoryOver } from "./eslint-repository.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import {
-  type ConfigFileSearch,
   type EslintPort,
   type GovernedRule,
-  type IgnoredState,
   type LintedFile,
   type QueryInstance,
   reservedNamespace,
 } from "./eslint-instance.ts";
 import { type EslintPieceSettings, eslintPieceSettingsSchema, ruleOptionsOf } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
-import { brokenConfigVerdict, cachedGoverningIgnores, type GoverningIgnores } from "./governing-config.ts";
+import { cachedGoverningIgnores } from "./governing-config.ts";
 import { namespaceOwnershipRefusal } from "./namespace-ownership.ts";
 import { hitsCutFrom, messageReadingOf } from "./lint-hits.ts";
 import { type LinesReader, sourceLinesFor } from "./source-lines.ts";
 import type { ConfigLookup } from "./config-lookup.ts";
-import {
-  type PackageJsonScan,
-  type PackageScriptsReader,
-  type ScriptOption,
-  scannedPackageScripts,
-  type SelectedRule,
-} from "./package-script-scanner.ts";
-import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
+import type { SelectedRule } from "./package-script-scanner.ts";
+import { scriptOptionJudge } from "./script-option-effect.ts";
 import {
   type CurrentProjection,
   PROJECTION_PATH,
@@ -77,7 +71,6 @@ import {
   slicedProjectionWrites,
   sliceTextOf,
 } from "./sliced-projection.ts";
-import { type SuppressionsReader, suppressionEntriesIn } from "./suppressions-scanner.ts";
 
 export type EslintPlatformPorts = {
   readonly fileText: FileTextPort;
@@ -111,21 +104,7 @@ type LoadedClause<Clause extends ConfiguredClause> = Clause & { readonly plugin:
 
 type SelectedClause = LoadedClause<ConfiguredClause>;
 
-type CheckedFile = {
-  readonly file: RepoPath;
-  readonly states: readonly { readonly ruleId: string; readonly state: RuleState }[];
-};
-
-type QueriedFiles = {
-  readonly ignored: readonly RepoPath[];
-  readonly checked: readonly CheckedFile[];
-};
-
 type ProjectionEffect = "in-effect" | "not-in-effect";
-
-type QueriedFile =
-  | { readonly file: RepoPath; readonly ignored: "ignored" }
-  | { readonly file: RepoPath; readonly ignored: "checked"; readonly states: CheckedFile["states"] };
 
 type ProjectionStatus = { readonly projection: "current" | "out-of-date"; readonly slices: readonly SliceProblem[] };
 
@@ -139,10 +118,6 @@ type ParsedPlugin = Result<LoadedEslintPlugin, { readonly detail: string }>;
 
 type SharedPlugin = { readonly configured: ConfiguredClause; readonly parsed: Promise<ParsedPlugin> };
 
-const SUPPRESSIONS_FILE_NAME = "eslint-suppressions.json";
-
-const PACKAGE_JSON_NAME = "package.json";
-
 const pieceInvalid = (request: {
   readonly pieceRoot: string;
   readonly detail: string;
@@ -150,14 +125,6 @@ const pieceInvalid = (request: {
   outcome: "failed",
   error: { kind: "piece-invalid", pieceRoot: request.pieceRoot, detail: request.detail },
 });
-
-const mappedOutcome = <Value, Mapped>(request: {
-  readonly outcome: Outcome<Value>;
-  readonly map: (okValue: Value) => Mapped;
-}): Outcome<Mapped> =>
-  request.outcome.outcome === "failed"
-    ? request.outcome
-    : { outcome: "ok", value: request.map(request.outcome.value) };
 
 const configuredClause = (request: {
   readonly clause: RunnerClause;
@@ -389,180 +356,7 @@ const unconfiguredSlicesOf = (request: {
       : [],
   );
 
-const fileRuleStates = (request: {
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly ruleId: string;
-}): Promise<Outcome<CheckedFile["states"]>> =>
-  request.query.ruleState({ file: request.file, ruleId: request.ruleId }).then((state) =>
-    mappedOutcome({ outcome: state, map: (ruleState) => [{ ruleId: request.ruleId, state: ruleState }] }),
-  );
-
-const checkedQueriedFile = (request: {
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly ruleIds: readonly string[];
-}): Promise<Outcome<readonly QueriedFile[]>> =>
-  Promise.all(
-    request.ruleIds.map((ruleId) => fileRuleStates({ query: request.query, file: request.file, ruleId })),
-  ).then((outcomes) =>
-    mappedOutcome({
-      outcome: gatheredOutcomes({ outcomes }),
-      map: (states): readonly QueriedFile[] => [{ file: request.file, ignored: "checked", states }],
-    }),
-  );
-
-const queriedFileOf = (request: {
-  readonly ignoredState: Outcome<IgnoredState>;
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly ruleIds: readonly string[];
-}): Promise<Outcome<readonly QueriedFile[]>> => {
-  if (request.ignoredState.outcome === "failed") {
-    return Promise.resolve(request.ignoredState);
-  }
-  if (request.ignoredState.value === "ignored") {
-    return Promise.resolve({ outcome: "ok", value: [{ file: request.file, ignored: "ignored" }] });
-  }
-  return checkedQueriedFile({ query: request.query, file: request.file, ruleIds: request.ruleIds });
-};
-
-export type ConfigLocation = {
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-  readonly governingIgnoreOf: GoverningIgnores;
-  readonly names: { readonly settingsFile: string; readonly projectionFile: string };
-};
-
 const VERSION_ONE_NAMES: ConfigLocation["names"] = { settingsFile: "disciplines.json", projectionFile: "disciplines.eslint.mjs" };
-
-const FULL_STOP = ".";
-
-const sentenceOf = (request: { readonly text: string }): string =>
-  request.text.endsWith(FULL_STOP) ? request.text : `${request.text}${FULL_STOP}`;
-
-const configRepair = (request: { readonly configFile: string; readonly location: ConfigLocation }): string => {
-  const folder = request.location.path.repositoryDirectoryOf({ path: request.configFile });
-  return folder === "." || folder === ""
-    ? "Fix that config."
-    : `Fix that config. Only if ${folder} holds nothing Hone should check, add it to exclude in ${request.location.names.settingsFile} instead.`;
-};
-
-const foundConfigDetail = (request: {
-  readonly file: RepoPath;
-  readonly message: string;
-  readonly configFile: string;
-  readonly location: ConfigLocation;
-}): string => {
-  const placed = request.location.path.relative({ from: request.location.repoRoot, to: request.configFile });
-  return placed.relation === "different-root"
-    ? `${request.configFile}, the ESLint config for ${request.file}, failed to load: ${request.message} Fix that config.`
-    : `${placed.path}, the ESLint config for ${request.file}, failed to load: ${request.message} ${configRepair({ configFile: placed.path, location: request.location })}`;
-};
-
-const unloadableConfigDetail = (request: {
-  readonly file: RepoPath;
-  readonly detail: string;
-  readonly search: ConfigFileSearch;
-  readonly location: ConfigLocation;
-}): string => {
-  const message = sentenceOf({ text: request.detail });
-  switch (request.search.kind) {
-    case "found":
-      return foundConfigDetail({ file: request.file, message, configFile: request.search.path, location: request.location });
-    case "none":
-      return `no eslint.config.* applies to ${request.file}. Create one at the repository root that spreads ${request.location.names.projectionFile} last, as ADOPTING.md step 4a shows.`;
-    case "unknown":
-      return `the ESLint config for ${request.file} failed to load: ${message} Fix that config.`;
-  }
-};
-const unloadableConfigFailure = (request: {
-  readonly file: RepoPath;
-  readonly detail: string;
-  readonly search: ConfigFileSearch;
-  readonly location: ConfigLocation;
-}): Outcome<readonly QueriedFile[]> => ({
-  outcome: "failed",
-  error: { kind: "team-config-unloadable", detail: unloadableConfigDetail(request) },
-});
-
-const IGNORED_BY_GOVERNING_CONFIG = "ignored-by-governing-config";
-
-const searchedQueryFailure = (request: {
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly location: ConfigLocation;
-  readonly detail: string;
-  readonly search: ConfigFileSearch;
-}): Promise<Outcome<readonly QueriedFile[]>> => {
-  if (request.search.kind !== "found") {
-    return Promise.resolve(unloadableConfigFailure(request));
-  }
-  return brokenConfigVerdict({
-    lookup: {
-      query: request.query,
-      governingIgnoreOf: request.location.governingIgnoreOf,
-      path: request.location.path,
-      repoRoot: request.location.repoRoot,
-    },
-    brokenConfig: request.search.path,
-    file: request.file,
-  }).then((verdict): Outcome<readonly QueriedFile[]> =>
-    verdict === IGNORED_BY_GOVERNING_CONFIG
-      ? { outcome: "ok", value: [{ file: request.file, ignored: "ignored" }] }
-      : unloadableConfigFailure(request),
-  );
-};
-
-const explainedQueryFailure = (request: {
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly location: ConfigLocation;
-  readonly queried: Outcome<readonly QueriedFile[]>;
-}): Promise<Outcome<readonly QueriedFile[]>> => {
-  const queried = request.queried;
-  if (queried.outcome === "ok" || queried.error.kind !== "team-config-unloadable") {
-    return Promise.resolve(queried);
-  }
-  const detail = queried.error.detail;
-  return request.query
-    .configFileOf({ file: request.file })
-    .then((search) => searchedQueryFailure({ query: request.query, file: request.file, location: request.location, detail, search }));
-};
-
-const queriedFile = (request: {
-  readonly query: QueryInstance;
-  readonly file: RepoPath;
-  readonly ruleIds: readonly string[];
-  readonly location: ConfigLocation;
-}): Promise<Outcome<readonly QueriedFile[]>> =>
-  request.query
-    .ignoredState({ file: request.file })
-    .then((ignoredState) => queriedFileOf({ ...request, ignoredState }))
-    .then((queried) => explainedQueryFailure({ query: request.query, file: request.file, location: request.location, queried }));
-
-const checkedFileOf = (request: { readonly entry: QueriedFile }): readonly CheckedFile[] =>
-  request.entry.ignored === "checked" ? [{ file: request.entry.file, states: request.entry.states }] : [];
-
-const partitionedFiles = (request: { readonly queried: readonly QueriedFile[] }): QueriedFiles => ({
-  ignored: request.queried.filter((entry) => entry.ignored === "ignored").map((entry) => entry.file),
-  checked: request.queried.flatMap((entry) => checkedFileOf({ entry })),
-});
-
-export const queriedFiles = (request: {
-  readonly query: QueryInstance;
-  readonly files: readonly RepoPath[];
-  readonly ruleIds: readonly string[];
-  readonly location: ConfigLocation;
-}): Promise<Outcome<QueriedFiles>> =>
-  Promise.all(
-    request.files.map((file) => queriedFile({ query: request.query, file, ruleIds: request.ruleIds, location: request.location })),
-  ).then((outcomes) =>
-    mappedOutcome({
-      outcome: gatheredOutcomes({ outcomes }),
-      map: (queried) => partitionedFiles({ queried }),
-    }),
-  );
 
 const severityOf = (request: {
   readonly checked: CheckedFile;
@@ -795,136 +589,7 @@ const lintedFindings = (request: {
   });
 };
 
-const directoryOf = (request: { readonly path: RepoPath }): RepoPath | "repo-root" => {
-  const directory = repoPathSchema.safeParse(request.path.split("/").slice(0, -1).join("/"));
-  return directory.success ? directory.data : "repo-root";
-};
-
-const fileNameOf = (request: { readonly path: RepoPath }): string | undefined =>
-  request.path.split("/").at(-1);
-
-const filesNamed = (request: {
-  readonly trackedPaths: readonly RepoPath[];
-  readonly name: string;
-}): readonly RepoPath[] => request.trackedPaths.filter((path) => fileNameOf({ path }) === request.name);
-
-const suppressionsExceptions = (request: {
-  readonly suppressionsAt: SuppressionsReader;
-  readonly location: RepoPath;
-  readonly keysRelativeTo: RepoPath | "repo-root";
-  readonly selectedRules: readonly SelectedRule[];
-}): Outcome<readonly NativeException[]> => {
-  const suppressions = request.suppressionsAt({ location: request.location });
-  return suppressions.outcome === "failed"
-    ? suppressions
-    : suppressionEntriesIn({
-        location: request.location,
-        keysRelativeTo: request.keysRelativeTo,
-        suppressions: suppressions.value,
-        selectedRules: request.selectedRules,
-      });
-};
-
-const causeOf = (request: { readonly verdict: OptionVerdict; readonly option: ScriptOption }): ScriptOptionCause | undefined => {
-  switch (request.verdict.kind) {
-    case "weakens":
-      return { kind: "weakens-run" };
-    case "not-plain":
-      return { ...request.verdict.reason, command: request.option.command };
-    case "weakens-nothing":
-      return undefined;
-  }
-};
-
-const weakeningExceptions = (request: {
-  readonly option: ScriptOption;
-  readonly judge: ScriptOptionJudge;
-}): Promise<Outcome<readonly NativeException[]>> =>
-  request.judge({ option: request.option }).then((verdict) => {
-    if (verdict.outcome === "failed") {
-      return verdict;
-    }
-    const cause = causeOf({ verdict: verdict.value, option: request.option });
-    return {
-      outcome: "ok",
-      value: cause === undefined ? [] : request.option.exceptions.map((exception): NativeException => ({ ...exception, cause })),
-    };
-  });
-
-const judgedScriptExceptions = (request: {
-  readonly scan: PackageJsonScan;
-  readonly judge: ScriptOptionJudge;
-}): Promise<Outcome<readonly NativeException[]>> =>
-  Promise.all(request.scan.scriptOptions.map((option) => weakeningExceptions({ option, judge: request.judge }))).then(
-    (outcomes) => gatheredOutcomes({ outcomes }),
-  );
-
-const unreadableScriptExceptions = (request: { readonly scan: PackageJsonScan }): readonly NativeException[] =>
-  request.scan.unreadableScripts.flatMap((unreadable) =>
-    unreadable.exceptions.map((exception): NativeException => ({ ...exception, cause: { kind: "unreadable", command: unreadable.command } })),
-  );
-
-const scannedPackageExceptions = (request: {
-  readonly suppressionsAt: SuppressionsReader;
-  readonly packagePath: RepoPath;
-  readonly scan: PackageJsonScan;
-  readonly selectedRules: readonly SelectedRule[];
-  readonly judge: ScriptOptionJudge;
-}): Promise<Outcome<readonly NativeException[]>> =>
-  judgedScriptExceptions(request).then((scriptExceptions) =>
-    gatheredOutcomes({
-      outcomes: [
-        scriptExceptions,
-        { outcome: "ok", value: unreadableScriptExceptions({ scan: request.scan }) },
-        ...request.scan.suppressionsLocations.map((scripted) =>
-        suppressionsExceptions({
-          suppressionsAt: request.suppressionsAt,
-          location: scripted.location,
-            keysRelativeTo: directoryOf({ path: request.packagePath }),
-            selectedRules: request.selectedRules,
-          }),
-        ),
-      ],
-    }),
-  );
-
-const packageJsonExceptions = (request: {
-  readonly packageScriptsAt: PackageScriptsReader;
-  readonly suppressionsAt: SuppressionsReader;
-  readonly packagePath: RepoPath;
-  readonly selectedRules: readonly SelectedRule[];
-  readonly judge: ScriptOptionJudge;
-}): Promise<Outcome<readonly NativeException[]>> => {
-  const scripts = request.packageScriptsAt({ packagePath: request.packagePath });
-  if (scripts.outcome === "failed") {
-    return Promise.resolve(scripts);
-  }
-  const scan = scannedPackageScripts({
-    path: request.packagePath,
-    scripts: scripts.value,
-    selectedRules: request.selectedRules,
-  });
-  if (scan.outcome === "failed") {
-    return Promise.resolve(scan);
-  }
-  return scannedPackageExceptions({ ...request, scan: scan.value });
-};
-
-const trackedExceptions = (request: {
-  readonly packageScriptsAt: PackageScriptsReader;
-  readonly suppressionsAt: SuppressionsReader;
-  readonly trackedPaths: readonly RepoPath[];
-  readonly selectedRules: readonly SelectedRule[];
-  readonly judge: ScriptOptionJudge;
-}): Promise<Outcome<readonly NativeException[]>> =>
-  Promise.all([
-    ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
-      Promise.resolve(suppressionsExceptions({ ...request, location, keysRelativeTo: directoryOf({ path: location }) })),
-    ),
-    ...filesNamed({ trackedPaths: request.trackedPaths, name: PACKAGE_JSON_NAME }).map((packagePath) =>
-      packageJsonExceptions({ ...request, packagePath }),
-    ),
-  ]).then((outcomes) => gatheredOutcomes({ outcomes }));
+const trackedExceptions = trackedExceptionsOfRules;
 
 const reportWith = (request: {
   readonly projection: ReturnedEmbeddedRunReport["projection"];

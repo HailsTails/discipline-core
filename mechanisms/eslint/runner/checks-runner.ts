@@ -8,7 +8,7 @@ import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProject
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
 import { CHECKS_PROJECTION_PATH, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
-import { nestedVersionTwoRepositoriesOf } from "./checks-nested-repositories.ts";
+import { nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
 import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
 import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
@@ -83,7 +83,7 @@ const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platfo
     : undefined;
 
 const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: EslintRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
-  const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request) });
+  const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request), settingsFile: SETTINGS_FILE_NAME });
   if (lookup.outcome === "failed") {
     return lookup;
   }
