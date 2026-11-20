@@ -56,5 +56,6 @@ export const toolchainBoundChecksRunner = <Toolchain>(request: {
     projectedKinds: request.projectedKinds,
     run: (run) =>
       runner.then((built) => (built.outcome === "failed" ? built : built.value.run(run))),
+    conform: (conform) => withRunner({ runner, act: (built) => built.conform(conform) }),
   };
 };

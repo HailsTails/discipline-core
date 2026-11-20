@@ -2,12 +2,14 @@ import { assert } from "vitest";
 import { z } from "zod";
 import type { EmbeddedRunner } from "../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
-import { toolchainBoundEmbeddedRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import { toolchainBoundChecksRunner, toolchainBoundEmbeddedRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
+import type { LoadedChecksRunner } from "../core/mechanism-port/checks-runner-types.ts";
 import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { Result } from "../core/values/result.ts";
+import { createChecksRunner } from "../mechanisms/eslint/runner/checks-runner.ts";
 import { createEslintRunner, ESLINT_PROJECTED_KINDS } from "../mechanisms/eslint/runner/create-eslint-runner.ts";
 import {
   createEslintPort,
@@ -112,6 +114,21 @@ export const eslintRunnerOn = (request: { readonly line: EslintLine }): Embedded
     projectedKinds: ESLINT_PROJECTED_KINDS,
     runnerOf: (toolchain) =>
       createEslintRunner({
+        fileText: createDefaultFileTextPort({}),
+        fileRemoval: createDefaultFileRemovalPort({}),
+        modules: pieceModulesOn({ line: request.line, base: createDefaultModuleLoaderPort({}) }),
+        path: createDefaultPathPort({}),
+        eslint: createEslintPort({ toolchain }),
+        moduleExtension: ".ts",
+      }),
+  });
+
+export const eslintChecksRunnerOn = (request: { readonly line: EslintLine }): LoadedChecksRunner =>
+  toolchainBoundChecksRunner({
+    toolchain: loadedEslintToolchain(request).then((toolchain): Result<EslintToolchain, RunnerFailure> => ({ outcome: "ok", value: toolchain })),
+    projectedKinds: ESLINT_PROJECTED_KINDS,
+    runnerOf: (toolchain) =>
+      createChecksRunner({
         fileText: createDefaultFileTextPort({}),
         fileRemoval: createDefaultFileRemovalPort({}),
         modules: pieceModulesOn({ line: request.line, base: createDefaultModuleLoaderPort({}) }),
