@@ -1,7 +1,5 @@
 import type { CommandRequest } from "../../check/run-check-command.ts";
 import { type CheckRequest, runCheck } from "../../check/run-check.ts";
-import { runProject } from "../../check/run-project.ts";
-import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import { createSelectionRepository, readRunSettings } from "../../consumer-selection/consumer-selection.ts";
 import { type UpgradeArguments, parseUpgradeArguments } from "../../command-line/command-arguments.ts";
@@ -20,12 +18,11 @@ import { moduleExtensionOf } from "../../values/install-layout.ts";
 import type { Result } from "../../values/result.ts";
 import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
-import { teamConfigsOf } from "../proof/team-config-finder.ts";
 import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.ts";
-import { versionOneProjectionsOver } from "../proof/version-one-projections-reading.ts";
 import { plannedProjectionOf } from "./planned-projection.ts";
 import { proofRunsOf } from "./proof-runs.ts";
 import { shippedCataloguesOf } from "./shipped-catalogues.ts";
+import { versionOneProjectionsOfRepository } from "./version-one-projections.ts";
 import { type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
 import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "./upgrade-success-text.ts";
 import { recordsOnDiskOf } from "./version-one-records-on-disk.ts";
@@ -151,13 +148,12 @@ const proofRequestOf = (request: {
     catalogues: prepared.catalogues,
     repoRoot: located.repoRoot,
     projectionFilesOf: plannedProjectionOf({ command, repoRoot: located.repoRoot, installRoot: located.installRoot }),
-    versionOneProjectionsOf: versionOneProjectionsOver({
-      project: async () => {
-        const projected = await runProject({ ...prepared.check, fileText: command.fileText });
-        return projected.outcome === "failed" ? { outcome: "failed", error: { detail: loadFailureDetail({ failure: projected.error }) } } : projected;
-      },
-      teamConfigsOf: ({ projections }) =>
-        teamConfigsOf({ repoRoot: located.repoRoot, fileText: command.fileText, path: command.path, trackedPaths: prepared.trackedPaths, projections }),
+    versionOneProjectionsOf: versionOneProjectionsOfRepository({
+      check: prepared.check,
+      fileText: command.fileText,
+      path: command.path,
+      repoRoot: located.repoRoot,
+      trackedPaths: prepared.trackedPaths,
     }),
   };
 };
