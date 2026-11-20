@@ -1,6 +1,7 @@
 import { failureDetailOf } from "../../platform-ports/failure-detail.ts";
 import type { RunReport } from "../../report/run-report.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import type { ClauseAddress } from "../../values/clause-address.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../values/absolute-path.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
@@ -9,6 +10,7 @@ import type { CarveOutOracle, OracleFailure } from "../carve-out-oracle/carve-ou
 import { type ProofDifference, proofDifferencesOf } from "../proof-comparison/proof-differences.ts";
 import { type PlannedFile, type ProofWriteRefusal, type ProofWritePorts, type ProofWrites, rolledBackProofWrites, type Unrestored, writeProofFiles } from "../proof-writes/proof-writes.ts";
 import { type OutsideRoot, type Removed, type RemovalFailure, type RecordsRoot, filesStillPresentOf, recordsOutsideRoot, removedVersionOneFiles, type VersionOneRemoval } from "../proof-writes/version-one-removal.ts";
+import type { MarkedNotAdopted } from "../version-two-mapping/settings-mapping.ts";
 import type { PlannedRepoFile } from "./planned-repo-file.ts";
 import { replacementsOf } from "./projection-replacements.ts";
 import type { VersionOneProjection } from "./team-config-finder.ts";
@@ -44,6 +46,7 @@ export type UpgradeProofRequest = {
 };
 
 export type ProofCarriedOver = {
+  readonly markedNotAdopted: readonly MarkedNotAdopted[];
   readonly written: readonly RepoPath[];
   readonly replaced: readonly RepoPath[];
   readonly removed: Removed;
@@ -57,6 +60,7 @@ export type ProofRefusal =
   | { readonly kind: "oracle-failed"; readonly failure: OracleFailure }
   | ({ readonly kind: "plan-refused"; readonly refusal: PlanRefusal } & AfterVersionOneProject)
   | ({ readonly kind: "version-one-run-failed"; readonly failure: ProofRunFailure } & AfterVersionOneProject)
+  | ({ readonly kind: "version-one-uncovered"; readonly clauses: readonly ClauseAddress[] } & AfterVersionOneProject)
   | ({ readonly kind: "version-one-project-failed"; readonly detail: string } & AfterVersionOneProject)
   | ({ readonly kind: "version-one-project-rewrote"; readonly files: readonly RepoPath[] } & AfterVersionOneProject)
   | ({ readonly kind: "unplaceable-path"; readonly file: RepoPath } & AfterVersionOneProject)
@@ -172,7 +176,12 @@ const comparedAfterWriting = async (request: UpgradeProofRequest & Written): Pro
   if (after.outcome === "failed") {
     return { outcome: "failed", error: { kind: "version-two-run-failed", failure: after.error, unrestored: rolledBackWith(request), removedByVersionOne: [] } };
   }
-  const differences = proofDifferencesOf({ before: request.before, after: after.value, catalogues: request.catalogues });
+  const differences = proofDifferencesOf({
+    before: request.before,
+    after: after.value,
+    marked: request.plan.markedNotAdopted,
+    catalogues: request.catalogues,
+  });
   return differences.length > 0
     ? { outcome: "failed", error: { kind: "differences", differences, unrestored: rolledBackWith(request), removedByVersionOne: [] } }
     : { outcome: "ok", value: null };
@@ -194,7 +203,10 @@ const removedAfterComparing = (request: UpgradeProofRequest & Written): Result<P
   const removed = removedVersionOneFiles({ ports: request.ports, removal: request.placed.removal });
   return removed.outcome === "failed"
     ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, remaining: filesStillPresentOf({ removal: request.placed.removal, failure: removed.error }), ...carried } }
-    : { outcome: "ok", value: { ...carried, removed: { ...removed.value, files: [...request.removed, ...removed.value.files] } } };
+    : {
+        outcome: "ok",
+        value: { ...carried, markedNotAdopted: request.plan.markedNotAdopted, removed: { ...removed.value, files: [...request.removed, ...removed.value.files] } },
+      };
 };
 
 const writtenAndCompared = async (request: UpgradeProofRequest & Omit<Written, "writes">): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
@@ -275,6 +287,9 @@ export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result
   const before = await request.runs.versionOne();
   if (before.outcome === "failed") {
     return { outcome: "failed", error: { kind: "version-one-run-failed", failure: before.error, removedByVersionOne: [] } };
+  }
+  if (before.value.uncovered.length > 0) {
+    return { outcome: "failed", error: { kind: "version-one-uncovered", clauses: before.value.uncovered, removedByVersionOne: [] } };
   }
   return projectedOver({ ...request, plan: plan.value, before: before.value });
 };

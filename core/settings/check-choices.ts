@@ -206,9 +206,9 @@ const withSettings = (request: { readonly clause: ChosenClause; readonly settled
     : request.clause;
 };
 
-const uncoveredOf = (request: CatalogueRequest & { readonly resolved: readonly ResolvedCheck[] }): readonly ClauseAddress[] => {
-  const symptoms = new Set(request.resolved.map((resolved) => resolved.check.symptom.name));
-  const listed = new Set(request.resolved.map((resolved) => resolved.check));
+export const uncoveredOf = (request: CatalogueRequest & { readonly checks: readonly Check[] }): readonly ClauseAddress[] => {
+  const symptoms = new Set(request.checks.map((check) => check.symptom.name));
+  const listed = new Set(request.checks);
   const clauses = request.catalogues.flatMap((held) =>
     held.catalogue.checks.filter((check) => symptoms.has(check.symptom.name) && !listed.has(check)).map((check) => check.clause),
   );
@@ -250,7 +250,7 @@ export const checkChoicesOf = (
     outcome: "ok",
     value: {
       clauses: clauses.map((clause) => withSettings({ clause, settled: settled.value })),
-      uncovered: uncoveredOf({ catalogues: request.catalogues, resolved: resolved.value }),
+      uncovered: uncoveredOf({ catalogues: request.catalogues, checks: resolved.value.map((each) => each.check) }),
     },
   };
 };

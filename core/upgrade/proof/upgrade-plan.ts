@@ -11,7 +11,7 @@ import { type CarveOutUnanswered, recordInputsOf } from "../carve-out-oracle/rec
 import { reachBeyondEntriesOf, type ReachBeyondEntries } from "../proof-comparison/written-reach.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { mappedRecords, type MappedRecordsDocument, type RecordInput } from "../version-two-mapping/records-mapping.ts";
-import { mappedSettings } from "../version-two-mapping/settings-mapping.ts";
+import { type MarkedNotAdopted, mappedSettings } from "../version-two-mapping/settings-mapping.ts";
 import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { PlannedRepoFile } from "./planned-repo-file.ts";
 import type { ReplacementRefusal } from "./projection-replacements.ts";
@@ -32,6 +32,7 @@ export type ProjectionFilesOf = (request: {
 }) => Promise<Result<readonly PlannedRepoFile[], ProjectionFailure>>;
 
 export type UpgradePlan = {
+  readonly markedNotAdopted: readonly MarkedNotAdopted[];
   readonly inputs: readonly RecordInput[];
   readonly files: readonly PlannedRepoFile[];
   readonly projected: readonly PlannedRepoFile[];
@@ -84,6 +85,7 @@ export const upgradePlanOf = async (request: UpgradePlanRequest): Promise<Result
   return {
     outcome: "ok",
     value: {
+      markedNotAdopted: settings.value.markedNotAdopted,
       inputs: inputs.value,
       files: [{ file: SETTINGS_FILE, text: settingsTextOf({ settings: settings.value.settings }) }, ...recordFilesOf({ documents }), ...projected.value],
       projected: projected.value,

@@ -430,6 +430,74 @@ const AUDIT_EXCEPTIONS = exceptionsTextOf({
   ],
 });
 
+const CD_1_ONLY_SELECTION = (request: { readonly implicitAnyLet: string }): string =>
+  `{ "version": 1, "ruleSets": {}, "clauses": { "CD-1#any-cast": "audit", "CD-1#explicit-any": "eslint", "CD-1#implicit-any-let": ${request.implicitAnyLet} } }\n`;
+
+describe("hone upgrade over a real repository that selects only some disciplines", () => {
+  it("refuses it before writing anything when version 1 already reports a clause of a selected discipline uncovered", async () => {
+    const repo = await versionOneRepositoryOf({
+      selection: '{ "version": 1, "ruleSets": {}, "clauses": { "CD-1#any-cast": "audit", "CD-1#explicit-any": "eslint" } }\n',
+      exceptions: NO_RECORDS,
+      sources: { "open.ts": ANY_CAST },
+    });
+    const before = treeOf({ repo });
+    const refused = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    expect({ refused, after: treeOf({ repo }) }).toEqual({
+      refused: {
+        writes: [
+          [
+            {
+              text: "upgrade refused:\nversion 1 already reports CD-1#implicit-any-let as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.\nNothing was changed.\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 1 }]],
+      },
+      after: before,
+    });
+  });
+
+  it("upgrades it once the rest of its discipline is marked, writing the other discipline's checks not-adopted", async () => {
+    const repo = await versionOneRepositoryOf({
+      selection: CD_1_ONLY_SELECTION({ implicitAnyLet: '"not-adopted"' }),
+      exceptions: NO_RECORDS,
+      sources: { "open.ts": ANY_CAST },
+    });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    expect(upgraded).toEqual({
+      writes: [
+        [
+          {
+            text: "upgraded to version 2\nmarked claimed-type#unlisted-cast-site not-adopted: its discipline was not selected in version 1\nmarked claimed-type#non-null-assertions not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
+          },
+        ],
+      ],
+      exits: [[{ code: 0 }]],
+    });
+  });
+});
+
+describe("hone upgrade over a real repository that selects only CD-10", () => {
+  it("upgrades it, marking the checks the marking itself would leave uncovered along with the ones it started from", async () => {
+    const repo = await versionOneRepositoryOf({
+      selection: '{ "version": 1, "ruleSets": {}, "clauses": { "CD-10#throws-in-tests": "audit", "CD-10#throw-only-error": "eslint" } }\n',
+      exceptions: NO_RECORDS,
+      sources: { "kept.ts": "export const kept = 1;\n" },
+    });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    expect(upgraded).toEqual({
+      writes: [
+        [
+          {
+            text: "upgraded to version 2\nmarked branch-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked throw-or-catch-in-a-test#try-block not-adopted: its discipline was not selected in version 1\nmarked rebinding#test-body not-adopted: its discipline was not selected in version 1\nmarked computed-value-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked text-past-its-reader#test-body not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#logic-in-a-passed-function not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#stub-implementation not-adopted: its discipline was not selected in version 1\nmarked rebinding#parameter-reassignment not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
+          },
+        ],
+      ],
+      exits: [[{ code: 0 }]],
+    });
+  });
+});
+
 describe("hone upgrade over a real repository whose clause is bound to the audit mechanism", () => {
   it("upgrades it, with one finding open and one answered by debt, and checks both with the check each names", async () => {
     const repo = await versionOneRepositoryOf({

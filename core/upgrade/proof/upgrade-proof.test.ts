@@ -22,7 +22,7 @@ import type { ProjectionFilesOf, VersionOneReading } from "./upgrade-plan.ts";
 import type { VersionOneProjection } from "./team-config-finder.ts";
 import type { VersionOneProjectionsOf, VersionOneProjectionsReading } from "./version-one-projections-reading.ts";
 
-const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
+const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: { ...SETTINGS_CATALOGUE, checks: [LOOP_KEYWORD_LOOPS] } }];
 
 const AUDIT = mechanismIdSchema.parse("audit");
 
@@ -279,6 +279,7 @@ describe("upgradeProof", () => {
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "ok",
       value: {
+        markedNotAdopted: [],
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: ["eslint.config.mjs"],
         removed: {
@@ -295,6 +296,16 @@ describe("upgradeProof", () => {
       ...RUNNING_VERSION_TWO,
       ...REMOVING_VERSION_ONE,
     ]);
+  });
+
+  it("refuses, before writing anything, a repository version 1 already reports uncovered", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.runs.versionOne.mockResolvedValue({ outcome: "ok", value: { ...EMPTY_BEFORE, uncovered: [LOOPS_CLAUSE] } });
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-one-uncovered", clauses: [LOOPS_CLAUSE], removedByVersionOne: [] },
+    });
+    expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE]);
   });
 
   it("refuses, before running or writing anything, when the oracle cannot answer", async () => {
@@ -396,6 +407,7 @@ describe("upgradeProof", () => {
     await expect(upgradeProof({ ...requestOver({ doubles }), versionOneFiles: SINGLE_FILE_LAYOUT })).resolves.toEqual({
       outcome: "ok",
       value: {
+        markedNotAdopted: [],
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: ["eslint.config.mjs"],
         removed: { files: ["/repo/discipline-exceptions.json", "/repo/disciplines.eslint.mjs", "/repo/disciplines.json"], folders: [] },
@@ -552,6 +564,7 @@ describe("upgradeProof", () => {
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "ok",
       value: {
+        markedNotAdopted: [],
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: ["eslint.config.mjs"],
         removed: {

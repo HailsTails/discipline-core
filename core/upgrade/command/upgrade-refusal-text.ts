@@ -1,6 +1,7 @@
 import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
 import { runLoadFailureLine } from "../../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../../report/run-load-failure.ts";
+import { type ClauseAddress, clauseAddressText } from "../../values/clause-address.ts";
 import { TOOL_IDENTITY } from "../../values/tool-identity.ts";
 import type { InvalidRecord } from "../version-one-records/exception-record.ts";
 import type { PlanRefusal } from "../proof/upgrade-plan.ts";
@@ -222,6 +223,9 @@ const differenceLinesOf = (request: { readonly failure: Extract<ProofRefusal, { 
     ...onlyAfter.map((line) => `    only after: ${line}`),
   ]);
 
+const uncoveredLineOf = (request: { readonly clauses: readonly ClauseAddress[] }): string =>
+  `version 1 already reports ${request.clauses.map((address) => clauseAddressText({ address })).join(", ")} as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.`;
+
 const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placement: RepositoryPlacement }): { readonly code: UpgradeFailureCode; readonly lines: readonly string[] } => {
   const { failure, placement } = request;
   switch (failure.kind) {
@@ -234,6 +238,8 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placem
         code: 1,
         lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })],
       };
+    case "version-one-uncovered":
+      return { code: 1, lines: [uncoveredLineOf({ clauses: failure.clauses }), ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })] };
     case "version-one-project-failed":
       return {
         code: 1,

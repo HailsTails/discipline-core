@@ -9,6 +9,7 @@ import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { CheckReport } from "../../verdict/check-report.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
+import type { MarkedNotAdopted } from "../version-two-mapping/settings-mapping.ts";
 import { proofDifferencesOf } from "./proof-differences.ts";
 
 const AUDIT = mechanismIdSchema.parse("audit");
@@ -93,14 +94,50 @@ const INLINE_DISABLE: AttributedNativeException = {
   mechanism: AUDIT,
 };
 
-const differencesBetween = (request: { readonly before?: Partial<CheckReport>; readonly after?: Partial<RunReport> }) =>
-  proofDifferencesOf({
-    before: { ...EMPTY_BEFORE, ...request.before },
-    after: { ...EMPTY_AFTER, ...request.after },
+const MARKED_TEST_BODY: MarkedNotAdopted = {
+  check: { ruleSet: TOOL_RULE_SET, check: "loop-keyword#test-body" },
+  clause: TEST_BODY_CLAUSE,
+  reason: "discipline-not-selected",
+};
+
+const differencesBetween = (request: {
+  readonly before?: Partial<CheckReport>;
+  readonly after?: Partial<RunReport>;
+  readonly marked?: readonly MarkedNotAdopted[];
+}) => {
+  const given = { marked: [], ...request };
+  return proofDifferencesOf({
+    before: { ...EMPTY_BEFORE, ...given.before },
+    after: { ...EMPTY_AFTER, ...given.after },
+    marked: given.marked,
     catalogues: [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }],
   });
+};
 
 describe("proofDifferencesOf", () => {
+  it("finds no difference when version 2 reports as not adopted what version 1 reported and what the upgrade marked", () => {
+    expect(
+      differencesBetween({
+        before: { notAdopted: [LOOPS_CLAUSE] },
+        after: { notAdopted: [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_TEST_BODY] },
+        marked: [MARKED_TEST_BODY],
+      }),
+    ).toEqual([]);
+  });
+
+  it("names a mark version 2 does not report as not adopted", () => {
+    expect(differencesBetween({ marked: [MARKED_TEST_BODY] })).toEqual([
+      { section: "notAdopted", onlyBefore: ["CD-27#test-body-logic"], onlyAfter: [] },
+    ]);
+  });
+
+  it("names a clause version 2 reports as not adopted that version 1 reported as not run", () => {
+    expect(differencesBetween({ before: { notRun: [LOOPS_CLAUSE] }, after: { notAdopted: [LOOP_KEYWORD_LOOPS] } })).toEqual([
+      { section: "notAdopted", onlyBefore: [], onlyAfter: ["CD-15#loops"] },
+      { section: "notRun", onlyBefore: ["CD-15#loops"], onlyAfter: [] },
+    ]);
+  });
+
   it("finds no difference between two reports that hold nothing", () => {
     expect(differencesBetween({})).toEqual([]);
   });

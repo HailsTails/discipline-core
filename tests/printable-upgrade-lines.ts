@@ -5,6 +5,7 @@ import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "../core/upgrade
 import { type UpgradeFailure, UPGRADE_ISSUES_URL, upgradeFailureOutcomeOf } from "../core/upgrade/command/upgrade-refusal-text.ts";
 import type { PlanRefusal } from "../core/upgrade/proof/upgrade-plan.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
+import { clauseAddressSchema, TOOL_RULE_SET } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
 import type { Fills, PrintedLine } from "./output-contract.ts";
@@ -16,6 +17,8 @@ const SETTINGS = absolutePathSchema.parse("/repo/hone.config.json");
 const OLD_FILE = absolutePathSchema.parse("/repo/disciplines.eslint.mjs");
 
 const CLAUSE = "CD-15#loops";
+
+const MARKED_CHECK = "claimed-type#claimed-type";
 
 const FILE = repoPathSchema.parse("src/a.ts");
 
@@ -105,6 +108,10 @@ const SAMPLES: readonly Sample[] = [
     fills: { projection: SLICE, "removed path": "/repo/old/disciplines.eslint.mjs" },
   },
   { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" }, removedByVersionOne: [] }, fills: {} },
+  {
+    failure: { kind: "version-one-uncovered", clauses: [clauseAddressSchema.parse(CLAUSE), clauseAddressSchema.parse("CD-2#claimed-type")], removedByVersionOne: [] },
+    fills: { clauses: "CD-15#loops, CD-2#claimed-type" },
+  },
   { failure: { kind: "version-one-project-failed", detail: "the detail", removedByVersionOne: [] }, fills: {} },
   { failure: { kind: "version-one-project-rewrote", files: [PROJECTION, SLICE], removedByVersionOne: [] }, fills: { files: "disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs" } },
   {
@@ -185,6 +192,7 @@ const SUCCESS_TEXT = upgradeSuccessOutcomeOf({
   repoRoot: REPO,
   path: PATH,
   carried: {
+    markedNotAdopted: [{ check: { ruleSet: TOOL_RULE_SET, check: MARKED_CHECK }, clause: clauseAddressSchema.parse("CD-2#cast-expressions"), reason: "discipline-not-selected" }],
     written: [repoPathSchema.parse("hone.config.json")],
     replaced: [CONFIG],
     removed: { files: [absolutePathSchema.parse("/repo/disciplines.json")], folders: [absolutePathSchema.parse("/repo/discipline-exceptions")] },
@@ -195,6 +203,6 @@ export const UPGRADE_LINES: readonly PrintedLine[] = [
   ...SAMPLES.flatMap(({ failure, fills }) => linesOf({ text: upgradeFailureOutcomeOf({ failure, placement: { repoRoot: REPO, path: PATH } }).text, fills: { ...BASE_FILLS, ...fills } })),
   ...SUCCESS_TEXT.trimEnd()
     .split("\n")
-    .map((text): PrintedLine => ({ label: "upgrade", text, fills: { path: text.slice(text.indexOf(" ") + 1) } })),
+    .map((text): PrintedLine => ({ label: "upgrade", text, fills: { path: text.slice(text.indexOf(" ") + 1), check: MARKED_CHECK } })),
   ...linesOf({ text: ALREADY_ON_VERSION_TWO.text, fills: {} }),
 ];
