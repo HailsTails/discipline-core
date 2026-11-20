@@ -37,7 +37,9 @@ Quoted reasons: "I hold to functions are doers or are orchestrator a teaching." 
 |---|---|---|
 | Makes a new value from what it has | Effects; One place | It returns a new value. Nothing it was given or already made changes after it is made. A stream is drained only in its source's adapter, at a recorded site. |
 | Causes an effect (writes, logs, sends, exits) | Effects; Boundary, One place | The effect is a call on a port passed in, and its test checks that call. |
-| Keeps state or settings across calls | Effects; Checker | Settings are passed in when the unit is built. State that changes between calls lives only in an adapter, behind a port. |
+| Keeps state or settings across calls | Effects; Boundary; Checker | Settings are passed in when the unit is built. State that changes between calls lives only in an adapter, behind a port. |
+
+Quoted reasons: "An effect can be checked at the units seam is about testing what is ours not what isn't." "this is a bunch of nullable and state management mess"
 
 Quoted reasons: "An effect can be checked at the units seam is about testing what is ours not what isn't." "this is a bunch of nullable and state management mess"
 
