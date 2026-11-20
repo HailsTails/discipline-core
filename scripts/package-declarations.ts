@@ -25,6 +25,7 @@ export type PublishedFile = { readonly path: string; readonly text: string };
 
 export const PUBLIC_TYPE_ENTRIES: readonly PublicTypeEntry[] = [
   { subpath: "audit", source: "api/audit.ts" },
+  { subpath: "eslint-plugin", source: "api/eslint-plugin.ts" },
   { subpath: "rule-set", source: "api/rule-set.ts" },
   { subpath: "testing", source: "api/testing.ts" },
 ];

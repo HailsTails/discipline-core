@@ -1,4 +1,0 @@
-{
-  "version": 2,
-  "records": [{ "dependency": "zod", "nativeWay": "hand-written parsing at each adapter", "whyNotEnough": "Each adapter would repeat its own checks." }]
-}
