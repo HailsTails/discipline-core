@@ -6,13 +6,6 @@ describe("the ESLint 10 boundary", () => {
     expect(eslintBoundary.nearestLookup).toEqual({ flags: [] });
   });
 
-  it("selects the nearest lookup whatever flags the lint scripts name", () => {
-    expect([eslintBoundary.lookupSelectedBy({ flags: [] }), eslintBoundary.lookupSelectedBy({ flags: ["a_flag"] })]).toEqual([
-      "nearest-to-file",
-      "nearest-to-file",
-    ]);
-  });
-
   it("reads a report's data as ESLint 10 holds it", () => {
     expect(eslintBoundary.reportDataOf({ descriptor: { loc: { line: 1, column: 0 }, messageId: "a", data: { text: "x", count: 2 } } })).toEqual({
       text: "x",

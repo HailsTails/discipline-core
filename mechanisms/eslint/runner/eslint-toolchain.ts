@@ -56,7 +56,6 @@ export const defaultEslintToolchainModules: EslintToolchainModules = {
 const boundaryModuleSchema = z.object({
   eslintBoundary: z.object({
     nearestLookup: z.object({ flags: z.array(z.string()) }),
-    lookupSelectedBy: z.custom<EslintMajorBoundary["lookupSelectedBy"]>((candidate) => typeof candidate === "function"),
     reportDataOf: z.custom<EslintMajorBoundary["reportDataOf"]>((candidate) => typeof candidate === "function"),
   }),
 });

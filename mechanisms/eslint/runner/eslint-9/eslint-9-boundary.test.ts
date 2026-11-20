@@ -6,13 +6,6 @@ describe("the ESLint 9 boundary", () => {
     expect(eslintBoundary.nearestLookup).toEqual({ flags: ["v10_config_lookup_from_file"] });
   });
 
-  it("selects the nearest lookup only when the lint scripts name the flag ESLint 9 has for it", () => {
-    expect([
-      eslintBoundary.lookupSelectedBy({ flags: ["v10_config_lookup_from_file"] }),
-      eslintBoundary.lookupSelectedBy({ flags: ["another_flag"] }),
-    ]).toEqual(["nearest-to-file", "repository-root"]);
-  });
-
   it("reads a report's data that holds only texts and numbers as it stands", () => {
     expect(eslintBoundary.reportDataOf({ descriptor: { loc: { line: 1, column: 0 }, messageId: "a", data: { text: "x", count: 2 } } })).toEqual({
       text: "x",

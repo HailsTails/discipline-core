@@ -15,7 +15,6 @@ import {
   teamConfigLookupFor,
 } from "./config-lookup.ts";
 import { selectionLookupSchema } from "./eslint-file-schemas.ts";
-import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 import { type ChecksRepository, checksRepositoryOver } from "./checks-repository.ts";
 
 const VERSION_ONE_SETTINGS_FILE = "disciplines.json";
@@ -25,7 +24,6 @@ type VersionOneLookupRequest = {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly trackedPaths: readonly RepoPath[];
-  readonly boundary: EslintMajorBoundary;
 };
 
 const declaredLookup = (request: VersionOneLookupRequest): EslintConfigLookup | undefined => {
@@ -54,7 +52,6 @@ export const eslintRepositoryOver = (request: {
   readonly fileRemoval: FileRemovalPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-  readonly boundary: EslintMajorBoundary;
 }): EslintRepository => ({
   ...checksRepositoryOver(request),
   configLookup: ({ trackedPaths }) => versionOneConfigLookup({ ...request, trackedPaths }),

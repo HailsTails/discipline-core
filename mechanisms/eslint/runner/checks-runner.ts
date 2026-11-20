@@ -67,7 +67,6 @@ const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly pla
   path: request.platform.path,
   repoRoot: request.run.repoRoot,
   trackedPaths: request.run.trackedPaths,
-  boundary: request.platform.eslint.boundary,
 });
 
 const lookupOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): EslintConfigLookup =>

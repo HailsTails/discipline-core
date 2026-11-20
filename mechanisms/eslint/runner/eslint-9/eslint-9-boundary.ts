@@ -15,6 +15,5 @@ const reportDataFrom = (request: { readonly data: Readonly<Record<string, unknow
 
 export const eslintBoundary: EslintMajorBoundary = {
   nearestLookup: { flags: [NEAREST_LOOKUP_FLAG] },
-  lookupSelectedBy: (request) => (request.flags.includes(NEAREST_LOOKUP_FLAG) ? "nearest-to-file" : "repository-root"),
   reportDataOf: (request) => (request.descriptor.data === undefined ? undefined : reportDataFrom({ data: request.descriptor.data })),
 };

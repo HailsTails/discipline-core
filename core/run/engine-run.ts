@@ -5,7 +5,7 @@ import { checksRunnerModuleSchema } from "../mechanism-port/checks-runner-module
 import { checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
 import type { ChecksRunReport, ChecksRunRequest, MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
 import { rejectedCall, type RunnerFailure, runnerInvalidOutput } from "../mechanism-port/runner-failure.ts";
-import { type LoadedRunner, runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
+import { type LoadedRunner, type LoadedStandaloneRunner, runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { clauseAddressText, sameClauseAddress } from "../values/clause-address.ts";
@@ -69,7 +69,7 @@ export const loadedEngineOf = async (request: {
 const clausesOf = (request: { readonly request: EngineRunRequest; readonly mechanism: MechanismId }) =>
   request.request.bindings.filter((binding) => binding.mechanism === request.mechanism).map((binding) => binding.clause);
 
-const standaloneRunOf = async (request: { readonly runner: LoadedRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
+const standaloneRunOf = async (request: { readonly runner: LoadedStandaloneRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
   const ran = await runMechanism({
     runner: request.runner,
     mechanism: request.mechanism,
@@ -80,8 +80,6 @@ const standaloneRunOf = async (request: { readonly runner: LoadedRunner; readonl
       trackedPaths: request.run.trackedPaths,
       clauses: clausesOf({ request: request.run, mechanism: request.mechanism }),
     },
-    declaredConfigRoots: request.run.declaredConfigRoots,
-    records: [],
   });
   return ran.outcome === "failed" ? runnerFailed({ mechanism: request.mechanism, failure: ran.error }) : { outcome: "ok", value: { ...ran.value, misnamedRuleIds: [] } };
 };

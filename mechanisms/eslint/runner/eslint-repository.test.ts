@@ -5,20 +5,7 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { boundarySelectingLookup, SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
-import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
-import { eslintRepositoryOver as eslintRepositoryOverBoundary } from "./eslint-repository.ts";
-
-const SELECTS_ROOT = boundarySelectingLookup({ lookup: "repository-root" });
-
-const repositoryOverBoundary =
-  (boundary: EslintMajorBoundary) =>
-  (request: Omit<Parameters<typeof eslintRepositoryOverBoundary>[0], "boundary">) =>
-    eslintRepositoryOverBoundary({ ...request, boundary });
-
-const eslintRepositoryOver = repositoryOverBoundary(SILENT_BOUNDARY);
-
-const rootSelectingRepositoryOver = repositoryOverBoundary(SELECTS_ROOT);
+import { eslintRepositoryOver } from "./eslint-repository.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
@@ -234,16 +221,16 @@ describe("eslintRepositoryOver, projection files", () => {
 });
 
 describe("eslintRepositoryOver, the config lookup", () => {
-  it("decides the lookup the boundary selects when ESLint is installed and disciplines.json declares none, reading both under the root", () => {
+  it("decides the repository-root lookup when ESLint 9 is installed and disciplines.json declares none, reading both under the root", () => {
     const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
-    const repository = rootSelectingRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.configLookup({ trackedPaths: [] })).toBe("repository-root");
     expect(fileText.read).toHaveBeenNthCalledWith(1, { path: "/repo/disciplines.json" });
     expect(fileText.read).toHaveBeenNthCalledWith(2, { path: "/repo/node_modules/eslint/package.json" });
   });
 
-  it("decides nearest-to-file when the installed ESLint cannot be read, whatever the boundary selects", () => {
-    const repository = rootSelectingRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+  it("decides nearest-to-file when the installed ESLint cannot be read", () => {
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
   });
 
@@ -274,7 +261,7 @@ describe("eslintRepositoryOver, the config lookup", () => {
 
   it("names the repository root's eslint.config.js as the team config under the repository-root lookup", () => {
     const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
-    const repository = rootSelectingRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.teamConfigLookup({ trackedPaths: [] })).toEqual({
       outcome: "ok",
       value: { kind: "repository-root", configFile: "/repo/eslint.config.js" },
@@ -283,7 +270,7 @@ describe("eslintRepositoryOver, the config lookup", () => {
   });
 
   it("gives the nearest-to-file team config lookup when the installed ESLint cannot be read", () => {
-    const repository = rootSelectingRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.teamConfigLookup({ trackedPaths: [] })).toEqual({ outcome: "ok", value: { kind: "nearest-to-file" } });
   });
 });

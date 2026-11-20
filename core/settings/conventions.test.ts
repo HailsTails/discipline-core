@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { type ConventionsReading, conventionsOf, DEFAULT_CONVENTIONS } from "./conventions.ts";
+import { type ConventionsReading, conventionsOf, conventionsWireOf, DEFAULT_CONVENTIONS } from "./conventions.ts";
 
 describe("DEFAULT_CONVENTIONS", () => {
   it("holds no generated folders and no layers, as no check reads either today", () => {
@@ -125,5 +125,28 @@ describe("conventionsOf", () => {
     },
   ])("refuses $name", ({ document, refusal }) => {
     expect(conventionsOf({ document })).toEqual({ outcome: "failed", error: refusal });
+  });
+});
+
+describe("conventionsWireOf", () => {
+  it("writes nothing for conventions that were not declared", () => {
+    expect(conventionsWireOf({ reading: { conventions: DEFAULT_CONVENTIONS, declared: [] } })).toEqual({});
+  });
+
+  it("writes the generated files and the layers that were declared, each under its own key", () => {
+    expect(
+      conventionsWireOf({
+        reading: {
+          conventions: {
+            generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }],
+            layers: [{ layer: "domain", folders: [repoPathSchema.parse("src/domain")] }],
+          },
+          declared: ["generated", "layers"],
+        },
+      }),
+    ).toEqual({
+      conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] },
+      layers: { domain: ["src/domain"] },
+    });
   });
 });

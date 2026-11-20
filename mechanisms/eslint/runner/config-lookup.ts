@@ -7,12 +7,15 @@ import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { eslintVersionFileSchema, packageJsonSchema } from "./eslint-file-schemas.ts";
-import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 import { eslintInvocationsOf, scriptCommandsOf } from "./package-script-scanner.ts";
 
 export type ConfigLookup =
   | { readonly kind: "nearest-to-file" }
   | { readonly kind: "repository-root"; readonly configFile: string };
+
+type EslintMajor = number | "unknown";
+
+const ROOT_LOOKUP_MAJOR = 9;
 
 const ESLINT_PACKAGE_JSON = ["node_modules", "eslint", "package.json"];
 
@@ -21,6 +24,8 @@ const PACKAGE_JSON_NAME = "package.json";
 const FLAG_OPTION = "--flag";
 
 const FLAG_OPTION_JOINED = `${FLAG_OPTION}=`;
+
+const NEAREST_LOOKUP_FLAGS: ReadonlySet<string> = new Set(["v10_config_lookup_from_file"]);
 
 export const CONFIG_FILE_NAMES: readonly string[] = [
   "eslint.config.js",
@@ -38,7 +43,17 @@ type LookupRequest = {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly trackedPaths: readonly RepoPath[];
-  readonly boundary: EslintMajorBoundary;
+};
+
+const installedEslintMajor = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): EslintMajor => {
+  const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, ...ESLINT_PACKAGE_JSON] }) });
+  if (text.outcome === "failed") {
+    return "unknown";
+  }
+  const json = parsedJson({ text: text.value });
+  const parsed = json.outcome === "ok" ? eslintVersionFileSchema.safeParse(json.value) : undefined;
+  const major = parsed?.success ? Number.parseInt(parsed.data.version, 10) : Number.NaN;
+  return Number.isNaN(major) ? "unknown" : major;
 };
 
 const flagsNamedBy = (request: { readonly options: readonly string[] }): readonly string[] =>
@@ -57,7 +72,7 @@ const scriptsOf = (request: LookupRequest & { readonly packagePath: RepoPath }):
   return parsed?.success ? Object.values(parsed.data.scripts ?? {}) : [];
 };
 
-const lintScriptFlags = (request: LookupRequest): readonly string[] =>
+const lintScriptsSelectNearest = (request: LookupRequest): "selects-nearest" | "selects-root" =>
   request.trackedPaths
     .filter((path) => path.split("/").at(-1) === PACKAGE_JSON_NAME)
     .flatMap((packagePath) => scriptsOf({ ...request, packagePath }))
@@ -65,7 +80,10 @@ const lintScriptFlags = (request: LookupRequest): readonly string[] =>
       const commands = scriptCommandsOf({ script });
       return commands.outcome === "ok" ? eslintInvocationsOf({ commands: commands.value }) : [];
     })
-    .flatMap((invocation) => flagsNamedBy({ options: invocation.options }));
+    .flatMap((invocation) => flagsNamedBy({ options: invocation.options }))
+    .some((flag) => NEAREST_LOOKUP_FLAGS.has(flag))
+    ? "selects-nearest"
+    : "selects-root";
 
 const rootConfigFile = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): string | undefined =>
   CONFIG_FILE_NAMES.map((name) => request.path.join({ segments: [request.repoRoot, name] })).find(
@@ -83,20 +101,16 @@ export const folderConfigurationOf = (
     ? "configured"
     : "unconfigured";
 
-const rootEslintOf = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): "installed" | "not-installed" => {
-  const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, ...ESLINT_PACKAGE_JSON] }) });
-  const json = text.outcome === "ok" ? parsedJson({ text: text.value }) : undefined;
-  return json?.outcome === "ok" && eslintVersionFileSchema.safeParse(json.value).success ? "installed" : "not-installed";
-};
-
 const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
-  rootEslintOf(request) === "installed" ? request.boundary.lookupSelectedBy({ flags: lintScriptFlags(request) }) : "nearest-to-file";
+  installedEslintMajor(request) !== ROOT_LOOKUP_MAJOR || lintScriptsSelectNearest(request) === "selects-nearest"
+    ? "nearest-to-file"
+    : "repository-root";
 
 export const configLookupDeclaring = (request: LookupRequest & { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookup =>
   request.declared ?? detectedLookup(request);
 
 export const teamConfigLookupFor = (
-  request: Pick<LookupRequest, "fileText" | "path" | "repoRoot"> & { readonly lookup: EslintConfigLookup; readonly settingsFile: string },
+  request: LookupRequest & { readonly lookup: EslintConfigLookup; readonly settingsFile: string },
 ): Result<ConfigLookup, RunnerFailure> => {
   if (request.lookup === "nearest-to-file") {
     return { outcome: "ok", value: NEAREST };

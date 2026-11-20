@@ -8,8 +8,8 @@ import { NOT_ADOPTED, NOT_RUN, type RuleSetName, ruleSetNameSchema } from "../va
 import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
-import { type ConventionsReading, conventionsOf } from "./conventions.ts";
-import { type ListedAddress, listedAddressSchema } from "./listed-address.ts";
+import { type ConventionsReading, type ConventionsWire, conventionsOf, conventionsWireOf } from "./conventions.ts";
+import { type ListedAddress, listedAddressSchema, listedAddressText } from "./listed-address.ts";
 
 export type RuleSetLocation = { readonly location: "repo-root" } | { readonly location: "folder"; readonly path: RepoPath };
 
@@ -49,6 +49,18 @@ const LEADING_CURRENT_DIRECTORY = "./";
 
 const ENGINE_NAME_TEXT = /^[a-z][a-z0-9-]*$/;
 
+const SETTINGS_FILE_VERSION = 2;
+
+const REPOSITORY_ROOT_TEXT = ".";
+
+const DEFAULT_FORFEITURE: ForfeitureAssessment = "this-run";
+
+const DEFAULT_REPORT_OUTPUT: ReportOutput = "full";
+
+const DEFAULT_CHECK_EDITIONS: CheckEditions = "pinned";
+
+const JSON_INDENT = 2;
+
 const retiredKeySchema = (request: { readonly refusal: string }) => z.never({ error: request.refusal }).optional();
 
 const ruleSetLocationSchema = z.union([
@@ -86,7 +98,7 @@ const folderListSchema = (request: { readonly refusal: string }) =>
     .default([]);
 
 const settingsFileWireSchema = z.strictObject({
-  version: z.literal(2),
+  version: z.literal(SETTINGS_FILE_VERSION),
   exclude: folderListSchema({ refusal: "an exclude entry is a repository path, not a glob" }),
   ruleSets: z
     .record(ruleSetNameSchema, z.string())
@@ -101,9 +113,9 @@ const settingsFileWireSchema = z.strictObject({
     .transform((settings) => Object.entries(settings))
     .pipe(z.array(z.tuple([listedAddressSchema, z.record(z.string(), z.json())])))
     .default([]),
-  forfeiture: forfeitureAssessmentSchema.default("this-run"),
-  reportOutput: reportOutputSchema.default("full"),
-  checkEditions: checkEditionsSchema.default("pinned"),
+  forfeiture: forfeitureAssessmentSchema.default(DEFAULT_FORFEITURE),
+  reportOutput: reportOutputSchema.default(DEFAULT_REPORT_OUTPUT),
+  checkEditions: checkEditionsSchema.default(DEFAULT_CHECK_EDITIONS),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   eslintConfigRoots: folderListSchema({ refusal: "an eslintConfigRoots entry is a repository folder, not a glob" }),
   conventions: z.unknown().optional(),
@@ -130,7 +142,7 @@ const ruleSetFaultOf = (request: { readonly ruleSets: readonly DeclaredRuleSet[]
   return collisions[0];
 };
 
-const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
+export const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
   request.declared === undefined ? { lookup: "detected" } : { lookup: "declared", value: request.declared };
 
 const settingsFileOfWire = (request: { readonly wire: SettingsFileWire; readonly conventions: ConventionsReading }): SettingsFile => ({
@@ -145,6 +157,81 @@ const settingsFileOfWire = (request: { readonly wire: SettingsFileWire; readonly
   eslintConfigRoots: request.wire.eslintConfigRoots,
   conventions: request.conventions,
 });
+
+type WireEntry<Value> = readonly [string, Value];
+
+export type SettingsWire = {
+  readonly version: typeof SETTINGS_FILE_VERSION;
+  readonly ruleSets: Readonly<Record<string, string>>;
+  readonly checks: Readonly<Record<string, string>>;
+  readonly checkSettings?: Readonly<Record<string, ClauseSettingValues>>;
+  readonly exclude?: readonly string[];
+  readonly eslintConfigRoots?: readonly string[];
+  readonly forfeiture?: ForfeitureAssessment;
+  readonly reportOutput?: ReportOutput;
+  readonly checkEditions?: CheckEditions;
+  readonly eslintConfigLookup?: EslintConfigLookup;
+} & ConventionsWire;
+
+const byKey = <Value>(request: { readonly left: WireEntry<Value>; readonly right: WireEntry<Value> }): number =>
+  request.left[0] < request.right[0] ? -1 : request.left[0] > request.right[0] ? 1 : 0;
+
+const sortedRecordOf = <Value>(request: { readonly entries: readonly WireEntry<Value>[] }): Readonly<Record<string, Value>> =>
+  Object.fromEntries(request.entries.toSorted((left, right) => byKey({ left, right })));
+
+const locationTextOf = (request: { readonly location: RuleSetLocation }): string =>
+  request.location.location === "repo-root" ? REPOSITORY_ROOT_TEXT : request.location.path;
+
+const stateTextOf = (request: { readonly state: CheckState }): string => {
+  switch (request.state.state) {
+    case "run":
+      return request.state.engine;
+    case "not-run":
+      return NOT_RUN;
+    case "not-adopted":
+      return NOT_ADOPTED;
+  }
+};
+
+const withheldWhenDefault = <Value>(request: { readonly value: Value; readonly standard: Value }): { readonly given?: Value } =>
+  request.value === request.standard ? {} : { given: request.value };
+
+const settingsWireOfDefaults = (request: { readonly settings: SettingsFile }): Omit<SettingsWire, "version" | "ruleSets" | "checks"> => {
+  const { settings } = request;
+  const forfeiture = withheldWhenDefault({ value: settings.forfeiture, standard: DEFAULT_FORFEITURE }).given;
+  const reportOutput = withheldWhenDefault({ value: settings.reportOutput, standard: DEFAULT_REPORT_OUTPUT }).given;
+  const checkEditions = withheldWhenDefault({ value: settings.checkEditions, standard: DEFAULT_CHECK_EDITIONS }).given;
+  return {
+    ...(settings.checkSettings.length === 0
+      ? {}
+      : {
+          checkSettings: sortedRecordOf({
+            entries: settings.checkSettings.map((given): WireEntry<ClauseSettingValues> => [listedAddressText({ address: given.address }), given.values]),
+          }),
+        }),
+    ...(settings.exclude.length === 0 ? {} : { exclude: settings.exclude }),
+    ...(settings.eslintConfigRoots.length === 0 ? {} : { eslintConfigRoots: settings.eslintConfigRoots }),
+    ...(forfeiture === undefined ? {} : { forfeiture }),
+    ...(reportOutput === undefined ? {} : { reportOutput }),
+    ...(checkEditions === undefined ? {} : { checkEditions }),
+    ...(settings.eslintConfigLookup.lookup === "declared" ? { eslintConfigLookup: settings.eslintConfigLookup.value } : {}),
+    ...conventionsWireOf({ reading: settings.conventions }),
+  };
+};
+
+export const settingsWireOf = (request: { readonly settings: SettingsFile }): SettingsWire => ({
+  version: SETTINGS_FILE_VERSION,
+  ruleSets: sortedRecordOf({
+    entries: request.settings.ruleSets.map(({ name, location }): WireEntry<string> => [name, locationTextOf({ location })]),
+  }),
+  checks: sortedRecordOf({
+    entries: request.settings.checks.map(({ address, state }): WireEntry<string> => [listedAddressText({ address }), stateTextOf({ state })]),
+  }),
+  ...settingsWireOfDefaults({ settings: request.settings }),
+});
+
+export const settingsTextOf = (request: { readonly settings: SettingsFile }): string =>
+  `${JSON.stringify(settingsWireOf({ settings: request.settings }), null, JSON_INDENT)}\n`;
 
 export const settingsFileOf = (request: { readonly document: unknown }): Result<SettingsFile, SettingsFileFault> => {
   const parsed = settingsFileWireSchema.safeParse(request.document);
