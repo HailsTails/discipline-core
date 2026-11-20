@@ -130,6 +130,6 @@ return-type-of-own-symbol sites, closed-union `default:` arms, declarative-boole
 sites by carve-out invoked). Record the compiler version / config you read where
 the rules call for it. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`); where a carve-out was invoked, state which one
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)); where a carve-out was invoked, state which one
 and why it does not apply. State the rule-page paths you resolved and which
 rule ids you loaded under this lens.

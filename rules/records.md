@@ -6,12 +6,12 @@ Today's record formats are listed [beside the kinds](#todays-formats-and-the-kin
 
 ## The kinds
 
-Five kinds cover everything.
+Five kinds cover everything. They are the model Hone's records take on with 2.0, which is not released yet: Deviation and Dependency record have no format today, and the others are written today in the formats [beside the kinds](#todays-formats-and-the-kinds), which say what each still lacks.
 
 ### Authorised location
 
 - **Answers:** A symptom whose correct use a case makes right at one place: Claimed type forced by an outside contract, Throw between our units at an adapter whose caller expects a throw, Loop keyword draining a stream, Shorthand name or Name off its casing fixed by an outside contract, Text past its reader at one test site, Edit inside vendored code.
-- **Must state:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner.
+- **States:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner. In the model it is never refused for what it claims: what it lacks is [noted](#what-is-noted-never-refused), and a note changes no verdict. A why that only restates the symptom is [refused](#what-is-refused).
 - **Scope:** One symptom at one site: a file, or a span within it.
 - **Stale or paid when:** Stale when the symptom is no longer at the site. A vendored edit is also re-tested when the vendored version moves. A person removes it.
 - **Industry name:** suppression with justification; a MISRA deviation permit. A suppression with a stated justification, as .NET and MISRA permits do.
@@ -29,7 +29,7 @@ Five kinds cover everything.
 - **Answers:** Any symptom at a site, a known breach not yet paid.
 - **Must state:** The symptom and the site. Nothing more: "All debt is debt. Reason doesn't matter."
 - **Scope:** One symptom in one file.
-- **Stale or paid when:** Forfeited once the file is touched, so the change pays it. Stale when the symptom is gone. Removed by the tool when the file is gone.
+- **Stale or paid when:** Forfeited once the file is touched, so the change pays it. Stale when the symptom is gone. Removed by the tool when the file is gone, or when its check measured the file and found the debt paid.
 - **Industry name:** a baseline with a ratchet. Record-debt is the baseline, and forfeit-on-touch is the ratchet. A lint baseline, as in ESLint bulk suppressions, that ratchets down.
 
 ### Boundary record
@@ -72,26 +72,30 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 
 ## What is refused
 
-A record must contain what its kind states. Anything less is refused, as follows.
+In the model, an authorised location is never refused for what it claims; what it lacks is [noted](#what-is-noted-never-refused). Its why-chain must still be a reason. A record file that cannot be read at all is refused, whatever it holds. Every other record must contain what its kind states. Anything less is refused, as follows.
 
 | Refused | Why | Does Hone refuse it from the form today? |
 |---|---|---|
-| A why that only restates the symptom ("needed here", "the check flags this") | the why-chain's purpose: "to ensure an agent has thought deeply about what its doing" | Partly, as today: the why-chain checks refuse stock restatements and answers with no new cause. A reworded restatement is left to review. |
-| A thought-through record that names no case, or a case not in the [case list](cases.md) | a thought-through use names its case | Not yet enforced. In the model a machine refuses a missing or unknown case name; whether the case is true is left to review. |
-| An authorised location on a symptom that no case makes correct, such as a branch in a test | "who the heck added an authorised location for an if in a test?" | No. In spirit it is not allowed, and a reviewer refuses it. The form accepts it for any symptom, because a check is never assumed perfect: "while authorised location in spirit isn't supposed to be allowed. It's mechanically always allowed as our checks for symptoms is never assumed perfect." |
+| An authorised location whose why only restates the symptom ("needed here", "the check flags this") | The why-chain's purpose: "to ensure an agent has thought deeply about what its doing". | Yes, as today: the why-chain checks refuse stock restatements and answers with no new cause, the record is listed under invalid records and the run fails. A reworded restatement is left to review. |
 | A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Not yet enforced. In the model the form must name the recipe and use its reason's words; whether the reason fails here is left to review. |
 | A fake with no showing that a stub cannot do the test | "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things." | No; review. |
-| A deviation or a dependency record that makes a named ban correct. Debt is not refused; nor, by the form, is an authorised location, which answers a check that is wrong at that place. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
+| A deviation or a dependency record that makes a named ban correct. Debt is not refused. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
 | Debt written by the tool for a file the base did not hold | today's `new-file` | Yes, as today. |
 | A record standing in for a design fix, where friction points at the design | "if we have such a complex test that needs exemption we have a code architecture problem" | No; review. A machine can show records clustering on one symptom or one cause. Only review rules on it. |
 | An option that weakens the whole run (`--rule`, `-c`) | today | Yes, as today: it cannot be recorded. |
 
 This is a list of what each record must contain. It is not a ladder of exceptions.
 
+## What is noted, never refused
+
+An authorised location answers a check that is wrong at that place, so the form accepts it for any symptom: "while authorised location in spirit isn't supposed to be allowed. It's mechanically always allowed as our checks for symptoms is never assumed perfect." In the model, what it lacks is a note beside it. A note changes no verdict; review rules on it.
+
+- **A case that is missing, or not in the [case list](cases.md).** A thought-through use names its case. Whether the case is true is left to review. Today's tool does not read a case name.
+- **A symptom that no case makes correct, such as a branch in a test.** "who the heck added an authorised location for an if in a test?" In spirit it is not allowed.
 ## The cost side
 
 **What holds today:**
-- An authorised location costs a five-step why-chain with a root check and an owner.
+- An authorised location costs a five-step why-chain with a root check and an owner, or only its reason while `fileExceptionWhyChains` is `"optional"`.
 - Debt is visible in every report, fails the run when it forfeits on touch, and fails when stale.
 - An unrecorded inline disable fails the run.
 - The diff of the records is the review.
@@ -143,7 +147,7 @@ Records today are written in these formats. Each answers one of the kinds.
 |---|---|---|
 | `authorised-location` (clause, file, reason, whyChain) | Authorised location, or Boundary record for sites of Outside import past a boundary | Names a clause, not a symptom. The site is a file. It does not name the case and the rule owed. |
 | `file-carve-out` (clause, file, optional reason) | Debt | Names a clause, not a symptom. One record on the test-logic clause covers up to four symptoms. |
-| `clause-wide-carve-out` | Not a record: the clause is not adopted | It sits in the records, not the selection. |
+| `clause-wide-carve-out` | Not a record: the clause is not adopted | Today it is a record that keeps the clause running, with its why-chain; with 2.0 it becomes the check marked not adopted. |
 | `provenance` (imported) | The same kind, imported | Nothing. |
 | Legacy why-chains | The kind of the record that holds them | Accepted while unchanged against the base. |
 | Inline disables and `@ts-*` directives | Held by a record of their symptom | The record names the clause, not the symptom. |

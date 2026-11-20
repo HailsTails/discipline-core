@@ -77,7 +77,7 @@ mechanical complexity/length enforcer, a diff function over that ceiling is the
 first place to look — but the **finding is the structural one** (this body
 conflates abstractions / hides a helper), not the raw number. Conversely, some
 files carry a recorded exemption from the mechanical ceiling (a composition root,
-library-wrapping factories, tooling, test bodies). For an exempt file the lens
+library adapters, tooling, test bodies). For an exempt file the lens
 does **not** raise the raw length/complexity finding, but it MUST check whether
 the recorded justification still holds — an exemption whose stated reason no
 longer applies (the helper was extracted, the code migrated) is itself a finding.
@@ -154,6 +154,6 @@ inspected, complexity/length ceilings crossed by type, orchestrator-purity
 violations, early-return inversions, parameter-mutation findings (split by
 script-confirmed vs code-review category), and untracked suppressions. Every
 finding is `file:line | quoted code | <rule-id> | defect-named`, citing the
-loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and — where extraction is
+loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)), and — where extraction is
 recommended — the suggested split per the four questions above. State the
 rule-page paths you resolved and which rule ids you loaded under this lens.

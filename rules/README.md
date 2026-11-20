@@ -66,6 +66,6 @@ The numbered `README.md` pages are the earlier form of these rules. Where they d
 
 ## Selecting checks
 
-Adopters select clauses in `disciplines.json`. Selecting one clause adopts its discipline, so every mechanical clause of an adopted discipline must be selected, each through a mechanism its `CHECKS.md` lists, or listed as `"not-adopted"`; the check reports the rest as uncovered. Review clauses are judgement clauses: they cannot be selected and are applied in review with the discipline's review lens, as [ADOPTING.md](../ADOPTING.md#9-apply-the-judgement-rules) describes.
+Adopters select clauses in `disciplines.json`. Selecting one clause adopts its discipline, so every mechanical clause of an adopted discipline must be selected, each through a mechanism its `CHECKS.md` lists, or listed as `"not-run"` or `"not-adopted"`; the check reports the rest as uncovered. Review clauses are judgement clauses: they cannot be selected and are applied in review with the discipline's review lens, as [ADOPTING.md](../ADOPTING.md#9-apply-the-judgement-rules) describes.
 
 Exceptions are recorded in `discipline-exceptions.json`; see [the package README](../README.md#discipline-exceptionsjson). [The spirit of the rules](SPIRIT.md) explains what the friction is for.

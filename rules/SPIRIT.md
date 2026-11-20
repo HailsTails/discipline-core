@@ -20,7 +20,7 @@ Exclusions and settings are not the first move. Reaching for one before step 2 h
 
 ## Debt, not noise
 
-On first adoption of an existing codebase, a high count is debt made visible. It is not evidence the rule is wrong for the codebase. The useful response is an assessment for each high-count clause: which cause applies here, where, the forward goal, and the steps toward it, written down where the next person to hit the red check will read it ([ADOPTING step 5a](../ADOPTING.md#5a-write-the-assessment)). A file carve-out holds that debt at rest while the steps are taken. Touching the file pays it ([CD-46](CD-46/README.md)).
+On first adoption of an existing codebase, a high count is debt made visible. It is not evidence the rule is wrong for the codebase. The useful response is an assessment for each high-count clause: which cause applies here, where, the forward goal, and the steps toward it, written down where the next person to hit the red check will read it ([ADOPTING step 5a](../ADOPTING.md#5a-write-the-assessment)). A file carve-out holds that debt at rest while the steps are taken. Touching the file pays it: the debt [is forfeited](records.md#debt) once the file is touched.
 
 ## Boundaries are where exceptions belong
 
