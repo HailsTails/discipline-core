@@ -250,7 +250,15 @@ export const unresolvedLoadsReached = (request: Omit<FilesLeaving, "reaching">):
       .map(({ specifier, form }) => ({ file, specifier, form })),
   );
 
-export const unscannedEdgesReached = (request: Omit<FilesLeaving, "reaching"> & { readonly within: RegExp }): readonly ImportEdge[] =>
+export const MODULE_EXTENSIONS = "{ts,mts,cts,tsx,js,mjs,cjs,jsx}";
+
+const GLOBBED_EXTENSIONS = /\*\*\/\*\.(\{[^}]*\}|\w+)["']/g;
+
+export const globExtensionsIn = (request: { readonly text: string }): readonly string[] => [
+  ...new Set([...request.text.matchAll(GLOBBED_EXTENSIONS)].map(([, extensions]) => extensions ?? "")),
+];
+
+export const unscannedEdgesReached =(request: Omit<FilesLeaving, "reaching"> & { readonly within: RegExp }): readonly ImportEdge[] =>
   Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
     importsIn({ file, text })
       .filter(({ specifier }) => {

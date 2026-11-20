@@ -22,7 +22,7 @@ declare global {
   }
 }
 
-const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/run/**/*.ts", "./core/command-line/**/*.ts", "./core/conformance/**/*.ts", "./core/records/**/*.ts", "./core/report/**/*.ts", "./core/touched-set/**/*.ts"], {
+const versionTwoSources = import.meta.glob(["./core/settings/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/run/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/command-line/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/conformance/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/records/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/report/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/touched-set/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}"], {
   base: "../../",
   query: "?raw",
   import: "default",

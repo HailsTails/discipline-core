@@ -5,11 +5,13 @@ import {
   filesNotMatching,
   filesReachableFrom,
   filesReachingExcept,
+  globExtensionsIn,
   importEdgesLeaving,
   importsOutside,
   importStatementsLeaving,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
+  MODULE_EXTENSIONS,
   nodeBuiltinImport,
   outsideFiles,
   packageImport,
@@ -336,6 +338,42 @@ const viaVariable = await import(modulePath);
       { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
       { file: "./core/run/start.ts", specifier: `\`\${folder}/mod.ts\``, form: "dynamic" },
       { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
+    ]);
+  });
+});
+
+describe("globExtensionsIn", () => {
+  it("lists each distinct extension set a source glob names under a folder, in the order first written, and none of a glob naming a file", () => {
+    const text = `const a = import.meta.glob(["./core/a/**/*.ts", "./core/b/**/*.{ts,mts}", './core/c/**/*.ts', "./core/d/file.ts"]);
+const b = import.meta.glob(["./core/e/**/*.{ts,mts}"]);
+`;
+    expect(globExtensionsIn({ text })).toEqual(["ts", "{ts,mts}"]);
+  });
+
+  it("holds the module extensions every guard glob names", () => {
+    expect(MODULE_EXTENSIONS).toBe("{ts,mts,cts,tsx,js,mjs,cjs,jsx}");
+  });
+});
+
+describe("a module of another extension in the files version 2 owns", () => {
+  const sources = {
+    "./core/run/leak.mts": 'export * from "../upgrade/answering/governance.ts";\n',
+    "./core/run/chain.mts": 'import { run } from "../check/run-check.ts";\n',
+    "./core/upgrade/answering/governance.ts": "export const governed = 1;\n",
+    "./core/check/run-check.ts": "export const run = 1;\n",
+  };
+
+  it("is read as an edge into version 1, so the frontier lists it", () => {
+    expect(
+      importEdgesLeaving({
+        sources,
+        startingFrom: /^\.\/core\/run\//,
+        notEntering: /^\.\/core\/(?:upgrade|check)\//,
+        reaching: /^\.\/core\/(?:upgrade|check)\//,
+      }),
+    ).toEqual([
+      { file: "./core/run/leak.mts", specifier: "../upgrade/answering/governance.ts", form: "value" },
+      { file: "./core/run/chain.mts", specifier: "../check/run-check.ts", form: "value" },
     ]);
   });
 });
