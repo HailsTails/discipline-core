@@ -70,6 +70,29 @@ describe("checksRunnerOver", () => {
     ).toEqual(NOT_READY_NESTED);
   });
 
+  it("names the nested repository, and not its own lint config as a package config of this one, when that repository holds one", async () => {
+    expect(
+      await runner.run({
+        ...REQUEST,
+        files: [repoPathSchema.parse("vendor/lib/src/a.ts")],
+        trackedPaths: [
+          repoPathSchema.parse("vendor/lib/hone.config.json"),
+          repoPathSchema.parse("vendor/lib/eslint.config.mjs"),
+          repoPathSchema.parse("vendor/lib/src/a.ts"),
+        ],
+      }),
+    ).toEqual(NOT_READY_NESTED);
+  });
+
+  it("does not report a nested repository's lint config as a package config of this one when the nested repository holds no file to check", async () => {
+    const outcome = await runner.run({
+      ...REQUEST,
+      files: [],
+      trackedPaths: [repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/eslint.config.mjs")],
+    });
+    expect(outcome).toEqual({ outcome: "ok", value: expect.anything() });
+  });
+
   it("is not ready for a repository holding a nested disciplines.json folder with its own eslint.config.*, before touching any port", async () => {
     const outcome = await runner.run({
       ...REQUEST,

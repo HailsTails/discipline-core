@@ -184,6 +184,18 @@ describe("runLoadFailureLine, the three causes behind not-ready-yet eslint-confi
     );
   });
 
+  it("names exactly three lint configs with no count of the rest", () => {
+    expect(lineOf({ cause: "package-configs", paths: ["a/eslint.config.mjs", "b/eslint.config.mjs", "c/eslint.config.mjs"] })).toBe(
+      "load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found a/eslint.config.mjs, b/eslint.config.mjs, c/eslint.config.mjs; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs",
+    );
+  });
+
+  it("counts one more when four lint configs are found", () => {
+    expect(lineOf({ cause: "package-configs", paths: ["a/eslint.config.mjs", "b/eslint.config.mjs", "c/eslint.config.mjs", "d/eslint.config.mjs"] })).toBe(
+      "load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found a/eslint.config.mjs, b/eslint.config.mjs, c/eslint.config.mjs and 1 more; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs",
+    );
+  });
+
   it("names the other version 2 repositories inside this one", () => {
     expect(lineOf({ cause: "nested-repositories", paths: ["vendor/lib", "vendor/tool"] })).toBe(
       "load failure: not-ready-yet eslint-config-roots: this release does not run a repository that holds other version 2 repositories yet; folders holding hone.config.json: vendor/lib, vendor/tool; move them out of this repository, and run each on its own with --repo",

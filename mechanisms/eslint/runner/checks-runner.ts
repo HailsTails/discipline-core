@@ -11,7 +11,7 @@ import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProject
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
 import { CHECKS_PROJECTION_PATH, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
-import { nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
+import { nestedVersionTwoFoldersOf, nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
 import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
 import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
@@ -89,12 +89,12 @@ const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platfo
   if (run.declaredConfigRoots.length > 0) {
     return notReadyFor({ cause: "declared-roots", paths: run.declaredConfigRoots });
   }
-  const packages = packageConfigFilesOf({ trackedPaths: run.trackedPaths, lookup: lookupOf(request) });
-  if (packages.length > 0) {
-    return notReadyFor({ cause: "package-configs", paths: packages });
-  }
   const nested = nestedVersionTwoRepositoriesOf({ trackedPaths: run.trackedPaths, files: run.files });
-  return nested.length > 0 ? notReadyFor({ cause: "nested-repositories", paths: nested }) : undefined;
+  if (nested.length > 0) {
+    return notReadyFor({ cause: "nested-repositories", paths: nested });
+  }
+  const packages = packageConfigFilesOf({ trackedPaths: run.trackedPaths, lookup: lookupOf(request), nestedRepositories: nestedVersionTwoFoldersOf({ trackedPaths: run.trackedPaths }) });
+  return packages.length > 0 ? notReadyFor({ cause: "package-configs", paths: packages }) : undefined;
 };
 
 const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: ChecksRunnerPorts }): Result<QueryInstance, RunnerFailure> => {

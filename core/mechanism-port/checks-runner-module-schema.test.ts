@@ -95,6 +95,11 @@ describe("checksRunResultSchema", () => {
     expect(checksRunResultSchema.safeParse(failed)).toEqual({ success: true, data: failed });
   });
 
+  it("rejects a not-ready-yet failure that names no path", () => {
+    const failed = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: [] } } };
+    expect(checksRunResultSchema.safeParse(failed).success).toBe(false);
+  });
+
   it("rejects a misnamed rule id of an unknown kind", () => {
     const report = { ...REPORT, misnamedRuleIds: [{ ...REPORT.misnamedRuleIds[0], kind: "misspelt" }] };
     expect(checksRunResultSchema.safeParse({ outcome: "ok", value: report }).success).toBe(false);
