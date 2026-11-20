@@ -16,10 +16,8 @@ import type { Result } from "../values/result.ts";
 import { settledClauseEdition } from "./clause-edition.ts";
 import { settledClauseSettings } from "./clause-settings.ts";
 import { createRuleSetFiles, type RuleSetFiles } from "../rule-set-reader/rule-set-files.ts";
-import { type ClauseChoice, type ConsumerSelectionFile, type RuleSetLocation, runSettingsOf, type UnrunState } from "./selection-file.ts";
+import { type ConsumerSelectionFile, type RuleSetLocation, runSettingsOf, type UnrunState } from "./selection-file.ts";
 import { readSelectionFile, selectionFilePathOf } from "./selection-reader.ts";
-
-export type { RuleSetLocation } from "./selection-file.ts";
 
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
@@ -311,7 +309,7 @@ const uncoveredClauses = (request: { readonly listed: readonly ListedClause[] })
     .filter((clause, index) => occurrenceInDiscipline({ listed: request.listed, clause, index }) === "first")
     .flatMap((representative) => unlistedClausesOf({ listed: request.listed, representative }));
 
-export type SelectionRequest = {
+type SelectionRequest = {
   readonly ruleSetFiles: RuleSetFiles;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
@@ -322,12 +320,12 @@ export type SelectionRequest = {
 };
 
 const adoptedEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, MechanismId])[] =>
-  request.file.clauses.flatMap(([address, choice]: readonly [ClauseAddress, ClauseChoice]): readonly (readonly [ClauseAddress, MechanismId])[] =>
+  request.file.clauses.flatMap(([address, choice]): readonly (readonly [ClauseAddress, MechanismId])[] =>
     choice.state === "run" ? [[address, choice.mechanism]] : [],
   );
 
 const unrunEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, UnrunState])[] =>
-  request.file.clauses.flatMap(([address, choice]: readonly [ClauseAddress, ClauseChoice]): readonly (readonly [ClauseAddress, UnrunState])[] =>
+  request.file.clauses.flatMap(([address, choice]): readonly (readonly [ClauseAddress, UnrunState])[] =>
     choice.state === "run" ? [] : [[address, choice.state]],
   );
 

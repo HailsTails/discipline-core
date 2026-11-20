@@ -19,7 +19,7 @@ const rootOf = (name: string) => {
   return resolved.value;
 };
 
-const TEAM_ROOT = rootOf("files/team-rules");
+const TEAM_ROOT = rootOf("files/repo/team-rules");
 
 const INSTALL_ROOT = rootOf("files/install");
 

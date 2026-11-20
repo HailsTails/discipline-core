@@ -10,13 +10,12 @@ import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import {
   createSelectionRepository,
-  type RuleSetLocation,
   readRunSettings,
   ruleSetRootOf,
   selectionFrom,
 } from "./consumer-selection.ts";
 import type { Held, RuleSetFiles } from "../rule-set-reader/rule-set-files.ts";
-import { type ConsumerSelectionFile, selectionFileOf } from "./selection-file.ts";
+import { type ConsumerSelectionFile, type RuleSetLocation, selectionFileOf } from "./selection-file.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const INSTALL_ROOT = absolutePathSchema.parse("/install");
@@ -990,7 +989,7 @@ describe("ruleSetRootOf", () => {
   });
 });
 
-const FIXTURES = `${import.meta.dirname}/test-fixtures`;
+const FIXTURES = `${import.meta.dirname}/../rule-set-reader/test-fixtures/files`;
 
 const DISK_PATH = createDefaultPathPort({});
 
@@ -1002,7 +1001,7 @@ const fixtureRoot = (name: string) => {
 
 const diskOptions = (repo: string) => ({
   repoRoot: fixtureRoot(repo),
-  installRoot: fixtureRoot("reader/install"),
+  installRoot: fixtureRoot("install"),
   moduleExtension: ".js" as const,
   fileText: createDefaultFileTextPort({}),
   path: DISK_PATH,
@@ -1010,7 +1009,7 @@ const diskOptions = (repo: string) => ({
 
 describe("reading the selection from disk", () => {
   it("reads the disciplines.json, the discipline and the piece of a named rule set, and the install's runner", () => {
-    expect(createSelectionRepository(diskOptions("reader/repo")).read({})).toMatchObject({
+    expect(createSelectionRepository(diskOptions("repo")).read({})).toMatchObject({
       outcome: "ok",
       value: {
         selection: {
@@ -1028,21 +1027,21 @@ describe("reading the selection from disk", () => {
   });
 
   it("preserves the canonical selection read failure at the captured repository root", () => {
-    expect(createSelectionRepository(diskOptions("reader/install")).read({})).toMatchObject({
+    expect(createSelectionRepository(diskOptions("install")).read({})).toMatchObject({
       outcome: "failed",
       error: { kind: "file-unreadable" },
     });
   });
 
   it("is file-unreadable when disciplines.json cannot be read, so no default output is guessed", () => {
-    expect(readRunSettings({ fileText: createDefaultFileTextPort({}), path: DISK_PATH, repoRoot: fixtureRoot("reader/install") })).toMatchObject({
+    expect(readRunSettings({ fileText: createDefaultFileTextPort({}), path: DISK_PATH, repoRoot: fixtureRoot("install") })).toMatchObject({
       outcome: "failed",
       error: { kind: "file-unreadable" },
     });
   });
 
   it("reads the run settings of a disciplines.json on disk without resolving its clauses", () => {
-    expect(readRunSettings({ fileText: createDefaultFileTextPort({}), path: DISK_PATH, repoRoot: fixtureRoot("reader/repo") })).toEqual({
+    expect(readRunSettings({ fileText: createDefaultFileTextPort({}), path: DISK_PATH, repoRoot: fixtureRoot("repo") })).toEqual({
       outcome: "ok",
       value: { reportOutput: "full", assessment: { forfeiture: "this-run" } },
     });
