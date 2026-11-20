@@ -18,19 +18,23 @@ type ReportingContext = {
   readonly report: (descriptor: { readonly node: unknown; readonly messageId: string }) => void;
 };
 
+const CLASS_LISTENER = "ClassDeclaration";
+
+const FUNCTION_LISTENER = "FunctionDeclaration";
+
 const classAndFunctionPlugin = eslintPluginModuleSchema.parse({
   default: {
     rules: {
       "no-class": {
         meta: { type: "problem", messages: { found: "class authored" } },
         create: (context: ReportingContext) => ({
-          ClassDeclaration: (node: unknown) => context.report({ node, messageId: "found" }),
+          [CLASS_LISTENER]: (node: unknown) => context.report({ node, messageId: "found" }),
         }),
       },
       "no-function": {
         meta: { type: "problem", messages: { found: "function declared" } },
         create: (context: ReportingContext) => ({
-          FunctionDeclaration: (node: unknown) => context.report({ node, messageId: "found" }),
+          [FUNCTION_LISTENER]: (node: unknown) => context.report({ node, messageId: "found" }),
         }),
       },
     },
@@ -103,9 +107,7 @@ const throwsOnBuild = vi
 
 const TOOLCHAINS: Readonly<Record<EslintLine, EslintToolchain>> = {
   "eslint-10": await loadedEslintToolchain({ line: "eslint-10" }),
-  "eslint-10-floor": await loadedEslintToolchain({ line: "eslint-10-floor" }),
   "eslint-9": await loadedEslintToolchain({ line: "eslint-9" }),
-  "eslint-9-floor": await loadedEslintToolchain({ line: "eslint-9-floor" }),
 };
 
 const PARSER = TOOLCHAINS["eslint-10"].typescriptParser;
@@ -676,25 +678,18 @@ describe("lintSourceCases", () => {
 const OPTIONS_CWD = absolutePathSchema.parse("/repo");
 
 describe("eslintOptionsOf, which asks every supported ESLint for the configuration nearest each file", () => {
-  it.each(["10.0.0", "10.11.0"])("passes the options through unchanged on ESLint %s, whose default is the nearest-to-file lookup", (version) => {
+  it.each(["10.15.0"])("passes the options through unchanged on ESLint %s, whose default is the nearest-to-file lookup", (version) => {
     expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({ cwd: OPTIONS_CWD });
   });
 
-  it.each(["9.30.0", "9.39.5"])("asks ESLint %s for the lookup by its v10 flag, which these releases name", (version) => {
+  it.each(["9.39.5"])("asks ESLint %s for the lookup by its v10 flag, which this release names", (version) => {
     expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({
       cwd: OPTIONS_CWD,
       flags: ["v10_config_lookup_from_file"],
     });
   });
 
-  it.each(["9.28.0", "9.29.0"])("asks ESLint %s for the lookup by its unstable flag, the only name these releases accept", (version) => {
-    expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({
-      cwd: OPTIONS_CWD,
-      flags: ["unstable_config_lookup_from_file"],
-    });
-  });
-
-  it.each(["9.28.0", "9.39.5", "10.11.0"])("names no lookup flag for ESLint %s when a configuration file is named", (version) => {
+  it.each(["9.39.5", "10.15.0"])("names no lookup flag for ESLint %s when a configuration file is named", (version) => {
     expect(
       eslintOptionsOf({
         version,
@@ -753,7 +748,7 @@ describe("ignoredByConfig, whether one named config really ignores a path", () =
 });
 
 describe("eslintOptionsOf for a question about one path", () => {
-  it.each(["9.28.0", "9.39.5", "10.11.0"])("matches the named paths with a files-only override block on ESLint %s", (version) => {
+  it.each(["9.39.5", "10.15.0"])("matches the named paths with a files-only override block on ESLint %s", (version) => {
     expect(
       eslintOptionsOf({
         version,
@@ -806,7 +801,7 @@ describe("ignoredByPatterns, whether ignore patterns given on a command line ign
 });
 
 describe("eslintOptionsOf for ignore patterns", () => {
-  it.each(["9.28.0", "9.39.5", "10.11.0"])("passes the patterns to ESLint %s as its own ignorePatterns option", (version) => {
+  it.each(["9.39.5", "10.15.0"])("passes the patterns to ESLint %s as its own ignorePatterns option", (version) => {
     expect(
       eslintOptionsOf({
         version,

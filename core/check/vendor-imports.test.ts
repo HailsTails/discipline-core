@@ -394,7 +394,7 @@ describe("Vendor confinement over what this repository's own Hone source imports
     ).toEqual([]);
   });
 
-  it("finds tests/eslint-toolchains.ts the only test-support file loading the pinned ESLint lines, each by a dynamic import, and checking the floor copies' exports with zod", () => {
+  it("finds tests/eslint-toolchains.ts the only test-support file loading the pinned ESLint lines, each by a dynamic import, and checking the native rule pieces with zod", () => {
     expect(
       importsOutside({
         sources: eslintLineSources,
@@ -404,12 +404,6 @@ describe("Vendor confinement over what this repository's own Hone source imports
           zodImport,
           packageDynamicImport({ packageName: "eslint-9" }),
           packageDynamicImport({ packageName: "eslint-9/use-at-your-own-risk" }),
-          packageDynamicImport({ packageName: "eslint-9-floor" }),
-          packageDynamicImport({ packageName: "eslint-9-floor/use-at-your-own-risk" }),
-          packageDynamicImport({ packageName: "eslint-10-floor" }),
-          packageDynamicImport({ packageName: "eslint-10-floor/use-at-your-own-risk" }),
-          packageDynamicImport({ packageName: "typescript-eslint-parser-floor" }),
-          packageDynamicImport({ packageName: "typescript-eslint-plugin-floor" }),
         ],
       }),
     ).toEqual([]);
