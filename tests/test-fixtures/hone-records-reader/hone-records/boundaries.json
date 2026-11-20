@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "records": [
+    { "module": "src/adapters/system-clock.ts", "outsideParty": "runtime:clock", "ports": ["Clock"] },
+    { "module": "src/adapters/files", "outsideParty": "node:fs", "ports": ["FileReader"] }
+  ]
+}

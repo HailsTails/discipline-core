@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "records": [
+    {
+      "recipe": "stub-with-vifn",
+      "file": "src/sync/replay.test.ts",
+      "recipeReason": "\"these should be vi.fn, with mockResolvedValue, not custom async functions\"; \"Agents take fake to mean whatever they want it to mean right now.\" The framework's double has no body of ours to hold logic.",
+      "reasonFails": "The replay is handed a stream whose answers depend on the calls before them.",
+      "evidence": "src/sync/replay.test.ts:40 calls next() four times.",
+      "ruleHolds": "Each answer is still written out in the fake's table."
+    }
+  ]
+}
