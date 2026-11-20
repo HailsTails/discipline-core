@@ -24,6 +24,8 @@ export const reservedNamespace = TOOL_IDENTITY.reservedEslintNamespace;
 
 const INLINE_CONFIG_RULE = "inline-config";
 
+const WHOLE_FILE_LISTENER = "Program";
+
 export const INLINE_CONFIG_RULE_ID = `${reservedNamespace}/${INLINE_CONFIG_RULE}`;
 
 const GOVERNED_FILES: readonly string[] = ["**/*.{ts,tsx,mts,cts}"];
@@ -58,7 +60,7 @@ type InlineConfigPlugin = {
         >;
       };
       readonly create: (context: InlineConfigContext) => {
-        readonly Program: (programNode?: unknown) => void;
+        readonly [WHOLE_FILE_LISTENER]: (programNode?: unknown) => void;
       };
     };
   };
@@ -277,7 +279,7 @@ const inlineConfigPlugin = (request: { readonly ruleIds: readonly string[] }): I
         },
       },
       create: (context) => ({
-        Program: (programNode) => reportedProgram({ context, programNode, ruleIds: request.ruleIds }),
+        [WHOLE_FILE_LISTENER]: (programNode) => reportedProgram({ context, programNode, ruleIds: request.ruleIds }),
       }),
     },
   },
@@ -566,8 +568,7 @@ export type EslintModule = { readonly ESLint: EslintClass };
 type ConfigLookup = { readonly releases: ReleaseRange; readonly flags: readonly string[] };
 
 const NEAREST_CONFIG_LOOKUPS: readonly ConfigLookup[] = [
-  { releases: { packageName: "eslint", lines: [{ floor: "9.28.0", below: "9.30.0" }] }, flags: ["unstable_config_lookup_from_file"] },
-  { releases: { packageName: "eslint", lines: [{ floor: "9.30.0", below: "10.0.0" }] }, flags: ["v10_config_lookup_from_file"] },
+  { releases: { packageName: "eslint", lines: [{ floor: "9.39.5", below: "10.0.0" }] }, flags: ["v10_config_lookup_from_file"] },
 ];
 
 const lookupFlagsOf = (request: { readonly version: string }): readonly string[] =>

@@ -14,7 +14,6 @@ import {
   type EslintClass,
   type EslintPort,
   type EslintToolchain,
-  type TypescriptParser,
 } from "../mechanisms/eslint/runner/eslint-instance.ts";
 import {
   defaultEslintToolchainPeers,
@@ -24,9 +23,9 @@ import {
 } from "../mechanisms/eslint/runner/eslint-toolchain.ts";
 import { defaultNativeRuleSources, type NativeRuleSources } from "../mechanisms/eslint/runner/native-rules.ts";
 
-export type EslintLine = "eslint-10" | "eslint-10-floor" | "eslint-9" | "eslint-9-floor";
+export type EslintLine = "eslint-10" | "eslint-9";
 
-export const ESLINT_LINES: readonly EslintLine[] = ["eslint-10", "eslint-10-floor", "eslint-9", "eslint-9-floor"];
+export const ESLINT_LINES: readonly EslintLine[] = ["eslint-10", "eslint-9"];
 
 type LineDefinition = {
   readonly eslintVersion: RegExp;
@@ -38,57 +37,11 @@ const DEVELOPMENT_PEERS: EslintToolchainPeers = defaultEslintToolchainPeers({ in
 
 const RUNNER_MODULE_SUFFIX = "mechanisms/eslint/runner/runner.ts";
 
-type ExportPresence = "present" | "absent";
-
-const exportPresence = (request: {
-  readonly exporter: unknown;
-  readonly name: string;
-  readonly type: "function" | "string";
-}): ExportPresence =>
-  (typeof request.exporter === "object" || typeof request.exporter === "function") &&
-  request.exporter !== null &&
-  typeof Reflect.get(request.exporter, request.name) === request.type
-    ? "present"
-    : "absent";
-
-const floorEslintSchema = z.object({
-  ESLint: z.custom<EslintClass>(
-    (eslintClass) =>
-      typeof eslintClass === "function" && exportPresence({ exporter: eslintClass, name: "version", type: "string" }) === "present",
-  ),
-});
-
-const floorParserSchema = z.custom<TypescriptParser>(
-  (parserModule) =>
-    exportPresence({ exporter: parserModule, name: "parseForESLint", type: "function" }) === "present" &&
-    exportPresence({ exporter: parserModule, name: "version", type: "string" }) === "present",
-);
-
-const floorPluginSchema = z.object({
-  default: z.object({ meta: z.object({ name: z.string(), namespace: z.string(), version: z.string() }) }),
-});
-
-const floorTypescriptEslintModules = {
-  typescriptParser: () => import("typescript-eslint-parser-floor").then((parser) => floorParserSchema.parse(parser)),
-  typescriptEslintPlugin: () => import("typescript-eslint-plugin-floor").then((plugin) => floorPluginSchema.parse(plugin)),
-};
-
-const floorTypescriptEslintRules = (): Promise<NativeRuleSources["typescriptEslint"]> =>
-  import("typescript-eslint-plugin-floor").then((plugin) => plugin.default.rules);
-
 const LINES: Readonly<Record<EslintLine, LineDefinition>> = {
   "eslint-10": {
     eslintVersion: /^10\./,
     modules: DEVELOPMENT_PEERS.modules,
     nativeRuleSources: () => Promise.resolve(defaultNativeRuleSources),
-  },
-  "eslint-10-floor": {
-    eslintVersion: /^10\.0\.0$/,
-    modules: { eslint: () => import("eslint-10-floor").then((eslint) => floorEslintSchema.parse(eslint)), ...floorTypescriptEslintModules },
-    nativeRuleSources: () =>
-      Promise.all([import("eslint-10-floor/use-at-your-own-risk"), floorTypescriptEslintRules()]).then(
-        ([eslintCore, typescriptEslint]) => ({ eslintCore: eslintCore.builtinRules, typescriptEslint }),
-      ),
   },
   "eslint-9": {
     eslintVersion: /^9\./,
@@ -98,14 +51,6 @@ const LINES: Readonly<Record<EslintLine, LineDefinition>> = {
         eslintCore: eslintCore.builtinRules,
         typescriptEslint: defaultNativeRuleSources.typescriptEslint,
       })),
-  },
-  "eslint-9-floor": {
-    eslintVersion: /^9\.28\.0$/,
-    modules: { eslint: () => import("eslint-9-floor").then((eslint) => floorEslintSchema.parse(eslint)), ...floorTypescriptEslintModules },
-    nativeRuleSources: () =>
-      Promise.all([import("eslint-9-floor/use-at-your-own-risk"), floorTypescriptEslintRules()]).then(
-        ([eslintCore, typescriptEslint]) => ({ eslintCore: eslintCore.builtinRules, typescriptEslint }),
-      ),
   },
 };
 

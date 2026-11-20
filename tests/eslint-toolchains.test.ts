@@ -17,34 +17,30 @@ const BASE_MODULE = { outcome: "ok", value: { base: "module" } } as const;
 const baseLoader = (): ModuleLoaderPort => ({ load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue(BASE_MODULE) });
 
 describe("the ESLint lines of the development install", () => {
-  it("lists ESLint 10 and 9, each at the version core compiles against and at its floor", () => {
-    expect(ESLINT_LINES).toEqual(["eslint-10", "eslint-10-floor", "eslint-9", "eslint-9-floor"]);
+  it("lists the one line of each supported ESLint major, the latest of each", () => {
+    expect(ESLINT_LINES).toEqual(["eslint-10", "eslint-9"]);
   });
 
   it.each([
-    { line: "eslint-10", version: /^10\./ },
-    { line: "eslint-10-floor", version: /^10\.0\.0$/ },
-    { line: "eslint-9", version: /^9\./ },
-    { line: "eslint-9-floor", version: /^9\.28\.0$/ },
-  ] as const)("loads the $line toolchain at its own ESLint version", async ({ line, version }) => {
-    expect((await loadedEslintToolchain({ line })).eslintVersion).toMatch(version);
+    { line: "eslint-10", version: "10.15.0" },
+    { line: "eslint-9", version: "9.39.5" },
+  ] as const)("loads the $line toolchain at ESLint $version", async ({ line, version }) => {
+    expect((await loadedEslintToolchain({ line })).eslintVersion).toBe(version);
   });
 
   it("locates each line's peers from the development install, the way core locates them from its own", () => {
-    expect(eslintPeersOn({ line: "eslint-9-floor" }).location.installRoot).toBe(`${import.meta.dirname}/..`);
+    expect(eslintPeersOn({ line: "eslint-9" }).location.installRoot).toBe(`${import.meta.dirname}/..`);
   });
 
   it.each([
-    { line: "eslint-10", version: /^10\./ },
-    { line: "eslint-10-floor", version: /^10\.0\.0$/ },
-    { line: "eslint-9", version: /^9\./ },
-    { line: "eslint-9-floor", version: /^9\.28\.0$/ },
+    { line: "eslint-10", version: "10.15.0" },
+    { line: "eslint-9", version: "9.39.5" },
   ] as const)("hands out the ESLint class of $line", async ({ line, version }) => {
-    expect((await eslintClassOn({ line })).version).toMatch(version);
+    expect((await eslintClassOn({ line })).version).toBe(version);
   });
 
   it("builds the embedded ESLint runner over a line", () => {
-    expect(eslintRunnerOn({ line: "eslint-9-floor" })).toMatchObject({ exceptionPath: "embedded" });
+    expect(eslintRunnerOn({ line: "eslint-9" })).toMatchObject({ exceptionPath: "embedded" });
   });
 });
 
@@ -74,14 +70,14 @@ describe("pieceModulesOn", () => {
         value: { createPlugin: vi.fn<(sources: object) => object>().mockReturnValue({ rules: { wrapped: {} } }) },
       }),
     };
-    expect(await pieceModulesOn({ line: "eslint-9-floor", base }).load({ path: "/install/piece.ts" })).toEqual({
+    expect(await pieceModulesOn({ line: "eslint-9", base }).load({ path: "/install/piece.ts" })).toEqual({
       outcome: "ok",
       value: { default: { rules: { wrapped: {} } } },
     });
   });
 
   it("passes a piece without createPlugin through unchanged", async () => {
-    expect(await pieceModulesOn({ line: "eslint-9-floor", base: baseLoader() }).load({ path: "/install/piece.ts" })).toEqual(
+    expect(await pieceModulesOn({ line: "eslint-9", base: baseLoader() }).load({ path: "/install/piece.ts" })).toEqual(
       BASE_MODULE,
     );
   });

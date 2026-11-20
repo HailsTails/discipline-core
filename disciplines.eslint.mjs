@@ -111,17 +111,12 @@ export default [
   {
     name: "hone-core/file-records/CD-6#naming-convention",
     files: [
-      "core/consumer-selection/consumer-selection.test.ts",
       "core/platform-ports/execution-port.test.ts",
       "core/platform-ports/git-port.test.ts",
-      "mechanisms/eslint/runner/eslint-instance.test.ts",
-      "mechanisms/eslint/runner/eslint-instance.ts",
       "mechanisms/eslint/runner/eslint-plugin-schema.test.ts",
-      "mechanisms/eslint/runner/eslint-toolchain.test.ts",
       "mechanisms/eslint/runner/rule-sites.ts",
       "scripts/install-proof-plan.test.ts",
       "scripts/install-proof-ports.test.ts",
-      "tests/eslint-toolchains.ts",
     ],
     rules: { "hone-cd6/naming-convention": "off" },
   },
