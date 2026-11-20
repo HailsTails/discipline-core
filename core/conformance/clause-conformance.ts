@@ -1,5 +1,5 @@
 import { loadFailureDetail } from "../command-line/load-failure-text.ts";
-import { loadRunner, type RunnerLocation } from "../check/run-check.ts";
+import { loadRunner, type RunnerLocation } from "../mechanism-port/load-runner.ts";
 import type { Result } from "../values/result.ts";
 import { boundClauseOf, type RuleSetReading } from "./clause-under-test.ts";
 import { checkConformance } from "./conformance.ts";

@@ -1,17 +1,22 @@
 import type { z } from "zod";
 import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
+import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { Equal } from "../values/type-equality.ts";
 import type { ReturnedEmbeddedRunReport } from "./embedded-run-report-schema.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
-import type {
-  embeddedRunnerModuleSchema,
-  ProjectionRequest,
-  RunRequest,
-  StandaloneRunner,
-} from "./runner-module-schema.ts";
+import type { embeddedRunnerModuleSchema, RunnerClause, RunRequest, StandaloneRunner } from "./runner-module-schema.ts";
 import type { NativeException, ProjectionWrite } from "./runner-result-schema.ts";
+
+export type ProjectionRequest = {
+  readonly repoRoot: AbsolutePath;
+  readonly declaredConfigRoots: readonly RepoPath[];
+  readonly installRoot: AbsolutePath;
+  readonly trackedPaths: readonly RepoPath[];
+  readonly clauses: readonly RunnerClause[];
+  readonly records: readonly ExceptionRecord[];
+};
 
 export type EmbeddedRunRequest = RunRequest & {
   readonly declaredConfigRoots: readonly RepoPath[];

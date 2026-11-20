@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RunnerClause, RunRequest } from "../mechanism-port/runner-module-schema.ts";
+import type { LoadedStandaloneRunner, RunnerClause, RunRequest } from "../mechanism-port/runner-module-schema.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { runMechanism } from "./mechanism-dispatch.ts";
-import type { StandaloneLoadedRunner } from "./mechanism-dispatch.ts";
 import { FIRST_EDITION } from "../values/edition.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
@@ -48,16 +47,16 @@ const EXPECTATION_IN_A = {
   reach: "one-clause",
 };
 
-const standaloneRunner = (request: { readonly run: StandaloneLoadedRunner["run"] }): StandaloneLoadedRunner => ({
+const standaloneRunner = (request: { readonly run: LoadedStandaloneRunner["run"] }): LoadedStandaloneRunner => ({
   exceptionPath: "standalone",
   run: request.run,
-  conform: vi.fn<StandaloneLoadedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  conform: vi.fn<LoadedStandaloneRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
 });
 
-const runResolving = (returned: unknown): StandaloneLoadedRunner["run"] =>
-  vi.fn<StandaloneLoadedRunner["run"]>().mockResolvedValue(returned);
+const runResolving = (returned: unknown): LoadedStandaloneRunner["run"] =>
+  vi.fn<LoadedStandaloneRunner["run"]>().mockResolvedValue(returned);
 
-const dispatchRun = (request: { readonly runner: StandaloneLoadedRunner }) =>
+const dispatchRun = (request: { readonly runner: LoadedStandaloneRunner }) =>
   runMechanism({ runner: request.runner, mechanism: WALKER, run: RUN_REQUEST });
 
 describe("runMechanism with a standalone runner", () => {
@@ -105,7 +104,7 @@ describe("runMechanism with a standalone runner", () => {
   });
 
   it("is runner-invalid-output when run throws synchronously", async () => {
-    const run = vi.fn<StandaloneLoadedRunner["run"]>().mockThrow(new Error("the runner threw"));
+    const run = vi.fn<LoadedStandaloneRunner["run"]>().mockThrow(new Error("the runner threw"));
     await expect(dispatchRun({ runner: standaloneRunner({ run }) })).resolves.toMatchObject({
       outcome: "failed",
       error: { kind: "runner-invalid-output", detail: expect.stringContaining("the runner call threw or rejected: the runner threw") },
@@ -113,7 +112,7 @@ describe("runMechanism with a standalone runner", () => {
   });
 
   it("is runner-invalid-output when run rejects", async () => {
-    const run = vi.fn<StandaloneLoadedRunner["run"]>().mockRejectedValue(new Error("the runner rejected"));
+    const run = vi.fn<LoadedStandaloneRunner["run"]>().mockRejectedValue(new Error("the runner rejected"));
     await expect(dispatchRun({ runner: standaloneRunner({ run }) })).resolves.toMatchObject({
       outcome: "failed",
       error: { kind: "runner-invalid-output", detail: expect.stringContaining("the runner call threw or rejected: the runner rejected") },
