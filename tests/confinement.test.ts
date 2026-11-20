@@ -3,6 +3,7 @@ import { createPathPort } from "../core/platform-ports/path-port.ts";
 import {
   computedModuleLoad,
   filesNotMatching,
+  filesReaching,
   importsOutside,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
@@ -129,6 +130,28 @@ describe("importsOutsideFromOwnFolder", () => {
     expect(importsOutsideFromOwnFolder({ sources, allowedFrom: reachingNothingUnderCheck })).toEqual([
       { file: "./core/run/a.ts", specifier: "../check/y.ts", form: "value" },
       { file: "./core/run/deeper/b.ts", specifier: "../../check/y.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("filesReaching", () => {
+  const sources = {
+    "./core/run/direct.ts": 'import { a } from "../held/a.ts";\n',
+    "./core/run/indirect.ts": 'import { b } from "../mid/b.ts";\n',
+    "./core/run/deep/deeper.ts": 'import { b } from "../../mid/b.ts";\n',
+    "./core/run/clean.ts": 'import { c } from "../mid/c.ts";\nimport { z } from "zod";\n',
+    "./core/run/loop-a.ts": 'import { b } from "./loop-b.ts";\n',
+    "./core/run/loop-b.ts": 'import { a } from "./loop-a.ts";\n',
+    "./core/mid/b.ts": 'import { a } from "../held/a.ts";\n',
+    "./core/mid/c.ts": "export const c = 1;\n",
+    "./core/held/a.ts": "export const a = 1;\n",
+  };
+
+  it("lists each file under the starting pattern that imports, directly or through other scanned files, a file matching the reached pattern", () => {
+    expect(filesReaching({ sources, startingFrom: /^\.\/core\/run\//, reaching: /^\.\/core\/held\// })).toEqual([
+      "./core/run/deep/deeper.ts",
+      "./core/run/direct.ts",
+      "./core/run/indirect.ts",
     ]);
   });
 });

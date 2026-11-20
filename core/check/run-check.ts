@@ -13,7 +13,8 @@ import {
 } from "../upgrade/version-one-records/exception-records.ts";
 import type { DebtPair } from "../upgrade/version-one-records/debt-pair.ts";
 import { paidDebtOf } from "../upgrade/version-one-records/paid-debt.ts";
-import { applyGovernance, type Finding, type GovernanceResult } from "../governance/governance.ts";
+import type { Finding } from "../governance/governance.ts";
+import { applyGovernance, type GovernanceResult } from "../upgrade/answering/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import {
   type LoadedRunner,
@@ -44,7 +45,8 @@ import { packageLinkOf } from "../command-line/package-link.ts";
 import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
-import { type MechanismRun, runMechanism } from "../run/mechanism-dispatch.ts";
+import type { MechanismRun } from "../run/mechanism-dispatch.ts";
+import { runMechanismWithRecords } from "../upgrade/engine-protocol/mechanism-dispatch.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
@@ -288,7 +290,7 @@ const mechanismRunOf = (request: {
   readonly records: readonly ExceptionRecord[];
   readonly loaded: LoadedMechanism;
 }): Promise<Result<MechanismRun, LoadFailure>> =>
-  runMechanism({
+  runMechanismWithRecords({
     runner: request.loaded.runner,
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),

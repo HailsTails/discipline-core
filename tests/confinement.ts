@@ -157,6 +157,50 @@ export const importStatementsReaching = (request: {
       .map(([statement]) => ({ file, statement })),
   );
 
+type ImportGraph = ReadonlyMap<string, readonly string[]>;
+
+const scannedImportsOf = (request: {
+  readonly file: string;
+  readonly text: string;
+  readonly scanned: ReadonlySet<string>;
+}): readonly string[] => {
+  const importingPath = createPathPort({
+    flavour: "posix",
+    workingDirectory: () => `${INSTALL_ROOT}/${folderOfSource({ source: request.file })}`,
+  });
+  return importsIn({ text: request.text })
+    .filter(({ specifier }) => RELATIVE_SPECIFIER.test(specifier))
+    .flatMap(({ specifier }) => {
+      const location = importingPath.relative({ from: INSTALL_ROOT, to: specifier });
+      return location.relation === "within-root" ? [`./${location.path}`] : [];
+    })
+    .filter((resolved) => request.scanned.has(resolved));
+};
+
+const reachedFrom = (request: {
+  readonly graph: ImportGraph;
+  readonly frontier: readonly string[];
+  readonly seen: ReadonlySet<string>;
+}): ReadonlySet<string> => {
+  const fresh = [...new Set(request.frontier.flatMap((file) => request.graph.get(file) ?? []))].filter((file) => !request.seen.has(file));
+  return fresh.length === 0 ? request.seen : reachedFrom({ graph: request.graph, frontier: fresh, seen: new Set([...request.seen, ...fresh]) });
+};
+
+export const filesReaching = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly reaching: RegExp;
+}): readonly string[] => {
+  const scanned = new Set(Object.keys(request.sources));
+  const graph: ImportGraph = new Map(
+    Object.entries(request.sources).map(([file, text]) => [file, scannedImportsOf({ file, text, scanned })]),
+  );
+  return [...scanned]
+    .filter((file) => request.startingFrom.test(file))
+    .filter((file) => [...reachedFrom({ graph, frontier: [file], seen: new Set([file]) })].some((reached) => request.reaching.test(reached)))
+    .sort();
+};
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;
