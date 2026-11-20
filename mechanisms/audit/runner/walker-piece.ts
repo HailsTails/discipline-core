@@ -1,18 +1,12 @@
 import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
-import type { Hit, Remedy } from "../../../core/mechanism-port/runner-result-types.ts";
+import type { Hit } from "../../../core/mechanism-port/runner-result-types.ts";
 import type { Anchor } from "../../../core/values/anchor.ts";
-import type { ClauseAddress } from "../../../core/values/clause-address-types.ts";
 import type { RepoPath } from "../../../core/values/repo-path-types.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { CommentRange, SyntaxApi, SyntaxNode, SyntaxTree } from "./typescript-parse.ts";
 
-export type PieceHit = {
-  readonly clause: ClauseAddress;
-  readonly anchor: Anchor;
-  readonly snippet: string;
-  readonly remedy?: Remedy;
-};
+export type PieceHit = Omit<Hit, "file">;
 
 export type WalkerFile = {
   readonly file: RepoPath;

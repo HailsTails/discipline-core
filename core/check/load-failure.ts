@@ -31,3 +31,7 @@ export type LoadFailure =
   | { readonly kind: "projection-needs-type-stripping" }
   | { readonly kind: "unexpected-error"; readonly detail: string }
   | { readonly kind: "runner-failed"; readonly mechanism: MechanismId; readonly failure: RunnerFailure };
+
+type RemovedKind = "why-chains-required" | "records-in-both-layouts" | "records-unsplittable";
+
+export type VersionTwoLoadFailure = Exclude<LoadFailure, { readonly kind: RemovedKind }>;

@@ -2,8 +2,12 @@ import type { z } from "zod";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
 import type {
+  AuthorisedLocation,
+  AuthorisedReach,
   BaseMeasurement,
   CarriedListing,
+  CatalogueNote,
+  Debt,
   HoneRecord,
   OutsideParty,
   PlacedRecord,
@@ -37,12 +41,35 @@ const sameOutsideParty = (request: { readonly left: OutsideParty; readonly right
   }
 };
 
+const sameReach = (request: { readonly left: AuthorisedReach; readonly right: AuthorisedReach }): Sameness => {
+  const { left, right } = request;
+  switch (left.reaches) {
+    case "whole-symptom":
+      return right.reaches === "whole-symptom" ? "same" : "different";
+    case "one-check":
+      return right.reaches === "one-check" && right.check.name === left.check.name ? "same" : "different";
+    case "unknown-check":
+      return right.reaches === "unknown-check" && right.check === left.check ? "same" : "different";
+  }
+};
+
+const sameSymptomSite = (request: { readonly left: Debt | AuthorisedLocation; readonly right: HoneRecord }): Sameness => {
+  const { left, right } = request;
+  return (right.kind === "debt" || right.kind === "authorised-location") &&
+    right.kind === left.kind &&
+    right.symptom.name === left.symptom.name &&
+    sameReach({ left: left.reach, right: right.reach }) === "same" &&
+    right.file === left.file
+    ? "same"
+    : "different";
+};
+
 export const sameRecordIdentity = (request: { readonly left: HoneRecord; readonly right: HoneRecord }): Sameness => {
   const { left, right } = request;
   switch (left.kind) {
     case "debt":
     case "authorised-location":
-      return right.kind === left.kind && right.symptom.name === left.symptom.name && right.file === left.file ? "same" : "different";
+      return sameSymptomSite({ left, right });
     case "deviation":
       return right.kind === "deviation" && right.recipe.name === left.recipe.name && right.file === left.file ? "same" : "different";
     case "boundary-record":
@@ -94,11 +121,21 @@ const withoutDuplicates = (request: { readonly judged: readonly Judged[] }): rea
 const baseMeasurementOf = (request: { readonly base: RecordsAtBase }): BaseMeasurement =>
   request.base.measured === "yes" ? { measured: "yes" } : { measured: "no", base: request.base.base };
 
+const reachNotesOf = (request: { readonly record: AuthorisedLocation }): readonly CatalogueNote[] => {
+  const { record } = request;
+  return record.reach.reaches === "unknown-check" ? [{ kind: "unknown-check", symptom: record.symptom, check: record.reach.check }] : [];
+};
+
+const owingNotesOf = (request: { readonly record: AuthorisedLocation }): readonly CatalogueNote[] => {
+  const { holding } = request.record;
+  return holding.held === "stated" && holding.owing.matches === "not-the-catalogue" ? [holding.owing.note] : [];
+};
+
+export const catalogueNotesOf = (request: { readonly record: AuthorisedLocation }): readonly CatalogueNote[] => [...reachNotesOf(request), ...owingNotesOf(request)];
+
 const notesOf = (request: { readonly placed: PlacedRecord }): readonly RecordNote[] => {
   const { place, record } = request.placed;
-  return record.kind === "authorised-location" && record.holding.held === "stated" && record.holding.owing.matches === "not-the-catalogue"
-    ? [{ place, note: record.holding.owing.note }]
-    : [];
+  return record.kind === "authorised-location" ? catalogueNotesOf({ record }).map((note) => ({ place, note })) : [];
 };
 
 const readingOf = (request: { readonly judged: readonly Judged[]; readonly base: RecordsAtBase }): RecordsReading => {

@@ -1,5 +1,4 @@
-import type { LoadFailure } from "../check/load-failure.ts";
-import { ruleSetRootOf } from "../consumer-selection/consumer-selection.ts";
+import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { type DisciplineFile, disciplineFilePath, pieceFilePath, readDisciplineFile, readPieceFile } from "../rule-set-reader/rule-set-reader.ts";
@@ -11,8 +10,11 @@ import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-
 import { parsedJson } from "../values/parsed-json.ts";
 import type { Result } from "../values/result.ts";
 import type { PieceClause, SettingsDocument, SettingsSources } from "./read-settings.ts";
+import { ruleSetRootOf } from "./rule-set-root.ts";
 
 export const SETTINGS_FILE_NAME = "hone.config.json";
+
+export const VERSION_ONE_SETTINGS_FILE_NAME = "disciplines.json";
 
 type SourcesOptions = {
   readonly fileText: FileTextPort;
@@ -26,9 +28,9 @@ type PieceRequest = SourcesOptions & { readonly ruleSetRoot: AbsolutePath; reado
 
 type MechanicalDefinition = Extract<DisciplineFile["clauses"][number], { readonly kind: "mechanical" }>;
 
-const failed = (error: LoadFailure): { readonly outcome: "failed"; readonly error: LoadFailure } => ({ outcome: "failed", error });
+const failed = (error: VersionTwoLoadFailure): { readonly outcome: "failed"; readonly error: VersionTwoLoadFailure } => ({ outcome: "failed", error });
 
-const settingsDocumentOf = (request: SourcesOptions): Result<SettingsDocument, LoadFailure> => {
+const settingsDocumentOf = (request: SourcesOptions): Result<SettingsDocument, VersionTwoLoadFailure> => {
   const path = request.path.join({ segments: [request.repoRoot, SETTINGS_FILE_NAME] });
   if (request.fileText.exists({ path }) === "absent") {
     return failed({ kind: "selection-absent", repo: request.repoRoot });
@@ -43,7 +45,7 @@ const settingsDocumentOf = (request: SourcesOptions): Result<SettingsDocument, L
     : { outcome: "ok", value: { path, document: document.value } };
 };
 
-const mechanicalDefinitionOf = (request: PieceRequest): Result<{ readonly discipline: DisciplineFile; readonly definition: MechanicalDefinition }, LoadFailure> => {
+const mechanicalDefinitionOf = (request: PieceRequest): Result<{ readonly discipline: DisciplineFile; readonly definition: MechanicalDefinition }, VersionTwoLoadFailure> => {
   const address = clauseAddressText({ address: request.clause });
   const location = { path: request.path, ruleSetRoot: request.ruleSetRoot, discipline: request.clause.discipline };
   if (request.fileText.exists({ path: disciplineFilePath(location) }) === "absent") {
@@ -66,7 +68,7 @@ const mechanicalDefinitionOf = (request: PieceRequest): Result<{ readonly discip
   return { outcome: "ok", value: { discipline: discipline.value, definition } };
 };
 
-const pieceClauseOf = (request: PieceRequest): Result<PieceClause, LoadFailure> => {
+const pieceClauseOf = (request: PieceRequest): Result<PieceClause, VersionTwoLoadFailure> => {
   const defined = mechanicalDefinitionOf(request);
   if (defined.outcome === "failed") {
     return defined;
@@ -106,11 +108,7 @@ const pieceClauseOf = (request: PieceRequest): Result<PieceClause, LoadFailure> 
 export const createSettingsSources = (options: SourcesOptions): SettingsSources => ({
   settingsFile: (_request) => settingsDocumentOf(options),
   ruleSetRoot: (request) =>
-    ruleSetRootOf({
-      ...options,
-      ruleSet: request.ruleSet,
-      ruleSets: Object.fromEntries(request.ruleSets.map((declared) => [declared.name, declared.location])),
-    }),
+    ruleSetRootOf({ ruleSet: request.ruleSet, ruleSets: request.ruleSets, repoRoot: options.repoRoot, installRoot: options.installRoot, path: options.path }),
   catalogue: (request) => createSymptomCatalogueRepository({ fileText: options.fileText, path: options.path, ruleSetRoot: request.ruleSetRoot }).read({}),
   pieceClause: (request) => pieceClauseOf({ ...options, ...request }),
 });

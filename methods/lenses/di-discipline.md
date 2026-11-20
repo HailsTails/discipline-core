@@ -37,7 +37,7 @@ Across codebases the concept recurs under different names (constructor
 injection, hexagonal ports-and-adapters, "no ambient singletons", "depend on
 abstractions"). The loaded rules tell you this codebase's exact shape: which
 capabilities are named ports, the single permitted site for each ambient
-binding (the wrapping factory), the default-factory naming convention, any
+binding (the adapter), the default-adapter naming convention, any
 type-level constraint on context-consuming middleware, and the closed list of
 banned module-interception mechanisms. Read them first; they override any default
 intuition.
@@ -141,7 +141,7 @@ agent-time call.
 
 The lens's catch-rate lives where the code reads injected but a dependency still
 arrives ambiently. A unit whose signature declares a port yet whose body holds a
-raw global call on a "convenience" path; a default factory present but the boot
+raw global call on a "convenience" path; an adapter present but the boot
 path constructing the port inline beside it; a middleware generic that compiles
 because its context happens to carry the field, yet is unbound so a different
 pipeline would crash; a spy that looks like clean observation but is attached to
@@ -159,6 +159,6 @@ threading gaps, unbound context generics) and a test-side block
 (module-interception violations by mechanism, spy classifications, structural
 boundary gaps). Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and — for a test-side mock — naming the port
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)), and — for a test-side mock — naming the port
 shape the remediating refactor would lift into the unit's signature. State the
 rule-page paths you resolved and which rule ids you loaded under this lens.

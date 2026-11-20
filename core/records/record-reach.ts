@@ -1,19 +1,20 @@
+import type { FoundCheck } from "../symptom-catalogue/check-address.ts";
 import type { Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import type { BoundaryRecord, Deviation, HoneRecord, OutsideParty, RuntimeFacility } from "./hone-record.ts";
+import type { AuthorisedReach, BoundaryRecord, Deviation, HoneRecord, OutsideParty, RuntimeFacility } from "./hone-record.ts";
 import { banStandingOf, dependencyOf } from "./outside-dependency.ts";
 
 export type PartyReport = { readonly reported: "specifier"; readonly specifier: string } | { readonly reported: "not-reported" };
 
-export type Site = { readonly symptom: Symptom; readonly file: RepoPath; readonly party: PartyReport };
+export type Site = { readonly symptom: Symptom; readonly check: FoundCheck; readonly file: RepoPath; readonly party: PartyReport };
 
 export type Holding = "holds" | "does-not-hold";
 
 const FOLDER_SEPARATOR = "/";
 
-const IMPORTED_PARTY_SYMPTOMS: readonly string[] = ["outside-import-past-a-boundary", "library-class-built-in-place", "outside-type-in-a-signature"];
+export const IMPORTED_PARTY_SYMPTOMS: readonly string[] = ["outside-import-past-a-boundary", "library-class-built-in-place", "outside-type-in-a-signature"];
 
-const RUNTIME_REACH: Readonly<Record<RuntimeFacility, readonly string[]>> = {
+export const RUNTIME_REACH: Readonly<Record<RuntimeFacility, readonly string[]>> = {
   clock: ["date-used-directly"],
   random: ["ambient-randomness"],
   process: ["process-global-used-in-place"],
@@ -27,7 +28,23 @@ const sameName = (request: { readonly left: string; readonly right: string }): H
 
 const namedIn = (request: { readonly name: string; readonly names: readonly string[] }): Holding => (request.names.includes(request.name) ? "holds" : "does-not-hold");
 
-const reachesSymptom = (request: { readonly held: Symptom; readonly symptom: Symptom }): Holding => sameName({ left: request.held.name, right: request.symptom.name });
+const reachesCheck = (request: { readonly reach: AuthorisedReach; readonly check: FoundCheck }): Holding => {
+  const { reach, check } = request;
+  switch (reach.reaches) {
+    case "whole-symptom":
+      return "holds";
+    case "one-check":
+      return check.found === "check" ? sameName({ left: check.check.name, right: reach.check.name }) : "does-not-hold";
+    case "unknown-check":
+      return "does-not-hold";
+  }
+};
+
+const reachesSymptom = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach; readonly site: Site }): Holding =>
+  everyHolds({ holdings: [sameName({ left: request.symptom.name, right: request.site.symptom.name }), reachesCheck({ reach: request.reach, check: request.site.check })] });
+
+const clearOfOutsideParties = (request: { readonly symptom: Symptom }): Holding =>
+  namedIn({ name: request.symptom.name, names: IMPORTED_PARTY_SYMPTOMS }) === "holds" ? "does-not-hold" : "holds";
 
 const reachOf = (request: { readonly party: OutsideParty }): readonly string[] => {
   switch (request.party.kind) {
@@ -57,7 +74,7 @@ const importedPartyClearOfBans = (request: { readonly party: PartyReport; readon
 };
 
 const deviationClearOfBans = (request: { readonly site: Site; readonly catalogue: SymptomCatalogue }): Holding =>
-  namedIn({ name: request.site.symptom.name, names: IMPORTED_PARTY_SYMPTOMS }) === "holds" ? importedPartyClearOfBans({ party: request.site.party, catalogue: request.catalogue }) : "holds";
+  clearOfOutsideParties({ symptom: request.site.symptom }) === "holds" ? "holds" : importedPartyClearOfBans({ party: request.site.party, catalogue: request.catalogue });
 
 const reportedPartyIs = (request: { readonly party: OutsideParty; readonly specifier: string }): Holding => {
   switch (request.party.kind) {
@@ -82,16 +99,18 @@ const boundaryPartyNamed = (request: { readonly record: BoundaryRecord; readonly
   }
 };
 
-export const overlapsAt = (request: { readonly record: HoneRecord; readonly symptom: Symptom; readonly file: RepoPath }): Holding => {
-  const { record, symptom, file } = request;
+const sitedAt = (request: { readonly record: HoneRecord; readonly site: Site }): Holding => {
+  const { record, site } = request;
   switch (record.kind) {
     case "debt":
     case "authorised-location":
-      return everyHolds({ holdings: [reachesSymptom({ held: record.symptom, symptom }), sameName({ left: record.file, right: file })] });
+      return everyHolds({ holdings: [reachesSymptom({ symptom: record.symptom, reach: record.reach, site }), sameName({ left: record.file, right: site.file })] });
     case "deviation":
-      return everyHolds({ holdings: [sameName({ left: record.file, right: file }), recipeOfSymptom({ record, symptom })] });
+      return everyHolds({ holdings: [sameName({ left: record.file, right: site.file }), recipeOfSymptom({ record, symptom: site.symptom })] });
     case "boundary-record":
-      return everyHolds({ holdings: [moduleCovers({ module: record.module, file }), namedIn({ name: symptom.name, names: reachOf({ party: record.outsideParty }) })] });
+      return everyHolds({
+        holdings: [moduleCovers({ module: record.module, file: site.file }), namedIn({ name: site.symptom.name, names: reachOf({ party: record.outsideParty }) })],
+      });
     case "dependency-record":
       return "does-not-hold";
   }
@@ -112,4 +131,4 @@ const partyHolds = (request: { readonly record: HoneRecord; readonly site: Site;
 };
 
 export const holdsAt = (request: { readonly record: HoneRecord; readonly site: Site; readonly catalogue: SymptomCatalogue }): Holding =>
-  everyHolds({ holdings: [overlapsAt({ record: request.record, symptom: request.site.symptom, file: request.site.file }), partyHolds(request)] });
+  everyHolds({ holdings: [sitedAt({ record: request.record, site: request.site }), partyHolds(request)] });

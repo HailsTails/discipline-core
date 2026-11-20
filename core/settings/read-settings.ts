@@ -1,5 +1,5 @@
 import type { EslintProjection } from "../values/eslint-projection.ts";
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
 import type { RunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseBinding, ClauseEditionReading, ClauseRoot, SelectedClause, SelectionReading } from "../consumer-selection/selection.ts";
 import type { ClauseExceptions, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
@@ -28,22 +28,22 @@ export type PieceClause = {
 };
 
 export type SettingsSources = {
-  readonly settingsFile: (request: Record<string, never>) => Result<SettingsDocument, LoadFailure>;
+  readonly settingsFile: (request: Record<string, never>) => Result<SettingsDocument, VersionTwoLoadFailure>;
   readonly ruleSetRoot: (request: {
     readonly ruleSet: ClauseAddress["ruleSet"];
     readonly ruleSets: readonly DeclaredRuleSet[];
-  }) => Result<AbsolutePath, LoadFailure>;
-  readonly catalogue: (request: { readonly ruleSetRoot: AbsolutePath }) => Result<CatalogueHolding, LoadFailure>;
+  }) => Result<AbsolutePath, VersionTwoLoadFailure>;
+  readonly catalogue: (request: { readonly ruleSetRoot: AbsolutePath }) => Result<CatalogueHolding, VersionTwoLoadFailure>;
   readonly pieceClause: (request: {
     readonly ruleSetRoot: AbsolutePath;
     readonly clause: ClauseAddress;
     readonly mechanism: MechanismId;
-  }) => Result<PieceClause, LoadFailure>;
+  }) => Result<PieceClause, VersionTwoLoadFailure>;
 };
 
 export type SettingsNote = { readonly kind: "declared-not-read"; readonly key: ConventionKey };
 
-export type SettingsFailure = LoadFailure | CheckChoiceRefusal;
+export type SettingsFailure = VersionTwoLoadFailure | CheckChoiceRefusal;
 
 export type SettingsReading = {
   readonly selection: SelectionReading;
@@ -95,10 +95,10 @@ const ruleSetsListed = (request: { readonly file: SettingsFile }): readonly Clau
   );
 };
 
-const cataloguesHeld = (request: SourcesRequest): Result<readonly RuleSetCatalogue[], LoadFailure> => {
+const cataloguesHeld = (request: SourcesRequest): Result<readonly RuleSetCatalogue[], VersionTwoLoadFailure> => {
   const held = everyOk({
     entries: ruleSetsListed(request),
-    resolve: (ruleSet): Result<readonly RuleSetCatalogue[], LoadFailure> => {
+    resolve: (ruleSet): Result<readonly RuleSetCatalogue[], VersionTwoLoadFailure> => {
       const ruleSetRoot = request.sources.ruleSetRoot({ ruleSet, ruleSets: request.file.ruleSets });
       if (ruleSetRoot.outcome === "failed") {
         return ruleSetRoot;
@@ -115,7 +115,7 @@ const cataloguesHeld = (request: SourcesRequest): Result<readonly RuleSetCatalog
 
 const boundClauseOf = (
   request: SourcesRequest & { readonly chosen: ChosenClause; readonly mechanism: MechanismId; readonly settingsPath: string },
-): Result<BoundClause, LoadFailure> => {
+): Result<BoundClause, VersionTwoLoadFailure> => {
   const { chosen, mechanism } = request;
   const ruleSetRoot = request.sources.ruleSetRoot({ ruleSet: chosen.clause.ruleSet, ruleSets: request.file.ruleSets });
   if (ruleSetRoot.outcome === "failed") {
@@ -200,7 +200,7 @@ const settingsReadingOf = (request: {
   notes: request.file.conventions.declared.map((key) => ({ kind: "declared-not-read", key })),
 });
 
-const parsedSettingsFile = (request: { readonly sources: SettingsSources }): Result<SettingsDocument & { readonly file: SettingsFile }, LoadFailure> => {
+const parsedSettingsFile = (request: { readonly sources: SettingsSources }): Result<SettingsDocument & { readonly file: SettingsFile }, VersionTwoLoadFailure> => {
   const document = request.sources.settingsFile({});
   if (document.outcome === "failed") {
     return document;
