@@ -1,8 +1,10 @@
 import { loadFailureDetail } from "../command-line/load-failure-text.ts";
-import { loadRunner, type RunnerLocation } from "../mechanism-port/load-runner.ts";
+import type { RunnerLocation } from "../mechanism-port/load-runner.ts";
+import { loadedEngineOf } from "../run/engine-run.ts";
 import type { Result } from "../values/result.ts";
 import { boundClauseOf, type RuleSetReading } from "./clause-under-test.ts";
 import { checkConformance } from "./conformance.ts";
+import { conformingRunnerOf } from "./conforming-runner.ts";
 import { editionRunsOf } from "./edition-runs.ts";
 import { gatheredOutcomes } from "../values/gathered-outcomes.ts";
 import type { ClauseRequest, ConformanceFailure, ConformanceSetupFailure } from "./conformance-testing-types.ts";
@@ -16,9 +18,13 @@ export const clauseConformanceOf = async (
   if (bound.outcome === "failed") {
     return bound;
   }
-  const runner = await loadRunner(request);
+  const engine = await loadedEngineOf(request);
+  if (engine.outcome === "failed") {
+    return { outcome: "failed", error: { kind: "runner-unloadable", detail: loadFailureDetail({ failure: engine.error }) } };
+  }
+  const runner = conformingRunnerOf({ engine: engine.value });
   if (runner.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "runner-unloadable", detail: loadFailureDetail({ failure: runner.error }) } };
+    return runner;
   }
   const conformance = gatheredOutcomes({
     outcomes: await Promise.all(

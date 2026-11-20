@@ -6,6 +6,7 @@ import {
   filesNotMatching,
   filesReachableFrom,
   filesReachingExcept,
+  globExtensionsIn,
   importEdgesLeaving,
   importFactsReaching,
   importNotMatching,
@@ -14,6 +15,7 @@ import {
   importStatementsLeaving,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
+  MODULE_EXTENSIONS,
   nodeBuiltinImport,
   outsideFiles,
   packageImport,
@@ -27,6 +29,9 @@ import {
   sourcesNamed,
   sourcesOfFiles,
   sourcesNotNamed,
+  specifierImportsReached,
+  unresolvedLoadsReached,
+  unscannedEdgesReached,
 } from "./confinement.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
@@ -338,9 +343,10 @@ describe("the reach leaving a start without entering what is held", () => {
     ]);
   });
 
-  it("lists each whole import statement into the held files, resolved from its own file", () => {
+  it("lists each whole import or re-export statement into the held files, resolved from its own file", () => {
     expect(importStatementsLeaving(leaving)).toEqual([
       { file: "./core/run/start.ts", statement: 'import { h } from "../held/h.ts";' },
+      { file: "./core/run/start.ts", statement: 'export type { T } from "../held/t.ts";' },
       { file: "./core/mid/a.ts", statement: 'import { b } from "../held/b.ts";' },
     ]);
   });
@@ -348,6 +354,174 @@ describe("the reach leaving a start without entering what is held", () => {
   it("drops what is held in files matching", () => {
     expect(outsideFiles({ held: importEdgesLeaving(leaving), files: /^\.\/core\/run\// })).toEqual([
       { file: "./core/mid/a.ts", specifier: "../held/b.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("a dynamic load written as a template literal without substitutions", () => {
+  const sources = {
+    "./core/run/start.ts": "const loaded = await import(`../held/d.ts`);\nconst required = require(`../held/r.ts`);\n",
+    "./core/run/chained.ts": "const loaded = await import(`../mid/m.ts`);\n",
+    "./core/mid/m.ts": "export const m = await import(`../held/m.ts`);\n",
+    "./core/held/d.ts": "export const d = 1;\n",
+    "./core/held/m.ts": "export const m = 1;\n",
+    "./core/held/r.ts": "export const r = 1;\n",
+  };
+  const leaving = { sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, reaching: /^\.\/core\/held\// };
+
+  it("is listed as the import edge it is, whatever the load function", () => {
+    expect(importEdgesLeaving(leaving)).toEqual([
+      { file: "./core/run/start.ts", specifier: "../held/d.ts", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "../held/r.ts", form: "dynamic" },
+      { file: "./core/mid/m.ts", specifier: "../held/m.ts", form: "dynamic" },
+    ]);
+  });
+
+  it("is followed through the graph, so a chain through it is found", () => {
+    expect(
+      filesReachingExcept({ sources, startingFrom: /^\.\/core\/run\//, reaching: /^\.\/core\/held\//, exceptEdges: [] }),
+    ).toEqual(["./core/run/chained.ts", "./core/run/start.ts"]);
+  });
+
+  it("is refused as a computed load by no allowance, because it reads as the path it is", () => {
+    expect(
+      importsOutside({ sources: { "./a.ts": "const loaded = await import(`../held/d.ts`);\n" }, allowed: [packageOrComputedImport] }),
+    ).toEqual([{ file: "./a.ts", specifier: "../held/d.ts", form: "dynamic" }]);
+  });
+});
+
+describe("unresolvedLoadsReached", () => {
+  const sources = {
+    "./core/run/start.ts": `import { a } from "./a.ts";
+const relative = await import("./a.ts");
+const named = await import("zod");
+const computed = await import(\`\${folder}/mod.ts\`);
+const viaVariable = await import(modulePath);
+`,
+    "./core/run/a.ts": "export const a = 1;\n",
+    "./core/held/h.ts": "const hidden = await import(somewhere);\n",
+    "./core/unreached/u.ts": "const hidden = await import(elsewhere);\n",
+  };
+
+  it("lists each dynamic load in the reached files that no relative path names, as written, and none it cannot enter", () => {
+    expect(unresolvedLoadsReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\// })).toEqual([
+      { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: `\`\${folder}/mod.ts\``, form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
+    ]);
+  });
+});
+
+describe("globExtensionsIn", () => {
+  it("lists each distinct extension set a source glob names under a folder, in the order first written, and none of a glob naming a file", () => {
+    const text = `const a = import.meta.glob(["./core/a/**/*.ts", "./core/b/**/*.{ts,mts}", './core/c/**/*.ts', "./core/d/file.ts"]);
+const b = import.meta.glob(["./core/e/**/*.{ts,mts}"]);
+`;
+    expect(globExtensionsIn({ text })).toEqual(["ts", "{ts,mts}"]);
+  });
+
+  it("holds the module extensions every guard glob names", () => {
+    expect(MODULE_EXTENSIONS).toBe("{ts,mts,cts,tsx,js,mjs,cjs,jsx}");
+  });
+});
+
+describe("a module of another extension in the files version 2 owns", () => {
+  const sources = {
+    "./core/run/leak.mts": 'export * from "../upgrade/answering/governance.ts";\n',
+    "./core/run/chain.mts": 'import { run } from "../check/run-check.ts";\n',
+    "./core/upgrade/answering/governance.ts": "export const governed = 1;\n",
+    "./core/check/run-check.ts": "export const run = 1;\n",
+  };
+
+  it("is read as an edge into version 1, so the frontier lists it", () => {
+    expect(
+      importEdgesLeaving({
+        sources,
+        startingFrom: /^\.\/core\/run\//,
+        notEntering: /^\.\/core\/(?:upgrade|check)\//,
+        reaching: /^\.\/core\/(?:upgrade|check)\//,
+      }),
+    ).toEqual([
+      { file: "./core/run/leak.mts", specifier: "../upgrade/answering/governance.ts", form: "value" },
+      { file: "./core/run/chain.mts", specifier: "../check/run-check.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("unscannedEdgesReached", () => {
+  const sources = {
+    "./core/run/start.ts": `import { a } from "./a.ts";
+import { s } from "../values/scanned.mts";
+const unread = await import("../values/x.mts");
+import { gone } from "./gone.js";
+import { o } from "../../outside/o.ts";
+import { z } from "zod";
+`,
+    "./core/run/a.ts": "export const a = 1;\n",
+    "./core/values/scanned.mts": "export const s = 1;\n",
+    "./core/held/h.ts": 'import { far } from "../far/far.ts";\n',
+  };
+
+  it("lists each relative edge in the reached files that resolves under the folder to no source given, whatever its form, and none that resolves outside it or names a package", () => {
+    expect(
+      unscannedEdgesReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, within: /^\.\/core\// }),
+    ).toEqual([
+      { file: "./core/run/start.ts", specifier: "../values/x.mts", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "./gone.js", form: "value" },
+    ]);
+  });
+});
+
+describe("specifierImportsReached", () => {
+  const sources = {
+    "./core/run/start.ts": `import { createRequire } from "node:module";
+import legacy from "module";
+const loaded = await import("node:module");
+import { z } from "zod";
+import { p } from "./module.ts";
+`,
+    "./core/run/module.ts": "export const p = 1;\n",
+    "./core/held/h.ts": 'import legacy from "module";\n',
+  };
+
+  it("lists each import or load in the reached files whose specifier matches, as written, and none in files it cannot enter", () => {
+    expect(
+      specifierImportsReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, specifier: /^(?:node:)?module$/ }),
+    ).toEqual([
+      { file: "./core/run/start.ts", specifier: "node:module", form: "value" },
+      { file: "./core/run/start.ts", specifier: "module", form: "value" },
+      { file: "./core/run/start.ts", specifier: "node:module", form: "dynamic" },
+    ]);
+  });
+});
+
+describe("the loads the guards read, by the syntax and not by the text", () => {
+  const sources = {
+    "./core/run/forms.ts": `const concatenated = await import("../values/" + "x.ts");
+const escapedString = await import("../verd\\x69ct/x.ts");
+const backtick = await import(\`../verdict/b.ts\`);
+const escapedBacktick = await import(\`../verd\\x69ct/c.ts\`);
+const commented = await import(/* note */ "../verdict/d.ts");
+const required = require(\`../verdict/e.ts\`);
+const sampleText = "import('../verdict/f.ts')";
+// import("../verdict/g.ts")
+`,
+  };
+  const request = { sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/verdict\// };
+
+  it("lists a load into a watched folder however its path is written, an escape, a backtick or a comment in the call included, and none that sits in a string or a comment", () => {
+    expect(importEdgesLeaving({ ...request, reaching: /^\.\/core\/verdict\// })).toEqual([
+      { file: "./core/run/forms.ts", specifier: "../verdict/x.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/b.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/c.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/d.ts", form: "dynamic" },
+      { file: "./core/run/forms.ts", specifier: "../verdict/e.ts", form: "dynamic" },
+    ]);
+  });
+
+  it("lists a load whose path is built by concatenation by its exact text, so it is pinned and not read as a relative path", () => {
+    expect(unresolvedLoadsReached(request)).toEqual([
+      { file: "./core/run/forms.ts", specifier: `"../values/" + "x.ts"`, form: "dynamic" },
     ]);
   });
 });

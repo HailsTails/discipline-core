@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
+import type { StandaloneRunner } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
@@ -22,6 +23,7 @@ import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
 import { packageConfigRootCountOf } from "./checks-config-roots.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
+import { conformedCases, loadedPieceClauseOf } from "./eslint-conform.ts";
 import { honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
 import { checksPluginImportOf, type ProjectionFailure, projectedChecksOf } from "./projected-checks.ts";
 import { projectionState } from "./projection.ts";
@@ -30,7 +32,10 @@ import { scriptOptionJudge } from "./script-option-effect.ts";
 
 type Outcome<Value> = Result<Value, ChecksRunFailure>;
 
-export type ChecksRunner = { readonly run: (request: ChecksRunRequest) => Promise<Outcome<ChecksRunReport>> };
+export type ChecksRunner = {
+  readonly run: (request: ChecksRunRequest) => Promise<Outcome<ChecksRunReport>>;
+  readonly conform: StandaloneRunner["conform"];
+};
 
 const NO_FINDINGS = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [] };
 
@@ -235,6 +240,14 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
 
 export const checksRunnerOver = (request: { readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
   run: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
+  conform: (conform) =>
+    conformedCases({
+      clause: conform.clause,
+      cases: conform.cases,
+      path: request.ports.path,
+      eslint: request.ports.eslint,
+      loadedPlugin: ({ configured }) => loadedPieceClauseOf({ configured, modules: request.ports.modules }),
+    }),
 });
 
 export const createChecksRunner = (platform: EslintPlatformPorts): ChecksRunner =>

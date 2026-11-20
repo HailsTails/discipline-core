@@ -1,4 +1,4 @@
-import { checkCommandOutcome } from "../core/command-line/command-outcome.ts";
+import { checkCommandOutcome } from "../core/check/check-command-outcome.ts";
 import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import type { ExitCode } from "../core/platform-ports/process-port.ts";
 import type { Result } from "../core/values/result.ts";

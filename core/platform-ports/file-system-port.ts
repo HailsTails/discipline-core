@@ -1,6 +1,7 @@
-import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
+import { failureDetailOf as failureDetail } from "./failure-detail.ts";
 
 export type FilePresence = "present" | "absent";
 
@@ -44,9 +45,6 @@ const presenceAfterAccessFailure = (request: { readonly thrown: unknown }): File
   request.thrown instanceof Error && "code" in request.thrown && request.thrown.code === NO_SUCH_FILE_CODE
     ? "absent"
     : "present";
-
-const failureDetail = (request: { readonly thrown: unknown }): string =>
-  request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
 
 export const createFileTextPort = (options: {
   readonly fileSystem: FileSystemSurface;
@@ -136,6 +134,14 @@ const defaultFileRemovalSurface: FileRemovalSurface = {
 
 export const createDefaultFileRemovalPort = (_options: Record<string, never>): FileRemovalPort =>
   createFileRemovalPort({ fileSystem: defaultFileRemovalSurface });
+
+export const removeEmptyDirectory = (request: { readonly path: AbsolutePath }): void => {
+  rmdirSync(request.path);
+};
+
+export const createFileExclusively = (request: { readonly path: AbsolutePath; readonly text: string }): void => {
+  writeFileSync(request.path, request.text, { flag: "wx" });
+};
 
 export type DirectoryEntry = {
   readonly name: string;

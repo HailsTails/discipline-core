@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { CaseVerdict } from "../../../core/mechanism-port/runner-result-schema.ts";
+import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -13,6 +14,7 @@ import {
   conformedCases,
   configuredClause,
   type LoadedClause,
+  loadedPieceClauseOf,
   type Outcome,
   parsedPluginOf,
   pluginOf,
@@ -131,6 +133,27 @@ describe("pluginOf", () => {
 
   it("is piece-invalid with the load's detail when the plugin did not parse", () => {
     expect(pluginOf({ parsed: { outcome: "failed", error: { detail: "Cannot find module" } }, configured: CONFIGURED })).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "Cannot find module" },
+    });
+  });
+});
+
+describe("loadedPieceClauseOf", () => {
+  const loading = (loaded: Awaited<ReturnType<ModuleLoaderPort["load"]>>) => ({ load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue(loaded) });
+
+  it("loads the configured clause's plugin module from its path and joins the plugin to the clause", async () => {
+    const modules = loading({ outcome: "ok", value: { default: PLUGIN } });
+    await expect(loadedPieceClauseOf({ configured: CONFIGURED, modules })).resolves.toEqual({
+      outcome: "ok",
+      value: { ...CONFIGURED, plugin: { rules: { "no-class-authoring": { meta: { type: "problem" }, create: expect.any(Function) } } } },
+    });
+    expect(modules.load).toHaveBeenCalledExactlyOnceWith({ path: "/install/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts" });
+  });
+
+  it("is piece-invalid with the loader's detail when the module does not load", async () => {
+    const modules = loading({ outcome: "failed", error: { kind: "module-unloadable", path: "/p.ts", detail: "Cannot find module" } });
+    await expect(loadedPieceClauseOf({ configured: CONFIGURED, modules })).resolves.toEqual({
       outcome: "failed",
       error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "Cannot find module" },
     });
