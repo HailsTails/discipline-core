@@ -1,7 +1,6 @@
 import { createDefaultExceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
-import { versionOneAwareRecordsSourceOf } from "../upgrade/version-one-at-base/base-standing-records-source.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
 import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
@@ -9,6 +8,7 @@ import { versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
 import { versionTwoNeededCommandOf } from "../run/version-two-needed-command.ts";
 import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "../run/version-two-record-commands.ts";
 import { installedStagesOver } from "../run/version-two-repository.ts";
+import { versionOneAwareRecordsSourceOf } from "../upgrade/version-one-at-base/base-standing-records-source.ts";
 import { parseInvocation } from "../command-line/command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "../command-line/command-line.ts";

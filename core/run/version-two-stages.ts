@@ -49,7 +49,7 @@ const settingsStage = (request: StagesRequest & { readonly catalogue: SymptomCat
 const recordsStage = (request: StagesRequest & { readonly catalogue: SymptomCatalogue }): Result<RecordsReading, RunLoadFailure> => {
   const { fileText, path, directory, git, gitTree, recordsSourceOf } = request.ports;
   const read = readHoneRecords({
-    source: recordsSourceOf({ fileText, path, directory, git, gitTree, repoRoot: request.locations.repoRoot }),
+    source: recordsSourceOf({ fileText, path, directory, git, gitTree, repoRoot: request.locations.repoRoot, catalogue: request.catalogue }),
     catalogue: request.catalogue,
     baseRevision: request.locations.baseRevision,
   });

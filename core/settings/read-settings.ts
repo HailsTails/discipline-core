@@ -5,11 +5,11 @@ import type { ClauseExceptions, ClauseSettingDeclarations } from "../rule-set-re
 import type { CatalogueHolding } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { AnchorKind } from "../values/anchor.ts";
-import { type ClauseAddress, TOOL_RULE_SET } from "../values/clause-address.ts";
+import type { ClauseAddress } from "../values/clause-address.ts";
 import type { ClauseEditions } from "../values/edition.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { Result } from "../values/result.ts";
-import { type CheckChoiceRefusal, type ChosenClause, checkChoicesOf, type RuleSetCatalogue } from "./check-choices.ts";
+import { type CheckChoiceRefusal, type ChosenClause, checkChoicesOf, type RuleSetCatalogue, sameRuleSet } from "./check-choices.ts";
 import { settledCheckSettings } from "./check-settings.ts";
 import type { ConventionKey, Conventions } from "./conventions.ts";
 import { everyOk } from "./every-ok.ts";
@@ -81,15 +81,12 @@ type BoundClause = {
 
 type SourcesRequest = { readonly sources: SettingsSources; readonly file: SettingsFile };
 
-const ruleSetText = (request: { readonly ruleSet: ClauseAddress["ruleSet"] }): string =>
-  request.ruleSet === TOOL_RULE_SET ? TOOL_RULE_SET : request.ruleSet.name;
-
 const ruleSetsListed = (request: { readonly file: SettingsFile }): readonly ClauseAddress["ruleSet"][] => {
   const ruleSets = [...request.file.checks.map((listed) => listed.address), ...request.file.checkSettings.map((given) => given.address)].map(
     (address) => address.ruleSet,
   );
   return ruleSets.filter(
-    (ruleSet, index) => ruleSets.findIndex((earlier) => ruleSetText({ ruleSet: earlier }) === ruleSetText({ ruleSet })) === index,
+    (ruleSet, index) => ruleSets.findIndex((earlier) => sameRuleSet({ left: earlier, right: ruleSet }) === "same") === index,
   );
 };
 

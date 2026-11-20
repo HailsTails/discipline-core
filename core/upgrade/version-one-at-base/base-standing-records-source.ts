@@ -1,45 +1,48 @@
 import { z } from "zod";
-import type { AbsolutePath } from "../../values/absolute-path.ts";
 import type { RecordsDocument } from "../../records/hone-record.ts";
 import type { RecordsSourceOf } from "../../records/records-folder.ts";
 import type { RecordsSource } from "../../records/records-source.ts";
-import { RECORDS_VERSION, recordsDocumentSchema } from "../../records/records-wire.ts";
-import type { ReadonlyJsonValue } from "../../values/json-value.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import { clauseAddressSchema, TOOL_RULE_SET } from "../../values/clause-address.ts";
+import type { AbsolutePath } from "../../values/absolute-path.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRepository } from "../version-one-records/exception-records.ts";
+import { type RecordInput, mappedRecords } from "../version-two-mapping/records-mapping.ts";
 import { type VersionOneEntries, type VersionOneEntry, versionOneEntriesOf } from "./version-one-entries.ts";
 
-const recordSchema = z.record(z.string(), z.json());
+const authorisedLocationEntrySchema = z.object({
+  kind: z.literal("authorised-location"),
+  clause: clauseAddressSchema,
+  file: repoPathSchema,
+});
 
-const carriedReachSchema = z.object({ carried: z.object({ clause: z.string(), file: z.string() }) });
-
-const entriesCarriedBy = (request: { readonly record: z.core.util.JSONType; readonly entries: readonly VersionOneEntry[] }): readonly VersionOneEntry[] => {
-  const reach = carriedReachSchema.safeParse(request.record);
-  return reach.success
-    ? request.entries.filter((entry) => entry.clause === reach.data.carried.clause && entry.file === reach.data.carried.file)
+const inputsOf = (request: { readonly entry: VersionOneEntry }): readonly RecordInput[] => {
+  const parsed = authorisedLocationEntrySchema.safeParse(request.entry);
+  return parsed.success
+    ? [{ kind: "authorised-location", record: { clause: parsed.data.clause, file: parsed.data.file }, entry: request.entry }]
     : [];
 };
 
-const recordsAtBaseOf = (request: { readonly head: RecordsDocument; readonly entries: readonly VersionOneEntry[] }): readonly ReadonlyJsonValue[] => {
-  const document = recordsDocumentSchema.safeParse(request.head.document);
-  return document.success
-    ? document.data.records.flatMap((record) => {
-        const parsed = recordSchema.safeParse(record);
-        return parsed.success ? entriesCarriedBy({ record, entries: request.entries }).map((carried) => ({ ...parsed.data, carried })) : [];
-      })
-    : [];
+const documentsMappedFrom = (request: {
+  readonly entries: readonly VersionOneEntry[];
+  readonly catalogues: readonly RuleSetCatalogue[];
+}): readonly RecordsDocument[] => {
+  const { catalogues } = request;
+  const inputs = request.entries.flatMap((entry) => inputsOf({ entry }));
+  const mappable = inputs.filter((input) => mappedRecords({ inputs: [input], catalogues }).outcome === "ok");
+  const mapped = mappedRecords({ inputs: mappable, catalogues });
+  return mapped.outcome === "ok" ? mapped.value.documents.map(({ file, version, records }) => ({ file, document: { version, records } })) : [];
 };
 
-const synthesisedDocumentOf = (request: { readonly head: RecordsDocument; readonly entries: readonly VersionOneEntry[] }): readonly RecordsDocument[] => {
-  const records = recordsAtBaseOf(request);
-  return records.length === 0 ? [] : [{ file: request.head.file, document: { version: RECORDS_VERSION, records } }];
-};
-
-export const baseStandingRecordsSource = (request: { readonly source: RecordsSource; readonly entries: VersionOneEntries }): RecordsSource => ({
+export const baseStandingRecordsSource = (request: {
+  readonly source: RecordsSource;
+  readonly entries: VersionOneEntries;
+  readonly catalogues: readonly RuleSetCatalogue[];
+}): RecordsSource => ({
   read: request.source.read,
   readAt: ({ revision }) => {
     const base = request.source.readAt({ revision });
-    const head = request.source.read();
-    if (base.outcome === "failed" || head.outcome === "failed") {
+    if (base.outcome === "failed") {
       return base;
     }
     const entries = request.entries.atBase({ revision });
@@ -47,11 +50,8 @@ export const baseStandingRecordsSource = (request: { readonly source: RecordsSou
       return entries;
     }
     const heldAtBase = new Set(base.value.map(({ file }) => file));
-    const absentAtBase = head.value.filter(({ file }) => !heldAtBase.has(file));
-    return {
-      outcome: "ok",
-      value: [...base.value, ...absentAtBase.flatMap((document) => synthesisedDocumentOf({ head: document, entries: entries.value }))],
-    };
+    const absentAtBase = documentsMappedFrom({ entries: entries.value, catalogues: request.catalogues }).filter(({ file }) => !heldAtBase.has(file));
+    return { outcome: "ok", value: [...base.value, ...absentAtBase] };
   },
 });
 
@@ -63,4 +63,5 @@ export const versionOneAwareRecordsSourceOf = (request: {
     baseStandingRecordsSource({
       source: request.recordsSourceOf(folder),
       entries: versionOneEntriesOf({ repository: request.exceptionRepositoryOf({ repoRoot: folder.repoRoot }) }),
+      catalogues: [{ ruleSet: TOOL_RULE_SET, catalogue: folder.catalogue }],
     });

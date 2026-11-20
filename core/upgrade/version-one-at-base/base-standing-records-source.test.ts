@@ -1,30 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
+import { SETTINGS_CATALOGUE } from "../../../tests/settings-catalogue.ts";
+import { carriedStandingOf } from "../../records/carried-standing.ts";
 import type { RecordsDocument } from "../../records/hone-record.ts";
 import type { RecordsSource } from "../../records/records-source.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
+import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRepository } from "../version-one-records/exception-records.ts";
 import { baseStandingRecordsSource, versionOneAwareRecordsSourceOf } from "./base-standing-records-source.ts";
 import type { VersionOneEntries } from "./version-one-entries.ts";
 
-const DEBT_FILE = repoPathSchema.parse("hone-records/debt/loop-keyword.json");
+const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
 
-const OTHER_FILE = repoPathSchema.parse("hone-records/debt/rebinding.json");
+const LOOP_KEYWORD_AUTHORISED = repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json");
 
-const BASE_ENTRY = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop" } as const;
+const REBINDING_AUTHORISED = repoPathSchema.parse("hone-records/authorised-locations/rebinding.json");
 
-const EDITED_ENTRY = { ...BASE_ENTRY, reason: "legacy loop, kept" } as const;
+const LOOPS_ENTRY = { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "kept" } as const;
 
-const headDocumentCarrying = (request: { readonly carried: object }): RecordsDocument => ({
-  file: DEBT_FILE,
-  document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: request.carried }] },
-});
+const TEST_BODY_ENTRY = { kind: "authorised-location", clause: "CD-27#test-body-logic", file: "src/a.ts", reason: "the tests need it" } as const;
 
-const sourceReading = (request: {
-  readonly head: ReturnType<RecordsSource["read"]>;
-  readonly base: ReturnType<RecordsSource["readAt"]>;
-}): RecordsSource => ({
-  read: vi.fn<RecordsSource["read"]>().mockReturnValue(request.head),
+const LOOPS_DOCUMENT: RecordsDocument = {
+  file: LOOP_KEYWORD_AUTHORISED,
+  document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY }] },
+};
+
+const NO_DOCUMENTS = { outcome: "ok", value: [] } as const;
+
+const sourceReadingBase = (request: { readonly base: ReturnType<RecordsSource["readAt"]> }): RecordsSource => ({
+  read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [] }),
   readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue(request.base),
 });
 
@@ -32,50 +37,70 @@ const entriesAtBase = (request: { readonly read: ReturnType<VersionOneEntries["a
   atBase: vi.fn<VersionOneEntries["atBase"]>().mockReturnValue(request.read),
 });
 
-const NO_DOCUMENTS = { outcome: "ok", value: [] } as const;
+const readAtBaseHolding = (request: {
+  readonly entries: ReturnType<VersionOneEntries["atBase"]>;
+  readonly base: ReturnType<RecordsSource["readAt"]>;
+}) =>
+  baseStandingRecordsSource({
+    source: sourceReadingBase({ base: request.base }),
+    entries: entriesAtBase({ read: request.entries }),
+    catalogues: CATALOGUES,
+  }).readAt({ revision: "origin/main" });
 
-describe("baseStandingRecordsSource", () => {
-  it("gives the base a document of the carried record with the version 1 entry the base held in place of the carried one", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({
-      outcome: "ok",
-      value: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: BASE_ENTRY }] } }],
-    });
+const readAtBaseWith = (request: { readonly entries: ReturnType<VersionOneEntries["atBase"]> }) =>
+  readAtBaseHolding({ entries: request.entries, base: NO_DOCUMENTS });
+
+describe("baseStandingRecordsSource writing the records the base's version 1 entries would have become", () => {
+  it("writes an authorised location as a record at the one check of its clause, carrying the entry word for word", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [LOOPS_ENTRY] } })).toEqual({ outcome: "ok", value: [LOOPS_DOCUMENT] });
   });
 
-  it("gives the base the entry as the base held it, so a carried entry edited since then differs from it", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: EDITED_ENTRY })] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({
-      outcome: "ok",
-      value: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: BASE_ENTRY }] } }],
-    });
-  });
-
-  it("gives every base entry of the carried record's clause and file, one record each", () => {
-    const authorised = { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "kept" } as const;
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY, authorised] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({
+  it("writes an authorised location of a two-check clause as a record at each of its checks, in the file of each check's symptom", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [TEST_BODY_ENTRY] } })).toEqual({
       outcome: "ok",
       value: [
         {
-          file: DEBT_FILE,
+          file: LOOP_KEYWORD_AUTHORISED,
+          document: { version: 2, records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
+        },
+        {
+          file: REBINDING_AUTHORISED,
+          document: { version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
+        },
+      ],
+    });
+  });
+
+  it("writes nothing at the checks of another clause, so a record there finds nothing at the base to match", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [LOOPS_ENTRY] } })).not.toEqual({
+      outcome: "ok",
+      value: expect.arrayContaining([expect.objectContaining({ file: REBINDING_AUTHORISED })]),
+    });
+  });
+
+  it("writes the record at the entry's own file, so a record at another file finds nothing at the base to match", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [{ ...LOOPS_ENTRY, file: "src/b.ts" }] } })).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          file: LOOP_KEYWORD_AUTHORISED,
+          document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } }] },
+        },
+      ],
+    });
+  });
+
+  it("writes one record for each entry the base held, in the order they were read", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [LOOPS_ENTRY, { ...LOOPS_ENTRY, file: "src/b.ts" }] } })).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          file: LOOP_KEYWORD_AUTHORISED,
           document: {
             version: 2,
             records: [
-              { symptom: "loop-keyword#loops", file: "src/a.ts", carried: BASE_ENTRY },
-              { symptom: "loop-keyword#loops", file: "src/a.ts", carried: authorised },
+              { symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY },
+              { symptom: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } },
             ],
           },
         },
@@ -83,103 +108,123 @@ describe("baseStandingRecordsSource", () => {
     });
   });
 
-  it("leaves a file the base already holds as a version 2 document as the base holds it", () => {
-    const held: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [] } };
+  it("writes nothing for a file carve-out, whose debt records depend on which checks the version 1 run credited", () => {
     expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: { outcome: "ok", value: [held] } }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({ outcome: "ok", value: [held] });
+      readAtBaseWith({
+        entries: {
+          outcome: "ok",
+          value: [{ kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", provenance: { kind: "inherited-debt", source: "old", decision: "keep" } }],
+        },
+      }),
+    ).toEqual(NO_DOCUMENTS);
   });
 
-  it("keeps the documents of other files the base holds beside the synthesised one", () => {
-    const held: RecordsDocument = { file: OTHER_FILE, document: { version: 2, records: [] } };
+  it("writes nothing for a clause-wide carve-out", () => {
     expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: { outcome: "ok", value: [held] } }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({
+      readAtBaseWith({ entries: { outcome: "ok", value: [{ kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "generated", whyChain: "kept" }] } }),
+    ).toEqual(NO_DOCUMENTS);
+  });
+
+  it("writes nothing for an authorised location whose clause has no check in the catalogue", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [{ ...LOOPS_ENTRY, clause: "CD-99#unknown" }] } })).toEqual(NO_DOCUMENTS);
+  });
+
+  it("writes nothing for an entry whose clause or file does not parse", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [{ ...LOOPS_ENTRY, clause: "not a clause" }, { ...LOOPS_ENTRY, file: "/absolute.ts" }] } })).toEqual(
+      NO_DOCUMENTS,
+    );
+  });
+
+  it("still writes the entries that map when another entry of the base does not", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [{ ...LOOPS_ENTRY, clause: "CD-99#unknown" }, LOOPS_ENTRY] } })).toEqual({
       outcome: "ok",
-      value: [held, { file: DEBT_FILE, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: BASE_ENTRY }] } }],
+      value: [LOOPS_DOCUMENT],
+    });
+  });
+});
+
+describe("baseStandingRecordsSource beside the records the base already holds", () => {
+  it("leaves a file the base already holds as a version 2 document as the base holds it", () => {
+    const held: RecordsDocument = { file: LOOP_KEYWORD_AUTHORISED, document: { version: 2, records: [] } };
+    expect(readAtBaseHolding({ entries: { outcome: "ok", value: [LOOPS_ENTRY] }, base: { outcome: "ok", value: [held] } })).toEqual({ outcome: "ok", value: [held] });
+  });
+
+  it("keeps the documents of other files the base holds beside the written one", () => {
+    const held: RecordsDocument = { file: REBINDING_AUTHORISED, document: { version: 2, records: [] } };
+    expect(readAtBaseHolding({ entries: { outcome: "ok", value: [LOOPS_ENTRY] }, base: { outcome: "ok", value: [held] } })).toEqual({
+      outcome: "ok",
+      value: [held, LOOPS_DOCUMENT],
     });
   });
 
-  it("gives nothing for a stated record, which carries no version 1 entry", () => {
+  it("fails as the source did when it cannot read the base, and reads no entries", () => {
     expect(
-      baseStandingRecordsSource({
-        source: sourceReading({
-          head: { outcome: "ok", value: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy" }] } }] },
-          base: NO_DOCUMENTS,
-        }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual(NO_DOCUMENTS);
-  });
-
-  it("gives nothing for a carried record whose clause and file no base entry has", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: { ...BASE_ENTRY, file: "src/elsewhere.ts" } })] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual(NO_DOCUMENTS);
-  });
-
-  it("gives nothing for a head file that is not a records document", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [{ file: DEBT_FILE, document: { records: [] } }] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual(NO_DOCUMENTS);
-  });
-
-  it("returns what the source read at the base when the head cannot be read", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "failed", error: { kind: "records-folder-unreadable", folder: repoPathSchema.parse("hone-records"), detail: "denied" } }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [BASE_ENTRY] } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual(NO_DOCUMENTS);
-  });
-
-  it("fails as the source did when it cannot read the base", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [] }, base: { outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "unknown revision" } } }),
-        entries: entriesAtBase({ read: { outcome: "ok", value: [] } }),
-      }).readAt({ revision: "origin/main" }),
+      readAtBaseHolding({
+        entries: { outcome: "ok", value: [LOOPS_ENTRY] },
+        base: { outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "unknown revision" } },
+      }),
     ).toEqual({ outcome: "failed", error: { kind: "git-failed", command: "git ls-tree", detail: "unknown revision" } });
   });
 
-  it("fails with the git failure that stopped the version 1 entries being read at the base", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: NO_DOCUMENTS }),
-        entries: entriesAtBase({ read: { outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad object" } } }),
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({ outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad object" } });
+  it("fails with the git failure that stopped the version 1 entries being read at the base, never treating them as absent", () => {
+    expect(readAtBaseWith({ entries: { outcome: "failed", error: { kind: "git-failed", command: "git show", detail: "bad object" } } })).toEqual({
+      outcome: "failed",
+      error: { kind: "git-failed", command: "git show", detail: "bad object" },
+    });
   });
 
   it("reads the head as the source does", () => {
-    const head = { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] } as const;
-    expect(
-      baseStandingRecordsSource({ source: sourceReading({ head, base: NO_DOCUMENTS }), entries: entriesAtBase({ read: { outcome: "ok", value: [] } }) }).read(),
-    ).toEqual(head);
+    const source = sourceReadingBase({ base: NO_DOCUMENTS });
+    expect(baseStandingRecordsSource({ source, entries: entriesAtBase({ read: NO_DOCUMENTS }), catalogues: CATALOGUES }).read).toBe(source.read);
+  });
+});
+
+describe("baseStandingRecordsSource and what a carried record stands on", () => {
+  const stands = (request: { readonly entry: Parameters<typeof carriedStandingOf>[0]["entry"] }) =>
+    carriedStandingOf({ base: { measured: "yes", documents: [LOOPS_DOCUMENT] }, file: LOOP_KEYWORD_AUTHORISED, entry: request.entry });
+
+  it("establishes the record the upgrade wrote from the entry, on its check and its file", () => {
+    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({ outcome: "ok", value: "established" });
+  });
+
+  it("refuses the same entry carried on another check", () => {
+    expect(stands({ entry: { symptom: "rebinding#test-body", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "carried-changed-since-base" }],
+    });
+  });
+
+  it("refuses the same entry carried at another file", () => {
+    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/other.ts", carried: LOOPS_ENTRY } })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "carried-changed-since-base" }],
+    });
+  });
+
+  it("refuses a debt record with a note the base never held, even on the entry's check and file", () => {
+    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", note: "a new reason", carried: LOOPS_ENTRY } })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "carried-changed-since-base" }],
+    });
+  });
+
+  it("refuses the entry edited since the base", () => {
+    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", carried: { ...LOOPS_ENTRY, reason: "edited" } } })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "carried-changed-since-base" }],
+    });
   });
 });
 
 describe("versionOneAwareRecordsSourceOf", () => {
-  it("builds the source for a repository from the factory it wraps and the version 1 repository of the same root", () => {
+  it("builds the source for a repository from the factory it wraps, the version 1 repository of the same root and the catalogue given", () => {
     const repoRoot = absolutePathSchema.parse("/repo");
     const repository: Pick<ExceptionRepository, "readAt"> = {
-      readAt: vi.fn<ExceptionRepository["readAt"]>().mockReturnValue({ outcome: "ok", value: [BASE_ENTRY] }),
+      readAt: vi.fn<ExceptionRepository["readAt"]>().mockReturnValue({ outcome: "ok", value: [LOOPS_ENTRY] }),
     };
     const exceptionRepositoryOf = vi.fn<(request: { readonly repoRoot: typeof repoRoot }) => Pick<ExceptionRepository, "readAt">>().mockReturnValue(repository);
     const source = versionOneAwareRecordsSourceOf({
-      recordsSourceOf: () => sourceReading({ head: { outcome: "ok", value: [headDocumentCarrying({ carried: BASE_ENTRY })] }, base: NO_DOCUMENTS }),
+      recordsSourceOf: () => sourceReadingBase({ base: NO_DOCUMENTS }),
       exceptionRepositoryOf,
     })({
       fileText: { exists: vi.fn(), read: vi.fn() },
@@ -188,11 +233,9 @@ describe("versionOneAwareRecordsSourceOf", () => {
       git: { textInBase: vi.fn() },
       gitTree: { pathsAt: vi.fn() },
       repoRoot,
+      catalogue: SETTINGS_CATALOGUE,
     });
-    expect(source.readAt({ revision: "origin/main" })).toEqual({
-      outcome: "ok",
-      value: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: BASE_ENTRY }] } }],
-    });
+    expect(source.readAt({ revision: "origin/main" })).toEqual({ outcome: "ok", value: [LOOPS_DOCUMENT] });
     expect(exceptionRepositoryOf).toHaveBeenCalledWith({ repoRoot });
   });
 });
