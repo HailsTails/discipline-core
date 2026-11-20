@@ -60,5 +60,6 @@ export const runSelfCheck: CommandHandler = toolCommandOf({
     "prune-debt": runPruneDebtCommand,
     authorise: TOOL_SUBCOMMANDS.authorise,
     "split-records": runSplitRecordsCommand,
+    upgrade: TOOL_SUBCOMMANDS.upgrade,
   },
 });

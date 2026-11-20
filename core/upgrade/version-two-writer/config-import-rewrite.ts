@@ -42,6 +42,11 @@ const projectionImportsOf = (request: ConfigImportRewriteRequest): readonly Proj
     ({ specifier }) => resolvedPathOf({ directory: directoryOf({ file: request.file }), specifier }) === request.versionOneProjection,
   );
 
+export type ProjectionImporting = "imports" | "does-not-import";
+
+export const projectionImportingOf = (request: ConfigImportRewriteRequest): ProjectionImporting =>
+  projectionImportsOf(request).length > 0 ? "imports" : "does-not-import";
+
 const mentionsOf = (request: { readonly text: string; readonly name: string }): number => request.text.split(request.name).length - 1;
 
 const nameOf = (request: { readonly path: RepoPath }): string => request.path.slice(request.path.lastIndexOf(PATH_SEPARATOR) + 1);

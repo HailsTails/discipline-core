@@ -41,7 +41,6 @@ const TEAM_CONFIG = { file: repoPathSchema.parse("eslint.config.mjs"), text: 'im
 
 const READING: VersionOneReading = {
   selection: SELECTION,
-  records: [CARVE_OUT],
   heads: [CARVE_OUT_HEAD],
   teamConfig: TEAM_CONFIG,
   versionOneProjection: repoPathSchema.parse("disciplines.eslint.mjs"),
@@ -127,6 +126,13 @@ describe("upgradePlanOf", () => {
     expect(upgradePlanOf(requestOver({ reading: { ...READING, teamConfig: { ...TEAM_CONFIG, text: "export default [];\n" } } }))).toEqual({
       outcome: "failed",
       error: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: "eslint.config.mjs" } },
+    });
+  });
+
+  it("plans no replacement when version 1 had no projection to import", () => {
+    expect(upgradePlanOf(requestOver({ reading: { ...READING, versionOneProjection: undefined } }))).toEqual({
+      outcome: "ok",
+      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], replacement: undefined },
     });
   });
 

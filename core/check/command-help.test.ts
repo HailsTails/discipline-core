@@ -12,6 +12,7 @@ commands:
   prune-debt     remove from the exception records each stale or forfeited file carve-out whose file no longer exists or whose clause its mechanism measured on that file with nothing left to hold it, printing each pair removed
   authorise      write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
+  upgrade        move a version 1 repository to version 2: write hone.config.json, the hone-records folder and the projection, check that version 2 reports what version 1 reported, then remove the version 1 files
 
 options:
   --help, -h  print this help; after a command, print that command's help
@@ -88,7 +89,28 @@ exit codes:
   2  a load failure: the records could not be read, placed or written, or Hone failed unexpectedly
 `;
 
+const UPGRADE_HELP = `usage: hone upgrade --repo <dir>
+
+move a version 1 repository to version 2: write hone.config.json, the hone-records folder and the projection, check that version 2 reports what version 1 reported, then remove the version 1 files
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root
+  --help, -h
+      print this help
+
+exit codes:
+  0  the repository was upgraded, or is already on version 2
+  1  the upgrade was refused, and the repository was left as it was
+  2  a load failure: an input could not be loaded, or Hone failed unexpectedly
+  3  version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit
+`;
+
 describe("helpText", () => {
+  it("gives the upgrade command its usage, its one option and its four exit codes", () => {
+    expect(helpText({ topic: "upgrade" })).toBe(UPGRADE_HELP);
+  });
+
   it("gives the split-records command its usage, what it does, its one option and its exit codes", () => {
     expect(helpText({ topic: "split-records" })).toBe(SPLIT_RECORDS_HELP);
   });
@@ -129,7 +151,7 @@ describe("helpText", () => {
 describe("SYNOPSIS", () => {
   it("lists each command's usage, then the tool's own flags", () => {
     expect(SYNOPSIS).toBe(
-      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>\nhone split-records --repo <dir>\nhone --help\nhone --version\n",
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>\nhone split-records --repo <dir>\nhone upgrade --repo <dir>\nhone --help\nhone --version\n",
     );
   });
 });

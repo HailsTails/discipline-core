@@ -1,0 +1,184 @@
+import type { CommandRequest } from "../../check/run-check-command.ts";
+import { type CheckRequest, runCheck } from "../../check/run-check.ts";
+import { createSelectionRepository, readRunSettings } from "../../consumer-selection/consumer-selection.ts";
+import { type UpgradeArguments, parseUpgradeArguments } from "../../command-line/command-arguments.ts";
+import { type CommandOutcome, loadFailureOutcome } from "../../command-line/command-outcome.ts";
+import type { LoadFailure } from "../../command-line/load-failure.ts";
+import { printOutcome } from "../../command-line/print-outcome.ts";
+import type { DirectoryRemovalPort } from "../../platform-ports/directory-removal-port.ts";
+import type { FileCreationPort } from "../../platform-ports/file-creation-port.ts";
+import type { FileRemovalPort } from "../../platform-ports/file-removal-port.ts";
+import type { EntryKindPort } from "../../platform-ports/file-system-port.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "../../run/version-two-repository.ts";
+import { versionTwoRunOver } from "../../run/version-two-run.ts";
+import { assessmentInEffect } from "../../values/assessment.ts";
+import { moduleExtensionOf } from "../../values/install-layout.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
+import type { Result } from "../../values/result.ts";
+import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
+import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
+import type { ProjectionTextOf } from "../proof/upgrade-plan.ts";
+import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.ts";
+import { proofRunsOf } from "./proof-runs.ts";
+import { shippedCataloguesOf } from "./shipped-catalogues.ts";
+import { type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
+import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "./upgrade-success-text.ts";
+import { type VersionOneRead, versionOneReadOf } from "./version-one-reading.ts";
+
+export type ProjectionSupply = {
+  readonly versionTwoProjection: RepoPath;
+  readonly projectionTextOf: ProjectionTextOf;
+};
+
+export type UpgradePorts = VersionTwoRepositoryPorts & {
+  readonly fileCreation: FileCreationPort;
+  readonly fileRemoval: FileRemovalPort;
+  readonly directoryRemoval: DirectoryRemovalPort;
+  readonly entryKind: EntryKindPort;
+  readonly projection: ProjectionSupply;
+};
+
+type Located = RepositoryLocated & { readonly arguments: UpgradeArguments };
+
+type Prepared = {
+  readonly check: CheckRequest;
+  readonly read: VersionOneRead;
+  readonly catalogues: readonly RuleSetCatalogue[];
+};
+
+type Stopped = CommandOutcome | UpgradeFailureOutcome;
+
+const locatedOf = (request: { readonly command: CommandRequest }): Result<Located, LoadFailure> => {
+  const parsed = parseUpgradeArguments({ arguments: request.command.process.arguments });
+  if (parsed.outcome === "failed") {
+    return parsed;
+  }
+  const located = repositoryLocatedOf({ command: request.command, repo: parsed.value.repo });
+  return located.outcome === "failed" ? located : { outcome: "ok", value: { ...located.value, arguments: parsed.value } };
+};
+
+const stoppedByLoad = (request: { readonly failure: LoadFailure }): Result<never, Stopped> => ({
+  outcome: "failed",
+  error: loadFailureOutcome({ failure: request.failure }),
+});
+
+const checkRequestOf = (request: { readonly command: CommandRequest; readonly located: Located }): Result<CheckRequest, LoadFailure> => {
+  const { command, located } = request;
+  const { repoRoot, installRoot } = located;
+  const moduleExtension = moduleExtensionOf({ moduleUrl: command.moduleUrl });
+  const configured = readRunSettings({ fileText: command.fileText, path: command.path, repoRoot });
+  if (configured.outcome === "failed") {
+    return configured;
+  }
+  return {
+    outcome: "ok",
+    value: {
+      repoRoot,
+      installRoot,
+      moduleExtension,
+      baseRevision: undefined,
+      assessment: assessmentInEffect({ requested: { forfeiture: undefined }, configured: configured.value.assessment }),
+      fileText: command.fileText,
+      modules: command.modules,
+      path: command.path,
+      git: command.git,
+      selectionRepository: createSelectionRepository({ repoRoot, installRoot, moduleExtension, fileText: command.fileText, path: command.path }),
+      exceptionRepository: command.exceptionRepositoryOf({ repoRoot }),
+    },
+  };
+};
+
+const preparedOf = (request: { readonly command: CommandRequest; readonly located: Located }): Result<Prepared, Stopped> => {
+  const { command, located } = request;
+  const check = checkRequestOf(request);
+  if (check.outcome === "failed") {
+    return stoppedByLoad({ failure: check.error });
+  }
+  const tracked = command.git.trackedPaths({ repoRoot: located.repoRoot });
+  if (tracked.outcome === "failed") {
+    return stoppedByLoad({ failure: { kind: "git-failed", detail: `${tracked.error.command}: ${tracked.error.detail}` } });
+  }
+  const catalogues = shippedCataloguesOf({ fileText: command.fileText, path: command.path, installRoot: located.installRoot });
+  if (catalogues.outcome === "failed") {
+    return stoppedByLoad({ failure: catalogues.error });
+  }
+  const read = versionOneReadOf({
+    repoRoot: located.repoRoot,
+    fileText: command.fileText,
+    path: command.path,
+    selectionRepository: check.value.selectionRepository,
+    exceptionRepository: check.value.exceptionRepository,
+    trackedPaths: tracked.value,
+  });
+  return read.outcome === "failed"
+    ? { outcome: "failed", error: upgradeFailureOutcomeOf({ failure: read.error }) }
+    : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value } };
+};
+
+const proofRequestOf = (request: {
+  readonly ports: UpgradePorts;
+  readonly command: CommandRequest;
+  readonly located: Located;
+  readonly prepared: Prepared;
+}): UpgradeProofRequest => {
+  const { ports, command, located, prepared } = request;
+  return {
+    ports: {
+      fileText: command.fileText,
+      fileCreation: ports.fileCreation,
+      fileRemoval: ports.fileRemoval,
+      directory: ports.directory,
+      directoryRemoval: ports.directoryRemoval,
+      entryKind: ports.entryKind,
+      path: command.path,
+    },
+    oracle: createAnsweringOracle({ enginePass: createVersionOneEnginePass({ check: prepared.check }), catalogues: prepared.catalogues }),
+    runs: proofRunsOf({
+      versionOne: () => runCheck(prepared.check),
+      versionTwo: () =>
+        versionTwoRunOver({
+          stages: stagesOverRepository({ ports, command, located, baseRevision: undefined }),
+          arguments: { forfeiture: undefined, reportOutput: undefined, measuring: "when-debt-held" },
+        }),
+    }),
+    reading: prepared.read.reading,
+    versionOneFiles: prepared.read.versionOneFiles,
+    catalogues: prepared.catalogues,
+    repoRoot: located.repoRoot,
+    versionTwoProjection: ports.projection.versionTwoProjection,
+    projectionTextOf: ports.projection.projectionTextOf,
+  };
+};
+
+const provedOutcomeOf = async (request: {
+  readonly ports: UpgradePorts;
+  readonly command: CommandRequest;
+  readonly located: Located;
+  readonly prepared: Prepared;
+}): Promise<Stopped> => {
+  const carried = await upgradeProof(proofRequestOf(request));
+  return carried.outcome === "failed"
+    ? upgradeFailureOutcomeOf({ failure: carried.error })
+    : upgradeSuccessOutcomeOf({ carried: carried.value, repoRoot: request.located.repoRoot, path: request.command.path });
+};
+
+const upgradeOutcomeOf = async (request: { readonly ports: UpgradePorts; readonly command: CommandRequest }): Promise<Stopped> => {
+  const located = locatedOf(request);
+  if (located.outcome === "failed") {
+    return loadFailureOutcome({ failure: located.error });
+  }
+  const prepared = preparedOf({ command: request.command, located: located.value });
+  return prepared.outcome === "failed" ? prepared.error : provedOutcomeOf({ ...request, located: located.value, prepared: prepared.value });
+};
+
+export const upgradeCommandOf =
+  (ports: UpgradePorts) =>
+  async (command: CommandRequest): Promise<void> => {
+    printOutcome({ process: command.process, outcome: await upgradeOutcomeOf({ ports, command }) });
+  };
+
+export const alreadyUpgradedCommand = (command: CommandRequest): Promise<void> => {
+  printOutcome({ process: command.process, outcome: ALREADY_ON_VERSION_TWO });
+  return Promise.resolve();
+};

@@ -25,7 +25,7 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 
 ## Commands
 
-The package ships one command, `hone`, with six subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone; `prune-debt` runs when the check names it, to remove the records of debt that is paid; `split-records` runs once, when a repository moves its records to [the split layout](#the-split-layout):
+The package ships one command, `hone`, with seven subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone; `prune-debt` runs when the check names it, to remove the records of debt that is paid; `split-records` runs once, when a repository moves its records to [the split layout](#the-split-layout); `upgrade` runs once, to move a version 1 repository to version 2:
 
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
@@ -34,6 +34,7 @@ hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
 hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
 hone split-records --repo <dir>
+hone upgrade --repo <dir>
 hone --help
 hone --version
 ```

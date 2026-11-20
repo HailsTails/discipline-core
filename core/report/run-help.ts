@@ -1,6 +1,6 @@
-import { AUTHORISE_COMMAND_OPTIONS, type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../command-line/command-line.ts";
+import { AUTHORISE_COMMAND_OPTIONS, COMMANDS, type CommandOption, type CommandSpec, HELP_FLAGS, UPGRADE_SUBCOMMAND, VERSION_FLAG } from "../command-line/command-line.ts";
 import { RECORDS_FOLDER } from "../records/records-layout.ts";
-import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
+import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
@@ -35,11 +35,6 @@ const REPO_OPTION: CommandOption = {
   need: "required",
   occurrence: "once",
   summary: `the folder that holds ${SETTINGS_FILE_NAME}, usually the repository root`,
-};
-
-const UPGRADE_REPO_OPTION: CommandOption = {
-  ...REPO_OPTION,
-  summary: `the folder that holds ${VERSION_ONE_SETTINGS_FILE_NAME}, usually the repository root; upgrade writes ${SETTINGS_FILE_NAME} beside it`,
 };
 
 const BASE_REVISION_OPTION: CommandOption = {
@@ -124,14 +119,7 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
       { code: 2, meaning: `${LOAD_FAILURE_EXIT}, the records could not be written, or Hone failed unexpectedly` },
     ],
   },
-  upgrade: {
-    summary: `rewrite version 1 files as version 2: ${VERSION_ONE_SETTINGS_FILE_NAME} as ${SETTINGS_FILE_NAME} and the exception records as ${RECORDS_FOLDER}, printing each file as written or removed`,
-    options: [UPGRADE_REPO_OPTION],
-    exits: [
-      { code: 0, meaning: "every version 1 file was rewritten, or none was found" },
-      { code: 2, meaning: "a load failure: a version 1 file could not be read or a version 2 file written, or Hone failed unexpectedly" },
-    ],
-  },
+  upgrade: COMMANDS[UPGRADE_SUBCOMMAND],
 };
 
 const alignedEntries = (request: { readonly entries: readonly HelpEntry[] }): readonly string[] => {

@@ -46,6 +46,7 @@ import type { Case, Principle, Recipe, RecordKind, Rule, Symptom } from "../core
 import type { Verdict } from "../core/verdict/verdict.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, reportLinesOf } from "./output-contract.ts";
+import { UPGRADE_LINES } from "./printable-upgrade-lines.ts";
 
 type EveryKind<Union extends { readonly kind: string }> = {
   readonly [Kind in Union["kind"]]: Extract<Union, { readonly kind: Kind }>;
@@ -962,6 +963,7 @@ export const PRINTABLE_LINES: readonly PrintedLine[] = [
   ...RECORD_DEBT_LINES,
   ...PRUNE_DEBT_LINES,
   ...SPLIT_RECORDS_LINES,
+  ...UPGRADE_LINES,
   ...VERSION_LINES,
 ];
 
