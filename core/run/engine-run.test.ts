@@ -221,6 +221,14 @@ describe("loadedEngineOf", () => {
     });
   });
 
+  it("fails as an invalid runner when the module's checks runner exports no conform", async () => {
+    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined) };
+    expect(await loadedWith({ mechanism: ESLINT, loaded: { outcome: "ok", value: { runner: STANDALONE, checksRunner } } })).toEqual({
+      outcome: "failed",
+      error: { kind: "runner-invalid", mechanism: ESLINT, detail: "✖ Invalid input: expected function, received undefined\n  → at checksRunner.conform" },
+    });
+  });
+
   it("fails as an invalid runner, in the loader's words, when the module cannot be loaded", async () => {
     const unloadable: ModuleLoad = { outcome: "failed", error: { kind: "module-unloadable", path: "/install/mechanisms/eslint/runner/runner.ts", detail: "Cannot find module" } };
     expect(await loadedWith({ mechanism: ESLINT, loaded: unloadable })).toEqual({

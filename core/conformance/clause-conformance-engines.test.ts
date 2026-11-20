@@ -126,9 +126,16 @@ describe("clauseConformanceOf, by the kind of engine the runner module declares"
 
   it("reports the checks runner's own failure to reproduce a case", async () => {
     const checks = { ...checksRunner(), conform: vi.fn<LoadedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [{ caseName: "scratch file", flaggedLines: [] }, { caseName: "ordinary file", flaggedLines: [] }] }) };
-    await expect(conformanceOver({ runner: embeddedRunner(), checksRunner: checks })).resolves.toMatchObject({
+    await expect(conformanceOver({ runner: embeddedRunner(), checksRunner: checks })).resolves.toEqual({
       outcome: "ok",
-      value: [{ caseName: "scratch file" }],
+      value: [
+        {
+          caseName: "scratch file",
+          clause: { clause: "scratch-files", discipline: "ACME-2", ruleSet: { name: "acme" } },
+          expectedLines: [1],
+          flaggedLines: [],
+        },
+      ],
     });
   });
 
@@ -145,10 +152,13 @@ describe("clauseConformanceOf, by the kind of engine the runner module declares"
   });
 
   it("is runner-unloadable when the checks runner exports no conform", async () => {
-    const { conform: _unused, ...withoutConform } = checksRunner();
-    await expect(conformanceOver({ runner: embeddedRunner(), checksRunner: withoutConform })).resolves.toMatchObject({
+    const withoutConform = { projectedKinds: [], run: vi.fn<LoadedRunner["run"]>() };
+    await expect(conformanceOver({ runner: embeddedRunner(), checksRunner: withoutConform })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "runner-unloadable" },
+      error: {
+        kind: "runner-unloadable",
+        detail: "runner-invalid audit ✖ Invalid input: expected function, received undefined\\n  → at checksRunner.conform",
+      },
     });
   });
 });
