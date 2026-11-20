@@ -467,3 +467,164 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 | `split-records` | `<path> removed` |
 | `split-records` | `<path> already holds the records split: nothing to split` |
 | `split-records` | `<path> holds no records: nothing to split` |
+
+# Version 2
+
+Everything above this heading is the 1.x contract, and stays as it is for every 1.x release. This part lists what a version 2 run prints: the report of `hone check` on a repository that keeps `hone.config.json` and `hone-records/`. Version 2 is not released yet, and no command prints this report until the release that switches the run over. The same test that holds the tables above to what 1.x prints holds the tables in this part to what the version 2 report prints, reading this part on its own.
+
+The streams, exit codes, output modes, verdict lines and heading lines are the same as in 1.x. What changes is the vocabulary: a check address `<symptom>#<check>` where 1.x printed a clause address, an engine where it printed a mechanism, and the five record kinds where it printed exception records.
+
+## What a tool can parse in version 2
+
+A tool can rely on these from 2.0.0, and a change to any of them is a major release:
+
+- the section names, their order and roles, the heading and count lines, and the four verdict lines;
+- in each line below, the fixed words and values up to the first value that may hold a space, and the single spaces between them. For a finding, that is its check address and engine; for a record, what it holds, its kind and the start of its site; for a refused or carried record, its records file and index, then the refusal's kind or the record's standing.
+
+These are not stable: the words after the `:` that ends an `unmeasured` or `projectionProblems` line's leading fields, the `symptoms` lines, the `notes` lines, the words of a ` note: ` on a record, the words of a refusal after its kind's values, and a finding's `<fix>`.
+
+## Values in version 2
+
+| Value | Printed as | Space |
+| --- | --- | --- |
+| `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address | never |
+| `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, the mechanism id | never |
+| `<symptom>`, `<recipe>`, `<case name>` | a name in the symptom catalogue | never |
+| `<outside party>`, `<dependency>` | a boundary record's outside party, such as `runtime:clock`, `node:fs` or `uuid/v4`, and a dependency record's package name | never |
+| `<records file>`, `<belongs in>` | a records file under `hone-records/`, named for its kind and symptom or recipe | never |
+| `<index>` | a record's place in its records file's `records`, counting from 0 | never |
+| `<standing>` | `established`, a carried record unchanged against the base revision, or `unjudged`, one this run could not compare | never |
+| `<convention>` | a key of `hone.config.json` that no check reads yet: `conventions.generated` or `layers` | never |
+| `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x | may hold a space |
+| `<snippet>`, `<fix>`, `<section>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
+| `<case>`, `<owes>`, `<given>`, `<reason>`, `<revision>`, `<git message>` | text as written in a record, the command or git, as a JSON string in double quotes | may hold a space |
+| `<issues>` | each problem the record's form has, as its key's path (`record` for the record itself) then `: ` and what is wrong, separated by `; ` | may hold a space |
+| `<lacks>` | the keys a carried record lacks, separated by `, ` | may hold a space |
+
+## The version 2 report
+
+`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; an informational or guidance section never does, so a note, an answered finding, a carried record or a symptom never fails a run.
+
+| Section | Role | What it lists |
+| --- | --- | --- |
+| `excluded` | informational | paths that `exclude` in `hone.config.json` leaves out |
+| `notAdopted` | informational | checks marked `not-adopted` |
+| `notRun` | informational | checks marked `not-run` |
+| `editions` | informational | the edition each check ran, for checks with more than one edition |
+| `findings` | failing | each place a check sees its symptom, unanswered |
+| `answered` | informational | findings a record answers, with the records that answer them |
+| `uncovered` | failing | checks neither listed nor marked |
+| `stale` | failing | records that answer no finding and hold no native exception |
+| `forfeited` | failing | debt on files this change touched |
+| `unrecorded` | failing | native exceptions no record holds |
+| `doublyHeld` | failing | debt whose symptom and file another record also holds |
+| `refused` | failing | records that cannot be read or applied |
+| `unmeasured` | failing | what this run could not measure |
+| `projectionProblems` | failing | ESLint projections that are out of date |
+| `assessment` | informational | concerns this run left to another run |
+| `notes` | informational | what `hone.config.json` declares that no check reads yet |
+| `carried` | informational | records carried from version 1 word for word, with what each lacks |
+| `symptoms` | guidance | one note for each symptom the findings name |
+
+The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-only`.
+
+| Line | Template |
+| --- | --- |
+| `heading` | `<section> (<count>)` |
+| `heading` | `<section> (<count>) informational` |
+| `heading` | `<section> (<count>) guidance` |
+| `verdict` | `verdict: pass` |
+| `verdict` | `verdict: fail` |
+| `verdict` | `verdict: pass (partial assessment)` |
+| `verdict` | `verdict: fail (partial assessment)` |
+
+## Version 2 report lines
+
+A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and a doubly held debt repeats ` also held by <reference>` once for each other record that holds it. A record that is stale or forfeited prints as its `<subject>`. A native exception prints one line for each check of its clause that runs on its engine.
+
+| Section | Line |
+| --- | --- |
+| `excluded` | `<path>` |
+| `notAdopted` | `<check>` |
+| `notRun` | `<check> adopted, engine not run: enforced by review` |
+| `editions` | `<check> <engine> edition <edition> of <latest>` |
+| `findings` | `<check> <engine> <file>:<line>:<column> <snippet> may indicate: <indicated>` |
+| `findings` | `<check> <engine> <file>:<line>:<column> <snippet> may indicate: <indicated> fix: <fix> (<fix page>#<section>)` |
+| `findings` | `<check> <engine> <file>:<line>:<column> <snippet>` |
+| `findings` | `<check> <engine> <file>:<line>:<column> <snippet> fix: <fix> (<fix page>#<section>)` |
+| `answered` | `<check> <engine> <file>:<line>:<column> <snippet> answered by <reference>` |
+| `uncovered` | `<check>` |
+| `stale` | `<subject>` |
+| `forfeited` | `<subject>` |
+| `unrecorded` | `<check> <engine> ignore <file>` |
+| `unrecorded` | `<check> <engine> config-override <file>` |
+| `unrecorded` | `<check> <engine> suppression-entry <file> <suppressions file>` |
+| `unrecorded` | `<check> <engine> inline-disable <file>:<line> <comment>` |
+| `unrecorded` | `<check> <engine> inline-disable <file>:<line> <comment> names no rule and escapes every selected check: naming the rule is the cheap fix` |
+| `unrecorded` | `<check> <engine> inline-rule-config <file>:<line> <comment>` |
+| `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option> weakens the script's whole run, so no record can cover it: remove it from the script` |
+| `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as <invocation>` |
+| `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <wrapper> comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` |
+| `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: a quote in the script has no partner, so Hone cannot read what the script passes to <command> or tell what that does to the files under check; pair every quote in the script` |
+| `doublyHeld` | `<subject> also held by <reference>` |
+| `refused` | `<records file> records[<index>] form-refused <issues>` |
+| `refused` | `<records file> records[<index>] unknown-symptom <given>` |
+| `refused` | `<records file> records[<index>] unknown-recipe <given>` |
+| `refused` | `<records file> records[<index>] recipe-reason-not-the-catalogues <recipe>: the catalogue gives its reason as <reason>` |
+| `refused` | `<records file> records[<index>] named-ban <dependency>` |
+| `refused` | `<records file> records[<index>] unknown-runtime-facility <outside party>` |
+| `refused` | `<records file> records[<index>] misplaced <belongs in>` |
+| `refused` | `<records file> records[<index>] not-a-records-name <given>` |
+| `refused` | `<records file> records[<index>] carried-changed-since-base` |
+| `refused` | `<records file> records[<index>] duplicate of <records file> records[<earlier index>]` |
+| `unmeasured` | `forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
+| `unmeasured` | `forfeiture-unmeasured base-git-failed <revision>: git could not list the files changed since that revision and said <git message>; Hone needs that revision and the history back to where this branch left it, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
+| `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
+| `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read hone-records at that revision and said <git message>; Hone needs hone-records as it was at that revision` |
+| `unmeasured` | `engine-not-run <engine> missing: hone.<engine>.mjs is not written; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
+| `projectionProblems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `projectionProblems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `projectionProblems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `projectionProblems` | `<engine> not-applied <slice>: the <engine> configuration for <folder> leaves records of that slice out of effect; spread the default export of <slice> last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
+| `projectionProblems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
+| `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
+| `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |
+| `notes` | `<convention> is declared; no check reads it yet` |
+| `carried` | `<records file> records[<index>] <standing> lacks <lacks>` |
+| `carried` | `<records file> records[<index>] <standing>` |
+| `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. Recipe: <recipe title>. <answers>. Read <symptom page>#<symptom>` |
+| `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. Recipes: <recipe titles>. <answers>. Read <symptom page>#<symptom>` |
+| `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. <answers>. Read <symptom page>#<symptom>` |
+
+In `symptoms`, `<answers>` is one sentence for each correct use the symptom has, then one for known debt, which every symptom takes: the situation, capitalised, then `: `, the record kind that expresses it, and where it sits when the catalogue says.
+
+## Version 2 record subjects and references
+
+A record is named by its `<subject>` in `stale`, `forfeited` and `doublyHeld`, and by its `<reference>` beside a finding it answers or a debt it also holds. An authorised location whose case or owes the catalogue does not list prints a ` note: ` after it, wherever it is named: the record is still read and still answers, and the note never changes the verdict.
+
+| Part | Text |
+| --- | --- |
+| `subject` | `<symptom> debt <file>` |
+| `subject` | `<symptom> debt <file> carried` |
+| `subject` | `<symptom> authorised-location <file>` |
+| `subject` | `<symptom> authorised-location <file> carried` |
+| `subject` | `<symptom> authorised-location <file> note: the catalogue has no case <case>, owing <owes>` |
+| `subject` | `<symptom> authorised-location <file> note: <case name> does not owe <owes>` |
+| `subject` | `<recipe> deviation <file>` |
+| `subject` | `<outside party> boundary-record <module>` |
+| `subject` | `<outside party> boundary-record <module> carried` |
+| `subject` | `<dependency> dependency-record` |
+| `reference` | `debt` |
+| `reference` | `debt carried` |
+| `reference` | `authorised-location` |
+| `reference` | `authorised-location carried` |
+| `reference` | `authorised-location note: the catalogue has no case <case>, owing <owes>` |
+| `reference` | `authorised-location note: <case name> does not owe <owes>` |
+| `reference` | `deviation <recipe>` |
+| `reference` | `boundary-record <outside party>` |
+| `reference` | `boundary-record <outside party> carried` |
+| `reference` | `dependency-record <dependency>` |
