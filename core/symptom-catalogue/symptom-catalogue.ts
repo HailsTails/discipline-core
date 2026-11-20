@@ -87,7 +87,7 @@ export type SymptomReading =
   | { readonly reading: "sees-no-symptom" }
   | { readonly reading: "not-in-catalogue" };
 
-const pointedNameOf = (request: { readonly point: Pointed }): string =>
+export const pointedNameOf = (request: { readonly point: Pointed }): string =>
   request.point.kind === "rule" ? request.point.rule.name : request.point.principle.name;
 
 export const indicatedNamesOf = (request: { readonly symptom: Symptom }): readonly string[] => [
