@@ -30,7 +30,7 @@ const pointedTitleOf = (request: { readonly point: Pointed }): string =>
   request.point.kind === "rule" ? request.point.rule.title : request.point.principle.title;
 
 const indicationText = (request: { readonly indication: Indication }): string =>
-  `${lowerFirst({ text: request.indication.case })} → ${request.indication.points.map((point) => pointedTitleOf({ point })).join(", ")}`;
+  `${lowerFirst({ text: request.indication.case.title })} → ${request.indication.points.map((point) => pointedTitleOf({ point })).join(", ")}`;
 
 const recipeSentence = (request: { readonly symptom: Symptom }): string => {
   const titles = request.symptom.recipes.map((recipe) => recipe.title);

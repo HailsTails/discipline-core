@@ -9,13 +9,13 @@ Each rule passes two tests: it names no language feature, and the other rules to
 ### Written-out answers
 
 - **What must hold:** Every collaborator whose result the code under test uses is passed in; the test writes out each result it gives back, and checks what the code returns and every call it makes.
-- **Cases served:** Uses what a collaborator gives back; Causes an effect.
+- **Cases served:** Uses what a collaborator gives back; Causes an effect (writes, logs, sends, exits).
 - **Source:** Meszaros calls this Literal Value: the test states its inputs and answers in place.
 
 ### Straight-through tests
 
 - **What must hold:** A test runs straight through: each case is distinct and complete, its input and expected output are written out in it as typed values, nothing in the test builds or picks them, nothing in it branches or catches, and no code of ours runs but the code under test.
-- **Cases served:** States what the unit gives back; Checks a value that may be one of several outcomes.
+- **Cases served:** States what the unit gives back, for one case or several; Checks a value that may be one of several outcomes.
 - **Source:** Meszaros names branching in a test Conditional Test Logic; this rule removes it.
 
 ### Tested where it's owned
@@ -37,7 +37,7 @@ Both halves answer one reason to change, which test owns a behaviour, so it stay
 ### Handed what it uses
 
 - **What must hold:** A unit is handed only what it uses: a port holds only the methods its one consumer calls; a doer takes only the fields it reads, or the entity whose module it is in; an orchestrator may pass an entity whole.
-- **Cases served:** Does one job; Gives a value its type.
+- **Cases served:** Does one job; Gives a value its type (declares it, or needs it narrower).
 - **Source:** This is dependency injection, as Fowler describes it, serving Martin's DIP.
 
 ### Guard first
@@ -71,7 +71,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Ports declared inside
 
 - **What must hold:** Business logic declares every port it is handed and names it for the capability it needs, never for the mechanism behind it.
-- **Cases served:** Uses a system or service outside the program; Causes an effect.
+- **Cases served:** Uses a system or service outside the program; Causes an effect (writes, logs, sends, exits).
 - **Source:** Martin's DIP: the abstraction belongs to the side that uses it.
 
 The clock, random values, new ids and outside ordering are a case: the principle plus Ports declared inside give it. An outside dependency is not wrapped: it is used inside the boundary that needs it.
@@ -91,7 +91,7 @@ No rule. The principle, now covering data and failures, plus One reason per modu
 ### Declared, not asserted
 
 - **What must hold:** A value's type comes only from a declaration of our own, never derived from an implementation, or from a parse at a boundary; no code of ours claims a type the checker does not verify.
-- **Cases served:** Gives a value its type.
+- **Cases served:** Gives a value its type (declares it, or needs it narrower).
 - **Source:** King's parse, don't validate.
 
 ### Kinds are named

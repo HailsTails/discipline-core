@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Finding } from "../governance/governance.ts";
-import type { Principle, Recipe, RecordKind, Rule, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, Recipe, RecordKind, Rule, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -30,13 +30,41 @@ const STRAIGHT_THROUGH_TESTS: Rule = { name: "straight-through-tests", title: "S
 
 const HANDED_WHAT_IT_USES: Rule = { name: "handed-what-it-uses", title: "Handed what it uses", principle: TESTS_ARE_OURS, standing: "accepted" };
 
-const WORLD_VALUES_THROUGH_A_PORT: Recipe = { name: "world-values-through-a-port", title: "World values through a port", standing: "accepted" };
+const NEEDS_THE_CURRENT_TIME: Case = {
+  name: "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering",
+  title: "Needs the current time, a random value, a new id or an outside ordering",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: PORTS_DECLARED_INSIDE }],
+};
 
-const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted" };
+const DOES_ONE_JOB: Case = { name: "does-one-job", title: "Does one job", standing: "accepted", owes: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] };
 
-const ITEACH_OVER_TYPED_ROWS: Recipe = { name: "iteach-over-typed-rows", title: "it.each over typed rows", standing: "accepted" };
+const CHECKS_A_VALUE: Case = {
+  name: "checks-a-value-that-may-be-one-of-several-outcomes",
+  title: "Checks a value that may be one of several outcomes",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }],
+};
 
-const RESULT_UNION: Recipe = { name: "result-union", title: "Result union", standing: "accepted" };
+const USES_WHAT_A_COLLABORATOR_GIVES_BACK: Case = {
+  name: "uses-what-a-collaborator-gives-back",
+  title: "Uses what a collaborator gives back",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: WRITTEN_OUT_ANSWERS }],
+};
+
+const WORLD_VALUES_THROUGH_A_PORT: Recipe = {
+  name: "world-values-through-a-port",
+  title: "World values through a port",
+  standing: "accepted",
+  reason: { text: "\"the world reaches a unit through a port\"", standing: "accepted" },
+};
+
+const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted", reason: { text: "\"it narrows the type\"", standing: "accepted" } };
+
+const ITEACH_OVER_TYPED_ROWS: Recipe = { name: "iteach-over-typed-rows", title: "it.each over typed rows", standing: "accepted", reason: { text: "\"each row is a case\"", standing: "accepted" } };
+
+const RESULT_UNION: Recipe = { name: "result-union", title: "Result union", standing: "accepted", reason: { text: "\"it makes the output clear\"", standing: "accepted" } };
 
 const BOUNDARY_RECORD: RecordKind = { name: "boundary-record", title: "Boundary record", phrase: "a boundary record", todaysFormat: "authorised-location" };
 
@@ -57,13 +85,13 @@ const DATE_USED_DIRECTLY: Symptom = {
   seen: "Any use of `Date` outside the places that handle dates.",
   mayIndicate: [
     {
-      case: "Needs the current time",
+      case: NEEDS_THE_CURRENT_TIME,
       points: [
         { kind: "rule", rule: PORTS_DECLARED_INSIDE },
         { kind: "rule", rule: WRITTEN_OUT_ANSWERS },
       ],
     },
-    { case: "Does one job", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+    { case: DOES_ONE_JOB, points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
   ],
   breachUsuallySits: "in the unit that should be passed the time, often a doer doing two jobs",
   recipes: [WORLD_VALUES_THROUGH_A_PORT],
@@ -76,7 +104,7 @@ const BRANCH_IN_A_TEST: Symptom = {
   seen: "`if` in a test file.",
   mayIndicate: [
     {
-      case: "Checks a value that may be one of several outcomes",
+      case: CHECKS_A_VALUE,
       points: [
         { kind: "rule", rule: STRAIGHT_THROUGH_TESTS },
         { kind: "principle", principle: NO_HIDDEN_EFFECTS },
@@ -92,7 +120,7 @@ const DOUBLE_WITH_A_BODY: Symptom = {
   name: "double-with-a-body",
   title: "Double with a body",
   seen: "A double that has a function body.",
-  mayIndicate: [{ case: "Uses what a collaborator gives back", points: [{ kind: "rule", rule: HANDED_WHAT_IT_USES }] }],
+  mayIndicate: [{ case: USES_WHAT_A_COLLABORATOR_GIVES_BACK, points: [{ kind: "rule", rule: HANDED_WHAT_IT_USES }] }],
   breachUsuallySits: "in a port too wide",
   recipes: [],
   correctUses: [
@@ -104,9 +132,11 @@ const DOUBLE_WITH_A_BODY: Symptom = {
 const CATALOGUE: SymptomCatalogue = {
   principles: [NO_HIDDEN_EFFECTS, TESTS_ARE_OURS],
   rules: [PORTS_DECLARED_INSIDE, WRITTEN_OUT_ANSWERS, DOER_OR_ORCHESTRATOR, STRAIGHT_THROUGH_TESTS, HANDED_WHAT_IT_USES],
+  cases: [NEEDS_THE_CURRENT_TIME, DOES_ONE_JOB, CHECKS_A_VALUE, USES_WHAT_A_COLLABORATOR_GIVES_BACK],
   recipes: [WORLD_VALUES_THROUGH_A_PORT, ASSERT_TO_NARROW, ITEACH_OVER_TYPED_ROWS, RESULT_UNION],
   recordKinds: [AUTHORISED_LOCATION, BOUNDARY_RECORD, DEBT, DEVIATION],
   alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+  engines: [],
   symptoms: [DATE_USED_DIRECTLY, BRANCH_IN_A_TEST, DOUBLE_WITH_A_BODY],
   clauses: [
     { clause: clauseAddressSchema.parse("CD-17#clock-sources"), sight: { kind: "one-symptom", symptom: DATE_USED_DIRECTLY } },
@@ -122,6 +152,8 @@ const CATALOGUE: SymptomCatalogue = {
     },
     { clause: clauseAddressSchema.parse("CD-9#result-failures"), sight: { kind: "method", recipe: RESULT_UNION, outcomeSeenBy: [DATE_USED_DIRECTLY] } },
   ],
+  checks: [],
+  namedBans: [],
 };
 
 const GUIDE: CatalogueGuide = { guide: "catalogue", catalogue: CATALOGUE, page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md" };
@@ -182,7 +214,7 @@ const METHOD_FINDING: Finding = {
 };
 
 const CLOCK_NOTE =
-  "date-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly";
+  "date-used-directly: Date used directly. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly";
 
 const BRANCH_NOTE =
   "branch-in-a-test: Branch in a test. May indicate: checks a value that may be one of several outcomes → Straight-through tests, No hidden effects. The breach usually sits in the unit's output type, where optional or loose shapes force the test to branch. Recipes: Assert to narrow; it.each over typed rows. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#branch-in-a-test";

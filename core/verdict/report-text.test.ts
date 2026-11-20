@@ -9,7 +9,7 @@ import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
-import type { Principle, Recipe, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, Recipe, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import { renderGuidedReportText, renderReportText } from "./report-text.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "./symptom-notes.ts";
 
@@ -1158,7 +1158,21 @@ const WRITTEN_OUT_ANSWERS: Rule = { name: "written-out-answers", title: "Written
 
 const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
 
-const WORLD_VALUES_THROUGH_A_PORT: Recipe = { name: "world-values-through-a-port", title: "World values through a port", standing: "accepted" };
+const NEEDS_THE_CURRENT_TIME: Case = {
+  name: "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering",
+  title: "Needs the current time, a random value, a new id or an outside ordering",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: AT_A_BOUNDARY }],
+};
+
+const DOES_ONE_JOB: Case = { name: "does-one-job", title: "Does one job", standing: "accepted", owes: [{ kind: "principle", principle: ONE_PLACE_DECIDES }] };
+
+const WORLD_VALUES_THROUGH_A_PORT: Recipe = {
+  name: "world-values-through-a-port",
+  title: "World values through a port",
+  standing: "accepted",
+  reason: { text: "\"the world reaches a unit through a port\"", standing: "accepted" },
+};
 
 const BOUNDARY_RECORD: RecordKind = { name: "boundary-record", title: "Boundary record", phrase: "a boundary record", todaysFormat: "authorised-location" };
 
@@ -1177,13 +1191,13 @@ const DATE_USED_DIRECTLY: Symptom = {
   seen: "Any use of `Date` outside the places that handle dates.",
   mayIndicate: [
     {
-      case: "Needs the current time",
+      case: NEEDS_THE_CURRENT_TIME,
       points: [
         { kind: "rule", rule: PORTS_DECLARED_INSIDE },
         { kind: "rule", rule: WRITTEN_OUT_ANSWERS },
       ],
     },
-    { case: "Does one job", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+    { case: DOES_ONE_JOB, points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
   ],
   breachUsuallySits: "in the unit that should be passed the time, often a doer doing two jobs",
   recipes: [WORLD_VALUES_THROUGH_A_PORT],
@@ -1196,11 +1210,15 @@ const clockGuide: SymptomGuide = {
   catalogue: {
     principles: [TESTS_ARE_OURS, AT_A_BOUNDARY, ONE_PLACE_DECIDES],
     rules: [PORTS_DECLARED_INSIDE, WRITTEN_OUT_ANSWERS, DOER_OR_ORCHESTRATOR],
+    cases: [NEEDS_THE_CURRENT_TIME, DOES_ONE_JOB],
     recipes: [WORLD_VALUES_THROUGH_A_PORT],
     recordKinds: [AUTHORISED_LOCATION, BOUNDARY_RECORD, DEBT],
     alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    engines: [],
     symptoms: [DATE_USED_DIRECTLY],
     clauses: [{ clause: CLOCK_SOURCES, sight: { kind: "one-symptom", symptom: DATE_USED_DIRECTLY } }],
+    checks: [],
+    namedBans: [],
   },
 };
 
@@ -1215,7 +1233,7 @@ describe("renderGuidedReportText", () => {
         report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
       }),
     ).toBe(
-      "findings (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now(); symptom: date-used-directly, may indicate: ports-declared-inside, written-out-answers, doer-or-orchestrator\nreadFirst (2)\ndate-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly\nCD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit\nverdict: fail\n",
+      "findings (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now(); symptom: date-used-directly, may indicate: ports-declared-inside, written-out-answers, doer-or-orchestrator\nreadFirst (2)\ndate-used-directly: Date used directly. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly\nCD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit\nverdict: fail\n",
     );
   });
 

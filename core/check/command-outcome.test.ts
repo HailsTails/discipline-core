@@ -6,7 +6,7 @@ import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../verdict/symptom-notes.ts";
-import type { Principle, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import {
   checkCommandOutcome,
   inheritedDebtLine,
@@ -148,6 +148,13 @@ const ONE_PLACE_DECIDES: Principle = { name: "one-place-decides", title: "One pl
 
 const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
 
+const KEEPS_STATE: Case = {
+  name: "keeps-state-or-settings-across-calls",
+  title: "Keeps state or settings across calls",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: ONE_PLACE_DECIDES }],
+};
+
 const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
 const AUTHORISED_LOCATION: RecordKind = {
@@ -161,7 +168,7 @@ const CLASS_DECLARED: Symptom = {
   name: "class-declared",
   title: "Class declared",
   seen: "A class declaration.",
-  mayIndicate: [{ case: "Holds state", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] }],
+  mayIndicate: [{ case: KEEPS_STATE, points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] }],
   breachUsuallySits: "in the unit that holds state",
   recipes: [],
   correctUses: [],
@@ -173,11 +180,15 @@ const CLASS_GUIDE: SymptomGuide = {
   catalogue: {
     principles: [ONE_PLACE_DECIDES],
     rules: [DOER_OR_ORCHESTRATOR],
+    cases: [KEEPS_STATE],
     recipes: [],
     recordKinds: [AUTHORISED_LOCATION, DEBT],
     alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    engines: [],
     symptoms: [CLASS_DECLARED],
     clauses: [{ clause: clauseAddressSchema.parse("CD-14#class-syntax"), sight: { kind: "one-symptom", symptom: CLASS_DECLARED } }],
+    checks: [],
+    namedBans: [],
   },
 };
 
@@ -205,7 +216,7 @@ describe("guidedCheckCommandOutcome", () => {
       }),
     ).toEqual({
       code: 1,
-      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: holds state → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
+      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: keeps state or settings across calls → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
     });
   });
 

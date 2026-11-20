@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
-import type { RecordKind, Symptom, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { Check, Engine, RecordKind, Symptom, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
-import { catalogueCoverageOf, correctUseNotesOf, formSectionsOf, symptomNamesOf } from "./symptom-catalogue-coverage.ts";
+import { mechanismIdSchema } from "../core/values/identifiers.ts";
+import {
+  catalogueCoverageOf,
+  checkAddressTableOf,
+  checkCoverageOf,
+  correctUseNotesOf,
+  formSectionsOf,
+  symptomNamesOf,
+  unresolvedAddressesOf,
+} from "./symptom-catalogue-coverage.ts";
 
 const RULE_SET_ROOT = absolutePathSchema.parse("/install");
 
@@ -41,11 +50,15 @@ const AUTHORISED_LOCATION: RecordKind = {
 const NOTHING_CATALOGUED: SymptomCatalogue = {
   principles: [],
   rules: [],
+  cases: [],
   recipes: [],
   recordKinds: [AUTHORISED_LOCATION, DEBT],
   alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+  engines: [],
   symptoms: [],
   clauses: [],
+  checks: [],
+  namedBans: [],
 };
 
 const CATALOGUE: SymptomCatalogue = {
@@ -163,11 +176,133 @@ const LOOP_KEYWORD: Symptom = {
   name: "loop-keyword",
   title: "Loop keyword",
   seen: "A for or while statement.",
-  mayIndicate: [{ case: "Builds a value", points: [{ kind: "principle", principle: { name: "one-place-decides", title: "One place decides" } }] }],
+  mayIndicate: [
+    {
+      case: {
+        name: "makes-a-new-value-from-what-it-has",
+        title: "Makes a new value from what it has",
+        standing: "accepted",
+        owes: [{ kind: "principle", principle: { name: "one-place-decides", title: "One place decides" } }],
+      },
+      points: [{ kind: "principle", principle: { name: "one-place-decides", title: "One place decides" } }],
+    },
+  ],
   breachUsuallySits: "in the unit",
   recipes: [],
   correctUses: [{ situation: "draining a stream", kind: AUTHORISED_LOCATION, at: "in its source's adapter" }],
 };
+
+const CD44_MECHANICAL_TEXT = `{
+  "version": 1,
+  "id": "CD-44",
+  "clauses": [
+    {
+      "kind": "mechanical",
+      "id": "parameter-mutation",
+      "summary": "Write into no parameter.",
+      "mechanisms": ["audit"],
+      "anchor": { "kind": "file" },
+      "cases": { "flag": [{ "name": "push", "fileName": "push.ts", "source": "export const append = (list: number[]): void => {\\n  list.push(1);\\n};\\n", "expectedLines": [2] }], "allow": [{ "name": "copy", "fileName": "copy.ts", "source": "export const append = (list: readonly number[]): readonly number[] => [...list, 1];\\n", "expectedLines": [] }] }
+    },
+    {
+      "kind": "mechanical",
+      "id": "parameter-reassignment",
+      "summary": "Rebind no parameter.",
+      "mechanisms": ["eslint"],
+      "anchor": { "kind": "keyword", "keyword": "=" },
+      "cases": { "flag": [{ "name": "assign", "fileName": "bump.ts", "source": "export const bump = (count: number): number => {\\n  count = 2;\\n  return count;\\n};\\n", "expectedLines": [2] }], "allow": [{ "name": "new value", "fileName": "next.ts", "source": "export const next = (count: number): number => count + 1;\\n", "expectedLines": [] }] }
+    },
+    { "kind": "judgement", "id": "parameter-intent", "summary": "Say what a parameter is for.", "enforcedBy": "review" }
+  ]
+}`;
+
+const WALKER: Engine = { name: "walker", mechanism: mechanismIdSchema.parse("audit") };
+
+const ESLINT: Engine = { name: "eslint", mechanism: mechanismIdSchema.parse("eslint") };
+
+const WRITE_INTO_A_PARAMETER = symptomNamed("write-into-a-parameter");
+
+const REBINDING = symptomNamed("rebinding");
+
+const MUTATION_CLAUSE = clauseAddressSchema.parse("CD-44#parameter-mutation");
+
+const REASSIGNMENT_CLAUSE = clauseAddressSchema.parse("CD-44#parameter-reassignment");
+
+const INTENT_CLAUSE = clauseAddressSchema.parse("CD-44#parameter-intent");
+
+const PARAMETER_CLAUSES: SymptomCatalogue["clauses"] = [
+  { clause: MUTATION_CLAUSE, sight: { kind: "one-symptom", symptom: WRITE_INTO_A_PARAMETER } },
+  { clause: REASSIGNMENT_CLAUSE, sight: { kind: "one-symptom", symptom: REBINDING } },
+  { clause: INTENT_CLAUSE, sight: { kind: "one-symptom", symptom: REBINDING } },
+];
+
+const MUTATION_CHECK: Check = { name: "parameter-mutation", symptom: WRITE_INTO_A_PARAMETER, clause: MUTATION_CLAUSE, engines: [WALKER], forms: [] };
+
+const REASSIGNMENT_CHECK: Check = { name: "parameter-reassignment", symptom: REBINDING, clause: REASSIGNMENT_CLAUSE, engines: [ESLINT], forms: [] };
+
+describe("checkCoverageOf", () => {
+  it("names nothing when each mechanical clause has its checks, run by the engines of its mechanisms", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: CD44_MECHANICAL_TEXT });
+    expect(
+      checkCoverageOf({
+        catalogue: { ...NOTHING_CATALOGUED, engines: [WALKER, ESLINT], symptoms: [WRITE_INTO_A_PARAMETER, REBINDING], clauses: PARAMETER_CLAUSES, checks: [MUTATION_CHECK, REASSIGNMENT_CHECK] },
+        fileText,
+        path: pathJoiningTo(DISCIPLINE_PATH),
+        ruleSetRoot: RULE_SET_ROOT,
+        disciplines: ["CD-44"],
+      }),
+    ).toEqual({ unchecked: [], unmechanical: [], engineMismatches: [] });
+    expect(fileText.read).toHaveBeenCalledExactlyOnceWith({ path: DISCIPLINE_PATH });
+  });
+
+  it("names a mechanical clause with no check, a check on a judgement clause, and a check run by engines other than its clause's mechanisms", () => {
+    expect(
+      checkCoverageOf({
+        catalogue: {
+          ...NOTHING_CATALOGUED,
+          engines: [WALKER, ESLINT],
+          symptoms: [WRITE_INTO_A_PARAMETER, REBINDING],
+          clauses: PARAMETER_CLAUSES,
+          checks: [
+            { ...MUTATION_CHECK, engines: [WALKER, ESLINT] },
+            { name: "parameter-intent", symptom: REBINDING, clause: INTENT_CLAUSE, engines: [WALKER], forms: [] },
+          ],
+        },
+        fileText: fileTextReading({ outcome: "ok", value: CD44_MECHANICAL_TEXT }),
+        path: pathJoiningTo(DISCIPLINE_PATH),
+        ruleSetRoot: RULE_SET_ROOT,
+        disciplines: ["CD-44"],
+      }),
+    ).toEqual({
+      unchecked: ["CD-44#parameter-reassignment"],
+      unmechanical: ["rebinding#parameter-intent"],
+      engineMismatches: ["write-into-a-parameter#parameter-mutation"],
+    });
+  });
+});
+
+describe("checkAddressTableOf", () => {
+  it("lists each check's address beside its clause, in catalogue order", () => {
+    expect(checkAddressTableOf({ catalogue: { ...NOTHING_CATALOGUED, checks: [REASSIGNMENT_CHECK, MUTATION_CHECK] } })).toEqual([
+      { address: "rebinding#parameter-reassignment", clause: "CD-44#parameter-reassignment" },
+      { address: "write-into-a-parameter#parameter-mutation", clause: "CD-44#parameter-mutation" },
+    ]);
+  });
+});
+
+describe("unresolvedAddressesOf", () => {
+  it("names nothing when every check's address resolves to it and every clause's checks resolve back to the clause", () => {
+    expect(unresolvedAddressesOf({ catalogue: { ...NOTHING_CATALOGUED, clauses: PARAMETER_CLAUSES, checks: [MUTATION_CHECK, REASSIGNMENT_CHECK] } })).toEqual([]);
+  });
+
+  it("names an address that resolves to an earlier check holding the same address", () => {
+    expect(
+      unresolvedAddressesOf({
+        catalogue: { ...NOTHING_CATALOGUED, clauses: PARAMETER_CLAUSES, checks: [MUTATION_CHECK, { ...MUTATION_CHECK, clause: REASSIGNMENT_CLAUSE }] },
+      }),
+    ).toEqual(["write-into-a-parameter#parameter-mutation"]);
+  });
+});
 
 describe("correctUseNotesOf", () => {
   it("renders the note of each symptom that has a correct use, in catalogue order, and none for a symptom without one", () => {
@@ -176,7 +311,7 @@ describe("correctUseNotesOf", () => {
         guide: { guide: "catalogue", catalogue: { ...NOTHING_CATALOGUED, symptoms: [symptomNamed("rebinding"), LOOP_KEYWORD] }, page: "symptoms.md" },
       }),
     ).toEqual([
-      "loop-keyword: Loop keyword. May indicate: builds a value → One place decides. The breach usually sits in the unit. Draining a stream: an authorised location in its source's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read symptoms.md#loop-keyword",
+      "loop-keyword: Loop keyword. May indicate: makes a new value from what it has → One place decides. The breach usually sits in the unit. Draining a stream: an authorised location in its source's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read symptoms.md#loop-keyword",
     ]);
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
-import type { Principle, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../core/verdict/symptom-notes.ts";
 import { contractGaps, documentedLinesIn, documentedRolesIn, type EntryFills, filledTemplate, reportLinesOf } from "./output-contract.ts";
@@ -45,6 +45,13 @@ const ONE_PLACE_DECIDES: Principle = { name: "one-place-decides", title: "One pl
 
 const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
 
+const MAKES_A_NEW_VALUE: Case = {
+  name: "makes-a-new-value-from-what-it-has",
+  title: "Makes a new value from what it has",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: ONE_PLACE_DECIDES }],
+};
+
 const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
 const AUTHORISED_LOCATION: RecordKind = {
@@ -58,7 +65,7 @@ const LOOP_STATEMENT: Symptom = {
   name: "loop-statement",
   title: "Loop statement",
   seen: "A for or while statement.",
-  mayIndicate: [{ case: "Builds a value", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] }],
+  mayIndicate: [{ case: MAKES_A_NEW_VALUE, points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] }],
   breachUsuallySits: "in the unit that builds the value",
   recipes: [],
   correctUses: [],
@@ -70,11 +77,15 @@ const LOOPS_GUIDE: SymptomGuide = {
   catalogue: {
     principles: [ONE_PLACE_DECIDES],
     rules: [DOER_OR_ORCHESTRATOR],
+    cases: [MAKES_A_NEW_VALUE],
     recipes: [],
     recordKinds: [AUTHORISED_LOCATION, DEBT],
     alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    engines: [],
     symptoms: [LOOP_STATEMENT],
     clauses: [{ clause: clauseAddressSchema.parse("CD-15#loops"), sight: { kind: "one-symptom", symptom: LOOP_STATEMENT } }],
+    checks: [],
+    namedBans: [],
   },
 };
 
@@ -172,7 +183,7 @@ describe("reportLinesOf", () => {
       { label: "heading", text: "readFirst (1)", fills: { section: "readFirst", count: "1" } },
       {
         label: "readFirst",
-        text: "loop-statement: Loop statement. May indicate: builds a value → Doer or orchestrator. The breach usually sits in the unit that builds the value. Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-statement",
+        text: "loop-statement: Loop statement. May indicate: makes a new value from what it has → Doer or orchestrator. The breach usually sits in the unit that builds the value. Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-statement",
         fills: { section: "readFirst", position: "0" },
       },
       { label: "verdict", text: "verdict: fail", fills: {} },

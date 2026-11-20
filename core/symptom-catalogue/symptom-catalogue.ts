@@ -1,6 +1,7 @@
 import type { Finding } from "../governance/governance.ts";
 import type { Remedy } from "../mechanism-port/runner-result-types.ts";
 import { type ClauseAddress, sameClauseAddress } from "../values/clause-address.ts";
+import type { MechanismId } from "../values/identifiers.ts";
 
 export type Standing = "accepted" | "proposed";
 
@@ -12,7 +13,9 @@ export type Principle = { readonly name: string; readonly title: string };
 
 export type Rule = { readonly name: string; readonly title: string; readonly principle: Principle; readonly standing: Standing };
 
-export type Recipe = { readonly name: string; readonly title: string; readonly standing: Standing };
+export type RecipeReason = { readonly text: string; readonly standing: Standing };
+
+export type Recipe = { readonly name: string; readonly title: string; readonly standing: Standing; readonly reason: RecipeReason };
 
 export type RecordKind = {
   readonly name: RecordKindName;
@@ -23,7 +26,9 @@ export type RecordKind = {
 
 export type Pointed = { readonly kind: "rule"; readonly rule: Rule } | { readonly kind: "principle"; readonly principle: Principle };
 
-export type Indication = { readonly case: string; readonly points: readonly Pointed[] };
+export type Case = { readonly name: string; readonly title: string; readonly standing: Standing; readonly owes: readonly Pointed[] };
+
+export type Indication = { readonly case: Case; readonly points: readonly Pointed[] };
 
 export type CorrectUse = { readonly situation: string; readonly kind: RecordKind; readonly at?: string };
 
@@ -49,14 +54,30 @@ export type CataloguedClause = { readonly clause: ClauseAddress; readonly sight:
 
 export type AlwaysRecordable = { readonly debt: RecordKind; readonly authorisedLocation: RecordKind };
 
+export type Engine = { readonly name: string; readonly mechanism: MechanismId };
+
+export type Check = {
+  readonly name: string;
+  readonly symptom: Symptom;
+  readonly clause: ClauseAddress;
+  readonly engines: readonly Engine[];
+  readonly forms: readonly string[];
+};
+
+export type NamedBan = { readonly outsideDependency: string };
+
 export type SymptomCatalogue = {
   readonly principles: readonly Principle[];
   readonly rules: readonly Rule[];
+  readonly cases: readonly Case[];
   readonly recipes: readonly Recipe[];
   readonly recordKinds: readonly RecordKind[];
   readonly alwaysRecordable: AlwaysRecordable;
+  readonly engines: readonly Engine[];
   readonly symptoms: readonly Symptom[];
   readonly clauses: readonly CataloguedClause[];
+  readonly checks: readonly Check[];
+  readonly namedBans: readonly NamedBan[];
 };
 
 export type CatalogueHolding = { readonly held: "catalogue"; readonly catalogue: SymptomCatalogue } | { readonly held: "none" };

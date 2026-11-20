@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Finding } from "../governance/governance.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import {
+  type Case,
   type Principle,
   type Recipe,
   type RecordKind,
@@ -22,9 +23,30 @@ const STRAIGHT_THROUGH_TESTS: Rule = {
   standing: "accepted",
 };
 
-const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted" };
+const CHECKS_A_VALUE: Case = {
+  name: "checks-a-value-that-may-be-one-of-several-outcomes",
+  title: "Checks a value that may be one of several outcomes",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }],
+};
 
-const RESULT_UNION: Recipe = { name: "result-union", title: "Result union", standing: "accepted" };
+const MAKES_A_NEW_VALUE: Case = {
+  name: "makes-a-new-value-from-what-it-has",
+  title: "Makes a new value from what it has",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }],
+};
+
+const SENDS_DATA_OUT: Case = {
+  name: "sends-data-out-of-the-program",
+  title: "Sends data out of the program",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }],
+};
+
+const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted", reason: { text: "\"it narrows the type\"", standing: "accepted" } };
+
+const RESULT_UNION: Recipe = { name: "result-union", title: "Result union", standing: "accepted", reason: { text: "\"it makes the output clear\"", standing: "accepted" } };
 
 const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
@@ -39,7 +61,7 @@ const BRANCH_IN_A_TEST: Symptom = {
   name: "branch-in-a-test",
   title: "Branch in a test",
   seen: "`if` in a test file.",
-  mayIndicate: [{ case: "Checks a value that may be one of several outcomes", points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] }],
+  mayIndicate: [{ case: CHECKS_A_VALUE, points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] }],
   breachUsuallySits: "in the unit's output type",
   recipes: [ASSERT_TO_NARROW],
   correctUses: [],
@@ -49,7 +71,7 @@ const REBINDING: Symptom = {
   name: "rebinding",
   title: "Rebinding",
   seen: "A `let` assigned again.",
-  mayIndicate: [{ case: "Makes a new value", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] }],
+  mayIndicate: [{ case: MAKES_A_NEW_VALUE, points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] }],
   breachUsuallySits: "in the unit",
   recipes: [],
   correctUses: [],
@@ -58,9 +80,11 @@ const REBINDING: Symptom = {
 const CATALOGUE: SymptomCatalogue = {
   principles: [NO_HIDDEN_EFFECTS],
   rules: [STRAIGHT_THROUGH_TESTS],
+  cases: [CHECKS_A_VALUE, MAKES_A_NEW_VALUE],
   recipes: [ASSERT_TO_NARROW, RESULT_UNION],
   recordKinds: [AUTHORISED_LOCATION, DEBT],
   alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+  engines: [],
   symptoms: [BRANCH_IN_A_TEST, REBINDING],
   clauses: [
     { clause: clauseAddressSchema.parse("CD-44#parameter-reassignment"), sight: { kind: "one-symptom", symptom: REBINDING } },
@@ -77,6 +101,8 @@ const CATALOGUE: SymptomCatalogue = {
     { clause: clauseAddressSchema.parse("CD-9#result-failures"), sight: { kind: "method", recipe: RESULT_UNION, outcomeSeenBy: [REBINDING] } },
     { clause: clauseAddressSchema.parse("CD-32#pii-redaction"), sight: { kind: "outside-the-cases" } },
   ],
+  checks: [],
+  namedBans: [],
 };
 
 type ReadingRow = {
@@ -147,9 +173,9 @@ describe("indicatedNamesOf", () => {
         symptom: {
           ...REBINDING,
           mayIndicate: [
-            { case: "Makes a new value", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
-            { case: "Checks a value that may be one of several outcomes", points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] },
-            { case: "Sends data out", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
+            { case: MAKES_A_NEW_VALUE, points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
+            { case: CHECKS_A_VALUE, points: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }] },
+            { case: SENDS_DATA_OUT, points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] },
           ],
         },
       }),
