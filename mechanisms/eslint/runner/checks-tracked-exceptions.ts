@@ -94,14 +94,14 @@ const packageJsonExceptions = (request: {
   return scan.outcome === "failed" ? Promise.resolve(scan) : scannedPackageExceptions({ ...request, scan: scan.value });
 };
 
-type TrackedRequest = {
+export type TrackedRequest = {
   readonly packageScriptsAt: PackageScriptsReader;
   readonly suppressionsAt: SuppressionsReader;
   readonly trackedPaths: readonly RepoPath[];
   readonly judge: ScriptOptionJudge;
 };
 
-const trackedExceptionsOfRule = (request: TrackedRequest & { readonly selectedRules: readonly SelectedRule[] }): Promise<Outcome<readonly NativeException[]>> =>
+export const trackedExceptionsOfRules = (request: TrackedRequest & { readonly selectedRules: readonly SelectedRule[] }): Promise<Outcome<readonly NativeException[]>> =>
   Promise.all([
     ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
       Promise.resolve(suppressionsExceptions({ ...request, location, keysRelativeTo: directoryOf({ path: location }) })),
@@ -117,6 +117,6 @@ const namedFor = (request: { readonly entry: SelectedCheck; readonly outcome: Ou
 export const trackedExceptionsOf = (request: TrackedRequest & { readonly selected: readonly SelectedCheck[] }): Promise<Outcome<readonly NativeException[]>> =>
   Promise.all(
     request.selected.map((entry) =>
-      trackedExceptionsOfRule({ ...request, selectedRules: [{ ruleId: entry.ruleId, clause: entry.clause }] }).then((outcome) => namedFor({ entry, outcome })),
+      trackedExceptionsOfRules({ ...request, selectedRules: [{ ruleId: entry.ruleId, clause: entry.clause }] }).then((outcome) => namedFor({ entry, outcome })),
     ),
   ).then((outcomes) => gatheredOutcomes({ outcomes }));
