@@ -3,7 +3,7 @@ import type { Result } from "../../values/result.ts";
 import { directoryOf, relativeSpecifierOf, resolvedPathOf } from "./relative-specifier.ts";
 
 export type ConfigImportRefusal =
-  | { readonly kind: "no-projection-import"; readonly file: RepoPath }
+  | { readonly kind: "no-projection-import"; readonly file: RepoPath; readonly projection: RepoPath }
   | { readonly kind: "several-projection-imports"; readonly file: RepoPath; readonly count: number }
   | { readonly kind: "projection-named-elsewhere"; readonly file: RepoPath };
 
@@ -55,7 +55,7 @@ export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<s
   const found = projectionImportsOf(request);
   const [only, ...others] = found;
   if (only === undefined) {
-    return { outcome: "failed", error: { kind: "no-projection-import", file: request.file } };
+    return { outcome: "failed", error: { kind: "no-projection-import", file: request.file, projection: request.versionOneProjection } };
   }
   if (others.length > 0) {
     return { outcome: "failed", error: { kind: "several-projection-imports", file: request.file, count: found.length } };

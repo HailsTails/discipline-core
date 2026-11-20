@@ -139,7 +139,7 @@ describe("upgradePlanOf", () => {
   it("refuses naming the team config when it holds no import of the version 1 projection", async () => {
     await expect(upgradePlanOf(requestOver({ reading: { ...READING, teamConfig: { ...TEAM_CONFIG, text: "export default [];\n" } } }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: "eslint.config.mjs" } },
+      error: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } },
     });
   });
 

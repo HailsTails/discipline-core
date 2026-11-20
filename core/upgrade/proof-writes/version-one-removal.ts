@@ -17,6 +17,7 @@ export type RecordsRoot = { readonly kind: "repository" | "folder"; readonly pat
 
 export type VersionOneRemoval = {
   readonly recordsFiles: readonly AbsolutePath[];
+  readonly recordsFolders: readonly AbsolutePath[];
   readonly recordsRoot: RecordsRoot;
   readonly projection: AbsolutePath | undefined;
   readonly settings: AbsolutePath;
@@ -63,9 +64,10 @@ const foldersOfFile = (request: { readonly ports: VersionOneRemovalPorts; readon
 
 const foldersToTryOf = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): readonly AbsolutePath[] =>
   [
-    ...new Set(
-      request.removal.recordsFiles.flatMap((file) => foldersOfFile({ ports: request.ports, root: request.removal.recordsRoot, file })),
-    ),
+    ...new Set([
+      ...request.removal.recordsFolders,
+      ...request.removal.recordsFiles.flatMap((file) => foldersOfFile({ ports: request.ports, root: request.removal.recordsRoot, file })),
+    ]),
   ].toSorted((left, right) => right.length - left.length);
 
 const removedFile = (request: { readonly ports: VersionOneRemovalPorts; readonly path: AbsolutePath; readonly removed: Removed }): Result<Removed, RemovalFailure> => {
@@ -122,7 +124,14 @@ const removedFrom = (request: {
   return stepOutcome.outcome === "failed" ? stepOutcome : removedFrom({ ports: request.ports, steps: rest, removed: stepOutcome.value });
 };
 
-export const removedVersionOneFiles = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): Result<Removed, RemovalFailure> => {
+export const filesStillPresentOf = (request: { readonly removal: VersionOneRemoval; readonly failure: RemovalFailure }): readonly AbsolutePath[] => {
+  const { removal, failure } = request;
+  const removedFiles = failure.kind === "unremovable" ? failure.removed.files : [];
+  const files = [...removal.recordsFiles, ...(removal.projection === undefined ? [] : [removal.projection]), removal.settings].filter((file) => !removedFiles.includes(file));
+  return failure.kind === "unremovable" && !files.includes(failure.path) ? [...files, failure.path] : files;
+};
+
+export const removedVersionOneFiles =(request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): Result<Removed, RemovalFailure> => {
   const outside = recordsOutsideRoot(request);
   return outside === undefined ? removedFrom({ ports: request.ports, steps: stepsOf(request), removed: { files: [], folders: [] } }) : { outcome: "failed", error: outside };
 };

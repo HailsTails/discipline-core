@@ -101,7 +101,7 @@ options:
 
 exit codes:
   0  the repository was upgraded, or is already on version 2
-  1  the upgrade was refused, and the repository was left as it was
+  1  the upgrade was refused; it changed nothing, or named each file it could not put back
   2  a load failure: an input could not be loaded, or Hone failed unexpectedly
   3  version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit
 `;

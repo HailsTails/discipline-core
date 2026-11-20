@@ -48,7 +48,7 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
         versionOneProjection: VERSION_ONE,
         versionTwoProjection: VERSION_TWO,
       }),
-    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } });
   });
 
   it("refuses a config whose only import of that name resolves to another folder's file", () => {
@@ -59,7 +59,7 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
         versionOneProjection: VERSION_ONE,
         versionTwoProjection: VERSION_TWO,
       }),
-    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } });
   });
 
   it("refuses a config that imports the version 1 projection twice, naming the file and the count", () => {
@@ -82,7 +82,7 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
   ])("refuses a config whose only mention of the projection is $name, naming the file", ({ text }) => {
     expect(
       rewrittenConfigOf({ file: repoPathSchema.parse("eslint.config.mjs"), text, versionOneProjection: VERSION_ONE, versionTwoProjection: VERSION_TWO }),
-    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } });
   });
 
   it("refuses a config whose import follows a string holding two slashes on its line, as the comment blanking hides it", () => {
@@ -93,7 +93,7 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
         versionOneProjection: VERSION_ONE,
         versionTwoProjection: VERSION_TWO,
       }),
-    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } });
   });
 
   it("refuses a config whose second import of the projection a string holding two slashes hides, never rewriting only the first", () => {

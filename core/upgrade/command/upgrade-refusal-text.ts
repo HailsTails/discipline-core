@@ -22,13 +22,22 @@ const NOTHING_CHANGED = "Nothing was changed.";
 
 const FAULT_IN_HONE = `This is a fault in hone, not in your repository. Report it at ${UPGRADE_ISSUES_URL}, with this output.`;
 
+const unrestoredLineOf = (request: { readonly unrestored: Unrestored }): string => {
+  const { written, path, detail } = request.unrestored;
+  switch (written) {
+    case "file-created":
+      return `  delete ${path} (${detail})`;
+    case "directory-created":
+      return `  delete the empty folder ${path} (${detail})`;
+    case "file-replaced":
+      return `  restore ${path} from version control (${detail})`;
+  }
+};
+
 const unrestoredLinesOf = (request: { readonly unrestored: readonly Unrestored[] }): readonly string[] =>
   request.unrestored.length === 0
     ? [NOTHING_CHANGED]
-    : [
-        "These files could not be put back; restore them from version control:",
-        ...request.unrestored.map(({ path, detail }) => `  ${path}: ${detail}`),
-      ];
+    : ["These files could not be put back; put them right by hand:", ...request.unrestored.map((unrestored) => unrestoredLineOf({ unrestored }))];
 
 const oracleLineOf = (request: { readonly failure: OracleFailure }): string => {
   const { failure } = request;
@@ -46,19 +55,19 @@ const mappingLineOf = (request: { readonly refusal: UpgradeRefusal }): string =>
   const { refusal } = request;
   switch (refusal.kind) {
     case "eslint-config-roots":
-      return `eslintConfigRoots (${refusal.roots.join(", ")}) is not carried over; the upgrade handles a single repository-root ESLint config.`;
+      return `eslintConfigRoots (${refusal.roots.join(", ")}) is not carried over, and version 2 does not run it yet. Stay on version 1 until it does, or remove it from disciplines.json and keep one ESLint config at the repository root.`;
     case "clause-without-check":
-      return `${refusal.clause} has no version 2 check to run it.`;
+      return `${refusal.clause} has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.`;
     case "no-engine-on-mechanism":
-      return `${refusal.check} has no engine on the ${refusal.mechanism} mechanism.`;
+      return `${refusal.check} has no engine on the ${refusal.mechanism} mechanism. ${FAULT_IN_HONE}`;
     case "two-engines-on-mechanism":
-      return `${refusal.check} could run on ${refusal.engines.join(" or ")} through the ${refusal.mechanism} mechanism; the upgrade cannot choose.`;
+      return `${refusal.check} could run on ${refusal.engines.join(" or ")} through the ${refusal.mechanism} mechanism; the upgrade cannot choose. ${FAULT_IN_HONE}`;
     case "record-answers-nothing":
       return `the file carve-out for ${refusal.clause} in ${refusal.file} answers ${refusal.credited === "nothing" ? "no finding" : "only a suppression"}. Remove it, or fix the file it names, then run the upgrade again.`;
     case "clause-wide-carve-out":
       return `${refusal.clause} carries a clause-wide carve-out, which version 2 has no record for. Replace it with file carve-outs first.`;
     case "records-name-refused":
-      return `${refusal.name} is not a name version 2 can file records under.`;
+      return `${refusal.name} is not a name version 2 can file records under. ${FAULT_IN_HONE}`;
   }
 };
 
@@ -66,7 +75,7 @@ const configLineOf = (request: { readonly refusal: ConfigImportRefusal }): strin
   const { refusal } = request;
   switch (refusal.kind) {
     case "no-projection-import":
-      return `${refusal.file} holds no static default import of the version 1 projection. Make its import of it a static relative default import.`;
+      return `${refusal.file} holds no static default import of ${refusal.projection}. Change its import of it to the form import projection from "./${refusal.projection}", then run the upgrade again.`;
     case "several-projection-imports":
       return `${refusal.file} imports the version 1 projection ${refusal.count} times. Import it once.`;
     case "projection-named-elsewhere":
@@ -101,11 +110,11 @@ const writeLineOf = (request: { readonly failure: ProofWriteFailure }): string =
     case "path-already-exists":
       return `${failure.path} already exists. Move it aside, then run the upgrade again.`;
     case "replaced-file-unreadable":
-      return `${failure.path} could not be read to be replaced (${failure.detail}).`;
+      return `${failure.path} could not be read to be replaced (${failure.detail}). Make it readable, then run the upgrade again.`;
     case "directory-uncreatable":
-      return `${failure.path} could not be created (${failure.detail}).`;
+      return `${failure.path} could not be created (${failure.detail}). Fix what the detail names, then run the upgrade again.`;
     case "unwritable":
-      return `${failure.path} could not be written (${failure.detail}).`;
+      return `${failure.path} could not be written (${failure.detail}). Fix what the detail names, then run the upgrade again.`;
   }
 };
 
@@ -122,7 +131,7 @@ const readFailureLinesOf = (request: { readonly failure: VersionOneReadFailure }
         ? ["the version 1 records are invalid; fix them first:", ...recordsRefusalLinesOf({ invalid: failure.refusal.invalid })]
         : [`a version 1 record in ${failure.refusal.place.file} is not JSON. Fix it first.`];
     case "several-version-one-projections":
-      return [`several version 1 projections are present: ${failure.projections.join(", ")}. The upgrade carries one.`];
+      return [`several version 1 projections are present: ${failure.projections.join(", ")}. The upgrade carries one; stay on version 1 until it carries several.`];
     case "team-config-refused":
       return teamConfigLinesOf({ refusal: failure.refusal });
   }
@@ -132,11 +141,11 @@ const teamConfigLinesOf = (request: { readonly refusal: TeamConfigRefusal }): re
   const { refusal } = request;
   switch (refusal.kind) {
     case "no-file-imports-projection":
-      return [`no file imports ${refusal.projection}. Import it from your ESLint config with a static relative import.`];
+      return [`no file imports ${refusal.projection} with a static default import. Change your ESLint config to import it in the form import projection from "./${refusal.projection}", then run the upgrade again.`];
     case "several-files-import-projection":
       return [`several files import ${refusal.projection}: ${refusal.files.join(", ")}. Leave one importing it.`];
     case "config-candidate-unreadable":
-      return [`${refusal.file} could not be read (${refusal.detail}).`];
+      return [`${refusal.file} could not be read (${refusal.detail}). Make it readable, then run the upgrade again.`];
   }
 };
 
@@ -179,7 +188,8 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
         code: 3,
         lines: [
           `version 2 is in place (written: ${failure.written.join(", ")}${failure.replaced === undefined ? "" : `; replaced: ${failure.replaced}`}), but ${removalLineOf({ failure: failure.failure })}.`,
-          "Delete the remaining version 1 files by hand, then commit.",
+          "Delete these version 1 files by hand, then commit:",
+          ...failure.remaining.map((remaining) => `  ${remaining}`),
         ],
       };
   }

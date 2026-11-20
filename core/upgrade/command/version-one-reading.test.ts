@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import type { SelectionRepository } from "../../consumer-selection/consumer-selection.ts";
 import type { FilePresence, FileTextPort } from "../../platform-ports/file-text-port.ts";
 import { createPathPort } from "../../platform-ports/path-port.ts";
@@ -8,6 +8,7 @@ import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRepository, PlacedEntry } from "../version-one-records/exception-records.ts";
+import type { RecordsOnDisk } from "./version-one-records-on-disk.ts";
 import { versionOneReadOf, type VersionOneReadRequest } from "./version-one-reading.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");
@@ -48,9 +49,27 @@ type Held = {
   readonly projection: FilePresence;
   readonly reading: SelectionReading;
   readonly selectionText: string;
+  readonly recordsOnDisk: RecordsOnDisk;
 };
 
-const NOTHING_HELD: Held = { entries: [], teamConfigText: NO_TEAM_CONFIG, projection: "absent", reading: READING, selectionText: SELECTION_TEXT };
+const NO_RECORDS_ON_DISK: RecordsOnDisk = { files: [], folders: [], root: { kind: "folder", folder: repoPathSchema.parse("discipline-exceptions") } };
+
+const SINGLE_FILE_ON_DISK: RecordsOnDisk = { files: [SINGLE_FILE], folders: [], root: { kind: "repository" } };
+
+const SPLIT_ON_DISK: RecordsOnDisk = {
+  files: [repoPathSchema.parse("discipline-exceptions/file-carve-outs/cd-15.json")],
+  folders: [repoPathSchema.parse("discipline-exceptions"), repoPathSchema.parse("discipline-exceptions/file-carve-outs")],
+  root: { kind: "folder", folder: repoPathSchema.parse("discipline-exceptions") },
+};
+
+const NOTHING_HELD: Held = {
+  entries: [],
+  teamConfigText: NO_TEAM_CONFIG,
+  projection: "absent",
+  reading: READING,
+  selectionText: SELECTION_TEXT,
+  recordsOnDisk: NO_RECORDS_ON_DISK,
+};
 
 const requestOver = (held: Held): VersionOneReadRequest => ({
   repoRoot: absolutePathSchema.parse("/repo"),
@@ -66,37 +85,39 @@ const requestOver = (held: Held): VersionOneReadRequest => ({
   selectionRepository: { read: vi.fn<SelectionRepository["read"]>().mockReturnValue({ outcome: "ok", value: held.reading }) },
   exceptionRepository: { read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: held.entries }) },
   trackedPaths: [repoPathSchema.parse("eslint.config.mjs")],
+  recordsOnDisk: held.recordsOnDisk,
 });
 
 describe("versionOneReadOf", () => {
   it("reads the settings, the records as heads, and the files that hold them, for a repository with no version 1 projection", () => {
-    expect(versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SINGLE_FILE_ENTRIES }))).toMatchObject({
-      outcome: "ok",
-      value: {
-        reading: {
-          heads: [
-            { kind: "file-carve-out", entry: CARVE_OUT_ENTRY },
-            { kind: "file-carve-out", entry: { ...CARVE_OUT_ENTRY, file: "src/b.ts" } },
-          ],
-          teamConfig: undefined,
-          versionOneProjection: undefined,
-        },
-        versionOneFiles: { recordsFiles: ["discipline-exceptions.json"], recordsRoot: { kind: "repository" }, settings: "disciplines.json" },
-      },
+    const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SINGLE_FILE_ENTRIES, recordsOnDisk: SINGLE_FILE_ON_DISK }));
+    assert(read.outcome === "ok", "the repository reads");
+    expect({
+      teamConfig: read.value.reading.teamConfig,
+      versionOneProjection: read.value.reading.versionOneProjection,
+      versionOneFiles: read.value.versionOneFiles,
+    }).toEqual({
+      teamConfig: undefined,
+      versionOneProjection: undefined,
+      versionOneFiles: { recordsFiles: ["discipline-exceptions.json"], recordsFolders: [], recordsRoot: { kind: "repository" }, settings: "disciplines.json" },
     });
   });
 
-  it("takes the split layout's folder as the records root and every file the entries sit in", () => {
-    expect(versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SPLIT_ENTRIES }))).toMatchObject({
-      outcome: "ok",
-      value: {
-        versionOneFiles: {
-          recordsFiles: ["discipline-exceptions/file-carve-outs/cd-15.json"],
-          recordsRoot: { kind: "folder", folder: "discipline-exceptions" },
-          settings: "disciplines.json",
-        },
-      },
+  it("takes the files and folders on disk as the ones to remove, whatever the entries say", () => {
+    const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SPLIT_ENTRIES, recordsOnDisk: SPLIT_ON_DISK }));
+    assert(read.outcome === "ok", "the repository reads");
+    expect(read.value.versionOneFiles).toEqual({
+      recordsFiles: ["discipline-exceptions/file-carve-outs/cd-15.json"],
+      recordsFolders: ["discipline-exceptions", "discipline-exceptions/file-carve-outs"],
+      recordsRoot: { kind: "folder", folder: "discipline-exceptions" },
+      settings: "disciplines.json",
     });
+  });
+
+  it("removes a records file that lists no entries, since the files come from disk", () => {
+    const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: [], recordsOnDisk: SINGLE_FILE_ON_DISK }));
+    assert(read.outcome === "ok", "the repository reads");
+    expect(read.value.versionOneFiles).toEqual({ recordsFiles: ["discipline-exceptions.json"], recordsFolders: [], recordsRoot: { kind: "repository" }, settings: "disciplines.json" });
   });
 
   it("names the version 1 projection and finds the team config that imports it when the projection file is present", () => {

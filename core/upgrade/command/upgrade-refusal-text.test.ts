@@ -11,6 +11,10 @@ const SETTINGS = absolutePathSchema.parse("/repo/hone.config.json");
 
 const OLD_FILE = absolutePathSchema.parse("/repo/disciplines.eslint.mjs");
 
+const RECORDS_FOLDER = absolutePathSchema.parse("/repo/hone-records");
+
+const OLD_SETTINGS = absolutePathSchema.parse("/repo/disciplines.json");
+
 type Row = { readonly name: string; readonly failure: UpgradeFailure; readonly outcome: UpgradeFailureOutcome };
 
 const ROWS: readonly Row[] = [
@@ -53,10 +57,10 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "the team config's import is not static",
-    failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: repoPathSchema.parse("eslint.config.mjs") } } },
+    failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: repoPathSchema.parse("eslint.config.mjs"), projection: repoPathSchema.parse("disciplines.eslint.mjs") } } },
     outcome: {
       code: 1,
-      text: "upgrade refused:\neslint.config.mjs holds no static default import of the version 1 projection. Make its import of it a static relative default import.\nNothing was changed.\n",
+      text: 'upgrade refused:\neslint.config.mjs holds no static default import of disciplines.eslint.mjs. Change its import of it to the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nNothing was changed.\n',
     },
   },
   {
@@ -72,7 +76,7 @@ const ROWS: readonly Row[] = [
     failure: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: repoPathSchema.parse("disciplines.eslint.mjs") } },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nno file imports disciplines.eslint.mjs. Import it from your ESLint config with a static relative import.\nNothing was changed.\n",
+      text: 'upgrade refused:\nno file imports disciplines.eslint.mjs with a static default import. Change your ESLint config to import it in the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nNothing was changed.\n',
     },
   },
   {
@@ -91,7 +95,7 @@ const ROWS: readonly Row[] = [
     failure: { kind: "several-version-one-projections", projections: [repoPathSchema.parse("disciplines.eslint.mjs"), repoPathSchema.parse("disciplines.other.mjs")] },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nseveral version 1 projections are present: disciplines.eslint.mjs, disciplines.other.mjs. The upgrade carries one.\nNothing was changed.\n",
+      text: "upgrade refused:\nseveral version 1 projections are present: disciplines.eslint.mjs, disciplines.other.mjs. The upgrade carries one; stay on version 1 until it carries several.\nNothing was changed.\n",
     },
   },
   {
@@ -101,10 +105,18 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "the version 2 run fails and a file cannot be put back",
-    failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "config unreadable" }, unrestored: [{ path: SETTINGS, detail: "EBUSY" }] },
+    failure: {
+      kind: "version-two-run-failed",
+      failure: { kind: "run-failed", detail: "config unreadable" },
+      unrestored: [
+        { written: "file-created", path: SETTINGS, detail: "EBUSY" },
+        { written: "directory-created", path: RECORDS_FOLDER, detail: "EACCES" },
+        { written: "file-replaced", path: OLD_FILE, detail: "EPERM" },
+      ],
+    },
     outcome: {
       code: 1,
-      text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nThese files could not be put back; restore them from version control:\n  /repo/hone.config.json: EBUSY\n`,
+      text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nThese files could not be put back; put them right by hand:\n  delete /repo/hone.config.json (EBUSY)\n  delete the empty folder /repo/hone-records (EACCES)\n  restore /repo/disciplines.eslint.mjs from version control (EPERM)\n`,
     },
   },
   {
@@ -122,10 +134,19 @@ const ROWS: readonly Row[] = [
       failure: { kind: "unremovable", path: OLD_FILE, detail: "EBUSY", removed: { files: [], folders: [] } },
       written: [repoPathSchema.parse("hone.config.json"), repoPathSchema.parse("hone.eslint.mjs")],
       replaced: repoPathSchema.parse("eslint.config.mjs"),
+      remaining: [OLD_FILE, OLD_SETTINGS],
     },
     outcome: {
       code: 3,
-      text: "upgrade incomplete:\nversion 2 is in place (written: hone.config.json, hone.eslint.mjs; replaced: eslint.config.mjs), but /repo/disciplines.eslint.mjs could not be removed (EBUSY).\nDelete the remaining version 1 files by hand, then commit.\n",
+      text: "upgrade incomplete:\nversion 2 is in place (written: hone.config.json, hone.eslint.mjs; replaced: eslint.config.mjs), but /repo/disciplines.eslint.mjs could not be removed (EBUSY).\nDelete these version 1 files by hand, then commit:\n  /repo/disciplines.eslint.mjs\n  /repo/disciplines.json\n",
+    },
+  },
+  {
+    name: "a project clause has no version 2 check",
+    failure: { kind: "plan-refused", refusal: { kind: "mapping-refused", refusals: [{ kind: "clause-without-check", clause: "acme/CD-1#thing" }] } },
+    outcome: {
+      code: 1,
+      text: "upgrade refused:\nacme/CD-1#thing has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.\nNothing was changed.\n",
     },
   },
 ];

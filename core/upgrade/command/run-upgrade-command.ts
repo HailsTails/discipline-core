@@ -23,6 +23,7 @@ import { proofRunsOf } from "./proof-runs.ts";
 import { shippedCataloguesOf } from "./shipped-catalogues.ts";
 import { type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
 import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "./upgrade-success-text.ts";
+import { recordsOnDiskOf } from "./version-one-records-on-disk.ts";
 import { type VersionOneRead, versionOneReadOf } from "./version-one-reading.ts";
 
 export type UpgradePorts = VersionTwoRepositoryPorts & {
@@ -82,8 +83,8 @@ const checkRequestOf = (request: { readonly command: CommandRequest; readonly lo
   };
 };
 
-const preparedOf = (request: { readonly command: CommandRequest; readonly located: Located }): Result<Prepared, Stopped> => {
-  const { command, located } = request;
+const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: CommandRequest; readonly located: Located }): Result<Prepared, Stopped> => {
+  const { ports, command, located } = request;
   const check = checkRequestOf(request);
   if (check.outcome === "failed") {
     return stoppedByLoad({ failure: check.error });
@@ -96,7 +97,12 @@ const preparedOf = (request: { readonly command: CommandRequest; readonly locate
   if (catalogues.outcome === "failed") {
     return stoppedByLoad({ failure: catalogues.error });
   }
+  const recordsOnDisk = recordsOnDiskOf({ repoRoot: located.repoRoot, fileText: command.fileText, directory: ports.directory, path: command.path });
+  if (recordsOnDisk.outcome === "failed") {
+    return stoppedByLoad({ failure: recordsOnDisk.error });
+  }
   const read = versionOneReadOf({
+    recordsOnDisk: recordsOnDisk.value,
     repoRoot: located.repoRoot,
     fileText: command.fileText,
     path: command.path,
@@ -160,7 +166,7 @@ const upgradeOutcomeOf = async (request: { readonly ports: UpgradePorts; readonl
   if (located.outcome === "failed") {
     return loadFailureOutcome({ failure: located.error });
   }
-  const prepared = preparedOf({ command: request.command, located: located.value });
+  const prepared = preparedOf({ ports: request.ports, command: request.command, located: located.value });
   return prepared.outcome === "failed" ? prepared.error : provedOutcomeOf({ ...request, located: located.value, prepared: prepared.value });
 };
 

@@ -31,7 +31,7 @@ export type ProofWriteFailure =
   | { readonly kind: "directory-uncreatable"; readonly path: AbsolutePath; readonly detail: string }
   | { readonly kind: "unwritable"; readonly path: AbsolutePath; readonly detail: string };
 
-export type Unrestored = { readonly path: AbsolutePath; readonly detail: string };
+export type Unrestored = { readonly written: ProofWrite["kind"]; readonly path: AbsolutePath; readonly detail: string };
 
 export type ProofWriteRefusal = { readonly failure: ProofWriteFailure; readonly unrestored: readonly Unrestored[] };
 
@@ -117,15 +117,15 @@ const undoneOf = (request: { readonly ports: ProofWritePorts; readonly write: Pr
   switch (write.kind) {
     case "directory-created": {
       const removed = ports.directoryRemoval.removeEmpty({ path: write.path });
-      return removed.outcome === "ok" ? undefined : { path: write.path, detail: removed.error.detail };
+      return removed.outcome === "ok" ? undefined : { written: write.kind, path: write.path, detail: removed.error.detail };
     }
     case "file-created": {
       const removed = ports.fileRemoval.remove({ path: write.path });
-      return removed.outcome === "ok" ? undefined : { path: write.path, detail: removed.error.detail };
+      return removed.outcome === "ok" ? undefined : { written: write.kind, path: write.path, detail: removed.error.detail };
     }
     case "file-replaced": {
       const restored = ports.fileText.write({ path: write.path, text: write.original });
-      return restored.outcome === "ok" ? undefined : { path: write.path, detail: restored.error.detail };
+      return restored.outcome === "ok" ? undefined : { written: write.kind, path: write.path, detail: restored.error.detail };
     }
   }
 };

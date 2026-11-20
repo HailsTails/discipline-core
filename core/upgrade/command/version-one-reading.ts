@@ -8,14 +8,13 @@ import type { AbsolutePath } from "../../values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
 import { type HeadRecordsRefusal, headRecordsOf } from "../version-one-head/head-records.ts";
-import { type ExceptionRepository, type PlacedEntry, UNMEASURED_EXCEPTION_BASELINE } from "../version-one-records/exception-records.ts";
+import { type ExceptionRepository, UNMEASURED_EXCEPTION_BASELINE } from "../version-one-records/exception-records.ts";
 import type { VersionOneReading } from "../proof/upgrade-plan.ts";
-import type { VersionOneFiles, VersionOneRecordsRoot } from "../proof/upgrade-proof.ts";
+import type { VersionOneFiles } from "../proof/upgrade-proof.ts";
 import { type TeamConfigRefusal, teamConfigOf } from "./team-config-finder.ts";
+import type { RecordsOnDisk } from "./version-one-records-on-disk.ts";
 
 const VERSION_ONE_SETTINGS = repoPathSchema.parse("disciplines.json");
-
-const SPLIT_RECORDS_FOLDER = repoPathSchema.parse("discipline-exceptions");
 
 export type VersionOneRead = { readonly reading: VersionOneReading; readonly versionOneFiles: VersionOneFiles };
 
@@ -32,6 +31,7 @@ export type VersionOneReadRequest = {
   readonly selectionRepository: SelectionRepository;
   readonly exceptionRepository: Pick<ExceptionRepository, "read">;
   readonly trackedPaths: readonly RepoPath[];
+  readonly recordsOnDisk: RecordsOnDisk;
 };
 
 const projectionsPresentOf = (request: { readonly selection: ConsumerSelectionFile; readonly repoRoot: AbsolutePath; readonly fileText: Pick<FileTextPort, "exists">; readonly path: PathPort }): readonly RepoPath[] => {
@@ -40,11 +40,6 @@ const projectionsPresentOf = (request: { readonly selection: ConsumerSelectionFi
     .map((mechanism) => repoPathSchema.parse(`disciplines.${mechanism}.mjs`))
     .filter((projection) => request.fileText.exists({ path: request.path.join({ segments: [request.repoRoot, projection] }) }) === "present");
 };
-
-const recordsRootOf = (request: { readonly entries: readonly PlacedEntry[] }): VersionOneRecordsRoot =>
-  request.entries.some(({ place }) => place.layout === "single-file") ? { kind: "repository" } : { kind: "folder", folder: SPLIT_RECORDS_FOLDER };
-
-const recordsFilesOf = (request: { readonly entries: readonly PlacedEntry[] }): readonly RepoPath[] => [...new Set(request.entries.map(({ place }) => place.file))];
 
 export const versionOneReadOf = (request: VersionOneReadRequest): Result<VersionOneRead, VersionOneReadFailure> => {
   const unreadable = (failure: LoadFailure): Result<never, VersionOneReadFailure> => ({ outcome: "failed", error: { kind: "version-one-unreadable", failure } });
@@ -83,8 +78,9 @@ export const versionOneReadOf = (request: VersionOneReadRequest): Result<Version
     value: {
       reading: { selection: file.value, heads: heads.value, teamConfig: teamConfig.value, versionOneProjection },
       versionOneFiles: {
-        recordsFiles: recordsFilesOf({ entries: entries.value }),
-        recordsRoot: recordsRootOf({ entries: entries.value }),
+        recordsFiles: request.recordsOnDisk.files,
+        recordsFolders: request.recordsOnDisk.folders,
+        recordsRoot: request.recordsOnDisk.root,
         settings: VERSION_ONE_SETTINGS,
       },
     },

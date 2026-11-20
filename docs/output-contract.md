@@ -11,7 +11,7 @@ Hone prints everything to standard output: the report, the help, the version, `h
 The exit code is the signal a hook should act on:
 
 - `0`: `hone check` printed `verdict: pass` or `verdict: pass (partial assessment)`, `hone project` wrote or confirmed every projection, `hone record-debt` wrote every record it needed or needed none, `hone prune-debt` removed every paid record or found none, `hone split-records` split the records or found nothing to split, `hone upgrade` upgraded the repository or found it already on version 2, or help or the version was printed;
-- `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line, or `hone upgrade` refused to upgrade and left the repository as it was. Exit `1` from `hone check` always comes with one of those lines, and with nothing else; exit `1` from `hone upgrade` always comes with a line starting `upgrade refused:`;
+- `1`: `hone check` printed `verdict: fail` or `verdict: fail (partial assessment)` as its last line, or `hone upgrade` refused to upgrade. Exit `1` from `hone check` always comes with one of those lines, and with nothing else; exit `1` from `hone upgrade` always comes with a line starting `upgrade refused:`, and either `Nothing was changed.` or each file it could not put back;
 - `2`: Hone could not decide. It printed exactly one line, starting with `load failure: `, and no verdict. That covers a command typed wrongly, an input that could not be loaded, a mechanism that failed, records `hone record-debt`, `hone prune-debt` or `hone split-records` could not write or place, and an error Hone did not expect, which prints as `unexpected-error`;
 - `3`: only `hone upgrade` exits with it. Version 2 is in place, but a version 1 file could not be removed. It printed `upgrade incomplete:` and the file to delete by hand, then commit.
 
@@ -274,7 +274,7 @@ options:
 
 exit codes:
   0  the repository was upgraded, or is already on version 2
-  1  the upgrade was refused, and the repository was left as it was
+  1  the upgrade was refused; it changed nothing, or named each file it could not put back
   2  a load failure: an input could not be loaded, or Hone failed unexpectedly
   3  version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit
 ```
@@ -537,11 +537,11 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 `hone upgrade` moves a version 1 repository to version 2. It writes `hone.config.json`, the `hone-records` folder and the version 2 projection, rewrites the repository's team ESLint config to import the version 2 projection, runs version 1 and version 2 over the same repository, and removes the version 1 files only when both report the same thing. A repository that is already on version 2 prints one line and exits `0`.
 
-On success it prints `upgraded to version 2`, then a `wrote` line for each file it wrote, a `rewrote` line for the team config it rewrote, if there was one, and a `removed` line for each version 1 file and folder it removed, and exits `0`. Paths inside `--repo` are printed relative to it.
+On success it prints `upgraded to version 2`, then a `wrote` line for each file it wrote, a `rewrote` line for the team config it rewrote, if there was one, and a `removed` line for each version 1 file and folder it removed, and exits `0`. The version 1 files it removes are `disciplines.json`, the version 1 projection, and every `.json` file and folder it finds in `discipline-exceptions.json` or the `discipline-exceptions` folder, whether or not it holds a record. The `wrote`, `rewrote` and `removed` lines print a path inside `--repo` relative to it; the lines of a refusal print the paths as the files are, absolute.
 
-A refusal prints `upgrade refused:`, then one or more lines saying what to do, then either `Nothing was changed.` or the files that could not be put back, and exits `1`. A refusal before anything is written never changes the repository. A refusal after files were written puts them back; a file that could not be put back is named, and is restored from version control. A refusal that names a fault in Hone prints where to report it.
+A refusal prints `upgrade refused:`, then one or more lines saying what to do, then either `Nothing was changed.` or the files that could not be put back, and exits `1`. A refusal before anything is written never changes the repository. A refusal after files were written puts them back. A file that could not be put back is named with what to do: a file or folder the upgrade created is deleted by hand, and a file it replaced is restored from version control. A refusal that names a fault in Hone prints where to report it.
 
-When version 2 is in place but a version 1 file could not be removed, it prints `upgrade incomplete:`, the files it wrote, the file it could not remove and what to do, and exits `3`. Nothing is rolled back; the version 2 files stay.
+When version 2 is in place but a version 1 file could not be removed, it prints `upgrade incomplete:`, the files it wrote, the file it could not remove, and every version 1 file still present, which it asks you to delete by hand, then commit, and exits `3`. Nothing is rolled back; the version 2 files stay. While `disciplines.json` is still beside `hone.config.json`, every `hone` command stops with `settings-in-both-versions`.
 
 | Output | Line |
 | --- | --- |
@@ -560,47 +560,50 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `a finding of <clause> in <file> names no check of version 2. Report it at <issues page>.` |
 | `upgrade` | `<clause> in <file> is held by both a file carve-out and an authorised location. Remove one of them first, then run the upgrade again.` |
 | `upgrade` | `the carve-out for <clause> in <file> was given no answer. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
-| `upgrade` | `eslintConfigRoots (<roots>) is not carried over; the upgrade handles a single repository-root ESLint config.` |
-| `upgrade` | `<clause> has no version 2 check to run it.` |
-| `upgrade` | `<check> has no engine on the <mechanism> mechanism.` |
-| `upgrade` | `<check> could run on <engines> through the <mechanism> mechanism; the upgrade cannot choose.` |
+| `upgrade` | `eslintConfigRoots (<roots>) is not carried over, and version 2 does not run it yet. Stay on version 1 until it does, or remove it from disciplines.json and keep one ESLint config at the repository root.` |
+| `upgrade` | `<clause> has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.` |
+| `upgrade` | `<check> has no engine on the <mechanism> mechanism. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
+| `upgrade` | `<check> could run on <engines> through the <mechanism> mechanism; the upgrade cannot choose. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the file carve-out for <clause> in <file> answers no finding. Remove it, or fix the file it names, then run the upgrade again.` |
 | `upgrade` | `the file carve-out for <clause> in <file> answers only a suppression. Remove it, or fix the file it names, then run the upgrade again.` |
 | `upgrade` | `<clause> carries a clause-wide carve-out, which version 2 has no record for. Replace it with file carve-outs first.` |
-| `upgrade` | `<name> is not a name version 2 can file records under.` |
+| `upgrade` | `<name> is not a name version 2 can file records under. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `version 2's projection could not be made (<detail>). Fix what it names, then run the upgrade again.` |
 | `upgrade` | `version 2 projected <count> files, and the team config can import exactly one. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the version 2 records would reach beyond the version 1 entries: <records>.` |
-| `upgrade` | `<config file> holds no static default import of the version 1 projection. Make its import of it a static relative default import.` |
+| `upgrade` | `<config file> holds no static default import of <projection>. Change its import of it to the form import projection from "./<projection>", then run the upgrade again.` |
 | `upgrade` | `<config file> imports the version 1 projection <count> times. Import it once.` |
 | `upgrade` | `<config file> names the version 1 projection outside its import. Remove the other mention.` |
 | `upgrade` | `<file> cannot be placed in the repository. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the version 1 records file <path> is outside <root>. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `<path> already exists. Move it aside, then run the upgrade again.` |
-| `upgrade` | `<path> could not be read to be replaced (<detail>).` |
-| `upgrade` | `<path> could not be created (<detail>).` |
-| `upgrade` | `<path> could not be written (<detail>).` |
+| `upgrade` | `<path> could not be read to be replaced (<detail>). Make it readable, then run the upgrade again.` |
+| `upgrade` | `<path> could not be created (<detail>). Fix what the detail names, then run the upgrade again.` |
+| `upgrade` | `<path> could not be written (<detail>). Fix what the detail names, then run the upgrade again.` |
 | `upgrade` | `version 2's run failed (<detail>). This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `version 2 does not report what version 1 reported:` |
 | `upgrade` | `  <section>:` |
 | `upgrade` | `    only before: <before>` |
 | `upgrade` | `    only after: <after>` |
-| `upgrade` | `These files could not be put back; restore them from version control:` |
-| `upgrade` | `  <unrestored path>: <unrestored detail>` |
+| `upgrade` | `These files could not be put back; put them right by hand:` |
+| `upgrade` | `  delete <unrestored path> (<unrestored detail>)` |
+| `upgrade` | `  delete the empty folder <unrestored path> (<unrestored detail>)` |
+| `upgrade` | `  restore <unrestored path> from version control (<unrestored detail>)` |
 | `upgrade` | `the version 1 records are invalid; fix them first:` |
 | `upgrade` | `<records file> entry <index>: <problem>` |
 | `upgrade` | `a version 1 record in <records file> is not JSON. Fix it first.` |
-| `upgrade` | `several version 1 projections are present: <projections>. The upgrade carries one.` |
-| `upgrade` | `no file imports <projection>. Import it from your ESLint config with a static relative import.` |
+| `upgrade` | `several version 1 projections are present: <projections>. The upgrade carries one; stay on version 1 until it carries several.` |
+| `upgrade` | `no file imports <projection> with a static default import. Change your ESLint config to import it in the form import projection from "./<projection>", then run the upgrade again.` |
 | `upgrade` | `several files import <projection>: <files>. Leave one importing it.` |
-| `upgrade` | `<config file> could not be read (<detail>).` |
+| `upgrade` | `<config file> could not be read (<detail>). Make it readable, then run the upgrade again.` |
 | `upgrade` | `version 2 is in place (written: <written>; replaced: <replaced>), but <removal path> could not be removed (<detail>).` |
 | `upgrade` | `version 2 is in place (written: <written>), but <removal path> is outside <root>.` |
-| `upgrade` | `Delete the remaining version 1 files by hand, then commit.` |
+| `upgrade` | `Delete these version 1 files by hand, then commit:` |
+| `upgrade` | `  <remaining path>` |
 
 # Version 2
 
-Everything above this heading is what the installed `hone` prints today, on a repository that keeps `disciplines.json`. This part lists what a version 2 run prints: the report of `hone check` on a repository that keeps `hone.config.json` and `hone-records/`. Version 2 is not released yet, and no command prints this report until the release that switches the run over. The same test that holds the tables above to what 1.x prints holds the tables in this part to what the version 2 report prints, reading this part on its own.
+Everything above this heading is what the installed `hone` prints today, on a repository that keeps `disciplines.json`. This part lists what a version 2 run prints: the report of `hone check` on a repository that keeps `hone.config.json` and `hone-records/`. A repository that keeps `disciplines.json` gets the report described above; `hone upgrade` moves it to `hone.config.json` and `hone-records/`, and from then on `hone check` prints the report described here. The same test that holds the tables above to what 1.x prints holds the tables in this part to what the version 2 report prints, reading this part on its own.
 
 The streams, exit codes, output modes, verdict lines and heading lines are the same as in 1.x. What changes is the vocabulary: a check address `<symptom>#<check>` where 1.x printed a clause address, an engine where it printed a mechanism, and the five record kinds where it printed exception records.
 
@@ -971,7 +974,7 @@ options:
 
 exit codes:
   0  the repository was upgraded, or is already on version 2
-  1  the upgrade was refused, and the repository was left as it was
+  1  the upgrade was refused; it changed nothing, or named each file it could not put back
   2  a load failure: an input could not be loaded, or Hone failed unexpectedly
   3  version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit
 ```

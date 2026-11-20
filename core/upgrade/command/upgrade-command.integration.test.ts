@@ -1,5 +1,4 @@
-import { afterAll, assert, describe, expect, it, vi } from "vitest";
-import { createDefaultDirectoryPort } from "../../platform-ports/file-system-port.ts";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { TOOL_SUBCOMMANDS } from "../../check/run-tool-command.ts";
 import { createDefaultExceptionRepositoryOf } from "../../exception-records/exception-layout.ts";
 import type { Subcommand } from "../../command-line/command-line.ts";
@@ -10,6 +9,7 @@ import { createDefaultPathPort } from "../../platform-ports/path-port.ts";
 import type { ProcessPort } from "../../platform-ports/process-port.ts";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "../../../scripts/install-proof-ports.ts";
+import { listedPathsOf, treeOf } from "../../../tests/repository-tree.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 
@@ -66,12 +66,14 @@ const trackEverything = (request: { readonly repo: string }): void => {
 
 const KEPT_CLASS = "export class Kept {}\n";
 
-const versionOneRepository = async (request: { readonly source: string }): Promise<string> => {
+const NO_RECORDS = '{ "version": 1, "exceptions": [] }\n';
+
+const versionOneRepository = async (request: { readonly source: string; readonly exceptions: string }): Promise<string> => {
   const repo = repositoryWithSubfolder({
     repositories,
     scratch,
     fileText,
-    files: VERSION_ONE_FILES,
+    files: { ...VERSION_ONE_FILES, "discipline-exceptions.json": request.exceptions },
     subfolder: "src",
     subfolderFiles: { "kept.ts": request.source },
   });
@@ -86,34 +88,9 @@ const commitEverything = (request: { readonly repo: string }): void => {
   commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: request.repo });
 };
 
-const directory = createDefaultDirectoryPort({});
-
-const GIT_FOLDER = ".git";
-
-const pathsUnder = (request: { readonly folder: string; readonly prefix: string }): readonly string[] => {
-  const listed = directory.list({ path: absolutePathSchema.parse(request.folder) });
-  assert(listed.outcome === "ok", `${request.folder} lists`);
-  return listed.value
-    .filter(({ name }) => name !== GIT_FOLDER)
-    .flatMap(({ name, kind }) => {
-      const shown = `${request.prefix}${name}`;
-      return kind === "directory" ? [`${shown}/`, ...pathsUnder({ folder: `${request.folder}/${name}`, prefix: `${shown}/` })] : [shown];
-    });
-};
-
-const treeOf = (request: { readonly repo: string }): Readonly<Record<string, string>> =>
-  Object.fromEntries(
-    pathsUnder({ folder: request.repo, prefix: "" })
-      .toSorted()
-      .map((shown) => {
-        const read = shown.endsWith("/") ? undefined : fileText.read({ path: `${request.repo}/${shown}` });
-        return [shown, read === undefined ? "<folder>" : read.outcome === "ok" ? read.value : "<unreadable>"];
-      }),
-  );
-
 describe("hone upgrade over a real repository, through the real ports", () => {
   it("upgrades a version 1 repository, checks it with the projection current, and finds nothing left to upgrade", async () => {
-    const repo = await versionOneRepository({ source: KEPT_CLASS });
+    const repo = await versionOneRepository({ source: KEPT_CLASS, exceptions: EXCEPTIONS });
     const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [] });
     trackEverything({ repo });
     const checked = await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "elsewhere"] });
@@ -144,7 +121,7 @@ describe("hone upgrade over a real repository, through the real ports", () => {
   });
 
   it("refuses a carve-out that answers no finding, and leaves every file of the repository byte for byte as it was", async () => {
-    const repo = await versionOneRepository({ source: "export const kept = 1;\n" });
+    const repo = await versionOneRepository({ source: "export const kept = 1;\n", exceptions: EXCEPTIONS });
     const before = treeOf({ repo });
     const refused = await runCommandIn({ repo, subcommand: "upgrade", options: [] });
     expect({ refused, after: treeOf({ repo }) }).toEqual({
@@ -163,7 +140,7 @@ describe("hone upgrade over a real repository, through the real ports", () => {
   });
 
   it("upgrades a repository whose records are split, and checks it against a real git base revision", async () => {
-    const repo = await versionOneRepository({ source: KEPT_CLASS });
+    const repo = await versionOneRepository({ source: KEPT_CLASS, exceptions: EXCEPTIONS });
     await runCommandIn({ repo, subcommand: "split-records", options: [] });
     trackEverything({ repo });
     commitEverything({ repo });
@@ -185,6 +162,39 @@ describe("hone upgrade over a real repository, through the real ports", () => {
         writes: [[{ text: "answered (1)\nauthored-class-or-this#class-keyword eslint src/kept.ts:1:7 export class Kept {} answered by debt\nverdict: pass\n" }]],
         exits: [[{ code: 0 }]],
       },
+    });
+  });
+
+  it("removes a single records file that holds no records, and reports only what it removed", async () => {
+    const repo = await versionOneRepository({ source: "export const kept = 1;\n", exceptions: NO_RECORDS });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [] });
+    expect({ upgraded, after: listedPathsOf({ repo }) }).toEqual({
+      upgraded: {
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        exits: [[{ code: 0 }]],
+      },
+      after: ["eslint.config.mjs", "hone.config.json", "hone.eslint.mjs", "src/", "src/kept.ts"],
+    });
+  });
+
+  it("removes a split records folder whose kind folder was emptied by an earlier prune", async () => {
+    const repo = await versionOneRepository({ source: KEPT_CLASS, exceptions: EXCEPTIONS });
+    await runCommandIn({ repo, subcommand: "split-records", options: [] });
+    scratch.makeDirectory({ path: absolutePathSchema.parse(`${repo}/discipline-exceptions/authorised-locations`) });
+    trackEverything({ repo });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [] });
+    expect({ upgraded, after: listedPathsOf({ repo }) }).toEqual({
+      upgraded: {
+        writes: [
+          [
+            {
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions/file-carve-outs/cd-14.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\nremoved discipline-exceptions/authorised-locations\nremoved discipline-exceptions/file-carve-outs\nremoved discipline-exceptions\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 0 }]],
+      },
+      after: ["eslint.config.mjs", "hone-records/", "hone-records/debt/", "hone-records/debt/authored-class-or-this.json", "hone.config.json", "hone.eslint.mjs", "src/", "src/kept.ts"],
     });
   });
 });

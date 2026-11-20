@@ -57,7 +57,7 @@ const SAMPLES: readonly Sample[] = [
   { failure: { kind: "plan-refused", refusal: { kind: "projection-failed", detail: "the detail" } }, fills: {} },
   { failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } }, fills: { count: "0" } },
   { failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] } }, fills: { records: "loop-keyword#loops in src/b.ts" } },
-  { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: CONFIG } } }, fills: {} },
+  { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: CONFIG, projection: PROJECTION } } }, fills: {} },
   { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "several-projection-imports", file: CONFIG, count: 2 } } }, fills: { count: "2" } },
   { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: CONFIG } } }, fills: {} },
   { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" } }, fills: {} },
@@ -67,8 +67,16 @@ const SAMPLES: readonly Sample[] = [
   { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
   { failure: { kind: "write-refused", refusal: { failure: { kind: "directory-uncreatable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ path: OLD_FILE, detail: "EBUSY" }] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-created", path: OLD_FILE, detail: "EBUSY" }] } },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EBUSY" },
+  },
+  {
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "directory-created", path: OLD_FILE, detail: "EACCES" }] } },
+    fills: { "unrestored path": OLD_FILE, "unrestored detail": "EACCES" },
+  },
+  {
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-replaced", path: OLD_FILE, detail: "EPERM" }] } },
+    fills: { "unrestored path": OLD_FILE, "unrestored detail": "EPERM" },
   },
   { failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [] }, fills: {} },
   {
@@ -104,8 +112,9 @@ const SAMPLES: readonly Sample[] = [
       failure: { kind: "unremovable", path: OLD_FILE, detail: "the detail", removed: { files: [], folders: [] } },
       written: [repoPathSchema.parse("hone.config.json"), repoPathSchema.parse("hone.eslint.mjs")],
       replaced: CONFIG,
+      remaining: [OLD_FILE],
     },
-    fills: { written: "hone.config.json, hone.eslint.mjs", replaced: "eslint.config.mjs", "removal path": OLD_FILE },
+    fills: { written: "hone.config.json, hone.eslint.mjs", replaced: "eslint.config.mjs", "removal path": OLD_FILE, "remaining path": OLD_FILE },
   },
   {
     failure: {
@@ -113,8 +122,9 @@ const SAMPLES: readonly Sample[] = [
       failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO },
       written: [repoPathSchema.parse("hone.config.json")],
       replaced: undefined,
+      remaining: [OLD_FILE],
     },
-    fills: { written: "hone.config.json", "removal path": OLD_FILE, root: REPO },
+    fills: { written: "hone.config.json", "removal path": OLD_FILE, root: REPO, "remaining path": OLD_FILE },
   },
 ];
 

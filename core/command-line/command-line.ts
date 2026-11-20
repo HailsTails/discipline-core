@@ -192,7 +192,7 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     options: [REPO_OPTION],
     exits: [
       { code: 0, meaning: "the repository was upgraded, or is already on version 2" },
-      { code: 1, meaning: "the upgrade was refused, and the repository was left as it was" },
+      { code: 1, meaning: "the upgrade was refused; it changed nothing, or named each file it could not put back" },
       { code: 2, meaning: "a load failure: an input could not be loaded, or Hone failed unexpectedly" },
       { code: 3, meaning: "version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit" },
     ],
