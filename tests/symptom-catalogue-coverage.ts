@@ -1,4 +1,4 @@
-import type { LoadFailure } from "../core/check/load-failure.ts";
+import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import { IMPORTED_PARTY_SYMPTOMS, RUNTIME_REACH } from "../core/records/record-reach.ts";

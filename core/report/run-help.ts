@@ -1,4 +1,4 @@
-import { type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../check/command-line.ts";
+import { type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../command-line/command-line.ts";
 import { RECORDS_FOLDER } from "../records/records-layout.ts";
 import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";

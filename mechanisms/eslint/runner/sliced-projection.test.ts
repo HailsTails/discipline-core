@@ -6,7 +6,8 @@ import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
-import { type CurrentProjection, type ProjectionFiles, projectionText } from "./projection.ts";
+import type { CurrentProjection, ProjectionFiles } from "./projection.ts";
+import { projectionText } from "./projection-text.ts";
 import type { ProjectionStates } from "./projection-states.ts";
 import type { ConfigRoot } from "./projection-slices.ts";
 import {

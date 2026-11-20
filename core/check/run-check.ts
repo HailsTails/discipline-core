@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type CheckedTree, checkedTreeOf, typescriptFilesOf } from "../run/checked-tree-of.ts";
 import type { ClauseBinding, Selection, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseRoot } from "../consumer-selection/selection.ts";
 import {
@@ -38,11 +39,11 @@ import type {
 } from "../verdict/check-report.ts";
 import { clauseReadingsOf } from "./clause-readings.ts";
 import { exceptionBaselineOf, partialAssessmentsOf, touchedSetFor, unmeasuredOf } from "./measurement.ts";
-import { packageLinkOf } from "./package-link.ts";
+import { packageLinkOf } from "../command-line/package-link.ts";
 import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
-import type { LoadFailure } from "./load-failure.ts";
-import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import { type MechanismRun, runMechanism } from "../run/mechanism-dispatch.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
@@ -82,8 +83,6 @@ export type LoadedInputs = {
   readonly eslintConfigRoots: readonly RepoPath[];
   readonly exceptionBaseline: ExceptionBaseline;
 };
-
-const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
 
 const runnerExportSchema = z.object({ runner: runnerModuleSchema });
 
@@ -259,64 +258,15 @@ const nestedConfigurationsOf = (request: { readonly run: MechanismRun }): readon
 
 type TreeRequest = Pick<CheckRequest, "git" | "repoRoot" | "path" | "fileText">;
 
-const workingTreePaths = (request: {
-  readonly check: TreeRequest;
-  readonly tracked: readonly RepoPath[];
-}): readonly RepoPath[] =>
-  request.tracked.filter(
-    (trackedPath) =>
-      request.check.fileText.exists({
-        path: request.check.path.join({ segments: [request.check.repoRoot, trackedPath] }),
-      }) === "present",
-  );
-
-const exclusion = (request: {
-  readonly trackedPath: RepoPath;
-  readonly excluded: readonly RepoPath[];
-}): "excluded" | "checked" =>
-  request.excluded.some(
-    (excludedPath) => request.trackedPath === excludedPath || request.trackedPath.startsWith(`${excludedPath}/`),
-  )
-    ? "excluded"
-    : "checked";
-
-const presentTrackedPaths = (request: {
-  readonly check: TreeRequest;
-  readonly excluded: readonly RepoPath[];
-}): Result<readonly RepoPath[], LoadFailure> => {
-  const tracked = request.check.git.trackedPaths({ repoRoot: request.check.repoRoot });
-  if (tracked.outcome === "failed") {
-    return failed({ kind: "git-failed", detail: `${tracked.error.command}: ${tracked.error.detail}` });
-  }
-  const checked = tracked.value.filter(
-    (trackedPath) => exclusion({ trackedPath, excluded: request.excluded }) === "checked",
-  );
-  return { outcome: "ok", value: workingTreePaths({ check: request.check, tracked: checked }) };
-};
-
-export type CheckedTree = {
-  readonly tracked: readonly RepoPath[];
-  readonly declaredConfigRoots: readonly RepoPath[];
-};
-
-const trackedFolder = (request: { readonly folder: RepoPath; readonly tracked: readonly RepoPath[] }): "tracked" | "untracked" =>
-  request.tracked.some((trackedPath) => trackedPath.startsWith(`${request.folder}/`)) ? "tracked" : "untracked";
-
-export const checkedTreeOf = (request: {
-  readonly check: TreeRequest;
-  readonly inputs: Pick<LoadedInputs, "excluded" | "eslintConfigRoots">;
-}): Result<CheckedTree, LoadFailure> => {
-  const tracked = presentTrackedPaths({ check: request.check, excluded: request.inputs.excluded });
-  if (tracked.outcome === "failed") {
-    return tracked;
-  }
-  const untracked = request.inputs.eslintConfigRoots.find(
-    (folder) => trackedFolder({ folder, tracked: tracked.value }) === "untracked",
-  );
-  return untracked === undefined
-    ? { outcome: "ok", value: { tracked: tracked.value, declaredConfigRoots: request.inputs.eslintConfigRoots } }
-    : failed({ kind: "config-root-untracked", root: untracked });
-};
+export const treeOf = (request: { readonly check: TreeRequest; readonly inputs: Pick<LoadedInputs, "excluded" | "eslintConfigRoots"> }): Result<CheckedTree, LoadFailure> =>
+  checkedTreeOf({
+    git: request.check.git,
+    fileText: request.check.fileText,
+    path: request.check.path,
+    repoRoot: request.check.repoRoot,
+    excluded: request.inputs.excluded,
+    eslintConfigRoots: request.inputs.eslintConfigRoots,
+  });
 
 const runRequestOf = (request: {
   readonly check: CheckRequest;
@@ -325,7 +275,7 @@ const runRequestOf = (request: {
 }): RunRequest => ({
   repoRoot: request.check.repoRoot,
   installRoot: request.check.installRoot,
-  files: request.tracked.filter((trackedPath) => TYPESCRIPT_FILE.test(trackedPath)),
+  files: typescriptFilesOf({ tracked: request.tracked }),
   trackedPaths: request.tracked,
   clauses: request.loaded.clauses,
 });
@@ -452,7 +402,7 @@ export const runReachedCheck = async (request: CheckRequest): Promise<Result<Rea
   if (inputs.outcome === "failed") {
     return inputs;
   }
-  const tree = checkedTreeOf({ check: request, inputs: inputs.value });
+  const tree = treeOf({ check: request, inputs: inputs.value });
   if (tree.outcome === "failed") {
     return tree;
   }

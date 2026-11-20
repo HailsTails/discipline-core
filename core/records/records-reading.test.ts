@@ -31,6 +31,10 @@ const CATALOGUE: SymptomCatalogue = {
   namedBans: [],
 };
 
+const TEXT_PAST_ITS_READER: Symptom = { name: "text-past-its-reader", title: "Text past its reader", seen: "A string.", mayIndicate: [], breachUsuallySits: "in the unit", recipes: [], correctUses: [] };
+
+const CATALOGUE_OF_TWO_SYMPTOMS: SymptomCatalogue = { ...CATALOGUE, symptoms: [CLAIMED_TYPE, TEXT_PAST_ITS_READER] };
+
 const UNMEASURED: RecordsAtBase = { measured: "no", base: { state: "not-given" } };
 
 const DEBT_FILE = repoPathSchema.parse("hone-records/debt/claimed-type.json");
@@ -326,6 +330,39 @@ describe("recordsReadingOf", () => {
     expect(
       recordsReadingOf({ documents: [{ file: BOUNDARIES_FILE, document: { version: 2, records: [record, { ...record, ports: ["FileWriter"] }] } }], catalogue: CATALOGUE, base: UNMEASURED }),
     ).toMatchObject({ outcome: "ok", value: { refused: [{ place: { file: BOUNDARIES_FILE, index: 1 }, refusals: [{ kind: "duplicate", of: { file: BOUNDARIES_FILE, index: 0 } }] }] } });
+  });
+
+  it.each([CLAIMED_TYPE, TEXT_PAST_ITS_READER])("accepts debt on $name: debt is debt, not blockers", (symptom) => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          {
+            file: repoPathSchema.parse(`hone-records/debt/${symptom.name}.json`),
+            document: { version: 2, records: [{ symptom: symptom.name, file: "src/held.ts" }] },
+          },
+        ],
+        catalogue: CATALOGUE_OF_TWO_SYMPTOMS,
+        base: UNMEASURED,
+      }),
+    ).toMatchObject({ outcome: "ok", value: { records: [{ record: { kind: "debt", symptom: { name: symptom.name } } }], refused: [] } });
+  });
+
+  it.each([CLAIMED_TYPE, TEXT_PAST_ITS_READER])("never refuses an authorised location for being on $name", (symptom) => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          {
+            file: repoPathSchema.parse(`hone-records/authorised-locations/${symptom.name}.json`),
+            document: {
+              version: 2,
+              records: [{ symptom: symptom.name, file: "src/held.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
+            },
+          },
+        ],
+        catalogue: CATALOGUE_OF_TWO_SYMPTOMS,
+        base: UNMEASURED,
+      }),
+    ).toMatchObject({ outcome: "ok", value: { records: [{ record: { kind: "authorised-location", symptom: { name: symptom.name } } }], refused: [] } });
   });
 
   it("refuses a document that is not version 2, with the form's issues as values", () => {

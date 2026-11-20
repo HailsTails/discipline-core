@@ -1,4 +1,4 @@
-import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../command-line/load-failure.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { type ClauseAddress, TOOL_RULE_SET } from "../values/clause-address.ts";
