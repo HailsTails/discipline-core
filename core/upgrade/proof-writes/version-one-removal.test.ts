@@ -21,7 +21,7 @@ const PROJECTION = absolutePathSchema.parse("/repo/disciplines.eslint.mjs");
 
 const SETTINGS = absolutePathSchema.parse("/repo/disciplines.json");
 
-const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsRoot: { kind: "folder", path: ROOT }, projection: PROJECTION, settings: SETTINGS };
+const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsFolders: [], recordsRoot: { kind: "folder", path: ROOT }, projection: PROJECTION, settings: SETTINGS };
 
 const ok = { outcome: "ok", value: undefined } as const;
 
@@ -86,6 +86,15 @@ describe("removedVersionOneFiles", () => {
       REMOVING_PROJECTION,
       REMOVING_SETTINGS,
     ]);
+  });
+
+  it("removes the empty folders listed with no records file, deepest first, the records folder last", () => {
+    const ports = portsOver();
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [], recordsFolders: [ROOT, CARVE_OUT_FOLDER] } })).toEqual({
+      outcome: "ok",
+      value: { files: [PROJECTION, SETTINGS], folders: [CARVE_OUT_FOLDER, ROOT] },
+    });
+    expect(sequenceOf({ ports })).toEqual([...REMOVING_CARVE_OUT_FOLDER, ...REMOVING_ROOT, REMOVING_PROJECTION, REMOVING_SETTINGS]);
   });
 
   it("leaves a folder that still holds something", () => {

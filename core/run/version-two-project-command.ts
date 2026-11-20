@@ -3,7 +3,7 @@ import { type CommandOutcome, loadFailureOutcome, projectCommandOutcome } from "
 import { printOutcome } from "../command-line/print-outcome.ts";
 import type { VersionedHandler } from "./version-chosen-command.ts";
 import { projectedFilesWrittenOf } from "./projected-files-written.ts";
-import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
+import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
 import { repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "./version-two-repository.ts";
 import { versionTwoProjectionOver } from "./version-two-projection.ts";
 
@@ -19,12 +19,13 @@ const outcomeOf = async (request: { readonly ports: VersionTwoRepositoryPorts; r
   if (located.outcome === "failed") {
     return loadFailureOutcome({ failure: located.error });
   }
+  const upgradeCommand = upgradeCommandFor({ path: command.path, moduleUrl: command.moduleUrl, repoRoot: located.value.repoRoot });
   const projected = await versionTwoProjectionOver({ stages: stagesOverRepository({ ports, command, located: located.value, baseRevision: undefined }) });
   if (projected.outcome === "failed") {
-    return runLoadFailureOutcomeOf({ failure: projected.error });
+    return runLoadFailureOutcomeOf({ failure: projected.error, upgradeCommand });
   }
   const written = projectedFilesWrittenOf({ fileText: command.fileText, path: command.path, repoRoot: located.value.repoRoot, files: projected.value });
-  return written.outcome === "failed" ? runLoadFailureOutcomeOf({ failure: written.error }) : projectCommandOutcome({ result: written });
+  return written.outcome === "failed" ? runLoadFailureOutcomeOf({ failure: written.error, upgradeCommand }) : projectCommandOutcome({ result: written });
 };
 
 export const versionTwoProjectCommandOf =

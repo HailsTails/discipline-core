@@ -1,4 +1,4 @@
-export type ExitCode = 0 | 1 | 2;
+export type ExitCode = 0 | 1 | 2 | 3;
 
 export type ProcessPort = {
   readonly arguments: readonly string[];

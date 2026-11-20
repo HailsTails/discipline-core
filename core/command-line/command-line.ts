@@ -7,7 +7,9 @@ export const SPLIT_RECORDS_SUBCOMMAND = "split-records";
 
 export const AUTHORISE_SUBCOMMAND = "authorise";
 
-export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, PRUNE_DEBT_SUBCOMMAND, AUTHORISE_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
+export const UPGRADE_SUBCOMMAND = "upgrade";
+
+export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, PRUNE_DEBT_SUBCOMMAND, AUTHORISE_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND, UPGRADE_SUBCOMMAND] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
@@ -183,6 +185,16 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     exits: [
       { code: 0, meaning: "the records were split, or there was nothing to split" },
       { code: 2, meaning: "a load failure: the records could not be read, placed or written, or Hone failed unexpectedly" },
+    ],
+  },
+  [UPGRADE_SUBCOMMAND]: {
+    summary: "move a version 1 repository to version 2: write hone.config.json, the hone-records folder and the projection, check that version 2 reports what version 1 reported, then remove the version 1 files",
+    options: [REPO_OPTION],
+    exits: [
+      { code: 0, meaning: "the repository was upgraded, or is already on version 2" },
+      { code: 1, meaning: "the upgrade was refused; it changed nothing, or named each file it could not put back" },
+      { code: 2, meaning: "a load failure: an input could not be loaded, or Hone failed unexpectedly" },
+      { code: 3, meaning: "version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit" },
     ],
   },
 };

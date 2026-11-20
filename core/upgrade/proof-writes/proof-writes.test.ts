@@ -198,7 +198,7 @@ describe("writeProofFiles", () => {
     ports.directoryRemoval.removeEmpty.mockReturnValueOnce(ok).mockReturnValueOnce({ outcome: "failed", error: { kind: "directory-unremovable", path: RECORDS_FOLDER, detail: "EBUSY" } });
     expect(writeProofFiles({ ports, files: [DEBT_FILE], replacement: REWRITTEN_CONFIG })).toEqual({
       outcome: "failed",
-      error: { failure: { kind: "unwritable", path: DEBT_FILE.path, detail: "ENOSPC" }, unrestored: [{ path: RECORDS_FOLDER, detail: "EBUSY" }] },
+      error: { failure: { kind: "unwritable", path: DEBT_FILE.path, detail: "ENOSPC" }, unrestored: [{ written: "directory-created", path: RECORDS_FOLDER, detail: "EBUSY" }] },
     });
   });
 });
@@ -217,7 +217,7 @@ describe("rolledBackProofWrites", () => {
   it("reports each path it could not undo and still undoes the rest", () => {
     const ports = portsOver({ kindOf: noKindsAsked() });
     ports.fileRemoval.remove.mockReturnValue({ outcome: "failed", error: { kind: "unremovable", path: DEBT_FILE.path, detail: "EBUSY" } });
-    expect(rolledBackProofWrites({ ports, writes: WRITTEN })).toEqual([{ path: DEBT_FILE.path, detail: "EBUSY" }]);
+    expect(rolledBackProofWrites({ ports, writes: WRITTEN })).toEqual([{ written: "file-created", path: DEBT_FILE.path, detail: "EBUSY" }]);
     expect(sequenceOf({ ports })).toEqual([
       { port: "write", arguments: [{ path: CONFIG, text: ORIGINAL_CONFIG }] },
       { port: "remove", arguments: [{ path: DEBT_FILE.path }] },

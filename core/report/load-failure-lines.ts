@@ -243,9 +243,7 @@ const recordsFields = (request: { readonly failure: RecordsFailure; readonly upg
     case "catalogue-not-read":
       return catalogueFields({ failure });
     case "upgrade-needed":
-      return request.upgradeCommand === undefined
-        ? [`${failure.path}:`, "this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files"]
-        : [`${failure.path}:`, `this is a version 1 file; run ${request.upgradeCommand}, which rewrites every version 1 file as version 2, and commit what it writes`];
+      return [`${failure.path}:`, `this is a version 1 file; run ${request.upgradeCommand ?? "hone upgrade"}, which rewrites every version 1 file as version 2, and commit what it writes`];
   }
 };
 

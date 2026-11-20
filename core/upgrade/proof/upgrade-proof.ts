@@ -8,8 +8,8 @@ import type { CheckReport } from "../../verdict/check-report.ts";
 import type { CarveOutOracle, OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
 import { type ProofDifference, proofDifferencesOf } from "../proof-comparison/proof-differences.ts";
 import { type PlannedFile, type ProofWriteRefusal, type ProofWritePorts, type ProofWrites, rolledBackProofWrites, type Unrestored, writeProofFiles } from "../proof-writes/proof-writes.ts";
-import { type OutsideRoot, type Removed, type RemovalFailure, type RecordsRoot, recordsOutsideRoot, removedVersionOneFiles, type VersionOneRemoval } from "../proof-writes/version-one-removal.ts";
-import { type PlanRefusal, type PlannedRepoFile, type ProjectionTextOf, type UpgradePlan, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
+import { type OutsideRoot, type Removed, type RemovalFailure, type RecordsRoot, filesStillPresentOf, recordsOutsideRoot, removedVersionOneFiles, type VersionOneRemoval } from "../proof-writes/version-one-removal.ts";
+import { type PlanRefusal, type PlannedRepoFile, type ProjectionFilesOf, type UpgradePlan, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
 
 export type ProofRunFailure = { readonly kind: "run-failed"; readonly detail: string };
 
@@ -22,6 +22,7 @@ export type VersionOneRecordsRoot = { readonly kind: "repository" } | { readonly
 
 export type VersionOneFiles = {
   readonly recordsFiles: readonly RepoPath[];
+  readonly recordsFolders: readonly RepoPath[];
   readonly recordsRoot: VersionOneRecordsRoot;
   readonly settings: RepoPath;
 };
@@ -34,8 +35,7 @@ export type UpgradeProofRequest = {
   readonly versionOneFiles: VersionOneFiles;
   readonly catalogues: readonly RuleSetCatalogue[];
   readonly repoRoot: AbsolutePath;
-  readonly versionTwoProjection: RepoPath;
-  readonly projectionTextOf: ProjectionTextOf;
+  readonly projectionFilesOf: ProjectionFilesOf;
 };
 
 export type ProofCarriedOver = {
@@ -55,7 +55,7 @@ export type ProofRefusal =
   | { readonly kind: "write-refused"; readonly refusal: ProofWriteRefusal }
   | { readonly kind: "version-two-run-failed"; readonly failure: ProofRunFailure; readonly unrestored: readonly Unrestored[] }
   | { readonly kind: "differences"; readonly differences: readonly ProofDifference[]; readonly unrestored: readonly Unrestored[] }
-  | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure } & AfterWriting);
+  | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure; readonly remaining: readonly AbsolutePath[] } & AfterWriting);
 
 type Placed = {
   readonly files: readonly PlannedFile[];
@@ -93,14 +93,19 @@ const recordsRootOf = (request: UpgradeProofRequest): Result<RecordsRoot, ProofR
 const removalOf = (request: UpgradeProofRequest): Result<VersionOneRemoval, ProofRefusal> => {
   const { ports, repoRoot, versionOneFiles } = request;
   const recordsFiles = allOf({ results: versionOneFiles.recordsFiles.map((file) => absoluteOf({ ports, repoRoot, file })) });
+  const recordsFolders = allOf({ results: versionOneFiles.recordsFolders.map((file) => absoluteOf({ ports, repoRoot, file })) });
   const recordsRoot = recordsRootOf(request);
   const projection = optionalPathOf({ ports, repoRoot, file: request.reading.versionOneProjection });
   const settings = absoluteOf({ ports, repoRoot, file: versionOneFiles.settings });
   if (recordsFiles.outcome === "failed") return recordsFiles;
+  if (recordsFolders.outcome === "failed") return recordsFolders;
   if (recordsRoot.outcome === "failed") return recordsRoot;
   if (projection.outcome === "failed") return projection;
   if (settings.outcome === "failed") return settings;
-  return { outcome: "ok", value: { recordsFiles: recordsFiles.value, recordsRoot: recordsRoot.value, projection: projection.value, settings: settings.value } };
+  return {
+    outcome: "ok",
+    value: { recordsFiles: recordsFiles.value, recordsFolders: recordsFolders.value, recordsRoot: recordsRoot.value, projection: projection.value, settings: settings.value },
+  };
 };
 
 const placedOf = (request: UpgradeProofRequest & { readonly plan: UpgradePlan }): Result<Placed, ProofRefusal> => {
@@ -149,7 +154,7 @@ const removedAfterComparing = (request: UpgradeProofRequest & Written): Result<P
   const carried: AfterWriting = { written: request.plan.files.map(({ file }) => file), replaced: request.plan.replacement?.file };
   const removed = removedVersionOneFiles({ ports: request.ports, removal: request.placed.removal });
   return removed.outcome === "failed"
-    ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, ...carried } }
+    ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, remaining: filesStillPresentOf({ removal: request.placed.removal, failure: removed.error }), ...carried } }
     : { outcome: "ok", value: { ...carried, removed: removed.value } };
 };
 
@@ -158,12 +163,11 @@ export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result
   if (answered.outcome === "failed") {
     return { outcome: "failed", error: { kind: "oracle-failed", failure: answered.error } };
   }
-  const plan = upgradePlanOf({
+  const plan = await upgradePlanOf({
     reading: request.reading,
     answered: answered.value,
     catalogues: request.catalogues,
-    versionTwoProjection: request.versionTwoProjection,
-    projectionTextOf: request.projectionTextOf,
+    projectionFilesOf: request.projectionFilesOf,
   });
   if (plan.outcome === "failed") {
     return { outcome: "failed", error: { kind: "plan-refused", refusal: plan.error } };

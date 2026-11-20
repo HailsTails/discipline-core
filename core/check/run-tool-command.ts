@@ -1,5 +1,8 @@
 import { createDefaultExceptionRepositoryOf } from "../exception-records/exception-layout.ts";
-import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.ts";
+import { createDefaultDirectoryRemovalPort } from "../platform-ports/directory-removal-port.ts";
+import { createDefaultFileCreationPort } from "../platform-ports/file-creation-port.ts";
+import { createDefaultDirectoryPort, createDefaultEntryKindPort } from "../platform-ports/file-system-port.ts";
+import { alreadyUpgradedCommand, upgradeCommandOf } from "../upgrade/command/run-upgrade-command.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
@@ -82,6 +85,14 @@ const versionTwoProject = versionTwoProjectCommandOf(versionTwoPorts);
 
 const versionTwoRecordPorts = { ...versionTwoPorts, removal: createDefaultFileRemovalPort({}) };
 
+const upgradePorts = {
+  ...versionTwoPorts,
+  fileCreation: createDefaultFileCreationPort({}),
+  fileRemoval: createDefaultFileRemovalPort({}),
+  directoryRemoval: createDefaultDirectoryRemovalPort({}),
+  entryKind: createDefaultEntryKindPort({}),
+};
+
 export const TOOL_SUBCOMMANDS: Subcommands = {
   check: versionChosenCommandOf({ versionOne: runGuidedCheckCommand, versionTwo: versionTwoCheck }),
   project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: versionTwoProject }),
@@ -89,6 +100,7 @@ export const TOOL_SUBCOMMANDS: Subcommands = {
   "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: versionTwoPruneDebtCommandOf(versionTwoRecordPorts) }),
   authorise: versionChosenCommandOf({ versionOne: versionTwoNeededCommandOf, versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
   "split-records": versionChosenCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
+  upgrade: versionChosenCommandOf({ versionOne: upgradeCommandOf(upgradePorts), versionTwo: alreadyUpgradedCommand }),
 };
 
 export const runToolCommand: CommandHandler = toolCommandOf({ subcommands: TOOL_SUBCOMMANDS });

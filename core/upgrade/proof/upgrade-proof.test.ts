@@ -18,7 +18,7 @@ import type { CheckReport } from "../../verdict/check-report.ts";
 import type { CarveOutOracle, FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { type ProofRuns, upgradeProof, type UpgradeProofRequest } from "./upgrade-proof.ts";
-import type { ProjectionTextOf, VersionOneReading } from "./upgrade-plan.ts";
+import type { ProjectionFilesOf, VersionOneReading } from "./upgrade-plan.ts";
 
 const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
 
@@ -171,13 +171,13 @@ const requestOver = (request: { readonly doubles: Doubles }): UpgradeProofReques
   reading: READING,
   versionOneFiles: {
     recordsFiles: [repoPathSchema.parse("discipline-exceptions/cd-15.json")],
+    recordsFolders: [],
     recordsRoot: { kind: "folder", folder: repoPathSchema.parse("discipline-exceptions") },
     settings: repoPathSchema.parse("disciplines.json"),
   },
   catalogues: CATALOGUES,
   repoRoot: REPO,
-  versionTwoProjection: repoPathSchema.parse("hone.eslint.mjs"),
-  projectionTextOf: vi.fn<ProjectionTextOf>().mockReturnValue("projection text"),
+  projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: [{ file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" }] }),
 });
 
 const sequenceOf = (request: { readonly doubles: Doubles }) =>
@@ -199,6 +199,7 @@ const sequenceOf = (request: { readonly doubles: Doubles }) =>
 
 const SINGLE_FILE_LAYOUT: UpgradeProofRequest["versionOneFiles"] = {
   recordsFiles: [repoPathSchema.parse("discipline-exceptions.json")],
+  recordsFolders: [],
   recordsRoot: { kind: "repository" },
   settings: repoPathSchema.parse("disciplines.json"),
 };
@@ -356,6 +357,7 @@ describe("upgradeProof", () => {
       error: {
         kind: "removal-failed",
         failure: { kind: "unremovable", path: "/repo/discipline-exceptions/cd-15.json", detail: "EBUSY", removed: { files: [], folders: [] } },
+        remaining: ["/repo/discipline-exceptions/cd-15.json", "/repo/disciplines.eslint.mjs", "/repo/disciplines.json"],
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: "eslint.config.mjs",
       },
@@ -418,7 +420,7 @@ describe("upgradeProof", () => {
     doubles.ports.fileRemoval.remove.mockReturnValueOnce(ok).mockReturnValueOnce({ outcome: "failed", error: { kind: "unremovable", path: DEBT_PATH, detail: "EBUSY" } }).mockReturnValue(ok);
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [{ path: DEBT_PATH, detail: "EBUSY" }] },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [{ written: "file-created", path: DEBT_PATH, detail: "EBUSY" }] },
     });
   });
 
@@ -435,6 +437,7 @@ describe("upgradeProof", () => {
           detail: "the removal threw",
           removed: { files: ["/repo/discipline-exceptions/cd-15.json"], folders: ["/repo/discipline-exceptions"] },
         },
+        remaining: ["/repo/disciplines.eslint.mjs", "/repo/disciplines.json"],
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: "eslint.config.mjs",
       },

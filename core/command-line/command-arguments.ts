@@ -242,6 +242,21 @@ export const parseSplitRecordsArguments = (request: {
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
 };
 
+export type UpgradeArguments = {
+  readonly repo: string;
+};
+
+export const parseUpgradeArguments = (request: {
+  readonly arguments: readonly string[];
+}): Result<UpgradeArguments, LoadFailure> => {
+  const values = givenOptionValues({ subcommand: "upgrade", arguments: request.arguments });
+  if (values.outcome === "failed") {
+    return values;
+  }
+  const repo = requiredRepo({ subcommand: "upgrade", values: values.value });
+  return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
+};
+
 export type AuthoriseArguments = {
   readonly repo: string;
   readonly values: ReadonlyMap<string, readonly string[]>;

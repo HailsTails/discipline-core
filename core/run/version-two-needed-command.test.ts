@@ -11,7 +11,7 @@ const ranOver = async (request: { readonly files: Readonly<Record<string, string
 describe("versionTwoNeededCommandOf", () => {
   it("names the version 1 file that needs upgrading when the folder holds disciplines.json", async () => {
     expect(await ranOver({ files: { "disciplines.json": "{}" }, arguments: ["--repo", "/repo"] })).toEqual({
-      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n" }]],
+      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file; run node /install/core/check/tool-command.ts upgrade --repo /repo, which rewrites every version 1 file as version 2, and commit what it writes\n" }]],
       exits: [[{ code: 2 }]],
     });
   });

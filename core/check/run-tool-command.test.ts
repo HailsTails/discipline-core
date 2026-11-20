@@ -62,6 +62,7 @@ const subcommandsSpied = (): Subcommands => ({
   "prune-debt": vi.fn<CommandHandler>().mockResolvedValue(undefined),
   authorise: vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "split-records": vi.fn<CommandHandler>().mockResolvedValue(undefined),
+  upgrade: vi.fn<CommandHandler>().mockResolvedValue(undefined),
 });
 
 type SubcommandCalls = {
@@ -145,10 +146,10 @@ const ranNothing = { check: [], project: [], recordDebt: [], pruneDebt: [] };
 
 describe("toolCommandOf refusing an invocation it cannot read", () => {
   it.each([
-    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt, authorise or split-records; run hone --help for usage\n" },
+    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt, authorise, split-records or upgrade; run hone --help for usage\n" },
     {
       given: ["lint", "--repo", "/repo"],
-      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt, prune-debt, authorise and split-records; run hone --help for usage\n',
+      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt, prune-debt, authorise, split-records and upgrade; run hone --help for usage\n',
     },
   ])("exits 2 with the arguments-invalid line and runs nothing, given $given", async ({ given, line }) => {
     const subcommands = subcommandsSpied();
@@ -229,7 +230,7 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
   ])("exits 2 with an unexpected-error load failure line, so exit 1 always means a failing verdict: $line", async ({ handler, line }) => {
     const processPort = processWith({ arguments: ["check", "--repo", "/repo"] });
 
-    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, authorise: handler, "split-records": handler } })(commandRequest({ process: processPort }));
+    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, authorise: handler, "split-records": handler, upgrade: handler } })(commandRequest({ process: processPort }));
 
     expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
   });
@@ -253,7 +254,7 @@ const AUTHORISE_CASES: readonly AuthoriseCase[] = [
     files: { "disciplines.json": "{}" },
     path: POSIX_PATH,
     arguments: ["--repo", "/repo"],
-    line: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n",
+    line: "load failure: upgrade-needed disciplines.json: this is a version 1 file; run node /install/core/check/tool-command.ts upgrade --repo /repo, which rewrites every version 1 file as version 2, and commit what it writes\n",
   },
   {
     case: "a folder holding neither settings file",

@@ -11,10 +11,10 @@ import type { RecordsSource } from "../records/records-source.ts";
 import type { RecordsStore } from "../records/records-store.ts";
 import { createRecordsStore } from "../records/records-store.ts";
 import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "../report/record-command-lines.ts";
-import { runLoadFailureOf } from "../report/run-load-failure.ts";
+import { type RunLoadFailure, runLoadFailureOf } from "../report/run-load-failure.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
-import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
+import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
 import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "./version-two-repository.ts";
 import { versionTwoRunOver } from "./version-two-run.ts";
 
@@ -28,8 +28,14 @@ type Context = {
 
 type OutcomeOf = (request: { readonly ports: VersionTwoRecordPorts; readonly command: CommandRequest }) => Promise<CommandOutcome>;
 
-const recordFailureOutcome = (request: { readonly failure: RecordCommandFailure }): CommandOutcome =>
-  runLoadFailureOutcomeOf({ failure: runLoadFailureOf({ engines: [], source: request.failure }) });
+const failureOutcomeOf = (request: { readonly context: Context; readonly failure: RunLoadFailure }): CommandOutcome =>
+  runLoadFailureOutcomeOf({
+    failure: request.failure,
+    upgradeCommand: upgradeCommandFor({ path: request.context.command.path, moduleUrl: request.context.command.moduleUrl, repoRoot: request.context.located.repoRoot }),
+  });
+
+const recordFailureOutcome = (request: { readonly context: Context; readonly failure: RecordCommandFailure }): CommandOutcome =>
+  failureOutcomeOf({ context: request.context, failure: runLoadFailureOf({ engines: [], source: request.failure }) });
 
 const linesOutcome = (request: { readonly lines: readonly string[] }): CommandOutcome => ({
   code: 0,
@@ -71,14 +77,14 @@ const recordDebtOutcome: OutcomeOf = async (request) => {
   const stages = stagesOverRepository({ ...context.value, baseRevision: parsed.value.baseRevision });
   const run = await versionTwoRunOver({ stages, arguments: { forfeiture: undefined, reportOutput: undefined, measuring: "always" } });
   if (run.outcome === "failed") {
-    return runLoadFailureOutcomeOf({ failure: run.error });
+    return failureOutcomeOf({ context: context.value, failure: run.error });
   }
   const recorded = recordDebtOf({ catalogue: run.value.catalogue, source: sourceOf({ ...context.value, catalogue: run.value.catalogue }), store: storeOf(context.value) })({
     findings: run.value.report.findings,
     touched: run.value.touched,
     leave: parsed.value.leave,
   });
-  return recorded.outcome === "failed" ? recordFailureOutcome({ failure: recorded.error }) : linesOutcome({ lines: recorded.value.map((outcome) => debtOutcomeLine({ outcome })) });
+  return recorded.outcome === "failed" ? recordFailureOutcome({ context: context.value, failure: recorded.error }) : linesOutcome({ lines: recorded.value.map((outcome) => debtOutcomeLine({ outcome })) });
 };
 
 const pruneDebtOutcome: OutcomeOf = async (request) => {
@@ -95,21 +101,21 @@ const pruneDebtOutcome: OutcomeOf = async (request) => {
     arguments: { forfeiture: parsed.value.forfeiture, reportOutput: undefined, measuring: "when-debt-held" },
   });
   if (run.outcome === "failed") {
-    return runLoadFailureOutcomeOf({ failure: run.error });
+    return failureOutcomeOf({ context: context.value, failure: run.error });
   }
   const pruned = pruneDebtOf({ source: sourceOf({ ...context.value, catalogue: run.value.catalogue }), store: storeOf(context.value) })({ report: run.value.report });
-  return pruned.outcome === "failed" ? recordFailureOutcome({ failure: pruned.error }) : linesOutcome({ lines: pruned.value.map((debt) => prunedDebtLine({ pruned: debt })) });
+  return pruned.outcome === "failed" ? recordFailureOutcome({ context: context.value, failure: pruned.error }) : linesOutcome({ lines: pruned.value.map((debt) => prunedDebtLine({ pruned: debt })) });
 };
 
 const authorisedOutcome = (request: { readonly context: Context; readonly authorising: AuthoriseRequest }): CommandOutcome => {
   const { context, authorising } = request;
   const catalogue = stagesOverRepository({ ...context, baseRevision: undefined }).catalogue();
   if (catalogue.outcome === "failed") {
-    return runLoadFailureOutcomeOf({ failure: catalogue.error });
+    return failureOutcomeOf({ context, failure: catalogue.error });
   }
   const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf({ ...context, catalogue: catalogue.value }), store: storeOf(context) })(authorising);
   return authorised.outcome === "failed"
-    ? recordFailureOutcome({ failure: authorised.error })
+    ? recordFailureOutcome({ context, failure: authorised.error })
     : linesOutcome({ lines: authorisingLines({ address: authorising.symptom, file: authorising.file, authorising: authorised.value }) });
 };
 

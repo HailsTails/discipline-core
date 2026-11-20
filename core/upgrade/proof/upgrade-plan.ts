@@ -25,7 +25,12 @@ export type VersionOneReading = {
   readonly versionOneProjection: RepoPath | undefined;
 };
 
-export type ProjectionTextOf = (request: { readonly settings: SettingsFile; readonly documents: readonly MappedRecordsDocument[] }) => string | undefined;
+export type ProjectionFailure = { readonly kind: "projection-failed"; readonly detail: string };
+
+export type ProjectionFilesOf = (request: {
+  readonly settings: SettingsFile;
+  readonly documents: readonly MappedRecordsDocument[];
+}) => Promise<Result<readonly PlannedRepoFile[], ProjectionFailure>>;
 
 export type UpgradePlan = {
   readonly inputs: readonly RecordInput[];
@@ -35,6 +40,8 @@ export type UpgradePlan = {
 
 export type PlanRefusal =
   | CarveOutUnanswered
+  | ProjectionFailure
+  | { readonly kind: "projection-not-single"; readonly files: readonly RepoPath[] }
   | { readonly kind: "mapping-refused"; readonly refusals: readonly UpgradeRefusal[] }
   | { readonly kind: "reach-beyond-entries"; readonly records: readonly ReachBeyondEntries[] }
   | { readonly kind: "config-import-refused"; readonly refusal: ConfigImportRefusal };
@@ -43,35 +50,32 @@ export type UpgradePlanRequest = {
   readonly reading: VersionOneReading;
   readonly answered: readonly CarveOutAnswered[];
   readonly catalogues: readonly RuleSetCatalogue[];
-  readonly versionTwoProjection: RepoPath;
-  readonly projectionTextOf: ProjectionTextOf;
+  readonly projectionFilesOf: ProjectionFilesOf;
 };
 
 const recordFilesOf = (request: { readonly documents: readonly MappedRecordsDocument[] }): readonly PlannedRepoFile[] =>
   request.documents.map(({ file, version, records }) => ({ file, text: recordsTextOf({ document: { version, records } }) }));
 
-const projectionFilesOf = (request: {
-  readonly text: string | undefined;
-  readonly file: RepoPath;
-}): readonly PlannedRepoFile[] => (request.text === undefined ? [] : [{ file: request.file, text: request.text }]);
-
-const replacementOf = (request: UpgradePlanRequest): Result<PlannedRepoFile | undefined, PlanRefusal> => {
+const replacementOf = (request: { readonly reading: VersionOneReading; readonly projected: readonly PlannedRepoFile[] }): Result<PlannedRepoFile | undefined, PlanRefusal> => {
   const { teamConfig, versionOneProjection } = request.reading;
   if (teamConfig === undefined || versionOneProjection === undefined) {
     return { outcome: "ok", value: undefined };
+  }
+  if (request.projected.length !== 1) {
+    return { outcome: "failed", error: { kind: "projection-not-single", files: request.projected.map(({ file }) => file) } };
   }
   const rewritten = rewrittenConfigOf({
     file: teamConfig.file,
     text: teamConfig.text,
     versionOneProjection,
-    versionTwoProjection: request.versionTwoProjection,
+    versionTwoProjection: request.projected[0].file,
   });
   return rewritten.outcome === "ok"
     ? { outcome: "ok", value: { file: teamConfig.file, text: rewritten.value } }
     : { outcome: "failed", error: { kind: "config-import-refused", refusal: rewritten.error } };
 };
 
-export const upgradePlanOf = (request: UpgradePlanRequest): Result<UpgradePlan, PlanRefusal> => {
+export const upgradePlanOf = async (request: UpgradePlanRequest): Promise<Result<UpgradePlan, PlanRefusal>> => {
   const inputs = recordInputsOf({ heads: request.reading.heads, answered: request.answered });
   if (inputs.outcome === "failed") {
     return inputs;
@@ -92,7 +96,11 @@ export const upgradePlanOf = (request: UpgradePlanRequest): Result<UpgradePlan, 
   if (beyond.length > 0) {
     return { outcome: "failed", error: { kind: "reach-beyond-entries", records: beyond } };
   }
-  const replacement = replacementOf(request);
+  const projected = await request.projectionFilesOf({ settings: settings.value.settings, documents });
+  if (projected.outcome === "failed") {
+    return projected;
+  }
+  const replacement = replacementOf({ reading: request.reading, projected: projected.value });
   if (replacement.outcome === "failed") {
     return replacement;
   }
@@ -100,11 +108,7 @@ export const upgradePlanOf = (request: UpgradePlanRequest): Result<UpgradePlan, 
     outcome: "ok",
     value: {
       inputs: inputs.value,
-      files: [
-        { file: SETTINGS_FILE, text: settingsTextOf({ settings: settings.value.settings }) },
-        ...recordFilesOf({ documents }),
-        ...projectionFilesOf({ text: request.projectionTextOf({ settings: settings.value.settings, documents }), file: request.versionTwoProjection }),
-      ],
+      files: [{ file: SETTINGS_FILE, text: settingsTextOf({ settings: settings.value.settings }) }, ...recordFilesOf({ documents }), ...projected.value],
       replacement: replacement.value,
     },
   };

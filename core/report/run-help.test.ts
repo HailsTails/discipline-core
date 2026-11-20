@@ -31,7 +31,7 @@ commands:
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
   authorise    write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
-  upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
+  upgrade      move a version 1 repository to version 2: write hone.config.json, the hone-records folder and the projection, check that version 2 reports what version 1 reported, then remove the version 1 files
 
 options:
   --help, -h  print this help; after a command, print that command's help
@@ -68,17 +68,19 @@ exit codes:
   it("prints upgrade's help, the one new command", () => {
     expect(runHelpText({ topic: "upgrade" })).toBe(`usage: hone upgrade --repo <dir>
 
-rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
+move a version 1 repository to version 2: write hone.config.json, the hone-records folder and the projection, check that version 2 reports what version 1 reported, then remove the version 1 files
 
 options:
   --repo <dir>
-      the folder that holds disciplines.json, usually the repository root; upgrade writes hone.config.json beside it
+      the folder that holds disciplines.json, usually the repository root
   --help, -h
       print this help
 
 exit codes:
-  0  every version 1 file was rewritten, or none was found
-  2  a load failure: a version 1 file could not be read or a version 2 file written, or Hone failed unexpectedly
+  0  the repository was upgraded, or is already on version 2
+  1  the upgrade was refused; it changed nothing, or named each file it could not put back
+  2  a load failure: an input could not be loaded, or Hone failed unexpectedly
+  3  version 2 is in place, but some version 1 files could not be removed; delete the files printed, then commit
 `);
   });
 

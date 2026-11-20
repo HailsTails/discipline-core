@@ -3,7 +3,7 @@ import type { Result } from "../../values/result.ts";
 import { directoryOf, relativeSpecifierOf, resolvedPathOf } from "./relative-specifier.ts";
 
 export type ConfigImportRefusal =
-  | { readonly kind: "no-projection-import"; readonly file: RepoPath }
+  | { readonly kind: "no-projection-import"; readonly file: RepoPath; readonly projection: RepoPath }
   | { readonly kind: "several-projection-imports"; readonly file: RepoPath; readonly count: number }
   | { readonly kind: "projection-named-elsewhere"; readonly file: RepoPath };
 
@@ -42,6 +42,11 @@ const projectionImportsOf = (request: ConfigImportRewriteRequest): readonly Proj
     ({ specifier }) => resolvedPathOf({ directory: directoryOf({ file: request.file }), specifier }) === request.versionOneProjection,
   );
 
+export type ProjectionImporting = "imports" | "does-not-import";
+
+export const projectionImportingOf = (request: ConfigImportRewriteRequest): ProjectionImporting =>
+  projectionImportsOf(request).length > 0 ? "imports" : "does-not-import";
+
 const mentionsOf = (request: { readonly text: string; readonly name: string }): number => request.text.split(request.name).length - 1;
 
 const nameOf = (request: { readonly path: RepoPath }): string => request.path.slice(request.path.lastIndexOf(PATH_SEPARATOR) + 1);
@@ -50,7 +55,7 @@ export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<s
   const found = projectionImportsOf(request);
   const [only, ...others] = found;
   if (only === undefined) {
-    return { outcome: "failed", error: { kind: "no-projection-import", file: request.file } };
+    return { outcome: "failed", error: { kind: "no-projection-import", file: request.file, projection: request.versionOneProjection } };
   }
   if (others.length > 0) {
     return { outcome: "failed", error: { kind: "several-projection-imports", file: request.file, count: found.length } };
