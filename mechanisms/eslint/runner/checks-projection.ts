@@ -83,3 +83,10 @@ export const checksProjectionText = (request: {
   const blocks = [checksBlock(request), ...answeredGroupsOf(request).map((group) => answeredBlock({ group, checks: request.checks }))];
   return `import ${CHECKS_PLUGIN_NAMESPACE} from ${quoted({ text: request.pluginImport })};\nexport default [${blocks.join(",\n")}];\n`;
 };
+
+export const CHECKS_DECLARATION_PATH: RepoPath = repoPathSchema.parse("hone.eslint.d.mts");
+
+const ESLINT_PACKAGE = "eslint";
+
+export const checksDeclarationText = (): string =>
+  `import type { Linter } from ${quoted({ text: ESLINT_PACKAGE })};\ndeclare const projection: Linter.Config[];\nexport default projection;\n`;

@@ -15,7 +15,7 @@ import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-po
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 import ESLINT_CD_14_PIECE from "../CD-14/piece.json" with { type: "json" };
-import { CHECKS_PROJECTION_PATH, checksProjectionText } from "./checks-projection.ts";
+import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksDeclarationText, checksProjectionText } from "./checks-projection.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { createChecksRunner } from "./checks-runner.ts";
 
@@ -52,7 +52,14 @@ const scratch = createDefaultScratchFilesPort({});
 const repositories = scratchRepositoriesUnder({ parent: `${INSTALL_ROOT}/artefacts`, fileText, scratch });
 
 const repositoryHoldingSub = (request: { readonly files: Readonly<Record<string, string>>; readonly sub: Readonly<Record<string, string>> }) =>
-  repositoryWithSubfolder({ repositories, scratch, fileText, files: request.files, subfolder: "sub", subfolderFiles: request.sub });
+  repositoryWithSubfolder({
+    repositories,
+    scratch,
+    fileText,
+    files: { [CHECKS_DECLARATION_PATH]: checksDeclarationText(), ...request.files },
+    subfolder: "sub",
+    subfolderFiles: { [CHECKS_DECLARATION_PATH]: checksDeclarationText(), ...request.sub },
+  });
 
 afterAll(() => {
   repositories.removeAll();
@@ -307,6 +314,12 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
 
 const SUB_SLICE = repoPathSchema.parse("sub/hone.eslint.mjs");
 
+const SUB_DECLARATION_PATH = repoPathSchema.parse(`sub/${CHECKS_DECLARATION_PATH}`);
+
+const ROOT_DECLARATION = { file: CHECKS_DECLARATION_PATH, text: checksDeclarationText() };
+
+const SUB_DECLARATION = { file: SUB_DECLARATION_PATH, text: checksDeclarationText() };
+
 const SUB_PROJECTION_TEXT = checksProjectionText({ pluginImport: "../../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: [] });
 
 const PACKAGE_CONFIG =`import hone from "./${CHECKS_PROJECTION_PATH}";\nexport default [{ files: ["**/*.ts"] }, ...hone];\n`;
@@ -352,6 +365,8 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
         value: [
           { file: CHECKS_PROJECTION_PATH, text: PROJECTION_TEXT },
           { file: SUB_SLICE, text: SUB_PROJECTION_TEXT },
+          ROOT_DECLARATION,
+          SUB_DECLARATION,
         ],
       },
       run: { outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } },
@@ -416,7 +431,18 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
 
   it("names the declared folder's file missing, and lints nothing, when that file is not written", async () => {
     const sub = { "eslint.config.mjs": PACKAGE_CONFIG, "kept.ts": ONE_CLASS };
-    expect(await runOver({ ...DECLARED_RUN, line, sub })).toEqual({ outcome: "ok", value: { ...REPORT, slices: [{ slice: SUB_SLICE, state: "missing" }] } });
+    expect(await runOver({ ...DECLARED_RUN, line, sub })).toEqual({
+      outcome: "ok",
+      value: { ...REPORT, slices: [{ slice: SUB_SLICE, state: "missing" }] },
+    });
+  });
+
+  it("names the declared folder's declaration out of date, and still reports the class, when it differs from what project writes", async () => {
+    const sub = { ...DECLARED_RUN.sub, [CHECKS_DECLARATION_PATH]: "export {};\n" };
+    expect(await runOver({ ...DECLARED_RUN, line, sub })).toEqual({
+      outcome: "ok",
+      value: { ...REPORT, hits: [SUB_HIT], measured: SUB_MEASURED, slices: [{ slice: SUB_DECLARATION_PATH, state: "out-of-date" }] },
+    });
   });
 
   it("gives the declared folder's file beside the root file, each holding the answers that belong to it", async () => {
@@ -437,6 +463,8 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
       value: [
         { file: CHECKS_PROJECTION_PATH, text: ROOT_TEXT_ANSWERING_SUB },
         { file: SUB_SLICE, text: SUB_TEXT_ANSWERING_ITS_FILE },
+        ROOT_DECLARATION,
+        SUB_DECLARATION,
       ],
     });
   });
