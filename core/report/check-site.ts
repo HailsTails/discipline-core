@@ -31,13 +31,10 @@ const sitesOfNamed = (request: { readonly named: NamedCheck; readonly engineRequ
   }
 };
 
-const siteOfResolved = (request: { readonly resolved: FindingCheck; readonly engineRequest: EngineRequest }): CheckSite => {
-  const { resolved, engineRequest } = request;
-  if (resolved.resolved !== "check") {
-    return uncheckedSite(engineRequest);
-  }
-  return sitesOfCheck({ check: resolved.check, mechanism: engineRequest.mechanism })[0] ?? uncheckedSite(engineRequest);
-};
+const siteOfResolved = (request: { readonly resolved: FindingCheck; readonly engineRequest: EngineRequest }): CheckSite =>
+  request.resolved.resolved === "check"
+    ? { sited: "check", check: request.resolved.check, engine: request.resolved.engine }
+    : uncheckedSite(request.engineRequest);
 
 export const findingSiteOf = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): CheckSite =>
   siteOfResolved({

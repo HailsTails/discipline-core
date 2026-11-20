@@ -13,6 +13,7 @@ import {
   REPORT_CATALOGUE,
   TEST_BODY_CHECK,
   TEST_BODY_LOGIC,
+  WALKER,
 } from "../../tests/report-catalogue.ts";
 import type { Finding } from "../governance/governance.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
@@ -41,13 +42,13 @@ const ROWS: readonly Row[] = [
     name: "a finding naming a check its engine measures resolves to that check",
     catalogue: REPORT_CATALOGUE,
     finding: findingOf({ clause: CAST_EXPRESSIONS, mechanism: ESLINT, check: "claimed-type#cast-expressions" }),
-    resolved: { resolved: "check", check: CAST_CHECK },
+    resolved: { resolved: "check", check: CAST_CHECK, engine: ESLINT_ENGINE },
   },
   {
     name: "a finding naming one of two checks of a symptom resolves to the one it names",
     catalogue: TWO_CAST_CHECKS,
     finding: findingOf({ clause: CAST_EXPRESSIONS, mechanism: ESLINT, check: "claimed-type#angle-brackets" }),
-    resolved: { resolved: "check", check: ANGLE_BRACKETS_CHECK },
+    resolved: { resolved: "check", check: ANGLE_BRACKETS_CHECK, engine: ESLINT_ENGINE },
   },
   {
     name: "a finding naming a check its engine does not measure resolves to nothing",
@@ -65,13 +66,13 @@ const ROWS: readonly Row[] = [
     name: "a finding naming no check, of a clause that sees one symptom, resolves to the one check of that symptom on its engine",
     catalogue: REPORT_CATALOGUE,
     finding: findingOf({ clause: CLOCK_SOURCES, mechanism: AUDIT }),
-    resolved: { resolved: "check", check: CLOCK_CHECK },
+    resolved: { resolved: "check", check: CLOCK_CHECK, engine: WALKER },
   },
   {
     name: "a finding naming no check, read by its remedy's form, resolves to the check of that form's symptom",
     catalogue: REPORT_CATALOGUE,
     finding: findingOf({ clause: TEST_BODY_LOGIC, mechanism: AUDIT, remedy: BRANCH_REMEDY }),
-    resolved: { resolved: "check", check: TEST_BODY_CHECK },
+    resolved: { resolved: "check", check: TEST_BODY_CHECK, engine: WALKER },
   },
   {
     name: "a finding naming no check, whose clause sees no symptom in it, resolves to nothing",

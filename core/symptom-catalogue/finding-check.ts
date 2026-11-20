@@ -2,27 +2,29 @@ import type { Finding } from "../governance/governance.ts";
 import { checkNamedAt, checksOf } from "./check-address.ts";
 import { type Check, type Engine, type Symptom, type SymptomCatalogue, symptomReadingOf } from "./symptom-catalogue.ts";
 
+type CheckAtEngine = { readonly check: Check; readonly engine: Engine };
+
 export type FindingCheck =
-  | { readonly resolved: "check"; readonly check: Check }
+  | ({ readonly resolved: "check" } & CheckAtEngine)
   | { readonly resolved: "symptom-only"; readonly symptom: Symptom }
   | { readonly resolved: "none" };
 
-const NOTHING: FindingCheck = { resolved: "none" };
+const UNRESOLVED: FindingCheck = { resolved: "none" };
 
-const measuringEngineOf = (request: { readonly check: Check; readonly finding: Pick<Finding, "mechanism"> }): Engine | undefined =>
-  request.check.engines.find((engine) => engine.mechanism === request.finding.mechanism);
+const atMeasuringEngine = (request: { readonly check: Check; readonly finding: Pick<Finding, "mechanism"> }): readonly CheckAtEngine[] =>
+  request.check.engines.filter((engine) => engine.mechanism === request.finding.mechanism).map((engine) => ({ check: request.check, engine }));
 
 const ofSymptom = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding; readonly symptom: Symptom }): FindingCheck => {
   const candidates = checksOf({ catalogue: request.catalogue, clause: request.finding.clause })
     .filter((check) => check.symptom.name === request.symptom.name)
-    .filter((check) => measuringEngineOf({ check, finding: request.finding }) !== undefined);
+    .flatMap((check) => atMeasuringEngine({ check, finding: request.finding }));
   const [only, ...others] = candidates;
-  return only !== undefined && others.length === 0 ? { resolved: "check", check: only } : { resolved: "symptom-only", symptom: request.symptom };
+  return only !== undefined && others.length === 0 ? { resolved: "check", ...only } : { resolved: "symptom-only", symptom: request.symptom };
 };
 
 const ofReading = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): FindingCheck => {
   const reading = symptomReadingOf(request);
-  return reading.reading === "named" ? ofSymptom({ ...request, symptom: reading.symptom }) : NOTHING;
+  return reading.reading === "named" ? ofSymptom({ ...request, symptom: reading.symptom }) : UNRESOLVED;
 };
 
 export const checkOfFinding = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): FindingCheck => {
@@ -30,9 +32,11 @@ export const checkOfFinding = (request: { readonly catalogue: SymptomCatalogue; 
   switch (named.named) {
     case "unnamed":
       return ofReading(request);
-    case "check":
-      return measuringEngineOf({ check: named.check, finding: request.finding }) !== undefined ? { resolved: "check", check: named.check } : NOTHING;
+    case "check": {
+      const [measured] = atMeasuringEngine({ check: named.check, finding: request.finding });
+      return measured === undefined ? UNRESOLVED : { resolved: "check", ...measured };
+    }
     case "not-of-the-clause":
-      return NOTHING;
+      return UNRESOLVED;
   }
 };
