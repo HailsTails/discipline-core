@@ -30,3 +30,7 @@ export type LoadFailure =
   | { readonly kind: "selection-absent"; readonly repo: string }
   | { readonly kind: "unexpected-error"; readonly detail: string }
   | { readonly kind: "runner-failed"; readonly mechanism: MechanismId; readonly failure: RunnerFailure };
+
+type RemovedKind = "why-chains-required" | "records-in-both-layouts" | "records-unsplittable";
+
+export type VersionTwoLoadFailure = Exclude<LoadFailure, { readonly kind: RemovedKind }>;

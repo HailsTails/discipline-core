@@ -1,4 +1,4 @@
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { readVersionOneJson } from "../rule-set-reader/rule-set-reader.ts";
@@ -16,7 +16,7 @@ type CatalogueSource = {
   readonly ruleSetRoot: AbsolutePath;
 };
 
-const readSymptomCatalogue = (request: CatalogueSource): Result<CatalogueHolding, LoadFailure> => {
+const readSymptomCatalogue = (request: CatalogueSource): Result<CatalogueHolding, VersionTwoLoadFailure> => {
   const path = request.path.join({ segments: [request.ruleSetRoot, ...SYMPTOM_CATALOGUE_SEGMENTS] });
   if (request.fileText.exists({ path }) === "absent") {
     return { outcome: "ok", value: { held: "none" } };
