@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { SelectionReading } from "../settings/selection.ts";
-import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../exception-records/exception-records.ts";
+import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../upgrade/version-one-records/exception-records.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { MeasuredPair } from "../mechanism-port/runner-result-types.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";

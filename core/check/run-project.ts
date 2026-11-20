@@ -1,5 +1,5 @@
 import { createSelectionRepository } from "../consumer-selection/consumer-selection.ts";
-import { type ExceptionRecord, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
+import { type ExceptionRecord, UNMEASURED_EXCEPTION_BASELINE } from "../upgrade/version-one-records/exception-records.ts";
 import type { ProjectionRequest } from "../mechanism-port/runner-module-schema.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";

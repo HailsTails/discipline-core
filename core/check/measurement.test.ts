@@ -5,7 +5,7 @@ import type {
   ExceptionRecord,
   ExceptionRepository,
   StructuralExceptionEntry,
-} from "../exception-records/exception-records.ts";
+} from "../upgrade/version-one-records/exception-records.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";

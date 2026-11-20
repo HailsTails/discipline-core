@@ -1,4 +1,4 @@
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { ProjectionWrite } from "../../../core/mechanism-port/runner-result-schema.ts";

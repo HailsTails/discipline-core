@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { embeddedRunReportSchema, type SliceProblem, type UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
-import type { ExceptionRecord } from "../exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import {
   type RunnerFailure,
   rejectedCall,

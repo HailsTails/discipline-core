@@ -1,4 +1,4 @@
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { UnprojectedFolderReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultExceptionRepositoryOf } from "../exception-records/exception-layout.ts";
-import type { ExceptionRepository } from "../exception-records/exception-records.ts";
+import type { ExceptionRepository } from "../upgrade/version-one-records/exception-records.ts";
 import { createDefaultFileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../platform-ports/module-loader-port.ts";

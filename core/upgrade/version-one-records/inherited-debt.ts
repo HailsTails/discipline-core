@@ -1,8 +1,8 @@
-import type { AttributedNativeException, Finding } from "../governance/governance.ts";
-import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
-import type { MechanismId } from "../values/identifiers.ts";
-import type { RepoPath } from "../values/repo-path.ts";
-import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
+import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
+import { type ClauseAddress, clauseAddressText } from "../../values/clause-address.ts";
+import type { MechanismId } from "../../values/identifiers.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
+import type { UnprojectedFolder } from "../../values/unprojected-folder.ts";
 import { type DebtPair, debtPairKey, distinctDebtPairs, entryPairKey } from "./debt-pair.ts";
 import type { FileCarveOutEntry } from "./exception-record.ts";
 import type { PlacedEntry } from "./exception-records.ts";

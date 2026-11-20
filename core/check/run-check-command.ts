@@ -1,5 +1,5 @@
 import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
-import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
+import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";

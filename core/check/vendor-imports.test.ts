@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computedModuleLoad,
   importsOutside,
+  importsOutsideFromOwnFolder,
   nodeBuiltinImport,
   packageImport,
   packageDynamicImport,
@@ -207,7 +208,10 @@ const zodImport = packageImport({ packageName: "zod" });
 
 const vitestImport = packageImport({ packageName: "vitest" });
 
-const relativeImportUnderCore = relativeImportReaching({ importingFolder: "core/folder", reach: /^core\// });
+const relativeImportUnderCoreFrom = ({ importingFolder }: { readonly importingFolder: string }) => [
+  relativeImportReaching({ importingFolder, reach: /^core\// }),
+  packageOrComputedImport,
+];
 
 describe("Vendor confinement over what this repository's own Hone source imports, read as build-time raw modules (CD-19, CD-20; CD-47: that source is the assertion's subject and no fake can stand in for it; nothing is spawned or written)", () => {
   it("reads a known file through every scanned set, so no set is silently empty", () => {
@@ -262,7 +266,7 @@ describe("Vendor confinement over what this repository's own Hone source imports
 
   it("finds every relative import in a core file resolving under core/", () => {
     expect(
-      importsOutside({ sources: coreSources, allowed: [relativeImportUnderCore, packageOrComputedImport] }),
+      importsOutsideFromOwnFolder({ sources: coreSources, allowedFrom: relativeImportUnderCoreFrom }),
     ).toEqual([]);
   });
 

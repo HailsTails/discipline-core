@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";

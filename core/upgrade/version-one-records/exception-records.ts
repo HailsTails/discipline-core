@@ -1,26 +1,26 @@
 import { z } from "zod";
-import type { LoadFailure } from "../command-line/load-failure.ts";
-import type { Selection } from "../settings/selection.ts";
-import type { GitFailure } from "../platform-ports/git-port.ts";
-import { parsedJson } from "../rule-set-reader/rule-set-reader.ts";
-import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
+import type { LoadFailure } from "../../command-line/load-failure.ts";
+import type { Selection } from "../../settings/selection.ts";
+import type { GitFailure } from "../../platform-ports/git-port.ts";
+import { parsedJson } from "../../rule-set-reader/rule-set-reader.ts";
+import type { AbsolutePath } from "../../values/absolute-path.ts";
+import type { BaseRevisionAvailability } from "../../values/base-revision-availability.ts";
 import {
   type ClauseAddress,
   clauseAddressSchema,
   sameClauseAddress,
-} from "../values/clause-address.ts";
-import type { FileExceptionWhyChains } from "../values/file-exception-why-chains.ts";
-import type { MechanismId } from "../values/identifiers.ts";
-import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
-import type { Result } from "../values/result.ts";
-import { TOOL_IDENTITY } from "../values/tool-identity.ts";
+} from "../../values/clause-address.ts";
+import type { FileExceptionWhyChains } from "../../values/file-exception-why-chains.ts";
+import type { MechanismId } from "../../values/identifiers.ts";
+import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
+import type { Result } from "../../values/result.ts";
+import { TOOL_IDENTITY } from "../../values/tool-identity.ts";
 import {
   legacyWhyChainSchema,
   type RecordedWhyChain,
   whyChainFormOf,
   whyChainSchema,
-} from "../values/why-chain.ts";
+} from "../../values/why-chain.ts";
 import type { DebtPair } from "./debt-pair.ts";
 import type {
   AuthorisedLocationEntry,

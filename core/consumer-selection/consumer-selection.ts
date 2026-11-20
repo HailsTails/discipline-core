@@ -37,8 +37,8 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import { settledClauseEdition } from "./clause-edition.ts";
-import { clauseSettingsSchema, settledClauseSettings } from "./clause-settings.ts";
+import { settledClauseEdition } from "../upgrade/version-one-settings/clause-edition.ts";
+import { clauseSettingsSchema, settledClauseSettings } from "../upgrade/version-one-settings/clause-settings.ts";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import { defaultClauseSettings } from "../settings/default-clause-settings.ts";
 import { editionPinOf } from "../settings/edition-pin.ts";

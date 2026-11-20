@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { commandOver, memoryRepositoryOf } from "../../tests/command-harness.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
-import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
+import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
