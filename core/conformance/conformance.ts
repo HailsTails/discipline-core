@@ -89,7 +89,7 @@ const conformanceOf = (request: {
 export const checkConformance = (request: {
   readonly clause: RunnerClause;
   readonly cases: readonly SourceCase[];
-  readonly runner: LoadedRunner;
+  readonly runner: Pick<LoadedRunner, "conform">;
 }): Promise<Result<readonly ConformanceFailure[], RunnerFailure>> =>
   Promise.resolve()
     .then(() => request.runner.conform({ clause: request.clause, cases: request.cases }))
