@@ -9,7 +9,7 @@ import type { ProofRefusal } from "../proof/upgrade-proof.ts";
 import type { ProofWriteFailure, Unrestored } from "../proof-writes/proof-writes.ts";
 import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { ConfigImportRefusal } from "../version-two-writer/config-import-rewrite.ts";
-import type { OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { OracleFailure } from "../record-answers/record-answer-oracle.ts";
 import type { PairingRefusal } from "../proof/projection-replacements.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../values/absolute-path.ts";
@@ -150,6 +150,8 @@ const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly strin
   switch (refusal.kind) {
     case "carve-out-unanswered":
       return [`the carve-out for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
+    case "location-unanswered":
+      return [`the authorised location for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
     case "projection-failed":
       return [projectionFailureLineOf({ failure: refusal.failure })];
     case "projections-unpaired":

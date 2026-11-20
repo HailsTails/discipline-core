@@ -18,6 +18,8 @@ export type CarriedEntry = { readonly [key: string]: ReadonlyJsonValue };
 
 export type CarveOutAnswer = { readonly credit: "findings"; readonly checks: readonly Check[] } | { readonly credit: UnansweredCredit };
 
+export type LocationAnswer = { readonly reach: "answered-checks"; readonly checks: readonly Check[] } | { readonly reach: "whole-clause" };
+
 type RecordOf<Kind extends ExceptionRecord["kind"]> = Extract<ExceptionRecord, { readonly kind: Kind }>;
 
 export type RecordInput =
@@ -27,7 +29,12 @@ export type RecordInput =
       readonly entry: CarriedEntry;
       readonly answer: CarveOutAnswer;
     }
-  | { readonly kind: "authorised-location"; readonly record: Pick<RecordOf<"authorised-location">, "clause" | "file">; readonly entry: CarriedEntry }
+  | {
+      readonly kind: "authorised-location";
+      readonly record: Pick<RecordOf<"authorised-location">, "clause" | "file">;
+      readonly entry: CarriedEntry;
+      readonly answer: LocationAnswer;
+    }
   | { readonly kind: "clause-wide-carve-out"; readonly record: RecordOf<"clause-wide-carve-out"> };
 
 export type RecordsMappingRequest = { readonly inputs: readonly RecordInput[]; readonly catalogues: readonly RuleSetCatalogue[] };
@@ -92,17 +99,20 @@ const carveOutOutcome = (request: { readonly input: Extract<RecordInput, { reado
   });
 };
 
+const checksAnsweredBy = (request: { readonly answer: LocationAnswer; readonly clauseChecks: readonly Check[] }): readonly Check[] =>
+  request.answer.reach === "answered-checks" ? withoutRepeats({ checks: request.answer.checks }) : request.clauseChecks;
+
 const authorisedLocationOutcome = (request: {
   readonly input: Extract<RecordInput, { readonly kind: "authorised-location" }>;
   readonly catalogues: readonly RuleSetCatalogue[];
 }): InputOutcome => {
-  const { record, entry } = request.input;
-  const checks = checksOfClause({ catalogues: request.catalogues, clause: record.clause });
-  if (checks.length === 0) {
+  const { record, entry, answer } = request.input;
+  const clauseChecks = checksOfClause({ catalogues: request.catalogues, clause: record.clause });
+  if (clauseChecks.length === 0) {
     return refusedWith({ refusal: { kind: "clause-without-check", clause: clauseAddressText({ address: record.clause }) } });
   }
   return outcomeOfPlacements({
-    placements: checks.map((check) =>
+    placements: checksAnsweredBy({ answer, clauseChecks }).map((check) =>
       placedAt({
         kind: "authorised-locations",
         check,

@@ -5,7 +5,7 @@ import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
 import type { LoadFailure } from "../../command-line/load-failure.ts";
 import type { MechanismRun } from "../../run/mechanism-dispatch.ts";
 import type { Result } from "../../values/result.ts";
-import type { EngineFindings, EnginePass, EnginePassFailure } from "../carve-out-oracle/answering-oracle.ts";
+import type { EngineFindings, EnginePass, EnginePassFailure } from "../record-answers/answering-oracle.ts";
 import { UNMEASURED_EXCEPTION_BASELINE } from "../version-one-records/exception-records.ts";
 
 const failureOf = (request: { readonly failure: LoadFailure }): Result<EngineFindings, EnginePassFailure> => ({

@@ -5,8 +5,9 @@ import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
+import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
-import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { FileCarveOutRecord } from "../record-answers/record-answer-oracle.ts";
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
 import { type ProjectionFilesOf, type UpgradePlanRequest, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
 
@@ -39,7 +40,7 @@ const CARVE_OUT_HEAD: HeadRecord = {
 
 const READING: VersionOneReading = { selection: SELECTION, heads: [CARVE_OUT_HEAD] };
 
-const FINDINGS_ON_LOOPS = { record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } } as const;
+const FINDINGS_ON_LOOPS = { kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } } as const;
 
 const CARVE_OUT_INPUT: RecordInput = { ...CARVE_OUT_HEAD, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } };
 
@@ -153,8 +154,23 @@ describe("upgradePlanOf", () => {
     });
   });
 
+  it("refuses an authorised location the oracle gave no answer for", async () => {
+    const location: Extract<ExceptionRecord, { readonly kind: "authorised-location" }> = {
+      kind: "authorised-location",
+      clause: LOOPS_CLAUSE,
+      mechanism: AUDIT,
+      file: SRC_A,
+      reason: "kept",
+    };
+    const head: HeadRecord = { kind: "authorised-location", record: location, entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "kept" } };
+    await expect(upgradePlanOf(requestOver({ reading: { ...READING, heads: [head] }, answered: [] }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "location-unanswered", clause: "CD-15#loops", file: "src/a.ts" },
+    });
+  });
+
   it("refuses with the mapping's own refusals when a carve-out answered nothing", async () => {
-    await expect(upgradePlanOf(requestOver({ answered: [{ record: CARVE_OUT, answer: { credit: "nothing" } }] }))).resolves.toEqual({
+    await expect(upgradePlanOf(requestOver({ answered: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } }] }))).resolves.toEqual({
       outcome: "failed",
       error: { kind: "mapping-refused", refusals: [{ kind: "record-answers-nothing", clause: "CD-15#loops", file: "src/a.ts", credited: "nothing" }] },
     });

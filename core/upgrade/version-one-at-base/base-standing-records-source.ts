@@ -20,7 +20,7 @@ const authorisedLocationEntrySchema = z.object({
 const inputsOf = (request: { readonly entry: VersionOneEntry }): readonly RecordInput[] => {
   const parsed = authorisedLocationEntrySchema.safeParse(request.entry);
   return parsed.success
-    ? [{ kind: "authorised-location", record: { clause: parsed.data.clause, file: parsed.data.file }, entry: request.entry }]
+    ? [{ kind: "authorised-location", record: { clause: parsed.data.clause, file: parsed.data.file }, entry: request.entry, answer: { reach: "whole-clause" } }]
     : [];
 };
 

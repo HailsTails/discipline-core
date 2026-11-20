@@ -22,8 +22,8 @@ import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-po
 import { shippedCheckOf } from "../../../tests/shipped-check.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
-import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
-import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
+import { createAnsweringOracle } from "../record-answers/answering-oracle.ts";
+import type { FileCarveOutRecord } from "../record-answers/record-answer-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
 
 const path = createDefaultPathPort({});
@@ -165,7 +165,7 @@ describe("the version 1 engine pass over a real ESLint run of a repository that 
   it("lets the oracle credit the carve-out with the findings it holds", async () => {
     const oracle = createAnsweringOracle({ enginePass: enginePassOver({ repoRoot: await carvedRepository(), tracked: CARVED_TRACKED }), catalogues: catalogues() });
     const answered = await oracle.answer({ records: [CARVE_OUT] });
-    expect(answered).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [classKeywordCheck()] } }] });
+    expect(answered).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [classKeywordCheck()] } }] });
   });
 });
 

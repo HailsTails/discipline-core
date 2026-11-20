@@ -46,20 +46,20 @@ describe("createAnsweringOracle", () => {
     const { oracle } = oracleOver({ pass: { outcome: "ok", value: { findings: [LOOP_FINDING], runs: [QUIET_RUN] } } });
     expect(await oracle.answer({ records: [CARVE_OUT] })).toEqual({
       outcome: "ok",
-      value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }],
+      value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }],
     });
   });
 
   it("answers nothing for a carve-out no finding and no suppression reached", async () => {
     const { oracle } = oracleOver({ pass: { outcome: "ok", value: { findings: [], runs: [QUIET_RUN] } } });
-    expect(await oracle.answer({ records: [CARVE_OUT] })).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "nothing" } }] });
+    expect(await oracle.answer({ records: [CARVE_OUT] })).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } }] });
   });
 
   it("answers suppression-only for a carve-out only a native suppression at its clause and file reached", async () => {
     const { oracle } = oracleOver({ pass: { outcome: "ok", value: { findings: [], runs: [SUPPRESSING_RUN] } } });
     expect(await oracle.answer({ records: [CARVE_OUT] })).toEqual({
       outcome: "ok",
-      value: [{ record: CARVE_OUT, answer: { credit: "suppression-only" } }],
+      value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "suppression-only" } }],
     });
   });
 

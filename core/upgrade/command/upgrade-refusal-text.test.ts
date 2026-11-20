@@ -149,6 +149,14 @@ const ROWS: readonly Row[] = [
     },
   },
   {
+    name: "an authorised location was given no answer",
+    failure: { kind: "plan-refused", refusal: { kind: "location-unanswered", clause: "CD-27#test-body-logic", file: repoPathSchema.parse("src/a.ts") }, removedByVersionOne: [] },
+    outcome: { code: 1, text: `upgrade refused:
+the authorised location for CD-27#test-body-logic in src/a.ts was given no answer. ${FAULT}
+Nothing was changed.
+` },
+  },
+  {
     name: "the team config's import is not static",
     failure: {
       kind: "plan-refused",

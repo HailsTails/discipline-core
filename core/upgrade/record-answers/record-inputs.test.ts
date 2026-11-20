@@ -5,7 +5,7 @@ import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
-import type { FileCarveOutRecord } from "./carve-out-oracle.ts";
+import type { FileCarveOutRecord } from "./record-answer-oracle.ts";
 import { recordInputsOf } from "./record-inputs.ts";
 
 const AUDIT = mechanismIdSchema.parse("audit");
@@ -42,21 +42,37 @@ const CLAUSE_WIDE_HEAD: HeadRecord = { kind: "clause-wide-carve-out", record: CL
 
 describe("recordInputsOf", () => {
   it("gives a file carve-out the answer the oracle gave for that very record", () => {
-    expect(recordInputsOf({ heads: [CARVE_OUT_HEAD], answered: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] })).toEqual({
+    expect(recordInputsOf({ heads: [CARVE_OUT_HEAD], answered: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] })).toEqual({
       outcome: "ok",
       value: [{ ...CARVE_OUT_HEAD, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }],
     });
   });
 
-  it("passes the other records through as they were read, in the order they came", () => {
+  it("gives an authorised location the answer the oracle gave for that very record", () => {
+    expect(
+      recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [{ kind: "authorised-location", record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] }),
+    ).toEqual({ outcome: "ok", value: [{ ...AUTHORISED_HEAD, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
+  });
+
+  it("passes a clause-wide carve-out through as it was read, and keeps every record in the order it came", () => {
     expect(
       recordInputsOf({
         heads: [AUTHORISED_HEAD, CARVE_OUT_HEAD, CLAUSE_WIDE_HEAD],
-        answered: [{ record: CARVE_OUT, answer: { credit: "nothing" } }],
+        answered: [
+          { kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } },
+          { kind: "authorised-location", record: AUTHORISED, answer: { reach: "whole-clause" } },
+        ],
       }),
     ).toEqual({
       outcome: "ok",
-      value: [AUTHORISED_HEAD, { ...CARVE_OUT_HEAD, answer: { credit: "nothing" } }, CLAUSE_WIDE_HEAD],
+      value: [{ ...AUTHORISED_HEAD, answer: { reach: "whole-clause" } }, { ...CARVE_OUT_HEAD, answer: { credit: "nothing" } }, CLAUSE_WIDE_HEAD],
+    });
+  });
+
+  it("fails naming the clause and file of an authorised location the oracle gave no answer for", () => {
+    expect(recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [] })).toEqual({
+      outcome: "failed",
+      error: { kind: "location-unanswered", clause: "CD-15#loops", file: "src/b.ts" },
     });
   });
 

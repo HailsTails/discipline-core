@@ -57,6 +57,7 @@ const SAMPLES: readonly Sample[] = [
   { failure: { kind: "oracle-failed", failure: { kind: "projection-not-current", file: SLICE, state: "missing" } }, fills: { projection: SLICE, state: "missing" } },
   { failure: { kind: "oracle-failed", failure: { kind: "projection-not-current", file: SLICE, state: "not-applied" } }, fills: { projection: SLICE, state: "not-applied" } },
   { failure: planRefused({ refusal: { kind: "carve-out-unanswered", clause: CLAUSE, file: FILE } }), fills: {} },
+  { failure: planRefused({ refusal: { kind: "location-unanswered", clause: CLAUSE, file: FILE } }), fills: {} },
   {
     failure: planRefused({
       refusal: {

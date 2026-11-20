@@ -15,7 +15,7 @@ import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { CheckReport } from "../../verdict/check-report.ts";
-import type { CarveOutOracle, FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { RecordAnswerOracle, FileCarveOutRecord } from "../record-answers/record-answer-oracle.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { type ProofRuns, upgradeProof, type UpgradeProofRequest } from "./upgrade-proof.ts";
 import type { ProjectionFilesOf, VersionOneReading } from "./upgrade-plan.ts";
@@ -157,7 +157,7 @@ const portsOver = (request: { readonly kindOf: Mock<EntryKindPort["kindOf"]> }):
 
 type Doubles = {
   readonly ports: MockedPorts;
-  readonly oracle: { readonly answer: Mock<CarveOutOracle["answer"]> };
+  readonly oracle: { readonly answer: Mock<RecordAnswerOracle["answer"]> };
   readonly runs: { readonly versionOne: Mock<ProofRuns["versionOne"]>; readonly versionTwo: Mock<ProofRuns["versionTwo"]> };
   readonly projections: Mock<VersionOneProjectionsOf>;
 };
@@ -165,7 +165,7 @@ type Doubles = {
 const doublesOver = (request: { readonly kindOf: Mock<EntryKindPort["kindOf"]> }): Doubles => ({
   ports: portsOver(request),
   projections: vi.fn<VersionOneProjectionsOf>().mockResolvedValue(FOUND_PROJECTIONS),
-  oracle: { answer: vi.fn<CarveOutOracle["answer"]>().mockResolvedValue({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] }) },
+  oracle: { answer: vi.fn<RecordAnswerOracle["answer"]>().mockResolvedValue({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] }) },
   runs: {
     versionOne: vi.fn<ProofRuns["versionOne"]>().mockResolvedValue({ outcome: "ok", value: EMPTY_BEFORE }),
     versionTwo: vi.fn<ProofRuns["versionTwo"]>().mockResolvedValue({ outcome: "ok", value: EMPTY_AFTER }),
@@ -320,7 +320,7 @@ describe("upgradeProof", () => {
 
   it("refuses, before running or writing anything, a carve-out that answered nothing", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.oracle.answer.mockResolvedValue({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "nothing" } }] });
+    doubles.oracle.answer.mockResolvedValue({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } }] });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
       error: {

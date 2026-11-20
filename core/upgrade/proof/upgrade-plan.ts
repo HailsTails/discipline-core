@@ -6,8 +6,8 @@ import { SETTINGS_FILE_NAME } from "../../settings/settings-sources.ts";
 import { type SettingsFile, settingsTextOf } from "../../settings/settings-file.ts";
 import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
-import type { CarveOutAnswered } from "../carve-out-oracle/carve-out-oracle.ts";
-import { type CarveOutUnanswered, recordInputsOf } from "../carve-out-oracle/record-inputs.ts";
+import type { RecordAnswered } from "../record-answers/record-answer-oracle.ts";
+import { recordInputsOf, type Unanswered } from "../record-answers/record-inputs.ts";
 import { reachBeyondEntriesOf, type ReachBeyondEntries } from "../proof-comparison/written-reach.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { mappedRecords, type MappedRecordsDocument, type RecordInput } from "../version-two-mapping/records-mapping.ts";
@@ -39,7 +39,7 @@ export type UpgradePlan = {
 };
 
 export type PlanRefusal =
-  | CarveOutUnanswered
+  | Unanswered
   | ProjectionFailure
   | ReplacementRefusal
   | { readonly kind: "mapping-refused"; readonly refusals: readonly UpgradeRefusal[] }
@@ -49,7 +49,7 @@ export type PlanRefusal =
 
 export type UpgradePlanRequest = {
   readonly reading: VersionOneReading;
-  readonly answered: readonly CarveOutAnswered[];
+  readonly answered: readonly RecordAnswered[];
   readonly catalogues: readonly RuleSetCatalogue[];
   readonly projectionFilesOf: ProjectionFilesOf;
 };

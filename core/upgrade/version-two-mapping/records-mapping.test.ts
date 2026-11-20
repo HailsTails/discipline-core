@@ -22,6 +22,8 @@ const REBINDING_CHECK: Check = {
   clause: TEST_BODY_CLAUSE,
 };
 
+const LOOP_KEYWORD_TEST_BODY: Check = { ...LOOP_KEYWORD_LOOPS, name: "test-body", clause: TEST_BODY_CLAUSE };
+
 const WHY = { why: "a loop was written", because: "it was quicker", evidence: "the commit" } as const;
 
 const WHY_CHAIN = {
@@ -31,6 +33,8 @@ const WHY_CHAIN = {
 } as const;
 
 const PROVENANCE: InheritedDebtProvenance = { kind: "inherited-debt", source: "the old repository", decision: "keep until rewritten" };
+
+const WHOLE_CLAUSE = { reach: "whole-clause" } as const;
 
 const FINDINGS_ON_LOOPS = { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } as const;
 
@@ -210,7 +214,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
     });
   });
 
-  it("carries an authorised location at each check of its clause, word for word", () => {
+  it("carries an authorised location nothing answered at each check of its clause, word for word", () => {
     const entry = { kind: "authorised-location", clause: "CD-27#test-body-logic", file: "src/a.ts", reason: "the tests need it" } as const;
     expect(
       mappedRecords({
@@ -220,6 +224,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             kind: "authorised-location",
             record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
             entry,
+            answer: WHOLE_CLAUSE,
           },
         ],
       }),
@@ -242,6 +247,81 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
     });
   });
 
+  it("carries an authorised location only at the check its findings named", () => {
+    const entry = { kind: "authorised-location", clause: "CD-27#test-body-logic", file: "src/a.ts", reason: "the tests need it" } as const;
+    expect(
+      mappedRecords({
+        catalogues: CATALOGUES,
+        inputs: [
+          {
+            kind: "authorised-location",
+            record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
+            entry,
+            answer: { reach: "answered-checks", checks: [REBINDING_CHECK] },
+          },
+        ],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [
+          {
+            file: "hone-records/authorised-locations/rebinding.json",
+            version: 2,
+            records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("carries an authorised location once at a check its findings named twice", () => {
+    const entry = { kind: "authorised-location", clause: "CD-27#test-body-logic", file: "src/a.ts", reason: "the tests need it" } as const;
+    expect(
+      mappedRecords({
+        catalogues: CATALOGUES,
+        inputs: [
+          {
+            kind: "authorised-location",
+            record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
+            entry,
+            answer: { reach: "answered-checks", checks: [REBINDING_CHECK, REBINDING_CHECK] },
+          },
+        ],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [{ file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }] }],
+      },
+    });
+  });
+
+  it("carries an authorised location at each of the two checks its findings named, in the file of each check's symptom", () => {
+    const entry = { kind: "authorised-location", clause: "CD-27#test-body-logic", file: "src/a.ts", reason: "the tests need it" } as const;
+    expect(
+      mappedRecords({
+        catalogues: CATALOGUES,
+        inputs: [
+          {
+            kind: "authorised-location",
+            record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
+            entry,
+            answer: { reach: "answered-checks", checks: [REBINDING_CHECK, LOOP_KEYWORD_TEST_BODY] },
+          },
+        ],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [
+          { file: "hone-records/authorised-locations/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: entry }] },
+          { file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }] },
+        ],
+      },
+    });
+  });
+
   it("carries an authorised location that has an existing-authorisation provenance, whole", () => {
     const provenance = { kind: "existing-authorisation", source: "the old repository" } as const;
     const entry = { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported", provenance } as const;
@@ -253,6 +333,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             kind: "authorised-location",
             record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry,
+            answer: WHOLE_CLAUSE,
           },
         ],
       }),
@@ -333,6 +414,7 @@ describe("mappedRecords refusing what carries over to nothing", () => {
             kind: "authorised-location",
             record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported" },
+            answer: WHOLE_CLAUSE,
           },
         ],
       }),
@@ -351,6 +433,7 @@ describe("mappedRecords refusing a symptom name that cannot name a records file"
             kind: "authorised-location",
             record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported" },
+            answer: WHOLE_CLAUSE,
           },
         ],
       }),

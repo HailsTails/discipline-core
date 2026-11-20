@@ -564,6 +564,7 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `a finding of <clause> in <file> names no check of version 2. Report it at <issues page>.` |
 | `upgrade` | `<clause> in <file> is held by both a file carve-out and an authorised location. Remove one of them first, then run the upgrade again.` |
 | `upgrade` | `the carve-out for <clause> in <file> was given no answer. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
+| `upgrade` | `the authorised location for <clause> in <file> was given no answer. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `<clause> has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.` |
 | `upgrade` | `<check> has no engine on the <mechanism> mechanism. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `<check> could run on <engines> through the <mechanism> mechanism; the upgrade cannot choose. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
