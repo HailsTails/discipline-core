@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
-import type { Selection } from "../../consumer-selection/consumer-selection.ts";
+import type { Selection } from "../../settings/selection.ts";
 import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";

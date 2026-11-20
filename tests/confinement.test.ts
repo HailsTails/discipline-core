@@ -5,6 +5,7 @@ import {
   filesNotMatching,
   importsOutside,
   importsOutsideFromOwnFolder,
+  importStatementsReaching,
   nodeBuiltinImport,
   packageImport,
   packageOrComputedImport,
@@ -128,6 +129,23 @@ describe("importsOutsideFromOwnFolder", () => {
     expect(importsOutsideFromOwnFolder({ sources, allowedFrom: reachingNothingUnderCheck })).toEqual([
       { file: "./core/run/a.ts", specifier: "../check/y.ts", form: "value" },
       { file: "./core/run/deeper/b.ts", specifier: "../../check/y.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("importStatementsReaching", () => {
+  it("lists each import statement whose specifier matches, whole, with its file, so the names it imports are pinned", () => {
+    expect(
+      importStatementsReaching({
+        sources: {
+          "./a.ts": 'import type { One, Two } from "../held/one.ts";\nimport { z } from "zod";\nimport {\n  Three,\n} from "../held/three.ts";\n',
+          "./b.ts": 'import { other } from "../free/other.ts";\n',
+        },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", statement: 'import type { One, Two } from "../held/one.ts";' },
+      { file: "./a.ts", statement: 'import {\n  Three,\n} from "../held/three.ts";' },
     ]);
   });
 });

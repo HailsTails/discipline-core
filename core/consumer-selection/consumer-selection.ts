@@ -45,8 +45,6 @@ import { editionPinOf } from "../settings/edition-pin.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
 import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "../settings/selection.ts";
 
-export type { ClauseBinding, ClauseEditionReading, SelectedClause, Selection, SelectionReading } from "../settings/selection.ts";
-
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
 };

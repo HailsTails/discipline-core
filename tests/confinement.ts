@@ -143,6 +143,20 @@ export const sourcesNotNamed = (request: {
 }): Readonly<Record<string, string>> =>
   Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(fileNameOfSource({ source }))));
 
+const IMPORT_STATEMENT = /^import\s[^;]*?from\s+["']([^"']+)["'];/gm;
+
+export type ImportStatement = { readonly file: string; readonly statement: string };
+
+export const importStatementsReaching = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly ImportStatement[] =>
+  Object.entries(request.sources).flatMap(([file, text]) =>
+    [...text.matchAll(IMPORT_STATEMENT)]
+      .filter(([, specifier]) => request.specifier.test(specifier ?? ""))
+      .map(([statement]) => ({ file, statement })),
+  );
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;
