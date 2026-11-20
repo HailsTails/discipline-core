@@ -4,7 +4,7 @@ Core names no discipline and no mechanism, so adding either one is a matter of a
 
 Terms used below:
 
-- A **discipline** is a rule a repository can adopt, with an id such as `CD-14`, made of one or more **clauses**.
+- A **discipline** is a rule a repository can adopt, with an id such as `PD-1`, made of one or more **clauses**.
 - A **mechanism** is a tool that checks clauses, such as the TypeScript `audit` or `eslint`. Each mechanism has one **runner**.
 - A **piece** is one discipline's code for one mechanism, written in that mechanism's own extension format.
 - A **rule set** is a directory holding `rules/` and `mechanisms/` folders. The rule set shipped with the tool is `hone`, which a bare address also names, so no rule-set name may be `hone` or start with `hone-`, and no declared name may be another declared name plus `-<suffix>`; a repository can add its own and name them in `disciplines.json`.
@@ -14,7 +14,7 @@ Terms used below:
 
 ### 1. The discipline file
 
-Create `rules/<DisciplineId>/discipline.json` in a rule set. The id is two to four capital letters, a hyphen and a number, with an optional lower-case letter (`CD-14`, `PD-1`, `CD-7a`), and must match the folder name.
+Create `rules/<DisciplineId>/discipline.json` in a rule set. The id is two to four capital letters, a hyphen and a number, with an optional lower-case letter (`PD-1`, `AC-12`, `AC-7a`), and must match the folder name.
 
 ```json
 {
@@ -26,8 +26,8 @@ Create `rules/<DisciplineId>/discipline.json` in a rule set. The id is two to fo
 
 Each clause is either mechanical or judgement:
 
-- A **mechanical** clause has `id`, `summary`, `mechanisms` (the mechanism ids allowed to check it), `anchor` and `cases`. `anchor` is `{ "kind": "keyword", "keyword": "<token>" }` when hits sit on a token in the source, or `{ "kind": "file" }` for a clause about a path, whose hits are at line 1, column 0.
-- A **judgement** clause has `id`, `summary` and `"enforcedBy": "review"`. It records the requirement but cannot be selected; review enforces it.
+- A **mechanical** clause has `"kind": "mechanical"`, `id`, `summary`, `mechanisms` (the mechanism ids allowed to check it), `anchor` and `cases`. `anchor` is `{ "kind": "keyword", "keyword": "<token>" }` when hits sit on a token in the source, or `{ "kind": "file" }` for a clause about a path, whose hits are at line 1, column 0.
+- A **judgement** clause has `"kind": "judgement"`, `id`, `summary` and `"enforcedBy": "review"`. It records the requirement but cannot be selected; review enforces it.
 
 Clause ids are lower-case words joined by hyphens, and are unique within the discipline.
 
@@ -39,7 +39,7 @@ Each discipline has two pages beside its `discipline.json`, so a reader meets th
 
 - `# <ID>: <title>`, then `## Rule` with the rule text.
 - One line that starts `Review lens:` and links the lens (the lenses find their pages by this line), then links `CHECKS.md` and [the spirit of the rules](../rules/SPIRIT.md).
-- `## Spirit`, in five fixed parts, each a bold lead: **What the friction is for**; **What a finding points at**, a short list of usual causes, each with the direction it points; **Where to go**, the forward goal; **Reactions to distrust**, each common reaction with what it usually hides; **Principles behind it**, established principles named with one line each on how they apply, attributed only where the attribution is certain.
+- `## Spirit`, where a reader starts before changing code. On Hone's own pages it names the [symptoms](../rules/typescript/symptoms.md) a finding may show and the [principles](../rules/principles.md) behind them, and its `## Rule` gives the rule's verdict and the named pages that govern it in place of rule text. The pages of the disciplines outside the cases keep an earlier Spirit in five bold-lead parts.
 
 The Spirit section does not talk about syntax, detectors or linting. [rules/SPIRIT.md](../rules/SPIRIT.md) gives the approach for the whole set.
 
@@ -49,7 +49,7 @@ The Spirit section does not talk about syntax, detectors or linting. [rules/SPIR
 
 A mechanical clause's `cases` hold `flag` and `allow` lists. Each case is `{ "name", "fileName", "source", "expectedLines" }`: a flag case lists the lines that must be flagged (at least one), and an allow case lists none. `fileName` is a repository path and may be a declaration file such as `x.d.ts`. There must be at least one of each.
 
-The cases are shared by every mechanism the clause lists. A mechanism conforms for a clause when, run over each case's source, it flags exactly the expected lines. That is how two mechanisms are held to the same verdict: CD-14's `class-syntax` cases are run through both the walker and the ESLint runner.
+The cases are shared by every mechanism the clause lists. A mechanism conforms for a clause when, run over each case's source, it flags exactly the expected lines. That is how two mechanisms are held to the same verdict: the cases behind `authored-class-or-this#class-keyword` are run through both the walker and the ESLint runner.
 
 ### 3. A piece per mechanism
 
@@ -67,7 +67,7 @@ For each mechanism in a clause's `mechanisms` list, add a piece folder `mechanis
 `discipline` and `mechanism` must match the folder names, every `clause` must exist in the discipline, and no clause may appear twice. Core reads only this envelope. `settings` belongs to the runner, which parses it with its own schema:
 
 - **audit:** `{ "module": "<file>.ts" }`, a path inside the piece folder; a `.js` module is accepted too, which is what the built package's pieces name. The module exports `check`, typed with `import type { WalkerPiece }` from `mechanisms/audit/runner/walker-piece.ts`. See `mechanisms/audit/runner/README.md`.
-- **eslint:** `{ "pluginNamespace", "pluginModule", "rule" }`. `pluginModule` is a `.ts` or `.js` path inside the piece folder whose default export is an ESLint plugin; `rule` must be a key of its `rules`. The rule id is `<pluginNamespace>/<rule>`. The namespace `hone-core` is reserved for Hone's own machinery. The namespaces `hone` and `hone-*` belong to Hone's own rule set. A team rule set's pieces must use its rule-set name or `<ruleSet>-<name>`. Two selected clauses may not share a rule id, or a namespace with different plugin modules. CD-14's piece is `mechanisms/eslint/CD-14/piece.json`, pointing at the rule `no-class-authoring` in `cd14/cd14.eslint-plugin.ts` under the namespace `hone`. A shipped piece writes each of its own rules with `siteRule` from `mechanisms/eslint/runner/rule-sites.ts`, which holds the mapping onto ESLint's listener keys (see the runner's README). A team rule set's piece stays a plain ESLint plugin.
+- **eslint:** `{ "pluginNamespace", "pluginModule", "rule" }`. `pluginModule` is a `.ts` or `.js` path inside the piece folder whose default export is an ESLint plugin; `rule` must be a key of its `rules`. The rule id is `<pluginNamespace>/<rule>`. The namespace `hone-core` is reserved for Hone's own machinery. The namespaces `hone` and `hone-*` belong to Hone's own rule set. A team rule set's pieces must use its rule-set name or `<ruleSet>-<name>`. Two selected clauses may not share a rule id, or a namespace with different plugin modules. The ESLint piece behind `authored-class-or-this#class-keyword` is the `piece.json` in its discipline's folder under `mechanisms/eslint/`, pointing at the rule `no-class-authoring` in `cd14/cd14.eslint-plugin.ts` under the namespace `hone`. A shipped piece writes each of its own rules with `siteRule` from `mechanisms/eslint/runner/rule-sites.ts`, which holds the mapping onto ESLint's listener keys (see the runner's README). A team rule set's piece stays a plain ESLint plugin.
 
 A clause entry may also declare the settings a repository may tune, beside `settings`: `"clauseSettings": { "<key>": { "default": <JSON>, "choices": [<JSON>, ...] } }`. `choices` is optional; when given, every choice is the default's JSON kind and the default is one of them. Core reads these declarations itself, checks a repository's values from its `disciplines.json` against them when the check loads, and hands the piece the settled values, defaults included, as `clauseSettings` on each clause, typed `ClauseSettingValues`, apart from the mechanism's own `settings`. The `audit` and `rule-set` type entries carry no code, so a team's piece checks the shape of its `clauseSettings` itself, for example with its own schema, and returns `piece-invalid` when they do not match. No eslint piece declares `clauseSettings` yet, so a repository's settings for an eslint clause are refused when the check loads.
 
@@ -77,14 +77,14 @@ A runner reports a bad `settings` value, a module that fails to load or does not
 
 Give each piece source file a co-located `.test.ts`. A piece's test runs the clause's shared cases through its runner and checks the flagged lines:
 
-- an audit piece calls `conform` on an audit runner (`mechanisms/audit/CD-14/class-syntax.test.ts` builds one with `createWalkerRunner` and the real TypeScript parse port);
-- an ESLint piece calls the ESLint port's `lintSourceCases` with its plugin (`mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.test.ts`).
+- an audit piece calls `conform` on an audit runner (the `class-syntax.test.ts` of the audit piece behind `authored-class-or-this#class-keyword` builds one with `createWalkerRunner` and the real TypeScript parse port);
+- an ESLint piece calls the ESLint port's `lintSourceCases` with its plugin (`cd14/cd14.eslint-plugin.test.ts` in the same discipline's ESLint piece).
 
 A path-only audit piece reads no source, so its test can prepare `check` and call `prepareFile` directly on each path, as the probe's does. The runner's own suite runs core's `checkConformance` over every shared piece it serves (see "Adding a mechanism", step 4). FR-8's import checks (below) cover the new files with no change.
 
 ### Worked example: the probe discipline
 
-`tests/probe-rule-set/` is a test-only rule set, named `probe`, holding one discipline written exactly as a team would write its own. It was added beside CD-14 with no change to core or to the audit runner.
+`tests/probe-rule-set/` is a test-only rule set, named `probe`, holding one discipline written exactly as a team would write its own. It was added beside Hone's own rule set with no change to core or to the audit runner.
 
 - `tests/probe-rule-set/rules/PD-1/discipline.json` declares one mechanical clause, `no-tmp-files`: mechanisms `["audit"]`, anchor `{ "kind": "file" }`, one flag case (`src/scratch.tmp.ts`, line 1) and one allow case (`src/kept.ts`, no lines).
 - `tests/probe-rule-set/mechanisms/audit/PD-1/piece.json` maps that clause to the module `no-tmp-files.ts`.
@@ -102,7 +102,7 @@ A repository selects it by naming the rule set and the clause:
 }
 ```
 
-`tests/probe-check.integration.test.ts` runs that selection: the probe flags `src/scratch.tmp.ts`, CD-23 flags `src/kept.ts` for its missing test sibling, and the audit runner parses each file once even though two disciplines are selected.
+`tests/probe-check.integration.test.ts` runs that selection: the probe flags `src/scratch.tmp.ts`, `unit-without-a-running-test#companion-test-file` (`CD-23#export-test-sibling`) flags `src/kept.ts` for its missing test sibling, and the audit runner parses each file once even though two disciplines are selected.
 
 ## Adding a mechanism
 
@@ -206,7 +206,7 @@ Options passed outside a `package.json` script (a CI step, an editor setting, a 
 
 `projection.ts` writes `disciplines.eslint.mjs` at the repository root, and one slice of it beside each package config the team's ESLint loads (see the runner's README). It imports each piece's plugin module by a path relative to the slice's folder, then exports, in order: one block per plugin namespace enabling its selected rules at `"error"` on `**/*.{ts,tsx,mts,cts}`; one block per distinct set of clauses that authorised locations and file carve-outs except files from, listing those files (each path escaped as a glob) and turning the set's rules `"off"` for them, so the block count follows the clause combinations in use rather than the number of records; and one block per clause-wide carve-out turning them `"off"` everywhere. Block names start with `reservedNamespace` (currently `hone-core/`). The output is sorted, so the same selection and records always produce the same text.
 
-The team spreads its default export last in its flat config; the projection is the only supported way to adopt the rules. On each check the runner first compares the file with what it would write now (`missing`, or `out-of-date` if it differs). It then checks the projection's effect through the query instance, in two directions. Every selected rule must be set, at any severity, on at least one checked file that is not ignored, when there is one. Every record whose file is checked must leave its rules at severity `0` on that file, or on every checked file for a clause-wide carve-out. If either fails, the result is `not-included` with no hits. The second direction catches a team that enables a rule another way, for example through a piece's own fragment such as `mechanisms/eslint/CD-14/cd14.eslint.ts`, without importing the projection.
+The team spreads its default export last in its flat config; the projection is the only supported way to adopt the rules. On each check the runner first compares the file with what it would write now (`missing`, or `out-of-date` if it differs). It then checks the projection's effect through the query instance, in two directions. Every selected rule must be set, at any severity, on at least one checked file that is not ignored, when there is one. Every record whose file is checked must leave its rules at severity `0` on that file, or on every checked file for a clause-wide carve-out. If either fails, the result is `not-included` with no hits. The second direction catches a team that enables a rule another way, for example through a config of its own that names a piece's rule, without importing the projection.
 
 ### Runtime
 

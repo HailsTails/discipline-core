@@ -13,7 +13,7 @@ codebase.
 This lens defends **function-first composition**: the idea that behaviour is
 expressed as functions and closures rather than authored classes, that iteration
 is functional transformation rather than imperative loop shape, that third-party
-libraries are reached only through a confined wrapping boundary, and that every
+libraries are reached only through a confined adapter, and that every
 authored function takes a single named-field argument rather than a positional
 list.
 
@@ -25,7 +25,7 @@ Four facets of the same stance:
   type system never exposes. The single permitted authored class (and the only
   permitted `new X(...)` sites) are whatever the loaded rules name — typically a
   lone boot-time error class plus external-library instantiations confined to
-  their wrapping factories.
+  their adapters.
 - **Functional iteration only.** A loop body hides the transformation as
   control-flow; the equivalent `map`/`reduce`/`flatMap`/`Array.from` chain names
   the transformation as data. Counted loops name a counter where the operation
@@ -46,7 +46,7 @@ Across codebases the concept recurs under different names (a "no classes" rule, 
 "prefer pipelines over loops" rule, an "adapter boundary" or "ports and
 adapters" rule, a "named parameters" or "options object" rule). The loaded rules
 tell you this codebase's exact shape: which class is permitted and where, the
-closed list of wrapping-factory files, the permitted iteration alternatives, and
+closed list of adapter files, the permitted iteration alternatives, and
 the closed carve-out for positional callbacks. Read them first; they override any
 default intuition.
 
@@ -54,7 +54,7 @@ default intuition.
 
 1. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`.
 2. Keep the pages whose `Review lens` line names `function-first`. **If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved** — an unloadable ruleset is never a codebase without discipline, and reviewing zero rules would emit a PASS that means nothing.
-3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names exact permitted sites (the one permitted class and its file, the closed table of wrapping-factory files, the closed list of library-callback signatures), those are the only permitted sites.
+3. Read each kept page in full together with its sibling `CHECKS.md`, including the `## Exceptions` section in `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline: those recorded exceptions (authorised locations and carve-outs) are the closed exception list — anything outside them is a finding. Where a rule names exact permitted sites (the one permitted class and its file, the closed table of adapter files, the closed list of library-callback signatures), those are the only permitted sites.
 4. If zero rule pages name this lens in their `Review lens` line, report that the codebase declares no function-first discipline and produce an empty finding set — do not invent rules.
 
 ## Inspection procedure
@@ -184,7 +184,7 @@ declarations by classification (justified / closure-candidate / pure-fn-candidat
 raw-library-import and `new X(...)` sites by in-factory vs out-of-factory, and
 multi-argument authored signatures by carve-out vs finding. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), plus the bucket or the named-field/composition
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)), plus the bucket or the named-field/composition
 replacement. Where a finding touches another lens's rule (the context-generic
 binding, the port/boundary discipline), name that as a cross-reference — do not
 re-tag or re-own it. State the rule-page paths you resolved and which rule

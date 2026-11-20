@@ -139,13 +139,13 @@ re-tagging the rule another lens owns):
 
 - **Ambient globals and raw-library wrapping.** Some codebases enforce the same
   inward-arrow shape on raw third-party libraries and stdlib modules through a
-  *separate* set of rules (often owned by a dependency-injection / wrapping-factory
+  *separate* set of rules (often owned by a dependency-injection / adapter
   lens, sometimes keyed to capabilities that have a dedicated port). When you see
   inner code call an ambient global or import a raw library outside its wrapping
   site, the *layering* defect is yours to name, but the rule citation may belong to
   that sibling lens — cite the rule the loaded ruleset actually declares, and flag
   the boundary observation rather than inventing a layering rule that doesn't carry
-  this lens tag. The wrapping-factory file *is* the permitted seam; the boundary
+  this lens tag. The adapter file *is* the permitted seam; the boundary
   violation is only the import that skips it.
 - **Adapter built outside the root.** One entry-point module builds every
   adapter and passes each one in; the *internal shape* of the port (capability
@@ -162,5 +162,5 @@ outward-arrow / cross-layer violations, inner-code-importing-driver violations,
 ambient-global call sites, unannotated-PII log emissions, unbranded-secret
 declarations, secret-at-forbidden-surface hits, minimal-surface cap breaches).
 Every finding is `file:line | quoted code | <rule-id> | defect-named`, citing the
-loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). State the code-discipline path you
+loaded rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)). State the code-discipline path you
 resolved and which rule ids you loaded under this lens.
