@@ -24,6 +24,7 @@ const checksRunner = (): NonNullable<LoadedEngine["checksRunner"]> => ({
   projectedKinds: [],
   run: vi.fn<LoadedRunner["run"]>(),
   conform: vi.fn<LoadedRunner["conform"]>(),
+  project: vi.fn<LoadedRunner["run"]>(),
 });
 
 describe("conformingRunnerOf", () => {

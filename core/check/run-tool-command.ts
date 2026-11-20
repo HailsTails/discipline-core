@@ -5,6 +5,7 @@ import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-por
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
 import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
 import { versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
+import { versionTwoProjectCommandOf } from "../run/version-two-project-command.ts";
 import { versionTwoNeededCommandOf } from "../run/version-two-needed-command.ts";
 import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "../run/version-two-record-commands.ts";
 import { installedStagesOver } from "../run/version-two-repository.ts";
@@ -77,11 +78,13 @@ const versionTwoPorts = {
 
 const versionTwoCheck = versionTwoCheckCommandOf(versionTwoPorts);
 
+const versionTwoProject = versionTwoProjectCommandOf(versionTwoPorts);
+
 const versionTwoRecordPorts = { ...versionTwoPorts, removal: createDefaultFileRemovalPort({}) };
 
 export const TOOL_SUBCOMMANDS: Subcommands = {
   check: versionChosenCommandOf({ versionOne: runGuidedCheckCommand, versionTwo: versionTwoCheck }),
-  project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: notReadyCommandOf({ command: "project" }) }),
+  project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: versionTwoProject }),
   "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: versionTwoRecordDebtCommandOf(versionTwoRecordPorts) }),
   "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: versionTwoPruneDebtCommandOf(versionTwoRecordPorts) }),
   authorise: versionChosenCommandOf({ versionOne: versionTwoNeededCommandOf, versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),

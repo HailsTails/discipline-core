@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { runMechanism, type MechanismRun } from "./mechanism-dispatch.ts";
 import type { ClauseBinding } from "../settings/selection.ts";
-import { checksRunnerModuleSchema } from "../mechanism-port/checks-runner-module-schema.ts";
-import { checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
-import type { ChecksRunReport, ChecksRunRequest, MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
+import { checksProjectResultSchema, checksRunnerModuleSchema, checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
+import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, MisnamedRuleId, ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
 import { rejectedCall, type RunnerFailure, runnerInvalidOutput } from "../mechanism-port/runner-failure.ts";
 import type { RunnerInvalid } from "../mechanism-port/load-runner.ts";
 import { type LoadedRunner, type LoadedStandaloneRunner, runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
@@ -144,20 +143,36 @@ const engineRunOfReport = (request: {
   };
 };
 
-const checksRunOf = async (request: { readonly checksRunner: ParsedChecksRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
-  const returned: unknown = await Promise.resolve()
-    .then(() => request.checksRunner.run(request.run))
+type ChecksCall = { readonly checksRunner: ParsedChecksRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest };
+
+const returnedBy = (request: { readonly call: () => Promise<unknown> }): Promise<unknown> =>
+  Promise.resolve()
+    .then(request.call)
     .catch((thrown: unknown) => ({ outcome: "failed", error: rejectedCall({ thrown }).error }));
-  const parsed = checksRunResultSchema.safeParse(returned);
+
+const invalidChecksOutput = (request: { readonly mechanism: MechanismId; readonly error: z.ZodError }): Outcome<never> =>
+  runnerFailed({ mechanism: request.mechanism, failure: runnerInvalidOutput({ detail: z.prettifyError(request.error) }).error });
+
+const failedChecksCall = (request: { readonly mechanism: MechanismId; readonly error: ChecksRunFailure }): Outcome<never> =>
+  request.error.kind === "not-ready-yet" ? { outcome: "failed", error: request.error } : runnerFailed({ mechanism: request.mechanism, failure: request.error });
+
+const checksRunOf = async (request: ChecksCall): Promise<Outcome<EngineRun>> => {
+  const parsed = checksRunResultSchema.safeParse(await returnedBy({ call: () => request.checksRunner.run(request.run) }));
   if (!parsed.success) {
-    return runnerFailed({ mechanism: request.mechanism, failure: runnerInvalidOutput({ detail: z.prettifyError(parsed.error) }).error });
+    return invalidChecksOutput({ mechanism: request.mechanism, error: parsed.error });
   }
   if (parsed.data.outcome === "failed") {
-    return parsed.data.error.kind === "not-ready-yet"
-      ? { outcome: "failed", error: parsed.data.error }
-      : runnerFailed({ mechanism: request.mechanism, failure: parsed.data.error });
+    return failedChecksCall({ mechanism: request.mechanism, error: parsed.data.error });
   }
   return engineRunOfReport({ report: parsed.data.value, run: request.run, mechanism: request.mechanism, projectedKinds: request.checksRunner.projectedKinds });
+};
+
+const checksProjectionOf = async (request: ChecksCall): Promise<Outcome<readonly ProjectedFile[]>> => {
+  const parsed = checksProjectResultSchema.safeParse(await returnedBy({ call: () => request.checksRunner.project(request.run) }));
+  if (!parsed.success) {
+    return invalidChecksOutput({ mechanism: request.mechanism, error: parsed.error });
+  }
+  return parsed.data.outcome === "failed" ? failedChecksCall({ mechanism: request.mechanism, error: parsed.data.error }) : parsed.data;
 };
 
 export const engineRunOf = (request: { readonly engine: LoadedEngine; readonly request: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
@@ -168,4 +183,14 @@ export const engineRunOf = (request: { readonly engine: LoadedEngine; readonly r
   return engine.checksRunner === undefined
     ? Promise.resolve(invalid({ mechanism: engine.mechanism, detail: NO_CHECKS_RUNNER_DETAIL }))
     : checksRunOf({ checksRunner: engine.checksRunner, mechanism: engine.mechanism, run: request.request });
+};
+
+export const engineProjectionOf = (request: { readonly engine: LoadedEngine; readonly request: EngineRunRequest }): Promise<Outcome<readonly ProjectedFile[]>> => {
+  const { engine } = request;
+  if (engine.runner.exceptionPath === "standalone") {
+    return Promise.resolve({ outcome: "ok", value: [] });
+  }
+  return engine.checksRunner === undefined
+    ? Promise.resolve(invalid({ mechanism: engine.mechanism, detail: NO_CHECKS_RUNNER_DETAIL }))
+    : checksProjectionOf({ checksRunner: engine.checksRunner, mechanism: engine.mechanism, run: request.request });
 };
