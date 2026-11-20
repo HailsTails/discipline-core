@@ -222,7 +222,7 @@ const PROSE_LINKS: readonly ProseLink[] = [
   },
   {
     sentence:
-      "The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways, so both Reads data from outside (request, file, environment, stored row, response) and Sends data out of the program owe it.",
+      "The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways, so Reads data from outside (request, file, environment, stored row, response) and Sends data out of the program are each a case that owes One reason per module.",
     cases: ["Reads data from outside (request, file, environment, stored row, response)", "Sends data out of the program"],
   },
   {
