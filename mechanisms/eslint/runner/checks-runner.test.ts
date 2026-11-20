@@ -36,6 +36,7 @@ const REQUEST: ChecksRunRequest = {
   bindings: [],
   answered: [],
   declaredConfigRoots: [],
+  declaredConfigLookup: undefined,
 };
 
 const NOT_READY = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } };
@@ -53,6 +54,37 @@ describe("checksRunnerOver", () => {
         trackedPaths: [repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/src/a.ts")],
       }),
     ).toEqual(NOT_READY);
+  });
+
+  it("is not ready for a repository tracking an eslint.config.* in a subfolder under a nearest-to-file lookup, before touching any port", async () => {
+    const outcome = await runner.run({
+      ...REQUEST,
+      files: [repoPathSchema.parse("packages/web/src/a.ts")],
+      trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("packages/web/src/a.ts")],
+    });
+    expect({ outcome, queried: vi.mocked(eslint.createQueryInstance).mock.calls, governed: vi.mocked(eslint.createGovernanceInstance).mock.calls }).toEqual({
+      outcome: NOT_READY,
+      queried: [],
+      governed: [],
+    });
+  });
+
+  it("is not ready for a subfolder config when the repository declares a nearest-to-file lookup", async () => {
+    const outcome = await runner.run({
+      ...REQUEST,
+      declaredConfigLookup: "nearest-to-file",
+      trackedPaths: [repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("src/a.ts")],
+    });
+    expect(outcome).toEqual(NOT_READY);
+  });
+
+  it("does not count a subfolder config as a root when the repository declares a repository-root lookup", async () => {
+    const outcome = await runner.run({
+      ...REQUEST,
+      declaredConfigLookup: "repository-root",
+      trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("src/a.ts")],
+    });
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
   });
 
   it("reports a current projection and no findings when no check runs on ESLint", async () => {

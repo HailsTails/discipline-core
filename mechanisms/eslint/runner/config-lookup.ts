@@ -118,11 +118,13 @@ const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
     ? "nearest-to-file"
     : "repository-root";
 
-export const configLookupOf = (request: LookupRequest): EslintConfigLookup =>
-  declaredLookup(request) ?? detectedLookup(request);
+export const configLookupDeclaring = (request: LookupRequest & { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookup =>
+  request.declared ?? detectedLookup(request);
 
-export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, RunnerFailure> => {
-  if (configLookupOf(request) === "nearest-to-file") {
+export const configLookupOf = (request: LookupRequest): EslintConfigLookup => configLookupDeclaring({ ...request, declared: declaredLookup(request) });
+
+export const teamConfigLookupFor = (request: LookupRequest & { readonly lookup: EslintConfigLookup }): Result<ConfigLookup, RunnerFailure> => {
+  if (request.lookup === "nearest-to-file") {
     return { outcome: "ok", value: NEAREST };
   }
   const configFile = rootConfigFile(request);
@@ -137,3 +139,6 @@ export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, R
       }
     : { outcome: "ok", value: { kind: "repository-root", configFile } };
 };
+
+export const teamConfigLookup = (request: LookupRequest): Result<ConfigLookup, RunnerFailure> =>
+  teamConfigLookupFor({ ...request, lookup: configLookupOf(request) });

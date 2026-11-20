@@ -17,7 +17,7 @@ export const MISNAMED_DISABLE_RULE_ID = `${TOOL_IDENTITY.ownRuleSet}/${MISNAMED_
 
 export const OWN_RULE_ID_PREFIX = `${TOOL_IDENTITY.ownRuleSet}/`;
 
-export const commentTextOf = (request: { readonly comment: InlineConfigNode }): string => {
+const commentTextOf = (request: { readonly comment: InlineConfigNode }): string => {
   switch (request.comment.type) {
     case "Line":
       return `//${request.comment.value}`.trim();
@@ -46,7 +46,7 @@ type SourceCodeWithInlineConfig = { readonly text: string; readonly getInlineCon
 const inlineConfigNodesOf = (request: { readonly sourceCode: SourceCodeWithInlineConfig }): readonly unknown[] | undefined =>
   request.sourceCode.getInlineConfigNodes?.();
 
-export type MisnamedComment = { readonly comment: InlineConfigNode; readonly text: string };
+type MisnamedComment = { readonly comment: InlineConfigNode; readonly text: string };
 
 export const misnamedCommentsIn = (request: { readonly nodes: unknown; readonly checkRuleIds: readonly string[] }): readonly MisnamedComment[] => {
   const parsed = inlineConfigNodesSchema.safeParse(request.nodes);

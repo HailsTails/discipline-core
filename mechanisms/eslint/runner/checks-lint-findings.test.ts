@@ -20,6 +20,7 @@ const findingsOf = (request: { readonly linted: LintedFile }) =>
     repoRoot: absolutePathSchema.parse("/repo"),
     sourceLines: vi.fn<LinesReader>().mockReturnValue({ outcome: "ok", value: ["", "", "  const a: any = 1;"] }),
     selected: [EXPLICIT_ANY],
+    checkRuleIds: [EXPLICIT_ANY.ruleId],
     versionOneRuleIds: [],
   });
 

@@ -1,6 +1,6 @@
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 
-const SETTINGS_FILE_NAME = "hone.config.json";
+export const SETTINGS_FILE_NAME = "hone.config.json";
 
 const directoryOf = (request: { readonly path: RepoPath }): string => request.path.split("/").slice(0, -1).join("/");
 

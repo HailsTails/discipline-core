@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
+import { createPathPort } from "../../../core/platform-ports/path-port.ts";
+import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -7,7 +9,8 @@ import type { AnsweredFile } from "./checks-projection.ts";
 import { type CheckedFile, projectionEffectOf, queriedFilesOf, queryExceptionsOf } from "./checks-queried-files.ts";
 import type { SelectedCheck } from "./checks-run-types.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
-import type { IgnoredState, QueryInstance } from "./eslint-instance.ts";
+import type { ConfigFileSearch, IgnoredState, QueryInstance } from "./eslint-instance.ts";
+import type { GoverningIgnores } from "./governing-config.ts";
 
 const CLAUSE = clauseAddressSchema.parse("CD-1#explicit-any");
 
@@ -34,6 +37,24 @@ type Outcome<Value> = Result<Value, RunnerFailure>;
 
 const ignoredOutcome = (request: { readonly state: IgnoredState }): Outcome<IgnoredState> => ({ outcome: "ok", value: request.state });
 
+const REPO = absolutePathSchema.parse("/repo");
+
+const BROKEN_FIXTURE_FILE = repoPathSchema.parse("fixtures/bad/b.ts");
+
+const BROKEN_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/fixtures/bad/eslint.config.mjs" };
+
+const ROOT_CONFIG: ConfigFileSearch = { kind: "found", path: "/repo/eslint.config.mjs" };
+
+const CONFIG_UNLOADABLE: Outcome<IgnoredState> = { outcome: "failed", error: { kind: "team-config-unloadable", detail: "Unexpected token ';'" } };
+
+const locationOver = (request: { readonly governingIgnoreOf: GoverningIgnores }) => ({
+  path: createPathPort({ flavour: "posix", workingDirectory: () => "/elsewhere" }),
+  repoRoot: REPO,
+  governingIgnoreOf: request.governingIgnoreOf,
+});
+
+const NOTHING_IGNORED = locationOver({ governingIgnoreOf: vi.fn<GoverningIgnores>().mockResolvedValue("not-ignored") });
+
 describe("queriedFilesOf", () => {
   it("splits the files into ignored ones and checked ones with the state of each selected rule", async () => {
     const query: QueryInstance = {
@@ -41,7 +62,7 @@ describe("queriedFilesOf", () => {
       ruleState: vi.fn<QueryInstance["ruleState"]>().mockResolvedValueOnce({ outcome: "ok", value: ENFORCED }),
       configFileOf: vi.fn<QueryInstance["configFileOf"]>(),
     };
-    expect(await queriedFilesOf({ query, files: [A, B], ruleIds: [EXPLICIT_ANY.ruleId] })).toEqual({
+    expect(await queriedFilesOf({ query, files: [A, B], ruleIds: [EXPLICIT_ANY.ruleId], location: NOTHING_IGNORED })).toEqual({
       outcome: "ok",
       value: { ignored: [A], checked: [checkedWith({ file: B, state: ENFORCED })] },
     });
@@ -51,9 +72,41 @@ describe("queriedFilesOf", () => {
     const query: QueryInstance = {
       ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValueOnce({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "broken" } }),
       ruleState: vi.fn<QueryInstance["ruleState"]>(),
-      configFileOf: vi.fn<QueryInstance["configFileOf"]>(),
+      configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue({ kind: "unknown" }),
     };
-    expect(await queriedFilesOf({ query, files: [A], ruleIds: [EXPLICIT_ANY.ruleId] })).toEqual({ outcome: "failed", error: { kind: "team-config-unloadable", detail: "broken" } });
+    expect(await queriedFilesOf({ query, files: [A], ruleIds: [EXPLICIT_ANY.ruleId], location: NOTHING_IGNORED })).toEqual({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: "the ESLint config for src/a.ts failed to load: broken. Fix that config." },
+    });
+  });
+
+  it("reports a file whose broken config sits in a folder the governing config ignores as ignored, the way version 1 does", async () => {
+    const query: QueryInstance = {
+      ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValueOnce(CONFIG_UNLOADABLE),
+      ruleState: vi.fn<QueryInstance["ruleState"]>(),
+      configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValueOnce(BROKEN_CONFIG).mockResolvedValueOnce(ROOT_CONFIG),
+    };
+    const location = locationOver({ governingIgnoreOf: vi.fn<GoverningIgnores>().mockResolvedValue("ignored") });
+    expect(await queriedFilesOf({ query, files: [BROKEN_FIXTURE_FILE], ruleIds: [EXPLICIT_ANY.ruleId], location })).toEqual({
+      outcome: "ok",
+      value: { ignored: [BROKEN_FIXTURE_FILE], checked: [] },
+    });
+  });
+
+  it("fails naming the broken config and how to repair it when the governing config does not ignore its folder", async () => {
+    const query: QueryInstance = {
+      ignoredState: vi.fn<QueryInstance["ignoredState"]>().mockResolvedValueOnce(CONFIG_UNLOADABLE),
+      ruleState: vi.fn<QueryInstance["ruleState"]>(),
+      configFileOf: vi.fn<QueryInstance["configFileOf"]>().mockResolvedValue(BROKEN_CONFIG),
+    };
+    expect(await queriedFilesOf({ query, files: [BROKEN_FIXTURE_FILE], ruleIds: [EXPLICIT_ANY.ruleId], location: NOTHING_IGNORED })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "fixtures/bad/eslint.config.mjs, the ESLint config for fixtures/bad/b.ts, failed to load: Unexpected token ';'. Fix that config. Only if fixtures/bad holds nothing Hone should check, add it to exclude in hone.config.json instead.",
+      },
+    });
   });
 });
 
