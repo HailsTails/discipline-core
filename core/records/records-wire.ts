@@ -7,7 +7,9 @@ export const RECORDS_VERSION = 2;
 
 const PACKAGE_NAME = String.raw`(?:@[A-Za-z0-9][A-Za-z0-9._~-]*\/)?[A-Za-z0-9][A-Za-z0-9._~-]*`;
 
-const SUBPATH = String.raw`(?:\/[A-Za-z0-9._~@-]+)*`;
+const DOT_SEGMENT = String.raw`\.\.?(?:\/|$)`;
+
+const SUBPATH = String.raw`(?:\/(?!${DOT_SEGMENT})[A-Za-z0-9._~@-]+)*`;
 
 const VERSION = "(?:@[A-Za-z0-9.^~<>=*|+-]+)?";
 
@@ -15,7 +17,11 @@ const RUNTIME = "runtime:[a-z]+";
 
 const NPM_SPECIFIER = `npm:${PACKAGE_NAME}${VERSION}${SUBPATH}`;
 
-const SCHEME_MODULE = String.raw`(?!runtime:|npm:)[a-z][a-z0-9+.-]*:\S+`;
+const DRIVE_LETTER = "[A-Za-z]:";
+
+const FILE_SCHEME = "file:";
+
+const SCHEME_MODULE = String.raw`(?!runtime:|npm:|${FILE_SCHEME}|${DRIVE_LETTER})[a-z][a-z0-9+.-]*:\S+`;
 
 const textSchema = z.string().trim().min(1);
 
