@@ -232,15 +232,15 @@ describe("importFactsReaching", () => {
     ]);
   });
 
-  it("lists an import whose every name is marked type-only as type-only, and one mixing in a value name as value", () => {
+  it("lists an import as type-only only when the statement itself is marked, since names marked type-only inside it still load the module", () => {
     expect(
       importFactsReaching({
-        sources: { "./a.ts": 'import { type A, type B } from "../held/one.ts";\nimport { type C, D } from "../held/two.ts";\n' },
+        sources: { "./a.ts": 'import { type A, type B } from "../held/one.ts";\nimport type { C, D } from "../held/two.ts";\n' },
         specifier: /^\.\.\/held\//,
       }),
     ).toEqual([
-      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "type-only", names: ["A", "B"] },
-      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "value", names: ["C", "D"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "value", names: ["A", "B"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "type-only", names: ["C", "D"] },
     ]);
   });
 

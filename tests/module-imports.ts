@@ -103,76 +103,47 @@ export type ImportFactsIn = {
   readonly names: readonly string[];
 };
 
-type StaticForm = ImportFactsIn["form"];
-
-type Binding = { readonly name: string; readonly form: StaticForm };
-
 type ImportClause = NonNullable<ImportDeclaration["importClause"]>;
 
-const importClauseBindingsOf = (clause: ImportClause): readonly Binding[] => {
-  const declaration = clause.isTypeOnly ? "type-only" : "value";
-  const defaultBinding: readonly Binding[] = clause.name === undefined ? [] : [{ name: clause.name.text, form: declaration }];
-  const bound = clause.namedBindings;
+const importClauseNamesOf = (request: { readonly clause: ImportClause }): readonly string[] => {
+  const defaultNames = request.clause.name === undefined ? [] : [request.clause.name.text];
+  const bound = request.clause.namedBindings;
   if (bound === undefined) {
-    return defaultBinding;
+    return defaultNames;
   }
-  const named: readonly Binding[] = syntaxApi.isNamespaceImport(bound)
-    ? [{ name: `* as ${bound.name.text}`, form: declaration }]
-    : bound.elements.map((element) => ({
-        name: (element.propertyName ?? element.name).text,
-        form: clause.isTypeOnly || element.isTypeOnly ? "type-only" : "value",
-      }));
-  return [...defaultBinding, ...named];
+  const namedNames = syntaxApi.isNamespaceImport(bound)
+    ? [`* as ${bound.name.text}`]
+    : bound.elements.map((element) => (element.propertyName ?? element.name).text);
+  return [...defaultNames, ...namedNames];
 };
 
-const exportBindingsOf = (declaration: ExportDeclaration): readonly Binding[] => {
-  const marked = declaration.isTypeOnly ? "type-only" : "value";
-  const exported = declaration.exportClause;
+const exportNamesOf = (request: { readonly declaration: ExportDeclaration }): readonly string[] => {
+  const exported = request.declaration.exportClause;
   if (exported === undefined) {
-    return [{ name: "*", form: marked }];
+    return ["*"];
   }
   return syntaxApi.isNamespaceExport(exported)
-    ? [{ name: `* as ${exported.name.text}`, form: marked }]
-    : exported.elements.map((element) => ({
-        name: (element.propertyName ?? element.name).text,
-        form: declaration.isTypeOnly || element.isTypeOnly ? "type-only" : "value",
-      }));
+    ? [`* as ${exported.name.text}`]
+    : exported.elements.map((element) => (element.propertyName ?? element.name).text);
 };
-
-const formOfBindings = (request: { readonly bindings: readonly Binding[]; readonly declaration: StaticForm }): StaticForm =>
-  request.declaration === "type-only" || (request.bindings.length > 0 && request.bindings.every(({ form }) => form === "type-only"))
-    ? "type-only"
-    : "value";
-
-const factsOf = (request: {
-  readonly specifier: string;
-  readonly kind: ModuleStatementKind;
-  readonly bindings: readonly Binding[];
-  readonly declaration: StaticForm;
-}): ImportFactsIn => ({
-  specifier: request.specifier,
-  kind: request.kind,
-  form: formOfBindings(request),
-  names: request.bindings.map(({ name }) => name),
-});
 
 const statementFactsOf = (request: NodeIn): ImportFactsIn | undefined => {
   const { node, sourceFile } = request;
   if (syntaxApi.isImportDeclaration(node) && node.importClause !== undefined) {
-    return factsOf({
+    return {
       specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
       kind: "import",
-      bindings: importClauseBindingsOf(node.importClause),
-      declaration: node.importClause.isTypeOnly ? "type-only" : "value",
-    });
+      form: node.importClause.isTypeOnly ? "type-only" : "value",
+      names: importClauseNamesOf({ clause: node.importClause }),
+    };
   }
   if (syntaxApi.isExportDeclaration(node) && node.moduleSpecifier !== undefined) {
-    return factsOf({
+    return {
       specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
       kind: "re-export",
-      bindings: exportBindingsOf(node),
-      declaration: node.isTypeOnly ? "type-only" : "value",
-    });
+      form: node.isTypeOnly ? "type-only" : "value",
+      names: exportNamesOf({ declaration: node }),
+    };
   }
   return undefined;
 };
