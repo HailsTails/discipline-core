@@ -25,10 +25,7 @@ const FLAG_OPTION = "--flag";
 
 const FLAG_OPTION_JOINED = `${FLAG_OPTION}=`;
 
-const NEAREST_LOOKUP_FLAGS: ReadonlySet<string> = new Set([
-  "v10_config_lookup_from_file",
-  "unstable_config_lookup_from_file",
-]);
+const NEAREST_LOOKUP_FLAGS: ReadonlySet<string> = new Set(["v10_config_lookup_from_file"]);
 
 export const CONFIG_FILE_NAMES: readonly string[] = [
   "eslint.config.js",

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PackageLocationPort } from "../../../core/platform-ports/package-location-port.ts";
 import { ESLINT_LINES, eslintClassOn, eslintPeersOn } from "../../../tests/eslint-toolchains.ts";
-import { type EslintToolchainModules, type EslintToolchainPeers, loadEslintToolchain } from "./eslint-toolchain.ts";
+import { type EslintToolchainModules, type EslintToolchainPeers, eslintBoundaryFor, loadEslintToolchain } from "./eslint-toolchain.ts";
 
 const REAL_10 = eslintPeersOn({ line: "eslint-10" });
 
@@ -176,5 +176,21 @@ describe("loadEslintToolchain when more than one peer is unavailable", () => {
       outcome: "failed",
       error: { kind: "toolchain-unavailable", peers: [ESLINT_NOT_INSTALLED, PLUGIN_NOT_INSTALLED] },
     });
+  });
+});
+describe("eslintBoundaryFor", () => {
+  it("chooses the ESLint 9 boundary for an ESLint 9 release", async () => {
+    await expect(eslintBoundaryFor({ version: "9.39.5" })).resolves.toMatchObject({
+      outcome: "ok",
+      value: { nearestLookup: { flags: ["v10_config_lookup_from_file"] } },
+    });
+  });
+
+  it("chooses the ESLint 10 boundary for an ESLint 10 release", async () => {
+    await expect(eslintBoundaryFor({ version: "10.15.0" })).resolves.toMatchObject({ outcome: "ok", value: { nearestLookup: { flags: [] } } });
+  });
+
+  it("fails naming the release of an ESLint major that has no boundary", async () => {
+    await expect(eslintBoundaryFor({ version: "8.57.0" })).resolves.toEqual({ outcome: "failed", error: "no ESLint boundary exists for ESLint 8.57.0" });
   });
 });

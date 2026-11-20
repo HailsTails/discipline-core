@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import {
   computedModuleLoad,
+  dynamicLoadMatching,
   filesNotMatching,
+  importFactsReaching,
+  importNotMatching,
   importsOutside,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
@@ -55,6 +58,26 @@ describe("nodeBuiltinImport", () => {
       nodeBuiltinImport({ moduleImport: { specifier: "node:path", form: "dynamic" } }),
       nodeBuiltinImport({ moduleImport: { specifier: "path", form: "value" } }),
     ]).toEqual(["allowed", "outside", "outside"]);
+  });
+});
+
+describe("dynamicLoadMatching", () => {
+  it("allows a dynamic load whose specifier matches and refuses another one or a static import of it", () => {
+    expect([
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "load-one", form: "dynamic" } }),
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "other", form: "dynamic" } }),
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "load-one", form: "value" } }),
+    ]).toEqual(["allowed", "outside", "outside"]);
+  });
+});
+
+describe("importNotMatching", () => {
+  it("refuses an import of any form whose specifier matches and allows every other", () => {
+    expect([
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint", form: "type-only" } }),
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint/rules", form: "dynamic" } }),
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint-plugin-x", form: "value" } }),
+    ]).toEqual(["outside", "outside", "allowed"]);
   });
 });
 
@@ -146,6 +169,23 @@ describe("importStatementsReaching", () => {
     ).toEqual([
       { file: "./a.ts", statement: 'import type { One, Two } from "../held/one.ts";' },
       { file: "./a.ts", statement: 'import {\n  Three,\n} from "../held/three.ts";' },
+    ]);
+  });
+});
+
+describe("importFactsReaching", () => {
+  it("lists the file, specifier, type-only form and imported names of each import statement whose specifier matches", () => {
+    expect(
+      importFactsReaching({
+        sources: {
+          "./a.ts": 'import type { One, Two } from "../held/one.ts";\nimport { z } from "zod";\nimport {\n  Three,\n} from "../held/three.ts";\nimport Four from "../held/four.ts";\n',
+        },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] },
+      { file: "./a.ts", specifier: "../held/three.ts", form: "value", names: ["Three"] },
+      { file: "./a.ts", specifier: "../held/four.ts", form: "value", names: ["Four"] },
     ]);
   });
 });

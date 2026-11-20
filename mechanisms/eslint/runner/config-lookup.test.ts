@@ -68,14 +68,6 @@ describe("teamConfigLookupFor", () => {
         ...ROOT_CONFIG,
       },
     },
-    {
-      name: "ESLint 9 started with --flag=unstable_config_lookup_from_file",
-      files: {
-        ...eslintInstalled({ version: "9.39.5" }),
-        ...lintScript({ command: "pnpm exec eslint --flag=unstable_config_lookup_from_file ." }),
-        ...ROOT_CONFIG,
-      },
-    },
   ])("looks configs up nearest to each file for $name", ({ files }) => {
     expect(lookupOver({ files })).toEqual(NEAREST);
   });

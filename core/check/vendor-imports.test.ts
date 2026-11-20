@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computedModuleLoad,
+  dynamicLoadMatching,
   importsOutside,
   importsOutsideFromOwnFolder,
   nodeBuiltinImport,
@@ -332,6 +333,8 @@ describe("Vendor confinement over what this repository's own Hone source imports
         sources: eslintToolchainSources,
         allowed: [
           relativeImport,
+          zodImport,
+          dynamicLoadMatching({ specifier: /^`\.\/\$\{folder\}\/eslint-\$\{major\}-boundary\.ts`$/ }),
           packageTypeImport({ packageName: "@typescript-eslint/eslint-plugin" }),
           packageDynamicImport({ packageName: "eslint" }),
           packageDynamicImport({ packageName: "@typescript-eslint/parser" }),

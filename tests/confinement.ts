@@ -56,6 +56,16 @@ export const packageDynamicImport =
   ({ moduleImport }) =>
     moduleImport.specifier === request.packageName && moduleImport.form === "dynamic" ? "allowed" : "outside";
 
+export const dynamicLoadMatching =
+  (request: { readonly specifier: RegExp }): ImportAllowance =>
+  ({ moduleImport }) =>
+    request.specifier.test(moduleImport.specifier) && moduleImport.form === "dynamic" ? "allowed" : "outside";
+
+export const importNotMatching =
+  (request: { readonly specifier: RegExp }): ImportAllowance =>
+  ({ moduleImport }) =>
+    request.specifier.test(moduleImport.specifier) ? "outside" : "allowed";
+
 const reachOf = (request: {
   readonly importingPath: PathPort;
   readonly reach: RegExp;
@@ -156,6 +166,46 @@ export const importStatementsReaching = (request: {
       .filter(([, specifier]) => request.specifier.test(specifier ?? ""))
       .map(([statement]) => ({ file, statement })),
   );
+
+export type ImportFacts = {
+  readonly file: string;
+  readonly specifier: string;
+  readonly form: "type-only" | "value";
+  readonly names: readonly string[];
+};
+
+const TYPE_ONLY_STATEMENT = /^import\s+type\s/;
+
+const STATEMENT_CLAUSE = /^import\s+(?:type\s+)?([\s\S]*?)\s+from\s+["']([^"']+)["'];$/;
+
+const BRACED_NAMES = /^\{([\s\S]*)\}$/;
+
+const formOf = (request: { readonly statement: string }): ImportFacts["form"] =>
+  TYPE_ONLY_STATEMENT.test(request.statement) ? "type-only" : "value";
+
+const namesOf = (request: { readonly clause: string }): readonly string[] =>
+  (BRACED_NAMES.exec(request.clause)?.[1] ?? request.clause)
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name !== "");
+
+export const importFactsReaching = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly ImportFacts[] =>
+  importStatementsReaching(request).flatMap(({ file, statement }) => {
+    const parts = STATEMENT_CLAUSE.exec(statement);
+    return parts === null
+      ? []
+      : [
+          {
+            file,
+            specifier: parts[2] ?? "",
+            form: formOf({ statement }),
+            names: namesOf({ clause: parts[1] ?? "" }),
+          },
+        ];
+  });
 
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;

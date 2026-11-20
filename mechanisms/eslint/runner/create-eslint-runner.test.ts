@@ -17,6 +17,7 @@ import type { Result } from "../../../core/values/result.ts";
 import type { ConfigLookup } from "./config-lookup.ts";
 import { type EslintRunnerPorts, eslintRunnerOver } from "./create-eslint-runner.ts";
 import type { EslintRepository } from "./eslint-repository.ts";
+import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type {
   ConfigFileSearch,
@@ -368,6 +369,7 @@ const eslintOver = (overrides: Partial<EslintFakeParts>): EslintPort => {
     ...overrides,
   };
   return {
+    boundary: SILENT_BOUNDARY,
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(parts.query),
     ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
     ignoredByPatterns: vi.fn<EslintPort["ignoredByPatterns"]>(),

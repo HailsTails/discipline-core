@@ -1,10 +1,12 @@
 import type typescriptEslintPlugin from "@typescript-eslint/eslint-plugin";
+import { z } from "zod";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import { gatheredPeerFailure, installedPeer, loadedPeer, type PeerToolchain, type ToolchainRequirement } from "../../../core/mechanism-port/toolchain-requirement.ts";
 import { createDefaultPackageLocationPort } from "../../../core/platform-ports/package-location-port.ts";
 import type { InstallForm } from "../../../core/values/install-layout.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { createEslintOn, type EslintModule, type EslintToolchain, type TypescriptParser } from "./eslint-instance.ts";
+import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 
 export type TypescriptEslintPluginModule = { readonly default: Pick<typeof typescriptEslintPlugin, "meta"> };
 
@@ -51,6 +53,31 @@ export const defaultEslintToolchainModules: EslintToolchainModules = {
   typescriptEslintPlugin: () => import("@typescript-eslint/eslint-plugin"),
 };
 
+const boundaryModuleSchema = z.object({
+  eslintBoundary: z.object({
+    nearestLookup: z.object({ flags: z.array(z.string()) }),
+    reportDataOf: z.custom<EslintMajorBoundary["reportDataOf"]>((candidate) => typeof candidate === "function"),
+  }),
+});
+
+const SUPPORTED_MAJORS: ReadonlySet<number> = new Set([9, 10]);
+
+export const eslintBoundaryFor = async (request: { readonly version: string }): Promise<Result<EslintMajorBoundary, string>> => {
+  const major = Number.parseInt(request.version, 10);
+  if (!SUPPORTED_MAJORS.has(major)) {
+    return { outcome: "failed", error: `no ESLint boundary exists for ESLint ${request.version}` };
+  }
+  const folder = `eslint-${major}`;
+  const loaded: unknown = await import(`./${folder}/eslint-${major}-boundary.ts`);
+  const boundary = boundaryModuleSchema.safeParse(loaded);
+  return boundary.success
+    ? { outcome: "ok", value: boundary.data.eslintBoundary }
+    : { outcome: "failed", error: `the ESLint ${major} boundary is malformed: ${z.prettifyError(boundary.error)}` };
+};
+
+export const installedEslintBoundary =(): Promise<Result<EslintMajorBoundary, string>> =>
+  defaultEslintToolchainModules.eslint().then((installed) => eslintBoundaryFor({ version: installed.ESLint.version }));
+
 export const defaultEslintToolchainPeers = (options: { readonly installRoot: string; readonly installForm: InstallForm }): EslintToolchainPeers => ({
   location: createDefaultPackageLocationPort(options),
   modules: defaultEslintToolchainModules,
@@ -64,8 +91,21 @@ const failedWith = (request: { readonly failures: readonly [RunnerFailure, ...Ru
   error: gatheredPeerFailure({ failures: request.failures }),
 });
 
+type BoundEslint = { readonly module: EslintModule; readonly boundary: EslintMajorBoundary };
+
+const boundEslintOf = async (request: { readonly loaded: Result<EslintModule, RunnerFailure> }): Promise<Result<BoundEslint, RunnerFailure>> => {
+  if (request.loaded.outcome === "failed") {
+    return request.loaded;
+  }
+  const module = request.loaded.value;
+  const boundary = await eslintBoundaryFor({ version: module.ESLint.version });
+  return boundary.outcome === "ok"
+    ? { outcome: "ok", value: { module, boundary: boundary.value } }
+    : { outcome: "failed", error: { kind: "tool-failed", detail: boundary.error } };
+};
+
 const toolchainOf = (request: {
-  readonly eslint: Result<EslintModule, RunnerFailure>;
+  readonly eslint: Result<BoundEslint, RunnerFailure>;
   readonly typescriptParser: Result<TypescriptParser, RunnerFailure>;
   readonly typescriptEslintPlugin: Result<TypescriptEslintPluginModule, RunnerFailure>;
 }): Result<EslintToolchain, RunnerFailure> => {
@@ -81,8 +121,9 @@ const toolchainOf = (request: {
   return {
     outcome: "ok",
     value: {
-      eslintVersion: request.eslint.value.ESLint.version,
-      createEslint: createEslintOn({ eslintClass: request.eslint.value.ESLint }),
+      eslintVersion: request.eslint.value.module.ESLint.version,
+      boundary: request.eslint.value.boundary,
+      createEslint: createEslintOn({ eslintClass: request.eslint.value.module.ESLint, boundary: request.eslint.value.boundary }),
       typescriptParser: request.typescriptParser.value,
     },
   };
@@ -94,7 +135,7 @@ export const loadEslintToolchain = (request: { readonly peers: EslintToolchainPe
     location: request.peers.location,
     load: request.peers.modules.eslint,
     versionOf: (module) => module.ESLint.version,
-  });
+  }).then((loaded) => boundEslintOf({ loaded }));
   const typescriptParser = loadedPeer({
     requirement: TYPESCRIPT_ESLINT_PARSER_REQUIREMENT,
     location: request.peers.location,

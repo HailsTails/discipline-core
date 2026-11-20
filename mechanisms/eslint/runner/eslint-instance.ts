@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type * as TypescriptParserModule from "@typescript-eslint/parser";
 import type { ESLint } from "eslint";
+import type { EslintMajorBoundary, NearestLookupOptions } from "./eslint-major-boundary.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { CaseVerdict } from "../../../core/mechanism-port/runner-result-schema.ts";
-import { type ReleaseRange, versionSupport } from "../../../core/mechanism-port/toolchain-requirement.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
@@ -124,6 +124,7 @@ export type CreateEslint = (request: { readonly options: EslintSurfaceOptions })
 export type EslintToolchain = {
   readonly eslintVersion: string;
   readonly createEslint: CreateEslint;
+  readonly boundary: EslintMajorBoundary;
   readonly typescriptParser: TypescriptParser;
 };
 
@@ -161,6 +162,7 @@ export type GovernanceInstance = {
 };
 
 export type EslintPort = {
+  readonly boundary: EslintMajorBoundary;
   readonly createQueryInstance: (request: {
     readonly repoRoot: AbsolutePath;
     readonly configFile?: string;
@@ -512,6 +514,7 @@ const sourceCaseVerdicts = (request: {
 };
 
 export const createEslintPort = (options: { readonly toolchain: EslintToolchain }): EslintPort => ({
+  boundary: options.toolchain.boundary,
   createQueryInstance: (request) =>
     queryInstanceOf({
       surface: builtSurface({
@@ -565,16 +568,6 @@ export type EslintClass = Pick<typeof ESLint, "version"> &
 
 export type EslintModule = { readonly ESLint: EslintClass };
 
-type ConfigLookup = { readonly releases: ReleaseRange; readonly flags: readonly string[] };
-
-const NEAREST_CONFIG_LOOKUPS: readonly ConfigLookup[] = [
-  { releases: { packageName: "eslint", lines: [{ floor: "9.39.5", below: "10.0.0" }] }, flags: ["v10_config_lookup_from_file"] },
-];
-
-const lookupFlagsOf = (request: { readonly version: string }): readonly string[] =>
-  NEAREST_CONFIG_LOOKUPS.find((lookup) => versionSupport({ requirement: lookup.releases, version: request.version }) === "supported")
-    ?.flags ?? [];
-
 const lintedMessageOf = (message: ESLint.LintResult["messages"][number]): LintedMessage => ({
   ruleId: message.ruleId,
   ...(message.messageId === undefined ? {} : { messageId: message.messageId }),
@@ -602,13 +595,13 @@ const overrideConfigOf = (request: {
   ),
 });
 
-const lookupOptionsOf = (request: { readonly version: string; readonly options: EslintSurfaceOptions }): ESLint.Options => {
-  const flags = lookupFlagsOf(request);
+const lookupOptionsOf = (request: { readonly nearestLookup: NearestLookupOptions; readonly options: EslintSurfaceOptions }): ESLint.Options => {
+  const { flags } = request.nearestLookup;
   return request.options.overrideConfigFile === undefined && flags.length > 0 ? { flags: [...flags] } : {};
 };
 
 export const eslintOptionsOf = (request: {
-  readonly version: string;
+  readonly nearestLookup: NearestLookupOptions;
   readonly options: EslintSurfaceOptions;
 }): ESLint.Options => {
   const { overrideConfig, matchedFiles, ignorePatterns, ...sharedOptions } = request.options;
@@ -621,8 +614,8 @@ export const eslintOptionsOf = (request: {
   };
 };
 
-export const createEslintOn = (request: { readonly eslintClass: EslintClass }): CreateEslint => (create) => {
-  const eslint = new request.eslintClass(eslintOptionsOf({ version: request.eslintClass.version, options: create.options }));
+export const createEslintOn = (request: { readonly eslintClass: EslintClass; readonly boundary: EslintMajorBoundary }): CreateEslint => (create) => {
+  const eslint = new request.eslintClass(eslintOptionsOf({ nearestLookup: request.boundary.nearestLookup, options: create.options }));
   return {
     isPathIgnored: (query) => eslint.isPathIgnored(query.filePath),
     calculateConfigForFile: (query) => eslint.calculateConfigForFile(query.filePath),
