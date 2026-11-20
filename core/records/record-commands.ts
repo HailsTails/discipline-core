@@ -1,10 +1,7 @@
 import type { Finding } from "../governance/governance.ts";
-import type { GitPort } from "../platform-ports/git-port.ts";
 import type { RunReport } from "../report/run-report.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
-import { touchedSetUnder } from "../touched-set/forfeiture-touched-set.ts";
-import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { ForfeitureAssessment } from "../values/assessment.ts";
+import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
@@ -25,17 +22,14 @@ export type RecordCommandFailure = HoneRecordsFailure | RecordsUnwritable | { re
 
 export type RecordDebtPorts = {
   readonly catalogue: SymptomCatalogue;
-  readonly repoRoot: AbsolutePath;
   readonly source: Pick<RecordsSource, "read">;
   readonly store: RecordsStore;
-  readonly git: Pick<GitPort, "changedSince">;
 };
 
 export type RecordDebtRequest = {
   readonly findings: readonly Finding[];
-  readonly baseRevision: string;
+  readonly touched: TouchedSet;
   readonly leave: readonly RepoPath[];
-  readonly forfeiture: ForfeitureAssessment;
 };
 
 export type PruneDebtPorts = { readonly source: Pick<RecordsSource, "read">; readonly store: RecordsStore };
@@ -94,8 +88,7 @@ const outcomesOf = (request: { readonly ports: RecordDebtPorts; readonly run: Re
   if (held.outcome === "failed") {
     return held;
   }
-  const { repoRoot, git } = request.ports;
-  const touched = touchedSetUnder({ forfeiture: request.run.forfeiture, repoRoot, baseRevision: request.run.baseRevision, git });
+  const { touched } = request.run;
   if (touched.measured === "no") {
     return unmeasuredFailure({ base: touched.base });
   }

@@ -2,7 +2,7 @@ import { afterAll, assert, describe, expect, it } from "vitest";
 import type { Finding } from "../core/governance/governance.ts";
 import { createDefaultDirectoryPort, createDefaultFileRemovalPort } from "../core/platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
-import { createDefaultGitPort, createDefaultGitTreePort, type GitPort } from "../core/platform-ports/git-port.ts";
+import { createDefaultGitPort, createDefaultGitTreePort } from "../core/platform-ports/git-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import { answerFindings, type RaisedFinding } from "../core/records/answering.ts";
 import { authoriseOf, pruneDebtOf, recordDebtOf } from "../core/records/record-commands.ts";
@@ -10,7 +10,7 @@ import { readHoneRecords } from "../core/records/read-hone-records.ts";
 import { createRecordsFolder } from "../core/records/records-folder.ts";
 import { createRecordsStore } from "../core/records/records-store.ts";
 import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
-import { touchedSetUnder } from "../core/touched-set/forfeiture-touched-set.ts";
+import type { TouchedSet } from "../core/touched-set/touched-set.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
@@ -76,9 +76,9 @@ const CAST_IN_ORDERS: Finding = {
 
 const RAISED: readonly RaisedFinding[] = [{ finding: CAST_IN_ORDERS, party: { reported: "not-reported" } }];
 
-const git: Pick<GitPort, "changedSince"> = { changedSince: () => ({ outcome: "ok", value: [] }) };
+const NOTHING_CHANGED: TouchedSet = { measured: "yes", paths: new Set() };
 
-const recordDebt = recordDebtOf({ catalogue, repoRoot: REPO_ROOT, source, store, git });
+const recordDebt = recordDebtOf({ catalogue, source, store });
 
 const pruneDebt = pruneDebtOf({ source, store });
 
@@ -99,18 +99,18 @@ const answering = (request: { readonly findings: readonly RaisedFinding[] }) => 
     catalogue,
     records: reading.value.records,
     findings: request.findings,
-    touched: touchedSetUnder({ forfeiture: "this-run", repoRoot: REPO_ROOT, baseRevision: "HEAD", git }),
+    touched: NOTHING_CHANGED,
     runs: [],
   });
 };
 
 describe("the version 2 record commands over a real hone-records folder, built in the test's own scratch", () => {
   it("record-debt writes debt the records reader reads and that answers the finding; run again it writes nothing; prune-debt removes it once the finding is fixed", () => {
-    expect(recordDebt({ findings: [CAST_IN_ORDERS], baseRevision: "HEAD", leave: [], forfeiture: "this-run" })).toMatchObject({ outcome: "ok", value: [{ effect: "recorded" }] });
+    expect(recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "recorded" }] });
     expect(textOf({ file: DEBT_FILE })).toBe(DEBT_TEXT);
     expect(answering({ findings: RAISED })).toMatchObject({ findings: [], answered: [{ finding: CAST_IN_ORDERS, by: [{ place: { file: DEBT_FILE, index: 0 } }] }], stale: [] });
 
-    expect(recordDebt({ findings: [CAST_IN_ORDERS], baseRevision: "HEAD", leave: [], forfeiture: "this-run" })).toMatchObject({ outcome: "ok", value: [{ effect: "already-recorded" }] });
+    expect(recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "already-recorded" }] });
     expect(textOf({ file: DEBT_FILE })).toBe(DEBT_TEXT);
 
     const fixed = answering({ findings: [] });
@@ -120,7 +120,7 @@ describe("the version 2 record commands over a real hone-records folder, built i
   });
 
   it("authorise writes the record the reader reads; the debt it now answers in place of is paid, and prune-debt removes exactly that", () => {
-    recordDebt({ findings: [CAST_IN_ORDERS], baseRevision: "HEAD", leave: [], forfeiture: "this-run" });
+    recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] });
     const authorised = authorise({
       symptom: "claimed-type",
       file: ORDER_FILE,

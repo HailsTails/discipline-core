@@ -27,7 +27,7 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     expect(versionTwoSources).toEqual(expect.objectContaining({ "./core/settings/read-settings.ts": expect.any(String) }));
   });
 
-  it("finds core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set taking from core/consumer-selection and core/exception-records only what is listed here, so the list can only shrink", () => {
+  it("finds core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set taking from core/consumer-selection, core/exception-records and core/upgrade only what is listed here, so the list can only shrink", () => {
     expect(importsOutsideFromOwnFolder({ sources: versionTwoSources, allowedFrom: reachingNothingInTheVersionOneReaders })).toEqual([
       { file: "./core/run/mechanism-dispatch.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
       { file: "./core/run/mechanism-dispatch.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
