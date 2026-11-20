@@ -9,6 +9,7 @@ import {
   type CaseVerdict,
   type Hit,
   hitSchema,
+  type MeasuredPair,
   runnerResultSchema,
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { StandaloneRunReport } from "../../../core/mechanism-port/standalone-run-report-schema.ts";
@@ -44,6 +45,8 @@ type WalkerPorts = {
 };
 
 type ClauseOrder = { readonly clauses: readonly RunnerClause[] };
+
+type WalkerRunReport = Required<StandaloneRunReport>;
 
 type SettledClauses = {
   readonly selected: readonly SelectedWalkerClause[];
@@ -139,7 +142,7 @@ const observedReport = (request: {
   readonly prepared: PreparedPieces;
   readonly clauses: readonly RunnerClause[];
   readonly file: WalkerFile;
-}): Outcome<readonly StandaloneRunReport[]> => {
+}): Outcome<readonly WalkerRunReport[]> => {
   const observed = observeWalkerFile({
     file: request.file,
     pieces: request.prepared.pieces,
@@ -153,6 +156,7 @@ const observedReport = (request: {
       {
         hits: inSourceOrder({ clauses: request.clauses, hits: observed.value.hits }),
         nativeExceptions: observed.value.nativeExceptions,
+        measured: observed.value.applicable.map((clause): MeasuredPair => ({ clause, file: request.file.file })),
       },
     ],
   };
@@ -174,8 +178,8 @@ const walkedReport = (request: {
   readonly prepared: PreparedPieces;
   readonly clauses: readonly RunnerClause[];
   readonly files: readonly WalkerFile[];
-}): Outcome<StandaloneRunReport> => {
-  const observed: Outcome<readonly StandaloneRunReport[]>[] = [];
+}): Outcome<WalkerRunReport> => {
+  const observed: Outcome<readonly WalkerRunReport[]>[] = [];
   request.files.some((file) => {
     const fileReport = observedReport({ ...request, file });
     observed.push(fileReport);
@@ -190,6 +194,7 @@ const walkedReport = (request: {
     value: {
       hits: [...fromFiles.value.flatMap((report) => report.hits), ...finished.value],
       nativeExceptions: fromFiles.value.flatMap((report) => report.nativeExceptions),
+      measured: fromFiles.value.flatMap((report) => report.measured),
     },
   };
 };
@@ -214,7 +219,7 @@ const repositoryFile = (request: {
 const runOverRepository = (request: {
   readonly ports: WalkerPorts;
   readonly run: RunRequest;
-}): Promise<Outcome<StandaloneRunReport>> => {
+}): Promise<Outcome<WalkerRunReport>> => {
   const repository: WalkerRepository = {
     files: request.run.trackedPaths,
     exists: ({ file }) =>

@@ -73,6 +73,51 @@ const SHARED_HITS = [
   { clause: CATCH, file: BROKEN, anchor: AT_FILE, snippet: `compilerOptions.useUnknownInCatchVariables ${MISSING_BASE}` },
 ] as const;
 
+const EVERY_CLAUSE_ON_EVERY_TSCONFIG = [
+  { clause: STRICT, file: INHERITS },
+  { clause: UNCHECKED, file: INHERITS },
+  { clause: EXACT, file: INHERITS },
+  { clause: OVERRIDE, file: INHERITS },
+  { clause: FALLTHROUGH, file: INHERITS },
+  { clause: PROPERTY, file: INHERITS },
+  { clause: CATCH, file: INHERITS },
+  { clause: STRICT, file: LOOSENED },
+  { clause: UNCHECKED, file: LOOSENED },
+  { clause: EXACT, file: LOOSENED },
+  { clause: OVERRIDE, file: LOOSENED },
+  { clause: FALLTHROUGH, file: LOOSENED },
+  { clause: PROPERTY, file: LOOSENED },
+  { clause: CATCH, file: LOOSENED },
+  { clause: STRICT, file: UNSET },
+  { clause: UNCHECKED, file: UNSET },
+  { clause: EXACT, file: UNSET },
+  { clause: OVERRIDE, file: UNSET },
+  { clause: FALLTHROUGH, file: UNSET },
+  { clause: PROPERTY, file: UNSET },
+  { clause: CATCH, file: UNSET },
+  { clause: STRICT, file: BROKEN },
+  { clause: UNCHECKED, file: BROKEN },
+  { clause: EXACT, file: BROKEN },
+  { clause: OVERRIDE, file: BROKEN },
+  { clause: FALLTHROUGH, file: BROKEN },
+  { clause: PROPERTY, file: BROKEN },
+  { clause: CATCH, file: BROKEN },
+  { clause: STRICT, file: LAYERED },
+  { clause: UNCHECKED, file: LAYERED },
+  { clause: EXACT, file: LAYERED },
+  { clause: OVERRIDE, file: LAYERED },
+  { clause: FALLTHROUGH, file: LAYERED },
+  { clause: PROPERTY, file: LAYERED },
+  { clause: CATCH, file: LAYERED },
+  { clause: STRICT, file: SOLUTION },
+  { clause: UNCHECKED, file: SOLUTION },
+  { clause: EXACT, file: SOLUTION },
+  { clause: OVERRIDE, file: SOLUTION },
+  { clause: FALLTHROUGH, file: SOLUTION },
+  { clause: PROPERTY, file: SOLUTION },
+  { clause: CATCH, file: SOLUTION },
+] as const;
+
 const SINGLE_BASE_ONLY = "unknown: TS5024 Compiler option 'extends' requires a value of type string.";
 
 describe("CD-3 edition 2 over a real extends chain on disk, through the shipped audit runner (CD-47: the fixture repository is the assertion's subject; nothing is spawned or written)", () => {
@@ -102,6 +147,9 @@ describe("CD-3 edition 2 over a real extends chain on disk, through the shipped 
       clauses: CLAUSES,
     });
 
-    expect(report).toEqual({ outcome: "ok", value: { hits: [...SHARED_HITS, ...layeredHits], nativeExceptions: [] } });
+    expect(report).toEqual({
+      outcome: "ok",
+      value: { hits: [...SHARED_HITS, ...layeredHits], nativeExceptions: [], measured: EVERY_CLAUSE_ON_EVERY_TSCONFIG },
+    });
   });
 });

@@ -2,6 +2,7 @@ import type { AttributedNativeException, ExemptedFinding, Finding } from "../gov
 import type { RepoPath } from "../values/repo-path.ts";
 import { type DebtPair, debtPairKey, distinctDebtPairs } from "./debt-pair.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
+import { authorisationStandingOf, type ExceptionBaseline } from "./exception-records.ts";
 
 export const PRUNE_DEBT_SUBCOMMAND = "prune-debt";
 
@@ -10,9 +11,22 @@ export type PaidDebtRequest = {
   readonly exempted: readonly ExemptedFinding[];
   readonly stale: readonly ExceptionRecord[];
   readonly forfeited: readonly ExceptionRecord[];
-  readonly unrecorded: readonly AttributedNativeException[];
+  readonly nativeExceptions: readonly AttributedNativeException[];
   readonly absent: readonly RepoPath[];
+  readonly measured: readonly DebtPair[];
+  readonly baseline: ExceptionBaseline;
 };
+
+const answeredByAuthorisedLocation = (request: {
+  readonly exempted: ExemptedFinding;
+  readonly baseline: ExceptionBaseline;
+}): "answered" | "still-debt" =>
+  request.exempted.by.some(
+    (record) =>
+      record.kind === "authorised-location" && authorisationStandingOf({ record, baseline: request.baseline }) === "established",
+  )
+    ? "answered"
+    : "still-debt";
 
 const nativeFileOf = (request: { readonly exception: AttributedNativeException }): RepoPath | undefined => {
   switch (request.exception.kind) {
@@ -30,19 +44,25 @@ const nativeFileOf = (request: { readonly exception: AttributedNativeException }
 const heldPairKeys = (request: PaidDebtRequest): ReadonlySet<string> =>
   new Set([
     ...request.findings.map((finding) => debtPairKey(finding)),
-    ...request.exempted.map((exempted) => debtPairKey(exempted.finding)),
-    ...request.unrecorded.flatMap((exception) => {
+    ...request.exempted.flatMap((exempted) =>
+      answeredByAuthorisedLocation({ exempted, baseline: request.baseline }) === "answered" ? [] : [debtPairKey(exempted.finding)],
+    ),
+    ...request.nativeExceptions.flatMap((exception) => {
       const file = nativeFileOf({ exception });
       return file === undefined ? [] : [debtPairKey({ clause: exception.clause, file })];
     }),
   ]);
 
-const goneFileCarveOutPairs = (request: Pick<PaidDebtRequest, "stale" | "forfeited" | "absent">): readonly DebtPair[] =>
-  [...request.stale, ...request.forfeited].flatMap((record) =>
-    record.kind === "file-carve-out" && request.absent.includes(record.file) ? [{ clause: record.clause, file: record.file }] : [],
+const settledCarveOutPairs = (request: Pick<PaidDebtRequest, "stale" | "forfeited" | "absent" | "measured">): readonly DebtPair[] => {
+  const measured = new Set(request.measured.map((pair) => debtPairKey(pair)));
+  return [...request.stale, ...request.forfeited].flatMap((record) =>
+    record.kind === "file-carve-out" && (request.absent.includes(record.file) || measured.has(debtPairKey(record)))
+      ? [{ clause: record.clause, file: record.file }]
+      : [],
   );
+};
 
 export const paidDebtOf = (request: PaidDebtRequest): readonly DebtPair[] => {
   const held = heldPairKeys(request);
-  return distinctDebtPairs({ pairs: goneFileCarveOutPairs(request).filter((pair) => !held.has(debtPairKey(pair))) });
+  return distinctDebtPairs({ pairs: settledCarveOutPairs(request).filter((pair) => !held.has(debtPairKey(pair))) });
 };
