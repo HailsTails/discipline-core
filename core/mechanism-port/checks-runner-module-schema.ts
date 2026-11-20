@@ -48,7 +48,6 @@ const notReadyYetFailureSchema = z
     what: z
       .object({
         thing: z.literal("eslint-config-roots"),
-        cause: z.enum(["declared-roots", "package-configs", "nested-repositories"]),
         paths: z.array(z.string()).min(1).readonly(),
       })
       .readonly(),

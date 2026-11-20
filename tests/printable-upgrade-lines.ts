@@ -58,11 +58,11 @@ const SAMPLES: readonly Sample[] = [
   {
     failure: {
       kind: "plan-refused",
-      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["packages/a/eslint.config.mjs"] } } },
+      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } },
     },
     fills: {
       detail:
-        "load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found packages/a/eslint.config.mjs; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs",
+        "load failure: not-ready-yet eslint-config-roots: this release does not run a repository that holds other version 2 repositories yet; folders holding hone.config.json: vendor/lib; move them out of this repository, and run each on its own with --repo",
     },
   },
   { failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } }, fills: { count: "0" } },
