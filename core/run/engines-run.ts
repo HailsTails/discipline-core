@@ -5,6 +5,7 @@ import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import type { EslintConfigLookup } from "../values/eslint-config-lookup.ts";
 import { gatheredOutcomes, listedOutcome } from "../values/gathered-outcomes.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { ModuleExtension } from "../values/install-layout.ts";
@@ -32,6 +33,11 @@ const mechanismsOf = (request: { readonly settings: SettingsReading }): readonly
   ...new Set(request.settings.selection.bindings.map((binding) => binding.mechanism)),
 ];
 
+const declaredLookupOf = (request: { readonly settings: SettingsReading }): EslintConfigLookup | undefined => {
+  const { eslintConfigLookup } = request.settings;
+  return eslintConfigLookup.lookup === "declared" ? eslintConfigLookup.value : undefined;
+};
+
 const runRequestOf = (request: EnginesRunRequest): EngineRunRequest => ({
   repoRoot: request.repoRoot,
   installRoot: request.installRoot,
@@ -41,6 +47,7 @@ const runRequestOf = (request: EnginesRunRequest): EngineRunRequest => ({
   bindings: request.settings.selection.bindings,
   answered: answeredFilesOf({ records: request.records.records }),
   declaredConfigRoots: request.tree.declaredConfigRoots,
+  declaredConfigLookup: declaredLookupOf({ settings: request.settings }),
 });
 
 const runOf = async (request: EnginesRunRequest & { readonly mechanism: MechanismId }): Promise<Result<EngineRun, RunFailureSource>> => {

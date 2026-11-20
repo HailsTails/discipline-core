@@ -1,5 +1,6 @@
 import type { Check } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import type { EslintConfigLookup } from "../values/eslint-config-lookup.ts";
 import type { ClauseAddress } from "../values/clause-address-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 import type { Result } from "../values/result.ts";
@@ -22,6 +23,7 @@ export type ChecksRunRequest = {
   readonly bindings: readonly ChecksBinding[];
   readonly answered: readonly AnsweredFile[];
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly declaredConfigLookup: EslintConfigLookup | undefined;
 };
 
 export type MisnamedRuleIdKind = "version-1-id" | "names-no-check";

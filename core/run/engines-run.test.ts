@@ -25,7 +25,7 @@ const bindingOn = (request: { readonly mechanism: typeof ESLINT }): ClauseBindin
   clause: { address: CAST_EXPRESSIONS, anchor: { kind: "file" }, pieceRoot: "/install/pieces", clauseSettings: {}, edition: FIRST_EDITION, settings: {} },
 });
 
-const settingsBinding = (request: { readonly bindings: readonly ClauseBinding[] }): SettingsReading => ({
+const settingsBinding = (request: { readonly bindings: readonly ClauseBinding[]; readonly lookup: SettingsReading["eslintConfigLookup"] }): SettingsReading => ({
   selection: {
     selection: { selected: [], uncovered: [], notAdopted: [], notRun: [], editions: [] },
     bindings: request.bindings,
@@ -35,7 +35,7 @@ const settingsBinding = (request: { readonly bindings: readonly ClauseBinding[] 
     fileExceptionWhyChains: "required",
   },
   runSettings: { reportOutput: "full", assessment: { forfeiture: "this-run" } },
-  eslintConfigLookup: { lookup: "detected" },
+  eslintConfigLookup: request.lookup,
   conventions: DEFAULT_CONVENTIONS,
   notes: [],
 });
@@ -76,7 +76,9 @@ const modulesOf = (request: { readonly first: ModuleLoad; readonly second: Modul
   load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValueOnce(request.first).mockResolvedValueOnce(request.second),
 });
 
-const runOver = (request: { readonly bindings: readonly ClauseBinding[]; readonly first: ModuleLoad; readonly second: ModuleLoad }) =>
+const DETECTED: SettingsReading["eslintConfigLookup"] = { lookup: "detected" };
+
+const runOver = (request: { readonly bindings: readonly ClauseBinding[]; readonly first: ModuleLoad; readonly second: ModuleLoad; readonly lookup: SettingsReading["eslintConfigLookup"] }) =>
   enginesRunOf({
     catalogue: REPORT_CATALOGUE,
     settings: settingsBinding(request),
@@ -94,7 +96,7 @@ describe("enginesRunOf", () => {
     const modules = modulesOf({ first: { outcome: "ok", value: STANDALONE_MODULE }, second: { outcome: "ok", value: EMBEDDED_MODULE } });
     const run = await enginesRunOf({
       catalogue: REPORT_CATALOGUE,
-      settings: settingsBinding({ bindings: [bindingOn({ mechanism: AUDIT }), bindingOn({ mechanism: ESLINT }), bindingOn({ mechanism: AUDIT })] }),
+      settings: settingsBinding({ bindings: [bindingOn({ mechanism: AUDIT }), bindingOn({ mechanism: ESLINT }), bindingOn({ mechanism: AUDIT })], lookup: DETECTED }),
       records: DEBT_ON_A,
       tree: { tracked: [A, README], declaredConfigRoots: [] },
       repoRoot: REPO,
@@ -110,7 +112,7 @@ describe("enginesRunOf", () => {
   it("asks a checks runner with the TypeScript files, the tracked paths, the catalogue's checks, the bindings and the files records answer", async () => {
     const asked = vi.mocked(EMBEDDED_MODULE.checksRunner.run);
     asked.mockClear();
-    await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: EMBEDDED_MODULE }, second: NOT_ASKED_FOR });
+    await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: EMBEDDED_MODULE }, second: NOT_ASKED_FOR, lookup: DETECTED });
     const expected: ChecksRunRequest = {
       repoRoot: REPO,
       installRoot: INSTALL,
@@ -120,13 +122,21 @@ describe("enginesRunOf", () => {
       bindings: [bindingOn({ mechanism: ESLINT })],
       answered: [{ symptom: "claimed-type", file: A }],
       declaredConfigRoots: [],
+      declaredConfigLookup: undefined,
     };
     expect(asked.mock.calls).toEqual([[expected]]);
   });
 
+  it("passes the ESLint config lookup the settings declare, and none when the settings leave it to be detected", async () => {
+    const asked = vi.mocked(EMBEDDED_MODULE.checksRunner.run);
+    asked.mockClear();
+    await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: EMBEDDED_MODULE }, second: NOT_ASKED_FOR, lookup: { lookup: "declared", value: "repository-root" } });
+    expect(asked.mock.calls).toEqual([[expect.objectContaining({ declaredConfigLookup: "repository-root" })]]);
+  });
+
   it("fails as an invalid engine, naming the engine the catalogue gives the mechanism, when its module cannot be loaded", async () => {
     const unloadable: ModuleLoad = { outcome: "failed", error: { kind: "module-unloadable", path: "/install/mechanisms/eslint/runner/runner.ts", detail: "Cannot find module" } };
-    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: unloadable, second: NOT_ASKED_FOR })).toEqual({
+    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: unloadable, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "engine-invalid", engine: { named: "engine", engine: ESLINT_ENGINE }, detail: "Cannot find module" },
     });
@@ -134,7 +144,7 @@ describe("enginesRunOf", () => {
 
   it("fails as an engine that failed, naming the engine, when its runner fails", async () => {
     const failing = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "tool-failed", detail: "ESLint stopped" } }) } };
-    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: failing }, second: NOT_ASKED_FOR })).toEqual({
+    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: failing }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "engine-failed", engine: { named: "engine", engine: ESLINT_ENGINE }, failure: { kind: "tool-failed", detail: "ESLint stopped" } },
     });
@@ -142,13 +152,13 @@ describe("enginesRunOf", () => {
 
   it("fails as not ready yet when the ESLint runner says its config roots are not ready", async () => {
     const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }) } };
-    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: notReady }, second: NOT_ASKED_FOR })).toEqual({
+    expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: notReady }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
     });
   });
 
   it("runs nothing when the selection binds no mechanism", async () => {
-    expect(await runOver({ bindings: [], first: NOT_ASKED_FOR, second: NOT_ASKED_FOR })).toEqual({ outcome: "ok", value: [] });
+    expect(await runOver({ bindings: [], first: NOT_ASKED_FOR, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({ outcome: "ok", value: [] });
   });
 });

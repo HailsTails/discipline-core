@@ -55,6 +55,7 @@ const REQUEST: EngineRunRequest = {
   bindings: [BINDING],
   answered: [],
   declaredConfigRoots: [],
+  declaredConfigLookup: undefined,
 };
 
 const HIT = { clause: CLASS_CLAUSE, file: A, anchor: { line: 1, column: 7 }, snippet: "export class A {}", check: "authored-class-or-this#class-keyword" };

@@ -128,7 +128,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
   });
 });
 
-const CHECKS_RUN: ChecksRunRequest = { repoRoot: REPO, installRoot: REPO, files: [], trackedPaths: [], checks: [], bindings: [], answered: [], declaredConfigRoots: [] };
+const CHECKS_RUN: ChecksRunRequest = { repoRoot: REPO, installRoot: REPO, files: [], trackedPaths: [], checks: [], bindings: [], answered: [], declaredConfigRoots: [], declaredConfigLookup: undefined };
 
 const CHECKS_REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", misnamedRuleIds: [] } as const;
 
