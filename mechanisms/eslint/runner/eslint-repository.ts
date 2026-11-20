@@ -15,10 +15,7 @@ import {
   teamConfigLookupFor,
 } from "./config-lookup.ts";
 import { selectionLookupSchema } from "./eslint-file-schemas.ts";
-import { type PackageScriptsReader, packageScriptsReaderOf } from "./package-script-scanner.ts";
-import { type ProjectionFiles, projectionFilesOver } from "./projection.ts";
-import { type LinesReader, linesReaderOf } from "./source-lines.ts";
-import { type SuppressionsReader, suppressionsReaderOf } from "./suppressions-scanner.ts";
+import { type ChecksRepository, checksRepositoryOver } from "./checks-repository.ts";
 
 const VERSION_ONE_SETTINGS_FILE = "disciplines.json";
 
@@ -44,14 +41,10 @@ const versionOneTeamConfigLookup = (request: VersionOneLookupRequest): Result<Co
 
 export type TrackedPathsRequest = { readonly trackedPaths: readonly RepoPath[] };
 
-export type EslintRepository = {
-  readonly projectionFiles: ProjectionFiles;
+export type EslintRepository = ChecksRepository & {
   readonly configLookup: (request: TrackedPathsRequest) => EslintConfigLookup;
   readonly teamConfigLookup: (request: TrackedPathsRequest) => Result<ConfigLookup, RunnerFailure>;
   readonly folderConfiguration: (request: { readonly folder: RepoPath }) => FolderConfiguration;
-  readonly packageScriptsAt: PackageScriptsReader;
-  readonly suppressionsAt: SuppressionsReader;
-  readonly sourceLines: LinesReader;
 };
 
 export const eslintRepositoryOver = (request: {
@@ -60,11 +53,8 @@ export const eslintRepositoryOver = (request: {
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
 }): EslintRepository => ({
-  projectionFiles: projectionFilesOver(request),
+  ...checksRepositoryOver(request),
   configLookup: ({ trackedPaths }) => versionOneConfigLookup({ ...request, trackedPaths }),
   teamConfigLookup: ({ trackedPaths }) => versionOneTeamConfigLookup({ ...request, trackedPaths }),
   folderConfiguration: ({ folder }) => folderConfigurationOf({ ...request, folder }),
-  packageScriptsAt: packageScriptsReaderOf(request),
-  suppressionsAt: suppressionsReaderOf(request),
-  sourceLines: linesReaderOf(request),
 });

@@ -6,7 +6,7 @@ import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { checksRunnerOver } from "./checks-runner.ts";
-import type { EslintRunnerPorts } from "./create-eslint-runner.ts";
+import type { ChecksRunnerPorts } from "./checks-ports.ts";
 import type { EslintPort } from "./eslint-instance.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 
@@ -23,7 +23,7 @@ const path = createDefaultPathPort({});
 const modules: ModuleLoaderPort = { load: vi.fn<ModuleLoaderPort["load"]>() };
 
 const runner = checksRunnerOver({
-  ports: { repositoryAt: vi.fn<EslintRunnerPorts["repositoryAt"]>(), coreInstall: vi.fn<EslintRunnerPorts["coreInstall"]>(), modules, path, eslint },
+  ports: { repositoryAt: vi.fn<ChecksRunnerPorts["repositoryAt"]>(), coreInstall: vi.fn<ChecksRunnerPorts["coreInstall"]>(), modules, path, eslint },
   platform: { fileText: createDefaultFileTextPort({}), fileRemoval: createDefaultFileRemovalPort({}), modules, path, eslint, moduleExtension: ".ts" },
 });
 

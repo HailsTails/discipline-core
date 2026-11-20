@@ -45,6 +45,25 @@ const vendorImportsTestSources = import.meta.glob(["./core/check/vendor-imports.
   eager: true,
 });
 
+const versionTwoRunnerSources = import.meta.glob(["./mechanisms/eslint/runner/checks-*.ts"], {
+  base: "../../",
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+
+const versionOneOnlyRunnerFiles = import.meta.glob(["./mechanisms/eslint/runner/{create-eslint-runner,eslint-repository,projection-slices}.ts"], {
+  base: "../../",
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+
+const reachesNoVersionOneOnlyRunnerFile = relativeImportReaching({
+  importingFolder: "mechanisms/eslint/runner",
+  reach: /^(?!mechanisms\/eslint\/runner\/(?:create-eslint-runner|eslint-repository|projection-slices)\.ts$)/,
+});
+
 const walkerRunnerReach = relativeImportReaching({
   importingFolder: "mechanisms/audit/runner",
   reach: /^(?:mechanisms\/audit\/runner\/|core\/(?:mechanism-port|values|platform-ports|rule-set-reader|exception-records)\/)/,
@@ -99,6 +118,21 @@ describe("FR-8 and AR-1 runner reach into core and its own mechanism over what t
     expect(
       importsOutside({ sources: eslintRunnerSources, allowed: [eslintRunnerReach, packageOrComputedImport] }),
     ).toEqual([]);
+  });
+
+  it("finds the three version 1-only runner files, so the check below is not silently against nothing", () => {
+    expect(versionOneOnlyRunnerFiles).toEqual({
+      "./mechanisms/eslint/runner/create-eslint-runner.ts": expect.any(String),
+      "./mechanisms/eslint/runner/eslint-repository.ts": expect.any(String),
+      "./mechanisms/eslint/runner/projection-slices.ts": expect.any(String),
+    });
+  });
+
+  it("finds every version 2 runner file and its test importing no version 1-only runner file, so the dependency points old to new only", () => {
+    expect({
+      scanned: versionTwoRunnerSources,
+      importsOutside: importsOutside({ sources: versionTwoRunnerSources, allowed: [reachesNoVersionOneOnlyRunnerFile, packageOrComputedImport] }),
+    }).toEqual({ scanned: expect.objectContaining({ "./mechanisms/eslint/runner/checks-runner.ts": expect.any(String) }), importsOutside: [] });
   });
 });
 

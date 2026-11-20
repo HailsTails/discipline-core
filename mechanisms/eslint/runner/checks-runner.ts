@@ -2,7 +2,8 @@ import { z } from "zod";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import type { Result } from "../../../core/values/result.ts";
-import type { EslintPlatformPorts, EslintRunnerPorts } from "./create-eslint-runner.ts";
+import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
+import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
 import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
@@ -14,13 +15,12 @@ import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
 import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
 import { cachedGoverningIgnores } from "./governing-config.ts";
 import { coreInstallOf } from "./core-install.ts";
-import { eslintRepositoryOver } from "./eslint-repository.ts";
 import { MISNAMED_DISABLE_RULE, MISNAMED_DISABLE_RULE_ID, misnamedDisableRule } from "./misnamed-disable-rule.ts";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
-import { configRootsOf } from "./projection-slices.ts";
+import { packageConfigRootCountOf } from "./checks-config-roots.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
 import { checksPluginImportOf, type ProjectionFailure, projectedChecksOf } from "./projected-checks.ts";
@@ -72,17 +72,17 @@ const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly pla
 const lookupOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): EslintConfigLookup =>
   configLookupDeclaring({ ...lookupRequestOf(request), declared: request.run.declaredConfigLookup });
 
-const configRootsOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): number =>
-  configRootsOf({ trackedPaths: request.run.trackedPaths, declared: request.run.declaredConfigRoots, lookup: lookupOf(request) }).length;
+const packageConfigRootsOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): number =>
+  packageConfigRootCountOf({ trackedPaths: request.run.trackedPaths, declared: request.run.declaredConfigRoots, lookup: lookupOf(request) });
 
 const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): Outcome<never> | undefined =>
   request.run.declaredConfigRoots.length > 0 ||
-  configRootsOver(request) > 1 ||
+  packageConfigRootsOver(request) > 0 ||
   nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files }).length > 0
     ? { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }
     : undefined;
 
-const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: EslintRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
+const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: ChecksRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
   const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request), settingsFile: SETTINGS_FILE_NAME });
   if (lookup.outcome === "failed") {
     return lookup;
@@ -102,7 +102,7 @@ const loadedPlugin = (request: { readonly plugin: ChecksPlugin; readonly checkRu
   return loaded.success ? { outcome: "ok", value: loaded.data.default } : toolFailed({ detail: `the Hone plugin is not an ESLint plugin: ${z.prettifyError(loaded.error)}` });
 };
 
-const builtPlugin = async (request: { readonly run: ChecksRunRequest; readonly checkRuleIds: readonly string[]; readonly ports: EslintRunnerPorts; readonly platform: EslintPlatformPorts }): Promise<Result<LoadedEslintPlugin, RunnerFailure>> => {
+const builtPlugin = async (request: { readonly run: ChecksRunRequest; readonly checkRuleIds: readonly string[]; readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): Promise<Result<LoadedEslintPlugin, RunnerFailure>> => {
   const plugin = await honePluginAt({
     checks: request.run.checks,
     installRoot: request.run.installRoot,
@@ -113,7 +113,7 @@ const builtPlugin = async (request: { readonly run: ChecksRunRequest; readonly c
   return plugin.outcome === "failed" ? toolFailed({ detail: honePluginFailureText({ failure: plugin.error }) }) : loadedPlugin({ plugin: plugin.value, checkRuleIds: request.checkRuleIds });
 };
 
-const expectedProjectionOf = (request: { readonly run: ChecksRunRequest; readonly projected: readonly ProjectedCheck[]; readonly ports: EslintRunnerPorts }): Result<string, RunnerFailure> => {
+const expectedProjectionOf = (request: { readonly run: ChecksRunRequest; readonly projected: readonly ProjectedCheck[]; readonly ports: ChecksRunnerPorts }): Result<string, RunnerFailure> => {
   const install = request.ports.coreInstall({ installRoot: request.run.installRoot });
   if (install.outcome === "failed") {
     return install;
@@ -127,7 +127,7 @@ const expectedProjectionOf = (request: { readonly run: ChecksRunRequest; readonl
 const currentProjectionState = (request: {
   readonly run: ChecksRunRequest;
   readonly projected: readonly ProjectedCheck[];
-  readonly ports: EslintRunnerPorts;
+  readonly ports: ChecksRunnerPorts;
 }): Result<"missing" | "current" | "out-of-date", RunnerFailure> => {
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
   const states = repository.projectionFiles.currentOf({ files: [CHECKS_PROJECTION_PATH] });
@@ -148,7 +148,7 @@ type LintRequest = {
   readonly plugin: LoadedEslintPlugin;
   readonly queried: QueriedFiles;
   readonly query: QueryInstance;
-  readonly ports: EslintRunnerPorts;
+  readonly ports: ChecksRunnerPorts;
   readonly versionOneRuleIds: readonly string[];
 };
 
@@ -213,7 +213,7 @@ const queriedRun = async (request: Omit<LintRequest, "queried" | "query"> & { re
     : lintedReport({ ...request, query: query.value, queried: queried.value });
 };
 
-const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly ports: EslintRunnerPorts; readonly platform: EslintPlatformPorts }): Promise<Outcome<ChecksRunReport>> => {
+const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): Promise<Outcome<ChecksRunReport>> => {
   const projected = projectedChecksOf({ checks: request.run.checks, bindings: request.run.bindings });
   if (projected.outcome === "failed") {
     return { outcome: "failed", error: projectionFailureOf({ failure: projected.error }) };
@@ -232,7 +232,7 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
     : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), projection: state.value });
 };
 
-export const checksRunnerOver = (request: { readonly ports: EslintRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
+export const checksRunnerOver = (request: { readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
   run: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
 });
 
@@ -240,7 +240,7 @@ export const createChecksRunner = (platform: EslintPlatformPorts): ChecksRunner 
   checksRunnerOver({
     platform,
     ports: {
-      repositoryAt: ({ repoRoot }) => eslintRepositoryOver({ ...platform, repoRoot }),
+      repositoryAt: ({ repoRoot }) => checksRepositoryOver({ ...platform, repoRoot }),
       coreInstall: ({ installRoot }) => coreInstallOf({ ...platform, installRoot }),
       modules: platform.modules,
       path: platform.path,
