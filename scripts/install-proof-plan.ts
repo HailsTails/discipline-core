@@ -24,7 +24,7 @@ export type ProofAction =
   | { readonly kind: "lint"; readonly directory: string; readonly expectation: StepExpectation }
   | { readonly kind: "run"; readonly script: string; readonly expectation: StepExpectation };
 
-export type ProofToolchain = "typescript-floor" | "current" | "eslint-9-floor" | "eslint-10-floor";
+export type ProofToolchain = "typescript-floor" | "current" | "eslint-9";
 
 export type TypeStripping = "disabled" | "enabled";
 
@@ -78,7 +78,7 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 2,
       output:
-        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0; @typescript-eslint/parser found not installed, supported ^8.56.0; @typescript-eslint/eslint-plugin found not installed, supported ^8.56.0: add a supported version of each to the devDependencies of the repository root\n",
+        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.39.5 || ^10.15.0; @typescript-eslint/parser found not installed, supported ^8.73.0; @typescript-eslint/eslint-plugin found not installed, supported ^8.73.0: add a supported version of each to the devDependencies of the repository root\n",
     },
   },
 ];
@@ -172,12 +172,12 @@ const TEAM_ACTIONS: readonly ProofAction[] = [
 
 export const PROOF_CASES: readonly ProofCase[] = [
   { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_CONSUMER_ACTIONS },
-  { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
-  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-10", fixture: "eslint", toolchain: "current", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
+  { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9", typeStripping: "disabled", actions: ESLINT_CONSUMER_ACTIONS },
   { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
   { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: TEAM_FLOOR_ACTIONS },
   { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
-  { consumer: "workspace", fixture: "workspace", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
+  { consumer: "workspace", fixture: "workspace", toolchain: "current", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
 ];
 
 export const packagedScriptsOf = (request: { readonly identity: ToolIdentity }): Readonly<Record<CommandScript, string>> => ({
@@ -247,17 +247,10 @@ const CURRENT: FloorPins = {
   "@typescript-eslint/eslint-plugin": "@typescript-eslint/eslint-plugin",
 };
 
-const TYPESCRIPT_ESLINT_FLOOR: FloorPins = {
-  ...TYPESCRIPT_FLOOR,
-  "@typescript-eslint/parser": "typescript-eslint-parser-floor",
-  "@typescript-eslint/eslint-plugin": "typescript-eslint-plugin-floor",
-};
-
 const FLOOR_PINS: Readonly<Record<ProofToolchain, FloorPins>> = {
   "typescript-floor": TYPESCRIPT_FLOOR,
   current: CURRENT,
-  "eslint-9-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-9-floor" },
-  "eslint-10-floor": { ...TYPESCRIPT_ESLINT_FLOOR, eslint: "eslint-10-floor" },
+  "eslint-9": { ...CURRENT, ...TYPESCRIPT_FLOOR, eslint: "eslint-9" },
 };
 
 const manifestInvalid = (request: { readonly detail: string }): Result<never, ManifestFailure> => ({

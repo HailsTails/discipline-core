@@ -1,49 +1,23 @@
-import { assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
-import { checkEditionsSchema } from "../values/check-editions.ts";
-import type { ClauseEditions } from "../values/edition.ts";
-import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
-import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
-import { reportOutputSchema } from "../values/report-output.ts";
-import { z } from "zod";
 import type { LoadFailure } from "../command-line/load-failure.ts";
+import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
-import {
-  type ClauseExceptions,
-  type ClauseSettingDeclarations,
-  type DisciplineFile,
-  disciplineFilePath,
-  type PieceFile,
-  pieceFilePath,
-  readDisciplineFile,
-  readPieceFile,
-  readVersionOneJson,
-} from "../rule-set-reader/rule-set-reader.ts";
-import type { AbsolutePath } from "../values/absolute-path.ts";
-import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
-import {
-  type ClauseAddress,
-  clauseAddressSchema,
-  clauseAddressText,
-  sameClauseAddress,
-  TOOL_RULE_SET,
-} from "../values/clause-address.ts";
-import {
-  type MechanismId,
-  mechanismIdSchema,
-  NOT_ADOPTED,
-  NOT_RUN,
-  ruleSetNameSchema,
-} from "../values/identifiers.ts";
-import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
-import type { Result } from "../values/result.ts";
+import type { ClauseExceptions, ClauseSettingDeclarations, DisciplineFile, PieceFile } from "../rule-set-reader/rule-set-reader.ts";
 import { settledClauseEdition } from "../upgrade/version-one-settings/clause-edition.ts";
-import { clauseSettingsSchema, settledClauseSettings } from "../upgrade/version-one-settings/clause-settings.ts";
-import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
+import { settledClauseSettings } from "../upgrade/version-one-settings/clause-settings.ts";
 import { defaultClauseSettings } from "../settings/default-clause-settings.ts";
 import { editionPinOf } from "../settings/edition-pin.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
 import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "../settings/selection.ts";
+import type { AbsolutePath } from "../values/absolute-path.ts";
+import { type ClauseAddress, clauseAddressText, sameClauseAddress, TOOL_RULE_SET } from "../values/clause-address.ts";
+import type { ClauseEditions } from "../values/edition.ts";
+import type { MechanismId } from "../values/identifiers.ts";
+import type { ModuleExtension } from "../values/install-layout.ts";
+import type { Result } from "../values/result.ts";
+import { createRuleSetFiles, type RuleSetFiles } from "../rule-set-reader/rule-set-files.ts";
+import { type ConsumerSelectionFile, type RuleSetLocation, runSettingsOf, type UnrunState } from "./selection-file.ts";
+import { readSelectionFile, selectionFilePathOf } from "./selection-reader.ts";
 
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
@@ -83,123 +57,6 @@ type ResolvedClause = {
   readonly editions: ClauseEditions;
 };
 
-const RULE_SET_SUFFIX_SEPARATOR = "-";
-
-const CLAUSE_ADDRESS_RULE_SET_SEPARATOR = "/";
-
-export type RuleSetLocation =
-  | { readonly location: "repo-root" }
-  | { readonly location: "folder"; readonly path: RepoPath };
-
-const LEADING_CURRENT_DIRECTORY = "./";
-
-type ClauseChoice =
-  | { readonly state: "run"; readonly mechanism: MechanismId }
-  | { readonly state: "not-run" }
-  | { readonly state: "not-adopted" };
-
-type UnrunState = Exclude<ClauseChoice["state"], "run">;
-
-const clauseChoiceSchema = z.union(
-  [
-    z.literal(NOT_RUN).transform((): ClauseChoice => ({ state: "not-run" })),
-    z.literal(NOT_ADOPTED).transform((): ClauseChoice => ({ state: "not-adopted" })),
-    mechanismIdSchema.transform((mechanism): ClauseChoice => ({ state: "run", mechanism })),
-  ],
-  { error: `a clause takes a mechanism id, "${NOT_RUN}" or "${NOT_ADOPTED}"` },
-);
-
-type ClauseListing = ClauseChoice["state"] | "unlisted";
-
-const UNSETTABLE_LISTING_REFUSALS: Readonly<Record<Exclude<ClauseListing, "run">, string>> = {
-  unlisted: "clauses does not select it",
-  "not-run": "clauses runs no mechanism for it, so remove its settings",
-  "not-adopted": "clauses does not adopt it, so remove its settings",
-};
-
-const clauseListingOf = (request: {
-  readonly clauses: readonly (readonly [ClauseAddress, ClauseChoice])[];
-  readonly address: ClauseAddress;
-}): ClauseListing =>
-  request.clauses.find(([listed]) => sameClauseAddress({ left: listed, right: request.address }) === "same")?.[1].state ??
-  "unlisted";
-
-const ruleSetLocationSchema = z.union([
-  z.enum([".", LEADING_CURRENT_DIRECTORY]).transform((): RuleSetLocation => ({ location: "repo-root" })),
-  z
-    .string()
-    .transform((text) =>
-      text.startsWith(LEADING_CURRENT_DIRECTORY) ? text.slice(LEADING_CURRENT_DIRECTORY.length) : text,
-    )
-    .pipe(repoPathSchema)
-    .transform((path): RuleSetLocation => ({ location: "folder", path })),
-]);
-
-const consumerSelectionFileSchema = z.strictObject({
-  version: z.literal(1),
-  ruleSets: z
-    .record(ruleSetNameSchema, z.string())
-    .transform((ruleSets) => Object.entries(ruleSets))
-    .pipe(z.array(z.tuple([ruleSetNameSchema, ruleSetLocationSchema]))),
-  clauses: z
-    .record(z.string(), z.string())
-    .transform((clauses) => Object.entries(clauses))
-    .pipe(z.array(z.tuple([clauseAddressSchema, clauseChoiceSchema]))),
-  exclude: z
-    .array(
-      brandedRepoPathSchema({
-        text: repoPathTextSchema.refine((excludedPath) => !excludedPath.includes("*"), {
-          error: "an exclude entry is a repository path, not a glob",
-        }),
-      }),
-    )
-    .default([]),
-  eslintConfigLookup: eslintConfigLookupSchema.optional(),
-  eslintConfigRoots: z
-    .array(
-      brandedRepoPathSchema({
-        text: repoPathTextSchema.refine((rootPath) => !rootPath.includes("*"), {
-          error: "an eslintConfigRoots entry is a repository folder, not a glob",
-        }),
-      }),
-    )
-    .default([]),
-  fileExceptionWhyChains: fileExceptionWhyChainsSchema.default("required"),
-  reportOutput: reportOutputSchema.default("full"),
-  assessment: assessmentSchema.default(DEFAULT_ASSESSMENT),
-  clauseSettings: clauseSettingsSchema.default([]),
-  checkEditions: checkEditionsSchema.default("pinned"),
-}).superRefine((file, context) => {
-  const settingsAddresses = file.clauseSettings.map(([address]) => address);
-  settingsAddresses
-    .flatMap((address) => {
-      const listing = clauseListingOf({ clauses: file.clauses, address });
-      return listing === "run" ? [] : [{ address, listing }];
-    })
-    .forEach(({ address, listing }) => {
-      const text = clauseAddressText({ address });
-      context.addIssue({
-        code: "custom",
-        path: ["clauseSettings", text],
-        message: `clauseSettings for ${text}: ${UNSETTABLE_LISTING_REFUSALS[listing]}`,
-      });
-    });
-  settingsAddresses
-    .filter((address, index) =>
-      settingsAddresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
-    )
-    .forEach((address) => {
-      const text = clauseAddressText({ address });
-      context.addIssue({
-        code: "custom",
-        path: ["clauseSettings", text],
-        message: `clauseSettings for ${text}: given twice, also as ${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${text}`,
-      });
-    });
-});
-
-type ConsumerSelectionFile = z.infer<typeof consumerSelectionFileSchema>;
-
 const failed = (error: LoadFailure): { readonly outcome: "failed"; readonly error: LoadFailure } => ({
   outcome: "failed",
   error,
@@ -237,7 +94,7 @@ export const ruleSetRootOf = (request: {
 };
 
 type ClauseRequest = {
-  readonly fileText: FileTextPort;
+  readonly ruleSetFiles: RuleSetFiles;
   readonly path: PathPort;
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
@@ -262,11 +119,13 @@ const disciplineOf = (request: Omit<ClauseRequest, "mechanism">): Result<Discipl
   if (loaded !== undefined) {
     return { outcome: "ok", value: loaded.discipline };
   }
-  const location = { path: request.path, ruleSetRoot: request.ruleSetRoot, discipline: request.address.discipline };
-  if (request.fileText.exists({ path: disciplineFilePath(location) }) === "absent") {
-    return failed({ kind: "unknown-discipline", address: clauseAddressText({ address: request.address }) });
+  const held = request.ruleSetFiles.discipline({ ruleSetRoot: request.ruleSetRoot, discipline: request.address.discipline });
+  if (held.outcome === "failed") {
+    return held;
   }
-  return readDisciplineFile({ ...location, fileText: request.fileText });
+  return held.value.held === "absent"
+    ? failed({ kind: "unknown-discipline", address: clauseAddressText({ address: request.address }) })
+    : { outcome: "ok", value: held.value.file };
 };
 
 type JudgementRefusal = "judgement-clause-selected" | "judgement-clause-listed";
@@ -302,6 +161,12 @@ const definedClause = (request: ClauseRequest): Result<DefinedClause, LoadFailur
 
 type PieceRequest = ClauseRequest & { readonly discipline: DisciplineFile };
 
+const pieceMissing = (request: PieceRequest): LoadFailure => ({
+  kind: "piece-missing",
+  address: clauseAddressText({ address: request.address }),
+  mechanism: request.mechanism,
+});
+
 const pieceOf = (request: PieceRequest): Result<PieceFile, LoadFailure> => {
   const loaded = request.earlier.find(
     (earlier) =>
@@ -312,20 +177,11 @@ const pieceOf = (request: PieceRequest): Result<PieceFile, LoadFailure> => {
   if (loaded !== undefined) {
     return { outcome: "ok", value: loaded.piece };
   }
-  const location = {
-    path: request.path,
-    ruleSetRoot: request.ruleSetRoot,
-    discipline: request.address.discipline,
-    mechanism: request.mechanism,
-  };
-  if (request.fileText.exists({ path: pieceFilePath(location) }) === "absent") {
-    return failed({
-      kind: "piece-missing",
-      address: clauseAddressText({ address: request.address }),
-      mechanism: request.mechanism,
-    });
+  const held = request.ruleSetFiles.piece({ ruleSetRoot: request.ruleSetRoot, discipline: request.discipline, mechanism: request.mechanism });
+  if (held.outcome === "failed") {
+    return held;
   }
-  return readPieceFile({ ...location, fileText: request.fileText, discipline: request.discipline });
+  return held.value.held === "absent" ? failed(pieceMissing(request)) : { outcome: "ok", value: held.value.file };
 };
 
 type PieceEntry = {
@@ -336,10 +192,12 @@ type PieceEntry = {
 };
 
 const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
-  const runnerPath = request.path.join({
-    segments: runnerModuleSegmentsOf({ installRoot: request.installRoot, mechanism: request.mechanism, moduleExtension: request.moduleExtension }),
+  const runner = request.ruleSetFiles.runner({
+    installRoot: request.installRoot,
+    mechanism: request.mechanism,
+    moduleExtension: request.moduleExtension,
   });
-  if (request.fileText.exists({ path: runnerPath }) === "absent") {
+  if (runner === "absent") {
     return failed({ kind: "runner-missing", mechanism: request.mechanism });
   }
   const piece = pieceOf(request);
@@ -348,11 +206,7 @@ const pieceEntry = (request: PieceRequest): Result<PieceEntry, LoadFailure> => {
   }
   const entry = piece.value.clauses.find((candidate) => candidate.clause === request.address.clause);
   if (entry === undefined) {
-    return failed({
-      kind: "piece-missing",
-      address: clauseAddressText({ address: request.address }),
-      mechanism: request.mechanism,
-    });
+    return failed(pieceMissing(request));
   }
   return { outcome: "ok", value: { piece: piece.value, settings: entry.settings, declarations: entry.clauseSettings, editions: entry.editions } };
 };
@@ -387,7 +241,7 @@ const resolvedClauseOf = (request: {
 };
 
 const resolveClause = (request: {
-  readonly fileText: FileTextPort;
+  readonly ruleSetFiles: RuleSetFiles;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
@@ -456,12 +310,13 @@ const uncoveredClauses = (request: { readonly listed: readonly ListedClause[] })
     .flatMap((representative) => unlistedClausesOf({ listed: request.listed, representative }));
 
 type SelectionRequest = {
-  readonly fileText: FileTextPort;
+  readonly ruleSetFiles: RuleSetFiles;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
   readonly file: ConsumerSelectionFile;
+  readonly filePath: string;
 };
 
 const adoptedEntries = (request: { readonly file: ConsumerSelectionFile }): readonly (readonly [ClauseAddress, MechanismId])[] =>
@@ -533,55 +388,6 @@ const appendedClause = <Clause>(request: {
   }
   return { outcome: "ok", value: [...request.sofar.value, clause.value] };
 };
-
-const parsedSelectionFile = (request: {
-  readonly fileText: FileTextPort;
-  readonly path: string;
-}): Result<ConsumerSelectionFile, LoadFailure> => {
-  const document = readVersionOneJson(request);
-  if (document.outcome === "failed") {
-    return document;
-  }
-  const parsed = consumerSelectionFileSchema.safeParse(document.value);
-  if (!parsed.success) {
-    return failed({ kind: "file-malformed", path: request.path, detail: z.prettifyError(parsed.error) });
-  }
-  const refusal = selectionFileRefusalOf({ file: parsed.data });
-  return refusal === undefined ? { outcome: "ok", value: parsed.data } : failed(refusal);
-};
-
-const reservedRuleSetNameRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
-  const reserved = request.file.ruleSets.find(
-    ([name]) => name === TOOL_RULE_SET || name.startsWith(`${TOOL_RULE_SET}${RULE_SET_SUFFIX_SEPARATOR}`),
-  );
-  return reserved === undefined ? undefined : { kind: "reserved-rule-set-name", name: reserved[0] };
-};
-
-const ruleSetNameCollisionRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
-  const names = request.file.ruleSets.map(([name]) => name);
-  const collisions = names.flatMap((name) =>
-    names
-      .filter((candidate) => candidate.startsWith(`${name}${RULE_SET_SUFFIX_SEPARATOR}`))
-      .map((other) => ({ kind: "rule-set-name-collision" as const, name, other })),
-  );
-  return collisions[0];
-};
-
-const duplicateClauseRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined => {
-  const addresses = request.file.clauses.map(([address]) => address);
-  const repeated = addresses.find(
-    (address, index) =>
-      addresses.slice(0, index).some((earlier) => sameClauseAddress({ left: earlier, right: address }) === "same"),
-  );
-  if (repeated === undefined) {
-    return undefined;
-  }
-  const address = clauseAddressText({ address: repeated });
-  return { kind: "duplicate-clause", address, prefixedAddress: `${TOOL_RULE_SET}${CLAUSE_ADDRESS_RULE_SET_SEPARATOR}${address}` };
-};
-
-const selectionFileRefusalOf = (request: { readonly file: ConsumerSelectionFile }): LoadFailure | undefined =>
-  reservedRuleSetNameRefusalOf(request) ?? ruleSetNameCollisionRefusalOf(request) ?? duplicateClauseRefusalOf(request);
 
 const editionReadingsOf = (request: { readonly resolved: readonly ResolvedClause[] }): readonly ClauseEditionReading[] =>
   request.resolved
@@ -663,19 +469,29 @@ const withClauseSettings = (request: {
     { outcome: "ok", value: [] },
   );
 
-const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
-  request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
-
 export const readRunSettings = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
 }): Result<RunSettings, LoadFailure> => {
-  const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
-  if (file.outcome === "failed") {
-    return file;
+  const file = readSelectionFile({ fileText: request.fileText, path: selectionFilePathOf(request) });
+  return file.outcome === "failed" ? file : { outcome: "ok", value: runSettingsOf({ file: file.value }) };
+};
+
+export const selectionFrom = (request: SelectionRequest): Result<SelectionReading, LoadFailure> => {
+  const resolved = resolvedClauses(request);
+  if (resolved.outcome === "failed") {
+    return resolved;
   }
-  return { outcome: "ok", value: { reportOutput: file.value.reportOutput, assessment: file.value.assessment } };
+  const settled = withClauseSettings({ resolved: resolved.value, file: request.file, path: request.filePath });
+  if (settled.outcome === "failed") {
+    return settled;
+  }
+  const unrun = unrunClauses({ ...request, adopted: settled.value });
+  if (unrun.outcome === "failed") {
+    return unrun;
+  }
+  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, unrun: unrun.value, file: request.file }) };
 };
 
 export const readSelection = (request: {
@@ -685,21 +501,10 @@ export const readSelection = (request: {
   readonly installRoot: AbsolutePath;
   readonly moduleExtension: ModuleExtension;
 }): Result<SelectionReading, LoadFailure> => {
-  const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
+  const filePath = selectionFilePathOf(request);
+  const file = readSelectionFile({ fileText: request.fileText, path: filePath });
   if (file.outcome === "failed") {
     return file;
   }
-  const resolved = resolvedClauses({ ...request, file: file.value });
-  if (resolved.outcome === "failed") {
-    return resolved;
-  }
-  const settled = withClauseSettings({ resolved: resolved.value, file: file.value, path: selectionFilePath(request) });
-  if (settled.outcome === "failed") {
-    return settled;
-  }
-  const unrun = unrunClauses({ ...request, file: file.value, adopted: settled.value });
-  if (unrun.outcome === "failed") {
-    return unrun;
-  }
-  return { outcome: "ok", value: selectionReadingOf({ resolved: settled.value, unrun: unrun.value, file: file.value }) };
+  return selectionFrom({ ...request, ruleSetFiles: createRuleSetFiles(request), file: file.value, filePath });
 };
