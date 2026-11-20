@@ -69,6 +69,8 @@ export const runnerModuleSchema = z.discriminatedUnion("exceptionPath", [
 
 export type LoadedRunner = z.infer<typeof runnerModuleSchema>;
 
+export type LoadedStandaloneRunner = z.infer<typeof standaloneRunnerModuleSchema>;
+
 export const isStandaloneKeySetEqual: Equal<
   keyof StandaloneRunner,
   keyof z.output<typeof standaloneRunnerModuleSchema>
