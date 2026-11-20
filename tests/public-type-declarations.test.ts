@@ -4,7 +4,7 @@ import { createDefaultTypeScriptDeclarationPort } from "../scripts/typescript-de
 import { publicTypeReachOf } from "./public-type-reach.ts";
 import { defaultParsePort } from "./typescript-parse-port.ts";
 
-const ENTRY_SOURCES = ["api/audit.ts", "api/rule-set.ts", "api/testing.ts"];
+const ENTRY_SOURCES = ["api/audit.ts", "api/eslint-plugin.ts", "api/rule-set.ts", "api/testing.ts"];
 
 const reach = publicTypeReachOf({
   syntaxApi: defaultParsePort.syntaxApi,
@@ -18,8 +18,17 @@ describe("the declarations the public type entries ship, emitted in memory by th
     expect(reach.problems).toEqual([]);
   });
 
-  it("import no package but typescript from the audit entry, and none at all from the rule-set and testing entries", () => {
-    expect(reach.entries).toMatchObject({ audit: { packageImports: ["typescript"] }, "rule-set": { packageImports: [] }, testing: { packageImports: [] } });
+  it("import no package but typescript from the audit entry, and none at all from the eslint-plugin, rule-set and testing entries", () => {
+    expect(reach.entries).toMatchObject({
+      audit: { packageImports: ["typescript"] },
+      "eslint-plugin": { packageImports: [] },
+      "rule-set": { packageImports: [] },
+      testing: { packageImports: [] },
+    });
+  });
+
+  it("reach from the eslint-plugin entry only its own declaration, which names its plugin type in its own words, never ESLint's", () => {
+    expect(reach.entries).toMatchObject({ "eslint-plugin": { reached: ["api/eslint-plugin.d.ts"] } });
   });
 
   it("reach no internal port, toolchain or tool identity from the audit entry", () => {
@@ -38,8 +47,8 @@ describe("the declarations the public type entries ship, emitted in memory by th
     expect(reach.valueDeclaring).toEqual([]);
   });
 
-  it("declare folderScope, editionReaches and isEdition from the audit entry, the three testing functions from the testing entry, and no value from the rule-set entry", () => {
-    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches", "isEdition"], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
+  it("declare folderScope, editionReaches and isEdition from the audit entry, the three testing functions from the testing entry, and no named value from the eslint-plugin and rule-set entries", () => {
+    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches", "isEdition"], "eslint-plugin": [], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
   });
 
   it("ship no declaration that mentions zod", () => {

@@ -17,23 +17,13 @@ import {
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/" });
 
 const SOURCE_WITHOUT_LOCK: Readonly<Record<string, string>> = {
-  "/package/package.json": JSON.stringify({
-    version: "0.0.0",
-    description: "Runs disciplines.",
-    keywords: ["disciplines"],
-    license: "MIT-0",
-    author: "Example Author",
-    private: true,
-    type: "module",
-    engines: { node: ">=22.18.0" },
-    dependencies: {},
-    peerDependencies: { typescript: ">=4.8.4 <7.0.0" },
-    peerDependenciesMeta: { typescript: { optional: true } },
-  }),
+  "/package/package.json":
+    '{ "version": "0.0.0", "description": "Runs disciplines.", "keywords": ["disciplines"], "license": "MIT-0", "author": "Example Author", "private": true, "type": "module", "engines": { "node": ">=22.18.0" }, "dependencies": {}, "peerDependencies": { "typescript": ">=4.8.4 <7.0.0" }, "peerDependenciesMeta": { "typescript": { "optional": true } } }',
   "/package/tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
   "/package/tsconfig.base.json": '{ "compilerOptions": { "strict": true } }',
   "/package/README.md": "# Discipline core\n",
   "/package/api/audit.ts": "export {};\n",
+  "/package/api/eslint-plugin.ts": "export {};\n",
   "/package/api/rule-set.ts": "export {};\n",
   "/package/api/testing.ts": "export {};\n",
   "/package/core/check/tool-command.ts": "await run();\n",
@@ -60,6 +50,7 @@ const RUNNER_OUTPUT = entryOutput({ source: "mechanisms/audit/runner/runner.ts",
 
 const API_OUTPUTS = [
   entryOutput({ source: "api/audit.ts", path: "api/audit.js", text: "export {};\n" }),
+  entryOutput({ source: "api/eslint-plugin.ts", path: "api/eslint-plugin.js", text: "export {};\n" }),
   entryOutput({ source: "api/rule-set.ts", path: "api/rule-set.js", text: "export {};\n" }),
   entryOutput({ source: "api/testing.ts", path: "api/testing.js", text: "export {};\n" }),
 ];
@@ -178,7 +169,7 @@ describe("runBuildPackage", () => {
     await runBuildPackage(request);
 
     expect({ report: reportOf(request), runs: npm.runs(), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
-      report: { writes: [[{ text: "build package: wrote 11 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
+      report: { writes: [[{ text: "build package: wrote 13 files to /package/dist\n" }]], exits: [[{ code: 0 }]] },
       runs: [],
       left: [],
     });
@@ -227,7 +218,7 @@ describe("runPackageDeterminism", () => {
 
     expect({ report: reportOf(request), left: files.pathsUnder({ folder: "/tmp" }) }).toEqual({
       report: {
-        writes: [[{ text: "package determinism: pass, 11 files and the packed tarball byte-identical across two builds\n" }]],
+        writes: [[{ text: "package determinism: pass, 13 files and the packed tarball byte-identical across two builds\n" }]],
         exits: [[{ code: 0 }]],
       },
       left: [],
