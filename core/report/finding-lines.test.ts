@@ -13,13 +13,14 @@ import {
   TEAM_CLAUSE,
   TEST_BODY_CHECK,
   TEST_BODY_LOGIC,
+  WHOLE_SYMPTOM,
 } from "../../tests/report-catalogue.ts";
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
 import type { PlacedRecord } from "../records/hone-record.ts";
 import type { Check } from "../symptom-catalogue/symptom-catalogue.ts";
 import { editionSchema } from "../values/edition.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { answeredLine, checkLine, doublyHeldLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
+import { answeredLine, checkLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
 
 const ORDER_FILE = repoPathSchema.parse("src/orders/charge-order.ts");
 
@@ -46,12 +47,7 @@ const TEAM_FINDING: Finding = { clause: TEAM_CLAUSE, mechanism: ESLINT, file: OR
 
 const DEBT: PlacedRecord = {
   place: { file: repoPathSchema.parse("hone-records/debt/claimed-type.json"), index: 0 },
-  record: { kind: "debt", symptom: CLAIMED_TYPE, file: WEBHOOK_FILE, holding: { held: "stated" } },
-};
-
-const CARRIED_LOCATION: PlacedRecord = {
-  place: { file: repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json"), index: 0 },
-  record: { kind: "authorised-location", symptom: CLAIMED_TYPE, file: WEBHOOK_FILE, holding: { held: "carried", entry: {}, lacks: ["case"], standing: "established" } },
+  record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: WEBHOOK_FILE, holding: { held: "stated" } },
 };
 
 const CLOCK_BOUNDARY: PlacedRecord = {
@@ -87,14 +83,6 @@ describe("answeredLine", () => {
   it("names neither the symptom's indications nor the fix", () => {
     expect(answeredLine({ catalogue: REPORT_CATALOGUE, answered: { finding: BRANCH_FINDING, by: [DEBT] } })).toBe(
       "branch-in-a-test#test-body walker src/orders/charge-order.test.ts:22:2 if (result.ok) {\\n  return; answered by debt",
-    );
-  });
-});
-
-describe("doublyHeldLine", () => {
-  it("names the debt, then each other record that holds its symptom at its file", () => {
-    expect(doublyHeldLine({ held: { debt: DEBT, alsoHeldBy: [CARRIED_LOCATION] } })).toBe(
-      "claimed-type debt src/adapters/stripe-webhook.ts also held by authorised-location carried",
     );
   });
 });

@@ -36,7 +36,7 @@ const VERSION_TWO_HEADING = "\n# Version 2\n";
 
 const TEMPLATE_ROW = /^\| `([^`]+)` \| `([^`]+)` \|$/;
 
-const ROLE_ROW = /^\| `([^`]+)` \| (failing|informational|guidance) \|/;
+const ROLE_ROW = /^\| `([^`]+)` \| (failing|next-step|informational|guidance) \|/;
 
 const PLACEHOLDER = /<([^<>]+)>/g;
 

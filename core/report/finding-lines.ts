@@ -1,12 +1,11 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
-import type { AnsweredFinding, DoublyHeldDebt } from "../records/answering.ts";
-import type { PlacedRecord } from "../records/hone-record.ts";
+import type { AnsweredFinding } from "../records/answering.ts";
 import { checkAddressOf } from "../symptom-catalogue/check-address.ts";
 import { type Check, indicatedNamesOf, type SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { type CheckSite, checkSiteText, findingSiteOf, nativeSitesOf } from "./check-site.ts";
 import { onOneLine, quoted } from "./printed-text.ts";
-import { recordReferenceText, recordSubjectText } from "./record-lines.ts";
+import { referencesText } from "./record-lines.ts";
 import type { CheckEdition } from "./run-report.ts";
 
 type CatalogueRequest = { readonly catalogue: SymptomCatalogue };
@@ -25,16 +24,10 @@ export const findingLine = (request: CatalogueRequest & { readonly finding: Find
   return `${locatedText({ site, finding: request.finding })}${indicationNote({ site })}${fixNote(request)}`;
 };
 
-const heldByText = (request: { readonly lead: string; readonly records: readonly PlacedRecord[] }): string =>
-  request.records.map((placed) => ` ${request.lead} ${recordReferenceText({ record: placed.record })}`).join("");
-
 export const answeredLine = (request: CatalogueRequest & { readonly answered: AnsweredFinding }): string => {
   const { finding, by } = request.answered;
-  return `${locatedText({ site: findingSiteOf({ catalogue: request.catalogue, finding }), finding })}${heldByText({ lead: "answered by", records: by })}`;
+  return `${locatedText({ site: findingSiteOf({ catalogue: request.catalogue, finding }), finding })}${referencesText({ lead: "answered by", records: by })}`;
 };
-
-export const doublyHeldLine = (request: { readonly held: DoublyHeldDebt }): string =>
-  `${recordSubjectText({ record: request.held.debt.record })}${heldByText({ lead: "also held by", records: request.held.alsoHeldBy })}`;
 
 export const editionLine = (request: { readonly reading: CheckEdition }): string =>
   `${checkAddressOf(request.reading)} ${request.reading.engine.name} edition ${request.reading.edition} of ${request.reading.latest}`;

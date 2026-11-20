@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import { CLAIMED_TYPE, GIVES_A_VALUE_ITS_TYPE, OWED_DECLARED_NOT_ASSERTED, WORLD_VALUES_THROUGH_A_PORT } from "../../tests/report-catalogue.ts";
+import { CAST_CHECK, CLAIMED_TYPE, GIVES_A_VALUE_ITS_TYPE, OWED_DECLARED_NOT_ASSERTED, WORLD_VALUES_THROUGH_A_PORT, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { HoneRecord, RecordRefusal } from "../records/hone-record.ts";
-import { carriedLine, recordPlaceText, recordReferenceText, recordSubjectText, refusedLines } from "./record-lines.ts";
+import type { CatalogueNote, HoneRecord, RecordRefusal } from "../records/hone-record.ts";
+import { carriedLine, recordNoteLine, recordPlaceText, recordReferenceText, recordSubjectText, refusedLines } from "./record-lines.ts";
 
 const FILE = repoPathSchema.parse("src/adapters/stripe-webhook.ts");
 
@@ -15,13 +15,14 @@ const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
 
 const CLOCK_ADAPTER = repoPathSchema.parse("src/adapters/system-clock.ts");
 
-const STATED_DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, file: FILE, holding: { held: "stated" } };
+const STATED_DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: FILE, holding: { held: "stated" } };
 
-const CARRIED_DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, file: FILE, holding: { held: "carried", entry: {}, lacks: [], standing: "established" } };
+const CARRIED_DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: FILE, holding: { held: "carried", entry: {}, lacks: [], standing: "established" } };
 
 const MATCHED_LOCATION: HoneRecord = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: FILE,
   holding: {
     held: "stated",
@@ -33,6 +34,7 @@ const MATCHED_LOCATION: HoneRecord = {
 const UNKNOWN_CASE_LOCATION: HoneRecord = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: FILE,
   holding: { held: "stated", owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "parses a webhook", owes: "declared-not-asserted" } }, whyChain: CAUSAL_WHY_CHAIN },
 };
@@ -40,6 +42,7 @@ const UNKNOWN_CASE_LOCATION: HoneRecord = {
 const UNOWED_LOCATION: HoneRecord = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: FILE,
   holding: { held: "stated", owing: { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written out answers" } }, whyChain: CAUSAL_WHY_CHAIN },
 };
@@ -47,6 +50,7 @@ const UNOWED_LOCATION: HoneRecord = {
 const CARRIED_LOCATION: HoneRecord = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: FILE,
   holding: { held: "carried", entry: {}, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
 };
@@ -83,9 +87,34 @@ const UUID_BOUNDARY: HoneRecord = {
 
 const DEPENDENCY: HoneRecord = { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "Not enough." };
 
+const CAST_DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "one-check", check: CAST_CHECK }, file: FILE, holding: { held: "stated" } };
+
+const UNKNOWN_CHECK_LOCATION: HoneRecord = {
+  kind: "authorised-location",
+  symptom: CLAIMED_TYPE,
+  reach: { reaches: "unknown-check", check: "cast-old" },
+  file: FILE,
+  holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: OWED_DECLARED_NOT_ASSERTED }, whyChain: CAUSAL_WHY_CHAIN },
+};
+
+const CARRIED_UNKNOWN_CHECK_LOCATION: HoneRecord = {
+  kind: "authorised-location",
+  symptom: CLAIMED_TYPE,
+  reach: { reaches: "unknown-check", check: "cast-old" },
+  file: FILE,
+  holding: { held: "carried", entry: {}, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
+};
+
 describe("recordPlaceText", () => {
   it("names a record by its records file and its index in that file's records", () => {
     expect(recordPlaceText({ place: { file: DEBT_FILE, index: 3 } })).toBe("hone-records/debt/claimed-type.json records[3]");
+  });
+
+  it.each([
+    { name: "a space", file: repoPathSchema.parse("hone-records/debt/claimed type.json"), text: '"hone-records/debt/claimed type.json" records[3]' },
+    { name: "a double quote", file: repoPathSchema.parse('hone-records/debt/claimed"type.json'), text: '"hone-records/debt/claimed\\"type.json" records[3]' },
+  ])("writes a records file whose name holds $name as a JSON string, so the file is always one field", ({ file, text }) => {
+    expect(recordPlaceText({ place: { file, index: 3 } })).toBe(text);
   });
 });
 
@@ -110,6 +139,17 @@ describe("recordSubjectText", () => {
     { name: "a carried boundary record on a scheme module", record: FS_BOUNDARY, text: "node:fs boundary-record src/adapters/files carried" },
     { name: "a boundary record on a package subpath", record: UUID_BOUNDARY, text: "uuid/v4 boundary-record src/adapters/ids" },
     { name: "a dependency record", record: DEPENDENCY, text: "zod dependency-record" },
+    { name: "debt on one check", record: CAST_DEBT, text: "claimed-type#cast-expressions debt src/adapters/stripe-webhook.ts" },
+    {
+      name: "an authorised location naming a check its symptom does not have",
+      record: UNKNOWN_CHECK_LOCATION,
+      text: 'claimed-type#cast-old authorised-location src/adapters/stripe-webhook.ts note: the catalogue has no check "cast-old" of claimed-type',
+    },
+    {
+      name: "a carried authorised location naming a check its symptom does not have",
+      record: CARRIED_UNKNOWN_CHECK_LOCATION,
+      text: 'claimed-type#cast-old authorised-location src/adapters/stripe-webhook.ts carried note: the catalogue has no check "cast-old" of claimed-type',
+    },
   ])("names $name by what it holds, its kind and its site", ({ record, text }) => {
     expect(recordSubjectText({ record })).toBe(text);
   });
@@ -124,6 +164,8 @@ describe("recordReferenceText", () => {
     { name: "a boundary record", record: CLOCK_BOUNDARY, text: "boundary-record runtime:clock" },
     { name: "a deviation", record: DEVIATION, text: "deviation world-values-through-a-port" },
     { name: "a dependency record", record: DEPENDENCY, text: "dependency-record zod" },
+    { name: "debt on one check", record: CAST_DEBT, text: "debt" },
+    { name: "an authorised location naming a check its symptom does not have", record: UNKNOWN_CHECK_LOCATION, text: 'authorised-location note: the catalogue has no check "cast-old" of claimed-type' },
   ])("names $name by its kind, beside the finding it answers", ({ record, text }) => {
     expect(recordReferenceText({ record })).toBe(text);
   });
@@ -145,6 +187,11 @@ describe("refusedLines", () => {
       line: 'hone-records/authorised-locations/claimed-type.json records[2] form-refused file: Invalid input: expected string, received number; record: Unrecognized key: "kind"',
     },
     { name: "an unknown symptom", refusal: { kind: "unknown-symptom", symptom: "claimed type" }, line: 'hone-records/authorised-locations/claimed-type.json records[2] unknown-symptom "claimed type"' },
+    {
+      name: "debt naming a check its symptom does not have",
+      refusal: { kind: "unknown-check", symptom: "claimed-type", check: "cast-old" },
+      line: 'hone-records/authorised-locations/claimed-type.json records[2] unknown-check "cast-old" of claimed-type',
+    },
     { name: "an unknown recipe", refusal: { kind: "unknown-recipe", recipe: "stub-with-vi-fn" }, line: 'hone-records/authorised-locations/claimed-type.json records[2] unknown-recipe "stub-with-vi-fn"' },
     {
       name: "a recipe reason in other words than the catalogue's",
@@ -184,6 +231,28 @@ describe("refusedLines", () => {
     expect(refusedLines({ refused: { place: PLACE, refusals: [{ kind: "unknown-symptom", symptom: "claimed\ntype" }] } })).toEqual([
       'hone-records/authorised-locations/claimed-type.json records[2] unknown-symptom "claimed\\ntype"',
     ]);
+  });
+});
+
+describe("recordNoteLine", () => {
+  it.each<{ readonly name: string; readonly note: CatalogueNote; readonly line: string }>([
+    {
+      name: "a check its symptom does not have",
+      note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "cast-old" },
+      line: 'hone-records/authorised-locations/claimed-type.json records[2] unknown-check: the catalogue has no check "cast-old" of claimed-type',
+    },
+    {
+      name: "a case the catalogue does not hold",
+      note: { kind: "unknown-case", case: "parses a webhook", owes: "declared-not-asserted" },
+      line: 'hone-records/authorised-locations/claimed-type.json records[2] unknown-case: the catalogue has no case "parses a webhook", owing "declared-not-asserted"',
+    },
+    {
+      name: "an owes its case does not owe",
+      note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" },
+      line: 'hone-records/authorised-locations/claimed-type.json records[2] owes-not-owed: gives-a-value-its-type does not owe "written-out-answers"',
+    },
+  ])("names the record by its place, then the note's kind and words, for $name", ({ note, line }) => {
+    expect(recordNoteLine({ recordNote: { place: PLACE, note } })).toBe(line);
   });
 });
 

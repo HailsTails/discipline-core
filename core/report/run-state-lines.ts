@@ -1,5 +1,7 @@
+import { RECORDS_FOLDER } from "../records/records-layout.ts";
 import type { RecordsUnmeasured } from "../records/records-unmeasured.ts";
 import { type SettingsNote, settingsNoteText } from "../settings/read-settings.ts";
+import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import type { Engine } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
@@ -8,15 +10,11 @@ import type { EngineNotRun, ForfeitureElsewhere, RunProjectionProblem, RunUnmeas
 
 export type ProjectCommand = { readonly projectCommand: string };
 
-const CONFIG_FILE = "hone.config.json";
-
-const RECORDS_FOLDER = "hone-records";
-
 const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
 const PASS_A_BASE = "pass --base-revision with the branch's base, such as origin/main";
 
-const LEAVE_FORFEITURE_ELSEWHERE = `leave forfeiture to another run with "forfeiture": "elsewhere" in ${CONFIG_FILE} or --forfeiture elsewhere`;
+const LEAVE_FORFEITURE_ELSEWHERE = `leave forfeiture to another run with "forfeiture": "elsewhere" in ${SETTINGS_FILE_NAME} or --forfeiture elsewhere`;
 
 const GENERATED_CONFIGURATION = "or, where a tool such as sku generates the configuration, last in the configuration the tool takes";
 
@@ -62,7 +60,7 @@ const sliceNote = (request: EngineRequest & { readonly engine: Engine }): string
 const nestedNote = (request: ProjectCommand & { readonly folders: readonly RepoPath[] }): string =>
   request.folders.length === 0
     ? ""
-    : `; ${request.folders.join(", ")} hold their own ${CONFIG_FILE}, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its ${CONFIG_FILE} and keep its records here, then run ${request.projectCommand}, which writes its slice`;
+    : `; ${request.folders.join(", ")} hold their own ${SETTINGS_FILE_NAME}, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its ${SETTINGS_FILE_NAME} and keep its records here, then run ${request.projectCommand}, which writes its slice`;
 
 const engineNotRunLine = (request: EngineRequest & { readonly unmeasured: EngineNotRun }): string => {
   const { unmeasured } = request;

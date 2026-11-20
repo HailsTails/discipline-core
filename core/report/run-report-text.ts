@@ -1,13 +1,14 @@
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { ReportOutput } from "../values/report-output.ts";
-import { answeredLine, checkLine, doublyHeldLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
-import { carriedLine, recordSubjectText, refusedLines } from "./record-lines.ts";
+import { forfeitedLine, type PruneCommand, paidLine, staleLine } from "./debt-lines.ts";
+import { answeredLine, checkLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
+import { carriedLine, recordNoteLine, refusedLines } from "./record-lines.ts";
 import { RUN_SECTION_NAMES, type RunSectionName, runSectionRoleOf, runVerdictOf } from "./report-sections.ts";
 import type { RunReport } from "./run-report.ts";
 import { assessmentLine, projectionProblemLine, settingsNoteLine, unmeasuredLine } from "./run-state-lines.ts";
 import { symptomLine } from "./symptom-lines.ts";
 
-export type RunReportRequest = {
+export type RunReportRequest = PruneCommand & {
   readonly report: RunReport;
   readonly catalogue: SymptomCatalogue;
   readonly symptomPage: string;
@@ -25,16 +26,17 @@ const SECTION_LINES: Readonly<Record<RunSectionName, SectionLines>> = {
   findings: (request) => request.report.findings.map((finding) => findingLine({ catalogue: request.catalogue, finding })),
   answered: (request) => request.report.answered.map((answered) => answeredLine({ catalogue: request.catalogue, answered })),
   uncovered: (request) => request.report.uncovered.map((check) => checkLine({ check })),
-  stale: (request) => request.report.stale.map((placed) => recordSubjectText(placed)),
-  forfeited: (request) => request.report.forfeited.map((placed) => recordSubjectText(placed)),
+  stale: (request) => request.report.stale.map((placed) => staleLine({ placed, pruneCommand: request.pruneCommand })),
+  forfeited: (request) => request.report.forfeited.map((placed) => forfeitedLine({ placed, pruneCommand: request.pruneCommand })),
   unrecorded: (request) => request.report.unrecorded.flatMap((exception) => unrecordedLines({ catalogue: request.catalogue, exception })),
-  doublyHeld: (request) => request.report.doublyHeld.map((held) => doublyHeldLine({ held })),
+  paid: (request) => request.report.paid.map((paid) => paidLine({ paid, pruneCommand: request.pruneCommand })),
   refused: (request) => request.report.refused.flatMap((refused) => refusedLines({ refused })),
   unmeasured: (request) =>
     request.report.unmeasured.map((unmeasured) => unmeasuredLine({ projectCommand: request.projectCommand, unmeasured, problems: request.report.projectionProblems })),
   projectionProblems: (request) => request.report.projectionProblems.map((problem) => projectionProblemLine({ projectCommand: request.projectCommand, problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   notes: (request) => request.report.notes.map((note) => settingsNoteLine({ note })),
+  recordNotes: (request) => request.report.recordNotes.map((recordNote) => recordNoteLine({ recordNote })),
   carried: (request) => request.report.carried.map((listing) => carriedLine({ listing })),
   symptoms: (request) => request.report.symptoms.map((symptom) => symptomLine({ catalogue: request.catalogue, symptom, page: request.symptomPage })),
 };

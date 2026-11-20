@@ -1,6 +1,6 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
-import type { AnsweredFinding, DoublyHeldDebt } from "../records/answering.ts";
-import type { CarriedListing, PlacedRecord, RefusedRecord } from "../records/hone-record.ts";
+import type { AnsweredFinding, PaidDebt } from "../records/answering.ts";
+import type { CarriedListing, PlacedRecord, RecordNote, RefusedRecord } from "../records/hone-record.ts";
 import type { RecordsUnmeasured } from "../records/records-unmeasured.ts";
 import type { SettingsNote } from "../settings/read-settings.ts";
 import type { Check, Engine, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
@@ -32,12 +32,13 @@ export type RunReport = {
   readonly stale: readonly PlacedRecord[];
   readonly forfeited: readonly PlacedRecord[];
   readonly unrecorded: readonly AttributedNativeException[];
-  readonly doublyHeld: readonly DoublyHeldDebt[];
+  readonly paid: readonly PaidDebt[];
   readonly refused: readonly RefusedRecord[];
   readonly unmeasured: readonly RunUnmeasured[];
   readonly projectionProblems: readonly RunProjectionProblem[];
   readonly assessment: readonly ForfeitureElsewhere[];
   readonly notes: readonly SettingsNote[];
+  readonly recordNotes: readonly RecordNote[];
   readonly carried: readonly CarriedListing[];
   readonly symptoms: readonly Symptom[];
 };

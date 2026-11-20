@@ -1,10 +1,29 @@
 import type { z } from "zod";
-import type { CarriedListing, CatalogueNote, HoneRecord, OutsideParty, RecordPlace, RecordRefusal, RefusedRecord } from "../records/hone-record.ts";
+import type {
+  AuthorisedReach,
+  CarriedListing,
+  CatalogueNote,
+  HoneRecord,
+  OutsideParty,
+  PlacedRecord,
+  RecordNote,
+  RecordPlace,
+  RecordRefusal,
+  RefusedRecord,
+} from "../records/hone-record.ts";
+import { catalogueNotesOf } from "../records/records-reading.ts";
+import { checkAddressOf } from "../symptom-catalogue/check-address.ts";
+import type { Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { RepoPath } from "../values/repo-path.ts";
 import { onOneLine, quoted } from "./printed-text.ts";
 
 const WHOLE_RECORD = "record";
 
-export const recordPlaceText = (request: { readonly place: RecordPlace }): string => `${request.place.file} records[${request.place.index}]`;
+const SPLITS_A_FIELD = /[\s"]/;
+
+const recordsFileText = (request: { readonly file: RepoPath }): string => (SPLITS_A_FIELD.test(request.file) ? quoted({ text: request.file }) : request.file);
+
+export const recordPlaceText = (request: { readonly place: RecordPlace }): string => `${recordsFileText(request.place)} records[${request.place.index}]`;
 
 export const outsidePartyText = (request: { readonly party: OutsideParty }): string => {
   switch (request.party.kind) {
@@ -16,29 +35,44 @@ export const outsidePartyText = (request: { readonly party: OutsideParty }): str
   }
 };
 
-const catalogueNoteText = (request: { readonly note: CatalogueNote }): string => {
+const catalogueNoteWords = (request: { readonly note: CatalogueNote }): string => {
   switch (request.note.kind) {
+    case "unknown-check":
+      return `the catalogue has no check ${quoted({ text: request.note.check })} of ${request.note.symptom.name}`;
     case "unknown-case":
-      return ` note: the catalogue has no case ${quoted({ text: request.note.case })}, owing ${quoted({ text: request.note.owes })}`;
+      return `the catalogue has no case ${quoted({ text: request.note.case })}, owing ${quoted({ text: request.note.owes })}`;
     case "owes-not-owed":
-      return ` note: ${request.note.case.name} does not owe ${quoted({ text: request.note.owes })}`;
+      return `${request.note.case.name} does not owe ${quoted({ text: request.note.owes })}`;
   }
 };
+
+const carriedText = (request: { readonly holding: { readonly held: "stated" | "carried" } }): string => (request.holding.held === "carried" ? " carried" : "");
 
 const heldText = (request: { readonly record: HoneRecord }): string => {
   const { record } = request;
   switch (record.kind) {
     case "debt":
     case "boundary-record":
-      return record.holding.held === "carried" ? " carried" : "";
+      return carriedText(record);
     case "authorised-location":
-      if (record.holding.held === "carried") {
-        return " carried";
-      }
-      return record.holding.owing.matches === "not-the-catalogue" ? catalogueNoteText({ note: record.holding.owing.note }) : "";
+      return `${carriedText(record)}${catalogueNotesOf({ record })
+        .map((note) => ` note: ${catalogueNoteWords({ note })}`)
+        .join("")}`;
     case "deviation":
     case "dependency-record":
       return "";
+  }
+};
+
+const reachedText = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach }): string => {
+  const { symptom, reach } = request;
+  switch (reach.reaches) {
+    case "whole-symptom":
+      return symptom.name;
+    case "one-check":
+      return checkAddressOf({ check: reach.check });
+    case "unknown-check":
+      return `${symptom.name}#${reach.check}`;
   }
 };
 
@@ -47,7 +81,7 @@ const subjectOf = (request: { readonly record: HoneRecord }): string => {
   switch (record.kind) {
     case "debt":
     case "authorised-location":
-      return `${record.symptom.name} ${record.kind} ${record.file}`;
+      return `${reachedText(record)} ${record.kind} ${record.file}`;
     case "deviation":
       return `${record.recipe.name} ${record.kind} ${record.file}`;
     case "boundary-record":
@@ -76,6 +110,12 @@ export const recordSubjectText = (request: { readonly record: HoneRecord }): str
 
 export const recordReferenceText = (request: { readonly record: HoneRecord }): string => `${referenceOf(request)}${heldText(request)}`;
 
+export const referencesText = (request: { readonly lead: string; readonly records: readonly PlacedRecord[] }): string =>
+  request.records.map((placed) => ` ${request.lead} ${recordReferenceText({ record: placed.record })}`).join("");
+
+export const recordNoteLine = (request: { readonly recordNote: RecordNote }): string =>
+  `${recordPlaceText(request.recordNote)} ${request.recordNote.note.kind}: ${catalogueNoteWords(request.recordNote)}`;
+
 const issueText = (request: { readonly issue: z.core.$ZodIssue }): string => {
   const path = request.issue.path.length === 0 ? WHOLE_RECORD : request.issue.path.join(".");
   return `${path}: ${request.issue.message}`;
@@ -88,6 +128,8 @@ const refusalDetail = (request: { readonly refusal: RecordRefusal }): string => 
       return ` ${onOneLine({ text: refusal.issues.map((issue) => issueText({ issue })).join("; ") })}`;
     case "unknown-symptom":
       return ` ${quoted({ text: refusal.symptom })}`;
+    case "unknown-check":
+      return ` ${quoted({ text: refusal.check })} of ${refusal.symptom}`;
     case "unknown-recipe":
       return ` ${quoted({ text: refusal.recipe })}`;
     case "recipe-reason-not-the-catalogues":

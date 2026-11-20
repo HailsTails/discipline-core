@@ -15,6 +15,7 @@ import {
   SYMPTOM_PAGE,
   TEST_BODY_CHECK,
   WALKER,
+  WHOLE_SYMPTOM,
 } from "../../tests/report-catalogue.ts";
 import type { Finding } from "../governance/governance.ts";
 import type { PlacedRecord } from "../records/hone-record.ts";
@@ -25,6 +26,8 @@ import type { RunReport } from "./run-report.ts";
 import { renderRunReportText } from "./run-report-text.ts";
 
 const PROJECT_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop";
+
+const PRUNE_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop";
 
 const ORDER_FILE = repoPathSchema.parse("src/orders/charge-order.ts");
 
@@ -38,7 +41,7 @@ const CAST_FINDING: Finding = { clause: CAST_EXPRESSIONS, mechanism: ESLINT, fil
 
 const DEBT: PlacedRecord = {
   place: { file: repoPathSchema.parse("hone-records/debt/claimed-type.json"), index: 0 },
-  record: { kind: "debt", symptom: CLAIMED_TYPE, file: WEBHOOK_FILE, holding: { held: "stated" } },
+  record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: WEBHOOK_FILE, holding: { held: "stated" } },
 };
 
 const NOTED_LOCATION: PlacedRecord = {
@@ -46,6 +49,7 @@ const NOTED_LOCATION: PlacedRecord = {
   record: {
     kind: "authorised-location",
     symptom: CLAIMED_TYPE,
+    reach: WHOLE_SYMPTOM,
     file: WEBHOOK_FILE,
     holding: { held: "stated", owing: { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } }, whyChain: CAUSAL_WHY_CHAIN },
   },
@@ -62,12 +66,13 @@ const EMPTY_REPORT: RunReport = {
   stale: [],
   forfeited: [],
   unrecorded: [],
-  doublyHeld: [],
+  paid: [],
   refused: [],
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
   notes: [],
+  recordNotes: [],
   carried: [],
   symptoms: [],
 };
@@ -83,12 +88,13 @@ const EVERY_SECTION: RunReport = {
   stale: [NOTED_LOCATION],
   forfeited: [DEBT],
   unrecorded: [{ kind: "ignore", clause: CAST_EXPRESSIONS, file: WEBHOOK_FILE, mechanism: ESLINT }],
-  doublyHeld: [{ debt: DEBT, alsoHeldBy: [NOTED_LOCATION] }],
+  paid: [{ debt: DEBT, answeredBy: [NOTED_LOCATION] }],
   refused: [{ place: { file: AUTHORISED_FILE, index: 1 }, refusals: [{ kind: "carried-changed-since-base" }] }],
   unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }],
   projectionProblems: [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
   assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", debts: 2 }],
   notes: [{ kind: "declared-not-read", key: "layers" }],
+  recordNotes: [{ place: NOTED_LOCATION.place, note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } }],
   carried: [{ place: { file: AUTHORISED_FILE, index: 2 }, lacks: ["case"], standing: "established" }],
   symptoms: [DATE_USED_DIRECTLY],
 };
@@ -104,21 +110,22 @@ const LINES = {
   answered: `claimed-type#cast-expressions eslint src/adapters/stripe-webhook.ts:4:9 body as Event answered by authorised-location ${NOTE}`,
   uncovered: "date-used-directly#clock-sources",
   stale: `claimed-type authorised-location src/adapters/stripe-webhook.ts ${NOTE}`,
-  forfeited: "claimed-type debt src/adapters/stripe-webhook.ts",
+  forfeited: `claimed-type debt src/adapters/stripe-webhook.ts; this change touched its file, so it no longer answers: fix what it held, then run ${PRUNE_COMMAND} to remove it`,
   unrecorded: "claimed-type#cast-expressions eslint ignore src/adapters/stripe-webhook.ts",
-  doublyHeld: `claimed-type debt src/adapters/stripe-webhook.ts also held by authorised-location ${NOTE}`,
+  paid: `claimed-type debt src/adapters/stripe-webhook.ts answered by authorised-location ${NOTE}; run ${PRUNE_COMMAND} to remove the paid debt`,
   refused: "hone-records/authorised-locations/claimed-type.json records[1] carried-changed-since-base",
   unmeasured:
     'forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch\'s base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere',
   projectionProblems: `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
   assessment: "forfeiture elsewhere: 2 debt records not checked for forfeiture in this run",
   notes: "layers is declared; no check reads it yet",
+  recordNotes: 'hone-records/authorised-locations/claimed-type.json records[0] owes-not-owed: gives-a-value-its-type does not owe "written-out-answers"',
   carried: "hone-records/authorised-locations/claimed-type.json records[2] established lacks case",
   symptoms: `date-used-directly: Date used directly. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter. Known debt: debt. Read ${SYMPTOM_PAGE}#date-used-directly`,
 };
 
 const rendered = (request: { readonly report: RunReport; readonly output: ReportOutput }): string =>
-  renderRunReportText({ ...request, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND });
+  renderRunReportText({ ...request, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND });
 
 describe("renderRunReportText", () => {
   it("prints only the verdict for a run with nothing to report", () => {
@@ -127,19 +134,19 @@ describe("renderRunReportText", () => {
 
   it("prints every non-empty section in order, each headed by its count, then the verdict", () => {
     expect(rendered({ report: EVERY_SECTION, output: "full" })).toBe(
-      `excluded (1)\n${LINES.excluded}\nnotAdopted (1)\n${LINES.notAdopted}\nnotRun (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\ndoublyHeld (1)\n${LINES.doublyHeld}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nnotes (1)\n${LINES.notes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `excluded (1)\n${LINES.excluded}\nnotAdopted (1)\n${LINES.notAdopted}\nnotRun (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nnotes (1)\n${LINES.notes}\nrecordNotes (1)\n${LINES.recordNotes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
-  it("leaves out the informational sections when it prints failures only", () => {
+  it("leaves out the informational sections when it prints failures only, and keeps paid debt, whose next step a hook must see", () => {
     expect(rendered({ report: EVERY_SECTION, output: "failures-only" })).toBe(
-      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\ndoublyHeld (1)\n${LINES.doublyHeld}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
   it("prints each section's heading alone, naming the role of each that does not fail the run, when it prints counts", () => {
     expect(rendered({ report: EVERY_SECTION, output: "counts" })).toBe(
-      `excluded (1) informational\nnotAdopted (1) informational\nnotRun (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\ndoublyHeld (1)\nrefused (1)\nunmeasured (1)\nprojectionProblems (1)\nassessment (1) informational\nnotes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
+      `excluded (1) informational\nnotAdopted (1) informational\nnotRun (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\npaid (1) next-step\nrefused (1)\nunmeasured (1)\nprojectionProblems (1)\nassessment (1) informational\nnotes (1) informational\nrecordNotes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
     );
   });
 
@@ -154,6 +161,14 @@ describe("renderRunReportText", () => {
         output: "verdict-only",
       }),
     ).toBe("verdict: pass\n");
+  });
+
+  it("prints a record's catalogue note under recordNotes though the record answers no finding, and passes the run", () => {
+    expect(rendered({ report: { ...EMPTY_REPORT, recordNotes: EVERY_SECTION.recordNotes }, output: "full" })).toBe(`recordNotes (1)\n${LINES.recordNotes}\nverdict: pass\n`);
+  });
+
+  it("passes a run whose only entry is paid debt, and prints it with its next step when it prints failures only", () => {
+    expect(rendered({ report: { ...EMPTY_REPORT, paid: EVERY_SECTION.paid }, output: "failures-only" })).toBe(`paid (1)\n${LINES.paid}\nverdict: pass\n`);
   });
 
   it("passes a run with a partial assessment and says so", () => {

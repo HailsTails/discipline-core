@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { CLAIMED_TYPE } from "../../tests/report-catalogue.ts";
+import type { PlacedRecord } from "../records/hone-record.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { RUN_SECTION_NAMES, type RunSectionName, type RunSectionRole, runSectionRoleOf, runVerdictOf } from "./report-sections.ts";
 import type { RunReport } from "./run-report.ts";
@@ -14,12 +16,13 @@ const EMPTY_REPORT: RunReport = {
   stale: [],
   forfeited: [],
   unrecorded: [],
-  doublyHeld: [],
+  paid: [],
   refused: [],
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
   notes: [],
+  recordNotes: [],
   carried: [],
   symptoms: [],
 };
@@ -37,12 +40,13 @@ describe("RUN_SECTION_NAMES", () => {
       "stale",
       "forfeited",
       "unrecorded",
-      "doublyHeld",
+      "paid",
       "refused",
       "unmeasured",
       "projectionProblems",
       "assessment",
       "notes",
+      "recordNotes",
       "carried",
       "symptoms",
     ]);
@@ -53,9 +57,10 @@ describe("runSectionRoleOf", () => {
   it.each<{ readonly section: RunSectionName; readonly role: RunSectionRole }>([
     { section: "findings", role: "failing" },
     { section: "answered", role: "informational" },
-    { section: "doublyHeld", role: "failing" },
+    { section: "paid", role: "next-step" },
     { section: "refused", role: "failing" },
     { section: "notes", role: "informational" },
+    { section: "recordNotes", role: "informational" },
     { section: "carried", role: "informational" },
     { section: "symptoms", role: "guidance" },
   ])("gives $section the role $role", ({ section, role }) => {
@@ -66,6 +71,32 @@ describe("runSectionRoleOf", () => {
 describe("runVerdictOf", () => {
   it("passes a run whose failing sections are all empty, whatever its informational sections hold", () => {
     expect(runVerdictOf({ report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("dist")], notes: [{ kind: "declared-not-read", key: "layers" }] } })).toBe("pass");
+  });
+
+  it("passes a run whose only entries are paid debt and a record's catalogue note, since neither fails a run", () => {
+    const debt: PlacedRecord = {
+      place: { file: repoPathSchema.parse("hone-records/debt/claimed-type.json"), index: 0 },
+      record: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "whole-symptom" }, file: repoPathSchema.parse("src/a.ts"), holding: { held: "stated" } },
+    };
+    const location: PlacedRecord = {
+      place: { file: repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json"), index: 0 },
+      record: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        reach: { reaches: "unknown-check", check: "cast-old" },
+        file: repoPathSchema.parse("src/a.ts"),
+        holding: { held: "carried", entry: {}, lacks: ["case", "owes", "whyChain"], standing: "established" },
+      },
+    };
+    expect(
+      runVerdictOf({
+        report: {
+          ...EMPTY_REPORT,
+          paid: [{ debt, answeredBy: [location] }],
+          recordNotes: [{ place: location.place, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "cast-old" } }],
+        },
+      }),
+    ).toBe("pass");
   });
 
   it("fails a run with an entry in a failing section", () => {

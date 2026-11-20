@@ -479,9 +479,17 @@ The streams, exit codes, output modes, verdict lines and heading lines are the s
 A tool can rely on these from 2.0.0, and a change to any of them is a major release:
 
 - the section names, their order and roles, the heading and count lines, and the four verdict lines;
-- in each line below, the fixed words and values up to the first value that may hold a space, and the single spaces between them. For a finding, that is its check address and engine; for a record, what it holds, its kind and the start of its site; for a refused or carried record, its records file and index, then the refusal's kind or the record's standing.
+- in each line below, the fixed words and values up to the first value that may hold a space, and the single spaces between them. For a finding, that is its check address and engine; for a record, what it holds, its kind and the start of its site; for a refused, noted or carried record, its records file and index, then the refusal's kind, the note's kind or the record's standing.
 
-These are not stable: the words after the `:` that ends an `unmeasured` or `projectionProblems` line's leading fields, the `symptoms` lines, the `notes` lines, the words of a ` note: ` on a record, the words of a refusal after its kind's values, and a finding's `<fix>`.
+A line of `findings`, `answered` or `unrecorded` leads with either a check or a clause. A tool tells them apart by the first field: a check address is lower-case catalogue names joined by `#` (`claimed-type#cast-expressions`), and a clause address holds an upper-case discipline id before its `#` (`CD-27#test-body-logic`, `acme/AC-1#no-moment`). After a check address, the second field is the engine that ran it. After a clause address, it is the mechanism id that raised the finding, since the symptom catalogue gives that clause no check.
+
+A `<records file>` is one field: it is printed bare when its path holds no space, double quote or line break, and as a JSON string in double quotes when it does. A records file whose name is not a catalogue name, such as `hone-records/debt/my notes.json`, is still read, and its records are refused as `misplaced`, so its path can lead a `refused` line.
+
+A record's ` carried` and its ` note: ` words come after its `<file>` or `<module>`, which may hold a space, so they are for a person. A tool reads the same facts from the `carried` and `recordNotes` sections, which lead with the record's records file and index.
+
+These are not stable: the words after the `:` that ends an `unmeasured` or `projectionProblems` line's leading fields, the `symptoms` lines, the `notes` lines, the words of a ` note: ` on a record and of a `recordNotes` line after its kind, the words of a refusal after its kind's values, the words after a record's site in `stale`, `forfeited` and `paid`, and a finding's `<fix>`.
+
+As in 1.x, a minor release may add a section, a line form or a value, and a tool passes over a section heading or line it does not know. Removing or renaming a section or a line form, or changing a stable part, is a major release.
 
 ## Values in version 2
 
@@ -490,20 +498,23 @@ These are not stable: the words after the `:` that ends an `unmeasured` or `proj
 | `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address | never |
 | `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, the mechanism id | never |
 | `<symptom>`, `<recipe>`, `<case name>` | a name in the symptom catalogue | never |
+| `<check name>` | the check an authorised location names that its symptom does not have, as the record writes it | never |
 | `<outside party>`, `<dependency>` | a boundary record's outside party, such as `runtime:clock`, `node:fs` or `uuid/v4`, and a dependency record's package name | never |
-| `<records file>`, `<belongs in>` | a records file under `hone-records/`, named for its kind and symptom or recipe | never |
-| `<index>` | a record's place in its records file's `records`, counting from 0 | never |
+| `<records file>` | a records file under `hone-records/`, bare, or as a JSON string in double quotes when its path holds a space, a double quote or a line break | never outside a JSON string |
+| `<belongs in>` | the records file a record belongs in, named for its kind and symptom or recipe | never |
+| `<index>`, `<earlier index>` | a record's place in its records file's `records`, counting from 0; `<earlier index>` is the place of the record a duplicate repeats | never |
 | `<standing>` | `established`, a carried record unchanged against the base revision, or `unjudged`, one this run could not compare | never |
 | `<convention>` | a key of `hone.config.json` that no check reads yet: `conventions.generated` or `layers` | never |
-| `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x | may hold a space |
+| `<path>`, `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x; `<path>` is one that `exclude` leaves out | may hold a space |
 | `<snippet>`, `<fix>`, `<section>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
+| `<prune command>` | the command that removes paid, stale and forfeited debt, printed as `<project command>` is | may hold a space |
 | `<case>`, `<owes>`, `<given>`, `<reason>`, `<revision>`, `<git message>` | text as written in a record, the command or git, as a JSON string in double quotes | may hold a space |
 | `<issues>` | each problem the record's form has, as its key's path (`record` for the record itself) then `: ` and what is wrong, separated by `; ` | may hold a space |
 | `<lacks>` | the keys a carried record lacks, separated by `, ` | may hold a space |
 
 ## The version 2 report
 
-`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; an informational or guidance section never does, so a note, an answered finding, a carried record or a symptom never fails a run.
+`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; a next-step, informational or guidance section never does, so paid debt, a note, an answered finding, a carried record or a symptom never fails a run. `failures-only` prints the failing, next-step and guidance sections and leaves out the informational ones, so a hook that prints failures only still shows paid debt and the command that removes it.
 
 | Section | Role | What it lists |
 | --- | --- | --- |
@@ -517,12 +528,13 @@ These are not stable: the words after the `:` that ends an `unmeasured` or `proj
 | `stale` | failing | records that answer no finding and hold no native exception |
 | `forfeited` | failing | debt on files this change touched |
 | `unrecorded` | failing | native exceptions no record holds |
-| `doublyHeld` | failing | debt whose symptom and file another record also holds |
+| `paid` | next-step | debt another record answers in place of, for a finding this run raised, with the records that answer and the command that removes the debt |
 | `refused` | failing | records that cannot be read or applied |
 | `unmeasured` | failing | what this run could not measure |
 | `projectionProblems` | failing | ESLint projections that are out of date |
 | `assessment` | informational | concerns this run left to another run |
 | `notes` | informational | what `hone.config.json` declares that no check reads yet |
+| `recordNotes` | informational | every note on a record, by its records file and index, whether or not the record answers a finding |
 | `carried` | informational | records carried from version 1 word for word, with what each lacks |
 | `symptoms` | guidance | one note for each symptom the findings name |
 
@@ -531,6 +543,7 @@ The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-onl
 | Line | Template |
 | --- | --- |
 | `heading` | `<section> (<count>)` |
+| `heading` | `<section> (<count>) next-step` |
 | `heading` | `<section> (<count>) informational` |
 | `heading` | `<section> (<count>) guidance` |
 | `verdict` | `verdict: pass` |
@@ -540,7 +553,7 @@ The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-onl
 
 ## Version 2 report lines
 
-A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and a doubly held debt repeats ` also held by <reference>` once for each other record that holds it. A record that is stale or forfeited prints as its `<subject>`. A native exception prints one line for each check of its clause that runs on its engine.
+A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and so does paid debt, for each record that answers in its place. A stale record prints as its `<subject>`; stale debt then ends with the command that removes it, and forfeited debt with what to do before removing it. A native exception prints one line for each check of its clause that runs on its engine.
 
 | Section | Line |
 | --- | --- |
@@ -555,7 +568,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `answered` | `<check> <engine> <file>:<line>:<column> <snippet> answered by <reference>` |
 | `uncovered` | `<check>` |
 | `stale` | `<subject>` |
-| `forfeited` | `<subject>` |
+| `stale` | `<subject>; nothing it holds is found: run <prune command> to remove it` |
+| `forfeited` | `<subject>; this change touched its file, so it no longer answers: fix what it held, then run <prune command> to remove it` |
 | `unrecorded` | `<check> <engine> ignore <file>` |
 | `unrecorded` | `<check> <engine> config-override <file>` |
 | `unrecorded` | `<check> <engine> suppression-entry <file> <suppressions file>` |
@@ -566,9 +580,10 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as <invocation>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <wrapper> comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: a quote in the script has no partner, so Hone cannot read what the script passes to <command> or tell what that does to the files under check; pair every quote in the script` |
-| `doublyHeld` | `<subject> also held by <reference>` |
+| `paid` | `<subject> answered by <reference>; run <prune command> to remove the paid debt` |
 | `refused` | `<records file> records[<index>] form-refused <issues>` |
 | `refused` | `<records file> records[<index>] unknown-symptom <given>` |
+| `refused` | `<records file> records[<index>] unknown-check <given> of <symptom>` |
 | `refused` | `<records file> records[<index>] unknown-recipe <given>` |
 | `refused` | `<records file> records[<index>] recipe-reason-not-the-catalogues <recipe>: the catalogue gives its reason as <reason>` |
 | `refused` | `<records file> records[<index>] named-ban <dependency>` |
@@ -594,6 +609,9 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
 | `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |
 | `notes` | `<convention> is declared; no check reads it yet` |
+| `recordNotes` | `<records file> records[<index>] unknown-check: the catalogue has no check <given> of <symptom>` |
+| `recordNotes` | `<records file> records[<index>] unknown-case: the catalogue has no case <case>, owing <owes>` |
+| `recordNotes` | `<records file> records[<index>] owes-not-owed: <case name> does not owe <owes>` |
 | `carried` | `<records file> records[<index>] <standing> lacks <lacks>` |
 | `carried` | `<records file> records[<index>] <standing>` |
 | `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. Recipe: <recipe title>. <answers>. Read <symptom page>#<symptom>` |
@@ -604,14 +622,18 @@ In `symptoms`, `<answers>` is one sentence for each correct use the symptom has,
 
 ## Version 2 record subjects and references
 
-A record is named by its `<subject>` in `stale`, `forfeited` and `doublyHeld`, and by its `<reference>` beside a finding it answers or a debt it also holds. An authorised location whose case or owes the catalogue does not list prints a ` note: ` after it, wherever it is named: the record is still read and still answers, and the note never changes the verdict.
+A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` after it, wherever it is named, and the note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom.
 
 | Part | Text |
 | --- | --- |
 | `subject` | `<symptom> debt <file>` |
 | `subject` | `<symptom> debt <file> carried` |
+| `subject` | `<check> debt <file>` |
 | `subject` | `<symptom> authorised-location <file>` |
 | `subject` | `<symptom> authorised-location <file> carried` |
+| `subject` | `<check> authorised-location <file>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> note: the catalogue has no check <given> of <symptom>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> carried note: the catalogue has no check <given> of <symptom>` |
 | `subject` | `<symptom> authorised-location <file> note: the catalogue has no case <case>, owing <owes>` |
 | `subject` | `<symptom> authorised-location <file> note: <case name> does not owe <owes>` |
 | `subject` | `<recipe> deviation <file>` |
@@ -622,6 +644,8 @@ A record is named by its `<subject>` in `stale`, `forfeited` and `doublyHeld`, a
 | `reference` | `debt carried` |
 | `reference` | `authorised-location` |
 | `reference` | `authorised-location carried` |
+| `reference` | `authorised-location note: the catalogue has no check <given> of <symptom>` |
+| `reference` | `authorised-location carried note: the catalogue has no check <given> of <symptom>` |
 | `reference` | `authorised-location note: the catalogue has no case <case>, owing <owes>` |
 | `reference` | `authorised-location note: <case name> does not owe <owes>` |
 | `reference` | `deviation <recipe>` |

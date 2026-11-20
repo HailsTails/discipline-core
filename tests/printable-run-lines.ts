@@ -9,6 +9,7 @@ import type {
   Deviation,
   HoneRecord,
   PlacedRecord,
+  RecordNote,
   RecordPlace,
   RecordRefusal,
 } from "../core/records/hone-record.ts";
@@ -44,6 +45,7 @@ import {
   TEST_BODY_CHECK,
   TEST_BODY_LOGIC,
   WALKER,
+  WHOLE_SYMPTOM,
   WORLD_VALUES_THROUGH_A_PORT,
 } from "./report-catalogue.ts";
 
@@ -73,17 +75,20 @@ const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependencies.json")
 
 const SLICE = repoPathSchema.parse("packages/web/hone.eslint.mjs");
 
-const SHARED_FILLS: Fills = { "project command": PROJECT_COMMAND, "symptom page": SYMPTOM_PAGE };
+const PRUNE_COMMAND = "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop";
+
+const SHARED_FILLS: Fills = { "project command": PROJECT_COMMAND, "prune command": PRUNE_COMMAND, "symptom page": SYMPTOM_PAGE };
 
 const WEBHOOK_FILLS: Fills = { symptom: "claimed-type", file: "src/adapters/stripe-webhook.ts" };
 
-const STATED_DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, file: WEBHOOK_FILE, holding: { held: "stated" } };
+const STATED_DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: WEBHOOK_FILE, holding: { held: "stated" } };
 
-const CARRIED_DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, file: WEBHOOK_FILE, holding: { held: "carried", entry: {}, lacks: [], standing: "established" } };
+const CARRIED_DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: WEBHOOK_FILE, holding: { held: "carried", entry: {}, lacks: [], standing: "established" } };
 
 const MATCHED_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: WEBHOOK_FILE,
   holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: OWED_DECLARED_NOT_ASSERTED }, whyChain: CAUSAL_WHY_CHAIN },
 };
@@ -91,6 +96,7 @@ const MATCHED_LOCATION: AuthorisedLocation = {
 const CARRIED_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: WEBHOOK_FILE,
   holding: { held: "carried", entry: {}, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
 };
@@ -98,6 +104,7 @@ const CARRIED_LOCATION: AuthorisedLocation = {
 const UNKNOWN_CASE_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: WEBHOOK_FILE,
   holding: { held: "stated", owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "parses a webhook", owes: "declared-not-asserted" } }, whyChain: CAUSAL_WHY_CHAIN },
 };
@@ -105,6 +112,7 @@ const UNKNOWN_CASE_LOCATION: AuthorisedLocation = {
 const UNOWED_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: WEBHOOK_FILE,
   holding: { held: "stated", owing: { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } }, whyChain: CAUSAL_WHY_CHAIN },
 };
@@ -127,13 +135,24 @@ const FILES_BOUNDARY: BoundaryRecord = {
 
 const DEPENDENCY: DependencyRecord = { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "Not enough." };
 
-const UNKNOWN_CASE_FILLS: Fills = { ...WEBHOOK_FILLS, case: '"parses a webhook"', owes: '"declared-not-asserted"' };
+const CAST_DEBT: Debt = { ...STATED_DEBT, reach: { reaches: "one-check", check: CAST_CHECK } };
+
+const CAST_LOCATION: AuthorisedLocation = { ...MATCHED_LOCATION, reach: { reaches: "one-check", check: CAST_CHECK } };
+
+const UNKNOWN_CHECK_LOCATION: AuthorisedLocation = { ...MATCHED_LOCATION, reach: { reaches: "unknown-check", check: "cast-old" } };
+
+const CAST_FILLS: Fills = { check: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" };
+
+const UNKNOWN_CHECK_FILLS: Fills = { ...WEBHOOK_FILLS, "check name": "cast-old", given: '"cast-old"' };
+
+const UNKNOWN_CASE_FILLS: Fills ={ ...WEBHOOK_FILLS, case: '"parses a webhook"', owes: '"declared-not-asserted"' };
 
 const UNOWED_FILLS: Fills = { ...WEBHOOK_FILLS, "case name": "gives-a-value-its-type", owes: '"written-out-answers"' };
 
 type RecordSamples = { readonly [Kind in HoneRecord["kind"]]: readonly Filled<Extract<HoneRecord, { readonly kind: Kind }>>[] };
 
 const NOTED_LOCATIONS: { readonly [Kind in CatalogueNote["kind"]]: Filled<AuthorisedLocation> } = {
+  "unknown-check": { entry: UNKNOWN_CHECK_LOCATION, fills: UNKNOWN_CHECK_FILLS },
   "unknown-case": { entry: UNKNOWN_CASE_LOCATION, fills: UNKNOWN_CASE_FILLS },
   "owes-not-owed": { entry: UNOWED_LOCATION, fills: UNOWED_FILLS },
 };
@@ -142,8 +161,15 @@ const RECORD_SAMPLES: RecordSamples = {
   debt: [
     { entry: STATED_DEBT, fills: WEBHOOK_FILLS },
     { entry: CARRIED_DEBT, fills: WEBHOOK_FILLS },
+    { entry: CAST_DEBT, fills: CAST_FILLS },
   ],
-  "authorised-location": [{ entry: MATCHED_LOCATION, fills: WEBHOOK_FILLS }, { entry: CARRIED_LOCATION, fills: WEBHOOK_FILLS }, ...Object.values(NOTED_LOCATIONS)],
+  "authorised-location": [
+    { entry: MATCHED_LOCATION, fills: WEBHOOK_FILLS },
+    { entry: CARRIED_LOCATION, fills: WEBHOOK_FILLS },
+    { entry: CAST_LOCATION, fills: CAST_FILLS },
+    { entry: { ...CARRIED_LOCATION, reach: { reaches: "unknown-check", check: "cast-old" } }, fills: UNKNOWN_CHECK_FILLS },
+    ...Object.values(NOTED_LOCATIONS),
+  ],
   deviation: [{ entry: DEVIATION, fills: { recipe: "world-values-through-a-port", file: "src/adapters/stripe-webhook.ts" } }],
   "boundary-record": [
     { entry: CLOCK_BOUNDARY, fills: { "outside party": "runtime:clock", module: "src/adapters/system-clock.ts" } },
@@ -202,6 +228,10 @@ const REFUSALS: { readonly [Kind in RecordRefusal["kind"]]: RefusedSample<Kind> 
   "unknown-symptom": {
     entry: { place: { file: DEBT_FILE, index: 1 }, refusals: [{ kind: "unknown-symptom", symptom: "claimed type" }] },
     fills: { "records file": "hone-records/debt/claimed-type.json", index: "1", given: '"claimed type"' },
+  },
+  "unknown-check": {
+    entry: { place: { file: DEBT_FILE, index: 5 }, refusals: [{ kind: "unknown-check", symptom: "claimed-type", check: "cast-old" }] },
+    fills: { "records file": "hone-records/debt/claimed-type.json", index: "5", given: '"cast-old"', symptom: "claimed-type" },
   },
   "unknown-recipe": {
     entry: { place: { file: DEVIATIONS_FILE, index: 0 }, refusals: [{ kind: "unknown-recipe", recipe: "stub-with-vi-fn" }] },
@@ -333,6 +363,26 @@ const SLICE_PROBLEMS: Readonly<Record<SliceState, Filled<RunProjectionProblem>>>
   unconfigured: sliceProblem({ state: "unconfigured" }),
 };
 
+const SPACED_RECORDS_FILE: Filled<RunReport["refused"][number]> = {
+  entry: { place: { file: repoPathSchema.parse("hone-records/debt/claimed type.json"), index: 0 }, refusals: [{ kind: "misplaced", belongsIn: DEBT_FILE }] },
+  fills: { "records file": '"hone-records/debt/claimed type.json"', index: "0", "belongs in": "hone-records/debt/claimed-type.json" },
+};
+
+const RECORD_NOTES: { readonly [Kind in CatalogueNote["kind"]]: Filled<RecordNote> } = {
+  "unknown-check": {
+    entry: { place: { file: AUTHORISED_FILE, index: 7 }, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "cast-old" } },
+    fills: { "records file": "hone-records/authorised-locations/claimed-type.json", index: "7", given: '"cast-old"', symptom: "claimed-type" },
+  },
+  "unknown-case": {
+    entry: { place: { file: AUTHORISED_FILE, index: 8 }, note: { kind: "unknown-case", case: "parses a webhook", owes: "declared-not-asserted" } },
+    fills: { "records file": "hone-records/authorised-locations/claimed-type.json", index: "8", case: '"parses a webhook"', owes: '"declared-not-asserted"' },
+  },
+  "owes-not-owed": {
+    entry: { place: { file: AUTHORISED_FILE, index: 0 }, note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } },
+    fills: { "records file": "hone-records/authorised-locations/claimed-type.json", index: "0", "case name": "gives-a-value-its-type", owes: '"written-out-answers"' },
+  },
+};
+
 const CONVENTION_NOTES: Readonly<Record<ConventionKey, Filled<RunReport["notes"][number]>>> = {
   generated: { entry: { kind: "declared-not-read", key: "generated" }, fills: { convention: "conventions.generated" } },
   layers: { entry: { kind: "declared-not-read", key: "layers" }, fills: { convention: "layers" } },
@@ -368,11 +418,11 @@ const SECTION_SAMPLES: SectionSamples = {
     },
   ],
   uncovered: [{ entry: CLOCK_CHECK, fills: CLOCK_FILLS }],
-  stale: [{ entry: LOCATION_PLACED, fills: { subject: 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: gives-a-value-its-type does not owe "written-out-answers"' } }],
+  stale: [{ entry: LOCATION_PLACED, fills: { subject: 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: gives-a-value-its-type does not owe "written-out-answers"' } }, { entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
   forfeited: [{ entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
   unrecorded: [...Object.values(SIMPLE_NATIVES), ...Object.values(INLINE_DISABLES), ...Object.values(SCRIPT_OPTIONS)],
-  doublyHeld: [{ entry: { debt: DEBT_PLACED, alsoHeldBy: [LOCATION_PLACED] }, fills: { subject: DEBT_SUBJECT, reference: UNOWED_REFERENCE } }],
-  refused: Object.values(REFUSALS),
+  paid: [{ entry: { debt: DEBT_PLACED, answeredBy: [LOCATION_PLACED] }, fills: { subject: DEBT_SUBJECT, reference: UNOWED_REFERENCE } }],
+  refused: [...Object.values(REFUSALS), SPACED_RECORDS_FILE],
   unmeasured: [...RECORDS_UNMEASURED, ...Object.values(ENGINES_NOT_RUN).flat()],
   projectionProblems: [{ entry: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }, fills: { engine: "eslint" } }, ...Object.values(SLICE_PROBLEMS)],
   assessment: [
@@ -380,6 +430,7 @@ const SECTION_SAMPLES: SectionSamples = {
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 3 }, fills: { count: "3" } },
   ],
   notes: Object.values(CONVENTION_NOTES),
+  recordNotes: Object.values(RECORD_NOTES),
   carried: [
     {
       entry: { place: { file: AUTHORISED_FILE, index: 6 }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
@@ -436,12 +487,13 @@ const EMPTY_REPORT: RunReport = {
   stale: [],
   forfeited: [],
   unrecorded: [],
-  doublyHeld: [],
+  paid: [],
   refused: [],
   unmeasured: [],
   projectionProblems: [],
   assessment: [],
   notes: [],
+  recordNotes: [],
   carried: [],
   symptoms: [],
 };
@@ -457,12 +509,13 @@ const EVERY_ENTRY: RunReport = {
   stale: entriesOf(SECTION_SAMPLES.stale),
   forfeited: entriesOf(SECTION_SAMPLES.forfeited),
   unrecorded: entriesOf(SECTION_SAMPLES.unrecorded),
-  doublyHeld: entriesOf(SECTION_SAMPLES.doublyHeld),
+  paid: entriesOf(SECTION_SAMPLES.paid),
   refused: entriesOf(SECTION_SAMPLES.refused),
   unmeasured: entriesOf(SECTION_SAMPLES.unmeasured),
   projectionProblems: entriesOf(SECTION_SAMPLES.projectionProblems),
   assessment: entriesOf(SECTION_SAMPLES.assessment),
   notes: entriesOf(SECTION_SAMPLES.notes),
+  recordNotes: entriesOf(SECTION_SAMPLES.recordNotes),
   carried: entriesOf(SECTION_SAMPLES.carried),
   symptoms: entriesOf(SECTION_SAMPLES.symptoms),
 };
@@ -471,7 +524,7 @@ const sampleFills: EntryFills<RunSectionName> = ({ section, position }) => ({ ..
 
 const linesOfReport = (request: { readonly report: RunReport; readonly output: ReportOutput }): readonly PrintedLine[] =>
   sectionedLinesOf({
-    text: renderRunReportText({ report: request.report, output: request.output, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND }),
+    text: renderRunReportText({ report: request.report, output: request.output, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND }),
     sections: RUN_SECTION_NAMES,
     first: "excluded",
     entryFills: sampleFills,
