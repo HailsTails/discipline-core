@@ -1,5 +1,6 @@
 import type { CommandRequest } from "../../check/run-check-command.ts";
 import { type CheckRequest, runCheck } from "../../check/run-check.ts";
+import { runProject } from "../../check/run-project.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import { createSelectionRepository, readRunSettings } from "../../consumer-selection/consumer-selection.ts";
 import { type UpgradeArguments, parseUpgradeArguments } from "../../command-line/command-arguments.ts";
@@ -149,6 +150,7 @@ const proofRequestOf = (request: {
     repoRoot: located.repoRoot,
     projectionFilesOf: plannedProjectionOf({ command, repoRoot: located.repoRoot, installRoot: located.installRoot }),
     versionOneProjectionsOf: versionOneProjectionsOfRepository({
+      project: runProject,
       check: prepared.check,
       fileText: command.fileText,
       path: command.path,
