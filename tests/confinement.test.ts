@@ -140,19 +140,27 @@ describe("importsOutside", () => {
 });
 
 describe("relativeImportNotNaming", () => {
-  const notNamingTwo = relativeImportNotNaming({ files: ["a.ts", "b.test.ts"] });
+  const notNamingTwo = relativeImportNotNaming({ importingFolder: "pkg/runner", files: ["a.ts", "b.test.ts"] });
 
-  it("allows a sibling import of a file not named, and a package import", () => {
+  it("allows a sibling import of a file not named, an import of a same-named file in another folder, and a package import", () => {
     expect([
       notNamingTwo({ moduleImport: { specifier: "./c.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "../other/a.ts", form: "value" } }),
       notNamingTwo({ moduleImport: { specifier: "zod", form: "value" } }),
-    ]).toEqual(["allowed", "allowed"]);
+    ]).toEqual(["allowed", "allowed", "allowed"]);
   });
 
-  it("refuses a sibling import of each file named, in any form", () => {
+  it("refuses an import of each file named, in any form", () => {
     expect([
       notNamingTwo({ moduleImport: { specifier: "./a.ts", form: "value" } }),
       notNamingTwo({ moduleImport: { specifier: "./b.test.ts", form: "type-only" } }),
+    ]).toEqual(["outside", "outside"]);
+  });
+
+  it("refuses an import of a file named however its specifier reaches the folder", () => {
+    expect([
+      notNamingTwo({ moduleImport: { specifier: "../runner/a.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "./x/../a.ts", form: "value" } }),
     ]).toEqual(["outside", "outside"]);
   });
 });

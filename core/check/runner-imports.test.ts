@@ -80,7 +80,7 @@ const versionTwoRunnerSources = sourcesNotNamed({ sources: everyRunnerFileSource
 
 const leftOutRunnerSources = sourcesNamed({ sources: everyRunnerFileSources, files: LEFT_OUT_OF_THE_SCAN });
 
-const reachesNoVersionOneOnlyRunnerFile = relativeImportNotNaming({ files: LEFT_OUT_OF_THE_SCAN });
+const reachesNoVersionOneOnlyRunnerFile = relativeImportNotNaming({ importingFolder: "mechanisms/eslint/runner", files: LEFT_OUT_OF_THE_SCAN });
 
 const walkerRunnerReach = relativeImportReaching({
   importingFolder: "mechanisms/audit/runner",
