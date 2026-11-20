@@ -39,6 +39,45 @@
         "readback": "ESLint names its rule listener events after ESTree node types, therefore Hone's ESLint pieces must hand ESLint listeners keyed by those exact names, therefore rule-sites.ts, the one boundary mapping Hone's sites onto ESLint, has object keys named Program, FunctionDeclaration and the other node types.",
         "owner": "owner decision on HailsTails/hone#165"
       }
+    },
+    {
+      "kind": "authorised-location",
+      "clause": "CD-6#naming-convention",
+      "file": "scripts/install-proof-plan.test.ts",
+      "reason": "Structural CD-6 location: the environmentWithoutGit test hands the unit an environment named by the variables git and the shell read, GIT_DIR, GIT_INDEX_FILE, PATH and HOME, and asserts which names survive. Those names are the subject of the test, fixed outside Hone, so they cannot be camelCased. This record authorises those environment-variable keys in this one file and grants no tolerated debt or any other location.",
+      "whyChain": {
+        "whys": [
+          {
+            "why": "Why does install-proof-plan.test.ts have object keys named GIT_DIR, GIT_INDEX_FILE, PATH and HOME?",
+            "because": "The test of environmentWithoutGit hands the unit an environment holding those variables and expects back one without the GIT_ ones, so the keys are the unit's input and its expected output.",
+            "evidence": "scripts/install-proof-plan.test.ts:335-337, describe \"environmentWithoutGit\", test \"removes every GIT_ variable and keeps the rest\"."
+          },
+          {
+            "why": "Why is environmentWithoutGit handed an environment and expected to return one without the GIT_ variables?",
+            "because": "createCommandRunPort passes the ambient process environment through environmentWithoutGit and spawns every proof command, git included, with what remains, so the unit decides which inherited variables reach each child process.",
+            "evidence": "scripts/install-proof-ports.ts:131 applies environmentWithoutGit to ambientEnvironment; scripts/install-proof-ports.ts:201 passes process.env as ambientEnvironment; scripts/install-proof-plan.ts:348 filters on name.startsWith(\"GIT_\")."
+          },
+          {
+            "why": "Why must inherited GIT_ variables not reach the git the proof spawns?",
+            "because": "The proof runs git init, add and commit in a scratch consumer repository, and git obeys GIT_DIR and GIT_INDEX_FILE over its working directory, so inherited values would point those commands at the outer repository instead.",
+            "evidence": "scripts/run-install-proof.ts:541 runs git init -q in the consumer; scripts/run-install-proof.ts:127-128 run git add -A and git commit; https://git-scm.com/docs/git#_environment_variables defines GIT_DIR and GIT_INDEX_FILE."
+          },
+          {
+            "why": "Why would git obey a GIT_DIR pointing at the outer repository when the proof runs?",
+            "because": "Git exports GIT_DIR and GIT_INDEX_FILE to the hooks it runs, and the repository's own checks may run from a pre-push or commit hook, so a proof started there inherits a git environment aimed at the outer checkout.",
+            "evidence": "https://git-scm.com/docs/githooks: environment variables such as GIT_DIR are exported to a hook so the git commands it runs find the repository; ADOPTING.md:230 runs the checks in any pre-push hook the repository has."
+          },
+          {
+            "why": "Why does git export GIT_DIR and GIT_INDEX_FILE to the hooks it runs?",
+            "because": "Git's documented contract locates a repository through GIT_DIR and its index through GIT_INDEX_FILE ahead of the working directory, and those names are fixed by git, as PATH and HOME are fixed by POSIX for every child process.",
+            "evidence": "https://git-scm.com/docs/git#_environment_variables; https://git-scm.com/docs/githooks; POSIX.1-2017 XBD chapter 8, Environment Variables, defines HOME and PATH."
+          }
+        ],
+        "rootCause": "Git's documented contract fixes GIT_DIR and GIT_INDEX_FILE as the names that locate a repository and its index, and POSIX fixes PATH and HOME, so the names are an outside contract the install proof can meet only by those exact strings.",
+        "rootCheck": "On 2026-11-20, scripts/install-proof-plan.ts:348 still filters on name.startsWith(\"GIT_\") and scripts/install-proof-ports.ts:131 still applies environmentWithoutGit to every command the proof spawns.",
+        "readback": "Git's contract fixes GIT_DIR and GIT_INDEX_FILE and exports them to hooks, therefore a proof started from a hook inherits them, therefore environmentWithoutGit removes the GIT_ variables before git runs in the scratch repository, therefore its test in install-proof-plan.test.ts has object keys named GIT_DIR, GIT_INDEX_FILE, PATH and HOME.",
+        "owner": "owner decision on HailsTails/hone#204"
+      }
     }
   ]
 }

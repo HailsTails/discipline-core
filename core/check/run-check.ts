@@ -405,7 +405,13 @@ const checkReportOf = (request: {
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
-  const paidDebt = paidDebtOf({ ...governed, absent: absentFilesOf({ check: request.check, governed }) });
+  const paidDebt = paidDebtOf({
+    ...governed,
+    absent: absentFilesOf({ check: request.check, governed }),
+    nativeExceptions: request.runs.flatMap((run) => run.nativeExceptions.map((exception) => ({ ...exception, mechanism: run.mechanism }))),
+    measured: request.runs.flatMap((run) => run.measured),
+    baseline: request.inputs.exceptionBaseline,
+  });
   const report: CheckReport = {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,
