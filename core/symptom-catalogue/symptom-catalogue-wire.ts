@@ -27,7 +27,9 @@ const SUPPORTED_VERSION = 1;
 
 const NOT_A_CATALOGUE_NAME = "is not a lower-case hyphenated name";
 
-export const catalogueNameSchema = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, { error: NOT_A_CATALOGUE_NAME });
+export const CATALOGUE_NAME = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*";
+
+export const catalogueNameSchema = z.string().regex(new RegExp(`^${CATALOGUE_NAME}$`), { error: NOT_A_CATALOGUE_NAME });
 
 const textSchema = z.string().min(1);
 

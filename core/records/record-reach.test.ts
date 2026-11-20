@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import type { Case, Recipe, RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { FoundCheck } from "../symptom-catalogue/check-address.ts";
+import type { Case, Check, Recipe, RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { BoundaryRecord, HoneRecord, RuntimeFacility } from "./hone-record.ts";
-import { holdsAt, overlapsAt, type PartyReport } from "./record-reach.ts";
+import type { AuthorisedLocation, BoundaryRecord, Debt, HoneRecord, RuntimeFacility, SymptomReach } from "./hone-record.ts";
+import { holdsAt, type PartyReport } from "./record-reach.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
 
@@ -77,18 +79,38 @@ const RUNTIME_REACH: readonly { readonly facility: RuntimeFacility; readonly sym
   { facility: "json", symptom: TEXT_PAST_ITS_READER },
 ];
 
-const DEBT: HoneRecord = { kind: "debt", symptom: CLAIMED_TYPE, file: ADAPTER, holding: { held: "stated" } };
+const WHOLE_SYMPTOM: SymptomReach = { reaches: "whole-symptom" };
 
-const AUTHORISED_LOCATION: HoneRecord = {
+const CAST_CHECK: Check = { name: "cast-expressions", symptom: CLAIMED_TYPE, clause: clauseAddressSchema.parse("CD-2#cast-expressions"), engines: [], forms: [] };
+
+const NON_NULL_CHECK: Check = { name: "non-null-assertions", symptom: CLAIMED_TYPE, clause: clauseAddressSchema.parse("CD-2#non-null-assertions"), engines: [], forms: [] };
+
+const AT_CAST: FoundCheck = { found: "check", check: CAST_CHECK };
+
+const AT_NON_NULL: FoundCheck = { found: "check", check: NON_NULL_CHECK };
+
+const UNCHECKED: FoundCheck = { found: "none" };
+
+const DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: ADAPTER, holding: { held: "stated" } };
+
+const CAST_DEBT: Debt = { ...DEBT, reach: { reaches: "one-check", check: CAST_CHECK } };
+
+const AUTHORISED_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: ADAPTER,
   holding: { held: "carried", entry: { reason: "Kept." }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
 };
 
-const AUTHORISED_LOCATION_OFF_THE_CATALOGUE: HoneRecord = {
+const CAST_LOCATION: AuthorisedLocation = { ...AUTHORISED_LOCATION, reach: { reaches: "one-check", check: CAST_CHECK } };
+
+const UNKNOWN_CHECK_LOCATION: AuthorisedLocation = { ...AUTHORISED_LOCATION, reach: { reaches: "unknown-check", check: "cast-expressions-old" } };
+
+const AUTHORISED_LOCATION_OFF_THE_CATALOGUE: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
+  reach: WHOLE_SYMPTOM,
   file: ADAPTER,
   holding: {
     held: "stated",
@@ -97,11 +119,11 @@ const AUTHORISED_LOCATION_OFF_THE_CATALOGUE: HoneRecord = {
   },
 };
 
-const IMPORT_DEBT: HoneRecord = { kind: "debt", symptom: OUTSIDE_IMPORT, file: ADAPTER, holding: { held: "stated" } };
+const IMPORT_DEBT: Debt = { ...DEBT, symptom: OUTSIDE_IMPORT };
 
-const IMPORT_LOCATION: HoneRecord = { ...AUTHORISED_LOCATION, symptom: OUTSIDE_IMPORT };
+const IMPORT_LOCATION: AuthorisedLocation = { ...AUTHORISED_LOCATION, symptom: OUTSIDE_IMPORT };
 
-const IMPORT_LOCATION_OFF_THE_CATALOGUE: HoneRecord = { ...AUTHORISED_LOCATION_OFF_THE_CATALOGUE, symptom: OUTSIDE_IMPORT };
+const IMPORT_LOCATION_OFF_THE_CATALOGUE: AuthorisedLocation = { ...AUTHORISED_LOCATION_OFF_THE_CATALOGUE, symptom: OUTSIDE_IMPORT };
 
 const DEVIATION: HoneRecord = {
   kind: "deviation",
@@ -133,19 +155,19 @@ describe("holdsAt, debt and authorised locations", () => {
   it.each([{ record: DEBT }, { record: AUTHORISED_LOCATION }, { record: AUTHORISED_LOCATION_OFF_THE_CATALOGUE }])(
     "holds a $record.kind on its symptom at its exact file, whatever it claims beyond that",
     ({ record }) => {
-      expect(holdsAt({ record, site: { symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
+      expect(holdsAt({ record, site: { check: UNCHECKED, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
     },
   );
 
   it.each([{ record: IMPORT_DEBT }, { record: IMPORT_LOCATION }, { record: IMPORT_LOCATION_OFF_THE_CATALOGUE }])(
     "holds a $record.kind over a finding raised by an import of a named ban, since a ban never refuses debt or an authorised location",
     ({ record }) => {
-      expect(holdsAt({ record, site: { symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("lodash") }, catalogue: CATALOGUE })).toBe("holds");
+      expect(holdsAt({ record, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("lodash") }, catalogue: CATALOGUE })).toBe("holds");
     },
   );
 
   it.each([{ record: DEBT }, { record: AUTHORISED_LOCATION }])("does not hold a $record.kind on another symptom at its file", ({ record }) => {
-    expect(holdsAt({ record, site: { symptom: DOUBLE_WITH_A_BODY, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+    expect(holdsAt({ record, site: { check: UNCHECKED, symptom: DOUBLE_WITH_A_BODY, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 
   it.each([
@@ -154,31 +176,31 @@ describe("holdsAt, debt and authorised locations", () => {
     { record: DEBT, file: repoPathSchema.parse("src/adapters/stripe-webhook.ts.bak") },
     { record: AUTHORISED_LOCATION, file: repoPathSchema.parse("src/adapters/stripe-webhook.ts/inner.ts") },
   ])("does not hold a $record.kind at $file, since its file never widens to a folder or a prefix", ({ record, file }) => {
-    expect(holdsAt({ record, site: { symptom: CLAIMED_TYPE, file, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+    expect(holdsAt({ record, site: { check: UNCHECKED, symptom: CLAIMED_TYPE, file, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 });
 
 describe("holdsAt, deviations", () => {
   it("holds a deviation at its file on a symptom whose recipes include its recipe", () => {
-    expect(holdsAt({ record: DEVIATION, site: { symptom: DOUBLE_WITH_A_BODY, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
+    expect(holdsAt({ record: DEVIATION, site: { check: UNCHECKED, symptom: DOUBLE_WITH_A_BODY, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
   });
 
   it("does not hold a deviation on a symptom whose recipes do not include its recipe", () => {
-    expect(holdsAt({ record: DEVIATION, site: { symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+    expect(holdsAt({ record: DEVIATION, site: { check: UNCHECKED, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 
   it("does not hold a deviation at another file", () => {
-    expect(holdsAt({ record: DEVIATION, site: { symptom: DOUBLE_WITH_A_BODY, file: OTHER_FILE, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+    expect(holdsAt({ record: DEVIATION, site: { check: UNCHECKED, symptom: DOUBLE_WITH_A_BODY, file: OTHER_FILE, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 
   it("holds a deviation over a finding raised by an import of a dependency that is not banned", () => {
-    expect(holdsAt({ record: ADAPTER_DEVIATION, site: { symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("uuid") }, catalogue: CATALOGUE })).toBe("holds");
+    expect(holdsAt({ record: ADAPTER_DEVIATION, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("uuid") }, catalogue: CATALOGUE })).toBe("holds");
   });
 
   it.each([{ specifier: "lodash" }, { specifier: "lodash/fp" }, { specifier: "npm:lodash@4" }, { specifier: "LODASH" }])(
     "does not hold a deviation over a finding raised by an import of $specifier, since no deviation makes a named ban correct",
     ({ specifier }) => {
-      expect(holdsAt({ record: ADAPTER_DEVIATION, site: { symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe(
+      expect(holdsAt({ record: ADAPTER_DEVIATION, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe(
         "does-not-hold",
       );
     },
@@ -187,7 +209,7 @@ describe("holdsAt, deviations", () => {
   it.each([{ symptom: OUTSIDE_IMPORT }, { symptom: LIBRARY_CLASS }, { symptom: OUTSIDE_TYPE }])(
     "does not hold a deviation over $symptom.name when the finding does not report its outside party, since it may be a named ban",
     ({ symptom }) => {
-      expect(holdsAt({ record: ADAPTER_DEVIATION, site: { symptom, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+      expect(holdsAt({ record: ADAPTER_DEVIATION, site: { check: UNCHECKED, symptom, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
     },
   );
 });
@@ -198,11 +220,11 @@ describe("holdsAt, boundary records", () => {
     { symptom: LIBRARY_CLASS, specifier: "uuid" },
     { symptom: OUTSIDE_TYPE, specifier: "uuid/v4" },
   ])("holds a boundary record on a package over $symptom.name of $specifier in its module", ({ symptom, specifier }) => {
-    expect(holdsAt({ record: UUID_BOUNDARY, site: { symptom, file: IDS_FILE, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe("holds");
+    expect(holdsAt({ record: UUID_BOUNDARY, site: { check: UNCHECKED, symptom, file: IDS_FILE, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe("holds");
   });
 
   it("holds a boundary record on a module its scheme names over an import of it in a file inside its module folder", () => {
-    expect(holdsAt({ record: FILES_BOUNDARY, site: { symptom: OUTSIDE_IMPORT, file: READ_TEXT_FILE, party: reportedAs("node:fs") }, catalogue: CATALOGUE })).toBe("holds");
+    expect(holdsAt({ record: FILES_BOUNDARY, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: READ_TEXT_FILE, party: reportedAs("node:fs") }, catalogue: CATALOGUE })).toBe("holds");
   });
 
   it.each([
@@ -210,19 +232,19 @@ describe("holdsAt, boundary records", () => {
     { record: FILES_BOUNDARY, file: READ_TEXT_FILE, specifier: "lodash" },
     { record: FILES_BOUNDARY, file: READ_TEXT_FILE, specifier: "node:path" },
   ])("does not hold a boundary record over an import of $specifier, another outside party, in its module", ({ record, file, specifier }) => {
-    expect(holdsAt({ record, site: { symptom: OUTSIDE_IMPORT, file, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe("does-not-hold");
+    expect(holdsAt({ record, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file, party: reportedAs(specifier) }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 
   it.each([{ record: UUID_BOUNDARY, file: IDS_FILE }, { record: FILES_BOUNDARY, file: READ_TEXT_FILE }])(
     "does not hold a boundary record on $record.outsideParty.specifier over an import whose outside party is not reported",
     ({ record, file }) => {
-      expect(holdsAt({ record, site: { symptom: OUTSIDE_IMPORT, file, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+      expect(holdsAt({ record, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
     },
   );
 
   it("does not hold a boundary record in a file that only shares its module's name as a prefix", () => {
     expect(
-      holdsAt({ record: FILES_BOUNDARY, site: { symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/files-old.ts"), party: reportedAs("node:fs") }, catalogue: CATALOGUE }),
+      holdsAt({ record: FILES_BOUNDARY, site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/files-old.ts"), party: reportedAs("node:fs") }, catalogue: CATALOGUE }),
     ).toBe("does-not-hold");
   });
 
@@ -230,7 +252,7 @@ describe("holdsAt, boundary records", () => {
     expect(
       holdsAt({
         record: boundaryOn({ module: "src/adapters/world.ts", outsideParty: { kind: "runtime", facility } }),
-        site: { symptom, file: repoPathSchema.parse("src/adapters/world.ts"), party: NOT_REPORTED },
+        site: { check: UNCHECKED, symptom, file: repoPathSchema.parse("src/adapters/world.ts"), party: NOT_REPORTED },
         catalogue: CATALOGUE,
       }),
     ).toBe("holds");
@@ -240,7 +262,7 @@ describe("holdsAt, boundary records", () => {
     expect(
       holdsAt({
         record: boundaryOn({ module: "src/adapters/world.ts", outsideParty: { kind: "runtime", facility } }),
-        site: { symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/world.ts"), party: reportedAs("uuid") },
+        site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/world.ts"), party: reportedAs("uuid") },
         catalogue: CATALOGUE,
       }),
     ).toBe("does-not-hold");
@@ -250,7 +272,7 @@ describe("holdsAt, boundary records", () => {
     expect(
       holdsAt({
         record: boundaryOn({ module: "src/adapters/json.ts", outsideParty: { kind: "runtime", facility: "json" } }),
-        site: { symptom: DATE_USED_DIRECTLY, file: repoPathSchema.parse("src/adapters/json.ts"), party: NOT_REPORTED },
+        site: { check: UNCHECKED, symptom: DATE_USED_DIRECTLY, file: repoPathSchema.parse("src/adapters/json.ts"), party: NOT_REPORTED },
         catalogue: CATALOGUE,
       }),
     ).toBe("does-not-hold");
@@ -260,7 +282,7 @@ describe("holdsAt, boundary records", () => {
     expect(
       holdsAt({
         record: boundaryOn({ module: "src/adapters/stripe-webhook.ts", outsideParty: { kind: "package", specifier: "stripe", dependency: "stripe" } }),
-        site: { symptom: CLAIMED_TYPE, file: ADAPTER, party: reportedAs("stripe") },
+        site: { check: UNCHECKED, symptom: CLAIMED_TYPE, file: ADAPTER, party: reportedAs("stripe") },
         catalogue: CATALOGUE,
       }),
     ).toBe("does-not-hold");
@@ -270,7 +292,7 @@ describe("holdsAt, boundary records", () => {
     expect(
       holdsAt({
         record: boundaryOn({ module: "src/adapters/collections.ts", outsideParty: { kind: "package", specifier: "lodash", dependency: "lodash" } }),
-        site: { symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/collections.ts"), party: reportedAs("lodash/fp") },
+        site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: repoPathSchema.parse("src/adapters/collections.ts"), party: reportedAs("lodash/fp") },
         catalogue: CATALOGUE,
       }),
     ).toBe("holds");
@@ -282,27 +304,41 @@ describe("holdsAt, dependency records", () => {
     expect(
       holdsAt({
         record: { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "Each adapter would repeat its checks." },
-        site: { symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("zod") },
+        site: { check: UNCHECKED, symptom: OUTSIDE_IMPORT, file: ADAPTER, party: reportedAs("zod") },
         catalogue: CATALOGUE,
       }),
     ).toBe("does-not-hold");
   });
 });
 
-describe("overlapsAt, whatever outside party a finding there names", () => {
-  it.each([
-    { record: UUID_BOUNDARY, symptom: OUTSIDE_IMPORT, file: IDS_FILE },
-    { record: ADAPTER_DEVIATION, symptom: OUTSIDE_IMPORT, file: ADAPTER },
-    { record: IMPORT_LOCATION, symptom: OUTSIDE_IMPORT, file: ADAPTER },
-  ])("finds a $record.kind reaching some finding of $symptom.name at $file", ({ record, symptom, file }) => {
-    expect(overlapsAt({ record, symptom, file })).toBe("holds");
+describe("holdsAt, a record that names one check of its symptom", () => {
+  it.each([{ record: CAST_DEBT }, { record: CAST_LOCATION }])("holds a $record.kind naming one check over that check's site", ({ record }) => {
+    expect(holdsAt({ record, site: { check: AT_CAST, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
   });
 
   it.each([
-    { record: UUID_BOUNDARY, symptom: CLAIMED_TYPE, file: IDS_FILE },
-    { record: ADAPTER_DEVIATION, symptom: CLAIMED_TYPE, file: ADAPTER },
-    { record: IMPORT_LOCATION, symptom: OUTSIDE_IMPORT, file: OTHER_FILE },
-  ])("finds a $record.kind reaching no finding of $symptom.name at $file", ({ record, symptom, file }) => {
-    expect(overlapsAt({ record, symptom, file })).toBe("does-not-hold");
+    { record: CAST_DEBT, check: AT_NON_NULL },
+    { record: CAST_LOCATION, check: AT_NON_NULL },
+    { record: CAST_DEBT, check: UNCHECKED },
+    { record: CAST_LOCATION, check: UNCHECKED },
+  ])("does not hold a $record.kind naming one check over a site of the symptom found $check.found", ({ record, check }) => {
+    expect(holdsAt({ record, site: { check, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+  });
+
+  it.each([
+    { record: DEBT, check: AT_CAST },
+    { record: DEBT, check: AT_NON_NULL },
+    { record: DEBT, check: UNCHECKED },
+    { record: AUTHORISED_LOCATION, check: AT_CAST },
+    { record: AUTHORISED_LOCATION, check: AT_NON_NULL },
+    { record: AUTHORISED_LOCATION, check: UNCHECKED },
+  ])("holds a $record.kind naming no check over every site of its symptom, here one found $check.found", ({ record, check }) => {
+    expect(holdsAt({ record, site: { check, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("holds");
+  });
+});
+
+describe("holdsAt, an authorised location naming a check its symptom does not have", () => {
+  it.each([{ check: AT_CAST }, { check: AT_NON_NULL }, { check: UNCHECKED }])("holds no site of its symptom, here one found $check.found, and never widens to the whole symptom", ({ check }) => {
+    expect(holdsAt({ record: UNKNOWN_CHECK_LOCATION, site: { check, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
   });
 });

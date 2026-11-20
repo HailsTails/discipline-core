@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { carriedFormSchema, debtWireSchema, recordsDocumentSchema, statedBoundaryRecordWireSchema } from "./records-wire.ts";
+import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import {
+  carriedAuthorisedLocationWireSchema,
+  carriedFormSchema,
+  debtWireSchema,
+  recordsDocumentSchema,
+  statedAuthorisedLocationWireSchema,
+  statedBoundaryRecordWireSchema,
+} from "./records-wire.ts";
 
 describe("the version 2 records forms", () => {
   it("reads a records document of version 2", () => {
@@ -29,6 +37,30 @@ describe("the version 2 records forms", () => {
       error: { issues: [expect.objectContaining({ path: ["file"] })] },
     });
   });
+
+  it("reads a symptom alone as a record reaching the whole symptom", () => {
+    expect(debtWireSchema.safeParse({ symptom: "claimed-type", file: "src/a.ts" })).toMatchObject({
+      success: true,
+      data: { symptom: { reaches: "whole-symptom", symptom: "claimed-type" } },
+    });
+  });
+
+  it("reads a symptom and one of its checks, written <symptom>#<check>, as a record reaching that check", () => {
+    expect(statedAuthorisedLocationWireSchema.safeParse({ symptom: "claimed-type#cast-expressions", file: "src/a.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: CAUSAL_WHY_CHAIN })).toMatchObject({
+      success: true,
+      data: { symptom: { reaches: "one-check", symptom: "claimed-type", check: "cast-expressions" } },
+    });
+  });
+
+  it.each([{ symptom: "claimed-type#" }, { symptom: "#cast-expressions" }, { symptom: "claimed-type#cast-expressions#again" }, { symptom: "claimed-type#Cast" }])(
+    "refuses $symptom as the symptom a record reaches",
+    ({ symptom }) => {
+      expect(carriedAuthorisedLocationWireSchema.safeParse({ symptom, file: "src/a.ts", carried: { kind: "authorised-location" } })).toMatchObject({
+        success: false,
+        error: { issues: [expect.objectContaining({ path: ["symptom"] })] },
+      });
+    },
+  );
 
   it("refuses a boundary record that names no port", () => {
     expect(statedBoundaryRecordWireSchema.safeParse({ module: "src/adapters/files", outsideParty: "node:fs", ports: [] })).toMatchObject({
