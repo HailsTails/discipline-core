@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { filesReaching, importsOutsideFromOwnFolder, importStatementsReaching, packageOrComputedImport, relativeImportReaching } from "../../tests/confinement.ts";
+import {
+  filesHoldingStatements,
+  filesReaching,
+  importsOutsideFromOwnFolder,
+  importStatementsLeaving,
+  importStatementsReaching,
+  packageOrComputedImport,
+  relativeImportReaching,
+  statementsOutsideFiles,
+  sourcesWithout,
+} from "../../tests/confinement.ts";
 
 declare global {
   interface ImportMeta {
@@ -22,6 +32,17 @@ const everySource = import.meta.glob(["./core/**/*.ts"], {
   query: "?raw",
   import: "default",
   eager: true,
+});
+
+const versionTwoFolders = /^\.\/core\/(?:settings|run|command-line|conformance|records|report|touched-set)\//;
+
+const versionOne = /^\.\/core\/(?:upgrade|exception-records|consumer-selection|check)\//;
+
+const frontier = importStatementsLeaving({
+  sources: everySource,
+  startingFrom: versionTwoFolders,
+  notEntering: versionOne,
+  specifier: /\/(?:upgrade|exception-records|consumer-selection|check)\//,
 });
 
 const reachingNothingInTheVersionOneReaders = ({ importingFolder }: { readonly importingFolder: string }) => [
@@ -48,12 +69,23 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     ]);
   });
 
-  it("finds the files in core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set reaching core/exception-records through any chain of imports only as listed here, so the list can only shrink", () => {
+  it("finds, in what the version 2 folders reach without entering version 1, each import into core/upgrade, core/exception-records, core/consumer-selection or core/check outside core/run (whose own imports are pinned above and in run-imports.test.ts) only as listed here, so the list can only shrink", () => {
+    expect(statementsOutsideFiles({ statements: frontier, files: /^\.\/core\/run\// })).toEqual([
+      { file: "./core/conformance/clause-conformance.ts", statement: 'import { loadRunner, type RunnerLocation } from "../check/run-check.ts";' },
+      { file: "./core/mechanism-port/runner-module-schema.ts", statement: 'import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";' },
+      { file: "./core/verdict/check-report.ts", statement: 'import type {\n  ExceptionRecord,\n  InvalidRecord,\n} from "../upgrade/version-one-records/exception-records.ts";' },
+      { file: "./core/verdict/check-report.ts", statement: 'import type { DoublyHeld, ExemptedFinding } from "../upgrade/answering/governance.ts";' },
+      { file: "./core/verdict/report-text.ts", statement: 'import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../upgrade/version-one-records/exception-records.ts";' },
+      { file: "./core/verdict/report-text.ts", statement: 'import type { ExemptedFinding } from "../upgrade/answering/governance.ts";' },
+    ]);
+  });
+
+  it("finds no file in the version 2 folders reaching version 1 through any chain that does not pass a file listed above", () => {
     expect(
       filesReaching({
-        sources: everySource,
-        startingFrom: /^\.\/core\/(?:settings|run|command-line|conformance|records|report|touched-set)\//,
-        reaching: /^\.\/core\/exception-records\//,
+        sources: sourcesWithout({ sources: everySource, files: filesHoldingStatements({ statements: frontier }) }),
+        startingFrom: versionTwoFolders,
+        reaching: versionOne,
       }),
     ).toEqual([]);
   });

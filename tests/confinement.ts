@@ -201,6 +201,50 @@ export const filesReaching = (request: {
     .sort();
 };
 
+export const filesReachableFrom = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly notEntering: RegExp;
+}): readonly string[] => {
+  const scanned = new Set(Object.keys(request.sources).filter((file) => !request.notEntering.test(file)));
+  const graph: ImportGraph = new Map(
+    [...scanned].map((file) => [file, scannedImportsOf({ file, text: request.sources[file] ?? "", scanned })]),
+  );
+  const starts = [...scanned].filter((file) => request.startingFrom.test(file));
+  return [...reachedFrom({ graph, frontier: starts, seen: new Set(starts) })].sort();
+};
+
+export const sourcesOfFiles = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => request.files.includes(source)));
+
+export const sourcesWithout = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(source)));
+
+export const importStatementsLeaving = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly notEntering: RegExp;
+  readonly specifier: RegExp;
+}): readonly ImportStatement[] =>
+  importStatementsReaching({
+    sources: sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) }),
+    specifier: request.specifier,
+  });
+
+export const filesHoldingStatements = (request: { readonly statements: readonly ImportStatement[] }): readonly string[] =>
+  request.statements.map(({ file }) => file);
+
+export const statementsOutsideFiles = (request: {
+  readonly statements: readonly ImportStatement[];
+  readonly files: RegExp;
+}): readonly ImportStatement[] => request.statements.filter(({ file }) => !request.files.test(file));
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;

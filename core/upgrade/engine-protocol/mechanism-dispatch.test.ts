@@ -61,15 +61,15 @@ const runResolving = (returned: unknown): LoadedRunner["run"] =>
 describe("runMechanismWithRecords with a standalone runner", () => {
   it("runs it as runMechanism does", async () => {
     const run = runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } });
-    const result = await runMechanismWithRecords({
+    const mechanismRun = await runMechanismWithRecords({
       runner: standaloneRunner({ run }),
       mechanism: WALKER,
       run: RUN_REQUEST,
       declaredConfigRoots: [],
       records: [CARVE_OUT],
     });
-    expect({ result, runCalls: vi.mocked(run).mock.calls }).toEqual({
-      result: {
+    expect({ mechanismRun, runCalls: vi.mocked(run).mock.calls }).toEqual({
+      mechanismRun: {
         outcome: "ok",
         value: { mechanism: WALKER, hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [], measured: [] },
       },
