@@ -65,34 +65,66 @@ export const rowsNamed = <Row extends { readonly name: string }>(request: {
   readonly names: readonly string[];
 }): readonly Row[] => request.rows.filter((row) => request.names.includes(row.name));
 
+export type BlockTypeErrors = { readonly name: string; readonly errors: readonly string[] };
+
+export type FormDiagnostic = { readonly fileName: string | undefined; readonly message: string };
+
+export type TypeErrors = { readonly blocks: readonly BlockTypeErrors[]; readonly unattributed: readonly string[] };
+
+export const typeErrorsAmong = (request: {
+  readonly forms: readonly { readonly name: string; readonly path: string }[];
+  readonly diagnostics: readonly FormDiagnostic[];
+}): TypeErrors => {
+  const formPaths = request.forms.map((form) => form.path);
+  return {
+    blocks: request.forms.map((form) => ({
+      name: form.name,
+      errors: request.diagnostics.filter((diagnostic) => diagnostic.fileName === form.path).map((diagnostic) => diagnostic.message),
+    })),
+    unattributed: request.diagnostics
+      .filter((diagnostic) => diagnostic.fileName === undefined || !formPaths.includes(diagnostic.fileName))
+      .map((diagnostic) => (diagnostic.fileName === undefined ? diagnostic.message : `${diagnostic.fileName}: ${diagnostic.message}`)),
+  };
+};
+
 export const typeErrorsOf = (request: {
   readonly syntaxApi: SyntaxApi;
   readonly repoRoot: string;
-  readonly source: string;
-}): readonly string[] => {
+  readonly blocks: readonly AllowedBlock[];
+}): TypeErrors => {
   const { syntaxApi } = request;
   const options = cd3CompilerOptionsOf({ syntaxApi });
-  const formPath = `${request.repoRoot.replaceAll("\\", "/")}/${FORM_FILE}`;
+  const root = request.repoRoot.replaceAll("\\", "/");
+  const forms = request.blocks.map((block, index) => ({
+    name: block.name,
+    path: `${root}/allowed-form-${index}.test.ts`,
+    text: `${VITEST_PRELUDE}${block.source}`,
+  }));
+  const formTextOf = (fileName: string): string | undefined =>
+    forms.find((form) => form.path === fileName.replaceAll("\\", "/"))?.text;
   const host = syntaxApi.createCompilerHost(options);
-  const formText = `${VITEST_PRELUDE}${request.source}`;
   const readFile = host.readFile;
   const getSourceFile = host.getSourceFile;
   const program = syntaxApi.createProgram({
-    rootNames: [formPath],
+    rootNames: forms.map((form) => form.path),
     options,
     host: {
       ...host,
-      fileExists: (fileName) => fileName.replaceAll("\\", "/") === formPath || host.fileExists(fileName),
-      readFile: (fileName) => (fileName.replaceAll("\\", "/") === formPath ? formText : readFile(fileName)),
-      getSourceFile: (fileName, languageVersion) =>
-        fileName.replaceAll("\\", "/") === formPath
-          ? syntaxApi.createSourceFile(fileName, formText, languageVersion, true)
-          : getSourceFile(fileName, languageVersion),
+      fileExists: (fileName) => formTextOf(fileName) !== undefined || host.fileExists(fileName),
+      readFile: (fileName) => formTextOf(fileName) ?? readFile(fileName),
+      getSourceFile: (fileName, languageVersion) => {
+        const text = formTextOf(fileName);
+        return text === undefined ? getSourceFile(fileName, languageVersion) : syntaxApi.createSourceFile(fileName, text, languageVersion, true);
+      },
     },
   });
-  return syntaxApi
-    .getPreEmitDiagnostics(program)
-    .map((diagnostic) => syntaxApi.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+  return typeErrorsAmong({
+    forms,
+    diagnostics: syntaxApi.getPreEmitDiagnostics(program).map((diagnostic) => ({
+      fileName: diagnostic.file?.fileName.replaceAll("\\", "/"),
+      message: syntaxApi.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+    })),
+  });
 };
 
 export const remedySectionsOf = async (request: {

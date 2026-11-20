@@ -2,6 +2,7 @@ import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.
 import type { Hit, MeasuredPair, NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
+import type { ClauseAddress } from "../../../core/values/clause-address.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -44,7 +45,7 @@ const lintedRepoPath = (request: Pick<FileRequest, "linted" | "path" | "repoRoot
   return file.success ? { outcome: "ok", value: file.data } : outsideRepository(request);
 };
 
-const parseableFile = (request: Pick<FileRequest, "linted" | "path" | "repoRoot">): Outcome<RepoPath> => {
+export const parseableFile = (request: Pick<FileRequest, "linted" | "path" | "repoRoot">): Outcome<RepoPath> => {
   const file = lintedRepoPath(request);
   if (file.outcome === "failed") {
     return file;
@@ -53,12 +54,12 @@ const parseableFile = (request: Pick<FileRequest, "linted" | "path" | "repoRoot"
   return fatal === undefined ? file : { outcome: "failed", error: { kind: "file-unparseable", file: file.value, detail: fatal.message } };
 };
 
-const measuredOn = (request: { readonly file: RepoPath; readonly linted: LintedFile; readonly selected: readonly SelectedCheck[] }): readonly MeasuredPair[] => {
+export const measuredOn = (request: { readonly file: RepoPath; readonly linted: LintedFile; readonly clauses: readonly ClauseAddress[] }): readonly MeasuredPair[] => {
   if (request.linted.messages.some((message) => message.ruleId === null)) {
     return [];
   }
-  const clauses = new Map(request.selected.map((entry) => [JSON.stringify(entry.clause), entry.clause]));
-  return [...clauses.values()].map((clause) => ({ clause, file: request.file }));
+  const distinct = new Map(request.clauses.map((clause) => [JSON.stringify(clause), clause]));
+  return [...distinct.values()].map((clause) => ({ clause, file: request.file }));
 };
 
 const checkFindingsOf = (request: FileRequest & { readonly file: RepoPath; readonly entry: SelectedCheck }): Outcome<Omit<FileFindings, "measured" | "misnamedRuleIds">> => {
@@ -94,7 +95,7 @@ export const lintedFindingsOf = (request: FileRequest): Outcome<FileFindings> =>
         value: {
           hits: perCheck.value.flatMap((found) => found.hits),
           nativeExceptions: perCheck.value.flatMap((found) => found.nativeExceptions),
-          measured: measuredOn({ file: file.value, linted: request.linted, selected: request.selected }),
+          measured: measuredOn({ file: file.value, linted: request.linted, clauses: request.selected.map((entry) => entry.clause) }),
           misnamedRuleIds: misnamedRuleIdsIn({
             file: file.value,
             messages: request.linted.messages,

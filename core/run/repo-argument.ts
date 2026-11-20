@@ -1,4 +1,4 @@
-import { REPO_OPTION } from "../check/command-line.ts";
+import { REPO_OPTION } from "../command-line/command-line.ts";
 
 export const repoArgumentOf = (request: { readonly arguments: readonly string[] }): string | undefined => {
   const option = request.arguments.indexOf(REPO_OPTION.name);

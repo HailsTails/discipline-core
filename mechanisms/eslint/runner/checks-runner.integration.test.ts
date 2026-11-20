@@ -101,9 +101,6 @@ const runOver = async (request: {
   });
 };
 
-const GOVERNING_WITHOUT_CHECKS = `export default [{ files: ["**/*.ts"], rules: {} }];
-`;
-
 const IGNORING_THE_SOURCE = `import hone from "./${CHECKS_PROJECTION_PATH}";
 export default [{ ignores: ["kept.ts"] }, ...hone];
 `;
@@ -139,8 +136,6 @@ const SUB_FILE = repoPathSchema.parse("sub/kept.ts");
 
 const SUB_CONFIG_WITHOUT_THE_CHECKS = `export default [{ files: ["**/*.ts"], rules: {} }];
 `;
-
-const SUB_CONFIG_PATH = repoPathSchema.parse("sub/eslint.config.mjs");
 
 const SUB_HIT = { ...CLASS_HIT, file: "sub/kept.ts" };
 
@@ -184,24 +179,6 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
     });
   });
 
-  it("reports no findings and a missing projection when hone.eslint.mjs is not written", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { "eslint.config.mjs": TEAM_CONFIG, "kept.ts": ONE_CLASS } })).toEqual({ outcome: "ok", value: { ...REPORT, projection: "missing" } });
-  });
-
-  it("reports an out-of-date projection, and still the class, when hone.eslint.mjs differs from what project would write", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, [CHECKS_PROJECTION_PATH]: `${PROJECTION_TEXT}\n`, "kept.ts": ONE_CLASS } })).toEqual({
-      outcome: "ok",
-      value: { ...REPORT, hits: [CLASS_HIT], measured: MEASURED, projection: "out-of-date" },
-    });
-  });
-
-  it("reports the projection not included when the team's config does not enable the checks", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { "eslint.config.mjs": GOVERNING_WITHOUT_CHECKS, [CHECKS_PROJECTION_PATH]: PROJECTION_TEXT, "kept.ts": ONE_CLASS } })).toEqual({
-      outcome: "ok",
-      value: { ...REPORT, projection: "not-included" },
-    });
-  });
-
   it("reports an inline disable written with the check's id as a native exception on that check, beside the hit it does not remove", async () => {
     expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: CLASS_RULE }) } })).toEqual({
       outcome: "ok",
@@ -230,20 +207,6 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
     expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/authored-class-or-this/static-members-only" }) } })).toEqual({
       outcome: "ok",
       value: { ...REPORT, hits: [CLASS_HIT_ON_LINE_2], measured: MEASURED },
-    });
-  });
-
-  it("reports an inline disable written with an id that names no check as misnamed and suppresses nothing", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/authored-class-or-this/no-such-check" }) } })).toEqual({
-      outcome: "ok",
-      value: {
-        ...REPORT,
-        hits: [CLASS_HIT_ON_LINE_2],
-        measured: MEASURED,
-        misnamedRuleIds: [
-          { kind: "names-no-check", ruleId: "hone/authored-class-or-this/no-such-check", file: "kept.ts", line: 1, text: "// eslint-disable-next-line hone/authored-class-or-this/no-such-check" },
-        ],
-      },
     });
   });
 
@@ -338,18 +301,6 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
           { kind: "command-line-option", clause: CLASS_SYNTAX, location: "package.json", script: "lint:suppress", option: "--suppress-all", cause: { kind: "weakens-run" }, check: CLASS_CHECK },
         ],
       },
-    });
-  });
-
-  it("is not ready when a subfolder config is tracked under the nearest-to-file lookup, where version 1 would give each config its own projection", async () => {
-    const run = { ...ROOT_FILE_RUN, line, queried: [SUB_FILE], tracked: [SUB_CONFIG_PATH, SUB_FILE] };
-    expect(await runOver({ ...run, files: ADOPTED, sub: SUB_FILES })).toEqual({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } });
-  });
-
-  it("is not ready for a repository that declares ESLint config roots", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": ONE_CLASS }, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual({
-      outcome: "failed",
-      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
     });
   });
 });

@@ -3,8 +3,8 @@ import type { Finding } from "../governance/governance.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
-import type { PackageLink } from "./package-link.ts";
-import { shownPathOf } from "./shown-path.ts";
+import type { PackageLink } from "../command-line/package-link.ts";
+import { shownPathOf } from "../command-line/shown-path.ts";
 
 type ShownRemedyRequest = {
   readonly path: PathPort;

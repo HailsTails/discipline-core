@@ -3,7 +3,8 @@ import type { UnprojectedFolderReport } from "../../../core/mechanism-port/embed
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { configuredDirectoriesOf } from "./checks-config-roots.ts";
-import { PROJECTION_PATH } from "./projection.ts";
+import { directoryOf, fileNameOf } from "./checks-paths.ts";
+import { PROJECTION_PATH } from "./projection-text.ts";
 
 export type ConfigRoot =
   | { readonly placement: "repository" }
@@ -12,10 +13,6 @@ export type ConfigRoot =
 const SELECTION_FILE_NAME = "disciplines.json";
 
 const REPOSITORY_ROOT: ConfigRoot = { placement: "repository" };
-
-const directoryOf = (request: { readonly path: RepoPath }): string => request.path.split("/").slice(0, -1).join("/");
-
-const fileNameOf = (request: { readonly path: RepoPath }): string => request.path.split("/").at(-1) ?? "";
 
 const within = (request: { readonly path: string; readonly directory: string }): "within" | "outside" =>
   request.path === request.directory || request.path.startsWith(`${request.directory}/`) ? "within" : "outside";

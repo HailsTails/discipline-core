@@ -4,17 +4,17 @@ import type { ProjectionRequest } from "../mechanism-port/runner-module-schema.t
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { Result } from "../values/result.ts";
-import type { LoadFailure } from "./load-failure.ts";
-import { projectMechanism } from "./mechanism-dispatch.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import type { CheckedTree } from "../run/checked-tree-of.ts";
+import { projectMechanism } from "../run/mechanism-dispatch.ts";
 import {
   allOk,
-  type CheckedTree,
   type CheckRequest,
-  checkedTreeOf,
   type LoadedMechanism,
   loadInputs,
   recordsOf,
   runnerFailed,
+  treeOf,
 } from "./run-check.ts";
 
 export type ProjectRequest = Omit<CheckRequest, "baseRevision" | "assessment" | "selectionRepository" | "fileText"> & {
@@ -53,7 +53,7 @@ export const runProject = async (
   if (inputs.outcome === "failed") {
     return inputs;
   }
-  const tree = checkedTreeOf({ check: request, inputs: inputs.value });
+  const tree = treeOf({ check: request, inputs: inputs.value });
   if (tree.outcome === "failed") {
     return tree;
   }

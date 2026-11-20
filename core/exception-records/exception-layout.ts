@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import { createDefaultFileRemovalPort, type FileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultDirectoryPort, type DirectoryEntry, type DirectoryPort } from "../platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";

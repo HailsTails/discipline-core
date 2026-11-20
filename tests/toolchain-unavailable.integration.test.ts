@@ -1,7 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import { loadFailureText } from "../core/check/load-failure-text.ts";
+import { loadFailureText } from "../core/command-line/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
 import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";

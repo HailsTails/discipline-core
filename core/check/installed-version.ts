@@ -3,10 +3,10 @@ import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { Result } from "../values/result.ts";
 import { parsedJson } from "../values/parsed-json.ts";
-import { installRootOf } from "./install-root.ts";
-import type { LoadFailure } from "./load-failure.ts";
-import { UNLINKED } from "./package-link.ts";
-import { shownFailureOf } from "./shown-path.ts";
+import { installRootOf } from "../command-line/install-root.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import { UNLINKED } from "../command-line/package-link.ts";
+import { shownFailureOf } from "../command-line/shown-path.ts";
 
 const PACKAGE_MANIFEST = "package.json";
 
