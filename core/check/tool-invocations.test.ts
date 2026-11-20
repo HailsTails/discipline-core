@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
-import { projectCommandOf, pruneCommandOf, upgradeCommandOf } from "./tool-invocations.ts";
+import { projectCommandOf, pruneCommandOf } from "./tool-invocations.ts";
 
 const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/work/shop/packages/web" });
 
@@ -92,21 +92,5 @@ describe("pruneCommandOf", () => {
         forfeiture: undefined,
       }),
     ).toMatchObject({ outcome: "failed", error: { kind: "install-root-unresolvable", url: "https://example.com/tool-command.js" } });
-  });
-});
-
-describe("upgradeCommandOf", () => {
-  it("runs the installed entry file with node by its absolute path, with the repository root the check measured", () => {
-    expect(upgradeCommandOf({ path: POSIX_PATH, moduleUrl: INSTALLED_ENTRY, repoRoot: absolutePathSchema.parse("/work/shop") })).toEqual({
-      outcome: "ok",
-      value: "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js upgrade --repo /work/shop",
-    });
-  });
-
-  it("fails as install-root-unresolvable when the module URL is not a file URL", () => {
-    expect(upgradeCommandOf({ path: POSIX_PATH, moduleUrl: "https://example.com/tool-command.js", repoRoot: absolutePathSchema.parse("/work/shop") })).toMatchObject({
-      outcome: "failed",
-      error: { kind: "install-root-unresolvable" },
-    });
   });
 });

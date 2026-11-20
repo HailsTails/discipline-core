@@ -7,8 +7,6 @@ import { runPathOf } from "./run-path.ts";
 
 const LOAD_FAILURE_CODE = 2;
 
-const NO_UPGRADE_COMMAND = "";
-
 export type VersionedHandler = (command: CommandRequest) => Promise<void>;
 
 export type VersionChoice = {
@@ -19,7 +17,7 @@ export type VersionChoice = {
 const printFailure = (request: { readonly command: CommandRequest; readonly failure: RunLoadFailure }): Promise<void> => {
   printOutcome({
     process: request.command.process,
-    outcome: { code: LOAD_FAILURE_CODE, text: `${runLoadFailureLine({ failure: request.failure, upgradeCommand: NO_UPGRADE_COMMAND })}\n` },
+    outcome: { code: LOAD_FAILURE_CODE, text: `${runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined })}\n` },
   });
   return Promise.resolve();
 };

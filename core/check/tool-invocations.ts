@@ -3,7 +3,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { ForfeitureAssessment } from "../values/assessment.ts";
 import type { Result } from "../values/result.ts";
-import { BASE_REVISION_OPTION, FORFEITURE_OPTION, REPO_OPTION } from "./command-line.ts";
+import { BASE_REVISION_OPTION, FORFEITURE_OPTION, REPO_OPTION, type Subcommand } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
 
 type InvocationRequest = {
@@ -23,7 +23,7 @@ const optionWords = (request: { readonly name: string; readonly value: string | 
   request.value === undefined ? [] : [request.name, shellWord({ path: request.value })];
 
 const toolInvocationOf = (
-  request: InvocationRequest & { readonly subcommand: string; readonly options: readonly string[] },
+  request: InvocationRequest & { readonly subcommand: Subcommand; readonly options: readonly string[] },
 ): Result<string, LoadFailure> => {
   const entry = request.path.fromFileUrl({ url: request.moduleUrl });
   if (entry.outcome === "failed") {
@@ -47,8 +47,6 @@ const toolInvocationOf = (
 
 export const projectCommandOf = (request: InvocationRequest): Result<string, LoadFailure> =>
   toolInvocationOf({ ...request, subcommand: "project", options: [] });
-
-export const upgradeCommandOf = (request: InvocationRequest): Result<string, LoadFailure> => toolInvocationOf({ ...request, subcommand: "upgrade", options: [] });
 
 export const pruneCommandOf = (
   request: InvocationRequest & { readonly baseRevision: string | undefined; readonly forfeiture: ForfeitureAssessment | undefined },

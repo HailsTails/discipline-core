@@ -821,7 +821,7 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 
 `records-refused` prints every records document refused, in the records' order, each as its records file, its refusal kind and its issues, joined by `; `. The line grows with the number of refused documents, so that one run shows everything to fix. A refused record, as opposed to a refused document, is not a load failure: it is listed under `refused`, and an authorised location is never refused for what it claims.
 
-`catalogue-not-read` is printed when the tool's own symptom catalogue is absent or cannot be read, since every record resolves against it. A team rule set with no catalogue is not a load failure. `upgrade-needed` is printed when a version 2 run finds version 1 files.
+`catalogue-not-read` is printed when the tool's own symptom catalogue is absent or cannot be read, since every record resolves against it. A team rule set with no catalogue is not a load failure. `upgrade-needed` is printed when a version 2 run finds version 1 files. It names the command that rewrites them only in a release that has that command; before it, the line says no command exists yet.
 
 `settings-in-both-versions` is printed when the folder holds both `disciplines.json` and `hone.config.json`, since no run can tell which one the repository means. `not-ready-yet` is printed when a version 2 repository asks for something this release does not yet run on version 2 files: a command, named by the command, or `eslintConfigRoots`, named `eslint-config-roots`. Each release that makes one of them run stops printing it for that one.
 
@@ -878,3 +878,4 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `catalogue-not-read` | `load failure: catalogue-not-read <path>: the symptom catalogue is missing from this install; reinstall @hailstails/hone` |
 | `catalogue-not-read` | `load failure: catalogue-not-read <path> <detail>` |
 | `upgrade-needed` | `load failure: upgrade-needed <path>: this is a version 1 file; run <upgrade command>, which rewrites every version 1 file as version 2, and commit what it writes` |
+| `upgrade-needed` | `load failure: upgrade-needed <path>: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files` |

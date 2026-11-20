@@ -70,6 +70,8 @@ claimed-type: Claimed type. May indicate: gives a value its type: or needs it na
 verdict: fail
 `;
 
+const INSTALL_ROOT_LINE = "load failure: install-root-unresolvable https://example.com/tool-command.js the text is not a file: URL\n";
+
 const ARGUMENTS_INVALID_LINE = "load failure: arguments-invalid --repo needs a value, as in --repo <dir>\n";
 
 const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
@@ -79,7 +81,9 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandWith = (request: { readonly process: ProcessPort }): CommandRequest => ({
+const ENTRY_URL = "file:///install/core/check/tool-command.ts";
+
+const commandWith = (request: { readonly process: ProcessPort; readonly moduleUrl: string }): CommandRequest => ({
   process: request.process,
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: {
@@ -95,18 +99,18 @@ const commandWith = (request: { readonly process: ProcessPort }): CommandRequest
     textInBase: vi.fn<GitPort["textInBase"]>(),
   },
   exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
-  moduleUrl: "file:///install/core/check/tool-command.ts",
+  moduleUrl: request.moduleUrl,
 });
 
 const stagesOverGiving = (request: { readonly stages: VersionTwoStages }) => vi.fn<StagesOver>().mockReturnValue(request.stages);
 
-const ranWith = async (request: { readonly arguments: readonly string[]; readonly stagesOver: StagesOver }) => {
+const ranWith = async (request: { readonly arguments: readonly string[]; readonly stagesOver: StagesOver; readonly moduleUrl: string }) => {
   const processPort = processWith({ arguments: request.arguments });
   await versionTwoCheckCommandOf({
     gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>() },
     directory: { list: vi.fn<DirectoryPort["list"]>(), create: vi.fn<DirectoryPort["create"]>() },
     stagesOver: request.stagesOver,
-  })(commandWith({ process: processPort }));
+  })(commandWith({ process: processPort, moduleUrl: request.moduleUrl }));
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
 };
 
@@ -116,18 +120,18 @@ const SETTINGS_ABSENT: RunLoadFailure = { kind: "config-absent", repo: "/repo" }
 
 describe("versionTwoCheckCommandOf", () => {
   it("prints the report's verdict and exits 0 when the run is clean", async () => {
-    const ran = await ranWith({ arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: stagesGiving({}) }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: stagesGiving({}) }) });
     expect(ran).toEqual({ writes: [[{ text: "verdict: pass\n" }]], exits: [[{ code: 0 }]] });
   });
 
   it("prints the findings and the verdict, and exits 1, when the run fails", async () => {
-    const ran = await ranWith({ arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: FAILING_STAGES }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: FAILING_STAGES }) });
     expect(ran).toEqual({ writes: [[{ text: FAILING_REPORT }]], exits: [[{ code: 1 }]] });
   });
 
   it("builds the stages over the repository, the install the command runs from and the base revision given", async () => {
     const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    await ranWith({ arguments: ["--repo", "/repo", "--base-revision", "origin/main"], stagesOver });
+    await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo", "--base-revision", "origin/main"], stagesOver });
     expect(stagesOver).toHaveBeenCalledWith(
       expect.objectContaining({ locations: { repoRoot: "/repo", installRoot: "/install", moduleExtension: ".ts", baseRevision: "origin/main" } }),
     );
@@ -135,16 +139,33 @@ describe("versionTwoCheckCommandOf", () => {
 
   it("prints the load failure line and exits 2 when a stage fails", async () => {
     const stages = stagesGiving({ settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "failed", error: SETTINGS_ABSENT }) });
-    const ran = await ranWith({ arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
     expect(ran).toEqual({
       writes: [[{ text: "load failure: config-absent /repo holds no hone.config.json; give the folder that holds it, usually the repository root\n" }]],
       exits: [[{ code: 2 }]],
     });
   });
 
+  it("prints the upgrade-needed line without promising a command, since no command rewrites version 1 files yet", async () => {
+    const upgrade: RunLoadFailure = { kind: "upgrade-needed", path: "disciplines.json" };
+    const stages = stagesGiving({ records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "failed", error: upgrade }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
+    expect(ran).toEqual({
+      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n" }]],
+      exits: [[{ code: 2 }]],
+    });
+  });
+
+  it("prints the install-root-unresolvable line as it is, and exits 2, when the command was not started from a file", async () => {
+    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
+    const ran = await ranWith({ moduleUrl: "https://example.com/tool-command.js", arguments: ["--repo", "/repo"], stagesOver });
+    expect(ran).toEqual({ writes: [[{ text: INSTALL_ROOT_LINE }]], exits: [[{ code: 2 }]] });
+    expect(stagesOver).not.toHaveBeenCalled();
+  });
+
   it("prints an arguments-invalid line, exits 2 and builds no stages when the arguments are not readable", async () => {
     const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    const ran = await ranWith({ arguments: ["--repo"], stagesOver });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo"], stagesOver });
     expect(ran).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
     expect(stagesOver).not.toHaveBeenCalled();
   });

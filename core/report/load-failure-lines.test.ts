@@ -168,6 +168,14 @@ describe("runLoadFailureLine, failures version 2 names first", () => {
   });
 });
 
+describe("runLoadFailureLine, a version 1 file found while no command rewrites it", () => {
+  it("prints upgrade-needed without promising a command", () => {
+    expect(runLoadFailureLine({ failure: { kind: "upgrade-needed", path: "disciplines.json" }, upgradeCommand: undefined })).toBe(
+      "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files",
+    );
+  });
+});
+
 describe("runLoadFailureLine, a failure version 2 keeps", () => {
   it.each<LineRow>([
     { failure: { kind: "arguments-invalid", detail: "--repo needs a value" }, line: "load failure: arguments-invalid --repo needs a value" },

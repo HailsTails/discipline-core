@@ -17,14 +17,14 @@ import type { Result } from "../values/result.ts";
 import { reportedChecksRefusal } from "../symptom-catalogue/reported-checks.ts";
 import type { RunFailureSource } from "./run-failure.ts";
 
-export type LoadedChecksRunner = z.output<typeof checksRunnerModuleSchema>;
+type ParsedChecksRunner = z.output<typeof checksRunnerModuleSchema>;
 
 export type EngineRun = MechanismRun & { readonly misnamedRuleIds: readonly MisnamedRuleId[] };
 
 export type LoadedEngine = {
   readonly mechanism: MechanismId;
   readonly runner: LoadedRunner;
-  readonly checksRunner: LoadedChecksRunner | undefined;
+  readonly checksRunner: ParsedChecksRunner | undefined;
 };
 
 export type EngineRunRequest = Omit<ChecksRunRequest, "bindings"> & { readonly bindings: readonly ClauseBinding[] };
@@ -119,7 +119,7 @@ const engineRunOfReport = (request: {
   readonly report: ChecksRunReport;
   readonly run: EngineRunRequest;
   readonly mechanism: MechanismId;
-  readonly projectedKinds: LoadedChecksRunner["projectedKinds"];
+  readonly projectedKinds: ParsedChecksRunner["projectedKinds"];
 }): Outcome<EngineRun> => {
   const [unrequested] = invalidReport(request);
   if (unrequested !== undefined) {
@@ -145,7 +145,7 @@ const engineRunOfReport = (request: {
   };
 };
 
-const checksRunOf = async (request: { readonly checksRunner: LoadedChecksRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
+const checksRunOf = async (request: { readonly checksRunner: ParsedChecksRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
   const returned: unknown = await Promise.resolve()
     .then(() => request.checksRunner.run(request.run))
     .catch((thrown: unknown) => ({ outcome: "failed", error: rejectedCall({ thrown }).error }));

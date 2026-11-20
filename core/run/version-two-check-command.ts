@@ -1,12 +1,12 @@
 import { argumentsInvalid } from "../check/argument-problem.ts";
 import { type CheckArguments, parseCheckArguments } from "../check/command-arguments.ts";
-import type { CommandOutcome } from "../check/command-outcome.ts";
+import { type CommandOutcome, loadFailureOutcome } from "../check/command-outcome.ts";
 import { installRootOf } from "../check/install-root.ts";
 import type { LoadFailure } from "../check/load-failure.ts";
 import { packageLinkOf } from "../check/package-link.ts";
 import { type CommandRequest, printOutcome } from "../check/run-check-command.ts";
 import { shownPathOf } from "../check/shown-path.ts";
-import { projectCommandOf, pruneCommandOf, upgradeCommandOf } from "../check/tool-invocations.ts";
+import { projectCommandOf, pruneCommandOf } from "../check/tool-invocations.ts";
 import { runLoadFailureLine } from "../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { renderRunReportText } from "../report/run-report-text.ts";
@@ -21,8 +21,6 @@ const SYMPTOM_PAGE_SEGMENTS: readonly string[] = ["rules", "typescript", "sympto
 
 const LOAD_FAILURE_CODE = 2;
 
-const UPGRADE_NOT_YET_KNOWN = "";
-
 export type StagesOver = (request: { readonly ports: VersionTwoPorts; readonly locations: VersionTwoLocations }) => VersionTwoStages;
 
 export type VersionTwoCheckRequest = {
@@ -33,7 +31,7 @@ export type VersionTwoCheckRequest = {
 
 export const installedStagesOver: StagesOver = versionTwoStagesOver;
 
-type Commands = { readonly project: string; readonly prune: string; readonly upgrade: string };
+type Commands = { readonly project: string; readonly prune: string };
 
 type Located = {
   readonly arguments: CheckArguments;
@@ -41,16 +39,6 @@ type Located = {
   readonly installRoot: AbsolutePath;
   readonly commands: Commands;
 };
-
-const runFailureOfLoad = (request: { readonly failure: LoadFailure }): RunLoadFailure => {
-  const { failure } = request;
-  return failure.kind === "arguments-invalid" || failure.kind === "install-root-unresolvable" ? failure : { kind: "unexpected-error", detail: failure.kind };
-};
-
-const failedAs = (request: { readonly failure: LoadFailure }): Result<never, RunLoadFailure> => ({
-  outcome: "failed",
-  error: runFailureOfLoad(request),
-});
 
 const commandsOf = (request: { readonly command: CommandRequest; readonly arguments: CheckArguments; readonly repoRoot: AbsolutePath }): Result<Commands, LoadFailure> => {
   const { path, moduleUrl } = request.command;
@@ -60,31 +48,26 @@ const commandsOf = (request: { readonly command: CommandRequest; readonly argume
     return project;
   }
   const prune = pruneCommandOf({ ...invocation, baseRevision: request.arguments.baseRevision, forfeiture: request.arguments.forfeiture });
-  if (prune.outcome === "failed") {
-    return prune;
-  }
-  const upgrade = upgradeCommandOf(invocation);
-  return upgrade.outcome === "failed" ? upgrade : { outcome: "ok", value: { project: project.value, prune: prune.value, upgrade: upgrade.value } };
+  return prune.outcome === "failed" ? prune : { outcome: "ok", value: { project: project.value, prune: prune.value } };
 };
 
-const locatedOf = (request: { readonly command: CommandRequest }): Result<Located, RunLoadFailure> => {
+const locatedOf = (request: { readonly command: CommandRequest }): Result<Located, LoadFailure> => {
   const { command } = request;
   const parsed = parseCheckArguments({ arguments: command.process.arguments });
   if (parsed.outcome === "failed") {
-    return failedAs({ failure: parsed.error });
+    return parsed;
   }
   const resolved = command.path.resolve({ path: parsed.value.repo });
   if (resolved.outcome === "failed") {
-    const refused = argumentsInvalid({ problem: { kind: "repo-unresolvable", given: parsed.value.repo } });
-    return failedAs({ failure: refused.error });
+    return argumentsInvalid({ problem: { kind: "repo-unresolvable", given: parsed.value.repo } });
   }
   const installRoot = installRootOf({ path: command.path, moduleUrl: command.moduleUrl });
   if (installRoot.outcome === "failed") {
-    return failedAs({ failure: installRoot.error });
+    return installRoot;
   }
   const commands = commandsOf({ command, arguments: parsed.value, repoRoot: resolved.value });
   return commands.outcome === "failed"
-    ? failedAs({ failure: commands.error })
+    ? commands
     : { outcome: "ok", value: { arguments: parsed.value, repoRoot: resolved.value, installRoot: installRoot.value, commands: commands.value } };
 };
 
@@ -114,9 +97,9 @@ const runOutcomeOf = (request: { readonly command: CommandRequest; readonly loca
   };
 };
 
-const failureOutcomeOf = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string }): CommandOutcome => ({
+const failureOutcomeOf = (request: { readonly failure: RunLoadFailure }): CommandOutcome => ({
   code: LOAD_FAILURE_CODE,
-  text: `${runLoadFailureLine(request)}\n`,
+  text: `${runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined })}\n`,
 });
 
 const stagesOf = (request: VersionTwoCheckRequest & { readonly command: CommandRequest; readonly located: Located }): VersionTwoStages => {
@@ -135,14 +118,14 @@ const stagesOf = (request: VersionTwoCheckRequest & { readonly command: CommandR
 const outcomeOf = async (request: VersionTwoCheckRequest & { readonly command: CommandRequest }): Promise<CommandOutcome> => {
   const located = locatedOf(request);
   if (located.outcome === "failed") {
-    return failureOutcomeOf({ failure: located.error, upgradeCommand: UPGRADE_NOT_YET_KNOWN });
+    return loadFailureOutcome({ failure: located.error });
   }
   const run = await versionTwoRunOver({
     stages: stagesOf({ ...request, located: located.value }),
     arguments: { forfeiture: located.value.arguments.forfeiture, reportOutput: located.value.arguments.reportOutput },
   });
   return run.outcome === "failed"
-    ? failureOutcomeOf({ failure: run.error, upgradeCommand: located.value.commands.upgrade })
+    ? failureOutcomeOf({ failure: run.error })
     : runOutcomeOf({ command: request.command, located: located.value, run: run.value });
 };
 
