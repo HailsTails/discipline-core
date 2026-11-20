@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { runMechanism, type MechanismRun } from "./mechanism-dispatch.ts";
+import { runMechanism, type MechanismRun, type StandaloneLoadedRunner } from "./mechanism-dispatch.ts";
 import type { ClauseBinding } from "../settings/selection.ts";
 import { checksRunnerModuleSchema } from "../mechanism-port/checks-runner-module-schema.ts";
 import { checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
@@ -69,7 +69,7 @@ export const loadedEngineOf = async (request: {
 const clausesOf = (request: { readonly request: EngineRunRequest; readonly mechanism: MechanismId }) =>
   request.request.bindings.filter((binding) => binding.mechanism === request.mechanism).map((binding) => binding.clause);
 
-const standaloneRunOf = async (request: { readonly runner: LoadedRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
+const standaloneRunOf = async (request: { readonly runner: StandaloneLoadedRunner; readonly mechanism: MechanismId; readonly run: EngineRunRequest }): Promise<Outcome<EngineRun>> => {
   const ran = await runMechanism({
     runner: request.runner,
     mechanism: request.mechanism,
@@ -80,8 +80,6 @@ const standaloneRunOf = async (request: { readonly runner: LoadedRunner; readonl
       trackedPaths: request.run.trackedPaths,
       clauses: clausesOf({ request: request.run, mechanism: request.mechanism }),
     },
-    declaredConfigRoots: request.run.declaredConfigRoots,
-    records: [],
   });
   return ran.outcome === "failed" ? runnerFailed({ mechanism: request.mechanism, failure: ran.error }) : { outcome: "ok", value: { ...ran.value, misnamedRuleIds: [] } };
 };

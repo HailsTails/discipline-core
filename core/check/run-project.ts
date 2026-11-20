@@ -6,7 +6,7 @@ import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { Result } from "../values/result.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import type { CheckedTree } from "../run/checked-tree-of.ts";
-import { projectMechanism } from "../run/mechanism-dispatch.ts";
+import { projectMechanism } from "../upgrade/engine-protocol/mechanism-dispatch.ts";
 import {
   allOk,
   type CheckRequest,

@@ -1,25 +1,18 @@
 import { z } from "zod";
-import { embeddedRunReportSchema, type SliceProblem, type UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
-import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
+import type { SliceProblem, UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import {
   type RunnerFailure,
   rejectedCall,
   runnerInvalidOutput,
 } from "../mechanism-port/runner-failure.ts";
-import type {
-  LoadedRunner,
-  ProjectionRequest,
-  RunRequest,
-} from "../mechanism-port/runner-module-schema.ts";
+import type { LoadedRunner, RunRequest } from "../mechanism-port/runner-module-schema.ts";
 import {
   type Hit,
   type MeasuredPair,
   type NativeException,
   type ProjectionState,
-  type ProjectionWrite,
   runnerResultSchema,
 } from "../mechanism-port/runner-result-schema.ts";
-import { projectionWriteSchema } from "../mechanism-port/runner-result-schema.ts";
 import { standaloneRunReportSchema } from "../mechanism-port/standalone-run-report-schema.ts";
 import { clauseAddressText, sameClauseAddress } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
@@ -39,20 +32,9 @@ export type MechanismRun = {
 
 const STANDALONE_COVERABLE_KINDS: readonly NativeException["kind"][] = ["inline-disable"];
 
-const NOTHING_MEASURED: readonly MeasuredPair[] = [];
+export const NOTHING_MEASURED: readonly MeasuredPair[] = [];
 
-export type MechanismRequest = {
-  readonly runner: LoadedRunner;
-  readonly mechanism: MechanismId;
-  readonly run: RunRequest;
-  readonly declaredConfigRoots: readonly RepoPath[];
-  readonly records: readonly ExceptionRecord[];
-};
-
-export type MechanismProjectionRequest = {
-  readonly runner: LoadedRunner;
-  readonly request: ProjectionRequest;
-};
+export type StandaloneLoadedRunner = Extract<LoadedRunner, { readonly exceptionPath: "standalone" }>;
 
 const standaloneResultSchema = runnerResultSchema({ value: standaloneRunReportSchema });
 
@@ -76,7 +58,7 @@ type FiledGroup = {
   readonly entries: readonly FiledClause[];
 };
 
-const firstUnrequestedDetail = (request: {
+export const firstUnrequestedDetail = (request: {
   readonly groups: readonly FiledGroup[];
   readonly run: RunRequest;
   readonly checkedFiles: readonly RepoPath[];
@@ -140,11 +122,7 @@ const standaloneRun = (request: {
   };
 };
 
-const reportResultSchema = runnerResultSchema({ value: embeddedRunReportSchema });
-
-const projectionWriteResultSchema = runnerResultSchema({ value: z.array(projectionWriteSchema).readonly() });
-
-const unrequestedNativeException = (request: {
+export const unrequestedNativeException = (request: {
   readonly nativeExceptions: readonly NativeException[];
   readonly run: RunRequest;
 }): NativeException | undefined =>
@@ -156,116 +134,16 @@ const unrequestedNativeException = (request: {
       ),
   );
 
-const embeddedRun = (request: {
-  readonly returned: unknown;
+export const runMechanism = (request: {
+  readonly runner: StandaloneLoadedRunner;
   readonly mechanism: MechanismId;
-  readonly projectedKinds: readonly NativeException["kind"][];
   readonly run: RunRequest;
-}): Result<MechanismRun, RunnerFailure> => {
-  const parsed = reportResultSchema.safeParse(request.returned);
-  if (!parsed.success) {
-    return runnerInvalidOutput({ detail: z.prettifyError(parsed.error) });
-  }
-  if (parsed.data.outcome === "failed") {
-    return parsed.data;
-  }
-  const report = parsed.data.value;
-  const unrequested = firstUnrequestedDetail({
-    groups: [
-      { noun: "a hit", entries: report.hits },
-      { noun: "a measured pair", entries: report.measured ?? NOTHING_MEASURED },
-    ],
-    run: request.run,
-    checkedFiles: request.run.files,
-  });
-  if (unrequested !== undefined) {
-    return runnerInvalidOutput({ detail: unrequested });
-  }
-  const unrequestedNative = unrequestedNativeException({
-    nativeExceptions: report.nativeExceptions,
-    run: request.run,
-  });
-  if (unrequestedNative !== undefined) {
-    return runnerInvalidOutput({
-      detail: `a native exception names ${clauseAddressText({ address: unrequestedNative.clause })}, which the request did not hold`,
-    });
-  }
-  return {
-    outcome: "ok",
-    value: {
-      mechanism: request.mechanism,
-      hits: report.hits,
-      nativeExceptions: report.nativeExceptions,
-      coverableKinds: request.projectedKinds,
-      projection: report.projection,
-      slices: report.slices,
-      unprojectedFolders: report.unprojectedFolders,
-      measured: report.measured ?? NOTHING_MEASURED,
-    },
-  };
-};
-
-const embeddedProjection = (request: {
-  readonly returned: unknown;
-}): Result<readonly ProjectionWrite[], RunnerFailure> => {
-  const parsed = projectionWriteResultSchema.safeParse(request.returned);
-  if (!parsed.success) {
-    return runnerInvalidOutput({ detail: z.prettifyError(parsed.error) });
-  }
-  if (parsed.data.outcome === "failed") {
-    return parsed.data;
-  }
-  return parsed.data;
-};
-
-export const runMechanism = (
-  request: MechanismRequest,
-): Promise<Result<MechanismRun, RunnerFailure>> => {
-  switch (request.runner.exceptionPath) {
-    case "standalone": {
-      const runner = request.runner;
-      return Promise.resolve()
-        .then(() => runner.run(request.run))
-        .then(
-          (returned) => standaloneRun({ returned, mechanism: request.mechanism, run: request.run }),
-          (thrown: unknown) => rejectedCall({ thrown }),
-        );
-    }
-    case "embedded": {
-      const runner = request.runner;
-      return Promise.resolve()
-        .then(() =>
-          runner.run({ ...request.run, declaredConfigRoots: request.declaredConfigRoots, records: request.records }),
-        )
-        .then(
-          (returned) =>
-            embeddedRun({
-              returned,
-              mechanism: request.mechanism,
-              projectedKinds: runner.projectedKinds,
-              run: request.run,
-            }),
-          (thrown: unknown) => rejectedCall({ thrown }),
-        );
-    }
-  }
-};
-
-export const projectMechanism = (
-  request: MechanismProjectionRequest,
-): Promise<Result<readonly ProjectionWrite[], RunnerFailure>> => {
-  switch (request.runner.exceptionPath) {
-    case "standalone": {
-      return Promise.resolve({ outcome: "ok", value: [] });
-    }
-    case "embedded": {
-      const runner = request.runner;
-      return Promise.resolve()
-        .then(() => runner.project(request.request))
-        .then(
-          (returned) => embeddedProjection({ returned }),
-          (thrown: unknown) => rejectedCall({ thrown }),
-        );
-    }
-  }
+}): Promise<Result<MechanismRun, RunnerFailure>> => {
+  const { runner } = request;
+  return Promise.resolve()
+    .then(() => runner.run(request.run))
+    .then(
+      (returned) => standaloneRun({ returned, mechanism: request.mechanism, run: request.run }),
+      (thrown: unknown) => rejectedCall({ thrown }),
+    );
 };

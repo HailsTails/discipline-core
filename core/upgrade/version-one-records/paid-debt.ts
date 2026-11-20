@@ -1,4 +1,5 @@
-import type { AttributedNativeException, ExemptedFinding, Finding } from "../../governance/governance.ts";
+import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
+import type { ExemptedFinding } from "../answering/governance.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import { type DebtPair, debtPairKey, distinctDebtPairs } from "./debt-pair.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
