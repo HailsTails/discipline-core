@@ -234,15 +234,16 @@ describe("eslintRepositoryOver, projection files", () => {
 });
 
 describe("eslintRepositoryOver, the config lookup", () => {
-  it("decides the lookup the boundary selects when disciplines.json declares none", () => {
+  it("decides the lookup the boundary selects when ESLint is installed and disciplines.json declares none, reading both under the root", () => {
     const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
     const repository = rootSelectingRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.configLookup({ trackedPaths: [] })).toBe("repository-root");
     expect(fileText.read).toHaveBeenNthCalledWith(1, { path: "/repo/disciplines.json" });
+    expect(fileText.read).toHaveBeenNthCalledWith(2, { path: "/repo/node_modules/eslint/package.json" });
   });
 
-  it("decides nearest-to-file when the boundary selects it", () => {
-    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+  it("decides nearest-to-file when the installed ESLint cannot be read, whatever the boundary selects", () => {
+    const repository = rootSelectingRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
   });
 
@@ -281,8 +282,8 @@ describe("eslintRepositoryOver, the config lookup", () => {
     expect(fileText.exists).toHaveBeenCalledExactlyOnceWith({ path: "/repo/eslint.config.js" });
   });
 
-  it("gives the nearest-to-file team config lookup when the boundary selects it", () => {
-    const repository = eslintRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+  it("gives the nearest-to-file team config lookup when the installed ESLint cannot be read", () => {
+    const repository = rootSelectingRepositoryOver({ fileText: fileTextReading(UNREADABLE), fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.teamConfigLookup({ trackedPaths: [] })).toEqual({ outcome: "ok", value: { kind: "nearest-to-file" } });
   });
 });

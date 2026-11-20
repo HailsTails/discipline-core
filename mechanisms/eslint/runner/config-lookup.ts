@@ -6,13 +6,15 @@ import { parsedJson } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import { packageJsonSchema } from "./eslint-file-schemas.ts";
+import { eslintVersionFileSchema, packageJsonSchema } from "./eslint-file-schemas.ts";
 import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 import { eslintInvocationsOf, scriptCommandsOf } from "./package-script-scanner.ts";
 
 export type ConfigLookup =
   | { readonly kind: "nearest-to-file" }
   | { readonly kind: "repository-root"; readonly configFile: string };
+
+const ESLINT_PACKAGE_JSON = ["node_modules", "eslint", "package.json"];
 
 const PACKAGE_JSON_NAME = "package.json";
 
@@ -81,8 +83,14 @@ export const folderConfigurationOf = (
     ? "configured"
     : "unconfigured";
 
+const rootEslintOf = (request: Pick<LookupRequest, "fileText" | "path" | "repoRoot">): "installed" | "not-installed" => {
+  const text = request.fileText.read({ path: request.path.join({ segments: [request.repoRoot, ...ESLINT_PACKAGE_JSON] }) });
+  const json = text.outcome === "ok" ? parsedJson({ text: text.value }) : undefined;
+  return json?.outcome === "ok" && eslintVersionFileSchema.safeParse(json.value).success ? "installed" : "not-installed";
+};
+
 const detectedLookup = (request: LookupRequest): EslintConfigLookup =>
-  request.boundary.lookupSelectedBy({ flags: lintScriptFlags(request) });
+  rootEslintOf(request) === "installed" ? request.boundary.lookupSelectedBy({ flags: lintScriptFlags(request) }) : "nearest-to-file";
 
 export const configLookupDeclaring = (request: LookupRequest & { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookup =>
   request.declared ?? detectedLookup(request);

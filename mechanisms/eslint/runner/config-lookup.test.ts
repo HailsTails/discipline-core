@@ -31,6 +31,8 @@ const noFiles: FileTextPort = {
   write: vi.fn<FileTextPort["write"]>(),
 };
 
+const ESLINT_INSTALLED = { "/repo/node_modules/eslint/package.json": '{ "version": "1.0.0" }' };
+
 const lintScript = (request: { readonly command: string }) => ({
   "/repo/package.json": `{ "scripts": { "lint": "${request.command}" } }`,
 });
@@ -56,7 +58,7 @@ const lookupDeclaring = (request: {
 
 describe("teamConfigLookupFor", () => {
   it("names the settings file it was given when the repository root has no config for a root-only lookup", () => {
-    expect(lookupDeclaring({ files: {}, boundary: SELECTS_ROOT, declared: undefined })).toEqual({
+    expect(lookupDeclaring({ files: ESLINT_INSTALLED, boundary: SELECTS_ROOT, declared: undefined })).toEqual({
       outcome: "failed",
       error: {
         kind: "team-config-unloadable",
@@ -67,18 +69,29 @@ describe("teamConfigLookupFor", () => {
   });
 
   it("looks configs up nearest to each file when the boundary says its ESLint does by default", () => {
-    expect(lookupDeclaring({ files: ROOT_CONFIG, boundary: SELECTS_NEAREST, declared: undefined })).toEqual(NEAREST);
+    expect(lookupDeclaring({ files: { ...ESLINT_INSTALLED, ...ROOT_CONFIG }, boundary: SELECTS_NEAREST, declared: undefined })).toEqual(NEAREST);
+  });
+
+  it.each([
+    { name: "an ESLint that is not installed at the repository root", files: ROOT_CONFIG },
+    { name: "an ESLint whose package file at the repository root names no version", files: { ...ROOT_CONFIG, "/repo/node_modules/eslint/package.json": "{}" } },
+  ])("looks configs up nearest to each file for $name, whatever the boundary selects", ({ files }) => {
+    expect(lookupDeclaring({ files, boundary: SELECTS_ROOT, declared: undefined })).toEqual(NEAREST);
   });
 
   it.each([
     { name: "--flag a-lookup-flag", command: "eslint --flag a-lookup-flag ." },
     { name: "--flag=a-lookup-flag", command: "eslint --flag=a-lookup-flag ." },
   ])("hands the flags the lint scripts name to the boundary, which selects the nearest lookup for $name", ({ command }) => {
-    expect(lookupDeclaring({ files: { ...lintScript({ command }), ...ROOT_CONFIG }, boundary: NEAREST_ON_FLAG, declared: undefined })).toEqual(NEAREST);
+    expect(
+      lookupDeclaring({ files: { ...ESLINT_INSTALLED, ...lintScript({ command }), ...ROOT_CONFIG }, boundary: NEAREST_ON_FLAG, declared: undefined }),
+    ).toEqual(NEAREST);
   });
 
   it("looks only at the root config when the boundary finds no lookup flag in the lint scripts", () => {
-    expect(lookupDeclaring({ files: { ...lintScript({ command: "eslint ." }), ...ROOT_CONFIG }, boundary: NEAREST_ON_FLAG, declared: undefined })).toEqual(ROOT);
+    expect(
+      lookupDeclaring({ files: { ...ESLINT_INSTALLED, ...lintScript({ command: "eslint ." }), ...ROOT_CONFIG }, boundary: NEAREST_ON_FLAG, declared: undefined }),
+    ).toEqual(ROOT);
   });
 
   it("lets a declared nearest-to-file win over what the boundary selects", () => {

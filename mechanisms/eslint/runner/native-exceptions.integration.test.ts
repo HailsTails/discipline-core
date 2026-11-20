@@ -530,6 +530,10 @@ describe.each(ESLINT_LINES)("checkConformance over the ESLint runner as core loa
   });
 });
 
+const ESLINT_PACKAGE_JSON = "node_modules/eslint/package.json";
+
+const INSTALLED_ESLINT = JSON.stringify({ name: "eslint", version: "1.0.0" });
+
 const LINT_SCRIPT_PACKAGE_JSON = "package.json";
 
 const lintScript = (request: { readonly command: string }): string => JSON.stringify({ scripts: { lint: request.command } });
@@ -544,6 +548,7 @@ const monorepoRun = async (request: {
     fileText: overlaidFileText({
       base: fileText,
       files: {
+        [`${consumerRepo({ name: request.name })}/${ESLINT_PACKAGE_JSON}`]: INSTALLED_ESLINT,
         [`${consumerRepo({ name: request.name })}/${LINT_SCRIPT_PACKAGE_JSON}`]: lintScript({ command: request.lintCommand }),
       },
     }),

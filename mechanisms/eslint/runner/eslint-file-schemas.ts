@@ -14,4 +14,6 @@ export const suppressionsFileSchema = z.record(
 
 export type SuppressionsFile = z.infer<typeof suppressionsFileSchema>;
 
+export const eslintVersionFileSchema = z.looseObject({ version: z.string() });
+
 export const selectionLookupSchema = z.looseObject({ eslintConfigLookup: eslintConfigLookupSchema.optional() });
