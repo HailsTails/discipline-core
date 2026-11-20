@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ClauseBinding } from "../core/consumer-selection/selection.ts";
+import type { ClauseBinding } from "../core/settings/selection.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { FIRST_EDITION } from "../core/values/edition.ts";

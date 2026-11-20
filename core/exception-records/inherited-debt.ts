@@ -7,8 +7,6 @@ import { type DebtPair, debtPairKey, distinctDebtPairs, entryPairKey } from "./d
 import type { FileCarveOutEntry } from "./exception-record.ts";
 import type { PlacedEntry } from "./exception-records.ts";
 
-export const RECORD_DEBT_SUBCOMMAND = "record-debt";
-
 export type InheritedDebtOutcome =
   | (DebtPair & { readonly effect: "recorded" | "new-file" | "refused" })
   | (DebtPair & { readonly effect: "already-recorded"; readonly heldIn: RepoPath })

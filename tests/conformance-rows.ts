@@ -1,5 +1,5 @@
 import { assert, vi } from "vitest";
-import { defaultClauseSettings } from "../core/consumer-selection/clause-settings.ts";
+import { defaultClauseSettings } from "../core/settings/default-clause-settings.ts";
 import type { RunnerClause } from "../core/mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";

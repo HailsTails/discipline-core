@@ -1,4 +1,5 @@
-import { createSelectionRepository, readRunSettings, type RunSettings } from "../consumer-selection/consumer-selection.ts";
+import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import type { RunSettings } from "../settings/run-settings.ts";
 import type { DebtPair } from "../exception-records/debt-pair.ts";
 import type { ExceptionRepository } from "../exception-records/exception-records.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

@@ -1,23 +1,9 @@
-import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import { RESERVED_EDITION_SETTING } from "../rule-set-reader/rule-set-reader.ts";
 import type { CheckEditions } from "../values/check-editions.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
 import type { ClauseEditions, Edition } from "../values/edition.ts";
 import type { ReadonlyJsonValue } from "../values/json-value.ts";
 import type { Result } from "../values/result.ts";
-
-export type EditionPin = {
-  readonly pin: ReadonlyJsonValue | undefined;
-  readonly rest: ClauseSettingValues | undefined;
-};
-
-export const editionPinOf = (request: { readonly given: ClauseSettingValues | undefined }): EditionPin => {
-  if (request.given === undefined || !Object.hasOwn(request.given, RESERVED_EDITION_SETTING)) {
-    return { pin: undefined, rest: request.given };
-  }
-  const { [RESERVED_EDITION_SETTING]: pin, ...rest } = request.given;
-  return { pin, rest: Object.keys(rest).length === 0 ? undefined : rest };
-};
 
 const UNPINNED_EDITIONS: Readonly<Record<CheckEditions, (editions: ClauseEditions) => Edition>> = {
   pinned: (editions) => editions.default,

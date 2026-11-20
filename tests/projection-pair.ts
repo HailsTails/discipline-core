@@ -1,4 +1,4 @@
-import type { ClauseBinding } from "../core/consumer-selection/selection.ts";
+import type { ClauseBinding } from "../core/settings/selection.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import { checksOf } from "../core/symptom-catalogue/check-address.ts";
 import type { SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ClauseBinding } from "../../../core/consumer-selection/selection.ts";
+import type { ClauseBinding } from "../../../core/settings/selection.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import type { Check } from "../../../core/symptom-catalogue/symptom-catalogue.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";

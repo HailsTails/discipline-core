@@ -1,7 +1,7 @@
 import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
-import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
+import { PRUNE_DEBT_SUBCOMMAND } from "../command-line/subcommand-names.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";

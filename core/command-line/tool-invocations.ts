@@ -1,4 +1,4 @@
-import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
+import { PRUNE_DEBT_SUBCOMMAND } from "./subcommand-names.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { ForfeitureAssessment } from "../values/assessment.ts";

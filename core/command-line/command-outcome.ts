@@ -1,6 +1,7 @@
 import type { DebtPair } from "../exception-records/debt-pair.ts";
 import type { RecordsSplit } from "../exception-records/exception-records.ts";
-import { type InheritedDebtOutcome, RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
+import type { InheritedDebtOutcome } from "../exception-records/inherited-debt.ts";
+import { RECORD_DEBT_SUBCOMMAND } from "./subcommand-names.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { ExitCode } from "../platform-ports/process-port.ts";
