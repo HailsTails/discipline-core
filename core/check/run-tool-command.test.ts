@@ -290,7 +290,7 @@ describe("TOOL_SUBCOMMANDS authorise, which has no version 1 form", () => {
 });
 
 describe("TOOL_SUBCOMMANDS on a repository holding hone.config.json", () => {
-  it.each(["project", "split-records"] as const)(
+  it.each(["split-records"] as const)(
     "prints one not-ready-yet line naming %s and exits 2",
     async (subcommand) => {
       const processPort = processWith({ arguments: ["--repo", "/repo"] });

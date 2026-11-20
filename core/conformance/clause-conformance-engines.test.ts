@@ -89,6 +89,7 @@ const checksRunner = () => ({
   projectedKinds: [],
   run: vi.fn<LoadedRunner["run"]>(),
   conform: vi.fn<LoadedRunner["conform"]>().mockResolvedValue(REPRODUCING_EVERY_CASE),
+  project: vi.fn<LoadedRunner["run"]>(),
 });
 
 const conformanceOver = (namespace: unknown) =>
@@ -152,7 +153,7 @@ describe("clauseConformanceOf, by the kind of engine the runner module declares"
   });
 
   it("is runner-unloadable when the checks runner exports no conform", async () => {
-    const withoutConform = { projectedKinds: [], run: vi.fn<LoadedRunner["run"]>() };
+    const withoutConform = { projectedKinds: [], run: vi.fn<LoadedRunner["run"]>(), project: vi.fn<LoadedRunner["run"]>() };
     await expect(conformanceOver({ runner: embeddedRunner(), checksRunner: withoutConform })).resolves.toEqual({
       outcome: "failed",
       error: {
