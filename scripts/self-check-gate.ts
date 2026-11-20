@@ -1,5 +1,5 @@
-import { type CommandOutcome, type GuidedCheckRun, guidedCheckCommandOutcome } from "../core/check/command-outcome.ts";
-import type { LoadFailure } from "../core/check/load-failure.ts";
+import { type CommandOutcome, type GuidedCheckRun, guidedCheckCommandOutcome } from "../core/command-line/command-outcome.ts";
+import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import { runProjectCommand } from "../core/check/run-project-command.ts";
 import { runPruneDebtCommand } from "../core/check/run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "../core/check/run-record-debt-command.ts";

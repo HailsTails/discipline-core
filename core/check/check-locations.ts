@@ -2,10 +2,10 @@ import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
-import { argumentsInvalid } from "./argument-problem.ts";
-import { type CheckArguments, parseCheckArguments } from "./command-arguments.ts";
-import { installRootOf } from "./install-root.ts";
-import type { LoadFailure } from "./load-failure.ts";
+import { argumentsInvalid } from "../command-line/argument-problem.ts";
+import { type CheckArguments, parseCheckArguments } from "../command-line/command-arguments.ts";
+import { installRootOf } from "../command-line/install-root.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 
 const SELECTION_FILE_NAME = "disciplines.json";
 

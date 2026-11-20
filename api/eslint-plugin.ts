@@ -1,5 +1,5 @@
-import { installRootOfApiEntry } from "../core/check/install-root.ts";
-import { loadFailureText } from "../core/check/load-failure-text.ts";
+import { installRootOfApiEntry } from "../core/command-line/install-root.ts";
+import { loadFailureText } from "../core/command-line/load-failure-text.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { withSingleFileRecords, } from "./records-disk.ts";
-import type { LoadFailure } from "../core/check/load-failure.ts";
+import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import type { ReturnedEmbeddedRunReport } from "../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner, EmbeddedRunRequest } from "../core/mechanism-port/embedded-runner-module-schema.ts";

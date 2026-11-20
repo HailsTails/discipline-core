@@ -11,11 +11,9 @@ import type { MechanismId } from "../values/identifiers.ts";
 import type { ModuleExtension } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
 import { answeredFilesOf } from "./answered-files.ts";
-import type { CheckedTree } from "./checked-tree-of.ts";
+import { type CheckedTree, typescriptFilesOf } from "./checked-tree-of.ts";
 import { type EngineRun, type EngineRunRequest, engineRunOf, loadedEngineOf } from "./engine-run.ts";
 import { type RunFailureSource, runFailureOf } from "./run-failure.ts";
-
-const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
 
 export type EnginesRunRequest = {
   readonly catalogue: SymptomCatalogue;
@@ -41,7 +39,7 @@ const declaredLookupOf = (request: { readonly settings: SettingsReading }): Esli
 const runRequestOf = (request: EnginesRunRequest): EngineRunRequest => ({
   repoRoot: request.repoRoot,
   installRoot: request.installRoot,
-  files: request.tree.tracked.filter((trackedPath) => TYPESCRIPT_FILE.test(trackedPath)),
+  files: typescriptFilesOf({ tracked: request.tree.tracked }),
   trackedPaths: request.tree.tracked,
   checks: request.catalogue.checks,
   bindings: request.settings.selection.bindings,

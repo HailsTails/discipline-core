@@ -5,8 +5,8 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
-import { type PackageLink, packageLinkOf } from "./package-link.ts";
-import { shownPathOf } from "./shown-path.ts";
+import { type PackageLink, packageLinkOf } from "../command-line/package-link.ts";
+import { shownPathOf } from "../command-line/shown-path.ts";
 import type { AssessmentFileNote, AssessmentSection, ClauseReading, ReadFirstEntry } from "../verdict/check-report.ts";
 
 type AssessmentHeadings =

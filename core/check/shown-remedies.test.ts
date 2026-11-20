@@ -5,7 +5,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { UNLINKED } from "./package-link.ts";
+import { UNLINKED } from "../command-line/package-link.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 
 const WINDOWS = createPathPort({ flavour: "windows", workingDirectory: () => "C:\\work" });

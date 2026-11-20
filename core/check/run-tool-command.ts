@@ -2,10 +2,10 @@ import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.t
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
 import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
 import { installedStagesOver, versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
-import { parseInvocation } from "./command-arguments.ts";
+import { parseInvocation } from "../command-line/command-arguments.ts";
 import { helpText } from "./command-help.ts";
-import type { Subcommand } from "./command-line.ts";
-import { loadFailureOutcome, versionCommandOutcome } from "./command-outcome.ts";
+import type { Subcommand } from "../command-line/command-line.ts";
+import { loadFailureOutcome, versionCommandOutcome } from "../command-line/command-outcome.ts";
 import { installedVersionOf } from "./installed-version.ts";
 import { type CommandRequest, printOutcome } from "./run-check-command.ts";
 import { runGuidedCheckCommand } from "./run-guided-check-command.ts";
