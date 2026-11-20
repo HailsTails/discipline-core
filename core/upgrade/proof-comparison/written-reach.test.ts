@@ -17,7 +17,12 @@ const CARVE_OUT_INPUT: RecordInput = {
   answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] },
 };
 
-const AUTHORISED_INPUT: RecordInput = { kind: "authorised-location", record: { clause: TEST_BODY_CLAUSE, file: SRC_A }, entry: { kind: "authorised-location" } };
+const AUTHORISED_INPUT: RecordInput = {
+  kind: "authorised-location",
+  record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
+  entry: { kind: "authorised-location" },
+  answer: { reach: "whole-clause" },
+};
 
 const DEBT: WrittenRecord = { symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" };
 

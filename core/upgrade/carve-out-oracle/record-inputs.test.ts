@@ -48,15 +48,31 @@ describe("recordInputsOf", () => {
     });
   });
 
-  it("passes the other records through as they were read, in the order they came", () => {
+  it("gives an authorised location the answer the oracle gave for that very record", () => {
+    expect(
+      recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [{ record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] }),
+    ).toEqual({ outcome: "ok", value: [{ ...AUTHORISED_HEAD, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
+  });
+
+  it("passes a clause-wide carve-out through as it was read, and keeps every record in the order it came", () => {
     expect(
       recordInputsOf({
         heads: [AUTHORISED_HEAD, CARVE_OUT_HEAD, CLAUSE_WIDE_HEAD],
-        answered: [{ record: CARVE_OUT, answer: { credit: "nothing" } }],
+        answered: [
+          { record: CARVE_OUT, answer: { credit: "nothing" } },
+          { record: AUTHORISED, answer: { reach: "whole-clause" } },
+        ],
       }),
     ).toEqual({
       outcome: "ok",
-      value: [AUTHORISED_HEAD, { ...CARVE_OUT_HEAD, answer: { credit: "nothing" } }, CLAUSE_WIDE_HEAD],
+      value: [{ ...AUTHORISED_HEAD, answer: { reach: "whole-clause" } }, { ...CARVE_OUT_HEAD, answer: { credit: "nothing" } }, CLAUSE_WIDE_HEAD],
+    });
+  });
+
+  it("fails naming the clause and file of an authorised location the oracle gave no answer for", () => {
+    expect(recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [] })).toEqual({
+      outcome: "failed",
+      error: { kind: "location-unanswered", clause: "CD-15#loops", file: "src/b.ts" },
     });
   });
 

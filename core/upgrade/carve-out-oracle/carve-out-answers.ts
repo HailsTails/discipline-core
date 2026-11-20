@@ -6,16 +6,13 @@ import { clauseAddressText, sameClauseAddress } from "../../values/clause-addres
 import type { Result } from "../../values/result.ts";
 import type { GovernanceResult } from "../answering/governance.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
-import type { CarveOutAnswered, FileCarveOutRecord, OracleFailure } from "./carve-out-oracle.ts";
+import type { AuthorisedLocationRecord, CarveOutAnswered, FileCarveOutRecord, LocationAnswered, OracleFailure, RecordAnswered } from "./carve-out-oracle.ts";
 
 export type CarveOutAnswersRequest = {
   readonly records: readonly ExceptionRecord[];
   readonly governed: GovernanceResult;
   readonly catalogues: readonly RuleSetCatalogue[];
 };
-
-const fileCarveOutsOf = (request: { readonly records: readonly ExceptionRecord[] }): readonly FileCarveOutRecord[] =>
-  request.records.flatMap((record) => (record.kind === "file-carve-out" ? [record] : []));
 
 const attributionFailureOf = (request: { readonly finding: Finding }): OracleFailure => ({
   kind: "finding-not-attributable",
@@ -47,7 +44,10 @@ const doublyHeldFailureOf = (request: { readonly record: FileCarveOutRecord; rea
     ? { kind: "record-doubly-held", clause: clauseAddressText({ address: request.record.clause }), file: request.record.file }
     : undefined;
 
-const answeredOf = (request: {
+const findingsExemptedBy = (request: { readonly record: ExceptionRecord; readonly governed: GovernanceResult }): readonly Finding[] =>
+  request.governed.exempted.filter((exempted) => exempted.by.includes(request.record)).map((exempted) => exempted.finding);
+
+const carveOutAnsweredOf = (request: {
   readonly record: FileCarveOutRecord;
   readonly governed: GovernanceResult;
   readonly catalogues: readonly RuleSetCatalogue[];
@@ -57,7 +57,7 @@ const answeredOf = (request: {
   if (doublyHeld !== undefined) {
     return { outcome: "failed", error: doublyHeld };
   }
-  const credited = governed.exempted.filter((exempted) => exempted.by.includes(record)).map((exempted) => exempted.finding);
+  const credited = findingsExemptedBy({ record, governed });
   if (credited.length > 0) {
     const checks = checksOfFindings({ findings: credited, catalogues });
     return checks.outcome === "failed" ? checks : { outcome: "ok", value: { record, answer: { credit: "findings", checks: checks.value } } };
@@ -68,10 +68,38 @@ const answeredOf = (request: {
   };
 };
 
-export const carveOutAnswersOf = (request: CarveOutAnswersRequest): Result<readonly CarveOutAnswered[], OracleFailure> => {
-  const answered = fileCarveOutsOf({ records: request.records }).map((record) =>
-    answeredOf({ record, governed: request.governed, catalogues: request.catalogues }),
-  );
+const locationAnsweredOf = (request: {
+  readonly record: AuthorisedLocationRecord;
+  readonly governed: GovernanceResult;
+  readonly catalogues: readonly RuleSetCatalogue[];
+}): Result<LocationAnswered, OracleFailure> => {
+  const { record, governed, catalogues } = request;
+  const credited = findingsExemptedBy({ record, governed });
+  if (credited.length === 0) {
+    return { outcome: "ok", value: { record, answer: { reach: "whole-clause" } } };
+  }
+  const checks = checksOfFindings({ findings: credited, catalogues });
+  return checks.outcome === "failed" ? checks : { outcome: "ok", value: { record, answer: { reach: "answered-checks", checks: checks.value } } };
+};
+
+const answeredOf = (request: {
+  readonly record: ExceptionRecord;
+  readonly governed: GovernanceResult;
+  readonly catalogues: readonly RuleSetCatalogue[];
+}): readonly Result<RecordAnswered, OracleFailure>[] => {
+  const { record, governed, catalogues } = request;
+  switch (record.kind) {
+    case "file-carve-out":
+      return [carveOutAnsweredOf({ record, governed, catalogues })];
+    case "authorised-location":
+      return [locationAnsweredOf({ record, governed, catalogues })];
+    case "clause-wide-carve-out":
+      return [];
+  }
+};
+
+export const carveOutAnswersOf = (request: CarveOutAnswersRequest): Result<readonly RecordAnswered[], OracleFailure> => {
+  const answered = request.records.flatMap((record) => answeredOf({ record, governed: request.governed, catalogues: request.catalogues }));
   const failed = answered.find((each) => each.outcome === "failed");
   return failed ?? { outcome: "ok", value: answered.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };
 };

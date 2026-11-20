@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import { LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
 import type { Finding } from "../../governance/governance.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
@@ -153,14 +154,76 @@ describe("carveOutAnswersOf answering a file carve-out that exempted no finding"
   });
 });
 
-describe("carveOutAnswersOf over every record of the file", () => {
-  it("answers only the file carve-outs, in the order the records were given", () => {
-    const second: ExceptionRecord = { ...CARVE_OUT, file: repoPathSchema.parse("src/b.ts") };
+describe("carveOutAnswersOf crediting an authorised location with the findings it exempted", () => {
+  const authorisedOnLoops: ExceptionRecord = { ...AUTHORISED, clause: LOOPS_CLAUSE };
+
+  it("credits the check a finding names, and no other check of the clause", () => {
     expect(
-      carveOutAnswersOf({ records: [AUTHORISED, CARVE_OUT, second], governed: { ...NOTHING_GOVERNED, stale: [CARVE_OUT, second] }, catalogues }),
+      carveOutAnswersOf({
+        records: [authorisedOnLoops],
+        governed: { ...NOTHING_GOVERNED, exempted: [{ finding: LOOP_FINDING, by: [authorisedOnLoops] }] },
+        catalogues,
+      }),
+    ).toEqual({ outcome: "ok", value: [{ record: authorisedOnLoops, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
+  });
+
+  it("credits each check of the findings it exempted, in the order the findings came", () => {
+    const forLoop: Finding = { ...LOOP_FINDING, clause: TEST_BODY_CLAUSE, check: "loop-keyword#test-body" };
+    const rebinding: Finding = { ...LOOP_FINDING, clause: TEST_BODY_CLAUSE, check: "rebinding#test-body" };
+    expect(
+      carveOutAnswersOf({
+        records: [AUTHORISED],
+        governed: {
+          ...NOTHING_GOVERNED,
+          exempted: [
+            { finding: forLoop, by: [AUTHORISED] },
+            { finding: rebinding, by: [AUTHORISED] },
+          ],
+        },
+        catalogues,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: [{ record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] } }],
+    });
+  });
+
+  it("keeps the whole clause for a location that exempted no finding, stale or held up by a native suppression", () => {
+    expect(carveOutAnswersOf({ records: [AUTHORISED], governed: { ...NOTHING_GOVERNED, stale: [AUTHORISED] }, catalogues })).toEqual({
+      outcome: "ok",
+      value: [{ record: AUTHORISED, answer: { reach: "whole-clause" } }],
+    });
+    expect(carveOutAnswersOf({ records: [AUTHORISED], governed: NOTHING_GOVERNED, catalogues })).toEqual({
+      outcome: "ok",
+      value: [{ record: AUTHORISED, answer: { reach: "whole-clause" } }],
+    });
+  });
+
+  it("fails when a finding it exempted cannot be sited at a check", () => {
+    expect(
+      carveOutAnswersOf({
+        records: [authorisedOnLoops],
+        governed: { ...NOTHING_GOVERNED, exempted: [{ finding: { ...LOOP_FINDING, check: "rebinding#test-body" }, by: [authorisedOnLoops] }] },
+        catalogues,
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "finding-not-attributable", clause: "CD-15#loops", file: "src/a.ts", check: "rebinding#test-body" } });
+  });
+});
+
+describe("carveOutAnswersOf over every record of the file", () => {
+  it("answers each file carve-out and authorised location, in the order the records were given, and leaves a clause-wide carve-out out", () => {
+    const second: ExceptionRecord = { ...CARVE_OUT, file: repoPathSchema.parse("src/b.ts") };
+    const clauseWide: ExceptionRecord = { kind: "clause-wide-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, reason: "generated", whyChain: CAUSAL_WHY_CHAIN };
+    expect(
+      carveOutAnswersOf({
+        records: [AUTHORISED, CARVE_OUT, clauseWide, second],
+        governed: { ...NOTHING_GOVERNED, stale: [CARVE_OUT, second] },
+        catalogues,
+      }),
     ).toEqual({
       outcome: "ok",
       value: [
+        { record: AUTHORISED, answer: { reach: "whole-clause" } },
         { record: CARVE_OUT, answer: { credit: "nothing" } },
         { record: second, answer: { credit: "nothing" } },
       ],

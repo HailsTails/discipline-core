@@ -149,6 +149,8 @@ const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly strin
   switch (refusal.kind) {
     case "carve-out-unanswered":
       return [`the carve-out for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
+    case "location-unanswered":
+      return [`the authorised location for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
     case "projection-failed":
       return [projectionFailureLineOf({ failure: refusal.failure })];
     case "projections-unpaired":

@@ -5,6 +5,7 @@ import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
+import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
@@ -130,6 +131,21 @@ describe("upgradePlanOf", () => {
     await expect(upgradePlanOf(requestOver({ answered: [] }))).resolves.toEqual({
       outcome: "failed",
       error: { kind: "carve-out-unanswered", clause: "CD-15#loops", file: "src/a.ts" },
+    });
+  });
+
+  it("refuses an authorised location the oracle gave no answer for", async () => {
+    const location: Extract<ExceptionRecord, { readonly kind: "authorised-location" }> = {
+      kind: "authorised-location",
+      clause: LOOPS_CLAUSE,
+      mechanism: AUDIT,
+      file: SRC_A,
+      reason: "kept",
+    };
+    const head: HeadRecord = { kind: "authorised-location", record: location, entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "kept" } };
+    await expect(upgradePlanOf(requestOver({ reading: { ...READING, heads: [head] }, answered: [] }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "location-unanswered", clause: "CD-15#loops", file: "src/a.ts" },
     });
   });
 
