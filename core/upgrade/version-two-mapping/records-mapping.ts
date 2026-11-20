@@ -27,7 +27,7 @@ export type RecordInput =
       readonly entry: CarriedEntry;
       readonly answer: CarveOutAnswer;
     }
-  | { readonly kind: "authorised-location"; readonly record: RecordOf<"authorised-location">; readonly entry: CarriedEntry }
+  | { readonly kind: "authorised-location"; readonly record: Pick<RecordOf<"authorised-location">, "clause" | "file">; readonly entry: CarriedEntry }
   | { readonly kind: "clause-wide-carve-out"; readonly record: RecordOf<"clause-wide-carve-out"> };
 
 export type RecordsMappingRequest = { readonly inputs: readonly RecordInput[]; readonly catalogues: readonly RuleSetCatalogue[] };

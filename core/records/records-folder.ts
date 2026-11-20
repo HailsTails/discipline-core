@@ -2,6 +2,7 @@ import type { DirectoryEntry, DirectoryPort } from "../platform-ports/file-syste
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
+import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.ts";
 import { parsedJson } from "../values/parsed-json.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
@@ -19,6 +20,8 @@ export type RecordsFolderPorts = {
 };
 
 type FolderRequest = RecordsFolderPorts & { readonly repoRoot: AbsolutePath };
+
+export type RecordsSourceOf = (request: FolderRequest & { readonly catalogue: SymptomCatalogue }) => RecordsSource;
 
 type Listed = Result<readonly RepoPath[], RecordsFolderFailure>;
 

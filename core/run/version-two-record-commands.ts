@@ -7,12 +7,12 @@ import type { FileRemovalPort } from "../platform-ports/file-system-port.ts";
 import { authoriseRequestOf } from "../records/authorise-options.ts";
 import type { AuthoriseRequest } from "../records/authorising.ts";
 import { authoriseOf, pruneDebtOf, type RecordCommandFailure, recordDebtOf } from "../records/record-commands.ts";
-import { createRecordsFolder } from "../records/records-folder.ts";
 import type { RecordsSource } from "../records/records-source.ts";
 import type { RecordsStore } from "../records/records-store.ts";
 import { createRecordsStore } from "../records/records-store.ts";
 import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "../report/record-command-lines.ts";
 import { runLoadFailureOf } from "../report/run-load-failure.ts";
+import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
 import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
 import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "./version-two-repository.ts";
@@ -36,9 +36,17 @@ const linesOutcome = (request: { readonly lines: readonly string[] }): CommandOu
   text: request.lines.map((line) => `${line}\n`).join(""),
 });
 
-const sourceOf = (request: Context): RecordsSource => {
+const sourceOf = (request: Context & { readonly catalogue: SymptomCatalogue }): RecordsSource => {
   const { fileText, path, git } = request.command;
-  return createRecordsFolder({ fileText, path, git, gitTree: request.ports.gitTree, directory: request.ports.directory, repoRoot: request.located.repoRoot });
+  return request.ports.recordsSourceOf({
+    fileText,
+    path,
+    git,
+    gitTree: request.ports.gitTree,
+    directory: request.ports.directory,
+    repoRoot: request.located.repoRoot,
+    catalogue: request.catalogue,
+  });
 };
 
 const storeOf = (request: Context): RecordsStore => {
@@ -65,7 +73,7 @@ const recordDebtOutcome: OutcomeOf = async (request) => {
   if (run.outcome === "failed") {
     return runLoadFailureOutcomeOf({ failure: run.error });
   }
-  const recorded = recordDebtOf({ catalogue: run.value.catalogue, source: sourceOf(context.value), store: storeOf(context.value) })({
+  const recorded = recordDebtOf({ catalogue: run.value.catalogue, source: sourceOf({ ...context.value, catalogue: run.value.catalogue }), store: storeOf(context.value) })({
     findings: run.value.report.findings,
     touched: run.value.touched,
     leave: parsed.value.leave,
@@ -89,7 +97,7 @@ const pruneDebtOutcome: OutcomeOf = async (request) => {
   if (run.outcome === "failed") {
     return runLoadFailureOutcomeOf({ failure: run.error });
   }
-  const pruned = pruneDebtOf({ source: sourceOf(context.value), store: storeOf(context.value) })({ report: run.value.report });
+  const pruned = pruneDebtOf({ source: sourceOf({ ...context.value, catalogue: run.value.catalogue }), store: storeOf(context.value) })({ report: run.value.report });
   return pruned.outcome === "failed" ? recordFailureOutcome({ failure: pruned.error }) : linesOutcome({ lines: pruned.value.map((debt) => prunedDebtLine({ pruned: debt })) });
 };
 
@@ -99,7 +107,7 @@ const authorisedOutcome = (request: { readonly context: Context; readonly author
   if (catalogue.outcome === "failed") {
     return runLoadFailureOutcomeOf({ failure: catalogue.error });
   }
-  const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf(context), store: storeOf(context) })(authorising);
+  const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf({ ...context, catalogue: catalogue.value }), store: storeOf(context) })(authorising);
   return authorised.outcome === "failed"
     ? recordFailureOutcome({ failure: authorised.error })
     : linesOutcome({ lines: authorisingLines({ address: authorising.symptom, file: authorising.file, authorising: authorised.value }) });

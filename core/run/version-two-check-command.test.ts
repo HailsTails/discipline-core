@@ -9,6 +9,7 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
+import type { RecordsSourceOf } from "../records/records-folder.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
@@ -110,6 +111,7 @@ const ranWith = async (request: { readonly arguments: readonly string[]; readonl
   await versionTwoCheckCommandOf({
     gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>() },
     directory: { list: vi.fn<DirectoryPort["list"]>(), create: vi.fn<DirectoryPort["create"]>() },
+    recordsSourceOf: vi.fn<RecordsSourceOf>(),
     stagesOver: request.stagesOver,
   })(commandWith({ process: processPort, moduleUrl: request.moduleUrl }));
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
