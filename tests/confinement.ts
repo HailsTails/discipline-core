@@ -1,5 +1,5 @@
 import { createPathPort, type PathPort } from "../core/platform-ports/path-port.ts";
-import { type ImportStatementIn, importsIn, importStatementsIn, type ModuleImport } from "./module-imports.ts";
+import { type ImportFactsIn, type ImportStatementIn, importFactsIn, importsIn, importStatementsIn, type ModuleImport } from "./module-imports.ts";
 
 export type ConfinementVerdict = "allowed" | "outside";
 
@@ -170,57 +170,16 @@ export const importStatementsReaching = (request: {
       .map((found) => statementOf({ file, found })),
   );
 
-type ModuleStatementKind = "import" | "re-export";
-
-export type ImportFacts = {
-  readonly file: string;
-  readonly kind: ModuleStatementKind;
-  readonly specifier: string;
-  readonly form: "type-only" | "value";
-  readonly names: readonly string[];
-};
-
-const TYPE_ONLY_STATEMENT = /^(?:import|export)\s+type\s/;
-
-const STATEMENT_CLAUSE = /^(?:import|export)\s+(?:type\s+)?([\s\S]*?)\s+from\s+["'][^"']+["'];?$/;
-
-const BRACED_NAMES = /^\{([\s\S]*)\}$/;
-
-const RE_EXPORT_STATEMENT = /^export\s/;
-
-const kindOf = (request: { readonly statement: string }): ModuleStatementKind =>
-  RE_EXPORT_STATEMENT.test(request.statement) ? "re-export" : "import";
-
-const formOf = (request: { readonly statement: string }): ImportFacts["form"] =>
-  TYPE_ONLY_STATEMENT.test(request.statement) ? "type-only" : "value";
-
-const namesOf = (request: { readonly clause: string }): readonly string[] =>
-  (BRACED_NAMES.exec(request.clause)?.[1] ?? request.clause)
-    .split(",")
-    .map((name) => name.trim())
-    .filter((name) => name !== "");
+export type ImportFacts = ImportFactsIn & { readonly file: string };
 
 export const importFactsReaching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly specifier: RegExp;
 }): readonly ImportFacts[] =>
   Object.entries(request.sources).flatMap(([file, text]) =>
-    importStatementsIn({ file, text })
-      .filter((found) => request.specifier.test(found.specifier))
-      .flatMap((found) => {
-        const clause = STATEMENT_CLAUSE.exec(found.statement)?.[1];
-        return clause === undefined
-          ? []
-          : [
-              {
-                file,
-                kind: kindOf({ statement: found.statement }),
-                specifier: found.specifier,
-                form: formOf({ statement: found.statement }),
-                names: namesOf({ clause }),
-              },
-            ];
-      }),
+    importFactsIn({ file, text })
+      .filter((facts) => request.specifier.test(facts.specifier))
+      .map((facts) => ({ file, ...facts })),
   );
 
 const STATIC_FORMS_FOUND: readonly ModuleImport["form"][] = ["value", "type-only"];

@@ -220,6 +220,30 @@ describe("importFactsReaching", () => {
     ]);
   });
 
+  it("lists a default import beside named ones as separate names, and a namespace import as one", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'import Default, { A } from "../held/one.ts";\nimport * as Everything from "../held/two.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "value", names: ["Default", "A"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "value", names: ["* as Everything"] },
+    ]);
+  });
+
+  it("lists an import whose every name is marked type-only as type-only, and one mixing in a value name as value", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'import { type A, type B } from "../held/one.ts";\nimport { type C, D } from "../held/two.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "type-only", names: ["A", "B"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "value", names: ["C", "D"] },
+    ]);
+  });
+
   it("lists a re-export from a matching specifier with the names it passes on", () => {
     expect(
       importFactsReaching({

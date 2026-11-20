@@ -69,10 +69,10 @@ describe("teamConfigLookupFor", () => {
       },
     },
     {
-      name: "ESLint 9 started with --flag=v10_config_lookup_from_file",
+      name: "ESLint 9 started with --flag=unstable_config_lookup_from_file",
       files: {
         ...eslintInstalled({ version: "9.39.5" }),
-        ...lintScript({ command: "pnpm exec eslint --flag=v10_config_lookup_from_file ." }),
+        ...lintScript({ command: "pnpm exec eslint --flag=unstable_config_lookup_from_file ." }),
         ...ROOT_CONFIG,
       },
     },

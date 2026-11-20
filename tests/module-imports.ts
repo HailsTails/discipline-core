@@ -1,4 +1,4 @@
-import type { SyntaxNode, SyntaxTree } from "../mechanisms/audit/runner/typescript-parse.ts";
+import type { ExportDeclaration, ImportDeclaration, SyntaxNode, SyntaxTree } from "../mechanisms/audit/runner/typescript-parse.ts";
 import { defaultParsePort } from "./typescript-parse-port.ts";
 
 export type ImportForm = "type-only" | "value" | "dynamic";
@@ -91,5 +91,96 @@ export const importStatementsIn = (request: SourceText): readonly ImportStatemen
   return sourceFile.statements.flatMap((statement) => {
     const own = statementImportOf({ node: statement, sourceFile });
     return own === undefined ? [] : [{ specifier: own.specifier, statement: statement.getText(sourceFile) }];
+  });
+};
+
+export type ModuleStatementKind = "import" | "re-export";
+
+export type ImportFactsIn = {
+  readonly specifier: string;
+  readonly kind: ModuleStatementKind;
+  readonly form: Exclude<ImportForm, "dynamic">;
+  readonly names: readonly string[];
+};
+
+type StaticForm = ImportFactsIn["form"];
+
+type Binding = { readonly name: string; readonly form: StaticForm };
+
+type ImportClause = NonNullable<ImportDeclaration["importClause"]>;
+
+const importClauseBindingsOf = (clause: ImportClause): readonly Binding[] => {
+  const declaration = clause.isTypeOnly ? "type-only" : "value";
+  const defaultBinding: readonly Binding[] = clause.name === undefined ? [] : [{ name: clause.name.text, form: declaration }];
+  const bound = clause.namedBindings;
+  if (bound === undefined) {
+    return defaultBinding;
+  }
+  const named: readonly Binding[] = syntaxApi.isNamespaceImport(bound)
+    ? [{ name: `* as ${bound.name.text}`, form: declaration }]
+    : bound.elements.map((element) => ({
+        name: (element.propertyName ?? element.name).text,
+        form: clause.isTypeOnly || element.isTypeOnly ? "type-only" : "value",
+      }));
+  return [...defaultBinding, ...named];
+};
+
+const exportBindingsOf = (declaration: ExportDeclaration): readonly Binding[] => {
+  const marked = declaration.isTypeOnly ? "type-only" : "value";
+  const exported = declaration.exportClause;
+  if (exported === undefined) {
+    return [{ name: "*", form: marked }];
+  }
+  return syntaxApi.isNamespaceExport(exported)
+    ? [{ name: `* as ${exported.name.text}`, form: marked }]
+    : exported.elements.map((element) => ({
+        name: (element.propertyName ?? element.name).text,
+        form: declaration.isTypeOnly || element.isTypeOnly ? "type-only" : "value",
+      }));
+};
+
+const formOfBindings = (request: { readonly bindings: readonly Binding[]; readonly declaration: StaticForm }): StaticForm =>
+  request.declaration === "type-only" || (request.bindings.length > 0 && request.bindings.every(({ form }) => form === "type-only"))
+    ? "type-only"
+    : "value";
+
+const factsOf = (request: {
+  readonly specifier: string;
+  readonly kind: ModuleStatementKind;
+  readonly bindings: readonly Binding[];
+  readonly declaration: StaticForm;
+}): ImportFactsIn => ({
+  specifier: request.specifier,
+  kind: request.kind,
+  form: formOfBindings(request),
+  names: request.bindings.map(({ name }) => name),
+});
+
+const statementFactsOf = (request: NodeIn): ImportFactsIn | undefined => {
+  const { node, sourceFile } = request;
+  if (syntaxApi.isImportDeclaration(node) && node.importClause !== undefined) {
+    return factsOf({
+      specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
+      kind: "import",
+      bindings: importClauseBindingsOf(node.importClause),
+      declaration: node.importClause.isTypeOnly ? "type-only" : "value",
+    });
+  }
+  if (syntaxApi.isExportDeclaration(node) && node.moduleSpecifier !== undefined) {
+    return factsOf({
+      specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
+      kind: "re-export",
+      bindings: exportBindingsOf(node),
+      declaration: node.isTypeOnly ? "type-only" : "value",
+    });
+  }
+  return undefined;
+};
+
+export const importFactsIn = (request: SourceText): readonly ImportFactsIn[] => {
+  const sourceFile = sourceFileOf(request);
+  return sourceFile.statements.flatMap((statement) => {
+    const facts = statementFactsOf({ node: statement, sourceFile });
+    return facts === undefined ? [] : [facts];
   });
 };
