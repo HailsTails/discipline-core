@@ -13,7 +13,7 @@ import { listedPathsOf, treeOf } from "../../../tests/repository-tree.ts";
 import { checkModulesOn, ESLINT_LINES, type EslintLine } from "../../../tests/eslint-toolchains.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
-import type { ReadonlyJsonValue } from "../../values/json-value.ts";
+import type { AuthorisedLocationEntry } from "../version-one-records/exception-record.ts";
 import { exceptionsTextOf, selectionTextOf } from "../../../tests/version-one-files.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
@@ -424,7 +424,7 @@ const AUDIT_SELECTION = selectionTextOf({
 
 const ANY_CAST = "export const parsed = JSON.parse(text) as any;\n";
 
-const AUTHORISED_LOCATION: ReadonlyJsonValue = {
+const AUTHORISED_LOCATION: AuthorisedLocationEntry = {
   kind: "authorised-location",
   clause: "CD-1#any-cast",
   file: "src/located.ts",
