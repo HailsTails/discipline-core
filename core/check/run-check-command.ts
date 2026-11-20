@@ -20,7 +20,6 @@ import { projectCommandOf, pruneCommandOf } from "./tool-invocations.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "./shown-path.ts";
 
-
 export type CommandRequest = {
   readonly process: ProcessPort;
   readonly path: PathPort;
@@ -72,7 +71,7 @@ const checkRunOf = (request: {
         value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand, pruneCommand: request.pruneCommand },
       };
 
-const checkRunWithin = async (
+const unshownCheckRunAt = async (
   request: Omit<CommandRequest, "process"> & {
     readonly arguments: CheckArguments;
     readonly repoRoot: AbsolutePath;
@@ -123,32 +122,30 @@ const checkRunWithin = async (
   });
 };
 
-export type CheckRunIn = (
+export type CheckRunAt = (
   request: Omit<CommandRequest, "process"> & { readonly locations: CheckLocations },
 ) => Promise<Result<CheckRun, LoadFailure>>;
 
-export const checkRunIn: CheckRunIn = async (request) => {
+export const checkRunAt: CheckRunAt = async (request) => {
+  const { path, fileText } = request;
   const { repoRoot, installRoot } = request.locations;
-  return withShownPaths({
-    path: request.path,
-    fileText: request.fileText,
-    repoRoot,
-    installRoot: { outcome: "ok", value: installRoot },
-    run: await checkRunWithin({ ...request, ...request.locations }),
-  });
+  const run = await unshownCheckRunAt({ ...request, ...request.locations });
+  return run.outcome === "failed"
+    ? { outcome: "failed", error: shownFailureOf({ failure: run.error, path, repoRoot, link: packageLinkOf({ path, fileText, repoRoot, installRoot }) }) }
+    : run;
 };
 
-export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
+export const checkRunFromCommand = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
   const locations = checkLocationsFor({
     arguments: request.process.arguments,
     path: request.path,
     fileText: request.fileText,
     moduleUrl: request.moduleUrl,
   });
-  return locations.outcome === "failed" ? locations : checkRunIn({ ...request, locations: locations.value });
+  return locations.outcome === "failed" ? locations : checkRunAt({ ...request, locations: locations.value });
 };
 
 export const runCheckCommand = (request: CommandRequest): Promise<void> =>
-  checkRunFor(request).then((checked) =>
+  checkRunFromCommand(request).then((checked) =>
     printOutcome({ process: request.process, outcome: checkCommandOutcome({ result: checked }) }),
   );

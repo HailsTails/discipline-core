@@ -181,6 +181,11 @@ const CLASS_GUIDE: SymptomGuide = {
   },
 };
 
+const UNREAD_GUIDE: SymptomGuide = {
+  guide: "unreadable",
+  failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end",
+};
+
 describe("guidedCheckCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
     expect(
@@ -201,6 +206,31 @@ describe("guidedCheckCommandOutcome", () => {
     ).toEqual({
       code: 1,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: holds state → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
+    });
+  });
+
+  it("exits 1 for findings when the catalogue was not read, saying so in readFirst", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE },
+        },
+      }),
+    ).toEqual({
+      code: 1,
+      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (1)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nverdict: fail\n",
+    });
+  });
+
+  it("exits 0 for a clean report when the catalogue was not read, saying so in readFirst", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE } },
+      }),
+    ).toEqual({
+      code: 0,
+      text: "readFirst (1)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nverdict: pass\n",
     });
   });
 

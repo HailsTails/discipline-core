@@ -73,7 +73,7 @@ export const indicatedNamesOf = (request: { readonly symptom: Symptom }): readon
   ...new Set(request.symptom.mayIndicate.flatMap((indication) => indication.points.map((point) => pointedNameOf({ point })))),
 ];
 
-const NOT_IN_CATALOGUE: SymptomReading = { reading: "not-in-catalogue" };
+export const NOT_IN_CATALOGUE: SymptomReading = { reading: "not-in-catalogue" };
 
 const formReadingOf = (request: { readonly forms: readonly FormSight[]; readonly remedy: Remedy | undefined }): SymptomReading => {
   const form = request.forms.find((candidate) => candidate.section === request.remedy?.section);

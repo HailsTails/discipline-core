@@ -8,7 +8,7 @@ import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { RecordKind } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import type { SymptomGuide } from "../verdict/symptom-notes.ts";
-import type { CheckRunIn, CommandRequest } from "./run-check-command.ts";
+import type { CheckRunAt, CommandRequest } from "./run-check-command.ts";
 import { guidedCheckRunFor } from "./run-guided-check-command.ts";
 import type { SymptomGuideIn } from "./symptom-guide.ts";
 
@@ -109,7 +109,7 @@ describe("guidedCheckRunFor", () => {
     expect(
       await guidedCheckRunFor({
         command: COMMAND,
-        checkRunIn: vi.fn<CheckRunIn>().mockResolvedValue({
+        checkRunAt: vi.fn<CheckRunAt>().mockResolvedValue({
           outcome: "ok",
           value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
         }),
@@ -122,15 +122,15 @@ describe("guidedCheckRunFor", () => {
   });
 
   it("hands the check its ports and the locations it resolved, and the guide the same roots", async () => {
-    const checkRunIn = vi.fn<CheckRunIn>().mockResolvedValue({
+    const checkRunAt = vi.fn<CheckRunAt>().mockResolvedValue({
       outcome: "ok",
       value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
     });
     const symptomGuideIn = vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE);
 
-    await guidedCheckRunFor({ command: COMMAND, checkRunIn, symptomGuideIn });
+    await guidedCheckRunFor({ command: COMMAND, checkRunAt, symptomGuideIn });
 
-    expect(checkRunIn).toHaveBeenCalledExactlyOnceWith({
+    expect(checkRunAt).toHaveBeenCalledExactlyOnceWith({
       path: PATH,
       fileText: FILE_TEXT,
       modules: MODULES,
@@ -155,7 +155,7 @@ describe("guidedCheckRunFor", () => {
     expect(
       await guidedCheckRunFor({
         command: COMMAND,
-        checkRunIn: vi.fn<CheckRunIn>().mockResolvedValue({ outcome: "failed", error: { kind: "git-failed", detail: "not a git repository" } }),
+        checkRunAt: vi.fn<CheckRunAt>().mockResolvedValue({ outcome: "failed", error: { kind: "git-failed", detail: "not a git repository" } }),
         symptomGuideIn: vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE),
       }),
     ).toEqual({ outcome: "failed", error: { kind: "git-failed", detail: "not a git repository" } });
@@ -166,7 +166,7 @@ describe("guidedCheckRunFor", () => {
 
     await guidedCheckRunFor({
       command: COMMAND,
-      checkRunIn: vi.fn<CheckRunIn>().mockResolvedValue({ outcome: "failed", error: { kind: "git-failed", detail: "not a git repository" } }),
+      checkRunAt: vi.fn<CheckRunAt>().mockResolvedValue({ outcome: "failed", error: { kind: "git-failed", detail: "not a git repository" } }),
       symptomGuideIn,
     });
 
@@ -174,17 +174,17 @@ describe("guidedCheckRunFor", () => {
   });
 
   it("gives the failure to locate the check, running neither the check nor the guide", async () => {
-    const checkRunIn = vi.fn<CheckRunIn>().mockResolvedValue({
+    const checkRunAt = vi.fn<CheckRunAt>().mockResolvedValue({
       outcome: "ok",
       value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
     });
     const symptomGuideIn = vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE);
 
-    expect(await guidedCheckRunFor({ command: ABSENT_SELECTION_COMMAND, checkRunIn, symptomGuideIn })).toEqual({
+    expect(await guidedCheckRunFor({ command: ABSENT_SELECTION_COMMAND, checkRunAt, symptomGuideIn })).toEqual({
       outcome: "failed",
       error: { kind: "selection-absent", repo: "/repo" },
     });
-    expect(checkRunIn).not.toHaveBeenCalled();
+    expect(checkRunAt).not.toHaveBeenCalled();
     expect(symptomGuideIn).not.toHaveBeenCalled();
   });
 });

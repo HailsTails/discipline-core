@@ -3,12 +3,12 @@ import type { Result } from "../values/result.ts";
 import { checkLocationsFor } from "./check-locations.ts";
 import { type GuidedCheckRun, guidedCheckCommandOutcome } from "./command-outcome.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { type CheckRunIn, type CommandRequest, checkRunIn, printOutcome } from "./run-check-command.ts";
+import { type CheckRunAt, type CommandRequest, checkRunAt, printOutcome } from "./run-check-command.ts";
 import { type SymptomGuideIn, symptomGuideIn } from "./symptom-guide.ts";
 
 export type GuidedCheckRequest = {
   readonly command: CommandRequest;
-  readonly checkRunIn: CheckRunIn;
+  readonly checkRunAt: CheckRunAt;
   readonly symptomGuideIn: SymptomGuideIn;
 };
 
@@ -18,7 +18,7 @@ export const guidedCheckRunFor = async (request: GuidedCheckRequest): Promise<Re
   if (locations.outcome === "failed") {
     return locations;
   }
-  const run = await request.checkRunIn({ path, fileText, modules, git, exceptionRepositoryOf, moduleUrl, locations: locations.value });
+  const run = await request.checkRunAt({ path, fileText, modules, git, exceptionRepositoryOf, moduleUrl, locations: locations.value });
   if (run.outcome === "failed") {
     return run;
   }
@@ -29,7 +29,7 @@ export const guidedCheckRunFor = async (request: GuidedCheckRequest): Promise<Re
 export const installedGuidedCheckRunFor = (request: { readonly command: CommandRequest }): Promise<Result<GuidedCheckRun, LoadFailure>> =>
   guidedCheckRunFor({
     command: request.command,
-    checkRunIn,
+    checkRunAt,
     symptomGuideIn: (locations) => symptomGuideIn({ ...locations, symptomCatalogueOf: createSymptomCatalogueRepository }),
   });
 

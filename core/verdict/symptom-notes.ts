@@ -2,6 +2,7 @@ import type { Finding } from "../governance/governance.ts";
 import {
   type CorrectUse,
   type Indication,
+  NOT_IN_CATALOGUE,
   type Pointed,
   type RecordKind,
   type Symptom,
@@ -17,8 +18,6 @@ export type UnreadableGuide = { readonly guide: "unreadable"; readonly failure: 
 export type SymptomGuide = { readonly guide: "none" } | CatalogueGuide | UnreadableGuide;
 
 export const NO_SYMPTOM_GUIDE: SymptomGuide = { guide: "none" };
-
-const NOT_IN_CATALOGUE: SymptomReading = { reading: "not-in-catalogue" };
 
 export const symptomReadingIn = (request: { readonly guide: SymptomGuide; readonly finding: Finding }): SymptomReading =>
   request.guide.guide === "catalogue" ? symptomReadingOf({ catalogue: request.guide.catalogue, finding: request.finding }) : NOT_IN_CATALOGUE;

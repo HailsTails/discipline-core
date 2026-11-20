@@ -99,4 +99,42 @@ describe("symptomGuideIn", () => {
       }),
     ).toEqual({ guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" });
   });
+
+  it("gives a guide that says the catalogue could not be read from disk, naming it as the repository shows it", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({
+        outcome: "failed",
+        error: { kind: "file-unreadable", path: "/repo/node_modules/@hailstails/hone/rules/typescript/symptoms.json", detail: "EACCES" },
+      }),
+    };
+
+    expect(
+      symptomGuideIn({
+        path: POSIX,
+        fileText: FILE_TEXT,
+        repoRoot: REPO_ROOT,
+        installRoot: INSTALL_ROOT,
+        symptomCatalogueOf: vi.fn<SymptomCatalogueOf>().mockReturnValue(repository),
+      }),
+    ).toEqual({ guide: "unreadable", failure: "file-unreadable node_modules/@hailstails/hone/rules/typescript/symptoms.json EACCES" });
+  });
+
+  it("gives a guide that names the catalogue's version when it is one this release does not read", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({
+        outcome: "failed",
+        error: { kind: "unsupported-version", path: "/repo/node_modules/@hailstails/hone/rules/typescript/symptoms.json", found: 2 },
+      }),
+    };
+
+    expect(
+      symptomGuideIn({
+        path: POSIX,
+        fileText: FILE_TEXT,
+        repoRoot: REPO_ROOT,
+        installRoot: INSTALL_ROOT,
+        symptomCatalogueOf: vi.fn<SymptomCatalogueOf>().mockReturnValue(repository),
+      }),
+    ).toEqual({ guide: "unreadable", failure: "unsupported-version node_modules/@hailstails/hone/rules/typescript/symptoms.json 2" });
+  });
 });

@@ -13,7 +13,6 @@ const remedyNote = (request: { readonly finding: Finding }): string =>
     ? ""
     : ` fix: ${escapedLineBreaks({ text: request.finding.remedy.fix })} (${request.finding.remedy.page}#${request.finding.remedy.section})`;
 
-
 const symptomNote = (request: { readonly reading: SymptomReading }): string =>
   request.reading.reading === "named"
     ? ` symptom: ${request.reading.symptom.name}, may indicate: ${indicatedNamesOf({ symptom: request.reading.symptom }).join(", ")}`

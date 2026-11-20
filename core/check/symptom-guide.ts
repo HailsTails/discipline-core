@@ -26,7 +26,7 @@ export type GuideLocations = {
 
 export type SymptomGuideIn = (request: GuideLocations) => SymptomGuide;
 
-type ShownGuideRequest =GuideLocations & { readonly link: PackageLink };
+type ShownGuideRequest = GuideLocations & { readonly link: PackageLink };
 
 const symptomPageOf = (request: ShownGuideRequest): string =>
   shownPathOf({ ...request, target: request.path.join({ segments: [request.installRoot, ...SYMPTOM_PAGE_SEGMENTS] }) });
