@@ -21,7 +21,7 @@ const PROJECTION = absolutePathSchema.parse("/repo/disciplines.eslint.mjs");
 
 const SETTINGS = absolutePathSchema.parse("/repo/disciplines.json");
 
-const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsRoot: ROOT, projection: PROJECTION, settings: SETTINGS };
+const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsRoot: { kind: "folder", path: ROOT }, projection: PROJECTION, settings: SETTINGS };
 
 const ok = { outcome: "ok", value: undefined } as const;
 
@@ -113,6 +113,17 @@ describe("removedVersionOneFiles", () => {
       value: { files: [direct, SETTINGS], folders: [ROOT] },
     });
     expect(sequenceOf({ ports })).toEqual([{ port: "remove", arguments: [{ path: direct }] }, ...REMOVING_ROOT, REMOVING_SETTINGS]);
+  });
+
+  it("removes a records file at the repository root and no folder, since the root is not a records folder", () => {
+    const ports = portsOver();
+    const single = absolutePathSchema.parse("/repo/discipline-exceptions.json");
+    const repository = absolutePathSchema.parse("/repo");
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [single], recordsRoot: { kind: "repository", path: repository } } })).toEqual({
+      outcome: "ok",
+      value: { files: [single, PROJECTION, SETTINGS], folders: [] },
+    });
+    expect(sequenceOf({ ports })).toEqual([{ port: "remove", arguments: [{ path: single }] }, REMOVING_PROJECTION, REMOVING_SETTINGS]);
   });
 
   it("removes no projection when none is given", () => {

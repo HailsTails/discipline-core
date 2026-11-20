@@ -12,9 +12,12 @@ import {
 } from "../version-one-records/exception-records.ts";
 import type { CarriedEntry, RecordInput } from "../version-two-mapping/records-mapping.ts";
 
+type RecordOf<Kind extends ExceptionRecord["kind"]> = Extract<ExceptionRecord, { readonly kind: Kind }>;
+
 export type HeadRecord =
-  | Exclude<RecordInput, { readonly kind: "file-carve-out" }>
-  | Omit<Extract<RecordInput, { readonly kind: "file-carve-out" }>, "answer">;
+  | Omit<Extract<RecordInput, { readonly kind: "file-carve-out" }>, "answer">
+  | { readonly kind: "authorised-location"; readonly record: RecordOf<"authorised-location">; readonly entry: CarriedEntry }
+  | Extract<RecordInput, { readonly kind: "clause-wide-carve-out" }>;
 
 export type HeadRecordsRefusal =
   | { readonly kind: "invalid-records"; readonly invalid: readonly InvalidRecord[] }
