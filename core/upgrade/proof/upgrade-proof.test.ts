@@ -53,7 +53,6 @@ const ORIGINAL_CONFIG = 'import disciplines from "./disciplines.eslint.mjs";\nex
 
 const READING: VersionOneReading = {
   selection: SELECTION,
-  records: [CARVE_OUT],
   heads: [CARVE_OUT_HEAD],
   teamConfig: { file: repoPathSchema.parse("eslint.config.mjs"), text: ORIGINAL_CONFIG },
   versionOneProjection: repoPathSchema.parse("disciplines.eslint.mjs"),
@@ -172,8 +171,7 @@ const requestOver = (request: { readonly doubles: Doubles }): UpgradeProofReques
   reading: READING,
   versionOneFiles: {
     recordsFiles: [repoPathSchema.parse("discipline-exceptions/cd-15.json")],
-    recordsRoot: repoPathSchema.parse("discipline-exceptions"),
-    projection: repoPathSchema.parse("disciplines.eslint.mjs"),
+    recordsRoot: { kind: "folder", folder: repoPathSchema.parse("discipline-exceptions") },
     settings: repoPathSchema.parse("disciplines.json"),
   },
   catalogues: CATALOGUES,
@@ -198,6 +196,12 @@ const sequenceOf = (request: { readonly doubles: Doubles }) =>
       removeEmpty: request.doubles.ports.directoryRemoval.removeEmpty,
     },
   });
+
+const SINGLE_FILE_LAYOUT: UpgradeProofRequest["versionOneFiles"] = {
+  recordsFiles: [repoPathSchema.parse("discipline-exceptions.json")],
+  recordsRoot: { kind: "repository" },
+  settings: repoPathSchema.parse("disciplines.json"),
+};
 
 const SETTINGS_PATH = "/repo/hone.config.json";
 
@@ -352,6 +356,8 @@ describe("upgradeProof", () => {
       error: {
         kind: "removal-failed",
         failure: { kind: "unremovable", path: "/repo/discipline-exceptions/cd-15.json", detail: "EBUSY", removed: { files: [], folders: [] } },
+        written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
+        replaced: "eslint.config.mjs",
       },
     });
     expect(sequenceOf({ doubles })).toEqual([
@@ -362,5 +368,71 @@ describe("upgradeProof", () => {
       ...RUNNING_VERSION_TWO,
       { port: "remove", arguments: [{ path: "/repo/discipline-exceptions/cd-15.json" }] },
     ]);
+  });
+
+  it("upgrades a repository whose version 1 records sit in the single file at its root, removing no folder", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    await expect(upgradeProof({ ...requestOver({ doubles }), versionOneFiles: SINGLE_FILE_LAYOUT })).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
+        replaced: "eslint.config.mjs",
+        removed: { files: ["/repo/discipline-exceptions.json", "/repo/disciplines.eslint.mjs", "/repo/disciplines.json"], folders: [] },
+      },
+    });
+    expect(sequenceOf({ doubles })).toEqual([
+      ...ASKING_THE_ORACLE,
+      ...RUNNING_VERSION_ONE,
+      ...PLANNING_THE_WRITES,
+      ...WRITING,
+      ...RUNNING_VERSION_TWO,
+      { port: "remove", arguments: [{ path: "/repo/discipline-exceptions.json" }] },
+      { port: "remove", arguments: [{ path: "/repo/disciplines.eslint.mjs" }] },
+      { port: "remove", arguments: [{ path: "/repo/disciplines.json" }] },
+    ]);
+  });
+
+  it("refuses, before writing anything, a version 1 records file outside its records folder", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    const request = requestOver({ doubles });
+    await expect(upgradeProof({ ...request, versionOneFiles: { ...request.versionOneFiles, recordsFiles: [repoPathSchema.parse("tools/x.json")] } })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: "/repo/tools/x.json", root: "/repo/discipline-exceptions" } },
+    });
+    expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE]);
+  });
+
+  it("restores what it wrote when the version 2 run rejects", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.runs.versionTwo.mockRejectedValue(new Error("the runner threw"));
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [] },
+    });
+    expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
+  });
+
+  it("names what it could not restore when the version 2 run rejects and a file cannot be removed", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.runs.versionTwo.mockRejectedValue(new Error("the runner threw"));
+    doubles.ports.fileRemoval.remove.mockReturnValueOnce(ok).mockReturnValueOnce({ outcome: "failed", error: { kind: "unremovable", path: DEBT_PATH, detail: "EBUSY" } }).mockReturnValue(ok);
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [{ path: DEBT_PATH, detail: "EBUSY" }] },
+    });
+  });
+
+  it("reports what it wrote, and leaves it, when removing a version 1 file throws", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.ports.fileRemoval.remove.mockThrow(new Error("the removal threw"));
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "removal-threw",
+        detail: "the removal threw",
+        written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
+        replaced: "eslint.config.mjs",
+      },
+    });
   });
 });

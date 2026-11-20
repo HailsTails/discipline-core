@@ -12,17 +12,21 @@ export type VersionOneRemovalPorts = {
   readonly path: PathPort;
 };
 
+export type RecordsRoot = { readonly kind: "repository" | "folder"; readonly path: AbsolutePath };
+
 export type VersionOneRemoval = {
   readonly recordsFiles: readonly AbsolutePath[];
-  readonly recordsRoot: AbsolutePath;
+  readonly recordsRoot: RecordsRoot;
   readonly projection: AbsolutePath | undefined;
   readonly settings: AbsolutePath;
 };
 
 export type Removed = { readonly files: readonly AbsolutePath[]; readonly folders: readonly AbsolutePath[] };
 
+export type OutsideRoot = { readonly kind: "records-file-outside-root"; readonly path: AbsolutePath; readonly root: AbsolutePath };
+
 export type RemovalFailure =
-  | { readonly kind: "records-file-outside-root"; readonly path: AbsolutePath; readonly root: AbsolutePath }
+  | OutsideRoot
   | { readonly kind: "unremovable"; readonly path: AbsolutePath; readonly detail: string; readonly removed: Removed };
 
 const PATH_SEPARATOR = /[\\/]/;
@@ -36,8 +40,11 @@ const segmentsBelowRoot = (request: { readonly ports: VersionOneRemovalPorts; re
   return segments.length > 0 && segments.every((segment) => segment !== "..") ? segments : undefined;
 };
 
-const outsideRoot = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): AbsolutePath | undefined =>
-  request.removal.recordsFiles.find((file) => segmentsBelowRoot({ ports: request.ports, root: request.removal.recordsRoot, file }) === undefined);
+export const recordsOutsideRoot = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): OutsideRoot | undefined => {
+  const { recordsRoot } = request.removal;
+  const outside = request.removal.recordsFiles.find((file) => segmentsBelowRoot({ ports: request.ports, root: recordsRoot.path, file }) === undefined);
+  return outside === undefined ? undefined : { kind: "records-file-outside-root", path: outside, root: recordsRoot.path };
+};
 
 const absolutePathsOf = (request: { readonly texts: readonly string[] }): readonly AbsolutePath[] =>
   request.texts.flatMap((text) => {
@@ -45,11 +52,11 @@ const absolutePathsOf = (request: { readonly texts: readonly string[] }): readon
     return parsed.success ? [parsed.data] : [];
   });
 
-const foldersOfFile = (request: { readonly ports: VersionOneRemovalPorts; readonly root: AbsolutePath; readonly file: AbsolutePath }): readonly AbsolutePath[] => {
-  const segments = segmentsBelowRoot(request) ?? [];
+const foldersOfFile = (request: { readonly ports: VersionOneRemovalPorts; readonly root: RecordsRoot; readonly file: AbsolutePath }): readonly AbsolutePath[] => {
+  const segments = segmentsBelowRoot({ ports: request.ports, root: request.root.path, file: request.file }) ?? [];
   const folderSegments = segments.slice(0, -1);
   return absolutePathsOf({
-    texts: [request.root, ...folderSegments.map((_, depth) => request.ports.path.join({ segments: [request.root, ...folderSegments.slice(0, depth + 1)] }))],
+    texts: [...(request.root.kind === "folder" ? [request.root.path] : []), ...folderSegments.map((_, depth) => request.ports.path.join({ segments: [request.root.path, ...folderSegments.slice(0, depth + 1)] }))],
   });
 };
 
@@ -109,8 +116,6 @@ const removedFrom = (request: {
 };
 
 export const removedVersionOneFiles = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): Result<Removed, RemovalFailure> => {
-  const outside = outsideRoot(request);
-  return outside === undefined
-    ? removedFrom({ ports: request.ports, steps: stepsOf(request), removed: { files: [], folders: [] } })
-    : { outcome: "failed", error: { kind: "records-file-outside-root", path: outside, root: request.removal.recordsRoot } };
+  const outside = recordsOutsideRoot(request);
+  return outside === undefined ? removedFrom({ ports: request.ports, steps: stepsOf(request), removed: { files: [], folders: [] } }) : { outcome: "failed", error: outside };
 };

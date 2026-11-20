@@ -9,7 +9,6 @@ import type { CarveOutAnswered } from "../carve-out-oracle/carve-out-oracle.ts";
 import { type CarveOutUnanswered, recordInputsOf } from "../carve-out-oracle/record-inputs.ts";
 import { reachBeyondEntriesOf, type ReachBeyondEntries } from "../proof-comparison/written-reach.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
-import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import { mappedRecords, type MappedRecordsDocument, type RecordInput } from "../version-two-mapping/records-mapping.ts";
 import { mappedSettings } from "../version-two-mapping/settings-mapping.ts";
 import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
@@ -21,10 +20,9 @@ export type PlannedRepoFile = { readonly file: RepoPath; readonly text: string }
 
 export type VersionOneReading = {
   readonly selection: ConsumerSelectionFile;
-  readonly records: readonly ExceptionRecord[];
   readonly heads: readonly HeadRecord[];
   readonly teamConfig: PlannedRepoFile | undefined;
-  readonly versionOneProjection: RepoPath;
+  readonly versionOneProjection: RepoPath | undefined;
 };
 
 export type ProjectionTextOf = (request: { readonly settings: SettingsFile; readonly documents: readonly MappedRecordsDocument[] }) => string | undefined;
@@ -59,7 +57,7 @@ const projectionFilesOf = (request: {
 
 const replacementOf = (request: UpgradePlanRequest): Result<PlannedRepoFile | undefined, PlanRefusal> => {
   const { teamConfig, versionOneProjection } = request.reading;
-  if (teamConfig === undefined) {
+  if (teamConfig === undefined || versionOneProjection === undefined) {
     return { outcome: "ok", value: undefined };
   }
   const rewritten = rewrittenConfigOf({
