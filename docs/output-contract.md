@@ -47,7 +47,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 
 | Value | Printed as | Space |
 | --- | --- | --- |
-| `<clause>` | in the report, a clause address: `CD-15#loops` (`loop-keyword#loop-statement`) for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's; in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
+| `<clause>` | in the report, a clause address: `CD-15#loops` (`loop-keyword#loop-statement`) for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's (`loop-keyword#loop-statement` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0); in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
 | `<mechanism>` | a mechanism id, such as `audit` or `eslint` | never |
 | `<record kind>`, `<section>`, `<package>` | a word from the lines below, a section name, or an npm package name | never |
 | `<line>`, `<column>` | a 1-based line and a 0-based column | never |

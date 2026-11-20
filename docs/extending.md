@@ -49,7 +49,7 @@ Name the folder in `disciplines.json` under `ruleSets`, then select its clauses 
 ```
 
 - The path is relative to the repository root and must stay inside it.
-- `hone` is Hone's own rule set, and its clauses can be selected beside the team's. `hone/CD-15#loops` (`loop-keyword#loop-statement`) and `CD-15#loops` are the same clause, and the report prints the short form.
+- `hone` is Hone's own rule set, and its clauses can be selected beside the team's. `hone/CD-15#loops` (`loop-keyword#loop-statement`) and `CD-15#loops` are the same clause, and the report prints the short form. `loop-keyword#loop-statement` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0.
 - A rule set may not be called `hone` or start with `hone-`, and no declared name may be another declared name plus `-<suffix>`.
 - Discipline IDs only need to be unique inside one rule set: a team rule set may reuse an ID Hone's own rule set has, and `acme/<DisciplineId>` and `<DisciplineId>` stay two disciplines.
 

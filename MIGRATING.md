@@ -51,7 +51,7 @@ Do this before step 3, and before you delete any record Hone lists as `stale`. T
 
 | Old route | Where to look | In Hone |
 | --- | --- | --- |
-| Packages confined to wrapping files | a list in the tool's code or its config. Rin's walker holds it as `BANNED_THIRD_PARTY_IMPORTS`: search its tools folder for that name, since an installed copy keeps it in `constitution-audit/audit-constitution.runtime.js`, and its `audit-constitution.ts` only re-exports that file | `confinedPackages` for `CD-19#import-boundaries` under `clauseSettings` in `disciplines.json`. Hone confines no package by default, so until you list them `outside-import-past-a-boundary#import-or-require` flags only `node:` imports. A package covers its subpaths, as the clause's checks page, `rules/CD-19/CHECKS.md`, says under "What the check flags", where the old walker matched each listed name exactly, so Hone can flag a subpath import the old list did not name. |
+| Packages confined to wrapping files | a list in the tool's code or its config. Rin's walker holds it as `BANNED_THIRD_PARTY_IMPORTS`: search its tools folder for that name, since an installed copy keeps it in `constitution-audit/audit-constitution.runtime.js`, and its `audit-constitution.ts` only re-exports that file | `confinedPackages` for `CD-19#import-boundaries` under `clauseSettings` in `disciplines.json`. Hone confines no package by default, so until you list them `outside-import-past-a-boundary#import-or-require` flags only `node:` imports. `outside-import-past-a-boundary#import-or-require` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0. A package covers its subpaths, as the clause's checks page, `rules/CD-19/CHECKS.md`, says under "What the check flags", where the old walker matched each listed name exactly, so Hone can flag a subpath import the old list did not name. |
 | Scope | `constitution.include` and `constitution.exclude` in `harness.config.json` | `exclude` in `disciplines.json`, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 says. Hone has no include list and no globs: list each folder or file outside the old scope as an exact path. |
 | Rules relaxed by folder | `scriptGlobs`, `uiGlobs` or similar in `harness.config.json` | nothing. Hone has one selection for the whole repository. What those folders fail under the full rules is existing debt: fix it or record it in step 3. There is no old record to import it from, so once the human approves recording it, `hone record-debt` writes the records (step 3). Do not exclude the folders to hide it. |
 | Files the tool skipped in its own code | a list such as `SELF_AUDIT_EXCLUDED_FILENAMES` | an `exclude` entry or an exception record for each file. Stop and ask the human which, and why. |
@@ -219,7 +219,7 @@ The copy is an older release, so the package checks more than it did. Read these
 - [Section 8](#8-moving-to-causal-why-chains), if any exception's `whyChain` has no `rootCheck` and no `readback`: give every check a base revision first.
 - [Section 10](#10-moving-from-the-discipline-core-names-to-hone) step 4: rule ids written by hand, such as in an `eslint-disable` comment, change from `discipline/...` to `hone/...`.
 - [Section 14](#14-moving-to-recorded-inline-exceptions): each `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck` and `eslint-disable` is listed under `unrecorded` until it is removed or a file record holds it.
-- [Section 15](#15-adopting-cd-2non-null-assertions), if any clause of the cast discipline ([Claimed type](rules/typescript/symptoms.md#claimed-type)) is selected: it has a new clause to list.
+- [Section 15](#15-adopting-the-non-null-assertions-clause), if any clause of the cast discipline ([Claimed type](rules/typescript/symptoms.md#claimed-type)) is selected: it has a new clause to list.
 - [Step 2a](#2a-carry-over-the-old-routes-settings), if the repository also ran rin's walker or another tool with settings of its own.
 
 To move:
@@ -317,7 +317,9 @@ Earlier releases reported an `eslint-disable` comment naming a selected rule as 
 6. **Stale records may clear.** A record that holds a native exception it can cover now counts as used. An `authorised-location` or `file-carve-out` that held only a `config-override`, and was listed `stale` while dropping it left the override unrecorded, is no longer stale.
 7. **Standalone runners** written outside Hone return `{ hits, nativeExceptions }` from `run`, where `nativeExceptions` holds only `inline-disable` entries with `reach`, in place of a bare list of hits. A runner still returning the list fails with `runner-invalid-output` naming that shape.
 
-## 15. Adopting `CD-2#non-null-assertions` (`claimed-type#non-null-assertions`)
+<a id="15-adopting-the-non-null-assertions-clause"></a>
+
+## 15. Adopting `CD-2#non-null-assertions`
 
 The cast discipline gained a clause, `CD-2#non-null-assertions` (`claimed-type#non-null-assertions`), checked through `eslint` only. It flags non-null assertions, `x!`, and definite assignment assertions, `let x!: T` and `field!: T`; see `rules/CD-2/CHECKS.md`. A repository that selects any of its clauses has adopted that discipline, so after refreshing Hone its check fails with this line under `uncovered` until `disciplines.json` lists the new clause:
 

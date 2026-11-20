@@ -8,22 +8,6 @@ const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/pkg" }
 
 const UNREAD: ReturnType<FileTextPort["read"]> = { outcome: "failed", error: { kind: "unreadable", path: "", detail: "missing" } };
 
-const scratchListing = (request: { readonly listTree: ScratchFilesPort["listTree"] }): ScratchFilesPort => ({
-  createTemporaryDirectory: vi.fn<ScratchFilesPort["createTemporaryDirectory"]>(),
-  removeTree: vi.fn<ScratchFilesPort["removeTree"]>(),
-  makeDirectory: vi.fn<ScratchFilesPort["makeDirectory"]>(),
-  copyTree: vi.fn<ScratchFilesPort["copyTree"]>(),
-  listTree: request.listTree,
-  digestOf: vi.fn<ScratchFilesPort["digestOf"]>(),
-  realPathOf: vi.fn<ScratchFilesPort["realPathOf"]>(),
-});
-
-const fileTextReading = (request: { readonly read: FileTextPort["read"]; readonly exists: FileTextPort["exists"] }): FileTextPort => ({
-  read: request.read,
-  exists: request.exists,
-  write: vi.fn<FileTextPort["write"]>(),
-});
-
 const RULES_LISTING: readonly ListedEntry[] = [
   { path: "README.md", name: "README.md", entryKind: "file" },
   { path: "CD-14", name: "CD-14", entryKind: "folder" },
@@ -55,9 +39,10 @@ describe("shippedPagesAt", () => {
   it("reads each page the package ships: the root pages present, then the pages under each shipped folder, leaving out test folders and other files", () => {
     expect(
       shippedPagesAt({
-        scratch: scratchListing({ listTree: listedFolders() }),
-        fileText: fileTextReading({ read: readPages(), exists: presentReadme() }),
-        path: PATH,
+        listTree: listedFolders(),
+        read: readPages(),
+        exists: presentReadme(),
+        join: PATH.join,
         packageRoot: "/pkg",
       }),
     ).toEqual({
@@ -72,16 +57,17 @@ describe("shippedPagesAt", () => {
 
   it("lists each shipped folder under the package root", () => {
     const listTree = listedFolders();
-    shippedPagesAt({ scratch: scratchListing({ listTree }), fileText: fileTextReading({ read: readPages(), exists: presentReadme() }), path: PATH, packageRoot: "/pkg" });
+    shippedPagesAt({ listTree, read: readPages(), exists: presentReadme(), join: PATH.join, packageRoot: "/pkg" });
     expect(listTree.mock.calls).toEqual([[{ path: "/pkg/core" }], [{ path: "/pkg/mechanisms" }], [{ path: "/pkg/rules" }], [{ path: "/pkg/methods" }], [{ path: "/pkg/docs" }]]);
   });
 
   it("fails naming a shipped folder it cannot list", () => {
     expect(
       shippedPagesAt({
-        scratch: scratchListing({ listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "failed", error: { kind: "effect-failed", detail: "denied" } }) }),
-        fileText: fileTextReading({ read: readPages(), exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent") }),
-        path: PATH,
+        listTree: vi.fn<ScratchFilesPort["listTree"]>().mockReturnValue({ outcome: "failed", error: { kind: "effect-failed", detail: "denied" } }),
+        read: readPages(),
+        exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
+        join: PATH.join,
         packageRoot: "/pkg",
       }),
     ).toEqual({ outcome: "failed", error: "list core: denied" });
@@ -90,9 +76,10 @@ describe("shippedPagesAt", () => {
   it("fails naming a page it cannot read", () => {
     expect(
       shippedPagesAt({
-        scratch: scratchListing({ listTree: listedFolders() }),
-        fileText: fileTextReading({ read: vi.fn<FileTextPort["read"]>().mockReturnValue(UNREAD), exists: presentReadme() }),
-        path: PATH,
+        listTree: listedFolders(),
+        read: vi.fn<FileTextPort["read"]>().mockReturnValue(UNREAD),
+        exists: presentReadme(),
+        join: PATH.join,
         packageRoot: "/pkg",
       }),
     ).toEqual({ outcome: "failed", error: "read README.md: missing" });

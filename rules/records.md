@@ -11,7 +11,7 @@ Five kinds cover everything. They are the model Hone's records take on with 2.0,
 ### Authorised location
 
 - **Answers:** A symptom whose correct use a case makes right at one place: Claimed type forced by an outside contract, Throw between our units at an adapter whose caller expects a throw, Loop keyword draining a stream, Shorthand name or Name off its casing fixed by an outside contract, Text past its reader at one test site, Edit inside vendored code.
-- **Must state:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner.
+- **States:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner. In the model it is never refused for what it claims: what it lacks is [noted](#what-is-noted-never-refused), and a note changes no verdict.
 - **Scope:** One symptom at one site: a file, or a span within it.
 - **Stale or paid when:** Stale when the symptom is no longer at the site. A vendored edit is also re-tested when the vendored version moves. A person removes it.
 - **Industry name:** suppression with justification; a MISRA deviation permit. A suppression with a stated justification, as .NET and MISRA permits do.
@@ -72,21 +72,26 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 
 ## What is refused
 
-A record must contain what its kind states. Anything less is refused, as follows.
+In the model, an authorised location is never refused for what it claims; what it lacks is [noted](#what-is-noted-never-refused). A record file that cannot be read at all is refused, whatever it holds. Every other record must contain what its kind states. Anything less is refused, as follows.
 
 | Refused | Why | Does Hone refuse it from the form today? |
 |---|---|---|
-| A why that only restates the symptom ("needed here", "the check flags this") | the why-chain's purpose: "to ensure an agent has thought deeply about what its doing" | Partly, as today: the why-chain checks refuse stock restatements and answers with no new cause. A reworded restatement is left to review. |
-| A thought-through record that names no case, or a case not in the [case list](cases.md) | a thought-through use names its case | Not yet enforced. In the model a machine refuses a missing or unknown case name; whether the case is true is left to review. |
-| An authorised location on a symptom that no case makes correct, such as a branch in a test | "who the heck added an authorised location for an if in a test?" | No. In spirit it is not allowed. The form accepts it for any symptom, because a check is never assumed perfect: "while authorised location in spirit isn't supposed to be allowed. It's mechanically always allowed as our checks for symptoms is never assumed perfect." |
 | A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Not yet enforced. In the model the form must name the recipe and use its reason's words; whether the reason fails here is left to review. |
 | A fake with no showing that a stub cannot do the test | "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things." | No; review. |
-| A deviation or a dependency record that makes a named ban correct. Debt is not refused; nor, by the form, is an authorised location, which answers a check that is wrong at that place. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
+| A deviation or a dependency record that makes a named ban correct. Debt is not refused. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
 | Debt written by the tool for a file the base did not hold | today's `new-file` | Yes, as today. |
 | A record standing in for a design fix, where friction points at the design | "if we have such a complex test that needs exemption we have a code architecture problem" | No; review. A machine can show records clustering on one symptom or one cause. Only review rules on it. |
 | An option that weakens the whole run (`--rule`, `-c`) | today | Yes, as today: it cannot be recorded. |
 
 This is a list of what each record must contain. It is not a ladder of exceptions.
+
+## What is noted, never refused
+
+An authorised location answers a check that is wrong at that place, so the form accepts it for any symptom: "while authorised location in spirit isn't supposed to be allowed. It's mechanically always allowed as our checks for symptoms is never assumed perfect." In the model, what it lacks is a note beside it. A note changes no verdict; review rules on it.
+
+- **A case that is missing, or not in the [case list](cases.md).** A thought-through use names its case. Whether the case is true is left to review. Today's tool does not read a case name.
+- **A symptom that no case makes correct, such as a branch in a test.** "who the heck added an authorised location for an if in a test?" In spirit it is not allowed.
+- **A why that only restates the symptom** ("needed here", "the check flags this"). The why-chain's purpose: "to ensure an agent has thought deeply about what its doing". Today the why-chain checks still refuse stock restatements and answers with no new cause: the record is listed under invalid records and the run fails. With 2.0 that becomes a note. A reworded restatement is left to review.
 
 ## The cost side
 
