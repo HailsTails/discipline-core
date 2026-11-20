@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "exclude": ["vendor"],
+  "ruleSets": { "team": "tools/hone-rules" },
+  "checks": {
+    "date-used-directly#clock-sources": "walker",
+    "claimed-type#cast-expressions": "walker",
+    "claimed-type#non-null-assertions": "eslint",
+    "outside-import-past-a-boundary#import-boundaries": "walker",
+    "branch-in-a-test#test-body": "walker",
+    "computed-value-in-a-test#test-body": "walker",
+    "rebinding#test-body": "walker",
+    "text-past-its-reader#test-body": "walker",
+    "throw-or-catch-in-a-test#test-body": "walker",
+    "double-with-a-body#test-body": "walker",
+    "loop-keyword#loops": "not-adopted"
+  },
+  "checkSettings": {
+    "outside-import-past-a-boundary#import-boundaries": { "confinedOutsideDependencies": ["uuid"] },
+    "branch-in-a-test#test-body": { "edition": "2" }
+  },
+  "forfeiture": "elsewhere",
+  "conventions": {},
+  "layers": {}
+}
