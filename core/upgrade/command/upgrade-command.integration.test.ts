@@ -13,6 +13,7 @@ import { listedPathsOf, treeOf } from "../../../tests/repository-tree.ts";
 import { checkModulesOn, ESLINT_LINES, type EslintLine } from "../../../tests/eslint-toolchains.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
+import { exceptionsTextOf, selectionTextOf } from "../../../tests/version-one-files.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
 
@@ -76,14 +77,16 @@ const KEPT_CLASS = "export class Kept {}\n";
 
 const NO_RECORDS = '{ "version": 1, "exceptions": [] }\n';
 
-const versionOneRepository = async (request: { readonly source: string; readonly exceptions: string }): Promise<string> => {
+type VersionOneRepositoryRequest = { readonly selection: string; readonly exceptions: string; readonly sources: Readonly<Record<string, string>> };
+
+const versionOneRepositoryOf = async (request: VersionOneRepositoryRequest): Promise<string> => {
   const repo = repositoryWithSubfolder({
     repositories,
     scratch,
     fileText,
-    files: { ...VERSION_ONE_FILES, "discipline-exceptions.json": request.exceptions },
+    files: { ...VERSION_ONE_FILES, "disciplines.json": request.selection, "discipline-exceptions.json": request.exceptions },
     subfolder: "src",
-    subfolderFiles: { "kept.ts": request.source },
+    subfolderFiles: request.sources,
   });
   commands.run({ command: "git", arguments: ["init"], directory: repo });
   trackEverything({ repo });
@@ -91,6 +94,9 @@ const versionOneRepository = async (request: { readonly source: string; readonly
   trackEverything({ repo });
   return repo;
 };
+
+const versionOneRepository = (request: { readonly source: string; readonly exceptions: string }): Promise<string> =>
+  versionOneRepositoryOf({ selection: SELECTION, exceptions: request.exceptions, sources: { "kept.ts": request.source } });
 
 const commitEverything = (request: { readonly repo: string }): void => {
   commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: request.repo });
@@ -401,6 +407,54 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         exits: [[{ code: 1 }]],
       },
       after: before,
+    });
+  });
+});
+
+const AUDIT_SELECTION = selectionTextOf({
+  clauses: {
+    "CD-1#any-cast": "audit",
+    "CD-1#explicit-any": "eslint",
+    "CD-1#implicit-any-let": "eslint",
+    "CD-2#cast-expressions": "audit",
+    "CD-2#non-null-assertions": "eslint",
+  },
+});
+
+const ANY_CAST = "export const parsed = JSON.parse(text) as any;\n";
+
+const AUDIT_EXCEPTIONS = exceptionsTextOf({
+  exceptions: [
+    { kind: "file-carve-out", clause: "CD-1#any-cast", file: "src/owed.ts", reason: "legacy cast" },
+    { kind: "file-carve-out", clause: "CD-1#explicit-any", file: "src/owed.ts", reason: "legacy cast" },
+  ],
+});
+
+describe("hone upgrade over a real repository whose clause is bound to the audit mechanism", () => {
+  it("upgrades it, with one finding open and one answered by debt, and checks both with the check each names", async () => {
+    const repo = await versionOneRepositoryOf({
+      selection: AUDIT_SELECTION,
+      exceptions: AUDIT_EXCEPTIONS,
+      sources: { "open.ts": ANY_CAST, "owed.ts": ANY_CAST },
+    });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    trackEverything({ repo });
+    const checked = await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "elsewhere"], modules: DEFAULT_MODULES });
+    expect({ upgraded, checked }).toEqual({
+      upgraded: {
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/claimed-type.json\nwrote hone-records/debt/untyped-value.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        exits: [[{ code: 0 }]],
+      },
+      checked: {
+        writes: [
+          [
+            {
+              text: "findings (2)\nclaimed-type#cast-to-any walker src/open.ts:1:22 JSON.parse(text) as any;  may indicate: declared-not-asserted, straight-through-tests, handed-what-it-uses\nuntyped-value#explicit-any eslint src/open.ts:1:42 export const parsed = JSON.parse(text) as any; may indicate: declared-not-asserted, no-leak-across-a-boundary\nanswered (2)\nclaimed-type#cast-to-any walker src/owed.ts:1:22 JSON.parse(text) as any;  answered by debt\nuntyped-value#explicit-any eslint src/owed.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nassessment (1)\nforfeiture elsewhere: 2 debt records not checked for forfeiture in this run\nsymptoms (2)\nclaimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it. Known debt: debt. Read ../../rules/typescript/symptoms.md#claimed-type\nuntyped-value: Untyped value. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; reads data from outside (request, file, environment, stored row, response) → No leak across a boundary. The breach usually sits at the boundary that let an unknown shape in. Recipes: Zod at the producer's adapter; Fix the declaration, not the value. Known debt: debt. Read ../../rules/typescript/symptoms.md#untyped-value\nverdict: fail (partial assessment)\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 1 }]],
+      },
     });
   });
 });

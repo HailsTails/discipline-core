@@ -1,6 +1,5 @@
 import { type ClauseAddress, sameClauseAddress } from "../values/clause-address.ts";
-import type { MechanismId } from "../values/identifiers.ts";
-import type { Check, Symptom, SymptomCatalogue } from "./symptom-catalogue.ts";
+import type { Check, SymptomCatalogue } from "./symptom-catalogue.ts";
 
 export type FoundCheck = { readonly found: "check"; readonly check: Check } | { readonly found: "none" };
 
@@ -18,18 +17,6 @@ export const checkAt = (request: { readonly catalogue: SymptomCatalogue; readonl
 
 export const checksOf = (request: { readonly catalogue: Pick<SymptomCatalogue, "checks">; readonly clause: ClauseAddress }): readonly Check[] =>
   request.catalogue.checks.filter((check) => sameClauseAddress({ left: check.clause, right: request.clause }) === "same");
-
-export const checkOfSymptomAt = (request: {
-  readonly catalogue: Pick<SymptomCatalogue, "checks">;
-  readonly clause: ClauseAddress;
-  readonly symptom: Symptom;
-  readonly mechanism: MechanismId;
-}): FoundCheck =>
-  foundAmong({
-    checks: checksOf(request).filter(
-      (check) => check.symptom.name === request.symptom.name && check.engines.some((engine) => engine.mechanism === request.mechanism),
-    ),
-  });
 
 export type NamedCheck =
   | { readonly named: "unnamed" }

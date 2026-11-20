@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAST_CHECK, CAST_EXPRESSIONS, CLAIMED_TYPE, CLOCK_CHECK, CLOCK_SOURCES, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE, TEST_BODY_CHECK, TEST_BODY_LOGIC, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
+import { AUDIT, CAST_CHECK, DATE_USED_DIRECTLY, CAST_EXPRESSIONS, CLAIMED_TYPE, CLOCK_CHECK, CLOCK_SOURCES, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE, TEST_BODY_CHECK, TEST_BODY_LOGIC, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
 import type { MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
 import type { Hit } from "../mechanism-port/runner-result-schema.ts";
 import type { Debt, PlacedRecord, RecordsReading, RefusedRecord } from "../records/hone-record.ts";
@@ -81,6 +81,15 @@ describe("runReportOf, findings and records", () => {
       ...EMPTY_REPORT,
       findings: [CAST_FINDING],
       symptoms: [CLAIMED_TYPE],
+    });
+  });
+
+  it("reports a finding whose engine names no check with the check the catalogue resolves for it", () => {
+    const unnamedHit: Hit = { clause: CLOCK_SOURCES, file: FILE_A, anchor: { line: 2, column: 0 }, snippet: "startedAt" };
+    expect(runReportOf({ ...REQUEST, runs: [{ ...eslintRunOf({ hits: [unnamedHit], projection: "current" }), mechanism: AUDIT }] })).toEqual({
+      ...EMPTY_REPORT,
+      findings: [{ ...unnamedHit, mechanism: AUDIT, check: "date-used-directly#clock-sources" }],
+      symptoms: [DATE_USED_DIRECTLY],
     });
   });
 

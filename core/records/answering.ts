@@ -1,7 +1,8 @@
 import type { AttributedNativeException, Finding, GovernedRun } from "../governance/governance.ts";
 import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
-import { checkNamedAt, checkOfSymptomAt, checksOf } from "../symptom-catalogue/check-address.ts";
-import { type Check, type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/symptom-catalogue.ts";
+import { checkNamedAt, checksOf } from "../symptom-catalogue/check-address.ts";
+import { checkOfFinding } from "../symptom-catalogue/finding-check.ts";
+import type { Check, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -84,27 +85,15 @@ const paidDebts = (request: {
 const forfeitedRecords = (request: { readonly records: readonly PlacedRecord[]; readonly touched: TouchedSet }): readonly PlacedRecord[] =>
   request.records.filter((placed) => placed.record.kind === "debt" && debtForfeitureAt({ touched: request.touched, file: placed.record.file }) === "forfeits");
 
-const symptomSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
-  const { finding, party } = request.raised;
-  const reading = symptomReadingOf({ catalogue: request.catalogue, finding });
-  if (reading.reading !== "named") {
-    return [];
-  }
-  const check = checkOfSymptomAt({ catalogue: request.catalogue, clause: finding.clause, symptom: reading.symptom, mechanism: finding.mechanism });
-  return [{ symptom: reading.symptom, check, file: finding.file, party }];
-};
-
 export const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
   const { finding, party } = request.raised;
-  const named = checkNamedAt({ catalogue: request.catalogue, clause: finding.clause, address: finding.check });
-  switch (named.named) {
-    case "unnamed":
-      return symptomSitesOf(request);
+  const resolved = checkOfFinding({ catalogue: request.catalogue, finding });
+  switch (resolved.resolved) {
     case "check":
-      return [named.check]
-        .filter((check) => check.engines.some((engine) => engine.mechanism === finding.mechanism))
-        .map((check) => ({ symptom: check.symptom, check: { found: "check", check }, file: finding.file, party }));
-    case "not-of-the-clause":
+      return [{ symptom: resolved.check.symptom, check: { found: "check", check: resolved.check }, file: finding.file, party }];
+    case "symptom-only":
+      return [{ symptom: resolved.symptom, check: { found: "none" }, file: finding.file, party }];
+    case "none":
       return [];
   }
 };
