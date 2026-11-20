@@ -14,7 +14,7 @@ const CONFINED: ClauseSettingDeclarations = { confinedPackages: { default: [] } 
 
 const MODE: ClauseSettingDeclarations = { mode: { default: "strict", choices: ["strict", "loose"] } };
 
-const ADDRESS = "outside-import-past-a-boundary#import-boundaries";
+const ADDRESS = "outside-import-past-a-boundary#import-or-require";
 
 const givenOn = (values: GivenCheckSettings["values"]): GivenCheckSettings => ({ address: { ruleSet: "hone", check: ADDRESS }, values });
 

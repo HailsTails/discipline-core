@@ -92,7 +92,7 @@ describe("readSettings", () => {
     expect(
       readSettings({
         sources: sourcesHolding({
-          document: { ...DOCUMENT, conventions: { casing: [{ files: ["**"], fileNames: ["kebab-case"] }] }, layers: { domain: ["src/domain"] } },
+          document: { ...DOCUMENT, conventions: { generated: [{ files: ["src/generated/**"], outsideParty: "@graphql-codegen/cli" }] }, layers: { domain: ["src/domain"] } },
           piece: { outcome: "ok", value: LOOPS_PIECE },
         }),
       }),
@@ -100,7 +100,7 @@ describe("readSettings", () => {
       outcome: "ok",
       value: {
         notes: [
-          { kind: "declared-not-read", key: "casing" },
+          { kind: "declared-not-read", key: "generated" },
           { kind: "declared-not-read", key: "layers" },
         ],
       },
@@ -149,8 +149,8 @@ describe("readSettings", () => {
 });
 
 describe("settingsNoteText", () => {
-  it.each<{ readonly key: "casing" | "layers"; readonly text: string }>([
-    { key: "casing", text: "conventions.casing is declared; no check reads it yet" },
+  it.each<{ readonly key: "generated" | "layers"; readonly text: string }>([
+    { key: "generated", text: "conventions.generated is declared; no check reads it yet" },
     { key: "layers", text: "layers is declared; no check reads it yet" },
   ])("writes $text", ({ key, text }) => {
     expect(settingsNoteText({ note: { kind: "declared-not-read", key } })).toBe(text);

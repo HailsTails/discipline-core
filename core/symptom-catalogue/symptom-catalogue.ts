@@ -28,7 +28,7 @@ export type Pointed = { readonly kind: "rule"; readonly rule: Rule } | { readonl
 
 export type Case = { readonly name: string; readonly title: string; readonly standing: Standing; readonly owes: readonly Pointed[] };
 
-export type Indication = { readonly case: Case; readonly points: readonly Pointed[] };
+export type Indication = { readonly case: Case; readonly situation?: string; readonly points: readonly Pointed[] };
 
 export type CorrectUse = { readonly situation: string; readonly kind: RecordKind; readonly at?: string };
 

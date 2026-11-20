@@ -35,10 +35,10 @@ describe("settingsFileOf", () => {
             "date-used-directly#clock-sources": "walker",
             "claimed-type#non-null-assertions": "eslint",
             "team/no-tmp-file#tmp-paths": "not-run",
-            "loop-keyword#loops": "not-adopted",
+            "loop-keyword#loop-statement": "not-adopted",
           },
           checkSettings: {
-            "outside-import-past-a-boundary#import-boundaries": { confinedOutsideDependencies: ["uuid"] },
+            "outside-import-past-a-boundary#import-or-require": { confinedOutsideDependencies: ["uuid"] },
             "branch-in-a-test#test-body": { edition: "2" },
           },
           forfeiture: "elsewhere",
@@ -62,10 +62,10 @@ describe("settingsFileOf", () => {
           { address: { ruleSet: "hone", check: "date-used-directly#clock-sources" }, state: { state: "run", engine: "walker" } },
           { address: { ruleSet: "hone", check: "claimed-type#non-null-assertions" }, state: { state: "run", engine: "eslint" } },
           { address: { ruleSet: { name: ruleSetNameSchema.parse("team") }, check: "no-tmp-file#tmp-paths" }, state: { state: "not-run" } },
-          { address: { ruleSet: "hone", check: "loop-keyword#loops" }, state: { state: "not-adopted" } },
+          { address: { ruleSet: "hone", check: "loop-keyword#loop-statement" }, state: { state: "not-adopted" } },
         ],
         checkSettings: [
-          { address: { ruleSet: "hone", check: "outside-import-past-a-boundary#import-boundaries" }, values: { confinedOutsideDependencies: ["uuid"] } },
+          { address: { ruleSet: "hone", check: "outside-import-past-a-boundary#import-or-require" }, values: { confinedOutsideDependencies: ["uuid"] } },
           { address: { ruleSet: "hone", check: "branch-in-a-test#test-body" }, values: { edition: "2" } },
         ],
         forfeiture: "elsewhere",
@@ -82,6 +82,15 @@ describe("settingsFileOf", () => {
     expect(settingsFileOf({ document: { ...SMALLEST_DOCUMENT, layers: { domain: ["src/domain"] } } })).toMatchObject({
       outcome: "ok",
       value: { conventions: { conventions: { layers: [{ layer: "domain", folders: ["src/domain"] }] }, declared: ["layers"] } },
+    });
+  });
+
+  it("keeps tracker patterns on their check, as version 1 does", () => {
+    expect(
+      settingsFileOf({ document: { ...SMALLEST_DOCUMENT, checkSettings: { "untracked-escape#directive-pointers": { trackerPatterns: ["^\\(spec-\\d+\\)$"] } } } }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: { checkSettings: [{ address: { ruleSet: "hone", check: "untracked-escape#directive-pointers" }, values: { trackerPatterns: ["^\\(spec-\\d+\\)$"] } }] },
     });
   });
 
@@ -110,21 +119,13 @@ describe("settingsFileOf", () => {
     },
     {
       name: "version 1's setting name for confined outside dependencies",
-      document: { ...SMALLEST_DOCUMENT, checkSettings: { "outside-import-past-a-boundary#import-boundaries": { confinedPackages: ["uuid"] } } },
+      document: { ...SMALLEST_DOCUMENT, checkSettings: { "outside-import-past-a-boundary#import-or-require": { confinedPackages: ["uuid"] } } },
       fault: {
         kind: "malformed",
-        detail: "✖ renamed: \"confinedPackages\" is \"confinedOutsideDependencies\" in version 2\n  → at checkSettings[\"outside-import-past-a-boundary#import-boundaries\"].confinedPackages",
+        detail: "✖ renamed: \"confinedPackages\" is \"confinedOutsideDependencies\" in version 2\n  → at checkSettings[\"outside-import-past-a-boundary#import-or-require\"].confinedPackages",
       },
     },
-    {
-      name: "tracker patterns, which version 2 gives as a closed list of pointer forms",
-      document: { ...SMALLEST_DOCUMENT, checkSettings: { "untracked-pointer#todo-pointers": { trackerPatterns: ["^\\(\\S+\\)$"] } } },
-      fault: {
-        kind: "malformed",
-        detail:
-          "✖ removed: \"trackerPatterns\"; version 2 names tracked pointer forms in conventions.trackedPointers\n  → at checkSettings[\"untracked-pointer#todo-pointers\"].trackerPatterns",
-      },
-    },
+
     {
       name: "a key the file does not define",
       document: { ...SMALLEST_DOCUMENT, numbers: [] },
@@ -142,7 +143,7 @@ describe("settingsFileOf", () => {
     },
     {
       name: "a check state that is no engine's name",
-      document: { ...SMALLEST_DOCUMENT, checks: { "loop-keyword#loops": "Walker" } },
+      document: { ...SMALLEST_DOCUMENT, checks: { "loop-keyword#loop-statement": "Walker" } },
       fault: { kind: "malformed", detail: "✖ a check takes an engine, \"not-run\" or \"not-adopted\"\n  → at checks[0][1]" },
     },
     {
@@ -156,12 +157,9 @@ describe("settingsFileOf", () => {
       fault: { kind: "malformed", detail: "✖ Invalid option: expected one of \"this-run\"|\"elsewhere\"\n  → at forfeiture" },
     },
     {
-      name: "a casing entry that sets no casing, through the conventions reading",
-      document: { ...SMALLEST_DOCUMENT, conventions: { casing: [{ files: ["**"] }] } },
-      fault: {
-        kind: "malformed",
-        detail: "✖ a casing entry sets at least one of fileNames, variables, constants, functions, parameters, types, enumMembers, classMembers, objectProperties, typeProperties\n  → at conventions.casing[0]",
-      },
+      name: "a generated entry that names files anywhere, through the conventions reading",
+      document: { ...SMALLEST_DOCUMENT, conventions: { generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }] } },
+      fault: { kind: "malformed", detail: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]" },
     },
     {
       name: "a rule set named as Hone's own",

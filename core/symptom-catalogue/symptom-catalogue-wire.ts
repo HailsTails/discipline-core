@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
+import { clauseAddressSchema, clauseAddressText, sameClauseAddress } from "../values/clause-address.ts";
+import { checksOf } from "./check-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import type { Result } from "../values/result.ts";
 import type {
@@ -44,7 +45,7 @@ const symptomWireSchema = z.strictObject({
   name: catalogueNameSchema,
   title: textSchema,
   seen: textSchema,
-  mayIndicate: z.array(z.strictObject({ case: catalogueNameSchema, points: z.array(pointedWireSchema).min(1) })).min(1),
+  mayIndicate: z.array(z.strictObject({ case: catalogueNameSchema, situation: textSchema.optional(), points: z.array(pointedWireSchema).min(1) })).min(1),
   breachUsuallySits: textSchema,
   recipes: z.array(catalogueNameSchema),
   correctUses: z.array(correctUseWireSchema),
@@ -252,7 +253,11 @@ const indicationOf = (request: { readonly indication: SymptomWire["mayIndicate"]
   const points = allResolved(request.indication.points.map((point) => pointedOf({ listing: "symptoms", point, pointable: request.definitions })));
   return indicated.outcome === "failed" || points.outcome === "failed"
     ? { outcome: "failed", error: [...faultsOf(indicated), ...faultsOf(points)] }
-    : resolved({ case: indicated.value, points: points.value });
+    : resolved(
+        request.indication.situation === undefined
+          ? { case: indicated.value, points: points.value }
+          : { case: indicated.value, situation: request.indication.situation, points: points.value },
+      );
 };
 
 const correctUseOf = (request: { readonly use: CorrectUseWire; readonly definitions: Definitions }): Resolution<CorrectUse> =>
@@ -342,9 +347,10 @@ const formsOf = (request: { readonly clause: CataloguedClause; readonly symptom:
 type Checking = { readonly symptoms: readonly Symptom[]; readonly clauses: readonly CataloguedClause[]; readonly engines: readonly Engine[] };
 
 const checkedClauseOf = (request: Checking & { readonly wire: CheckWire }): Resolution<CataloguedClause> => {
-  const text = clauseAddressText({ address: request.wire.clause });
-  const clause = request.clauses.find((candidate) => clauseAddressText({ address: candidate.clause }) === text);
-  return clause === undefined ? { outcome: "failed", error: [notHeldRefusal({ listing: "checks", name: text })] } : resolved(clause);
+  const clause = request.clauses.find((candidate) => sameClauseAddress({ left: candidate.clause, right: request.wire.clause }) === "same");
+  return clause === undefined
+    ? { outcome: "failed", error: [notHeldRefusal({ listing: "checks", name: clauseAddressText({ address: request.wire.clause }) })] }
+    : resolved(clause);
 };
 
 const sightedCheckOf = (request: {
@@ -379,16 +385,15 @@ const checkOf = (request: Checking & { readonly wire: CheckWire }): Resolution<C
 };
 
 const uncheckedSightingsOf = (request: { readonly clause: CataloguedClause; readonly checks: readonly Check[] }): readonly string[] => {
-  const text = clauseAddressText({ address: request.clause.clause });
-  const checked = request.checks.filter((check) => clauseAddressText({ address: check.clause }) === text);
+  const checked = checksOf({ catalogue: request, clause: request.clause.clause });
   return checked.length === 0
     ? []
     : sightedNamesOf(request)
         .filter((name) => !checked.some((check) => check.symptom.name === name))
-        .map((name) => `${text} sees ${name}, which no check names`);
+        .map((name) => `${clauseAddressText({ address: request.clause.clause })} sees ${name}, which no check names`);
 };
 
-const checksOf = (request: Checking & { readonly wires: readonly CheckWire[] }): Resolution<readonly Check[]> => {
+const resolvedChecksOf = (request: Checking & { readonly wires: readonly CheckWire[] }): Resolution<readonly Check[]> => {
   const checks = allResolved(request.wires.map((wire) => checkOf({ ...request, wire })));
   if (checks.outcome === "failed") {
     return checks;
@@ -412,7 +417,7 @@ const catalogueOf = (request: { readonly file: CatalogueFile }): Resolution<Symp
     return clauses;
   }
   return mapped({
-    resolution: checksOf({ symptoms: symptoms.value, clauses: clauses.value, engines: definitions.value.engines, wires: request.file.checks }),
+    resolution: resolvedChecksOf({ symptoms: symptoms.value, clauses: clauses.value, engines: definitions.value.engines, wires: request.file.checks }),
     to: (checks) => ({
       ...definitions.value,
       symptoms: symptoms.value,
@@ -437,7 +442,18 @@ const formSectionRepeatsOf = (request: { readonly file: CatalogueFile }): readon
 
 const indicatedCaseRepeatsOf = (request: { readonly file: CatalogueFile }): readonly string[] =>
   request.file.symptoms.flatMap((symptom) =>
-    repeatsIn({ listing: `the cases of ${symptom.name}`, names: symptom.mayIndicate.map((indication) => indication.case) }),
+    repeatsIn({
+      listing: `the cases of ${symptom.name}`,
+      names: symptom.mayIndicate.map((indication) => (indication.situation === undefined ? indication.case : `${indication.case}: ${indication.situation}`)),
+    }),
+  );
+
+const checkedClauseRepeatsOf = (request: { readonly file: CatalogueFile }): readonly string[] =>
+  [...new Set(request.file.checks.map((check) => check.symptom))].flatMap((symptom) =>
+    repeatsIn({
+      listing: `the checks of ${symptom}`,
+      names: request.file.checks.filter((check) => check.symptom === symptom).map((check) => clauseAddressText({ address: check.clause })),
+    }),
   );
 
 const repeatedNamesOf = (request: { readonly file: CatalogueFile }): readonly string[] => [
@@ -447,9 +463,11 @@ const repeatedNamesOf = (request: { readonly file: CatalogueFile }): readonly st
   ...repeatsIn({ listing: "recipes", names: request.file.recipes.map((recipe) => recipe.name) }),
   ...repeatsIn({ listing: "recordKinds", names: request.file.recordKinds.map((kind) => kind.name) }),
   ...repeatsIn({ listing: "engines", names: request.file.engines.map((engine) => engine.name) }),
+  ...repeatsIn({ listing: "the mechanisms of engines", names: request.file.engines.map((engine) => engine.mechanism) }),
   ...repeatsIn({ listing: "symptoms", names: request.file.symptoms.map((symptom) => symptom.name) }),
   ...repeatsIn({ listing: "clauses", names: request.file.clauses.map(({ clause }) => clauseAddressText({ address: clause })) }),
   ...repeatsIn({ listing: "checks", names: request.file.checks.map((check) => `${check.symptom}#${check.name}`) }),
+  ...checkedClauseRepeatsOf(request),
   ...formSectionRepeatsOf(request),
   ...indicatedCaseRepeatsOf(request),
 ];

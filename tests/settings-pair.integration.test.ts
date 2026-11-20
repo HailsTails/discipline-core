@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from "vitest";
-import { createSelectionRepository } from "../core/consumer-selection/consumer-selection.ts";
+import { createSelectionRepository, readRunSettings } from "../core/consumer-selection/consumer-selection.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import { createSettingsRepository } from "../core/settings/read-settings.ts";
@@ -27,6 +27,12 @@ const AFTER_ROOT = resolvedPath({ path: path.join({ segments: [import.meta.dirna
 const readBefore = () => {
   const reading = createSelectionRepository({ repoRoot: BEFORE_ROOT, installRoot: INSTALL_ROOT, moduleExtension: ".ts", fileText, path }).read({});
   assert(reading.outcome === "ok", "the plan's version 1 file loads");
+  return reading.value;
+};
+
+const readBeforeRunSettings = () => {
+  const reading = readRunSettings({ fileText, path, repoRoot: BEFORE_ROOT });
+  assert(reading.outcome === "ok", "the plan's version 1 run settings load");
   return reading.value;
 };
 
@@ -63,7 +69,7 @@ describe("the plan's version 1 and version 2 files", () => {
   });
 
   it("give the same run settings", () => {
-    expect(readAfter().runSettings).toEqual({ reportOutput: "full", assessment: { forfeiture: "elsewhere" } });
+    expect(readAfter().runSettings).toEqual(readBeforeRunSettings());
   });
 
   it("names as uncovered, per symptom, every clause whose check of a listed symptom is listed nowhere", () => {

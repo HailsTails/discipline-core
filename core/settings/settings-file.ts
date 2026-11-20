@@ -72,15 +72,12 @@ const checkStateSchema = z.union(
   { error: `a check takes an engine, "${NOT_RUN}" or "${NOT_ADOPTED}"` },
 );
 
-const REMOVED_SETTINGS = [{ name: "trackerPatterns", replacement: "version 2 names tracked pointer forms in conventions.trackedPointers" }] as const;
 
 const settingValuesSchema = z.record(z.string(), z.json()).superRefine((values, context) => {
   RENAMED_SETTINGS.filter(({ pieceName }) => Object.hasOwn(values, pieceName)).forEach(({ name, pieceName }) => {
     context.addIssue({ code: "custom", path: [pieceName], message: `renamed: "${pieceName}" is "${name}" in version 2` });
   });
-  REMOVED_SETTINGS.filter(({ name }) => Object.hasOwn(values, name)).forEach(({ name, replacement }) => {
-    context.addIssue({ code: "custom", path: [name], message: `removed: "${name}"; ${replacement}` });
-  });
+
 });
 
 const folderListSchema = (request: { readonly refusal: string }) =>

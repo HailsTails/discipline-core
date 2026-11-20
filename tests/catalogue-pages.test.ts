@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { Recipe, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, Recipe, Rule, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import {
   casesOfCatalogue,
+  caseNamesOffTheirTitles,
   casesOnCasesPage,
+  missingLinkSentencesOn,
+  owesOfCatalogue,
+  owesOnPages,
   type PageCase,
+  type ProseLink,
   proposedReasonsOf,
   reasonMismatchesOf,
   recipeReasonsOnPage,
+  unlinkedCaseSentencesOn,
   unlistedCaseNamesOn,
   unservedCaseNamesOn,
 } from "./catalogue-pages.ts";
@@ -55,6 +61,15 @@ describe("unlistedCaseNamesOn", () => {
       unlistedCaseNamesOn({
         symptomsPage:
           "- **May indicate:** Makes a new value from what it has, Causes an effect (writes, logs, sends, exits) → Ports declared inside; Written-out answers. In a test: Makes a new value from what it has → Straight-through tests (\"quoted.\").\n- **May indicate:** Ships code for others (proposed) → Shipped risk declared (proposed, not accepted).\n- **Seen:** Makes a value → nothing.\n",
+        cases: PAGE_CASES,
+      }),
+    ).toEqual([]);
+  });
+
+  it("reads the case before the situation an indication is about", () => {
+    expect(
+      unlistedCaseNamesOn({
+        symptomsPage: "- **May indicate:** In a test: Makes a new value from what it has: a cast to build an input → Handed what it uses.\n",
         cases: PAGE_CASES,
       }),
     ).toEqual([]);
@@ -166,5 +181,132 @@ describe("casesOfCatalogue", () => {
       { title: "Ships code for others", standing: "proposed" },
       { title: "Makes a new value from what it has", standing: "accepted" },
     ]);
+  });
+});
+
+const OWES_CASES_PAGE = `# Cases
+
+Short names: Effects ([No hidden effects](principles.md#no-hidden-effects)), One place ([One place decides](principles.md#one-place-decides)), Boundary ([External behaviour sits at a boundary](principles.md#external-behaviour-sits-at-a-boundary)).
+
+| Case | Owes | What to do |
+|---|---|---|
+| Makes a new value from what it has | Effects; One place | It returns a new value. |
+| Causes an effect (writes, logs, sends, exits) | Effects; Boundary, One place | The effect is a call on a port. |
+| Builds the real implementations | One place; Boundary | One place builds them. |
+`;
+
+const OWES_RULES_PAGE = `# Rules
+
+## One place decides
+
+### Doer or orchestrator
+
+- **What must hold:** An orchestrator only calls.
+- **Cases served:** Makes a new value from what it has.
+
+### Ports declared inside
+
+- **What must hold:** Business logic declares every port.
+- **Cases served:** Causes an effect (writes, logs, sends, exits); Makes a new value from what it has.
+
+Building every real implementation in one place at start-up is a case: Doer or orchestrator plus Ports declared inside give it.
+
+The strictest checker setting is a case; the principle gives it.
+`;
+
+const BUILDING_LINK: ProseLink = {
+  sentence: "Building every real implementation in one place at start-up is a case: Doer or orchestrator plus Ports declared inside give it.",
+  cases: ["Builds the real implementations"],
+};
+
+describe("owesOnPages", () => {
+  it("gives each case the principles its Owes column names, then the rules that serve it or that a prose link says give it, in the rules page's order", () => {
+    expect(owesOnPages({ casesPage: OWES_CASES_PAGE, rulesPage: OWES_RULES_PAGE, links: [BUILDING_LINK] })).toEqual([
+      {
+        title: "Makes a new value from what it has",
+        principles: ["no-hidden-effects", "one-place-decides"],
+        rules: ["Doer or orchestrator", "Ports declared inside"],
+      },
+      {
+        title: "Causes an effect (writes, logs, sends, exits)",
+        principles: ["no-hidden-effects", "external-behaviour-sits-at-a-boundary", "one-place-decides"],
+        rules: ["Ports declared inside"],
+      },
+      {
+        title: "Builds the real implementations",
+        principles: ["one-place-decides", "external-behaviour-sits-at-a-boundary"],
+        rules: ["Doer or orchestrator", "Ports declared inside"],
+      },
+    ]);
+  });
+
+  it("names a short name the page does not define as unknown", () => {
+    expect(
+      owesOnPages({
+        casesPage: "| Case | Owes | What to do |\n|---|---|---|\n| Makes a new value from what it has | Tests | It returns. |\n",
+        rulesPage: "",
+        links: [],
+      }),
+    ).toEqual([{ title: "Makes a new value from what it has", principles: ["unknown short name Tests"], rules: [] }]);
+  });
+});
+
+describe("unlinkedCaseSentencesOn", () => {
+  it("names each sentence that makes a case of rules and that no prose link lists", () => {
+    expect(unlinkedCaseSentencesOn({ pages: [OWES_RULES_PAGE], links: [] })).toEqual([BUILDING_LINK.sentence]);
+  });
+
+  it("names nothing when every such sentence is a prose link, and passes over a case the principle alone gives", () => {
+    expect(unlinkedCaseSentencesOn({ pages: [OWES_RULES_PAGE], links: [BUILDING_LINK] })).toEqual([]);
+  });
+});
+
+describe("missingLinkSentencesOn", () => {
+  it("names each prose link whose sentence no page holds", () => {
+    expect(
+      missingLinkSentencesOn({
+        pages: [OWES_RULES_PAGE],
+        links: [BUILDING_LINK, { sentence: "Guard first gives it.", cases: ["Builds the real implementations"] }],
+      }),
+    ).toEqual(["Guard first gives it."]);
+  });
+});
+
+describe("owesOfCatalogue", () => {
+  it("gives each case the names of the principles it owes and the titles of the rules it owes, in its order", () => {
+    const onePlace: Principle = { name: "one-place-decides", title: "One place decides" };
+    const doer: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: onePlace, standing: "accepted" };
+    const builds: Case = {
+      name: "builds-the-real-implementations",
+      title: "Builds the real implementations",
+      standing: "accepted",
+      owes: [
+        { kind: "principle", principle: onePlace },
+        { kind: "rule", rule: doer },
+      ],
+    };
+    expect(owesOfCatalogue({ catalogue: { cases: [builds] } })).toEqual([
+      { title: "Builds the real implementations", principles: ["one-place-decides"], rules: ["Doer or orchestrator"] },
+    ]);
+  });
+});
+describe("caseNamesOffTheirTitles", () => {
+  type NamingRow = { readonly name: string; readonly entry: Pick<Case, "name" | "title">; readonly off: readonly string[] };
+
+  it.each<NamingRow>([
+    { name: "a name that is its title, hyphenated", entry: { name: "does-one-job", title: "Does one job" }, off: [] },
+    {
+      name: "a name that leaves out its title's parenthetical and punctuation",
+      entry: { name: "causes-an-effect", title: "Causes an effect (writes, logs, sends, exits)" },
+      off: [],
+    },
+    { name: "a name cut shorter than its title", entry: { name: "causes", title: "Causes an effect (writes, logs, sends, exits)" }, off: ["causes"] },
+    {
+      name: "a name that keeps its title's parenthetical",
+      entry: { name: "gives-a-value-its-type-declares-it", title: "Gives a value its type (declares it, or needs it narrower)" },
+      off: ["gives-a-value-its-type-declares-it"],
+    },
+  ])("names $name as off its title when it is", ({ entry, off }) => {
+    expect(caseNamesOffTheirTitles({ cases: [entry] })).toEqual(off);
   });
 });

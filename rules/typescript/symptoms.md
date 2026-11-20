@@ -96,7 +96,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Claimed type
 
 - **Seen:** `as T` other than `as const`, `<T>x`, `x!` or `x!:`, including `as unknown` and any cast whose type holds `any`.
-- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted; Handed what it uses, as when a test builds its input with a cast. In a test: Checks a value that may be one of several outcomes → Straight-through tests.
+- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted. In a test: Checks a value that may be one of several outcomes → Straight-through tests; Gives a value its type (declares it, or needs it narrower): a cast to build an input → Handed what it uses.
 - **Breach usually sits:** The declaration: an input too wide, a generic not bounded, a missing parse. "this feels like its hiding a problem with out modelling". Correct use: authorised location in the adapter whose outside contract forces it.
 - **Seen by:** syntax.
 - **Check today:** reuse.

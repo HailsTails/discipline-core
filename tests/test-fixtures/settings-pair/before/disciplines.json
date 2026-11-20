@@ -5,11 +5,13 @@
     "CD-17#clock-sources": "audit",
     "CD-2#cast-expressions": "audit",
     "CD-2#non-null-assertions": "eslint",
+    "CD-5#comments-directives": "audit",
     "CD-19#import-boundaries": "audit",
     "CD-27#test-body-logic": "audit",
     "CD-15#loops": "not-adopted"
   },
   "clauseSettings": {
+    "CD-5#comments-directives": { "trackerPatterns": ["^\\(spec-\\d+\\)$"] },
     "CD-19#import-boundaries": { "confinedPackages": ["uuid"] },
     "CD-27#test-body-logic": { "edition": "2" }
   },

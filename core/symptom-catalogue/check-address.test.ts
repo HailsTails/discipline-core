@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { type ClauseAddress, clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { checkAddressOf, checkAt, checksOf } from "./check-address.ts";
-import type { Check, Engine, Principle, RecordKind, Symptom, SymptomCatalogue } from "./symptom-catalogue.ts";
+import type { Check, Engine, Principle, Recipe, RecordKind, Symptom, SymptomCatalogue } from "./symptom-catalogue.ts";
 
 const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
 
@@ -38,6 +38,17 @@ const LOOPS_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-15#loops");
 
 const TEST_BODY_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-27#test-body-logic");
 
+const LAYERING_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-13#layer-boundaries");
+
+const RESULT_FAILURES_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-9#result-failures");
+
+const FAILURES_AS_VALUES: Recipe = {
+  name: "failures-as-values",
+  title: "Failures as values",
+  standing: "accepted",
+  reason: { text: "A caller handles each named failure.", standing: "accepted" },
+};
+
 const LOOP_KEYWORD_LOOPS: Check = { name: "loops", symptom: LOOP_KEYWORD, clause: LOOPS_CLAUSE, engines: [WALKER], forms: [] };
 
 const LOOP_KEYWORD_TEST_BODY: Check = { name: "test-body", symptom: LOOP_KEYWORD, clause: TEST_BODY_CLAUSE, engines: [WALKER], forms: ["a-for-loop"] };
@@ -48,7 +59,7 @@ const CATALOGUE: SymptomCatalogue = {
   principles: [NO_HIDDEN_EFFECTS],
   rules: [],
   cases: [],
-  recipes: [],
+  recipes: [FAILURES_AS_VALUES],
   recordKinds: [AUTHORISED_LOCATION, DEBT],
   alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
   engines: [WALKER],
@@ -65,6 +76,8 @@ const CATALOGUE: SymptomCatalogue = {
         ],
       },
     },
+    { clause: LAYERING_CLAUSE, sight: { kind: "one-symptom", symptom: REBINDING } },
+    { clause: RESULT_FAILURES_CLAUSE, sight: { kind: "method", recipe: FAILURES_AS_VALUES, outcomeSeenBy: [REBINDING] } },
     { clause: clauseAddressSchema.parse("CD-32#pii-redaction"), sight: { kind: "outside-the-cases" } },
   ],
   checks: [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY],
@@ -110,6 +123,9 @@ describe("checksOf", () => {
     { name: "a clause that sees one symptom", clause: LOOPS_CLAUSE, checks: [LOOP_KEYWORD_LOOPS] },
     { name: "a clause that sees a symptom by each form", clause: TEST_BODY_CLAUSE, checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] },
     { name: "a clause named with its rule set", clause: clauseAddressSchema.parse("hone/CD-15#loops"), checks: [LOOP_KEYWORD_LOOPS] },
+    { name: "a judgement clause, which sees a symptom but has no check", clause: LAYERING_CLAUSE, checks: [] },
+    { name: "a clause that demands a method", clause: RESULT_FAILURES_CLAUSE, checks: [] },
+    { name: "a team rule set's clause of the same id as one of Hone's", clause: clauseAddressSchema.parse("team/CD-15#loops"), checks: [] },
     { name: "a clause outside the cases", clause: clauseAddressSchema.parse("CD-32#pii-redaction"), checks: [] },
     { name: "a clause the catalogue does not hold", clause: clauseAddressSchema.parse("CD-99#unheld"), checks: [] },
   ])("gives the checks of $name", ({ clause, checks }) => {
