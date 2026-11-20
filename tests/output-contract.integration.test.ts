@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { contractGaps, contractPartsOf, contractTextAt, documentedLinesIn, documentedRolesIn } from "./output-contract.ts";
 import { PRINTABLE_LINES, PRINTED_BLOCKS, PRINTED_SECTION_ROLES } from "./printable-lines.ts";
+import { RUN_FAILURE_LINES, RUN_PRINTED_BLOCKS } from "./printable-run-failure-lines.ts";
 import { RUN_PRINTABLE_LINES, RUN_SECTION_ROLES } from "./printable-run-lines.ts";
 
 const CONTRACT_TEXT = contractTextAt({ path: `${import.meta.dirname}/../docs/output-contract.md` });
@@ -32,7 +33,7 @@ describe("docs/output-contract.md, read against every line the command can print
 
 describe("the version 2 part of docs/output-contract.md, read against every line the version 2 report can print", () => {
   it("documents every printed line as its template filled with that line's own sample values, and every documented line is one the report prints", () => {
-    expect(contractGaps({ documented: documentedLinesIn({ text: CONTRACT_PARTS.versionTwo }), printed: RUN_PRINTABLE_LINES })).toEqual({
+    expect(contractGaps({ documented: documentedLinesIn({ text: CONTRACT_PARTS.versionTwo }), printed: [...RUN_PRINTABLE_LINES, ...RUN_FAILURE_LINES] })).toEqual({
       undocumented: [],
       unprinted: [],
     });
@@ -40,5 +41,9 @@ describe("the version 2 part of docs/output-contract.md, read against every line
 
   it("lists every version 2 report section in the order the report prints them, with its role", () => {
     expect(documentedRolesIn({ text: CONTRACT_PARTS.versionTwo })).toEqual(RUN_SECTION_ROLES);
+  });
+
+  it.each(RUN_PRINTED_BLOCKS)("shows the version 2 synopsis and each help exactly as printed: %s", (block) => {
+    expect(CONTRACT_PARTS.versionTwo).toContain(block);
   });
 });

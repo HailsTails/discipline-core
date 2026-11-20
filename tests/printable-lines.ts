@@ -787,6 +787,8 @@ const UNAVAILABLE_TOOLCHAINS: readonly Filled<RunnerFailure>[] = [
   },
 ];
 
+export const RUNNER_FAILURE_SAMPLES: readonly Filled<RunnerFailure>[] = [...Object.values(RUNNER_FAILURES), ...UNAVAILABLE_TOOLCHAINS];
+
 const LOAD_FAILURES: { readonly [Kind in LoadFailure["kind"]]: Filled<Extract<LoadFailure, { readonly kind: Kind }>> } = {
   "arguments-invalid": { entry: { kind: "arguments-invalid", detail: "--repo needs a value" }, fills: { detail: "--repo needs a value" } },
   "install-root-unresolvable": {
