@@ -8,6 +8,7 @@ import {
   outsideFiles,
   packageOrComputedImport,
   relativeImportReaching,
+  unresolvedLoadsReached,
 } from "../../tests/confinement.ts";
 
 declare global {
@@ -108,5 +109,9 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
         exceptEdges: frontierEdges,
       }),
     ).toEqual([]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each dynamic load that no relative path names, as written, only as listed here, so a computed load the graph cannot follow is reviewed and not waved through", () => {
+    expect(unresolvedLoadsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne })).toEqual([]);
   });
 });

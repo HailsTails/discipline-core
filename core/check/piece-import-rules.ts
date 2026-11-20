@@ -34,7 +34,12 @@ const IMPORT_STATEMENT = /^\s*(?:import|export)\s+(type\s+)?(?:[^;"']*?\s+from\s
 
 const DYNAMIC_MODULE_LOAD = /\b(?:import|require)\s*\(\s*([^)]*?)\s*\)/g;
 
-const QUOTED = /^(["'])(.*)\1$/;
+const QUOTED_OR_SUBSTITUTION_FREE_TEMPLATE = /^(?:(["'])(.*)\1|`((?:[^`$\\]|\$(?!\{))*)`)$/;
+
+const specifierOf = (request: { readonly written: string }): string => {
+  const literal = QUOTED_OR_SUBSTITUTION_FREE_TEMPLATE.exec(request.written);
+  return literal?.[2] ?? literal?.[3] ?? request.written;
+};
 
 type PlacedImport = ModuleImport & { readonly position: number };
 
@@ -49,7 +54,7 @@ export const importsIn = (request: { readonly text: string }): readonly ModuleIm
     ),
     ...[...request.text.matchAll(DYNAMIC_MODULE_LOAD)].map(
       (match): PlacedImport => ({
-        specifier: match[1].replace(QUOTED, "$2"),
+        specifier: specifierOf({ written: match[1] }),
         form: "dynamic",
         position: match.index,
       }),

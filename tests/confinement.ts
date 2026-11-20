@@ -240,6 +240,13 @@ export const importStatementsLeaving = (request: FilesLeaving): readonly ImportS
       .map(([statement]) => ({ file, statement })),
   );
 
+export const unresolvedLoadsReached = (request: Omit<FilesLeaving, "reaching">): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ text })
+      .filter(({ specifier, form }) => form === "dynamic" && !RELATIVE_SPECIFIER.test(specifier))
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
 export const filesReachingExcept = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly startingFrom: RegExp;

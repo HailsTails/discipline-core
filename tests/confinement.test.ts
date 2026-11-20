@@ -23,6 +23,7 @@ import {
   sourcesNamed,
   sourcesOfFiles,
   sourcesNotNamed,
+  unresolvedLoadsReached,
 } from "./confinement.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
@@ -278,6 +279,56 @@ describe("the reach leaving a start without entering what is held", () => {
   it("drops what is held in files matching", () => {
     expect(outsideFiles({ held: importEdgesLeaving(leaving), files: /^\.\/core\/run\// })).toEqual([
       { file: "./core/mid/a.ts", specifier: "../held/b.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("a dynamic load written as a template literal without substitutions", () => {
+  const sources = {
+    "./core/run/start.ts": "const loaded = await import(`../held/d.ts`);\nconst required = require(`../held/r.ts`);\n",
+    "./core/run/chained.ts": "const loaded = await import(`../mid/m.ts`);\n",
+    "./core/mid/m.ts": "export const m = await import(`../held/m.ts`);\n",
+    "./core/held/d.ts": "export const d = 1;\n",
+    "./core/held/m.ts": "export const m = 1;\n",
+    "./core/held/r.ts": "export const r = 1;\n",
+  };
+  const leaving = { sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, reaching: /^\.\/core\/held\// };
+
+  it("is listed as the import edge it is, whatever the load function", () => {
+    expect(importEdgesLeaving(leaving)).toEqual([
+      { file: "./core/run/start.ts", specifier: "../held/d.ts", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "../held/r.ts", form: "dynamic" },
+      { file: "./core/mid/m.ts", specifier: "../held/m.ts", form: "dynamic" },
+    ]);
+  });
+
+  it("is followed through the graph, so a chain through it is found", () => {
+    expect(
+      filesReachingExcept({ sources, startingFrom: /^\.\/core\/run\//, reaching: /^\.\/core\/held\//, exceptEdges: [] }),
+    ).toEqual(["./core/run/chained.ts", "./core/run/start.ts"]);
+  });
+
+  it("is refused as a computed load by no allowance, because it reads as the path it is", () => {
+    expect(
+      importsOutside({ sources: { "./a.ts": "const loaded = await import(`../held/d.ts`);\n" }, allowed: [packageOrComputedImport] }),
+    ).toEqual([{ file: "./a.ts", specifier: "../held/d.ts", form: "dynamic" }]);
+  });
+});
+
+describe("unresolvedLoadsReached", () => {
+  const sources = {
+    "./core/run/start.ts":
+      'import { a } from "./a.ts";\nconst relative = await import("./a.ts");\nconst named = await import("zod");\nconst computed = await import(`${folder}/mod.ts`);\nconst viaVariable = await import(modulePath);\n',
+    "./core/run/a.ts": "export const a = 1;\n",
+    "./core/held/h.ts": "const hidden = await import(somewhere);\n",
+    "./core/unreached/u.ts": "const hidden = await import(elsewhere);\n",
+  };
+
+  it("lists each dynamic load in the reached files that no relative path names, as written, and none it cannot enter", () => {
+    expect(unresolvedLoadsReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\// })).toEqual([
+      { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "`${folder}/mod.ts`", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
     ]);
   });
 });
