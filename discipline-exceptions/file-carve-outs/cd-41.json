@@ -4,11 +4,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-41#cognitive-complexity",
-      "file": "mechanisms/audit/CD-19/import-boundaries.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-41#cognitive-complexity",
       "file": "mechanisms/audit/CD-43/boolean-signatures.ts"
     },
     {
