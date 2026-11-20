@@ -254,7 +254,7 @@ const AUTHORISE_CASES: readonly AuthoriseCase[] = [
     files: { "disciplines.json": "{}" },
     path: POSIX_PATH,
     arguments: ["--repo", "/repo"],
-    line: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n",
+    line: "load failure: upgrade-needed disciplines.json: this is a version 1 file; run node /install/core/check/tool-command.ts upgrade --repo /repo, which rewrites every version 1 file as version 2, and commit what it writes\n",
   },
   {
     case: "a folder holding neither settings file",

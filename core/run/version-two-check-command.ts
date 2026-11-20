@@ -10,7 +10,7 @@ import { renderRunReportText } from "../report/run-report-text.ts";
 import { runVerdictOf } from "../report/report-sections.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
-import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
+import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
 import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "./version-two-repository.ts";
 import { type VersionTwoRun, versionTwoRunOver } from "./version-two-run.ts";
 
@@ -84,7 +84,7 @@ const outcomeOf = async (request: { readonly ports: VersionTwoRepositoryPorts; r
     arguments: { forfeiture: located.value.arguments.forfeiture, reportOutput: located.value.arguments.reportOutput, measuring: "when-debt-held" },
   });
   return run.outcome === "failed"
-    ? runLoadFailureOutcomeOf({ failure: run.error })
+    ? runLoadFailureOutcomeOf({ failure: run.error, upgradeCommand: upgradeCommandFor({ path: request.command.path, moduleUrl: request.command.moduleUrl, repoRoot: located.value.repoRoot }) })
     : runOutcomeOf({ command: request.command, located: located.value, run: run.value });
 };
 

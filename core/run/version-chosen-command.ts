@@ -3,7 +3,8 @@ import type { CommandRequest } from "../check/run-check-command.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { repoArgumentOf } from "./repo-argument.ts";
-import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
+import type { AbsolutePath } from "../values/absolute-path.ts";
+import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
 import { runPathOf } from "./run-path.ts";
 
 export type VersionedHandler = (command: CommandRequest) => Promise<void>;
@@ -13,8 +14,14 @@ export type VersionChoice = {
   readonly versionTwo: VersionedHandler;
 };
 
-export const printFailure = (request: { readonly command: CommandRequest; readonly failure: RunLoadFailure }): Promise<void> => {
-  printOutcome({ process: request.command.process, outcome: runLoadFailureOutcomeOf({ failure: request.failure }) });
+export const printFailure = (request: {
+  readonly command: CommandRequest;
+  readonly failure: RunLoadFailure;
+  readonly repoRoot: AbsolutePath | undefined;
+}): Promise<void> => {
+  const upgradeCommand =
+    request.repoRoot === undefined ? undefined : upgradeCommandFor({ path: request.command.path, moduleUrl: request.command.moduleUrl, repoRoot: request.repoRoot });
+  printOutcome({ process: request.command.process, outcome: runLoadFailureOutcomeOf({ failure: request.failure, upgradeCommand }) });
   return Promise.resolve();
 };
 
@@ -28,7 +35,7 @@ export const versionChosenCommandOf =
     }
     const chosen = runPathOf({ fileText: command.fileText, path: command.path, repoRoot: resolved.value });
     if (chosen.outcome === "failed") {
-      return printFailure({ command, failure: chosen.error });
+      return printFailure({ command, failure: chosen.error, repoRoot: resolved.value });
     }
     return chosen.value === "version-2" ? request.versionTwo(command) : request.versionOne(command);
   };
@@ -36,4 +43,4 @@ export const versionChosenCommandOf =
 export const notReadyCommandOf =
   (request: { readonly command: Subcommand }): VersionedHandler =>
   (command) =>
-    printFailure({ command, failure: { kind: "not-ready-yet", what: { thing: "command", command: request.command } } });
+    printFailure({ command, failure: { kind: "not-ready-yet", what: { thing: "command", command: request.command } }, repoRoot: undefined });

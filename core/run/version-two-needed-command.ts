@@ -23,6 +23,7 @@ const needsOf = (request: { readonly command: CommandRequest; readonly parsed: A
     failure: versionOneFilePresence({ command: request.command, repoRoot: repoRoot.value }) === "present"
       ? { kind: "upgrade-needed", path: VERSION_ONE_SETTINGS_FILE_NAME }
       : { kind: "config-absent", repo: repoRoot.value },
+    repoRoot: repoRoot.value,
   });
 };
 

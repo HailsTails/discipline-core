@@ -150,12 +150,12 @@ describe("versionTwoCheckCommandOf", () => {
     });
   });
 
-  it("prints the upgrade-needed line without promising a command, since no command rewrites version 1 files yet", async () => {
+  it("prints the upgrade-needed line naming the upgrade command for this repository", async () => {
     const upgrade: RunLoadFailure = { kind: "upgrade-needed", path: "disciplines.json" };
     const stages = stagesGiving({ records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "failed", error: upgrade }) });
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
     expect(ran).toEqual({
-      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n" }]],
+      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file; run node /install/core/check/tool-command.ts upgrade --repo /repo, which rewrites every version 1 file as version 2, and commit what it writes\n" }]],
       exits: [[{ code: 2 }]],
     });
   });

@@ -48,6 +48,9 @@ const toolInvocationOf = (
 export const projectCommandOf = (request: InvocationRequest): Result<string, LoadFailure> =>
   toolInvocationOf({ ...request, subcommand: "project", options: [] });
 
+export const upgradeInvocationOf = (request: InvocationRequest): Result<string, LoadFailure> =>
+  toolInvocationOf({ ...request, subcommand: "upgrade", options: [] });
+
 export const pruneCommandOf = (
   request: InvocationRequest & { readonly baseRevision: string | undefined; readonly forfeiture: ForfeitureAssessment | undefined },
 ): Result<string, LoadFailure> =>

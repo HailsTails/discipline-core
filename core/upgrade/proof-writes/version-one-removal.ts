@@ -131,7 +131,7 @@ export const filesStillPresentOf = (request: { readonly removal: VersionOneRemov
   return failure.kind === "unremovable" && !files.includes(failure.path) ? [...files, failure.path] : files;
 };
 
-export const removedVersionOneFiles =(request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): Result<Removed, RemovalFailure> => {
+export const removedVersionOneFiles = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): Result<Removed, RemovalFailure> => {
   const outside = recordsOutsideRoot(request);
   return outside === undefined ? removedFrom({ ports: request.ports, steps: stepsOf(request), removed: { files: [], folders: [] } }) : { outcome: "failed", error: outside };
 };

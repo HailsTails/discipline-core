@@ -1,6 +1,6 @@
 import type { LoadFailure } from "../../command-line/load-failure.ts";
 import type { DirectoryEntry, DirectoryPort } from "../../platform-ports/file-system-port.ts";
-import type { FileTextPort } from "../../platform-ports/file-text-port.ts";
+import type { FilePresence, FileTextPort } from "../../platform-ports/file-text-port.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
@@ -30,6 +30,8 @@ type Tree = { readonly files: readonly RepoPath[]; readonly folders: readonly Re
 
 const NOTHING: Tree = { files: [], folders: [] };
 
+const NO_TREE: Result<Tree, LoadFailure> = { outcome: "ok", value: NOTHING };
+
 const unreadable = (request: { readonly path: string; readonly detail: string }): Result<never, LoadFailure> => ({
   outcome: "failed",
   error: { kind: "file-unreadable", path: request.path, detail: request.detail },
@@ -47,8 +49,8 @@ const joinedTrees = (request: { readonly trees: readonly Tree[] }): Tree => ({
 });
 
 const allOk = (request: { readonly results: readonly Result<Tree, LoadFailure>[] }): Result<readonly Tree[], LoadFailure> => {
-  const failed = request.results.find((result) => result.outcome === "failed");
-  return failed ?? { outcome: "ok", value: request.results.flatMap((result) => (result.outcome === "ok" ? [result.value] : [])) };
+  const failed = request.results.find((reading) => reading.outcome === "failed");
+  return failed ?? { outcome: "ok", value: request.results.flatMap((reading) => (reading.outcome === "ok" ? [reading.value] : [])) };
 };
 
 const entryTreeOf = (request: RecordsOnDiskRequest & { readonly folder: RepoPath; readonly entry: DirectoryEntry }): Result<Tree, LoadFailure> => {
@@ -72,15 +74,15 @@ const folderTreeOf = (request: RecordsOnDiskRequest & { readonly folder: RepoPat
   return below.outcome === "failed" ? below : { outcome: "ok", value: joinedTrees({ trees: [{ files: [], folders: [request.folder] }, ...below.value] }) };
 };
 
-const presentOf = (request: RecordsOnDiskRequest & { readonly shown: RepoPath }): boolean => {
+const presenceOf = (request: RecordsOnDiskRequest & { readonly shown: RepoPath }): FilePresence => {
   const absolute = absoluteOf(request);
-  return absolute.outcome === "ok" && request.fileText.exists({ path: absolute.value }) === "present";
+  return absolute.outcome === "ok" ? request.fileText.exists({ path: absolute.value }) : "absent";
 };
 
 export const recordsOnDiskOf = (request: RecordsOnDiskRequest): Result<RecordsOnDisk, LoadFailure> => {
-  const single = presentOf({ ...request, shown: SINGLE_RECORDS_FILE });
-  const split = presentOf({ ...request, shown: SPLIT_RECORDS_FOLDER });
-  const tree = split ? folderTreeOf({ ...request, folder: SPLIT_RECORDS_FOLDER }) : { outcome: "ok" as const, value: NOTHING };
+  const single = presenceOf({ ...request, shown: SINGLE_RECORDS_FILE }) === "present";
+  const split = presenceOf({ ...request, shown: SPLIT_RECORDS_FOLDER }) === "present";
+  const tree = split ? folderTreeOf({ ...request, folder: SPLIT_RECORDS_FOLDER }) : NO_TREE;
   if (tree.outcome === "failed") {
     return tree;
   }
