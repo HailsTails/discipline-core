@@ -108,7 +108,7 @@ const pieceClauseOf = (request: PieceRequest): Result<PieceClause, VersionTwoLoa
 export const createSettingsSources = (options: SourcesOptions): SettingsSources => ({
   settingsFile: (_request) => settingsDocumentOf(options),
   ruleSetRoot: (request) =>
-    ruleSetRootOf({ ...options, ruleSet: request.ruleSet, ruleSets: request.ruleSets }),
+    ruleSetRootOf({ ruleSet: request.ruleSet, ruleSets: request.ruleSets, repoRoot: options.repoRoot, installRoot: options.installRoot, path: options.path }),
   catalogue: (request) => createSymptomCatalogueRepository({ fileText: options.fileText, path: options.path, ruleSetRoot: request.ruleSetRoot }).read({}),
   pieceClause: (request) => pieceClauseOf({ ...options, ...request }),
 });
