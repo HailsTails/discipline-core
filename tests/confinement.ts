@@ -250,6 +250,23 @@ export const unresolvedLoadsReached = (request: Omit<FilesLeaving, "reaching">):
       .map(({ specifier, form }) => ({ file, specifier, form })),
   );
 
+export const unscannedEdgesReached = (request: Omit<FilesLeaving, "reaching"> & { readonly within: RegExp }): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ file, text })
+      .filter(({ specifier }) => {
+        const resolved = resolvedImportOf({ file, specifier });
+        return resolved !== undefined && request.within.test(resolved) && request.sources[resolved] === undefined;
+      })
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
+export const specifierImportsReached = (request: Omit<FilesLeaving, "reaching"> & { readonly specifier: RegExp }): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ file, text })
+      .filter(({ specifier }) => request.specifier.test(specifier))
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
 export const filesReachingExcept = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly startingFrom: RegExp;

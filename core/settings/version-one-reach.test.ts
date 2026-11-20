@@ -8,7 +8,9 @@ import {
   outsideFiles,
   packageOrComputedImport,
   relativeImportReaching,
+  specifierImportsReached,
   unresolvedLoadsReached,
+  unscannedEdgesReached,
 } from "../../tests/confinement.ts";
 
 declare global {
@@ -27,7 +29,7 @@ const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/r
   eager: true,
 });
 
-const everySource = import.meta.glob(["./core/**/*.ts"], {
+const everySource = import.meta.glob(["./core/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}"], {
   base: "../../",
   query: "?raw",
   import: "default",
@@ -105,5 +107,15 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     expect(unresolvedLoadsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne })).toEqual([
       { file: "./core/platform-ports/module-loader-port.ts", specifier: "pathToFileURL(request.path).href", form: "dynamic" },
     ]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each relative import or load that resolves under core/ to no file this scan reads, only as listed here, so an edge the graph cannot follow is reviewed", () => {
+    expect(unscannedEdgesReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne, within: /^\.\/core\// })).toEqual([]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each import or load of node:module or module, only as listed here, so a loader the reader cannot trace is reviewed", () => {
+    expect(
+      specifierImportsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne, specifier: /^(?:node:)?module$/ }),
+    ).toEqual([]);
   });
 });

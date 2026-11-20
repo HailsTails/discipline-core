@@ -19,36 +19,49 @@ const specifierOf = (request: { readonly expression: SyntaxNode; readonly source
     ? request.expression.text
     : request.expression.getText(request.sourceFile);
 
-const loadsAModule = (request: { readonly callee: SyntaxNode }): boolean =>
-  request.callee.kind === syntaxApi.SyntaxKind.ImportKeyword || (syntaxApi.isIdentifier(request.callee) && request.callee.text === "require");
-
-const ownImportOf = (request: NodeIn): ModuleImport | undefined => {
+const declarationImportOf = (request: NodeIn): ModuleImport | undefined => {
   const { node, sourceFile } = request;
   if (syntaxApi.isImportDeclaration(node)) {
     return { specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }), form: node.importClause?.isTypeOnly === true ? "type-only" : "value" };
   }
-  if (syntaxApi.isExportDeclaration(node)) {
-    return node.moduleSpecifier === undefined
-      ? undefined
-      : { specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }), form: node.isTypeOnly ? "type-only" : "value" };
-  }
-  if (syntaxApi.isImportEqualsDeclaration(node)) {
-    return syntaxApi.isExternalModuleReference(node.moduleReference)
-      ? { specifier: specifierOf({ expression: node.moduleReference.expression, sourceFile }), form: node.isTypeOnly ? "type-only" : "value" }
-      : undefined;
-  }
-  if (syntaxApi.isImportTypeNode(node)) {
-    return {
-      specifier: specifierOf({ expression: syntaxApi.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument, sourceFile }),
-      form: "type-only",
-    };
-  }
-  if (syntaxApi.isCallExpression(node) && loadsAModule({ callee: node.expression })) {
-    const [loaded] = node.arguments;
-    return loaded === undefined ? undefined : { specifier: specifierOf({ expression: loaded, sourceFile }), form: "dynamic" };
+  if (syntaxApi.isExportDeclaration(node) && node.moduleSpecifier !== undefined) {
+    return { specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }), form: node.isTypeOnly ? "type-only" : "value" };
   }
   return undefined;
 };
+
+const importEqualsOf = (request: NodeIn): ModuleImport | undefined => {
+  const { node, sourceFile } = request;
+  return syntaxApi.isImportEqualsDeclaration(node) && syntaxApi.isExternalModuleReference(node.moduleReference)
+    ? { specifier: specifierOf({ expression: node.moduleReference.expression, sourceFile }), form: node.isTypeOnly ? "type-only" : "value" }
+    : undefined;
+};
+
+const importTypeOf = (request: NodeIn): ModuleImport | undefined => {
+  const { node, sourceFile } = request;
+  if (!syntaxApi.isImportTypeNode(node)) {
+    return undefined;
+  }
+  const named = syntaxApi.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument;
+  return { specifier: specifierOf({ expression: named, sourceFile }), form: "type-only" };
+};
+
+const loadedArgumentOf = (request: NodeIn): SyntaxNode | undefined => {
+  const { node } = request;
+  if (!syntaxApi.isCallExpression(node)) {
+    return undefined;
+  }
+  const callee = node.expression;
+  return callee.kind === syntaxApi.SyntaxKind.ImportKeyword || (syntaxApi.isIdentifier(callee) && callee.text === "require") ? node.arguments[0] : undefined;
+};
+
+const loadCallOf = (request: NodeIn): ModuleImport | undefined => {
+  const loaded = loadedArgumentOf(request);
+  return loaded === undefined ? undefined : { specifier: specifierOf({ expression: loaded, sourceFile: request.sourceFile }), form: "dynamic" };
+};
+
+const ownImportOf = (request: NodeIn): ModuleImport | undefined =>
+  declarationImportOf(request) ?? importEqualsOf(request) ?? importTypeOf(request) ?? loadCallOf(request);
 
 const childrenOf = (request: { readonly node: SyntaxNode }): readonly SyntaxNode[] => {
   const children: SyntaxNode[] = [];
@@ -68,18 +81,15 @@ export const importsIn = (request: SourceText): readonly ModuleImport[] => {
   return importsBelow({ node: sourceFile, sourceFile });
 };
 
-const namesItsSource = (request: { readonly statement: SyntaxNode }): boolean =>
-  (syntaxApi.isImportDeclaration(request.statement) && request.statement.importClause !== undefined) ||
-  (syntaxApi.isExportDeclaration(request.statement) && request.statement.moduleSpecifier !== undefined);
-
 export type ImportStatementIn = { readonly specifier: string; readonly statement: string };
+
+const statementImportOf = (request: NodeIn): ModuleImport | undefined =>
+  syntaxApi.isImportDeclaration(request.node) && request.node.importClause === undefined ? undefined : declarationImportOf(request);
 
 export const importStatementsIn = (request: SourceText): readonly ImportStatementIn[] => {
   const sourceFile = sourceFileOf(request);
-  return sourceFile.statements
-    .filter((statement) => namesItsSource({ statement }))
-    .flatMap((statement) => {
-      const own = ownImportOf({ node: statement, sourceFile });
-      return own === undefined ? [] : [{ specifier: own.specifier, statement: statement.getText(sourceFile) }];
-    });
+  return sourceFile.statements.flatMap((statement) => {
+    const own = statementImportOf({ node: statement, sourceFile });
+    return own === undefined ? [] : [{ specifier: own.specifier, statement: statement.getText(sourceFile) }];
+  });
 };

@@ -23,7 +23,9 @@ import {
   sourcesNamed,
   sourcesOfFiles,
   sourcesNotNamed,
+  specifierImportsReached,
   unresolvedLoadsReached,
+  unscannedEdgesReached,
 } from "./confinement.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
@@ -334,6 +336,53 @@ const viaVariable = await import(modulePath);
       { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
       { file: "./core/run/start.ts", specifier: `\`\${folder}/mod.ts\``, form: "dynamic" },
       { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
+    ]);
+  });
+});
+
+describe("unscannedEdgesReached", () => {
+  const sources = {
+    "./core/run/start.ts": `import { a } from "./a.ts";
+import { s } from "../values/scanned.mts";
+const unread = await import("../values/x.mts");
+import { gone } from "./gone.js";
+import { o } from "../../outside/o.ts";
+import { z } from "zod";
+`,
+    "./core/run/a.ts": "export const a = 1;\n",
+    "./core/values/scanned.mts": "export const s = 1;\n",
+    "./core/held/h.ts": 'import { far } from "../far/far.ts";\n',
+  };
+
+  it("lists each relative edge in the reached files that resolves under the folder to no source given, whatever its form, and none that resolves outside it or names a package", () => {
+    expect(
+      unscannedEdgesReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, within: /^\.\/core\// }),
+    ).toEqual([
+      { file: "./core/run/start.ts", specifier: "../values/x.mts", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: "./gone.js", form: "value" },
+    ]);
+  });
+});
+
+describe("specifierImportsReached", () => {
+  const sources = {
+    "./core/run/start.ts": `import { createRequire } from "node:module";
+import legacy from "module";
+const loaded = await import("node:module");
+import { z } from "zod";
+import { p } from "./module.ts";
+`,
+    "./core/run/module.ts": "export const p = 1;\n",
+    "./core/held/h.ts": 'import legacy from "module";\n',
+  };
+
+  it("lists each import or load in the reached files whose specifier matches, as written, and none in files it cannot enter", () => {
+    expect(
+      specifierImportsReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\//, specifier: /^(?:node:)?module$/ }),
+    ).toEqual([
+      { file: "./core/run/start.ts", specifier: "node:module", form: "value" },
+      { file: "./core/run/start.ts", specifier: "module", form: "value" },
+      { file: "./core/run/start.ts", specifier: "node:module", form: "dynamic" },
     ]);
   });
 });
