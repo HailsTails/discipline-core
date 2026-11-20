@@ -1,7 +1,7 @@
 import type { PieceFailure } from "../../../core/mechanism-port/piece-failure-types.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-types.ts";
 import type { Result } from "../../../core/values/result.ts";
-import type { SyntaxNode } from "../runner/typescript-parse.ts";
+import type { SyntaxApi, SyntaxNode, SyntaxTree } from "../runner/typescript-parse.ts";
 import type { PieceHit, WalkerPiece } from "../runner/walker-piece.ts";
 import { folderScope } from "../runner/source-scope.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
@@ -60,8 +60,48 @@ const confinedImportHits = (request: {
       clause: confined.clause.address,
       anchor: { line, column: 0 },
       snippet: `banned third-party import: ${specifier} — use its recorded wrapping boundary`,
+      importSpecifier: specifier,
     })),
   );
+
+const NODE_SCHEME = "node:";
+
+const loadCallSpecifierOf = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode | undefined => {
+  const { node, syntaxApi } = request;
+  if (!syntaxApi.isCallExpression(node)) return undefined;
+  const callee = node.expression;
+  const loads = callee.kind === syntaxApi.SyntaxKind.ImportKeyword || (syntaxApi.isIdentifier(callee) && callee.text === "require");
+  return loads ? node.arguments[0] : undefined;
+};
+
+const moduleSpecifierOf = (request: { readonly node: SyntaxNode; readonly syntaxApi: SyntaxApi }): SyntaxNode | undefined => {
+  const { node, syntaxApi } = request;
+  if (syntaxApi.isImportDeclaration(node) || syntaxApi.isExportDeclaration(node)) return node.moduleSpecifier;
+  if (syntaxApi.isImportTypeNode(node) && syntaxApi.isLiteralTypeNode(node.argument)) return node.argument.literal;
+  if (syntaxApi.isImportEqualsDeclaration(node) && syntaxApi.isExternalModuleReference(node.moduleReference)) return node.moduleReference.expression;
+  return loadCallSpecifierOf(request);
+};
+
+type NodeSchemeImport = { readonly specifier: string; readonly position: number };
+
+const nodeSchemeImportOf = (request: {
+  readonly node: SyntaxNode;
+  readonly syntaxApi: SyntaxApi;
+  readonly sourceFile: SyntaxTree;
+}): NodeSchemeImport | undefined => {
+  const specifier = moduleSpecifierOf(request);
+  if (specifier === undefined || !request.syntaxApi.isStringLiteralLike(specifier) || !specifier.text.startsWith(NODE_SCHEME)) return undefined;
+  return { specifier: specifier.text, position: specifier.getStart(request.sourceFile) };
+};
+
+const nodeSchemeHits = (request: {
+  readonly clauses: readonly RunnerClause[];
+  readonly anchor: PieceHit["anchor"];
+  readonly specifier: string;
+}): readonly PieceHit[] => {
+  const snippet = `bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: ${request.specifier}`;
+  return request.clauses.map((clause) => ({ clause: clause.address, anchor: request.anchor, snippet, importSpecifier: request.specifier }));
+};
 
 const confinedClausesOf = (request: {
   readonly clauses: readonly RunnerClause[];
@@ -91,24 +131,11 @@ export const check: WalkerPiece = {
               begin: ({ sourceFile, anchorAt }) => {
                 const rawHits = confinedImportHits({ text: sourceFile.text, confined });
                 const nodeHits: PieceHit[] = [];
-                const record = (specifier: SyntaxNode | undefined): void => {
-                  if (specifier === undefined || !syntaxApi.isStringLiteralLike(specifier) || !specifier.text.startsWith("node:")) return;
-                  const anchor = anchorAt({ position: specifier.getStart(sourceFile) });
-                  const snippet = `bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: ${specifier.text}`;
-                  nodeHits.push(...clauses.map((clause) => ({ clause: clause.address, anchor, snippet })));
-                };
                 return {
                   enter: ({ node }) => {
-                    if (syntaxApi.isImportDeclaration(node) || syntaxApi.isExportDeclaration(node)) {
-                      record(node.moduleSpecifier);
-                    } else if (syntaxApi.isImportTypeNode(node) && syntaxApi.isLiteralTypeNode(node.argument)) {
-                      record(node.argument.literal);
-                    } else if (syntaxApi.isImportEqualsDeclaration(node) && syntaxApi.isExternalModuleReference(node.moduleReference)) {
-                      record(node.moduleReference.expression);
-                    } else if (syntaxApi.isCallExpression(node) && (node.expression.kind === syntaxApi.SyntaxKind.ImportKeyword ||
-                      (syntaxApi.isIdentifier(node.expression) && node.expression.text === "require"))) {
-                      record(node.arguments[0]);
-                    }
+                    const imported = nodeSchemeImportOf({ node, syntaxApi, sourceFile });
+                    if (imported === undefined) return;
+                    nodeHits.push(...nodeSchemeHits({ clauses, anchor: anchorAt({ position: imported.position }), specifier: imported.specifier }));
                   },
                   finish: () => [...rawHits, ...nodeHits],
                 };
