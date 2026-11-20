@@ -1,26 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
-import { ESLINT, REPORT_CATALOGUE } from "../../tests/report-catalogue.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
-import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
-import type { DirectoryPort, FileRemovalPort } from "../platform-ports/file-system-port.ts";
-import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
-import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
-import { createPathPort } from "../platform-ports/path-port.ts";
-import type { ProcessPort } from "../platform-ports/process-port.ts";
-import type { RecordsReading } from "../records/hone-record.ts";
+import { assert, describe, expect, it, vi } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { authoriseArgumentsFor, commandOver, gitTreeStub, memoryRepositoryOf, recordedProcessWith } from "../../tests/command-harness.ts";
+import { CAST_EXPRESSIONS, CLAIMED_TYPE, ESLINT, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
+import type { Hit } from "../mechanism-port/runner-result-schema.ts";
+import type { PlacedRecord, RecordsReading } from "../records/hone-record.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
+import type { TouchedSet } from "../touched-set/touched-set.ts";
+import type { ForfeitureAssessment } from "../values/assessment.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import type { StagesOver } from "./version-two-check-command.ts";
+import type { StagesOver } from "./version-two-repository.ts";
 import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "./version-two-record-commands.ts";
 import type { VersionTwoStages } from "./version-two-run.ts";
 
 const FILE_A = repoPathSchema.parse("src/a.ts");
 
-const SETTINGS: SettingsReading = {
+const settingsWith = (request: { readonly forfeiture: ForfeitureAssessment }): SettingsReading => ({
   selection: {
     selection: { selected: [], uncovered: [], notAdopted: [], notRun: [], editions: [] },
     bindings: [],
@@ -29,17 +26,24 @@ const SETTINGS: SettingsReading = {
     eslintConfigRoots: [],
     fileExceptionWhyChains: "required",
   },
-  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: "this-run" } },
+  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: request.forfeiture } },
   eslintConfigLookup: { lookup: "detected" },
   conventions: DEFAULT_CONVENTIONS,
   notes: [],
+});
+
+const NO_RECORDS: RecordsReading = { records: [], refused: [], notes: [], base: { measured: "yes" } };
+
+const HELD_DEBT: PlacedRecord = {
+  place: { file: repoPathSchema.parse("hone-records/debt/claimed-type.json"), index: 0 },
+  record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: FILE_A, holding: { held: "stated" } },
 };
 
-const RECORDS: RecordsReading = { records: [], refused: [], notes: [], base: { measured: "yes" } };
+const CAST: Hit = { clause: CAST_EXPRESSIONS, file: FILE_A, anchor: { line: 4, column: 9 }, snippet: "body as Event", check: "claimed-type#cast-expressions" };
 
-const CLEAN_RUN: EngineRun = {
+const runOf = (request: { readonly hits: readonly Hit[] }): EngineRun => ({
   mechanism: ESLINT,
-  hits: [],
+  hits: request.hits,
   nativeExceptions: [],
   coverableKinds: [],
   projection: "current",
@@ -47,61 +51,42 @@ const CLEAN_RUN: EngineRun = {
   unprojectedFolders: [],
   measured: [],
   misnamedRuleIds: [],
-};
+});
+
+const settingsStageFor = (request: { readonly forfeiture: ForfeitureAssessment }) =>
+  vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: settingsWith(request) });
+
+const touchedStageGiving = (request: { readonly touched: TouchedSet }) => vi.fn<VersionTwoStages["touched"]>().mockReturnValue(request.touched);
+
+const FILE_A_CHANGED: TouchedSet = { measured: "yes", paths: new Set([FILE_A]) };
+
+const LEFT_TO_ANOTHER_RUN: TouchedSet = { measured: "elsewhere" };
 
 const stagesGiving = (request: Partial<VersionTwoStages>): VersionTwoStages => ({
   catalogue: vi.fn<VersionTwoStages["catalogue"]>().mockReturnValue({ outcome: "ok", value: REPORT_CATALOGUE }),
-  settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: SETTINGS }),
-  records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: RECORDS }),
+  settings: settingsStageFor({ forfeiture: "this-run" }),
+  records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: NO_RECORDS }),
   tree: vi.fn<VersionTwoStages["tree"]>().mockReturnValue({ outcome: "ok", value: { tracked: [FILE_A], declaredConfigRoots: [] } }),
-  engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [CLEAN_RUN] }),
+  engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [runOf({ hits: [CAST] })] }),
   touched: vi.fn<VersionTwoStages["touched"]>().mockReturnValue({ measured: "yes", paths: new Set() }),
   ...request,
 });
 
-const ENTRY_URL = "file:///install/core/check/tool-command.ts";
-
-const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({
-  arguments: request.arguments,
-  writeOut: vi.fn<ProcessPort["writeOut"]>(),
-  writeError: vi.fn<ProcessPort["writeError"]>(),
-  exitWith: vi.fn<ProcessPort["exitWith"]>(),
-});
-
-const commandWith = (request: { readonly process: ProcessPort }): CommandRequest => ({
-  process: request.process,
-  path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
-  fileText: {
-    exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
-    read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "failed", error: { kind: "unreadable", path: "/repo/package.json", detail: "absent" } }),
-    write: vi.fn<FileTextPort["write"]>(),
-  },
-  modules: { load: vi.fn<ModuleLoaderPort["load"]>() },
-  git: {
-    trackedPaths: vi.fn<GitPort["trackedPaths"]>(),
-    changedSince: vi.fn<GitPort["changedSince"]>(),
-    contentInBase: vi.fn<GitPort["contentInBase"]>(),
-    textInBase: vi.fn<GitPort["textInBase"]>(),
-  },
-  exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
-  moduleUrl: ENTRY_URL,
-});
-
-const ports = (request: { readonly stagesOver: StagesOver }) => ({
-  gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>().mockReturnValue({ outcome: "ok", value: [] }) },
-  directory: { list: vi.fn<DirectoryPort["list"]>().mockReturnValue({ outcome: "ok", value: [] }), create: vi.fn<DirectoryPort["create"]>() },
-  removal: { remove: vi.fn<FileRemovalPort["remove"]>() },
-  stagesOver: request.stagesOver,
-});
-
-const stagesOverGiving = (request: { readonly stages: VersionTwoStages }) => vi.fn<StagesOver>().mockReturnValue(request.stages);
-
 type Handler = typeof versionTwoRecordDebtCommandOf;
 
-const ranWith = async (request: { readonly handler: Handler; readonly arguments: readonly string[]; readonly stagesOver: StagesOver }) => {
-  const processPort = processWith({ arguments: request.arguments });
-  await request.handler(ports({ stagesOver: request.stagesOver }))(commandWith({ process: processPort }));
-  return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
+const ranWith = async (request: {
+  readonly handler: Handler;
+  readonly arguments: readonly string[];
+  readonly stages: VersionTwoStages;
+  readonly files: Readonly<Record<string, string>>;
+}) => {
+  const repository = memoryRepositoryOf({ files: request.files });
+  const stagesOver = vi.fn<StagesOver>().mockReturnValue(request.stages);
+  const recorded = recordedProcessWith({ arguments: request.arguments });
+  await request.handler({ gitTree: gitTreeStub(), directory: repository.directory, removal: repository.removal, stagesOver })(
+    commandOver({ process: recorded.port, fileText: repository.fileText }),
+  );
+  return { writes: recorded.writes, exits: recorded.exits, repository, stagesOver };
 };
 
 const CONFIG_ABSENT: RunLoadFailure = { kind: "config-absent", repo: "/repo" };
@@ -110,109 +95,175 @@ const CONFIG_ABSENT_LINE = "load failure: config-absent /repo holds no hone.conf
 
 const ARGUMENTS_INVALID_LINE = "load failure: arguments-invalid --repo needs a value, as in --repo <dir>\n";
 
-const AUTHORISE_ARGUMENTS = [
-  "--repo",
-  "/repo",
-  "--symptom",
-  "claimed-type",
-  "--file",
-  "src/a.ts",
-  "--case",
-  "a-case",
-  "--owes",
-  "a-principle",
-  "--why",
-  "why one?",
-  "--because",
-  "because one",
-  "--evidence",
-  "evidence one",
-  "--root-cause",
-  "a cause",
-  "--root-check",
-  "a check",
-  "--readback",
-  "a readback",
-  "--owner",
-  "an owner",
-] as const;
+const RECORD_ARGUMENTS = ["--repo", "/repo", "--base-revision", "origin/main"] as const;
+
+const DEBT_FILE = "hone-records/debt/claimed-type.json";
+
+const DEBT_DOCUMENT = '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type#cast-expressions",\n      "file": "src/a.ts"\n    }\n  ]\n}\n';
 
 describe("versionTwoRecordDebtCommandOf", () => {
-  it("builds the stages over the repository and the base revision given, and prints nothing when no debt is needed", async () => {
-    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    const ran = await ranWith({
-      handler: versionTwoRecordDebtCommandOf,
-      arguments: ["--repo", "/repo", "--base-revision", "origin/main"],
-      stagesOver,
-    });
-    expect(ran).toEqual({ writes: [[{ text: "" }]], exits: [[{ code: 0 }]] });
-    expect(stagesOver).toHaveBeenCalledWith(
+  it("builds the stages over the repository, the install and the base revision given, and measures the change whether or not debt is held", async () => {
+    const stages = stagesGiving({});
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect(ran.stagesOver).toHaveBeenCalledWith(
       expect.objectContaining({ locations: { repoRoot: "/repo", installRoot: "/install", moduleExtension: ".ts", baseRevision: "origin/main" } }),
     );
+    expect(stages.touched).toHaveBeenCalledWith(expect.objectContaining({ measuring: "always" }));
   });
 
-  it("decides forfeiture through the stages' touched set, as the check does", async () => {
-    const stages = stagesGiving({});
-    await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: ["--repo", "/repo", "--base-revision", "origin/main"], stagesOver: stagesOverGiving({ stages }) });
-    expect(stages.touched).toHaveBeenCalled();
+  it("writes the debt the run found and prints it recorded, exit 0", async () => {
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages: stagesGiving({}), files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "claimed-type#cast-expressions recorded src/a.ts\n" }]], exits: [[{ code: 0 }]] });
+    expect(ran.repository.textOf({ file: DEBT_FILE })).toBe(DEBT_DOCUMENT);
+  });
+
+  it("refuses debt on a touched file, printing the touched line, when the repository's own setting is this-run", async () => {
+    const touched = touchedStageGiving({ touched: FILE_A_CHANGED });
+    const stages = stagesGiving({ touched, settings: settingsStageFor({ forfeiture: "this-run" }) });
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect(touched).toHaveBeenCalledWith({ assessment: { forfeiture: "this-run" }, measuring: "always", records: NO_RECORDS });
+    expect(ran.writes).toEqual([
+      [{ text: "claimed-type#cast-expressions touched src/a.ts: this change created or changed the file, so this run would forfeit debt on it; fix the finding there\n" }],
+    ]);
+    expect(ran.repository.filesHeld()).toEqual([]);
+  });
+
+  it("writes debt on a touched file, printing no touched line, when the repository's own setting is elsewhere", async () => {
+    const touched = touchedStageGiving({ touched: LEFT_TO_ANOTHER_RUN });
+    const stages = stagesGiving({ touched, settings: settingsStageFor({ forfeiture: "elsewhere" }) });
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect(touched).toHaveBeenCalledWith({ assessment: { forfeiture: "elsewhere" }, measuring: "always", records: NO_RECORDS });
+    expect(ran.writes).toEqual([[{ text: "claimed-type#cast-expressions recorded src/a.ts\n" }]]);
+    expect(ran.repository.textOf({ file: DEBT_FILE })).toBe(DEBT_DOCUMENT);
+  });
+
+  it("leaves a file the person records as an authorised location, printing it left", async () => {
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: [...RECORD_ARGUMENTS, "--leave", "src/a.ts"], stages: stagesGiving({}), files: {} });
+    expect(ran.writes).toEqual([
+      [{ text: "claimed-type#cast-expressions left src/a.ts: under --leave src/a.ts; record it as an authorised location with its own reason, or fix it\n" }],
+    ]);
+    expect(ran.repository.filesHeld()).toEqual([]);
+  });
+
+  it("writes nothing the second time, printing the held debt as already recorded", async () => {
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages: stagesGiving({}), files: { [DEBT_FILE]: DEBT_DOCUMENT } });
+    expect(ran.writes).toEqual([
+      [{ text: `claimed-type#cast-expressions already-recorded src/a.ts: ${DEBT_FILE} already holds debt on this symptom and file; the check says why it does not answer\n` }],
+    ]);
+    expect(ran.repository.textOf({ file: DEBT_FILE })).toBe(DEBT_DOCUMENT);
   });
 
   it("prints the load failure line and exits 2 when a stage fails", async () => {
     const stages = stagesGiving({ settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "failed", error: CONFIG_ABSENT }) });
-    const ran = await ranWith({
-      handler: versionTwoRecordDebtCommandOf,
-      arguments: ["--repo", "/repo", "--base-revision", "origin/main"],
-      stagesOver: stagesOverGiving({ stages }),
-    });
-    expect(ran).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
   });
 
   it("prints an arguments-invalid line and builds no stages when the arguments are not readable", async () => {
-    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: ["--repo"], stagesOver });
-    expect(ran).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
-    expect(stagesOver).not.toHaveBeenCalled();
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: ["--repo"], stages: stagesGiving({}), files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
+    expect(ran.stagesOver).not.toHaveBeenCalled();
   });
 });
 
 describe("versionTwoPruneDebtCommandOf", () => {
-  it("prints nothing and exits 0 when the run shows no debt paid, stale or forfeited", async () => {
-    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: stagesGiving({}) }) });
-    expect(ran).toEqual({ writes: [[{ text: "" }]], exits: [[{ code: 0 }]] });
+  const HELD_DEBT_STAGES = stagesGiving({
+    records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: { ...NO_RECORDS, records: [HELD_DEBT] } }),
+    engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [runOf({ hits: [] })] }),
+  });
+
+  it("removes the debt the run shows stale, printing each debt removed, and deletes the emptied records file", async () => {
+    const ran = await ranWith({
+      handler: versionTwoPruneDebtCommandOf,
+      arguments: ["--repo", "/repo"],
+      stages: HELD_DEBT_STAGES,
+      files: { "hone-records/debt/claimed-type.json": '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' },
+    });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]], exits: [[{ code: 0 }]] });
+    expect(ran.repository.filesHeld()).toEqual([]);
+  });
+
+  it("measures the change only when debt is held, as the check does, and prints nothing when none is shown", async () => {
+    const stages = stagesGiving({});
+    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo", "/repo"], stages, files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "" }]], exits: [[{ code: 0 }]] });
+    expect(stages.touched).toHaveBeenCalledWith(expect.objectContaining({ measuring: "when-debt-held" }));
   });
 
   it("prints the load failure line and exits 2 when a stage fails", async () => {
     const stages = stagesGiving({ records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "failed", error: CONFIG_ABSENT }) });
-    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
-    expect(ran).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
+    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo", "/repo"], stages, files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
   });
 
   it("prints an arguments-invalid line and builds no stages when the arguments are not readable", async () => {
-    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo"], stagesOver });
-    expect(ran).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
-    expect(stagesOver).not.toHaveBeenCalled();
+    const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo"], stages: stagesGiving({}), files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
+    expect(ran.stagesOver).not.toHaveBeenCalled();
   });
 });
 
+const ACCEPTED_ARGUMENTS = authoriseArgumentsFor({ repo: "/repo", rootCause: CAUSAL_WHY_CHAIN.rootCause });
+
+const REFUSED_ARGUMENTS = authoriseArgumentsFor({ repo: "/repo", rootCause: "no" });
+
+const AUTHORISED_FILE = "hone-records/authorised-locations/claimed-type.json";
+
 describe("versionTwoAuthoriseCommandOf", () => {
-  it("reads only the catalogue, never running the engines, to write the location", async () => {
+  it("reads only the catalogue, never running the engines", async () => {
     const stages = stagesGiving({});
-    await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: AUTHORISE_ARGUMENTS, stagesOver: stagesOverGiving({ stages }) });
+    await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: ACCEPTED_ARGUMENTS, stages, files: {} });
     expect(stages.catalogue).toHaveBeenCalled();
     expect(stages.engines).not.toHaveBeenCalled();
   });
 
+  it("writes the location for the symptom and file given, and prints it authorised, exit 0", async () => {
+    const ran = await ranWith({
+      handler: versionTwoAuthoriseCommandOf,
+      arguments: ACCEPTED_ARGUMENTS,
+      stages: stagesGiving({}),
+      files: {},
+    });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "claimed-type authorised src/a.ts\n" }]], exits: [[{ code: 0 }]] });
+    expect(ran.repository.filesHeld()).toEqual([AUTHORISED_FILE]);
+    expect(ran.repository.textOf({ file: AUTHORISED_FILE })).toContain('"file": "src/a.ts"');
+  });
+
+  it("prints the location already authorised, writing nothing, when the records hold it", async () => {
+    const first = await ranWith({
+      handler: versionTwoAuthoriseCommandOf,
+      arguments: ACCEPTED_ARGUMENTS,
+      stages: stagesGiving({}),
+      files: {},
+    });
+    const held = first.repository.textOf({ file: AUTHORISED_FILE });
+    assert.isDefined(held);
+    const second = await ranWith({
+      handler: versionTwoAuthoriseCommandOf,
+      arguments: ACCEPTED_ARGUMENTS,
+      stages: stagesGiving({}),
+      files: { [AUTHORISED_FILE]: held },
+    });
+    expect(second.writes).toEqual([[{ text: `claimed-type already-authorised src/a.ts: ${AUTHORISED_FILE} already holds this record\n` }]]);
+    expect(second.repository.textOf({ file: AUTHORISED_FILE })).toBe(held);
+  });
+
+  it("prints each refusal and exits 0, writing nothing, when the form refuses the chain", async () => {
+    const ran = await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: REFUSED_ARGUMENTS, stages: stagesGiving({}), files: {} });
+    expect(ran.exits).toEqual([[{ code: 0 }]]);
+    expect(ran.writes).toEqual([[{ text: expect.stringMatching(/^claimed-type refused src\/a\.ts: /) }]]);
+    expect(ran.repository.filesHeld()).toEqual([]);
+  });
+
   it("prints the load failure line and exits 2 when the catalogue cannot be read", async () => {
     const stages = stagesGiving({ catalogue: vi.fn<VersionTwoStages["catalogue"]>().mockReturnValue({ outcome: "failed", error: CONFIG_ABSENT }) });
-    const ran = await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: AUTHORISE_ARGUMENTS, stagesOver: stagesOverGiving({ stages }) });
-    expect(ran).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
+    const ran = await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: ACCEPTED_ARGUMENTS, stages, files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
   });
 
   it("prints an arguments-invalid line and builds no stages when an option is missing a value", async () => {
-    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
-    const ran = await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: ["--repo"], stagesOver });
-    expect(ran).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
-    expect(stagesOver).not.toHaveBeenCalled();
+    const ran = await ranWith({ handler: versionTwoAuthoriseCommandOf, arguments: ["--repo"], stages: stagesGiving({}), files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
+    expect(ran.stagesOver).not.toHaveBeenCalled();
   });
 });

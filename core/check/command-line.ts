@@ -65,6 +65,11 @@ export const REPO_OPTION: CommandOption = {
   summary: "the folder that holds disciplines.json, usually the repository root",
 };
 
+export const AUTHORISE_REPO_OPTION: CommandOption = {
+  ...REPO_OPTION,
+  summary: "the folder that holds hone.config.json, usually the repository root",
+};
+
 export const BASE_REVISION_OPTION: CommandOption = {
   name: "--base-revision",
   value: "<revision>",
@@ -167,7 +172,7 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
   },
   [AUTHORISE_SUBCOMMAND]: {
     summary: "write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done",
-    options: [REPO_OPTION, ...AUTHORISE_COMMAND_OPTIONS],
+    options: [AUTHORISE_REPO_OPTION, ...AUTHORISE_COMMAND_OPTIONS],
     exits: [
       { code: 0, meaning: "the location was written, was already held, or was refused with each reason printed" },
       { code: 2, meaning: "a load failure: an input could not be loaded, the records could not be written, or Hone failed unexpectedly" },

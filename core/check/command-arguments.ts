@@ -5,6 +5,7 @@ import type { Result } from "../values/result.ts";
 import { type ArgumentProblem, argumentsInvalid } from "./argument-problem.ts";
 import {
   ADOPTION_BASE_REVISION_OPTION,
+  AUTHORISE_REPO_OPTION,
   BASE_REVISION_OPTION,
   COMMANDS,
   type CommandOption,
@@ -253,7 +254,7 @@ export const parseAuthoriseArguments = (request: {
   if (values.outcome === "failed") {
     return values;
   }
-  const repo = requiredRepo({ subcommand: "authorise", values: values.value });
+  const repo = requiredValue({ subcommand: "authorise", values: values.value, option: AUTHORISE_REPO_OPTION });
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value, values: values.value } };
 };
 

@@ -101,6 +101,10 @@ describe("helpText", () => {
     expect(helpText({ topic: "prune-debt" })).toBe(PRUNE_DEBT_HELP);
   });
 
+  it("describes the authorise command's --repo as the folder that holds hone.config.json", () => {
+    expect(helpText({ topic: "authorise" })).toContain("\n  --repo <dir>\n      the folder that holds hone.config.json, usually the repository root\n");
+  });
+
   it("lists the commands and the tool's own options", () => {
     expect(helpText({ topic: "tool" })).toBe(TOOL_HELP);
   });

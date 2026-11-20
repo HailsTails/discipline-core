@@ -1,12 +1,5 @@
-import { argumentsInvalid } from "../check/argument-problem.ts";
-import {
-  type AuthoriseArguments,
-  parseAuthoriseArguments,
-  parsePruneDebtArguments,
-  parseRecordDebtArguments,
-} from "../check/command-arguments.ts";
+import { parseAuthoriseArguments, parsePruneDebtArguments, parseRecordDebtArguments } from "../check/command-arguments.ts";
 import { type CommandOutcome, loadFailureOutcome } from "../check/command-outcome.ts";
-import { installRootOf } from "../check/install-root.ts";
 import type { LoadFailure } from "../check/load-failure.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
 import { printOutcome } from "../check/run-check-command.ts";
@@ -15,160 +8,125 @@ import { authoriseRequestOf } from "../records/authorise-options.ts";
 import type { AuthoriseRequest } from "../records/authorising.ts";
 import { authoriseOf, pruneDebtOf, type RecordCommandFailure, recordDebtOf } from "../records/record-commands.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
-import { createRecordsStore } from "../records/records-store.ts";
 import type { RecordsSource } from "../records/records-source.ts";
 import type { RecordsStore } from "../records/records-store.ts";
+import { createRecordsStore } from "../records/records-store.ts";
 import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "../report/record-command-lines.ts";
-import { runLoadFailureLine } from "../report/load-failure-lines.ts";
-import { type RunLoadFailure, runLoadFailureOf } from "../report/run-load-failure.ts";
-import type { AbsolutePath } from "../values/absolute-path.ts";
-import type { ForfeitureAssessment } from "../values/assessment.ts";
-import { moduleExtensionOf } from "../values/install-layout.ts";
+import { runLoadFailureOf } from "../report/run-load-failure.ts";
 import type { Result } from "../values/result.ts";
-import type { VersionTwoCheckRequest } from "./version-two-check-command.ts";
-import type { VersionTwoStages } from "./version-two-run.ts";
+import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
+import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type VersionTwoRepositoryPorts } from "./version-two-repository.ts";
 import { versionTwoRunOver } from "./version-two-run.ts";
 
-const LOAD_FAILURE_CODE = 2;
-
-const THIS_RUN: ForfeitureAssessment = "this-run";
-
-export type VersionTwoRecordRequest = VersionTwoCheckRequest & { readonly removal: FileRemovalPort };
-
-type Located = { readonly repoRoot: AbsolutePath; readonly installRoot: AbsolutePath };
+export type VersionTwoRecordPorts = VersionTwoRepositoryPorts & { readonly removal: FileRemovalPort };
 
 type Context = {
-  readonly request: VersionTwoRecordRequest;
+  readonly ports: VersionTwoRecordPorts;
   readonly command: CommandRequest;
-  readonly located: Located;
+  readonly located: RepositoryLocated;
 };
 
-const lineOfFailure = (request: { readonly failure: RunLoadFailure }): CommandOutcome => ({
-  code: LOAD_FAILURE_CODE,
-  text: `${runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined })}\n`,
-});
+type OutcomeOf = (request: { readonly ports: VersionTwoRecordPorts; readonly command: CommandRequest }) => Promise<CommandOutcome>;
 
 const recordFailureOutcome = (request: { readonly failure: RecordCommandFailure }): CommandOutcome =>
-  lineOfFailure({ failure: runLoadFailureOf({ engines: [], source: request.failure }) });
+  runLoadFailureOutcomeOf({ failure: runLoadFailureOf({ engines: [], source: request.failure }) });
 
 const linesOutcome = (request: { readonly lines: readonly string[] }): CommandOutcome => ({
   code: 0,
   text: request.lines.map((line) => `${line}\n`).join(""),
 });
 
-const locatedOf = (request: { readonly command: CommandRequest; readonly repo: string }): Result<Located, LoadFailure> => {
-  const { command } = request;
-  const resolved = command.path.resolve({ path: request.repo });
-  if (resolved.outcome === "failed") {
-    return argumentsInvalid({ problem: { kind: "repo-unresolvable", given: request.repo } });
-  }
-  const installRoot = installRootOf({ path: command.path, moduleUrl: command.moduleUrl });
-  return installRoot.outcome === "failed" ? installRoot : { outcome: "ok", value: { repoRoot: resolved.value, installRoot: installRoot.value } };
-};
-
-const stagesOf = (request: Context & { readonly baseRevision: string | undefined }): VersionTwoStages => {
-  const { fileText, path, modules, git } = request.command;
-  return request.request.stagesOver({
-    ports: { fileText, path, modules, git, gitTree: request.request.gitTree, directory: request.request.directory },
-    locations: {
-      repoRoot: request.located.repoRoot,
-      installRoot: request.located.installRoot,
-      moduleExtension: moduleExtensionOf({ moduleUrl: request.command.moduleUrl }),
-      baseRevision: request.baseRevision,
-    },
-  });
-};
-
 const sourceOf = (request: Context): RecordsSource => {
   const { fileText, path, git } = request.command;
-  return createRecordsFolder({ fileText, path, git, gitTree: request.request.gitTree, directory: request.request.directory, repoRoot: request.located.repoRoot });
+  return createRecordsFolder({ fileText, path, git, gitTree: request.ports.gitTree, directory: request.ports.directory, repoRoot: request.located.repoRoot });
 };
 
 const storeOf = (request: Context): RecordsStore => {
   const { fileText, path } = request.command;
-  return createRecordsStore({ fileText, path, removal: request.request.removal, directory: request.request.directory, repoRoot: request.located.repoRoot });
+  return createRecordsStore({ fileText, path, removal: request.ports.removal, directory: request.ports.directory, repoRoot: request.located.repoRoot });
 };
 
-const recordDebtOutcome = async (request: { readonly request: VersionTwoRecordRequest; readonly command: CommandRequest }): Promise<CommandOutcome> => {
+const contextOf = (request: { readonly ports: VersionTwoRecordPorts; readonly command: CommandRequest; readonly repo: string }): Result<Context, LoadFailure> => {
+  const located = repositoryLocatedOf(request);
+  return located.outcome === "failed" ? located : { outcome: "ok", value: { ports: request.ports, command: request.command, located: located.value } };
+};
+
+const recordDebtOutcome: OutcomeOf = async (request) => {
   const parsed = parseRecordDebtArguments({ arguments: request.command.process.arguments });
   if (parsed.outcome === "failed") {
     return loadFailureOutcome({ failure: parsed.error });
   }
-  const located = locatedOf({ command: request.command, repo: parsed.value.repo });
-  if (located.outcome === "failed") {
-    return loadFailureOutcome({ failure: located.error });
+  const context = contextOf({ ...request, repo: parsed.value.repo });
+  if (context.outcome === "failed") {
+    return loadFailureOutcome({ failure: context.error });
   }
-  const context: Context = { ...request, located: located.value };
-  const run = await versionTwoRunOver({
-    stages: stagesOf({ ...context, baseRevision: parsed.value.baseRevision }),
-    arguments: { forfeiture: THIS_RUN, reportOutput: undefined },
-  });
+  const stages = stagesOverRepository({ ...context.value, baseRevision: parsed.value.baseRevision });
+  const run = await versionTwoRunOver({ stages, arguments: { forfeiture: undefined, reportOutput: undefined, measuring: "always" } });
   if (run.outcome === "failed") {
-    return lineOfFailure({ failure: run.error });
+    return runLoadFailureOutcomeOf({ failure: run.error });
   }
-  const recorded = recordDebtOf({
-    catalogue: run.value.catalogue,
-    repoRoot: located.value.repoRoot,
-    source: sourceOf(context),
-    store: storeOf(context),
-    git: request.command.git,
-  })({ findings: run.value.report.findings, baseRevision: parsed.value.baseRevision, leave: parsed.value.leave, forfeiture: THIS_RUN });
+  const recorded = recordDebtOf({ catalogue: run.value.catalogue, source: sourceOf(context.value), store: storeOf(context.value) })({
+    findings: run.value.report.findings,
+    touched: run.value.touched,
+    leave: parsed.value.leave,
+  });
   return recorded.outcome === "failed" ? recordFailureOutcome({ failure: recorded.error }) : linesOutcome({ lines: recorded.value.map((outcome) => debtOutcomeLine({ outcome })) });
 };
 
-const pruneDebtOutcome = async (request: { readonly request: VersionTwoRecordRequest; readonly command: CommandRequest }): Promise<CommandOutcome> => {
+const pruneDebtOutcome: OutcomeOf = async (request) => {
   const parsed = parsePruneDebtArguments({ arguments: request.command.process.arguments });
   if (parsed.outcome === "failed") {
     return loadFailureOutcome({ failure: parsed.error });
   }
-  const located = locatedOf({ command: request.command, repo: parsed.value.repo });
-  if (located.outcome === "failed") {
-    return loadFailureOutcome({ failure: located.error });
+  const context = contextOf({ ...request, repo: parsed.value.repo });
+  if (context.outcome === "failed") {
+    return loadFailureOutcome({ failure: context.error });
   }
-  const context: Context = { ...request, located: located.value };
   const run = await versionTwoRunOver({
-    stages: stagesOf({ ...context, baseRevision: parsed.value.baseRevision }),
-    arguments: { forfeiture: parsed.value.forfeiture, reportOutput: undefined },
+    stages: stagesOverRepository({ ...context.value, baseRevision: parsed.value.baseRevision }),
+    arguments: { forfeiture: parsed.value.forfeiture, reportOutput: undefined, measuring: "when-debt-held" },
   });
   if (run.outcome === "failed") {
-    return lineOfFailure({ failure: run.error });
+    return runLoadFailureOutcomeOf({ failure: run.error });
   }
-  const pruned = pruneDebtOf({ source: sourceOf(context), store: storeOf(context) })({ report: run.value.report });
+  const pruned = pruneDebtOf({ source: sourceOf(context.value), store: storeOf(context.value) })({ report: run.value.report });
   return pruned.outcome === "failed" ? recordFailureOutcome({ failure: pruned.error }) : linesOutcome({ lines: pruned.value.map((debt) => prunedDebtLine({ pruned: debt })) });
 };
 
-const authoriseRequestFrom = (request: { readonly parsed: AuthoriseArguments }): Result<AuthoriseRequest, LoadFailure> =>
-  authoriseRequestOf({ values: request.parsed.values });
-
-const authoriseOutcome = async (request: { readonly request: VersionTwoRecordRequest; readonly command: CommandRequest }): Promise<CommandOutcome> => {
-  const parsed = parseAuthoriseArguments({ arguments: request.command.process.arguments });
-  if (parsed.outcome === "failed") {
-    return loadFailureOutcome({ failure: parsed.error });
-  }
-  const authorising = authoriseRequestFrom({ parsed: parsed.value });
-  if (authorising.outcome === "failed") {
-    return loadFailureOutcome({ failure: authorising.error });
-  }
-  const located = locatedOf({ command: request.command, repo: parsed.value.repo });
-  if (located.outcome === "failed") {
-    return loadFailureOutcome({ failure: located.error });
-  }
-  const context: Context = { ...request, located: located.value };
-  const catalogue = stagesOf({ ...context, baseRevision: undefined }).catalogue();
+const authorisedOutcome = (request: { readonly context: Context; readonly authorising: AuthoriseRequest }): CommandOutcome => {
+  const { context, authorising } = request;
+  const catalogue = stagesOverRepository({ ...context, baseRevision: undefined }).catalogue();
   if (catalogue.outcome === "failed") {
-    return lineOfFailure({ failure: catalogue.error });
+    return runLoadFailureOutcomeOf({ failure: catalogue.error });
   }
-  const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf(context), store: storeOf(context) })(authorising.value);
+  const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf(context), store: storeOf(context) })(authorising);
   return authorised.outcome === "failed"
     ? recordFailureOutcome({ failure: authorised.error })
-    : linesOutcome({ lines: authorisingLines({ address: authorising.value.symptom, file: authorising.value.file, authorising: authorised.value }) });
+    : linesOutcome({ lines: authorisingLines({ address: authorising.symptom, file: authorising.file, authorising: authorised.value }) });
+};
+
+const authoriseOutcome: OutcomeOf = (request) => {
+  const parsed = parseAuthoriseArguments({ arguments: request.command.process.arguments });
+  if (parsed.outcome === "failed") {
+    return Promise.resolve(loadFailureOutcome({ failure: parsed.error }));
+  }
+  const authorising = authoriseRequestOf({ values: parsed.value.values });
+  if (authorising.outcome === "failed") {
+    return Promise.resolve(loadFailureOutcome({ failure: authorising.error }));
+  }
+  const context = contextOf({ ...request, repo: parsed.value.repo });
+  return Promise.resolve(
+    context.outcome === "failed"
+      ? loadFailureOutcome({ failure: context.error })
+      : authorisedOutcome({ context: context.value, authorising: authorising.value }),
+  );
 };
 
 const handlerOf =
-  (outcomeOf: (request: { readonly request: VersionTwoRecordRequest; readonly command: CommandRequest }) => Promise<CommandOutcome>) =>
-  (request: VersionTwoRecordRequest) =>
+  (outcomeOf: OutcomeOf) =>
+  (ports: VersionTwoRecordPorts) =>
   async (command: CommandRequest): Promise<void> => {
-    printOutcome({ process: command.process, outcome: await outcomeOf({ request, command }) });
+    printOutcome({ process: command.process, outcome: await outcomeOf({ ports, command }) });
   };
 
 export const versionTwoRecordDebtCommandOf = handlerOf(recordDebtOutcome);

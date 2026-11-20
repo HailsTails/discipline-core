@@ -1,11 +1,9 @@
 import type { Subcommand } from "../check/command-line.ts";
 import { printOutcome, type CommandRequest } from "../check/run-check-command.ts";
-import { runLoadFailureLine } from "../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { repoArgumentOf } from "./repo-argument.ts";
+import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";
 import { runPathOf } from "./run-path.ts";
-
-const LOAD_FAILURE_CODE = 2;
 
 export type VersionedHandler = (command: CommandRequest) => Promise<void>;
 
@@ -14,11 +12,8 @@ export type VersionChoice = {
   readonly versionTwo: VersionedHandler;
 };
 
-const printFailure = (request: { readonly command: CommandRequest; readonly failure: RunLoadFailure }): Promise<void> => {
-  printOutcome({
-    process: request.command.process,
-    outcome: { code: LOAD_FAILURE_CODE, text: `${runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined })}\n` },
-  });
+export const printFailure = (request: { readonly command: CommandRequest; readonly failure: RunLoadFailure }): Promise<void> => {
+  printOutcome({ process: request.command.process, outcome: runLoadFailureOutcomeOf({ failure: request.failure }) });
   return Promise.resolve();
 };
 
@@ -36,11 +31,6 @@ export const versionChosenCommandOf =
     }
     return chosen.value === "version-2" ? request.versionTwo(command) : request.versionOne(command);
   };
-
-export const upgradeNeededCommandOf =
-  (request: { readonly settingsFile: string }): VersionedHandler =>
-  (command) =>
-    printFailure({ command, failure: { kind: "upgrade-needed", path: request.settingsFile } });
 
 export const notReadyCommandOf =
   (request: { readonly command: Subcommand }): VersionedHandler =>

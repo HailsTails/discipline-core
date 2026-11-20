@@ -207,7 +207,7 @@ write one authorised location to the records of a hone.config.json repository fr
 
 options:
   --repo <dir>
-      the folder that holds disciplines.json, usually the repository root
+      the folder that holds hone.config.json, usually the repository root
   --symptom <symptom>
       the catalogue's name for the symptom the location is on
   --file <path>

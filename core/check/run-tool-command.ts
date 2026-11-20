@@ -1,10 +1,11 @@
 import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
-import { notReadyCommandOf, upgradeNeededCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
-import { installedStagesOver, versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
+import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
+import { versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
+import { versionTwoNeededCommandOf } from "../run/version-two-needed-command.ts";
 import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "../run/version-two-record-commands.ts";
-import { VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
+import { installedStagesOver } from "../run/version-two-repository.ts";
 import { parseInvocation } from "./command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
@@ -71,7 +72,7 @@ export const TOOL_SUBCOMMANDS: Subcommands = {
   project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: notReadyCommandOf({ command: "project" }) }),
   "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: versionTwoRecordDebtCommandOf(versionTwoRecordPorts) }),
   "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: versionTwoPruneDebtCommandOf(versionTwoRecordPorts) }),
-  authorise: versionChosenCommandOf({ versionOne: upgradeNeededCommandOf({ settingsFile: VERSION_ONE_SETTINGS_FILE_NAME }), versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
+  authorise: versionChosenCommandOf({ versionOne: versionTwoNeededCommandOf, versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
   "split-records": versionChosenCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
 };
 

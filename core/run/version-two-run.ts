@@ -11,10 +11,12 @@ import type { ForfeitureAssessment } from "../values/assessment.ts";
 import type { CheckedTree } from "./checked-tree-of.ts";
 import type { EngineRun } from "./engine-run.ts";
 import { runReportOf } from "./run-report-of.ts";
+import type { TouchedMeasuring } from "./touched-set-of.ts";
 
 export type VersionTwoRun = {
   readonly report: RunReport;
   readonly catalogue: SymptomCatalogue;
+  readonly touched: TouchedSet;
   readonly output: ReportOutput;
 };
 
@@ -29,12 +31,13 @@ export type VersionTwoStages = {
     readonly records: RecordsReading;
     readonly tree: CheckedTree;
   }) => Promise<Result<readonly EngineRun[], RunLoadFailure>>;
-  readonly touched: (request: { readonly assessment: Assessment; readonly records: RecordsReading }) => TouchedSet;
+  readonly touched: (request: { readonly assessment: Assessment; readonly measuring: TouchedMeasuring; readonly records: RecordsReading }) => TouchedSet;
 };
 
 export type VersionTwoRequest = {
   readonly forfeiture: ForfeitureAssessment | undefined;
   readonly reportOutput: ReportOutput | undefined;
+  readonly measuring: TouchedMeasuring;
 };
 
 type Inputs = {
@@ -71,15 +74,16 @@ export const versionTwoRunOver = async (request: { readonly stages: VersionTwoSt
     return runs;
   }
   const assessment = assessmentInEffect({ requested: { forfeiture: request.arguments.forfeiture }, configured: settings.runSettings.assessment });
+  const touched = request.stages.touched({ assessment, measuring: request.arguments.measuring, records });
   const report = runReportOf({
     catalogue,
     selection: settings.selection.selection,
     excluded: settings.selection.excluded,
     notes: settings.notes,
     records,
-    touched: request.stages.touched({ assessment, records }),
+    touched,
     runs: runs.value,
     assessment,
   });
-  return { outcome: "ok", value: { report, catalogue, output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: settings.runSettings.reportOutput }) } };
+  return { outcome: "ok", value: { report, catalogue, touched, output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: settings.runSettings.reportOutput }) } };
 };

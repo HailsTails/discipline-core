@@ -92,7 +92,8 @@ describe("the tool's commands on a repository holding hone.config.json, through 
     });
     commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: repo });
     const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
-    expect(recorded).toEqual({ writes: [[{ text: "authored-class-or-this#class-keyword recorded kept.ts\n" }]], exits: [[{ code: 0 }]] });  });
+    expect(recorded).toEqual({ writes: [[{ text: "authored-class-or-this#class-keyword recorded kept.ts\n" }]], exits: [[{ code: 0 }]] });
+  });
 
   it("prints one not-ready-yet line for project and exits 2", async () => {
     const repo = repositories.repositoryWith({ files: { "hone.config.json": CONFIG } });

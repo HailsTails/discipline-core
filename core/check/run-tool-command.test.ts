@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { commandOver, memoryRepositoryOf } from "../../tests/command-harness.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
@@ -234,21 +235,56 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
   });
 });
 
-describe("TOOL_SUBCOMMANDS authorise on a repository holding disciplines.json", () => {
-  it("prints the upgrade-needed line for the version 1 file and exits 2, since authorise has no version 1 form", async () => {
-    const processPort = processWith({ arguments: ["--repo", "/repo"] });
-    const request = {
-      ...commandRequest({ process: processPort }),
-      path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
-      fileText: { ...UNUSED_FILE_TEXT, exists: vi.fn<FileTextPort["exists"]>().mockReturnValueOnce("present").mockReturnValueOnce("absent") },
-    };
+const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/work" });
 
-    await TOOL_SUBCOMMANDS.authorise(request);
+const UNRESOLVABLE_PATH: PathPort = { ...POSIX_PATH, resolve: ({ path }) => ({ outcome: "failed", error: { kind: "working-directory-unusable", path } }) };
 
-    expect(outputOf({ process: processPort })).toEqual({
-      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n" }]],
-      exits: [[{ code: 2 }]],
-    });
+type AuthoriseCase = {
+  readonly case: string;
+  readonly files: Readonly<Record<string, string>>;
+  readonly path: PathPort;
+  readonly arguments: readonly string[];
+  readonly line: string;
+};
+
+const AUTHORISE_CASES: readonly AuthoriseCase[] = [
+  {
+    case: "a repository holding disciplines.json",
+    files: { "disciplines.json": "{}" },
+    path: POSIX_PATH,
+    arguments: ["--repo", "/repo"],
+    line: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n",
+  },
+  {
+    case: "a folder holding neither settings file",
+    files: {},
+    path: POSIX_PATH,
+    arguments: ["--repo", "/repo"],
+    line: "load failure: config-absent /repo holds no hone.config.json; give the folder that holds it, usually the repository root\n",
+  },
+  {
+    case: "no --repo",
+    files: {},
+    path: POSIX_PATH,
+    arguments: [],
+    line: "load failure: arguments-invalid hone authorise needs --repo <dir>: the folder that holds hone.config.json, usually the repository root\n",
+  },
+  {
+    case: "a --repo that resolves to no absolute path",
+    files: {},
+    path: UNRESOLVABLE_PATH,
+    arguments: ["--repo", "src"],
+    line: "load failure: arguments-invalid --repo src resolves to no absolute path\n",
+    },
+];
+
+describe("TOOL_SUBCOMMANDS authorise, which has no version 1 form", () => {
+  it.each(AUTHORISE_CASES)("prints one load failure line naming what is wrong, and exits 2, given $case", async ({ files, path, arguments: given, line }) => {
+    const processPort = processWith({ arguments: given });
+
+    await TOOL_SUBCOMMANDS.authorise({ ...commandOver({ process: processPort, fileText: memoryRepositoryOf({ files }).fileText }), path });
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
   });
 });
 
