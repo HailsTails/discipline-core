@@ -1204,6 +1204,60 @@ describe("runReachedCheck handing on debt whose every finding an authorised loca
     });
   });
 
+  it("hands on nothing for a forfeited file carve-out whose finding a legacy-chain authorised location exempts while the records at the base revision cannot be read", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryAtBase({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN })],
+            base: { outcome: "failed", error: BASE_UNREADABLE },
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [{ ...AUTHORISED_ON_A_RECORD, whyChain: LEGACY_WHY_CHAIN }] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          unmeasured: [{ kind: "legacy-chain-unmeasured", base: { state: "git-failed", revision: "main", gitMessage: "fatal: not a tree object" } }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
+  it("hands on a forfeited file carve-out whose finding a legacy-chain authorised location exempts once the base revision holds that location unchanged", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryAtBase({
+            working: [CARVE_OUT_ON_A, secondInSingleFile({ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN })],
+            base: { outcome: "ok", value: [{ ...AUTHORISED_ON_A, whyChain: LEGACY_WHY_CHAIN }] },
+          }),
+          modules: runnerHittingAndMeasuringA,
+          git: gitChangingA,
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: {
+          ...EMPTY_REPORT,
+          exempted: [{ finding: { ...HIT_IN_A, mechanism: "audit" }, by: [{ ...AUTHORISED_ON_A_RECORD, whyChain: LEGACY_WHY_CHAIN }] }],
+          forfeited: [STALE_CARVE_OUT_ON_A],
+          readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }],
+        },
+        unprojected: [],
+      },
+    });
+  });
+
   it("hands on nothing for a file carve-out in force beside an authorised location on its pair, which leaves both doubly held", async () => {
     await expect(
       runReachedCheck(

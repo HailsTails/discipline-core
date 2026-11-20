@@ -2,6 +2,7 @@ import type { AttributedNativeException, ExemptedFinding, Finding } from "../gov
 import type { RepoPath } from "../values/repo-path.ts";
 import { type DebtPair, debtPairKey, distinctDebtPairs } from "./debt-pair.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
+import { authorisationStandingOf, type ExceptionBaseline } from "./exception-records.ts";
 
 export const PRUNE_DEBT_SUBCOMMAND = "prune-debt";
 
@@ -13,10 +14,19 @@ export type PaidDebtRequest = {
   readonly nativeExceptions: readonly AttributedNativeException[];
   readonly absent: readonly RepoPath[];
   readonly measured: readonly DebtPair[];
+  readonly baseline: ExceptionBaseline;
 };
 
-const answeredByAuthorisedLocation = (request: { readonly exempted: ExemptedFinding }): "answered" | "still-debt" =>
-  request.exempted.by.some((record) => record.kind === "authorised-location") ? "answered" : "still-debt";
+const answeredByAuthorisedLocation = (request: {
+  readonly exempted: ExemptedFinding;
+  readonly baseline: ExceptionBaseline;
+}): "answered" | "still-debt" =>
+  request.exempted.by.some(
+    (record) =>
+      record.kind === "authorised-location" && authorisationStandingOf({ record, baseline: request.baseline }) === "established",
+  )
+    ? "answered"
+    : "still-debt";
 
 const nativeFileOf = (request: { readonly exception: AttributedNativeException }): RepoPath | undefined => {
   switch (request.exception.kind) {
@@ -35,7 +45,7 @@ const heldPairKeys = (request: PaidDebtRequest): ReadonlySet<string> =>
   new Set([
     ...request.findings.map((finding) => debtPairKey(finding)),
     ...request.exempted.flatMap((exempted) =>
-      answeredByAuthorisedLocation({ exempted }) === "answered" ? [] : [debtPairKey(exempted.finding)],
+      answeredByAuthorisedLocation({ exempted, baseline: request.baseline }) === "answered" ? [] : [debtPairKey(exempted.finding)],
     ),
     ...request.nativeExceptions.flatMap((exception) => {
       const file = nativeFileOf({ exception });

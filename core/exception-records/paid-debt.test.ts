@@ -3,8 +3,9 @@ import type { AttributedNativeException, Finding } from "../governance/governanc
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
+import { UNMEASURED_EXCEPTION_BASELINE } from "./exception-records.ts";
 import { paidDebtOf, type PaidDebtRequest } from "./paid-debt.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");
@@ -39,7 +40,7 @@ const directiveAt = (request: { readonly clause: Finding["clause"]; readonly fil
   reach: "one-clause",
 });
 
-const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], nativeExceptions: [], absent: [], measured: [] };
+const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], nativeExceptions: [], absent: [], measured: [], baseline: UNMEASURED_EXCEPTION_BASELINE };
 
 const CHECKOUT = repoPathSchema.parse("src/checkout.ts");
 const PRICES = repoPathSchema.parse("src/prices.ts");
@@ -290,6 +291,43 @@ describe("paidDebtOf naming debt whose every finding an authorised location answ
         measured: [{ clause: LOOPS, file: BASKET }],
       }),
     ).toEqual([]);
+  });
+});
+
+const MEASURED_BASELINE: PaidDebtRequest["baseline"] = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() };
+
+const IMPORTED_BASKET_LOOP: ExceptionRecord = {
+  ...AUTHORISED_BASKET_LOOP,
+  provenance: { kind: "existing-authorisation", source: ".constitution-authorised-locations/cd-15.json" },
+};
+
+const LEGACY_CHAIN_BASKET_LOOP: ExceptionRecord = { ...AUTHORISED_BASKET_LOOP, whyChain: LEGACY_WHY_CHAIN };
+
+const forfeitedBasketAnsweredBy = (request: { readonly answer: ExceptionRecord; readonly baseline: PaidDebtRequest["baseline"] }): PaidDebtRequest => ({
+  ...NOTHING,
+  forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+  exempted: [{ finding: findingAt({ clause: LOOPS, file: BASKET }), by: [request.answer] }],
+  measured: [{ clause: LOOPS, file: BASKET }],
+  baseline: request.baseline,
+});
+
+describe("paidDebtOf naming answered debt only when the answer's standing was established in this run", () => {
+  it("keeps a forfeited file carve-out whose finding an imported authorised location exempts while the records at the base revision went unread", () => {
+    expect(paidDebtOf(forfeitedBasketAnsweredBy({ answer: IMPORTED_BASKET_LOOP, baseline: UNMEASURED_EXCEPTION_BASELINE }))).toEqual([]);
+  });
+
+  it("keeps a forfeited file carve-out whose finding a legacy-chain authorised location exempts while the records at the base revision went unread", () => {
+    expect(paidDebtOf(forfeitedBasketAnsweredBy({ answer: LEGACY_CHAIN_BASKET_LOOP, baseline: UNMEASURED_EXCEPTION_BASELINE }))).toEqual([]);
+  });
+
+  it("names a forfeited file carve-out whose finding an imported authorised location exempts once the base revision was read", () => {
+    expect(paidDebtOf(forfeitedBasketAnsweredBy({ answer: IMPORTED_BASKET_LOOP, baseline: MEASURED_BASELINE }))).toEqual([{ clause: LOOPS, file: BASKET }]);
+  });
+
+  it("names a forfeited file carve-out whose finding a causal-chain authorised location exempts, which no base revision judges", () => {
+    expect(
+      paidDebtOf(forfeitedBasketAnsweredBy({ answer: { ...AUTHORISED_BASKET_LOOP, whyChain: CAUSAL_WHY_CHAIN }, baseline: UNMEASURED_EXCEPTION_BASELINE })),
+    ).toEqual([{ clause: LOOPS, file: BASKET }]);
   });
 });
 

@@ -371,6 +371,17 @@ const judgedWhyChain = (request: {
   }
 };
 
+export type AuthorisationStanding = "established" | "provisional";
+
+export const authorisationStandingOf = (request: {
+  readonly record: Extract<ExceptionRecord, { readonly kind: "authorised-location" }>;
+  readonly baseline: ExceptionBaseline;
+}): AuthorisationStanding =>
+  request.baseline.measured === "yes" ||
+  (request.record.provenance === undefined && whyChainFormOf({ chain: request.record.whyChain }) === "causal")
+    ? "established"
+    : "provisional";
+
 type ClauseSelection = { readonly clause: ClauseAddress; readonly mechanism: MechanismId };
 
 const unselectedKindOf = (request: {

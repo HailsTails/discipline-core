@@ -410,6 +410,7 @@ const checkReportOf = (request: {
     absent: absentFilesOf({ check: request.check, governed }),
     nativeExceptions: request.runs.flatMap((run) => run.nativeExceptions.map((exception) => ({ ...exception, mechanism: run.mechanism }))),
     measured: request.runs.flatMap((run) => run.measured),
+    baseline: request.inputs.exceptionBaseline,
   });
   const report: CheckReport = {
     excluded: request.inputs.excluded,

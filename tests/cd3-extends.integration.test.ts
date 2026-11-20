@@ -118,7 +118,7 @@ const EVERY_CLAUSE_ON_EVERY_TSCONFIG = [
   { clause: CATCH, file: SOLUTION },
 ] as const;
 
-const SINGLE_BASE_ONLY ="unknown: TS5024 Compiler option 'extends' requires a value of type string.";
+const SINGLE_BASE_ONLY = "unknown: TS5024 Compiler option 'extends' requires a value of type string.";
 
 describe("CD-3 edition 2 over a real extends chain on disk, through the shipped audit runner (CD-47: the fixture repository is the assertion's subject; nothing is spawned or written)", () => {
   it.each([
