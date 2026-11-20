@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { Equal } from "../values/type-equality.ts";
-import { hitSchema, type InlineReach, measuredSchema, type ProjectionState, reportedCheckSchema, type ScriptOptionCause } from "./runner-result-schema.ts";
+import type { DeepReadonly, Equal } from "../values/type-equality.ts";
+import { hitSchema, type InlineReach, type NativeException, measuredSchema, type ProjectionState, reportedCheckSchema, type ScriptOptionCause } from "./runner-result-schema.ts";
 
 const namedCheck = { check: reportedCheckSchema.optional() };
 
@@ -112,3 +112,5 @@ export const isScriptOptionCauseEqual: Equal<z.infer<typeof scriptOptionCauseSch
 
 export const isProjectionStateEqual: Equal<EmbeddedRunReport["projection"], ProjectionState> =
   true;
+
+export const isNativeExceptionSchemaEqual: Equal<DeepReadonly<z.output<typeof nativeExceptionSchema>>, NativeException> = true;

@@ -170,6 +170,7 @@ describe("checkNamedAt", () => {
     { name: "a check of another clause", clause: LOOPS_CLAUSE, address: "rebinding#test-body" },
     { name: "a check no clause has", clause: TEST_BODY_CLAUSE, address: "rebinding#loops" },
     { name: "a clause address in place of a check address", clause: TEST_BODY_CLAUSE, address: "CD-27#test-body-logic" },
+    { name: "a name with no hash", clause: TEST_BODY_CLAUSE, address: "nohash" },
   ])("is not-of-the-clause for $name", ({ clause, address }) => {
     expect(checkNamedAt({ catalogue: CATALOGUE, clause, address })).toEqual({ named: "not-of-the-clause", address });
   });

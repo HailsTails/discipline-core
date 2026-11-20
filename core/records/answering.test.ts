@@ -808,6 +808,13 @@ describe("answerFindings, a finding or exception that names its check", () => {
     ).toEqual({ ...NOTHING_ANSWERED, findings: [MISNAMED_FINDING_IN_A], stale: [LOCATED_CLASS_IN_A] });
   });
 
+  it("does not answer a finding naming a check that its mechanism's engine does not run, by a record naming that check", () => {
+    const heritageByEslint = { ...HERITAGE_FINDING_IN_A, mechanism: ESLINT };
+    expect(
+      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_HERITAGE_IN_A], findings: [unreported(heritageByEslint)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [heritageByEslint], stale: [LOCATED_CLASS_HERITAGE_IN_A] });
+  });
+
   it("covers an inline disable naming a check by the record naming that check", () => {
     expect(
       answerFindings({

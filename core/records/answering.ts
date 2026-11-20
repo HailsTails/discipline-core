@@ -109,7 +109,9 @@ const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly cata
     case "unnamed":
       return symptomSitesOf(request);
     case "check":
-      return [{ symptom: named.check.symptom, check: { found: "check", check: named.check }, file: finding.file, party }];
+      return [named.check]
+        .filter((check) => check.engines.some((engine) => engine.mechanism === finding.mechanism))
+        .map((check) => ({ symptom: check.symptom, check: { found: "check", check }, file: finding.file, party }));
     case "not-of-the-clause":
       return [];
   }

@@ -28,17 +28,19 @@ export type ScriptOptionCause =
   | { readonly kind: "wrapped"; readonly command: string; readonly wrapper: string }
   | { readonly kind: "unreadable"; readonly command: string };
 
-type NativeExceptionVariant =
-  | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }
-  | { readonly kind: "config-override"; readonly clause: ClauseAddress; readonly file: RepoPath }
+export type NativeException =
+  | { readonly kind: "ignore"; readonly check?: string; readonly clause: ClauseAddress; readonly file: RepoPath }
+  | { readonly kind: "config-override"; readonly check?: string; readonly clause: ClauseAddress; readonly file: RepoPath }
   | {
       readonly kind: "suppression-entry";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly location: RepoPath;
     }
   | {
       readonly kind: "inline-disable";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly line: number;
@@ -47,6 +49,7 @@ type NativeExceptionVariant =
     }
   | {
       readonly kind: "inline-rule-config";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly line: number;
@@ -54,14 +57,13 @@ type NativeExceptionVariant =
     }
   | {
       readonly kind: "command-line-option";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly location: RepoPath;
       readonly script: string;
       readonly option: string;
       readonly cause: ScriptOptionCause;
     };
-
-export type NativeException = NativeExceptionVariant & { readonly check?: string };
 
 export type InlineDisable = Extract<NativeException, { readonly kind: "inline-disable" }>;
 
