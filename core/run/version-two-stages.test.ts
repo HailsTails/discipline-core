@@ -10,6 +10,7 @@ import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
+import { createRecordsFolder } from "../records/records-folder.ts";
 import { type VersionTwoPorts, versionTwoStagesOver } from "./version-two-stages.ts";
 
 const REPO = absolutePathSchema.parse("/repo");
@@ -35,6 +36,7 @@ const portsOver = (request: { readonly git: GitPort }): VersionTwoPorts => ({
   git: request.git,
   gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>() },
   directory: { list: vi.fn<DirectoryPort["list"]>(), create: vi.fn<DirectoryPort["create"]>() },
+  recordsSourceOf: createRecordsFolder,
 });
 
 const GIT_LISTING_NOTHING = gitListing({ tracked: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: [] }) });

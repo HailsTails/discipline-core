@@ -218,7 +218,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
         inputs: [
           {
             kind: "authorised-location",
-            record: { kind: "authorised-location", clause: TEST_BODY_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "the tests need it" },
+            record: { clause: TEST_BODY_CLAUSE, file: SRC_A },
             entry,
           },
         ],
@@ -251,7 +251,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
         inputs: [
           {
             kind: "authorised-location",
-            record: { kind: "authorised-location", clause: LOOPS_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "ported", provenance },
+            record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry,
           },
         ],
@@ -331,7 +331,7 @@ describe("mappedRecords refusing what carries over to nothing", () => {
         inputs: [
           {
             kind: "authorised-location",
-            record: { kind: "authorised-location", clause: LOOPS_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "ported" },
+            record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported" },
           },
         ],
@@ -349,7 +349,7 @@ describe("mappedRecords refusing a symptom name that cannot name a records file"
         inputs: [
           {
             kind: "authorised-location",
-            record: { kind: "authorised-location", clause: LOOPS_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "ported" },
+            record: { clause: LOOPS_CLAUSE, file: SRC_A },
             entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported" },
           },
         ],
