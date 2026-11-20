@@ -1,10 +1,11 @@
-import { describe, expect, it, } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import type { Selection } from "../consumer-selection/consumer-selection.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import {
+  authorisationStandingOf,
   type ExceptionBaseline,
   type ExceptionRecord,
   exceptionEntriesOfDocument,
@@ -98,6 +99,27 @@ const FICTIONAL_DEBT_PROVENANCE = {
   source: "fictional unit input exception-records.test.ts; not historical debt",
   decision: "fictional initial baseline assertion; not a live debt decision",
 } as const;
+
+const LEGACY_CHAIN_LOCATION = { ...FICTIONAL_LOCATION_INPUT, whyChain: LEGACY_WHY_CHAIN } as const;
+
+const CAUSAL_CHAIN_LOCATION = { ...FICTIONAL_LOCATION_INPUT, whyChain: CAUSAL_WHY_CHAIN } as const;
+
+const LEGACY_LOCATION_UNCHANGED_AT_BASE: ExceptionBaseline = { measured: "yes", entriesAtBase: [LEGACY_CHAIN_LOCATION], sourceTextsAtBase: new Map() };
+
+describe("authorisationStandingOf, from the same judgement that accepted the record", () => {
+  it.each([
+    { name: "a legacy chain accepted while the base went unread", entry: LEGACY_CHAIN_LOCATION, baseline: UNMEASURED_EXCEPTION_BASELINE, standing: "provisional" },
+    { name: "an imported location accepted while the base went unread", entry: LOCATION, baseline: UNMEASURED_EXCEPTION_BASELINE, standing: "provisional" },
+    { name: "a legacy chain the base holds unchanged", entry: LEGACY_CHAIN_LOCATION, baseline: LEGACY_LOCATION_UNCHANGED_AT_BASE, standing: "established" },
+    { name: "a causal chain, judged in full while the base went unread", entry: CAUSAL_CHAIN_LOCATION, baseline: UNMEASURED_EXCEPTION_BASELINE, standing: "established" },
+    { name: "a reason alone, judged in full while the base went unread", entry: FICTIONAL_LOCATION_INPUT, baseline: UNMEASURED_EXCEPTION_BASELINE, standing: "established" },
+  ] as const)("is $standing for $name", ({ entry, baseline, standing }) => {
+    const reading = parseExceptionEntries({ entries: [{ place: AT_0, entry }], selection: SELECTION, fileExceptionWhyChains: "optional", baseline });
+    const [record] = reading.records;
+    assert.isDefined(record, "the parse accepts the record");
+    expect({ invalid: reading.invalid, standing: authorisationStandingOf({ record, baseline }) }).toEqual({ invalid: [], standing });
+  });
+});
 
 describe("parseExceptionEntries records", () => {
   it("parses an authorised location with the mechanism copied from the selection", () => {

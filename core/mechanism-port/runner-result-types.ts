@@ -8,6 +8,11 @@ export type Remedy = {
   readonly section: string;
 };
 
+export type MeasuredPair = {
+  readonly clause: ClauseAddress;
+  readonly file: RepoPath;
+};
+
 export type Hit = {
   readonly clause: ClauseAddress;
   readonly file: RepoPath;

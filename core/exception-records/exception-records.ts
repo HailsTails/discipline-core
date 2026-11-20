@@ -280,18 +280,37 @@ const importRefused = (request: { readonly detail: string; readonly kind: Import
   error: { kind: "import-unverified", detail: `${request.detail}: ${IMPORT_WAY_OUT[request.kind]}` },
 });
 
-const verifiedImport = <ImportedRecord>(request: {
+type MeasuredBaseline = Extract<ExceptionBaseline, { readonly measured: "yes" }>;
+
+type JudgedEvidence = { readonly whyChain?: unknown; readonly provenance?: unknown };
+
+const evidenceJudgedBy = (request: { readonly evidence: JudgedEvidence }): "itself" | "the-base" =>
+  (request.evidence.whyChain === undefined ? request.evidence.provenance === undefined : whyChainFormOf({ chain: request.evidence.whyChain }) === "causal")
+    ? "itself"
+    : "the-base";
+
+const judgedAtBase = <Judged>(request: {
+  readonly evidence: JudgedEvidence;
+  readonly baseline: ExceptionBaseline;
+  readonly inFull: () => Judged;
+  readonly unjudged: () => Judged;
+  readonly againstBase: (base: MeasuredBaseline) => Judged;
+}): Judged => {
+  if (evidenceJudgedBy(request) === "itself") {
+    return request.inFull();
+  }
+  return request.baseline.measured === "no" ? request.unjudged() : request.againstBase(request.baseline);
+};
+
+const importAgainstBase = <ImportedRecord>(request: {
   readonly record: ImportedRecord;
   readonly entry: StructuralExceptionEntry;
   readonly identity: ImportedIdentity;
   readonly discipline: string;
   readonly provenance: { readonly kind: ImportProvenanceKind; readonly source: string };
-  readonly baseline: ExceptionBaseline;
+  readonly baseline: MeasuredBaseline;
 }): Result<ImportedRecord, EntryProblem> => {
   const { baseline } = request;
-  if (baseline.measured === "no") {
-    return { outcome: "ok", value: request.record };
-  }
   if (baseline.entriesAtBase.some((baseEntry) => sameEntry({ left: baseEntry, right: request.entry }) === "same")) {
     return { outcome: "ok", value: request.record };
   }
@@ -312,6 +331,22 @@ const verifiedImport = <ImportedRecord>(request: {
       });
 };
 
+const verifiedImport = <ImportedRecord>(request: {
+  readonly record: ImportedRecord;
+  readonly entry: StructuralExceptionEntry;
+  readonly identity: ImportedIdentity;
+  readonly discipline: string;
+  readonly provenance: { readonly kind: ImportProvenanceKind; readonly source: string };
+  readonly baseline: ExceptionBaseline;
+}): Result<ImportedRecord, EntryProblem> =>
+  judgedAtBase({
+    evidence: { provenance: request.provenance },
+    baseline: request.baseline,
+    inFull: () => ({ outcome: "ok", value: request.record }),
+    unjudged: () => ({ outcome: "ok", value: request.record }),
+    againstBase: (base) => importAgainstBase({ ...request, baseline: base }),
+  });
+
 const recordedFile = (request: {
   readonly file: string;
 }): Result<RepoPath, EntryProblem> => {
@@ -322,20 +357,6 @@ const recordedFile = (request: {
 };
 
 const LEGACY_CHAIN_NEW_OR_EDITED = `a new or edited entry's whyChain follows the causal contract (docs/why-chain-contract.md in the ${TOOL_IDENTITY.packageName} package); a chain without rootCheck and readback is accepted only while --base-revision holds its entry unchanged`;
-
-type LegacyChainStanding = "unchanged-since-base" | "base-unmeasured" | "new-or-edited";
-
-const legacyChainStanding = (request: {
-  readonly entry: StructuralExceptionEntry;
-  readonly baseline: ExceptionBaseline;
-}): LegacyChainStanding => {
-  if (request.baseline.measured === "no") {
-    return "base-unmeasured";
-  }
-  return request.baseline.entriesAtBase.some((baseEntry) => sameEntry({ left: baseEntry, right: request.entry }) === "same")
-    ? "unchanged-since-base"
-    : "new-or-edited";
-};
 
 const chainRefused = (request: { readonly detail: string }): Result<never, EntryProblem> => ({
   outcome: "failed",
@@ -358,18 +379,31 @@ const judgedWhyChain = (request: {
   readonly whyChain: unknown;
   readonly entry: StructuralExceptionEntry;
   readonly baseline: ExceptionBaseline;
-}): Result<RecordedWhyChain, EntryProblem> => {
-  if (whyChainFormOf({ chain: request.whyChain }) === "causal") {
-    return causalChainOf({ whyChain: request.whyChain, preface: [] });
-  }
-  switch (legacyChainStanding(request)) {
-    case "unchanged-since-base":
-    case "base-unmeasured":
-      return legacyChainOf(request);
-    case "new-or-edited":
-      return causalChainOf({ whyChain: request.whyChain, preface: [LEGACY_CHAIN_NEW_OR_EDITED] });
-  }
-};
+}): Result<RecordedWhyChain, EntryProblem> =>
+  judgedAtBase({
+    evidence: { whyChain: request.whyChain },
+    baseline: request.baseline,
+    inFull: () => causalChainOf({ whyChain: request.whyChain, preface: [] }),
+    unjudged: () => legacyChainOf(request),
+    againstBase: (base) =>
+      base.entriesAtBase.some((baseEntry) => sameEntry({ left: baseEntry, right: request.entry }) === "same")
+        ? legacyChainOf(request)
+        : causalChainOf({ whyChain: request.whyChain, preface: [LEGACY_CHAIN_NEW_OR_EDITED] }),
+  });
+
+export type AuthorisationStanding = "established" | "provisional";
+
+export const authorisationStandingOf = (request: {
+  readonly record: JudgedEvidence;
+  readonly baseline: ExceptionBaseline;
+}): AuthorisationStanding =>
+  judgedAtBase({
+    evidence: request.record,
+    baseline: request.baseline,
+    inFull: () => "established",
+    unjudged: () => "provisional",
+    againstBase: () => "established",
+  });
 
 type ClauseSelection = { readonly clause: ClauseAddress; readonly mechanism: MechanismId };
 
