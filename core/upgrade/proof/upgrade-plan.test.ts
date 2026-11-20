@@ -7,7 +7,7 @@ import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
-import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { FileCarveOutRecord } from "../record-answers/record-answer-oracle.ts";
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
 import { type ProjectionFilesOf, type UpgradePlanRequest, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
 

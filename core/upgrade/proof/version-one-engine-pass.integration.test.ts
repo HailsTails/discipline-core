@@ -22,8 +22,8 @@ import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-po
 import { shippedCheckOf } from "../../../tests/shipped-check.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
-import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
-import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
+import { createAnsweringOracle } from "../record-answers/answering-oracle.ts";
+import type { FileCarveOutRecord } from "../record-answers/record-answer-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
 
 const path = createDefaultPathPort({});

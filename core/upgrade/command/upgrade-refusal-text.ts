@@ -8,7 +8,7 @@ import type { ProofRefusal } from "../proof/upgrade-proof.ts";
 import type { ProofWriteFailure, Unrestored } from "../proof-writes/proof-writes.ts";
 import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { ConfigImportRefusal } from "../version-two-writer/config-import-rewrite.ts";
-import type { OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { OracleFailure } from "../record-answers/record-answer-oracle.ts";
 import type { PairingRefusal } from "../proof/projection-replacements.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../values/absolute-path.ts";

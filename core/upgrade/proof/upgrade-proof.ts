@@ -5,7 +5,7 @@ import { type AbsolutePath, absolutePathSchema } from "../../values/absolute-pat
 import type { RepoPath } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
 import type { CheckReport } from "../../verdict/check-report.ts";
-import type { CarveOutOracle, OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
+import type { RecordAnswerOracle, OracleFailure } from "../record-answers/record-answer-oracle.ts";
 import { type ProofDifference, proofDifferencesOf } from "../proof-comparison/proof-differences.ts";
 import { type PlannedFile, type ProofWriteRefusal, type ProofWritePorts, type ProofWrites, rolledBackProofWrites, type Unrestored, writeProofFiles } from "../proof-writes/proof-writes.ts";
 import { type OutsideRoot, type Removed, type RemovalFailure, type RecordsRoot, filesStillPresentOf, recordsOutsideRoot, removedVersionOneFiles, type VersionOneRemoval } from "../proof-writes/version-one-removal.ts";
@@ -33,7 +33,7 @@ export type VersionOneFiles = {
 
 export type UpgradeProofRequest = {
   readonly ports: ProofWritePorts;
-  readonly oracle: CarveOutOracle;
+  readonly oracle: RecordAnswerOracle;
   readonly runs: ProofRuns;
   readonly reading: VersionOneReading;
   readonly versionOneFiles: VersionOneFiles;

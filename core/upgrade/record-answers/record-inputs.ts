@@ -4,7 +4,7 @@ import type { Result } from "../../values/result.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
-import type { RecordAnswered } from "./carve-out-oracle.ts";
+import type { RecordAnswered } from "./record-answer-oracle.ts";
 
 export type CarveOutUnanswered = { readonly kind: "carve-out-unanswered"; readonly clause: string; readonly file: RepoPath };
 

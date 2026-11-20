@@ -21,6 +21,6 @@ export type OracleFailure =
   | { readonly kind: "finding-not-attributable"; readonly clause: string; readonly file: RepoPath; readonly check: string | undefined }
   | { readonly kind: "record-doubly-held"; readonly clause: string; readonly file: RepoPath };
 
-export type CarveOutOracle = {
+export type RecordAnswerOracle = {
   readonly answer: (request: { readonly records: readonly ExceptionRecord[] }) => Promise<Result<readonly RecordAnswered[], OracleFailure>>;
 };

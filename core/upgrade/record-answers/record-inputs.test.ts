@@ -5,7 +5,7 @@ import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
-import type { FileCarveOutRecord } from "./carve-out-oracle.ts";
+import type { FileCarveOutRecord } from "./record-answer-oracle.ts";
 import { recordInputsOf } from "./record-inputs.ts";
 
 const AUDIT = mechanismIdSchema.parse("audit");

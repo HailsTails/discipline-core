@@ -6,7 +6,7 @@ import { clauseAddressText, sameClauseAddress } from "../../values/clause-addres
 import type { Result } from "../../values/result.ts";
 import type { GovernanceResult } from "../answering/governance.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
-import type { AuthorisedLocationRecord, CarveOutAnswered, FileCarveOutRecord, LocationAnswered, OracleFailure, RecordAnswered } from "./carve-out-oracle.ts";
+import type { AuthorisedLocationRecord, CarveOutAnswered, FileCarveOutRecord, LocationAnswered, OracleFailure, RecordAnswered } from "./record-answer-oracle.ts";
 
 export type CarveOutAnswersRequest = {
   readonly records: readonly ExceptionRecord[];
@@ -98,7 +98,7 @@ const answeredOf = (request: {
   }
 };
 
-export const carveOutAnswersOf = (request: CarveOutAnswersRequest): Result<readonly RecordAnswered[], OracleFailure> => {
+export const recordAnswersOf = (request: CarveOutAnswersRequest): Result<readonly RecordAnswered[], OracleFailure> => {
   const answered = request.records.flatMap((record) => answeredOf({ record, governed: request.governed, catalogues: request.catalogues }));
   const failed = answered.find((each) => each.outcome === "failed");
   return failed ?? { outcome: "ok", value: answered.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };

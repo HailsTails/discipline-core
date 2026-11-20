@@ -17,7 +17,7 @@ import { versionTwoRunOver } from "../../run/version-two-run.ts";
 import { assessmentInEffect } from "../../values/assessment.ts";
 import { moduleExtensionOf } from "../../values/install-layout.ts";
 import type { Result } from "../../values/result.ts";
-import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
+import { createAnsweringOracle } from "../record-answers/answering-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
 import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.ts";
 import { plannedProjectionOf } from "./planned-projection.ts";
