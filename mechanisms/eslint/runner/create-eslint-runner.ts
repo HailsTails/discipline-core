@@ -18,16 +18,17 @@ import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { sameClauseAddress } from "../../../core/values/clause-address.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
-import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
+import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
+import { measuredOn, parseableFile } from "./checks-lint-findings.ts";
 import { mappedOutcome } from "./checks-outcomes.ts";
-import { type CheckedFile, type ConfigLocation, queriedFiles, type QueriedFiles } from "./checks-queried-files.ts";
+import { type ConfigLocation, queriedFiles, type QueriedFiles } from "./checks-queried-files.ts";
+import { allOffIn, type CheckedFile, enabledEverywhere, ignoreExceptionsOf, overrideExceptionsOf, type ProjectionEffect, type RuleTarget } from "./checks-rule-effects.ts";
 import { trackedExceptionsOfRules } from "./checks-tracked-exceptions.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import { type EslintRepository, eslintRepositoryOver } from "./eslint-repository.ts";
-import type { RuleState } from "./eslint-config-schema.ts";
 import {
   type EslintPort,
   type GovernedRule,
@@ -46,11 +47,11 @@ import type { SelectedRule } from "./package-script-scanner.ts";
 import { scriptOptionJudge } from "./script-option-effect.ts";
 import {
   type CurrentProjection,
-  PROJECTION_PATH,
   type ProjectionFiles,
   pluginImportOf,
   projectionState,
 } from "./projection.ts";
+import { PROJECTION_PATH } from "./projection-text.ts";
 import { projectionHolding } from "./projection-holding.ts";
 import { projectionStateAt } from "./projection-states.ts";
 import {
@@ -88,8 +89,6 @@ type ConfiguredClause = {
 type LoadedClause<Clause extends ConfiguredClause> = Clause & { readonly plugin: LoadedEslintPlugin };
 
 type SelectedClause = LoadedClause<ConfiguredClause>;
-
-type ProjectionEffect = "in-effect" | "not-in-effect";
 
 type ProjectionStatus = { readonly projection: "current" | "out-of-date"; readonly slices: readonly SliceProblem[] };
 
@@ -343,15 +342,6 @@ const unconfiguredSlicesOf = (request: {
 
 const VERSION_ONE_NAMES: ConfigLocation["names"] = { settingsFile: "disciplines.json", projectionFile: "disciplines.eslint.mjs" };
 
-const severityOf = (request: {
-  readonly checked: CheckedFile;
-  readonly ruleId: string;
-}): RuleState | undefined =>
-  request.checked.states.find((entry) => entry.ruleId === request.ruleId)?.state;
-
-const offEffect = (request: { readonly state: RuleState | undefined }): ProjectionEffect =>
-  request.state?.state === "configured" && request.state.severity === 0 ? "in-effect" : "not-in-effect";
-
 const ruleIdsOfRecord = (request: {
   readonly record: ExceptionRecord;
   readonly selected: readonly SelectedClause[];
@@ -375,16 +365,6 @@ const governedChecked = (request: {
   return request.checkedByFile.get(record.file) ?? [];
 };
 
-const fileOffEffect = (request: {
-  readonly checked: CheckedFile;
-  readonly ruleIds: readonly string[];
-}): ProjectionEffect =>
-  request.ruleIds.every(
-    (ruleId) => offEffect({ state: severityOf({ checked: request.checked, ruleId }) }) === "in-effect",
-  )
-    ? "in-effect"
-    : "not-in-effect";
-
 const recordEffect = (request: {
   readonly record: ExceptionRecord;
   readonly selected: readonly SelectedClause[];
@@ -393,30 +373,11 @@ const recordEffect = (request: {
 }): ProjectionEffect => {
   const ruleIds = ruleIdsOfRecord({ record: request.record, selected: request.selected });
   return governedChecked(request).every(
-    (checked) => fileOffEffect({ checked, ruleIds }) === "in-effect",
+    (checked) => allOffIn({ checked, ruleIds }) === "in-effect",
   )
     ? "in-effect"
     : "not-in-effect";
 };
-
-const ruleEnablement = (request: {
-  readonly ruleId: string;
-  readonly checked: readonly CheckedFile[];
-}): ProjectionEffect =>
-  request.checked.length === 0 ||
-  request.checked.some((checked) => severityOf({ checked, ruleId: request.ruleId })?.state === "configured")
-    ? "in-effect"
-    : "not-in-effect";
-
-const enabledEffect = (request: {
-  readonly selected: readonly SelectedClause[];
-  readonly checked: readonly CheckedFile[];
-}): ProjectionEffect =>
-  request.selected.every(
-    (entry) => ruleEnablement({ ruleId: entry.ruleId, checked: request.checked }) === "in-effect",
-  )
-    ? "in-effect"
-    : "not-in-effect";
 
 const exemptingEffect = (request: {
   readonly selected: readonly SelectedClause[];
@@ -436,7 +397,7 @@ const projectionEffect = (request: {
   readonly records: readonly ExceptionRecord[];
   readonly queried: QueriedFiles;
 }): ProjectionEffect => {
-  const enabled = enabledEffect({ selected: request.selected, checked: request.queried.checked });
+  const enabled = enabledEverywhere({ ruleIds: request.selected.map((entry) => entry.ruleId), checked: request.queried.checked });
   const exempting = exemptingEffect({
     selected: request.selected,
     records: request.records,
@@ -445,104 +406,29 @@ const projectionEffect = (request: {
   return enabled === "in-effect" && exempting === "in-effect" ? "in-effect" : "not-in-effect";
 };
 
-const ruleEnforcement = (request: {
-  readonly checked: CheckedFile;
-  readonly ruleId: string;
-}): "enforced" | "weakened" => {
-  const state = severityOf({ checked: request.checked, ruleId: request.ruleId });
-  return state?.state === "configured" && state.severity === 2 ? "enforced" : "weakened";
-};
-
-const ignoreExceptions = (request: {
-  readonly selected: readonly SelectedClause[];
-  readonly file: RepoPath;
-}): readonly NativeException[] =>
-  request.selected.map((entry): NativeException => ({ kind: "ignore", clause: entry.clause.address, file: request.file }));
-
-const overrideExceptions = (request: {
-  readonly selected: readonly SelectedClause[];
-  readonly records: readonly ExceptionRecord[];
-  readonly checked: CheckedFile;
-}): readonly NativeException[] =>
-  request.selected
-    .filter((entry) => ruleEnforcement({ checked: request.checked, ruleId: entry.ruleId }) === "weakened")
-    .filter((entry) => projectionHolding({ records: request.records, clause: entry.clause.address, file: request.checked.file }) === "not-held")
-    .map(
-      (entry): NativeException => ({
-        kind: "config-override",
-        clause: entry.clause.address,
-        file: request.checked.file,
-      }),
-    );
+const targetsOf = (request: { readonly selected: readonly SelectedClause[] }): readonly RuleTarget[] =>
+  request.selected.map((entry) => ({ ruleId: entry.ruleId, clause: entry.clause.address, check: undefined }));
 
 const queryExceptions = (request: {
   readonly selected: readonly SelectedClause[];
   readonly records: readonly ExceptionRecord[];
   readonly queried: QueriedFiles;
 }): readonly NativeException[] => [
-  ...request.queried.ignored.flatMap((file) => ignoreExceptions({ selected: request.selected, file })),
+  ...request.queried.ignored.flatMap((file) => ignoreExceptionsOf({ targets: targetsOf(request), file })),
   ...request.queried.checked.flatMap((checked) =>
-    overrideExceptions({ selected: request.selected, records: request.records, checked }),
+    overrideExceptionsOf({
+      targets: targetsOf(request),
+      checked,
+      holding: (target) => (projectionHolding({ records: request.records, clause: target.clause, file: checked.file }) === "not-held" ? "does-not-hold" : "holds"),
+    }),
   ),
 ];
-
-const outsideRepository = (request: { readonly linted: LintedFile }): Outcome<RepoPath> => ({
-  outcome: "failed",
-  error: {
-    kind: "tool-failed",
-    detail: `ESLint linted ${request.linted.filePath}, which is outside the repository`,
-  },
-});
-
-const lintedRepoPath = (request: {
-  readonly linted: LintedFile;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-}): Outcome<RepoPath> => {
-  const location = request.path.relative({ from: request.repoRoot, to: request.linted.filePath });
-  if (location.relation === "different-root") {
-    return outsideRepository(request);
-  }
-  const file = repoPathSchema.safeParse(location.path);
-  return file.success ? { outcome: "ok", value: file.data } : outsideRepository(request);
-};
-
-const parseableFile = (request: {
-  readonly linted: LintedFile;
-  readonly path: PathPort;
-  readonly repoRoot: AbsolutePath;
-}): Outcome<RepoPath> => {
-  const file = lintedRepoPath(request);
-  if (file.outcome === "failed") {
-    return file;
-  }
-  const fatal = request.linted.messages.find((message) => message.fatal === true);
-  if (fatal !== undefined) {
-    return {
-      outcome: "failed",
-      error: { kind: "file-unparseable", file: file.value, detail: fatal.message },
-    };
-  }
-  return file;
-};
 
 type LintFindings = {
   readonly hits: readonly Hit[];
   readonly nativeExceptions: readonly NativeException[];
   readonly measured: readonly MeasuredPair[];
 };
-
-const ruleCoverageOf = (request: { readonly linted: LintedFile }): "every-rule-ran" | "rule-less-message" =>
-  request.linted.messages.some((message) => message.ruleId === null) ? "rule-less-message" : "every-rule-ran";
-
-const measuredOn = (request: {
-  readonly file: RepoPath;
-  readonly linted: LintedFile;
-  readonly selected: readonly SelectedClause[];
-}): readonly MeasuredPair[] =>
-  ruleCoverageOf({ linted: request.linted }) === "rule-less-message"
-    ? []
-    : request.selected.map((entry) => ({ clause: entry.clause.address, file: request.file }));
 
 const lintedFindings = (request: {
   readonly linted: LintedFile;
@@ -569,7 +455,7 @@ const lintedFindings = (request: {
     map: (sourceLines): LintFindings => ({
       hits: hitsCutFrom({ file: file.value, ruleHits: reading.value.ruleHits, lines: sourceLines }),
       nativeExceptions: reading.value.nativeExceptions,
-      measured: measuredOn({ file: file.value, linted: request.linted, selected: request.selected }),
+      measured: measuredOn({ file: file.value, linted: request.linted, clauses: request.selected.map((entry) => entry.clause.address) }),
     }),
   });
 };

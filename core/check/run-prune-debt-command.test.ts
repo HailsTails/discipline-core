@@ -4,7 +4,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { LoadFailure } from "./load-failure.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import { type PruneCheck, paidDebtRemoved, type RunSettingsReader } from "./run-prune-debt-command.ts";
 
 const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");

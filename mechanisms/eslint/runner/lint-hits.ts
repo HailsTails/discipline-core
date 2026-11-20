@@ -5,6 +5,7 @@ import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import { CUT_MARK, SNIPPET_LIMIT } from "../../../core/values/snippet.ts";
+import { commentValueOf } from "./checks-comment-value.ts";
 import { INLINE_CONFIG_RULE_ID, type LintedMessage } from "./eslint-instance.ts";
 import { parseInlineConfigComment } from "./inline-config-parser.ts";
 
@@ -22,15 +23,6 @@ type Outcome<Value> = Result<Value, RunnerFailure>;
 const INLINE_DISABLE = "inline-disable";
 
 const INLINE_RULE_CONFIG = "inline-rule-config";
-
-const commentValueOf = (request: { readonly text: string }): string => {
-  if (request.text.startsWith("//")) {
-    return request.text.slice(2);
-  }
-  return request.text.startsWith("/*") && request.text.endsWith("*/")
-    ? request.text.slice(2, -2)
-    : request.text;
-};
 
 type InlineReading = { readonly clauses: readonly LintedClause[]; readonly reach: InlineReach };
 

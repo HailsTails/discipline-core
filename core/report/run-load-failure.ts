@@ -1,4 +1,4 @@
-import type { LoadFailure, VersionTwoLoadFailure } from "../check/load-failure.ts";
+import type { LoadFailure, VersionTwoLoadFailure } from "../command-line/load-failure.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import type { RecordsDocumentRefusal } from "../records/hone-record.ts";
 import type { HoneRecordsFailure } from "../records/read-hone-records.ts";

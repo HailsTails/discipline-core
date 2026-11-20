@@ -4,10 +4,10 @@ import type { CatalogueHolding } from "../symptom-catalogue/symptom-catalogue.ts
 import type { SymptomCatalogueRepository } from "../symptom-catalogue/symptom-catalogue-repository.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../verdict/symptom-notes.ts";
-import type { LoadFailure } from "./load-failure.ts";
-import { loadFailureDetail } from "./load-failure-text.ts";
-import { type PackageLink, packageLinkOf } from "./package-link.ts";
-import { shownFailureOf, shownPathOf } from "./shown-path.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import { loadFailureDetail } from "../command-line/load-failure-text.ts";
+import { type PackageLink, packageLinkOf } from "../command-line/package-link.ts";
+import { shownFailureOf, shownPathOf } from "../command-line/shown-path.ts";
 
 const SYMPTOM_PAGE_SEGMENTS: readonly string[] = ["rules", "typescript", "symptoms.md"];
 

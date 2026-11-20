@@ -4,7 +4,9 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { RunFailureSource } from "./run-failure.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+
+export type TreeFailure = Extract<LoadFailure, { readonly kind: "git-failed" } | { readonly kind: "config-root-untracked" }>;
 
 export type CheckedTree = {
   readonly tracked: readonly RepoPath[];
@@ -29,7 +31,12 @@ const presenceOf = (request: TreeRequest & { readonly trackedPath: RepoPath }): 
 const trackedFolderOf = (request: { readonly folder: RepoPath; readonly tracked: readonly RepoPath[] }): "tracked" | "untracked" =>
   request.tracked.some((trackedPath) => trackedPath.startsWith(`${request.folder}/`)) ? "tracked" : "untracked";
 
-export const checkedTreeOf = (request: TreeRequest): Result<CheckedTree, RunFailureSource> => {
+const TYPESCRIPT_FILE = /\.(?:ts|tsx|mts|cts)$/;
+
+export const typescriptFilesOf = (request: { readonly tracked: readonly RepoPath[] }): readonly RepoPath[] =>
+  request.tracked.filter((trackedPath) => TYPESCRIPT_FILE.test(trackedPath));
+
+export const checkedTreeOf = (request: TreeRequest): Result<CheckedTree, TreeFailure> => {
   const listed = request.git.trackedPaths({ repoRoot: request.repoRoot });
   if (listed.outcome === "failed") {
     return { outcome: "failed", error: { kind: "git-failed", detail: `${listed.error.command}: ${listed.error.detail}` } };

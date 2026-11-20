@@ -1,5 +1,5 @@
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
-import { COMMANDS, type CommandOption, type CommandSpec, HELP_FLAGS, type HelpTopic, SUBCOMMANDS, type Subcommand, VERSION_FLAG } from "./command-line.ts";
+import { COMMANDS, type CommandOption, type CommandSpec, HELP_FLAGS, type HelpTopic, SUBCOMMANDS, type Subcommand, VERSION_FLAG } from "../command-line/command-line.ts";
 
 type HelpEntry = {
   readonly term: string;

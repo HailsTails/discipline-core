@@ -1,16 +1,16 @@
-import { type ArgumentProblem, argumentsInvalid } from "../core/check/argument-problem.ts";
+import { type ArgumentProblem, argumentsInvalid } from "../core/command-line/argument-problem.ts";
 import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
-import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/check/command-line.ts";
+import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/command-line/command-line.ts";
 import {
   projectCommandOutcome,
   pruneDebtCommandOutcome,
   recordDebtCommandOutcome,
   splitRecordsCommandOutcome,
   versionCommandOutcome,
-} from "../core/check/command-outcome.ts";
+} from "../core/command-line/command-outcome.ts";
 import { installedVersionOf } from "../core/check/installed-version.ts";
-import type { LoadFailure } from "../core/check/load-failure.ts";
-import { loadFailureText } from "../core/check/load-failure-text.ts";
+import type { LoadFailure } from "../core/command-line/load-failure.ts";
+import { loadFailureText } from "../core/command-line/load-failure-text.ts";
 import type { ExceptionRecord } from "../core/exception-records/exception-record.ts";
 import type { InheritedDebtOutcome } from "../core/exception-records/inherited-debt.ts";
 import type {

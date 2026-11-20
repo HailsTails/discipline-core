@@ -1,7 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, } from "./records-disk.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import { loadFailureText } from "../core/check/load-failure-text.ts";
+import { loadFailureText } from "../core/command-line/load-failure-text.ts";
 import { toolchainBoundEmbeddedRunner, toolchainBoundStandaloneRunner } from "../core/mechanism-port/toolchain-bound-runner.ts";
 import { createDefaultFileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -27,10 +27,11 @@ const fileText = createDefaultFileTextPort({});
 
 const path = createDefaultPathPort({});
 
-const notInstalled = (request: { readonly packageName: string }): Error =>
-  Object.assign(new Error(`Cannot find package '${request.packageName}' imported from ${INSTALL_ROOT}/x.ts`), {
-    code: "ERR_MODULE_NOT_FOUND",
-  });
+const TYPESCRIPT_NOT_INSTALLED: NodeJS.ErrnoException = new Error("Cannot find package 'typescript' imported from /install/x.ts");
+TYPESCRIPT_NOT_INSTALLED.code = "ERR_MODULE_NOT_FOUND";
+
+const ESLINT_NOT_INSTALLED: NodeJS.ErrnoException = new Error("Cannot find package 'eslint' imported from /install/x.ts");
+ESLINT_NOT_INSTALLED.code = "ERR_MODULE_NOT_FOUND";
 
 const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.tracked }),
@@ -43,12 +44,12 @@ const pieceLoads = (): ModuleLoaderPort => ({
   load: vi.fn<ModuleLoaderPort["load"]>(),
 });
 
-const unresolvedFirst = (request: { readonly packageName: string }): PackageLocationPort => ({
+const unresolvedFirst = (request: { readonly notInstalled: Error }): PackageLocationPort => ({
   installRoot: INSTALL_ROOT,
   installForm: "package",
   locate: vi
     .fn<PackageLocationPort["locate"]>()
-    .mockThrowOnce(notInstalled(request))
+    .mockThrowOnce(request.notInstalled)
     .mockReturnValue({ outcome: "ok", value: "/repository/node_modules/peer/index.js" }),
 });
 
@@ -68,7 +69,7 @@ const eslintRunnerLocatingBy = (request: { readonly pieces: ModuleLoaderPort; re
 
 const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPort }) =>
   toolchainBoundStandaloneRunner({
-    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ packageName: "typescript" }) } }),
+    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ notInstalled: TYPESCRIPT_NOT_INSTALLED }) } }),
     runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse, entryKind: ABSENT_ENTRY_KIND }),
   });
 
@@ -90,7 +91,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
     const pieces = pieceLoads();
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ packageName: "eslint" }) }),
+      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ notInstalled: ESLINT_NOT_INSTALLED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     expect({ checked, pieceLoads: vi.mocked(pieces.load).mock.calls }).toEqual({
@@ -109,7 +110,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("prints that failure as one load-failure line telling the adopter what to add, never a stack trace", async () => {
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ packageName: "eslint" }) }),
+      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ notInstalled: ESLINT_NOT_INSTALLED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     assert(checked.outcome === "failed", "the check fails to load");

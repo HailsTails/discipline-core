@@ -14,11 +14,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
-      "file": "core/check/package-link.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
       "file": "core/check/piece-import-rules.test.ts"
     },
     {
@@ -255,11 +250,6 @@
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
       "file": "tests/single-mechanism.integration.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
-      "file": "tests/toolchain-unavailable.integration.test.ts"
     },
     {
       "kind": "file-carve-out",

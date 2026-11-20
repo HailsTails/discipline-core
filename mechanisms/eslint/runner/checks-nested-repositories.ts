@@ -1,10 +1,7 @@
 import type { RepoPath } from "../../../core/values/repo-path.ts";
+import { directoryOf, fileNameOf } from "./checks-paths.ts";
 
 export const SETTINGS_FILE_NAME = "hone.config.json";
-
-const directoryOf = (request: { readonly path: RepoPath }): string => request.path.split("/").slice(0, -1).join("/");
-
-const fileNameOf = (request: { readonly path: RepoPath }): string => request.path.split("/").at(-1) ?? "";
 
 const holdingOf = (request: { readonly files: readonly RepoPath[]; readonly folder: string }): "holds" | "holds-none" =>
   request.files.some((file) => file.startsWith(`${request.folder}/`)) ? "holds" : "holds-none";
