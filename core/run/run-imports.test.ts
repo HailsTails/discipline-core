@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filesNotMatching, importsOutside, packageOrComputedImport, relativeImportReaching } from "../../tests/confinement.ts";
+import { filesNotMatching, importsOutsideFromOwnFolder, packageOrComputedImport, relativeImportReaching } from "../../tests/confinement.ts";
 
 declare global {
   interface ImportMeta {
@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const runSources = import.meta.glob(["./core/run/*.ts"], {
+const runSources = import.meta.glob(["./core/run/**/*.ts"], {
   base: "../../",
   query: "?raw",
   import: "default",
@@ -22,10 +22,10 @@ const commandRequestImporters = import.meta.glob(
   { base: "../../", query: "?raw", import: "default", eager: true },
 );
 
-const reachesNothingUnderCheck = relativeImportReaching({
-  importingFolder: "core/run",
-  reach: /^(?!core\/check\/)/,
-});
+const reachingNothingUnderCheck = ({ importingFolder }: { readonly importingFolder: string }) => [
+  relativeImportReaching({ importingFolder, reach: /^(?!core\/check\/)/ }),
+  packageOrComputedImport,
+];
 
 describe("the version 2 run's reach into core, over what this repository's own run source imports, read as build-time raw modules (CD-47: that source is the assertion's subject and no fake can stand in for it; nothing is spawned or written)", () => {
   it("reads a known file, so the scan is not silently empty", () => {
@@ -33,7 +33,7 @@ describe("the version 2 run's reach into core, over what this repository's own r
   });
 
   it("finds core/run importing from core/check only the CommandRequest type, in these four files, until the version 1 removal moves it", () => {
-    expect(importsOutside({ sources: runSources, allowed: [reachesNothingUnderCheck, packageOrComputedImport] })).toEqual([
+    expect(importsOutsideFromOwnFolder({ sources: runSources, allowedFrom: reachingNothingUnderCheck })).toEqual([
       { file: "./core/run/version-chosen-command.test.ts", specifier: "../check/run-check-command.ts", form: "type-only" },
       { file: "./core/run/version-chosen-command.ts", specifier: "../check/run-check-command.ts", form: "type-only" },
       { file: "./core/run/version-two-check-command.test.ts", specifier: "../check/run-check-command.ts", form: "type-only" },

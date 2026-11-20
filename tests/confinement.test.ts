@@ -4,6 +4,7 @@ import {
   computedModuleLoad,
   filesNotMatching,
   importsOutside,
+  importsOutsideFromOwnFolder,
   nodeBuiltinImport,
   packageImport,
   packageOrComputedImport,
@@ -107,6 +108,24 @@ describe("relativeImportReaching", () => {
       underCore({ moduleImport: { specifier: "../../../outside.ts", form: "value" } }),
       underCore({ moduleImport: { specifier: "zod", form: "value" } }),
     ]).toEqual(["outside", "outside", "outside"]);
+  });
+});
+
+describe("importsOutsideFromOwnFolder", () => {
+  const sources = {
+    "./core/run/a.ts": 'import { x } from "../values/x.ts";\nimport { y } from "../check/y.ts";\n',
+    "./core/run/deeper/b.ts": 'import { x } from "../../values/x.ts";\nimport { y } from "../../check/y.ts";\nimport { z } from "../check/z.ts";\n',
+  };
+
+  const reachingNothingUnderCheck = ({ importingFolder }: { readonly importingFolder: string }) => [
+    relativeImportReaching({ importingFolder, reach: /^(?!core\/check\/)/ }),
+  ];
+
+  it("resolves each import from its own file's folder, so a file in a subfolder reaching core/check is refused", () => {
+    expect(importsOutsideFromOwnFolder({ sources, allowedFrom: reachingNothingUnderCheck })).toEqual([
+      { file: "./core/run/a.ts", specifier: "../check/y.ts", form: "value" },
+      { file: "./core/run/deeper/b.ts", specifier: "../../check/y.ts", form: "value" },
+    ]);
   });
 });
 

@@ -95,6 +95,20 @@ export const importsOutside = (request: {
       .map((moduleImport) => ({ file, ...moduleImport })),
   );
 
+const folderOfSource = (request: { readonly source: string }): string =>
+  request.source.replace(/^\.\//, "").split("/").slice(0, -1).join("/");
+
+export const importsOutsideFromOwnFolder = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly allowedFrom: (request: { readonly importingFolder: string }) => readonly ImportAllowance[];
+}): readonly ImportOutside[] =>
+  Object.entries(request.sources).flatMap(([file, text]) =>
+    importsOutside({
+      sources: { [file]: text },
+      allowed: request.allowedFrom({ importingFolder: folderOfSource({ source: file }) }),
+    }),
+  );
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;
