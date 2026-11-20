@@ -1,4 +1,0 @@
-{
-  "version": 2,
-  "records": [{ "symptom": "text-past-its-reader", "file": "src/orders/charge-order.test.ts" }]
-}

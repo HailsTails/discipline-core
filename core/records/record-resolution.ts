@@ -16,6 +16,7 @@ import type {
   RecordsAtBase,
   RuntimeFacility,
 } from "./hone-record.ts";
+import { banStandingOf, dependencyOf } from "./outside-dependency.ts";
 import { type NamedFolderKind, namedRecordsFileOf, type SingleFileKind } from "./records-layout.ts";
 import {
   carriedAuthorisedLocationWireSchema,
@@ -42,12 +43,6 @@ export type FiledUnder = { readonly kind: NamedFolderKind } | { readonly kind: S
 const RUNTIME_PREFIX = "runtime:";
 
 const BUILT_IN_PREFIX = "node:";
-
-const SCOPE_MARK = "@";
-
-const SCOPED_NAME_SEGMENTS = 2;
-
-const UNSCOPED_NAME_SEGMENTS = 1;
 
 const RUNTIME_FACILITIES: readonly RuntimeFacility[] = ["clock", "random", "process", "json"];
 
@@ -98,14 +93,9 @@ const placedIn = (request: { readonly file: RepoPath; readonly kind: NamedFolder
 };
 
 const notBanned = (request: { readonly catalogue: SymptomCatalogue; readonly dependency: string }): Resolution<string> =>
-  request.catalogue.namedBans.some((ban) => ban.outsideDependency === request.dependency)
+  banStandingOf({ namedBans: request.catalogue.namedBans, dependency: request.dependency }) === "banned"
     ? refusedWith({ kind: "named-ban", dependency: request.dependency })
     : resolved(request.dependency);
-
-const packageOf = (request: { readonly specifier: string }): string => {
-  const nameSegments = request.specifier.startsWith(SCOPE_MARK) ? SCOPED_NAME_SEGMENTS : UNSCOPED_NAME_SEGMENTS;
-  return request.specifier.split("/").slice(0, nameSegments).join("/");
-};
 
 const runtimePartyOf = (request: { readonly text: string }): Resolution<OutsideParty> => {
   const facility = RUNTIME_FACILITIES.find((candidate) => `${RUNTIME_PREFIX}${candidate}` === request.text);
@@ -119,7 +109,7 @@ const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideP
   if (request.text.startsWith(BUILT_IN_PREFIX)) {
     return resolved({ kind: "built-in", specifier: request.text });
   }
-  return resolved({ kind: "package", specifier: request.text, dependency: packageOf({ specifier: request.text }) });
+  return resolved({ kind: "package", specifier: request.text, dependency: dependencyOf({ specifier: request.text }) });
 };
 
 const symptomFiledAt = (request: Resolving & { readonly kind: NamedFolderKind; readonly symptom: string }): Resolution<Symptom> => {
