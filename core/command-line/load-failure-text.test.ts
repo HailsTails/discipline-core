@@ -93,11 +93,11 @@ describe("loadFailureText", () => {
         failure: {
           kind: "runner-failed",
           mechanism: WALKER,
-          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.39.5 || ^10.15.0", found: "not installed" }] },
         },
       }),
     ).toBe(
-      "load failure: runner-failed audit toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+      "load failure: runner-failed audit toolchain-unavailable eslint found not installed, supported ^9.39.5 || ^10.15.0: add a supported version to the devDependencies of the repository root\n",
     );
   });
 
@@ -110,14 +110,14 @@ describe("loadFailureText", () => {
           failure: {
             kind: "toolchain-unavailable",
             peers: [
-              { packageName: "@typescript-eslint/parser", peer: "optional", supported: "^8.56.0", found: "not installed" },
-              { packageName: "@typescript-eslint/eslint-plugin", peer: "optional", supported: "^8.56.0", found: "7.18.0" },
+              { packageName: "@typescript-eslint/parser", peer: "optional", supported: "^8.73.0", found: "not installed" },
+              { packageName: "@typescript-eslint/eslint-plugin", peer: "optional", supported: "^8.73.0", found: "7.18.0" },
             ],
           },
         },
       }),
     ).toBe(
-      "load failure: runner-failed eslint toolchain-unavailable @typescript-eslint/parser found not installed, supported ^8.56.0; @typescript-eslint/eslint-plugin found 7.18.0, supported ^8.56.0: add a supported version of each to the devDependencies of the repository root\n",
+      "load failure: runner-failed eslint toolchain-unavailable @typescript-eslint/parser found not installed, supported ^8.73.0; @typescript-eslint/eslint-plugin found 7.18.0, supported ^8.73.0: add a supported version of each to the devDependencies of the repository root\n",
     );
   });
 

@@ -23,7 +23,7 @@ const ROOT_PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
 
 const SOURCE = repoPathSchema.parse("src/a.ts");
 
-const ESLINT_9_PACKAGE = '{ "version": "9.28.0" }';
+const ESLINT_9_PACKAGE = '{ "version": "9.39.5" }';
 
 type ReadAnswer = ReturnType<FileTextPort["read"]>;
 
@@ -235,7 +235,7 @@ describe("eslintRepositoryOver, the config lookup", () => {
   });
 
   it("takes the lookup disciplines.json declares over the one ESLint 9 would give", () => {
-    const fileText = fileTextReading({ outcome: "ok", value: '{ "version": "9.28.0", "eslintConfigLookup": "nearest-to-file" }' });
+    const fileText = fileTextReading({ outcome: "ok", value: '{ "version": "9.39.5", "eslintConfigLookup": "nearest-to-file" }' });
     const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
     expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
     expect(fileText.read).toHaveBeenCalledExactlyOnceWith({ path: "/repo/disciplines.json" });
