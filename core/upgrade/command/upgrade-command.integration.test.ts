@@ -13,6 +13,7 @@ import { listedPathsOf, treeOf } from "../../../tests/repository-tree.ts";
 import { checkModulesOn, ESLINT_LINES, type EslintLine } from "../../../tests/eslint-toolchains.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
+import type { ReadonlyJsonValue } from "../../values/json-value.ts";
 import { exceptionsTextOf, selectionTextOf } from "../../../tests/version-one-files.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
@@ -423,10 +424,51 @@ const AUDIT_SELECTION = selectionTextOf({
 
 const ANY_CAST = "export const parsed = JSON.parse(text) as any;\n";
 
+const AUTHORISED_LOCATION: ReadonlyJsonValue = {
+  kind: "authorised-location",
+  clause: "CD-1#any-cast",
+  file: "src/located.ts",
+  reason: "the parser boundary wants an any cast",
+  whyChain: {
+    whys: [
+      {
+        why: "Why does src/located.ts cast JSON.parse's result to any?",
+        because: "Its callers read fields whose shape the payload's sender has never published, so no type describes them yet.",
+        evidence: "src/located.ts:1",
+      },
+      {
+        why: "Why has the payload's sender never published the shape of those fields?",
+        because: "The sender is a partner export that is still in beta, and its schema changes weekly.",
+        evidence: "partner ticket #31",
+      },
+      {
+        why: "Why does the partner export's schema still change weekly in beta?",
+        because: "The partner is adding fields as its customers ask for them, with a freeze planned for version 1.0.",
+        evidence: "partner roadmap, version 1.0 milestone",
+      },
+      {
+        why: "Why do we not type the fields before the partner's version 1.0 freeze?",
+        because: "A type written now would go stale within a week and turn every new field into a compile error at the boundary.",
+        evidence: "src/located.ts:1",
+      },
+      {
+        why: "Why would a stale type turn new fields into compile errors at the boundary?",
+        because: "Every caller imports the parsed value's type, so a missing field fails the build until someone updates the declaration by hand.",
+        evidence: "src/open.ts:1",
+      },
+    ],
+    rootCause: "Until the partner freezes its schema, a hand-kept declaration would fail the build weekly, so the any cast stays at this one boundary.",
+    rootCheck: "partner ticket #31 still lists the schema freeze as planned for version 1.0, not shipped.",
+    readback: "The partner's schema is not frozen, therefore a declared type would break the build weekly, therefore the fields stay untyped, therefore src/located.ts casts JSON.parse's result to any.",
+    owner: "integrations team",
+  },
+};
+
 const AUDIT_EXCEPTIONS = exceptionsTextOf({
   exceptions: [
     { kind: "file-carve-out", clause: "CD-1#any-cast", file: "src/owed.ts", reason: "legacy cast" },
     { kind: "file-carve-out", clause: "CD-1#explicit-any", file: "src/owed.ts", reason: "legacy cast" },
+    AUTHORISED_LOCATION,
   ],
 });
 
@@ -435,21 +477,22 @@ describe("hone upgrade over a real repository whose clause is bound to the audit
     const repo = await versionOneRepositoryOf({
       selection: AUDIT_SELECTION,
       exceptions: AUDIT_EXCEPTIONS,
-      sources: { "open.ts": ANY_CAST, "owed.ts": ANY_CAST },
+      sources: { "open.ts": ANY_CAST, "owed.ts": ANY_CAST, "located.ts": ANY_CAST },
     });
+    commitEverything({ repo });
     const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
     trackEverything({ repo });
-    const checked = await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "elsewhere"], modules: DEFAULT_MODULES });
+    const checked = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"], modules: DEFAULT_MODULES });
     expect({ upgraded, checked }).toEqual({
       upgraded: {
-        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/claimed-type.json\nwrote hone-records/debt/untyped-value.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/authorised-locations/claimed-type.json\nwrote hone-records/debt/claimed-type.json\nwrote hone-records/debt/untyped-value.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
         exits: [[{ code: 0 }]],
       },
       checked: {
         writes: [
           [
             {
-              text: "findings (2)\nclaimed-type#cast-to-any walker src/open.ts:1:22 JSON.parse(text) as any;  may indicate: declared-not-asserted, straight-through-tests, handed-what-it-uses\nuntyped-value#explicit-any eslint src/open.ts:1:42 export const parsed = JSON.parse(text) as any; may indicate: declared-not-asserted, no-leak-across-a-boundary\nanswered (2)\nclaimed-type#cast-to-any walker src/owed.ts:1:22 JSON.parse(text) as any;  answered by debt\nuntyped-value#explicit-any eslint src/owed.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nassessment (1)\nforfeiture elsewhere: 2 debt records not checked for forfeiture in this run\nsymptoms (2)\nclaimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it. Known debt: debt. Read ../../rules/typescript/symptoms.md#claimed-type\nuntyped-value: Untyped value. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; reads data from outside (request, file, environment, stored row, response) → No leak across a boundary. The breach usually sits at the boundary that let an unknown shape in. Recipes: Zod at the producer's adapter; Fix the declaration, not the value. Known debt: debt. Read ../../rules/typescript/symptoms.md#untyped-value\nverdict: fail (partial assessment)\n",
+              text: "findings (3)\nclaimed-type#cast-to-any walker src/open.ts:1:22 JSON.parse(text) as any;  may indicate: declared-not-asserted, straight-through-tests, handed-what-it-uses\nuntyped-value#explicit-any eslint src/located.ts:1:42 export const parsed = JSON.parse(text) as any; may indicate: declared-not-asserted, no-leak-across-a-boundary\nuntyped-value#explicit-any eslint src/open.ts:1:42 export const parsed = JSON.parse(text) as any; may indicate: declared-not-asserted, no-leak-across-a-boundary\nanswered (3)\nclaimed-type#cast-to-any walker src/located.ts:1:22 JSON.parse(text) as any;  answered by authorised-location carried\nclaimed-type#cast-to-any walker src/owed.ts:1:22 JSON.parse(text) as any;  answered by debt\nuntyped-value#explicit-any eslint src/owed.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\ncarried (1)\nhone-records/authorised-locations/claimed-type.json records[0] established lacks case, owes, whyChain\nsymptoms (2)\nclaimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it. Known debt: debt. Read ../../rules/typescript/symptoms.md#claimed-type\nuntyped-value: Untyped value. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; reads data from outside (request, file, environment, stored row, response) → No leak across a boundary. The breach usually sits at the boundary that let an unknown shape in. Recipes: Zod at the producer's adapter; Fix the declaration, not the value. Known debt: debt. Read ../../rules/typescript/symptoms.md#untyped-value\nverdict: fail\n",
             },
           ],
         ],

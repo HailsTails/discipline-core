@@ -20,6 +20,7 @@ import type { Result } from "../../values/result.ts";
 import { createAnsweringOracle } from "../record-answers/answering-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
 import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.ts";
+import { foundTreeCheckReachOf, foundTreeRunReachOf } from "../found-tree/found-tree-reach.ts";
 import { plannedProjectionOf } from "./planned-projection.ts";
 import { proofRunsOf } from "./proof-runs.ts";
 import { shippedCataloguesOf } from "./shipped-catalogues.ts";
@@ -118,6 +119,17 @@ const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: C
     : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value, trackedPaths: tracked.value } };
 };
 
+const foundTreeStagesOf = (request: { readonly ports: UpgradePorts; readonly command: CommandRequest; readonly located: Located }) => {
+  const { ports, command, located } = request;
+  const found = foundTreeRunReachOf({ recordsSourceOf: ports.recordsSourceOf, command });
+  return stagesOverRepository({
+    ports: { ...ports, recordsSourceOf: found.recordsSourceOf },
+    command: { ...command, git: found.git },
+    located,
+    baseRevision: found.baseRevision,
+  });
+};
+
 const proofRequestOf = (request: {
   readonly ports: UpgradePorts;
   readonly command: CommandRequest;
@@ -137,10 +149,10 @@ const proofRequestOf = (request: {
     },
     oracle: createAnsweringOracle({ enginePass: createVersionOneEnginePass({ check: prepared.check }), catalogues: prepared.catalogues }),
     runs: proofRunsOf({
-      versionOne: () => runCheck(prepared.check),
+      versionOne: () => runCheck({ ...prepared.check, ...foundTreeCheckReachOf({ check: prepared.check }) }),
       versionTwo: () =>
         versionTwoRunOver({
-          stages: stagesOverRepository({ ports, command, located, baseRevision: undefined }),
+          stages: foundTreeStagesOf({ ports, command, located }),
           arguments: { forfeiture: undefined, reportOutput: undefined, measuring: "when-debt-held" },
         }),
     }),
