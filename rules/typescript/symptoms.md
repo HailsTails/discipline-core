@@ -50,7 +50,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Outside import past a boundary
 
 - **Seen:** An import, `import()` or `require` of an outside dependency or runtime module (`node:*`) in a file with no boundary record.
-- **May indicate:** Uses a system or service outside the program, Takes an outside dependency → Outside dependencies stay at boundaries; Ports declared inside.
+- **May indicate:** Uses a system or service outside the program → Outside dependencies stay at boundaries; Ports declared inside; Takes an outside dependency → Outside dependencies stay at boundaries.
 - **Breach usually sits:** A missing adapter and port. Correct use: boundary record.
 - **Seen by:** graph.
 - **Check today:** partial.
@@ -78,7 +78,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Text past its reader
 
 - **Seen:** `JSON.parse`, `JSON.stringify` or a YAML parse or dump outside the adapter for whoever produced or receives the text, tests included.
-- **May indicate:** Reads data from outside (request, file, environment, stored row, response), Sends data out of the program → No leak; Uses a system or service outside the program → External behaviour sits at a boundary. In a test: States what the unit gives back, for one case or several → Straight-through tests; Written-out answers.
+- **May indicate:** Reads data from outside (request, file, environment, stored row, response), Sends data out of the program → No leak; Uses a system or service outside the program → External behaviour sits at a boundary. In a test: States what the unit gives back, for one case or several → Straight-through tests.
 - **Breach usually sits:** A port that takes or gives text where it should carry objects: "a boundary on whoever made json". Correct use: in the producer's adapter, a boundary record; at one test site, an authorised location for this symptom alone.
 - **Seen by:** syntax; types to trace the port.
 - **Check today:** partial (tests only).
@@ -246,7 +246,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Long function
 
 - **Seen:** A function body over the line limit.
-- **May indicate:** Coordinates other units, Does one job → Doer or orchestrator; Gives a value its type (declares it, or needs it narrower) → Handed what it uses; Checks conditions before its work → Guard first; Puts code in a file or folder, Names something → One reason per module, One word everywhere. "Line and complexity are symptoms that flag many things. Functions doing too many things. Minimal interfaces issues. Nested logic indicating complexity density instead of isolated rules and responsibilities named for what they are."
+- **May indicate:** Coordinates other units, Does one job → Doer or orchestrator; Gives a value its type (declares it, or needs it narrower) → Handed what it uses; Checks conditions before its work → Guard first; Puts code in a file or folder → One reason per module; Names something → One word everywhere. "Line and complexity are symptoms that flag many things. Functions doing too many things. Minimal interfaces issues. Nested logic indicating complexity density instead of isolated rules and responsibilities named for what they are."
 - **Breach usually sits:** The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -354,7 +354,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Double with a body
 
 - **Seen:** A double that has a function body at all: `vi.fn(impl)`, `mockImplementation`, or a hand-written function or object double. A body that only returns a value is included. "Exact returns can use mockreturn or mockresolve".
-- **May indicate:** Uses what a collaborator gives back → Written-out answers; Handed what it uses; Doer or orchestrator. "The stub form not expressing has to be tied to something very strong to justify. Or it implies a different root cause around coupling to external behaviour".
+- **May indicate:** Uses what a collaborator gives back → Written-out answers; Does one job: the port the stub stands in for → Handed what it uses; Does one job: the collaborator the stub stands in for → Doer or orchestrator. "The stub form not expressing has to be tied to something very strong to justify. Or it implies a different root cause around coupling to external behaviour".
 - **Breach usually sits:** A port too wide, or a collaborator holding two decisions. Correct use: deviation from [Stub with vi.fn](recipes.md#stub-with-vifn).
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -362,7 +362,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Module or global patched
 
 - **Seen:** `vi.mock`, `vi.stubGlobal`, a spy on a global, or `process.env` set in a test.
-- **May indicate:** Uses what a collaborator gives back → Written-out answers; Ports declared inside. "if you are doing this you have severely messed up your dependency management".
+- **May indicate:** Uses what a collaborator gives back → Written-out answers; Uses a system or service outside the program: a global or the environment patched → Ports declared inside. "if you are doing this you have severely messed up your dependency management".
 - **Breach usually sits:** The unit, which imports what it should be passed.
 - **Seen by:** syntax.
 - **Check today:** partial.
@@ -370,7 +370,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Branch in a test
 
 - **Seen:** `if`, a ternary, `&&`, `||`, `??`, `?.` or `switch` in a test file.
-- **May indicate:** Checks a value that may be one of several outcomes → Straight-through tests; Kinds are named; Failures are values.
+- **May indicate:** Checks a value that may be one of several outcomes → Straight-through tests; A value is one of several kinds or states: the unit's output → Kinds are named; An operation can fail: the unit's output → Failures are values.
 - **Breach usually sits:** Often the unit's output type: optional or loose shapes force the test to branch.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -378,7 +378,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Computed value in a test
 
 - **Seen:** A test that builds or picks a value: array methods, `find`, `Math.*`, `Object.assign`, `Object.fromEntries`, `Array.from` or a spread over a list. Calls on the unit's own API are not included.
-- **May indicate:** States what the unit gives back, for one case or several → Straight-through tests; Written-out answers. "Math and map are deterministic logic. Banned in tests."
+- **May indicate:** States what the unit gives back, for one case or several → Straight-through tests; Uses what a collaborator gives back → Written-out answers. "Math and map are deterministic logic. Banned in tests."
 - **Breach usually sits:** The test, or logic no unit owns.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -442,7 +442,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Behaviour tested away from its owner
 
 - **Seen:** A unit test that asserts what a collaborator does, or an integration test that pins a rule a unit owns.
-- **May indicate:** Tests across units or against a real system, Gives each unit its test → Tested where it's owned; Written-out answers.
+- **May indicate:** Tests across units or against a real system, Gives each unit its test → Tested where it's owned; Uses what a collaborator gives back → Written-out answers.
 - **Breach usually sits:** The test level.
 - **Seen by:** person; graph.
 - **Check today:** only review.
@@ -474,7 +474,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Test of the type checker
 
 - **Seen:** A test that asserts only what the types already prove, such as exhaustiveness.
-- **May indicate:** Gives each unit its test → Tested where it's owned; The type checker proves it. "it simply checks the type system itself. Instead of adding value."
+- **May indicate:** Gives each unit its test → Tested where it's owned. "it simply checks the type system itself. Instead of adding value."
 - **Breach usually sits:** The test.
 - **Seen by:** person.
 - **Check today:** only review.
