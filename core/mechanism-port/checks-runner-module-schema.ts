@@ -35,7 +35,16 @@ export const checksRunReportSchema = z
   .readonly();
 
 const notReadyYetFailureSchema = z
-  .object({ kind: z.literal("not-ready-yet"), what: z.object({ thing: z.literal("eslint-config-roots") }).readonly() })
+  .object({
+    kind: z.literal("not-ready-yet"),
+    what: z
+      .object({
+        thing: z.literal("eslint-config-roots"),
+        cause: z.enum(["declared-roots", "package-configs", "nested-repositories"]),
+        paths: z.array(z.string()).readonly(),
+      })
+      .readonly(),
+  })
   .readonly();
 
 export const checksRunResultSchema = z.union([

@@ -151,9 +151,9 @@ describe("engineRunOf, a checks runner", () => {
   });
 
   it("fails as not ready yet when the runner says its config roots are not ready", async () => {
-    expect(await engineRunOf(embeddedWith({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } } }))).toEqual({
+    expect(await engineRunOf(embeddedWith({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } } }))).toEqual({
       outcome: "failed",
-      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } },
     });
   });
 
@@ -223,9 +223,9 @@ describe("engineProjectionOf, a checks runner", () => {
   });
 
   it("fails as not ready yet when the runner says its config roots are not ready", async () => {
-    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } } }))).toEqual({
+    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } } }))).toEqual({
       outcome: "failed",
-      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } },
     });
   });
 

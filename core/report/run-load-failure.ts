@@ -1,4 +1,5 @@
 import type { LoadFailure, VersionTwoLoadFailure } from "../command-line/load-failure.ts";
+import type { NotReadyYetFailure } from "../mechanism-port/checks-runner-types.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import type { RecordsDocumentRefusal } from "../records/hone-record.ts";
 import type { HoneRecordsFailure } from "../records/read-hone-records.ts";
@@ -23,7 +24,7 @@ type KeptKind =
   | "config-root-untracked"
   | "unexpected-error";
 
-export type NotReadyYet = { readonly thing: "command"; readonly command: string } | { readonly thing: "eslint-config-roots" };
+export type NotReadyYet = { readonly thing: "command"; readonly command: string } | NotReadyYetFailure["what"];
 
 export type CatalogueUnread = { readonly reason: "absent" } | { readonly reason: "unreadable"; readonly detail: string };
 

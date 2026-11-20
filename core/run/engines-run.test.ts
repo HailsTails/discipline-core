@@ -156,10 +156,10 @@ describe("enginesRunOf", () => {
   });
 
   it("fails as not ready yet when the ESLint runner says its config roots are not ready", async () => {
-    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) } };
+    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } }), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) } };
     expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: notReady }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
-      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } },
     });
   });
 
@@ -228,10 +228,10 @@ describe("enginesProjectionOf", () => {
   });
 
   it("fails as not ready yet when the checks runner says its config roots are not ready", async () => {
-    const module = projectingModule({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } } });
+    const module = projectingModule({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } } });
     expect(await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: module }, second: NOT_ASKED_FOR })).toEqual({
       outcome: "failed",
-      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } },
     });
   });
 });

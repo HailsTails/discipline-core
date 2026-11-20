@@ -1,4 +1,6 @@
 import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
+import { runLoadFailureLine } from "../../report/load-failure-lines.ts";
+import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import { TOOL_IDENTITY } from "../../values/tool-identity.ts";
 import type { InvalidRecord } from "../version-one-records/exception-record.ts";
 import type { PlanRefusal } from "../proof/upgrade-plan.ts";
@@ -83,13 +85,20 @@ const configLineOf = (request: { readonly refusal: ConfigImportRefusal }): strin
   }
 };
 
+const projectionFailureLineOf = (request: { readonly failure: RunLoadFailure }): string => {
+  const line = runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined });
+  return request.failure.kind === "not-ready-yet" && request.failure.what.thing === "eslint-config-roots"
+    ? `version 2 cannot run this repository yet (${line}). Do what it names, or stay on version 1 until version 2 runs it, then run the upgrade again.`
+    : `version 2's projection could not be made (${line}). Fix what it names, then run the upgrade again.`;
+};
+
 const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly string[] => {
   const { refusal } = request;
   switch (refusal.kind) {
     case "carve-out-unanswered":
       return [`the carve-out for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
     case "projection-failed":
-      return [`version 2's projection could not be made (${refusal.detail}). Fix what it names, then run the upgrade again.`];
+      return [projectionFailureLineOf({ failure: refusal.failure })];
     case "projection-not-single":
       return [`version 2 projected ${refusal.files.length} files, and the team config can import exactly one. ${FAULT_IN_HONE}`];
     case "mapping-refused":

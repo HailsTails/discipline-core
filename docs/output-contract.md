@@ -569,6 +569,7 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `<clause> carries a clause-wide carve-out, which version 2 has no record for. Replace it with file carve-outs first.` |
 | `upgrade` | `<name> is not a name version 2 can file records under. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `version 2's projection could not be made (<detail>). Fix what it names, then run the upgrade again.` |
+| `upgrade` | `version 2 cannot run this repository yet (<detail>). Do what it names, or stay on version 1 until version 2 runs it, then run the upgrade again.` |
 | `upgrade` | `version 2 projected <count> files, and the team config can import exactly one. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the version 2 records would reach beyond the version 1 entries: <records>.` |
 | `upgrade` | `<config file> holds no static default import of <projection>. Change its import of it to the form import projection from "./<projection>", then run the upgrade again.` |
@@ -1032,7 +1033,7 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 
 `catalogue-not-read` is printed when the tool's own symptom catalogue is absent or cannot be read, since every record resolves against it. A team rule set with no catalogue is not a load failure. `upgrade-needed` is printed when a version 2 run finds version 1 files. It names the `hone upgrade` command that rewrites them, with the repository's own invocation when the install can be located, and plain `hone upgrade` otherwise.
 
-`settings-in-both-versions` is printed when the folder holds both `disciplines.json` and `hone.config.json`, since no run can tell which one the repository means. `not-ready-yet` is printed when a version 2 repository asks for something this release does not yet run on version 2 files: a command, named by the command, or `eslintConfigRoots`, named `eslint-config-roots`. Each release that makes one of them run stops printing it for that one.
+`settings-in-both-versions` is printed when the folder holds both `disciplines.json` and `hone.config.json`, since no run can tell which one the repository means. `not-ready-yet` is printed when a version 2 repository asks for something this release does not yet run on version 2 files: a command, named by the command, or ESLint configs it cannot run, named `eslint-config-roots`. The `eslint-config-roots` line has one form for each cause: declared `eslintConfigRoots`; lint config files below the root while the lint looks up the nearest config to each file, which it names, the first three and a count of the rest, and for which it offers keeping one config at the root or declaring `eslintConfigLookup` as repository-root; and other version 2 repositories inside this one, which it names. Each release that makes one of them run stops printing it for that one.
 
 | Kind | Line |
 | --- | --- |
@@ -1053,6 +1054,8 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `settings-in-both-versions` | `load failure: settings-in-both-versions <dir>: it holds both disciplines.json and hone.config.json; keep the one this repository runs on and remove the other` |
 | `not-ready-yet` | `load failure: not-ready-yet <command>: this release runs <command> on version 1 files only, and this repository holds hone.config.json` |
 | `not-ready-yet` | `load failure: not-ready-yet eslint-config-roots: this release does not run eslintConfigRoots on version 2 files yet; remove it from hone.config.json to run on the repository root` |
+| `not-ready-yet` | `load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found <config files>; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs` |
+| `not-ready-yet` | `load failure: not-ready-yet eslint-config-roots: this release does not run a repository that holds other version 2 repositories yet; folders holding hone.config.json: <folders>; move them out of this repository, and run each on its own with --repo` |
 | `unknown-check` | `load failure: unknown-check <check>` |
 | `review-only-listed` | `load failure: review-only-listed <check>: a check enforced by review has no engine and is left out of checks; remove it` |
 | `duplicate-check` | `load failure: duplicate-check <settings key> <check> <check with its rule set>` |

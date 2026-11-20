@@ -1,5 +1,4 @@
 import type { CommandRequest } from "../../check/run-check-command.ts";
-import { runLoadFailureLine } from "../../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import type { RecordsAtBase, RecordsReading } from "../../records/hone-record.ts";
 import { recordsReadingOf } from "../../records/records-reading.ts";
@@ -27,7 +26,7 @@ type Context = {
 
 const refusedBy = (request: { readonly failure: RunLoadFailure }): Result<never, ProjectionFailure> => ({
   outcome: "failed",
-  error: { kind: "projection-failed", detail: runLoadFailureLine({ failure: request.failure, upgradeCommand: undefined }) },
+  error: { kind: "projection-failed", failure: request.failure },
 });
 
 const settingsReadingOf = (request: Context & { readonly settings: SettingsFile; readonly catalogue: SymptomCatalogue }): Result<SettingsReading, ProjectionFailure> => {
