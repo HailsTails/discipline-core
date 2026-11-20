@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ImportAllowance, importFactsReaching, importNotMatching, importsOutside } from "../../../tests/confinement.ts";
+import { type ImportAllowance, importFactsReaching, importNotMatching, importsOutside, importsWithoutFacts } from "../../../tests/confinement.ts";
 
 declare global {
   interface ImportMeta {
@@ -10,7 +10,9 @@ declare global {
   }
 }
 
-const notAnEslintMajor: ImportAllowance = importNotMatching({ specifier: /^eslint(?:-9)?(?:\/|$)/ });
+const ESLINT_MAJOR_SPECIFIER = /^eslint(?:-9)?(?:\/|$)/;
+
+const notAnEslintMajor: ImportAllowance = importNotMatching({ specifier: ESLINT_MAJOR_SPECIFIER });
 
 const outsideTheBoundaries = import.meta.glob(
   [
@@ -44,14 +46,19 @@ describe("where ESLint is imported, read as build-time raw modules (CD-47: that 
     expect(importsOutside({ sources: insideTheBoundaries, allowed: [notAnEslintMajor] })).toEqual([]);
   });
 
-  it("finds every static import of eslint or eslint-9 outside the two boundaries, by file, specifier, form and imported names, a list that can only shrink", () => {
-    expect(importFactsReaching({ sources: outsideTheBoundaries, specifier: /^eslint(?:-9)?(?:\/|$)/ })).toEqual([
-      { file: "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts", specifier: "eslint", form: "type-only", names: ["ESLint", "Rule"] },
-      { file: "./mechanisms/eslint/runner/eslint-instance.ts", specifier: "eslint", form: "type-only", names: ["ESLint"] },
-      { file: "./mechanisms/eslint/runner/native-rules.ts", specifier: "eslint/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
-      { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", specifier: "eslint-9", form: "value", names: ["ESLint"] },
-      { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", specifier: "eslint-9/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
+  it("finds every static import and re-export of eslint or eslint-9 outside the two boundaries, by file, specifier, form and names, a list that can only shrink", () => {
+    expect(importFactsReaching({ sources: outsideTheBoundaries, specifier: ESLINT_MAJOR_SPECIFIER })).toEqual([
+      { file: "./mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts", kind: "import", specifier: "eslint", form: "type-only", names: ["ESLint", "Rule"] },
+      { file: "./mechanisms/eslint/runner/eslint-instance.ts", kind: "import", specifier: "eslint", form: "type-only", names: ["ESLint"] },
+      { file: "./mechanisms/eslint/runner/eslint-instance.ts", kind: "re-export", specifier: "eslint", form: "type-only", names: ["AST", "Rule", "SourceCode"] },
+      { file: "./mechanisms/eslint/runner/native-rules.ts", kind: "import", specifier: "eslint/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
+      { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9", form: "value", names: ["ESLint"] },
+      { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
     ]);
+  });
+
+  it("finds no static import or re-export of eslint or eslint-9 outside the two boundaries that the facts above fail to hold", () => {
+    expect(importsWithoutFacts({ sources: outsideTheBoundaries, specifier: ESLINT_MAJOR_SPECIFIER })).toEqual([]);
   });
 
   it("finds every import of eslint or eslint-9 of any form outside the two boundaries, the dynamic loads and the one re-export included, by file and form", () => {

@@ -912,7 +912,7 @@ export const eslintRunnerOver = (ports: EslintRunnerPorts): EmbeddedRunner => ({
 
 export const createEslintRunner = (platform: EslintPlatformPorts): EmbeddedRunner =>
   eslintRunnerOver({
-    repositoryAt: ({ repoRoot }) => eslintRepositoryOver({ ...platform, repoRoot }),
+    repositoryAt: ({ repoRoot }) => eslintRepositoryOver({ ...platform, repoRoot, boundary: platform.eslint.boundary }),
     coreInstall: ({ installRoot }) => coreInstallOf({ ...platform, installRoot }),
     modules: platform.modules,
     path: platform.path,

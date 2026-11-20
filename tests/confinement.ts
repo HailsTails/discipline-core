@@ -153,30 +153,45 @@ export const sourcesNotNamed = (request: {
 }): Readonly<Record<string, string>> =>
   Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(fileNameOfSource({ source }))));
 
-const IMPORT_STATEMENT = /^import\s[^;]*?from\s+["']([^"']+)["'];/gm;
+const MODULE_STATEMENT = /^(import|export)\s[^;]*?from\s+["']([^"']+)["'];/gm;
 
 export type ImportStatement = { readonly file: string; readonly statement: string };
+
+type ModuleStatementKind = "import" | "re-export";
+
+type ModuleStatement = ImportStatement & { readonly kind: ModuleStatementKind };
+
+const kindOf = (request: { readonly keyword: string }): ModuleStatementKind => (request.keyword === "import" ? "import" : "re-export");
+
+const statementsReaching = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly ModuleStatement[] =>
+  Object.entries(request.sources).flatMap(([file, text]) =>
+    [...text.matchAll(MODULE_STATEMENT)]
+      .filter(([, , specifier]) => request.specifier.test(specifier ?? ""))
+      .map(([statement, keyword]) => ({ file, statement, kind: kindOf({ keyword: keyword ?? "" }) })),
+  );
 
 export const importStatementsReaching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly specifier: RegExp;
 }): readonly ImportStatement[] =>
-  Object.entries(request.sources).flatMap(([file, text]) =>
-    [...text.matchAll(IMPORT_STATEMENT)]
-      .filter(([, specifier]) => request.specifier.test(specifier ?? ""))
-      .map(([statement]) => ({ file, statement })),
-  );
+  statementsReaching(request)
+    .filter(({ kind }) => kind === "import")
+    .map(({ file, statement }) => ({ file, statement }));
 
 export type ImportFacts = {
   readonly file: string;
+  readonly kind: ModuleStatementKind;
   readonly specifier: string;
   readonly form: "type-only" | "value";
   readonly names: readonly string[];
 };
 
-const TYPE_ONLY_STATEMENT = /^import\s+type\s/;
+const TYPE_ONLY_STATEMENT = /^(?:import|export)\s+type\s/;
 
-const STATEMENT_CLAUSE = /^import\s+(?:type\s+)?([\s\S]*?)\s+from\s+["']([^"']+)["'];$/;
+const STATEMENT_CLAUSE = /^(?:import|export)\s+(?:type\s+)?([\s\S]*?)\s+from\s+["']([^"']+)["'];$/;
 
 const BRACED_NAMES = /^\{([\s\S]*)\}$/;
 
@@ -193,19 +208,46 @@ export const importFactsReaching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly specifier: RegExp;
 }): readonly ImportFacts[] =>
-  importStatementsReaching(request).flatMap(({ file, statement }) => {
+  statementsReaching(request).flatMap(({ file, statement, kind }) => {
     const parts = STATEMENT_CLAUSE.exec(statement);
     return parts === null
       ? []
       : [
           {
             file,
+            kind,
             specifier: parts[2] ?? "",
             form: formOf({ statement }),
             names: namesOf({ clause: parts[1] ?? "" }),
           },
         ];
   });
+
+const STATIC_FORMS_FOUND: readonly ModuleImport["form"][] = ["value", "type-only"];
+
+export type UnfactedImports = {
+  readonly file: string;
+  readonly specifier: string;
+  readonly found: number;
+  readonly withFacts: number;
+};
+
+export const importsWithoutFacts = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly UnfactedImports[] => {
+  const facts = importFactsReaching(request);
+  return Object.entries(request.sources).flatMap(([file, text]) => {
+    const found = importsIn({ text }).filter(
+      (moduleImport) => STATIC_FORMS_FOUND.includes(moduleImport.form) && request.specifier.test(moduleImport.specifier),
+    );
+    return [...new Set(found.map(({ specifier }) => specifier))].flatMap((specifier) => {
+      const foundCount = found.filter((moduleImport) => moduleImport.specifier === specifier).length;
+      const withFacts = facts.filter((fact) => fact.file === file && fact.specifier === specifier).length;
+      return foundCount === withFacts ? [] : [{ file, specifier, found: foundCount, withFacts }];
+    });
+  });
+};
 
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;

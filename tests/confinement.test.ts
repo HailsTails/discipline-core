@@ -7,6 +7,7 @@ import {
   importFactsReaching,
   importNotMatching,
   importsOutside,
+  importsWithoutFacts,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
   nodeBuiltinImport,
@@ -183,10 +184,39 @@ describe("importFactsReaching", () => {
         specifier: /^\.\.\/held\//,
       }),
     ).toEqual([
-      { file: "./a.ts", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] },
-      { file: "./a.ts", specifier: "../held/three.ts", form: "value", names: ["Three"] },
-      { file: "./a.ts", specifier: "../held/four.ts", form: "value", names: ["Four"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/three.ts", form: "value", names: ["Three"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/four.ts", form: "value", names: ["Four"] },
     ]);
+  });
+
+  it("lists a re-export from a matching specifier with the names it passes on", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'export type { One, Two } from "../held/one.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([{ file: "./a.ts", kind: "re-export", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] }]);
+  });
+});
+
+describe("importsWithoutFacts", () => {
+  it("lists a static import or re-export of a matching specifier that the facts do not hold, with how many were found and held", () => {
+    expect(
+      importsWithoutFacts({
+        sources: { "./a.ts": 'import { One } from "../held/one.ts";\nimport "../held/side-effect.ts";\nexport * from "../free/free.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([{ file: "./a.ts", specifier: "../held/side-effect.ts", found: 1, withFacts: 0 }]);
+  });
+
+  it("lists nothing when every static import and re-export of a matching specifier has its facts", () => {
+    expect(
+      importsWithoutFacts({
+        sources: { "./a.ts": 'import { One } from "../held/one.ts";\nexport type { Two } from "../held/one.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([]);
   });
 });
 

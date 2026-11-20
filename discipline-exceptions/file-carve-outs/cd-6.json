@@ -4,11 +4,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-6#naming-convention",
-      "file": "core/consumer-selection/consumer-selection.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-6#naming-convention",
       "file": "core/platform-ports/execution-port.test.ts"
     },
     {

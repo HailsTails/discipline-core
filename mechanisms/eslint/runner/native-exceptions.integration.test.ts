@@ -530,18 +530,13 @@ describe.each(ESLINT_LINES)("checkConformance over the ESLint runner as core loa
   });
 });
 
-const ESLINT_PACKAGE_JSON = "node_modules/eslint/package.json";
-
 const LINT_SCRIPT_PACKAGE_JSON = "package.json";
-
-const eslintVersion = (request: { readonly version: string }): string => JSON.stringify({ name: "eslint", version: request.version });
 
 const lintScript = (request: { readonly command: string }): string => JSON.stringify({ scripts: { lint: request.command } });
 
 const monorepoRun = async (request: {
   readonly line: EslintLine;
   readonly name: string;
-  readonly version: string;
   readonly lintCommand: string;
   readonly records: readonly ExceptionRecord[];
 }) =>
@@ -549,7 +544,6 @@ const monorepoRun = async (request: {
     fileText: overlaidFileText({
       base: fileText,
       files: {
-        [`${consumerRepo({ name: request.name })}/${ESLINT_PACKAGE_JSON}`]: eslintVersion({ version: request.version }),
         [`${consumerRepo({ name: request.name })}/${LINT_SCRIPT_PACKAGE_JSON}`]: lintScript({ command: request.lintCommand }),
       },
     }),
@@ -587,38 +581,46 @@ const PACKAGE_CONFIG_REPO = { name: "monorepo-package-config", records: [PACKAGE
 
 const ROOT_CONFIG_REPO = { name: "monorepo-root-config", records: [] };
 
-const NEAREST_LOOKUP_FLAG = "--flag v10_config_lookup_from_file";
+const NEAREST_LOOKUP_COMMANDS: Readonly<Record<EslintLine, string>> = {
+  "eslint-10": "eslint .",
+  "eslint-9": "eslint --flag v10_config_lookup_from_file .",
+};
 
-const NEAREST_LOOKUP_TEAMS = [
-  { version: "10.11.0", lintCommand: "eslint ." },
-  { version: "9.39.5", lintCommand: `eslint ${NEAREST_LOOKUP_FLAG} .` },
-];
+const ROOT_LOOKUP_COMMAND = "eslint .";
 
 describe.each(ESLINT_LINES)("the ESLint runner on %s follows the config lookup the team's own ESLint run uses, over a monorepo with a config per package", (line) => {
-  it.each(NEAREST_LOOKUP_TEAMS)("applies a package config's projection under ESLint $version running `$lintCommand`", async (team) => {
-    await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, ...team })).resolves.toMatchObject({
+  it("applies a package config's projection when the team's ESLint looks up the nearest config", async () => {
+    await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, lintCommand: NEAREST_LOOKUP_COMMANDS[line] })).resolves.toMatchObject({
       outcome: "ok",
       value: { hits: [PACKAGE_HIT], projection: "current" },
     });
   });
 
-  it("finds no projection in effect under ESLint 9 run from the root, which loads only the root config", async () => {
-    await expect(
-      monorepoRun({ line, ...PACKAGE_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { hits: [], projection: "not-included" } });
-  });
-
-  it.each(NEAREST_LOOKUP_TEAMS)("finds no projection in effect where a package config drops it under ESLint $version running `$lintCommand`", async (team) => {
-    await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, ...team })).resolves.toMatchObject({
+  it("finds no projection in effect where a package config drops it when the team's ESLint looks up the nearest config", async () => {
+    await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, lintCommand: NEAREST_LOOKUP_COMMANDS[line] })).resolves.toMatchObject({
       outcome: "ok",
       value: { hits: [], projection: "not-included" },
     });
   });
+});
 
-  it("applies the root config's projection to every package under ESLint 9 run from the root", async () => {
+describe("the ESLint runner on eslint-9 run from the root, which loads only the root config, over a monorepo with a config per package", () => {
+  it("finds no projection in effect where a package config carries it", async () => {
     await expect(
-      monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
+      monorepoRun({ line: "eslint-9", ...PACKAGE_CONFIG_REPO, lintCommand: ROOT_LOOKUP_COMMAND }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { hits: [], projection: "not-included" } });
+  });
+
+  it("applies the root config's projection to every package", async () => {
+    await expect(
+      monorepoRun({ line: "eslint-9", ...ROOT_CONFIG_REPO, lintCommand: ROOT_LOOKUP_COMMAND }),
     ).resolves.toMatchObject({ outcome: "ok", value: { hits: [PACKAGE_HIT], projection: "current" } });
+  });
+
+  it("requires no slice for a package config ESLint 9 never loads, resolving every file from the root config", async () => {
+    await expect(
+      monorepoRun({ line: "eslint-9", ...ROOT_CONFIG_REPO, lintCommand: ROOT_LOOKUP_COMMAND }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [], unprojectedFolders: [] } });
   });
 });
 
@@ -640,35 +642,23 @@ describe.each(ESLINT_LINES)("a package that spreads its own projection slice, on
     ]);
   });
 
-  it.each(NEAREST_LOOKUP_TEAMS)(
-    "is judged the same by the check from the root under ESLint $version running `$lintCommand`: slice current and applied, the uncarved file flagged",
-    async (team) => {
-      await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, ...team })).resolves.toMatchObject({
-        outcome: "ok",
-        value: { hits: [PACKAGE_HIT], projection: "current", slices: [], unprojectedFolders: [] },
-      });
-    },
-  );
+  it("is judged the same by the check from the root: slice current and applied, the uncarved file flagged", async () => {
+    await expect(monorepoRun({ line, ...PACKAGE_CONFIG_REPO, lintCommand: NEAREST_LOOKUP_COMMANDS[line] })).resolves.toMatchObject({
+      outcome: "ok",
+      value: { hits: [PACKAGE_HIT], projection: "current", slices: [], unprojectedFolders: [] },
+    });
+  });
 
-  it.each(NEAREST_LOOKUP_TEAMS)(
-    "names the slice of a package whose config spreads no slice as missing and not applied under ESLint $version running `$lintCommand`",
-    async (team) => {
-      await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, ...team })).resolves.toMatchObject({
-        outcome: "ok",
-        value: {
-          projection: "not-included",
-          slices: [
-            { slice: "packages/a/disciplines.eslint.mjs", state: "missing" },
-            { slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" },
-          ],
-        },
-      });
-    },
-  );
-
-  it("requires no slice for a package config ESLint 9 never loads, resolving every file from the root config", async () => {
-    await expect(
-      monorepoRun({ line, ...ROOT_CONFIG_REPO, version: "9.39.5", lintCommand: "eslint ." }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { projection: "current", slices: [], unprojectedFolders: [] } });
+  it("names the slice of a package whose config spreads no slice as missing and not applied", async () => {
+    await expect(monorepoRun({ line, ...ROOT_CONFIG_REPO, lintCommand: NEAREST_LOOKUP_COMMANDS[line] })).resolves.toMatchObject({
+      outcome: "ok",
+      value: {
+        projection: "not-included",
+        slices: [
+          { slice: "packages/a/disciplines.eslint.mjs", state: "missing" },
+          { slice: "packages/a/disciplines.eslint.mjs", state: "not-applied" },
+        ],
+      },
+    });
   });
 });

@@ -56,6 +56,7 @@ export const defaultEslintToolchainModules: EslintToolchainModules = {
 const boundaryModuleSchema = z.object({
   eslintBoundary: z.object({
     nearestLookup: z.object({ flags: z.array(z.string()) }),
+    lookupSelectedBy: z.custom<EslintMajorBoundary["lookupSelectedBy"]>((candidate) => typeof candidate === "function"),
     reportDataOf: z.custom<EslintMajorBoundary["reportDataOf"]>((candidate) => typeof candidate === "function"),
   }),
 });
@@ -75,7 +76,7 @@ export const eslintBoundaryFor = async (request: { readonly version: string }): 
     : { outcome: "failed", error: `the ESLint ${major} boundary is malformed: ${z.prettifyError(boundary.error)}` };
 };
 
-export const installedEslintBoundary =(): Promise<Result<EslintMajorBoundary, string>> =>
+export const installedEslintBoundary = (): Promise<Result<EslintMajorBoundary, string>> =>
   defaultEslintToolchainModules.eslint().then((installed) => eslintBoundaryFor({ version: installed.ESLint.version }));
 
 export const defaultEslintToolchainPeers = (options: { readonly installRoot: string; readonly installForm: InstallForm }): EslintToolchainPeers => ({
