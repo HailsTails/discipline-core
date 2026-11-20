@@ -7,7 +7,6 @@ import type { FileRemovalPort } from "../platform-ports/file-system-port.ts";
 import { authoriseRequestOf } from "../records/authorise-options.ts";
 import type { AuthoriseRequest } from "../records/authorising.ts";
 import { authoriseOf, pruneDebtOf, type RecordCommandFailure, recordDebtOf } from "../records/record-commands.ts";
-import { createRecordsFolder } from "../records/records-folder.ts";
 import type { RecordsSource } from "../records/records-source.ts";
 import type { RecordsStore } from "../records/records-store.ts";
 import { createRecordsStore } from "../records/records-store.ts";
@@ -38,7 +37,14 @@ const linesOutcome = (request: { readonly lines: readonly string[] }): CommandOu
 
 const sourceOf = (request: Context): RecordsSource => {
   const { fileText, path, git } = request.command;
-  return createRecordsFolder({ fileText, path, git, gitTree: request.ports.gitTree, directory: request.ports.directory, repoRoot: request.located.repoRoot });
+  return request.ports.recordsSourceOf({
+    fileText,
+    path,
+    git,
+    gitTree: request.ports.gitTree,
+    directory: request.ports.directory,
+    repoRoot: request.located.repoRoot,
+  });
 };
 
 const storeOf = (request: Context): RecordsStore => {

@@ -20,6 +20,8 @@ export type RecordsFolderPorts = {
 
 type FolderRequest = RecordsFolderPorts & { readonly repoRoot: AbsolutePath };
 
+export type RecordsSourceOf = (request: FolderRequest) => RecordsSource;
+
 type Listed = Result<readonly RepoPath[], RecordsFolderFailure>;
 
 type Documents = Result<readonly RecordsDocument[], RecordsFolderFailure>;

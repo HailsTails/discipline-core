@@ -3,7 +3,7 @@ import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
-import { createRecordsFolder } from "../records/records-folder.ts";
+import type { RecordsSourceOf } from "../records/records-folder.ts";
 import { readHoneRecords } from "../records/read-hone-records.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
@@ -27,6 +27,7 @@ export type VersionTwoPorts = {
   readonly git: GitPort;
   readonly gitTree: GitTreePort;
   readonly directory: DirectoryPort;
+  readonly recordsSourceOf: RecordsSourceOf;
 };
 
 export type VersionTwoLocations = {
@@ -46,9 +47,9 @@ const settingsStage = (request: StagesRequest & { readonly catalogue: SymptomCat
 };
 
 const recordsStage = (request: StagesRequest & { readonly catalogue: SymptomCatalogue }): Result<RecordsReading, RunLoadFailure> => {
-  const { fileText, path, directory, git, gitTree } = request.ports;
+  const { fileText, path, directory, git, gitTree, recordsSourceOf } = request.ports;
   const read = readHoneRecords({
-    source: createRecordsFolder({ fileText, path, directory, git, gitTree, repoRoot: request.locations.repoRoot }),
+    source: recordsSourceOf({ fileText, path, directory, git, gitTree, repoRoot: request.locations.repoRoot }),
     catalogue: request.catalogue,
     baseRevision: request.locations.baseRevision,
   });

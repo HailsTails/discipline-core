@@ -4,6 +4,7 @@ import { authoriseArgumentsFor, commandOver, gitTreeStub, memoryRepositoryOf, re
 import { CAST_EXPRESSIONS, CLAIMED_TYPE, ESLINT, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
 import type { Hit } from "../mechanism-port/runner-result-schema.ts";
 import type { PlacedRecord, RecordsReading } from "../records/hone-record.ts";
+import { createRecordsFolder } from "../records/records-folder.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
@@ -83,7 +84,13 @@ const ranWith = async (request: {
   const repository = memoryRepositoryOf({ files: request.files });
   const stagesOver = vi.fn<StagesOver>().mockReturnValue(request.stages);
   const recorded = recordedProcessWith({ arguments: request.arguments });
-  await request.handler({ gitTree: gitTreeStub(), directory: repository.directory, removal: repository.removal, stagesOver })(
+  await request.handler({
+    gitTree: gitTreeStub(),
+    directory: repository.directory,
+    removal: repository.removal,
+    recordsSourceOf: createRecordsFolder,
+    stagesOver,
+  })(
     commandOver({ process: recorded.port, fileText: repository.fileText }),
   );
   return { writes: recorded.writes, exits: recorded.exits, repository, stagesOver };
