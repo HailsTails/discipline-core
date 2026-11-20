@@ -1,10 +1,7 @@
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import type { RepoPath } from "../../../core/values/repo-path.ts";
+import { directoryOf, fileNameOf } from "./checks-paths.ts";
 import { CONFIG_FILE_NAMES } from "./config-lookup.ts";
-
-const fileNameOf = (request: { readonly path: RepoPath }): string => request.path.split("/").at(-1) ?? "";
-
-const directoryOf = (request: { readonly path: RepoPath }): string => request.path.split("/").slice(0, -1).join("/");
 
 export const configuredDirectoriesOf = (request: { readonly trackedPaths: readonly RepoPath[]; readonly lookup: EslintConfigLookup }): readonly string[] =>
   request.lookup === "nearest-to-file"

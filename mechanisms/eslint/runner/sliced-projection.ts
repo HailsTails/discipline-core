@@ -10,13 +10,8 @@ import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { CoreInstall } from "./core-install.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
-import {
-  type ProjectedPiece,
-  type ProjectionFiles,
-  pluginImportOf,
-  projectionState,
-  projectionText,
-} from "./projection.ts";
+import { type ProjectionFiles, pluginImportOf, projectionState } from "./projection.ts";
+import { type ProjectedPiece, projectionText } from "./projection-text.ts";
 import { type ProjectionStates, projectionStateAt } from "./projection-states.ts";
 import { type ConfigRoot, orphanedSliceDirectoriesOf, sliceRecordsOf, slicePathOf } from "./projection-slices.ts";
 
