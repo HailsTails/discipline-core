@@ -8,7 +8,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { answerFindings, type RaisedFinding } from "./answering.ts";
-import type { PlacedRecord } from "./hone-record.ts";
+import type { AuthorisedLocation, Debt, PlacedRecord, SymptomReach } from "./hone-record.ts";
 
 const AUDIT = mechanismIdSchema.parse("audit");
 
@@ -43,6 +43,8 @@ const OUTSIDE_IMPORT = symptomOf({ name: "outside-import-past-a-boundary", recip
 
 const NO_CLASS = clauseAddressSchema.parse("CD-14#no-class-syntax");
 
+const NO_THIS = clauseAddressSchema.parse("CD-14#no-this");
+
 const NO_FOR_OF = clauseAddressSchema.parse("CD-15#no-for-of");
 
 const IMPORT_BOUNDARIES = clauseAddressSchema.parse("CD-19#import-boundaries");
@@ -55,6 +57,12 @@ const checkOf = (request: { readonly name: string; readonly symptom: Symptom; re
   forms: [],
 });
 
+const CLASS_SYNTAX = checkOf({ name: "class-syntax", symptom: AUTHORED_CLASS, clause: NO_CLASS });
+
+const THIS_KEYWORD = checkOf({ name: "this-keyword", symptom: AUTHORED_CLASS, clause: NO_THIS });
+
+const WHOLE_SYMPTOM: SymptomReach = { reaches: "whole-symptom" };
+
 const CATALOGUE: SymptomCatalogue = {
   principles: [],
   rules: [],
@@ -66,11 +74,13 @@ const CATALOGUE: SymptomCatalogue = {
   symptoms: [AUTHORED_CLASS, LOOP_KEYWORD, OUTSIDE_IMPORT],
   clauses: [
     { clause: NO_CLASS, sight: { kind: "one-symptom", symptom: AUTHORED_CLASS } },
+    { clause: NO_THIS, sight: { kind: "one-symptom", symptom: AUTHORED_CLASS } },
     { clause: NO_FOR_OF, sight: { kind: "one-symptom", symptom: LOOP_KEYWORD } },
     { clause: IMPORT_BOUNDARIES, sight: { kind: "one-symptom", symptom: OUTSIDE_IMPORT } },
   ],
   checks: [
-    checkOf({ name: "class-syntax", symptom: AUTHORED_CLASS, clause: NO_CLASS }),
+    CLASS_SYNTAX,
+    THIS_KEYWORD,
     checkOf({ name: "for-of", symptom: LOOP_KEYWORD, clause: NO_FOR_OF }),
     checkOf({ name: "import-or-require", symptom: OUTSIDE_IMPORT, clause: IMPORT_BOUNDARIES }),
   ],
@@ -99,7 +109,11 @@ const NO_CLASS_IN_A: Finding = { clause: NO_CLASS, file: FILE_A, anchor: { line:
 
 const NO_CLASS_IN_B: Finding = { clause: NO_CLASS, file: FILE_B, anchor: { line: 8, column: 1 }, snippet: "class B {}", mechanism: AUDIT };
 
-const FOR_OF_IN_A: Finding = { clause: NO_FOR_OF, file: FILE_A, anchor: { line: 9, column: 2 }, snippet: "a loop over the orders", mechanism: AUDIT };
+const NO_THIS_IN_A: Finding = { clause: NO_THIS, file: FILE_A, anchor: { line: 4, column: 7 }, snippet: "this.total", mechanism: AUDIT };
+
+const NO_CLASS_IN_A_BY_ESLINT: Finding = { ...NO_CLASS_IN_A, mechanism: ESLINT };
+
+const FOR_OF_IN_A: Finding ={ clause: NO_FOR_OF, file: FILE_A, anchor: { line: 9, column: 2 }, snippet: "a loop over the orders", mechanism: AUDIT };
 
 const UNCATALOGUED_IN_A: Finding = { clause: UNCATALOGUED, file: FILE_A, anchor: { line: 1, column: 0 }, snippet: "nowhere", mechanism: AUDIT };
 
@@ -126,38 +140,62 @@ const importing = (request: { readonly finding: Finding; readonly specifier: str
   party: { reported: "specifier", specifier: request.specifier },
 });
 
-const DEBT_ON_CLASS_IN_A: PlacedRecord = {
-  place: { file: DEBT_FILE, index: 0 },
-  record: { kind: "debt", symptom: AUTHORED_CLASS, file: FILE_A, holding: { held: "stated" } },
-};
+const CLASS_DEBT_IN_A: Debt = { kind: "debt", symptom: AUTHORED_CLASS, reach: WHOLE_SYMPTOM, file: FILE_A, holding: { held: "stated" } };
 
-const DEBT_ON_CLASS_IN_B: PlacedRecord = {
-  place: { file: DEBT_FILE, index: 1 },
-  record: { kind: "debt", symptom: AUTHORED_CLASS, file: FILE_B, holding: { held: "stated" } },
-};
+const DEBT_ON_CLASS_IN_A: PlacedRecord = { place: { file: DEBT_FILE, index: 0 }, record: CLASS_DEBT_IN_A };
 
-const LOCATED_CLASS_IN_A: PlacedRecord = {
-  place: { file: AUTHORISED_FILE, index: 0 },
-  record: {
-    kind: "authorised-location",
-    symptom: AUTHORED_CLASS,
-    file: FILE_A,
-    holding: {
-      held: "stated",
-      owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } },
-      whyChain: CAUSAL_WHY_CHAIN,
-    },
+const DEBT_ON_CLASS_IN_B: PlacedRecord = { place: { file: DEBT_FILE, index: 1 }, record: { ...CLASS_DEBT_IN_A, file: FILE_B } };
+
+const DEBT_ON_CLASS_SYNTAX_IN_A: PlacedRecord = { place: { file: DEBT_FILE, index: 2 }, record: { ...CLASS_DEBT_IN_A, reach: { reaches: "one-check", check: CLASS_SYNTAX } } };
+
+const CLASS_LOCATION_IN_A: AuthorisedLocation = {
+  kind: "authorised-location",
+  symptom: AUTHORED_CLASS,
+  reach: WHOLE_SYMPTOM,
+  file: FILE_A,
+  holding: {
+    held: "stated",
+    owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } },
+    whyChain: CAUSAL_WHY_CHAIN,
   },
 };
+
+const LOCATED_CLASS_IN_A: PlacedRecord = { place: { file: AUTHORISED_FILE, index: 0 }, record: CLASS_LOCATION_IN_A };
 
 const CARRIED_CLASS_IN_A: PlacedRecord = {
   place: { file: AUTHORISED_FILE, index: 1 },
   record: {
-    kind: "authorised-location",
-    symptom: AUTHORED_CLASS,
-    file: FILE_A,
+    ...CLASS_LOCATION_IN_A,
     holding: { held: "carried", entry: { reason: "The parser's class is wrapped here." }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
   },
+};
+
+const ESTABLISHED_CLASS_IN_A: PlacedRecord = {
+  place: { file: AUTHORISED_FILE, index: 2 },
+  record: {
+    ...CLASS_LOCATION_IN_A,
+    holding: { held: "carried", entry: { reason: "The parser's class is wrapped here." }, lacks: ["case", "owes", "whyChain"], standing: "established" },
+  },
+};
+
+const LOCATED_CLASS_SYNTAX_IN_A: PlacedRecord = {
+  place: { file: AUTHORISED_FILE, index: 3 },
+  record: { ...CLASS_LOCATION_IN_A, reach: { reaches: "one-check", check: CLASS_SYNTAX } },
+};
+
+const LOCATED_THIS_KEYWORD_IN_A: PlacedRecord = {
+  place: { file: AUTHORISED_FILE, index: 4 },
+  record: { ...CLASS_LOCATION_IN_A, reach: { reaches: "one-check", check: THIS_KEYWORD } },
+};
+
+const LOCATED_UNKNOWN_CHECK_IN_A: PlacedRecord = {
+  place: { file: AUTHORISED_FILE, index: 5 },
+  record: { ...CLASS_LOCATION_IN_A, reach: { reaches: "unknown-check", check: "class-keyword" } },
+};
+
+const DEBT_ON_IMPORTS_IN_IDS: PlacedRecord = {
+  place: { file: repoPathSchema.parse("hone-records/debt/outside-import-past-a-boundary.json"), index: 0 },
+  record: { kind: "debt", symptom: OUTSIDE_IMPORT, reach: WHOLE_SYMPTOM, file: IDS_ADAPTER, holding: { held: "stated" } },
 };
 
 const LOCATED_UUID_IN_IDS: PlacedRecord = {
@@ -165,6 +203,7 @@ const LOCATED_UUID_IN_IDS: PlacedRecord = {
   record: {
     kind: "authorised-location",
     symptom: OUTSIDE_IMPORT,
+    reach: WHOLE_SYMPTOM,
     file: IDS_ADAPTER,
     holding: { held: "carried", entry: { reason: "uuid stays here." }, lacks: ["case", "owes", "whyChain"], standing: "established" },
   },
@@ -222,7 +261,7 @@ const inlineRun = (request: { readonly nativeExceptions: readonly NativeExceptio
   coverableKinds: ["inline-disable", "command-line-option"],
 });
 
-const NOTHING_ANSWERED = { findings: [], answered: [], stale: [], forfeited: [], doublyHeld: [], unrecorded: [] };
+const NOTHING_ANSWERED = { findings: [], answered: [], stale: [], forfeited: [], paid: [], unrecorded: [] };
 
 describe("answerFindings with no records", () => {
   it("keeps every finding and lists nothing else", () => {
@@ -355,8 +394,64 @@ describe("answerFindings, forfeit", () => {
   );
 });
 
-describe("answerFindings, doubly held", () => {
-  it("lists debt on a symptom and file an authorised location also holds, and only the authorised location answers", () => {
+describe("answerFindings, a record naming one check", () => {
+  it("answers by an authorised location naming one check only that check's findings, and the debt on the whole symptom answers the rest", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [
+        { finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] },
+        { finding: NO_THIS_IN_A, by: [DEBT_ON_CLASS_IN_A] },
+      ],
+    });
+  });
+
+  it("does not answer by a record naming one check a finding of its symptom that no check of the catalogue raised", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [LOCATED_CLASS_SYNTAX_IN_A, DEBT_ON_CLASS_IN_A],
+        findings: [unreported(NO_CLASS_IN_A_BY_ESLINT)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A_BY_ESLINT, by: [DEBT_ON_CLASS_IN_A] }], stale: [LOCATED_CLASS_SYNTAX_IN_A] });
+  });
+
+  it("answers by both an authorised location on the whole symptom and one on a check of it, at one file, and lists neither stale", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [LOCATED_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [
+        { finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A] },
+        { finding: NO_THIS_IN_A, by: [LOCATED_CLASS_IN_A] },
+      ],
+    });
+  });
+
+  it("lists an inline disable of a check that an authorised location on another check of its symptom does not name", () => {
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [LOCATED_THIS_KEYWORD_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })] }),
+    ).toEqual({ ...NOTHING_ANSWERED, stale: [LOCATED_THIS_KEYWORD_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
+  });
+});
+
+describe("answerFindings, paid debt", () => {
+  it("lists debt as paid where an authorised location also holds its symptom and file, with the authorised location answering in its place", () => {
     expect(
       answerFindings({
         catalogue: CATALOGUE,
@@ -368,38 +463,157 @@ describe("answerFindings, doubly held", () => {
     ).toEqual({
       ...NOTHING_ANSWERED,
       answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }],
-      doublyHeld: [{ debt: DEBT_ON_CLASS_IN_A, alsoHeldBy: [LOCATED_CLASS_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }],
     });
   });
 
-  it("lists a doubly-held symptom and file that no finding hits, and lists neither record as stale", () => {
+  it("does not pay debt on a file where nothing is found, and lists it stale beside the authorised location", () => {
     expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
-      doublyHeld: [{ debt: DEBT_ON_CLASS_IN_A, alsoHeldBy: [LOCATED_CLASS_IN_A] }],
+      stale: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A],
     });
   });
 
-  it("lists debt that a boundary record also holds in its module", () => {
-    const debtOnUuidInIds: PlacedRecord = {
-      place: { file: repoPathSchema.parse("hone-records/debt/outside-import-past-a-boundary.json"), index: 0 },
-      record: { kind: "debt", symptom: OUTSIDE_IMPORT, file: IDS_ADAPTER, holding: { held: "stated" } },
-    };
-    expect(answerFindings({ catalogue: CATALOGUE, records: [debtOnUuidInIds, IDS_BOUNDARY], findings: [], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+  it("does not pay debt whose file holds findings only of another symptom, and lists it stale", () => {
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [FOR_OF_IN_A], stale: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A] });
+  });
+
+  it("does not pay debt by an authorised location naming a check its symptom does not have, which answers nothing", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_UNKNOWN_CHECK_IN_A],
+        findings: [unreported(NO_CLASS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A, by: [DEBT_ON_CLASS_IN_A] }], stale: [LOCATED_UNKNOWN_CHECK_IN_A] });
+  });
+
+  it("names every record that answers in paid debt's place, in the records' order", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A, ESTABLISHED_CLASS_IN_A],
+        findings: [unreported(NO_CLASS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
       ...NOTHING_ANSWERED,
-      doublyHeld: [{ debt: debtOnUuidInIds, alsoHeldBy: [IDS_BOUNDARY] }],
+      answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A, ESTABLISHED_CLASS_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A, ESTABLISHED_CLASS_IN_A] }],
     });
   });
 
-  it("answers by the debt of a pair every finding its pair's other record does not itself answer", () => {
-    const debtOnImportsInIds: PlacedRecord = {
-      place: { file: repoPathSchema.parse("hone-records/debt/outside-import-past-a-boundary.json"), index: 0 },
-      record: { kind: "debt", symptom: OUTSIDE_IMPORT, file: IDS_ADAPTER, holding: { held: "stated" } },
-    };
+  it("does not pay debt that a carried authorised location unjudged at the base also holds, and both answer", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [CARRIED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
+        findings: [unreported(NO_CLASS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A, by: [CARRIED_CLASS_IN_A, DEBT_ON_CLASS_IN_A] }] });
+  });
+
+  it("pays debt that a carried authorised location established at the base also holds", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [ESTABLISHED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
+        findings: [unreported(NO_CLASS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: NO_CLASS_IN_A, by: [ESTABLISHED_CLASS_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [ESTABLISHED_CLASS_IN_A] }],
+    });
+  });
+
+  it("pays debt on one check that an authorised location on the whole symptom also holds", () => {
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_SYNTAX_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }],
+    });
+  });
+
+  it("pays debt on the whole symptom when every finding it held was answered by an authorised location on one check, which holds only part of its reach", () => {
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_SYNTAX_IN_A] }],
+    });
+  });
+
+  it("pays debt on imports when every import it held was of the outside party a boundary record holds", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
+        findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" })],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] }],
+      paid: [{ debt: DEBT_ON_IMPORTS_IN_IDS, answeredBy: [IDS_BOUNDARY] }],
+    });
+  });
+
+  it("names every record that answered in paid debt's place across the findings it held, in the records' order", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_THIS_KEYWORD_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [
+        { finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] },
+        { finding: NO_THIS_IN_A, by: [LOCATED_THIS_KEYWORD_IN_A] },
+      ],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_THIS_KEYWORD_IN_A, LOCATED_CLASS_SYNTAX_IN_A] }],
+    });
+  });
+
+  it("does not name a record that answered no finding the debt held among those that paid it", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A],
+        findings: [unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: NO_THIS_IN_A, by: [LOCATED_CLASS_IN_A] }],
+      stale: [LOCATED_CLASS_SYNTAX_IN_A],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }],
+    });
+  });
+
+  it("answers by the boundary record its own outside party's imports and by the debt every other import", () => {
     const lodashInIds: Finding = { ...UUID_IMPORT_IN_IDS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: lodash — use its recorded wrapping boundary" };
     expect(
       answerFindings({
         catalogue: CATALOGUE,
-        records: [debtOnImportsInIds, IDS_BOUNDARY],
+        records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
         findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" }), importing({ finding: lodashInIds, specifier: "lodash" }), unreported(lodashInIds)],
         touched: NOTHING_TOUCHED,
         runs: [],
@@ -408,14 +622,13 @@ describe("answerFindings, doubly held", () => {
       ...NOTHING_ANSWERED,
       answered: [
         { finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] },
-        { finding: lodashInIds, by: [debtOnImportsInIds] },
-        { finding: lodashInIds, by: [debtOnImportsInIds] },
+        { finding: lodashInIds, by: [DEBT_ON_IMPORTS_IN_IDS] },
+        { finding: lodashInIds, by: [DEBT_ON_IMPORTS_IN_IDS] },
       ],
-      doublyHeld: [{ debt: debtOnImportsInIds, alsoHeldBy: [IDS_BOUNDARY] }],
     });
   });
 
-  it("does not list a pair whose debt was forfeited, and the authorised location answers", () => {
+  it("does not pay debt that was forfeited, and the authorised location answers", () => {
     expect(
       answerFindings({
         catalogue: CATALOGUE,
@@ -462,7 +675,7 @@ describe("answerFindings, natives held", () => {
     ).toEqual(NOTHING_ANSWERED);
   });
 
-  it("does not list an inline disable that a doubly-held pair holds", () => {
+  it("does not list an inline disable that the record answering in paid debt's place holds, and that record is not stale", () => {
     expect(
       answerFindings({
         catalogue: CATALOGUE,
@@ -471,7 +684,7 @@ describe("answerFindings, natives held", () => {
         touched: NOTHING_TOUCHED,
         runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })],
       }),
-    ).toEqual({ ...NOTHING_ANSWERED, doublyHeld: [{ debt: DEBT_ON_CLASS_IN_A, alsoHeldBy: [LOCATED_CLASS_IN_A] }] });
+    ).toEqual({ ...NOTHING_ANSWERED, paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }] });
   });
 
   it("lists, attributed to its engine, an inline disable no record holds", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Check, RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { RecordsAtBase } from "./hone-record.ts";
+import type { RecordsAtBase, SymptomReach } from "./hone-record.ts";
 import { carriedListingOf, recordsReadingOf, sameRecordIdentity } from "./records-reading.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
@@ -9,6 +10,12 @@ const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", titl
 const DEBT_KIND: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
 const CLAIMED_TYPE: Symptom = { name: "claimed-type", title: "Claimed type", seen: "A cast.", mayIndicate: [], breachUsuallySits: "in the unit", recipes: [], correctUses: [] };
+
+const CAST_CHECK: Check = { name: "cast-expressions", symptom: CLAIMED_TYPE, clause: clauseAddressSchema.parse("CD-2#cast-expressions"), engines: [], forms: [] };
+
+const NON_NULL_CHECK: Check = { name: "non-null-assertions", symptom: CLAIMED_TYPE, clause: clauseAddressSchema.parse("CD-2#non-null-assertions"), engines: [], forms: [] };
+
+const WHOLE_SYMPTOM: SymptomReach = { reaches: "whole-symptom" };
 
 const CATALOGUE: SymptomCatalogue = {
   principles: [],
@@ -20,7 +27,7 @@ const CATALOGUE: SymptomCatalogue = {
   engines: [],
   symptoms: [CLAIMED_TYPE],
   clauses: [],
-  checks: [],
+  checks: [CAST_CHECK, NON_NULL_CHECK],
   namedBans: [],
 };
 
@@ -67,8 +74,8 @@ describe("recordsReadingOf", () => {
             place: { file: BOUNDARIES_FILE, index: 0 },
             record: { kind: "boundary-record", module: "src/adapters/system-clock.ts", outsideParty: { kind: "runtime", facility: "clock" }, holding: { held: "stated", ports: ["Clock"] } },
           },
-          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/a.ts", holding: { held: "stated" } } },
-          { place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } },
+          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/a.ts", holding: { held: "stated" } } },
+          { place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/b.ts", holding: { held: "stated" } } },
         ],
         refused: [],
         notes: [],
@@ -87,7 +94,7 @@ describe("recordsReadingOf", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } }],
+        records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/b.ts", holding: { held: "stated" } } }],
         refused: [{ place: { file: DEBT_FILE, index: 0 }, refusals: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["file"] })] }] }],
         notes: [],
         base: { measured: "no", base: { state: "not-given" } },
@@ -105,7 +112,7 @@ describe("recordsReadingOf", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } }],
+        records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/b.ts", holding: { held: "stated" } } }],
         refused: [{ place: { file: DEBT_FILE, index: 0 }, refusals: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["symptom"] })] }] }],
         notes: [],
         base: { measured: "no", base: { state: "not-given" } },
@@ -131,6 +138,7 @@ describe("recordsReadingOf", () => {
             record: {
               kind: "authorised-location",
               symptom: CLAIMED_TYPE,
+              reach: WHOLE_SYMPTOM,
               file: "src/held.ts",
               holding: {
                 held: "stated",
@@ -168,11 +176,130 @@ describe("recordsReadingOf", () => {
     expect(recordsReadingOf({ documents: [{ file: DEBT_FILE, document: { version: 2, records: [record, record] } }], catalogue: CATALOGUE, base: UNMEASURED })).toEqual({
       outcome: "ok",
       value: {
-        records: [{ place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/a.ts", holding: { held: "stated" } } }],
+        records: [{ place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/a.ts", holding: { held: "stated" } } }],
         refused: [{ place: { file: DEBT_FILE, index: 1 }, refusals: [{ kind: "duplicate", of: { file: DEBT_FILE, index: 0 } }] }],
         notes: [],
         base: { measured: "no", base: { state: "not-given" } },
       },
+    });
+  });
+
+  it("reads two records of one kind on two checks of one symptom at one site as two records", () => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          {
+            file: DEBT_FILE,
+            document: {
+              version: 2,
+              records: [
+                { symptom: "claimed-type#cast-expressions", file: "src/a.ts" },
+                { symptom: "claimed-type#non-null-assertions", file: "src/a.ts" },
+              ],
+            },
+          },
+        ],
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        records: [
+          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "one-check", check: CAST_CHECK }, file: "src/a.ts", holding: { held: "stated" } } },
+          { place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "one-check", check: NON_NULL_CHECK }, file: "src/a.ts", holding: { held: "stated" } } },
+        ],
+        refused: [],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
+      },
+    });
+  });
+
+  it("reads a record on a whole symptom and one on a check of it, at one site, as two records", () => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          {
+            file: DEBT_FILE,
+            document: {
+              version: 2,
+              records: [
+                { symptom: "claimed-type", file: "src/a.ts" },
+                { symptom: "claimed-type#cast-expressions", file: "src/a.ts" },
+              ],
+            },
+          },
+        ],
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        records: [
+          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/a.ts", holding: { held: "stated" } } },
+          { place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "one-check", check: CAST_CHECK }, file: "src/a.ts", holding: { held: "stated" } } },
+        ],
+        refused: [],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
+      },
+    });
+  });
+
+  it("keeps an authorised location naming a check its symptom does not have among the records, and notes the check by its place for the report", () => {
+    const entry = { symptom: "claimed-type#no-such-check", file: "src/held.ts", carried: { kind: "authorised-location" } };
+    expect(recordsReadingOf({ documents: [{ file: AUTHORISED_FILE, document: { version: 2, records: [entry] } }], catalogue: CATALOGUE, base: UNMEASURED })).toEqual({
+      outcome: "ok",
+      value: {
+        records: [
+          {
+            place: { file: AUTHORISED_FILE, index: 0 },
+            record: {
+              kind: "authorised-location",
+              symptom: CLAIMED_TYPE,
+              reach: { reaches: "unknown-check", check: "no-such-check" },
+              file: "src/held.ts",
+              holding: { held: "carried", entry: { kind: "authorised-location" }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
+            },
+          },
+        ],
+        refused: [],
+        notes: [{ place: { file: AUTHORISED_FILE, index: 0 }, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "no-such-check" } }],
+        base: { measured: "no", base: { state: "not-given" } },
+      },
+    });
+  });
+
+  it("notes both the check and the case of an authorised location that names neither as the catalogue does", () => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          {
+            file: AUTHORISED_FILE,
+            document: { version: 2, records: [{ symptom: "claimed-type#no-such-check", file: "src/held.ts", case: "needs-it-here", owes: "declared-not-asserted", whyChain: WHY_CHAIN }] },
+          },
+        ],
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        notes: [
+          { place: { file: AUTHORISED_FILE, index: 0 }, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "no-such-check" } },
+          { place: { file: AUTHORISED_FILE, index: 0 }, note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } },
+        ],
+      },
+    });
+  });
+
+  it("refuses a second record of one kind on one check and site, naming the first", () => {
+    const record = { symptom: "claimed-type#cast-expressions", file: "src/a.ts" };
+    expect(recordsReadingOf({ documents: [{ file: DEBT_FILE, document: { version: 2, records: [record, record] } }], catalogue: CATALOGUE, base: UNMEASURED })).toMatchObject({
+      outcome: "ok",
+      value: { refused: [{ place: { file: DEBT_FILE, index: 1 }, refusals: [{ kind: "duplicate", of: { file: DEBT_FILE, index: 0 } }] }] },
     });
   });
 
@@ -225,7 +352,7 @@ describe("recordsReadingOf", () => {
               holding: { held: "carried", entry: { kind: "authorised-location" }, lacks: ["ports"], standing: "established" },
             },
           },
-          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: ADAPTER, holding: { held: "carried", entry: {}, lacks: [], standing: "unjudged" } } },
+          { place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: ADAPTER, holding: { held: "carried", entry: {}, lacks: [], standing: "unjudged" } } },
         ],
       }),
     ).toEqual([

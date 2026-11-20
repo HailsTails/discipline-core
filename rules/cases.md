@@ -41,6 +41,8 @@ Quoted reasons: "I hold to functions are doers or are orchestrator a teaching." 
 
 Quoted reasons: "An effect can be checked at the units seam is about testing what is ours not what isn't." "this is a bunch of nullable and state management mess"
 
+Quoted reasons: "An effect can be checked at the units seam is about testing what is ours not what isn't." "this is a bunch of nullable and state management mess"
+
 ## External behaviour sits at a boundary
 
 | Case | Owes | What to do |

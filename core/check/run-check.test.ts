@@ -202,6 +202,8 @@ const HIT_IN_A = {
   snippet: "class A {}",
 };
 
+const HIT_FROM_AN_IMPORT = { ...HIT_IN_A, snippet: "import fp from \"lodash/fp\";", importSpecifier: "lodash/fp" };
+
 const EMPTY_REPORT = {
   excluded: [],
   notAdopted: [],
@@ -291,6 +293,19 @@ describe("runCheck reports", () => {
     ).resolves.toEqual({
       outcome: "ok",
       value: { ...EMPTY_REPORT, findings: [{ ...HIT_IN_A, mechanism: "audit" }], readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST] },
+    });
+  });
+
+  it("keeps on a finding the import specifier its runner's hit names, as data and nothing more", async () => {
+    await expect(
+      runCheck(
+        checkRequest({
+          modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_FROM_AN_IMPORT], nativeExceptions: [] } } }) }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { ...EMPTY_REPORT, findings: [{ ...HIT_FROM_AN_IMPORT, mechanism: "audit" }], readFirst: [ASSESSMENT_NOT_WRITTEN, CLASS_SYNTAX_READING_FIRST] },
     });
   });
 

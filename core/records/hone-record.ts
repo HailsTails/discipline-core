@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { Case, Pointed, Recipe, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Check, Pointed, Recipe, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type { ReadonlyJsonValue } from "../values/json-value.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -25,9 +25,14 @@ export type Carried<Lack extends string> = {
 
 export type Stated = { readonly held: "stated" };
 
+export type SymptomReach = { readonly reaches: "whole-symptom" } | { readonly reaches: "one-check"; readonly check: Check };
+
+export type AuthorisedReach = SymptomReach | { readonly reaches: "unknown-check"; readonly check: string };
+
 export type Debt = {
   readonly kind: "debt";
   readonly symptom: Symptom;
+  readonly reach: SymptomReach;
   readonly file: RepoPath;
   readonly note?: string;
   readonly holding: Stated | Carried<never>;
@@ -36,6 +41,7 @@ export type Debt = {
 export type AuthorisedLocationLack = "case" | "owes" | "whyChain";
 
 export type CatalogueNote =
+  | { readonly kind: "unknown-check"; readonly symptom: Symptom; readonly check: string }
   | { readonly kind: "unknown-case"; readonly case: string; readonly owes: string }
   | { readonly kind: "owes-not-owed"; readonly case: Case; readonly owes: string };
 
@@ -46,6 +52,7 @@ export type Owing =
 export type AuthorisedLocation = {
   readonly kind: "authorised-location";
   readonly symptom: Symptom;
+  readonly reach: AuthorisedReach;
   readonly file: RepoPath;
   readonly holding: (Stated & { readonly owing: Owing; readonly whyChain: WhyChain }) | Carried<AuthorisedLocationLack>;
 };
@@ -87,6 +94,7 @@ export type PlacedRecord = { readonly place: RecordPlace; readonly record: HoneR
 export type RecordRefusal =
   | { readonly kind: "form-refused"; readonly issues: readonly z.core.$ZodIssue[] }
   | { readonly kind: "unknown-symptom"; readonly symptom: string }
+  | { readonly kind: "unknown-check"; readonly symptom: string; readonly check: string }
   | { readonly kind: "unknown-recipe"; readonly recipe: string }
   | { readonly kind: "recipe-reason-not-the-catalogues"; readonly recipe: Recipe; readonly recipeReason: string }
   | { readonly kind: "named-ban"; readonly dependency: string }
