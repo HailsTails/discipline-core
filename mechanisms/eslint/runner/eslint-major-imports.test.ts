@@ -19,6 +19,7 @@ const outsideTheBoundaries = import.meta.glob(
     "./**/*.{ts,mts,cts,js,mjs,cjs}",
     "!./node_modules/**",
     "!./.claude/**",
+    "!./artefacts/**",
     "!./tests/test-fixtures/consumer-proof/**",
     "!./mechanisms/eslint/runner/eslint-9/**",
     "!./mechanisms/eslint/runner/eslint-10/**",
