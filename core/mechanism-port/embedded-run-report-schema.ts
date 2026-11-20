@@ -2,7 +2,7 @@ import { z } from "zod";
 import { clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Equal } from "../values/type-equality.ts";
-import { hitSchema, type InlineReach, type ProjectionState, type ScriptOptionCause } from "./runner-result-schema.ts";
+import { hitSchema, type InlineReach, measuredSchema, type ProjectionState, type ScriptOptionCause } from "./runner-result-schema.ts";
 
 const inlineLineSchema = z.number().int().min(1);
 
@@ -90,6 +90,7 @@ export const embeddedRunReportSchema = z
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
     slices: z.array(sliceProblemSchema).readonly().default([]),
     unprojectedFolders: z.array(unprojectedFolderSchema).readonly().default([]),
+    measured: measuredSchema,
   })
   .readonly();
 
