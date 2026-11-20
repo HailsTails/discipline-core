@@ -495,8 +495,8 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 
 | Value | Printed as | Space |
 | --- | --- | --- |
-| `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address | never |
-| `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, the mechanism id | never |
+| `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address; in a load failure, the check as `hone.config.json` lists it, led by its rule set and `/` when it has one, or the clause address when the failure is in the rule set's own files | never in the report; may hold a space in a load failure |
+| `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, or in a load failure when the catalogue names no engine for it, the mechanism id | never |
 | `<symptom>`, `<recipe>`, `<case name>` | a name in the symptom catalogue | never |
 | `<check name>` | the check an authorised location names that its symptom does not have, as the record writes it | never |
 | `<outside party>`, `<dependency>` | a boundary record's outside party, such as `runtime:clock`, `node:fs` or `uuid/v4`, and a dependency record's package name | never |
@@ -505,12 +505,23 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `<index>`, `<earlier index>` | a record's place in its records file's `records`, counting from 0; `<earlier index>` is the place of the record a duplicate repeats | never |
 | `<standing>` | `established`, a carried record unchanged against the base revision, or `unjudged`, one this run could not compare | never |
 | `<convention>` | a key of `hone.config.json` that no check reads yet: `conventions.generated` or `layers` | never |
-| `<path>`, `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x; `<path>` is one that `exclude` leaves out | may hold a space |
+| `<path>`, `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x; in the report `<path>` is one that `exclude` leaves out, and in a load failure it is the file that failed | may hold a space |
 | `<snippet>`, `<fix>`, `<section>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
 | `<prune command>` | the command that removes paid, stale and forfeited debt, printed as `<project command>` is | may hold a space |
 | `<case>`, `<owes>`, `<given>`, `<reason>`, `<revision>`, `<git message>` | text as written in a record, the command or git, as a JSON string in double quotes | may hold a space |
 | `<issues>` | each problem the record's form has, as its key's path (`record` for the record itself) then `: ` and what is wrong, separated by `; ` | may hold a space |
 | `<lacks>` | the keys a carried record lacks, separated by `, ` | may hold a space |
+| `<dir>`, `<detail>`, `<url>`, `<version found>`, `<rule set>`, `<other rule set>`, `<config root>`, `<piece folder>`, `<package>`, `<other package>`, `<range>`, `<location>`, `<install folder>` | as in 1.x | as in 1.x |
+| `<settings key>` | `checks` or `checkSettings`, the key that lists a check twice | never |
+| `<check with its rule set>` | the check's address led by its rule set and `/`, such as `hone/claimed-type#cast-expressions`, as `hone.config.json` lists it | may hold a space |
+| `<engines>` | the engines a check runs on, separated by ` or ` | never |
+| `<other check>` | a further check address, as `hone.config.json` lists it | may hold a space |
+| `<other checks>` | the further checks of the same rule, built from the catalogue, separated by a space | never |
+| `<state>` | `not-run` or `not-adopted` | never |
+| `<records folder>`, `<other records file>` | a folder or further records file under `hone-records/`, printed as `<records file>` is | never outside a JSON string |
+| `<name>` | a file name no repository path can hold, as a JSON string in double quotes | may hold a space |
+| `<document issues>` | each problem a refused records document has, as its key's path (`document` for the document itself) then `: ` and what is wrong, separated by `, ` | may hold a space |
+| `<upgrade command>` | the command that rewrites version 1 files as version 2, printed as `<project command>` is | may hold a space |
 
 ## The version 2 report
 
@@ -662,3 +673,200 @@ A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by 
 | `reference` | `dependency-record <dependency>` |
 
 A subject is its head, then ` carried` when the record is carried, then one ` note: ` for each catalogue note, the unknown check's first. A debt's or authorised location's head is `<symptom>`, `<check>` or `<symptom>#<check name>` by its reach, then its kind and `<file>`. A reference is the record's kind and, for a deviation, boundary record or dependency record, its recipe, outside party or dependency, followed by the same ` carried` and ` note: ` runs. Only a stated authorised location has a case or owes note, so a carried one prints at most the unknown check's note. The tables list every form this composition gives.
+
+## Version 2 commands
+
+The commands, their options and their exit codes are those of 1.x, with `split-records` removed and `upgrade` added. Help says "debt" where 1.x said "file carve-out", and "forfeiture" where 1.x said "decay". The synopsis, then the help of the tool and of each command, exactly as printed:
+```text
+hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+hone project --repo <dir>
+hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+hone upgrade --repo <dir>
+hone --help
+hone --version
+```
+
+```text
+usage: hone <command> [options]
+
+Checks a repository against the checks hone.config.json lists, answers its findings by the records in hone-records and prints one verdict.
+
+commands:
+  check        check the repository against the checks hone.config.json lists and print the report, ending in its verdict
+  project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
+  record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
+  prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
+  upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
+
+options:
+  --help, -h  print this help; after a command, print that command's help
+  --version   print the installed version of @hailstails/hone
+
+run hone <command> --help for a command's options and exit codes
+```
+
+```text
+usage: hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+
+check the repository against the checks hone.config.json lists and print the report, ending in its verdict
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --base-revision <revision>
+      the revision the change is measured from; without it no debt can be forfeited and no carried record is checked against it
+  --report-output <full|failures-only|counts|verdict-only>
+      how much of the report to print, over reportOutput in hone.config.json; full when neither is set
+  --forfeiture <this-run|elsewhere>
+      check debt for forfeiture in this run or leave it to another, over forfeiture in hone.config.json; this-run when neither is set
+  --help, -h
+      print this help
+
+exit codes:
+  0  the verdict is pass
+  1  the verdict is fail
+  2  a load failure: an input could not be loaded, an engine failed, or Hone failed unexpectedly
+```
+
+```text
+usage: hone project --repo <dir>
+
+write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --help, -h
+      print this help
+
+exit codes:
+  0  every projection was written or already current
+  2  any failure
+```
+
+```text
+usage: hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
+
+add debt to hone-records for each symptom and file the check finds, printing each and what was done
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --base-revision <revision>
+      the branch's base, such as origin/main; a file it does not hold gets no debt
+  --leave <path>
+      a file or folder, relative to --repo, that gets no debt because a person records it as an authorised location; give it once for each path
+  --help, -h
+      print this help
+
+exit codes:
+  0  every debt needed was written, or none was needed
+  2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
+```
+
+```text
+usage: hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+
+remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --base-revision <revision>
+      the revision the change is measured from; without it no debt can be forfeited and no carried record is checked against it
+  --forfeiture <this-run|elsewhere>
+      check debt for forfeiture in this run or leave it to another, over forfeiture in hone.config.json; this-run when neither is set
+  --help, -h
+      print this help
+
+exit codes:
+  0  every debt the run showed paid, stale or forfeited was removed, or none was shown
+  2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
+```
+
+```text
+usage: hone upgrade --repo <dir>
+
+rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
+
+options:
+  --repo <dir>
+      the folder that holds disciplines.json, usually the repository root; upgrade writes hone.config.json beside it
+  --help, -h
+      print this help
+
+exit codes:
+  0  every version 1 file was rewritten, or none was found
+  2  a load failure: a version 1 file could not be read or a version 2 file written, or Hone failed unexpectedly
+```
+
+## Version 2 load failures
+
+A version 2 run that cannot decide prints one line and exits `2`, as in 1.x. The line starts with `load failure: ` and its kind, and the values follow in the order shown. A `<check>` is the address as `hone.config.json` lists it and may hold a space, so a tool reads a load failure by its kind, and by the values only up to the first one that may hold a space. The text after a `:` that ends the values is not stable. A minor release may add a kind; a tool passes over a kind it does not know.
+
+Version 2 renames the 1.x kinds whose names spoke of clauses, disciplines, mechanisms, runners and pieces:
+- `selection-absent` is `config-absent`;
+- `unknown-discipline` and `unknown-clause` are `unknown-check`;
+- `duplicate-clause` is `duplicate-check`;
+- `judgement-clause-selected` and `judgement-clause-listed` are `review-only-listed`;
+- `mechanism-not-allowed` is `engine-not-allowed`;
+- `runner-missing`, `runner-invalid` and `runner-failed` are `engine-missing`, `engine-invalid` and `engine-failed`;
+- `piece-missing` is `check-missing`.
+
+It never prints `why-chains-required`, `records-in-both-layouts` or `records-unsplittable`. An `<engine>` is the engine's name, or the mechanism's id when the catalogue names no engine for it.
+
+`records-refused` prints every records document refused, in the records' order, each as its records file, its refusal kind and its issues, joined by `; `. The line grows with the number of refused documents, so that one run shows everything to fix. A refused record, as opposed to a refused document, is not a load failure: it is listed under `refused`, and an authorised location is never refused for what it claims.
+
+`catalogue-not-read` is printed when the tool's own symptom catalogue is absent or cannot be read, since every record resolves against it. A team rule set with no catalogue is not a load failure. `upgrade-needed` is printed when a version 2 run finds version 1 files.
+
+| Kind | Line |
+| --- | --- |
+| `arguments-invalid` | `load failure: arguments-invalid <detail>` |
+| `install-root-unresolvable` | `load failure: install-root-unresolvable <url> <detail>` |
+| `file-unreadable` | `load failure: file-unreadable <path> <detail>` |
+| `file-malformed` | `load failure: file-malformed <path> <detail>` |
+| `file-unwritable` | `load failure: file-unwritable <path> <detail>` |
+| `unsupported-version` | `load failure: unsupported-version <path> <version found>` |
+| `reserved-rule-set-name` | `load failure: reserved-rule-set-name <rule set>` |
+| `rule-set-name-collision` | `load failure: rule-set-name-collision <rule set> <other rule set>` |
+| `unknown-rule-set` | `load failure: unknown-rule-set <rule set>` |
+| `rule-set-invalid` | `load failure: rule-set-invalid <path> <detail>` |
+| `git-failed` | `load failure: git-failed <detail>` |
+| `config-root-untracked` | `load failure: config-root-untracked <config root>: an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in hone.config.json` |
+| `unexpected-error` | `load failure: unexpected-error <detail>` |
+| `config-absent` | `load failure: config-absent <dir> holds no hone.config.json; give the folder that holds it, usually the repository root` |
+| `unknown-check` | `load failure: unknown-check <check>` |
+| `review-only-listed` | `load failure: review-only-listed <check>: a check enforced by review has no engine and is left out of checks; remove it` |
+| `duplicate-check` | `load failure: duplicate-check <settings key> <check> <check with its rule set>` |
+| `engine-not-allowed` | `load failure: engine-not-allowed <check> <engine>: it runs on <engines>; list it with one of those` |
+| `engine-not-allowed` | `load failure: engine-not-allowed <check> <engine>: the rule set does not run that check on that engine, though its catalogue says it does; list the check with an engine its rule set runs it on, or correct the rule set` |
+| `engine-missing` | `load failure: engine-missing <engine>` |
+| `engine-invalid` | `load failure: engine-invalid <engine> <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> piece-invalid <piece folder> <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> file-unreadable <file> <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> file-unparseable <file> <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> tool-failed <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> plugin-conflict <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> team-config-unloadable <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> runner-invalid-output <detail>` |
+| `engine-failed` | `load failure: engine-failed <engine> toolchain-unavailable <package> found <version found>, supported <range>: add a supported version to the devDependencies of the repository root` |
+| `engine-failed` | `load failure: engine-failed <engine> toolchain-unavailable <package> found not installed, supported <range>: <package> is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall` |
+| `engine-failed` | `load failure: engine-failed <engine> toolchain-unavailable <package> found <version found>, supported <range>; <other package> found <version found>, supported <range>: add a supported version of each to the devDependencies of the repository root` |
+| `engine-failed` | `load failure: engine-failed <engine> toolchain-shadowed <package> resolved from <location> inside the core install <install folder>: delete <install folder>/node_modules, then reinstall the package with the repository's package manager, so the repository's own copy is used` |
+| `check-missing` | `load failure: check-missing <check> <engine>` |
+| `checks-run-together` | `load failure: checks-run-together <check> <other checks>: these checks are one rule today, so they run together; list each of them as <check> is listed` |
+| `check-settings-refused` | `load failure: check-settings-refused <check> unlisted: checkSettings gives settings only to a check listed to run; list it under checks or remove its settings` |
+| `check-settings-refused` | `load failure: check-settings-refused <check> <state>: checkSettings gives settings only to a check listed to run; run it or remove its settings` |
+| `check-settings-differ` | `load failure: check-settings-differ <check> <other check>: these checks are one rule today, so they take one set of settings; give them the same settings` |
+| `records-folder-unreadable` | `load failure: records-folder-unreadable <records folder> <detail>` |
+| `records-file-unreadable` | `load failure: records-file-unreadable <records file> <detail>` |
+| `records-file-not-json` | `load failure: records-file-not-json <records file> <detail>` |
+| `not-a-records-file` | `load failure: not-a-records-file <records file>: a records file is boundaries.json or dependencies.json, or a .json file named for its symptom, or for its recipe in deviations, inside the folder authorised-locations, debt or deviations of hone-records; move this file to where its kind belongs, or out of hone-records if it holds no records` |
+| `not-a-records-name` | `load failure: not-a-records-name <records folder> <name>: no repository path can hold that name; rename it` |
+| `records-refused` | `load failure: records-refused <records file> document-refused <document issues>` |
+| `records-refused` | `load failure: records-refused <records file> not-a-records-file` |
+| `records-refused` | `load failure: records-refused <records file> document-refused <document issues>; <other records file> not-a-records-file` |
+| `catalogue-not-read` | `load failure: catalogue-not-read <path>: the symptom catalogue is missing from this install; reinstall @hailstails/hone` |
+| `catalogue-not-read` | `load failure: catalogue-not-read <path> <detail>` |
+| `upgrade-needed` | `load failure: upgrade-needed <path>: this is a version 1 file; run <upgrade command>, which rewrites every version 1 file as version 2, and commit what it writes` |

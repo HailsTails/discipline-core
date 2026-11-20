@@ -21,7 +21,7 @@ const WHOLE_RECORD = "record";
 
 const SPLITS_A_FIELD = /[\s"]/;
 
-const recordsFileText = (request: { readonly file: RepoPath }): string => (SPLITS_A_FIELD.test(request.file) ? quoted({ text: request.file }) : request.file);
+export const recordsFileText = (request: { readonly file: RepoPath }): string => (SPLITS_A_FIELD.test(request.file) ? quoted({ text: request.file }) : request.file);
 
 export const recordPlaceText = (request: { readonly place: RecordPlace }): string => `${recordsFileText(request.place)} records[${request.place.index}]`;
 
