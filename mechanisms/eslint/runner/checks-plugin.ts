@@ -5,6 +5,7 @@ import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { checkRuleIdOf, checkRuleNameOf, type RuledCheck, runsOnEslint } from "./check-rule-id.ts";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import type { Rule } from "./eslint-instance.ts";
+import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 
 export type PieceSource = { readonly pieceFile: string; readonly pluginModule: string; readonly piece: unknown; readonly plugin: unknown };
@@ -43,17 +44,25 @@ export const inSymptomWords = (request: { readonly message: string; readonly tit
 const unnumbered = (request: { readonly text: string | number | boolean | bigint | null | undefined }) =>
   typeof request.text === "string" ? request.text.replace(NUMBERED_LEAD, "") : request.text;
 
-export const reportInSymptomWords = (request: { readonly descriptor: Rule.ReportDescriptor }): Rule.ReportDescriptor =>
-  request.descriptor.data === undefined
+export const reportInSymptomWords = (request: {
+  readonly descriptor: Rule.ReportDescriptor;
+  readonly boundary: EslintMajorBoundary;
+}): Rule.ReportDescriptor => {
+  const reportData = request.boundary.reportDataOf({ descriptor: request.descriptor });
+  return reportData === undefined
     ? request.descriptor
     : {
         ...request.descriptor,
-        data: Object.fromEntries(Object.entries(request.descriptor.data).map(([key, text]) => [key, unnumbered({ text })])),
+        data: Object.fromEntries(Object.entries(reportData).map(([key, text]) => [key, unnumbered({ text })])),
       };
+};
 
-const contextInSymptomWords = (request: { readonly context: Rule.RuleContext }): Rule.RuleContext =>
+const contextInSymptomWords = (request: { readonly context: Rule.RuleContext; readonly boundary: EslintMajorBoundary }): Rule.RuleContext =>
   Object.create(request.context, {
-    report: { value: (descriptor: Rule.ReportDescriptor) => request.context.report(reportInSymptomWords({ descriptor })) },
+    report: {
+      value: (descriptor: Rule.ReportDescriptor) =>
+        request.context.report(reportInSymptomWords({ descriptor, boundary: request.boundary })),
+    },
   });
 
 const messagesInSymptomWords = (request: { readonly messages: Readonly<Record<string, string>> | undefined; readonly title: string }) =>
@@ -61,9 +70,13 @@ const messagesInSymptomWords = (request: { readonly messages: Readonly<Record<st
     ? undefined
     : Object.fromEntries(Object.entries(request.messages).map(([messageId, message]) => [messageId, inSymptomWords({ message, title: request.title })]));
 
-const checkRuleOf = (request: { readonly rule: PieceRule; readonly title: string }): Rule.RuleModule => ({
+const checkRuleOf = (request: {
+  readonly rule: PieceRule;
+  readonly title: string;
+  readonly boundary: EslintMajorBoundary;
+}): Rule.RuleModule => ({
   meta: { ...request.rule.meta, messages: messagesInSymptomWords({ messages: request.rule.meta.messages, title: request.title }) },
-  create: (context) => request.rule.create(contextInSymptomWords({ context })),
+  create: (context) => request.rule.create(contextInSymptomWords({ context, boundary: request.boundary })),
 });
 
 const clauseRuleOf = (request: {
@@ -97,7 +110,11 @@ const clauseRulesOf = (request: { readonly source: PieceSource }): Built<readonl
   });
 };
 
-const namedRuleOf = (request: { readonly check: RuledCheck; readonly clauseRules: readonly ClauseRule[] }): Built<readonly (readonly [string, Rule.RuleModule])[]> => {
+const namedRuleOf = (request: {
+  readonly check: RuledCheck;
+  readonly clauseRules: readonly ClauseRule[];
+  readonly boundary: EslintMajorBoundary;
+}): Built<readonly (readonly [string, Rule.RuleModule])[]> => {
   const clauseRule = request.clauseRules.find(
     (candidate) =>
       request.check.clause.ruleSet === TOOL_IDENTITY.ownRuleSet &&
@@ -106,16 +123,20 @@ const namedRuleOf = (request: { readonly check: RuledCheck; readonly clauseRules
   );
   return clauseRule === undefined
     ? { outcome: "failed", error: { kind: "check-rule-missing", ruleId: checkRuleIdOf({ check: request.check }) } }
-    : { outcome: "ok", value: [[checkRuleNameOf({ check: request.check }), checkRuleOf({ rule: clauseRule.rule, title: request.check.symptom.title })]] };
+    : { outcome: "ok", value: [[checkRuleNameOf({ check: request.check }), checkRuleOf({ rule: clauseRule.rule, title: request.check.symptom.title, boundary: request.boundary })]] };
 };
 
-export const checksPluginOf = (request: { readonly checks: readonly RuledCheck[]; readonly sources: readonly PieceSource[] }): Built<ChecksPlugin> => {
+export const checksPluginOf = (request: {
+  readonly checks: readonly RuledCheck[];
+  readonly sources: readonly PieceSource[];
+  readonly boundary: EslintMajorBoundary;
+}): Built<ChecksPlugin> => {
   const clauseRules = gatheredOutcomes({ outcomes: request.sources.map((source) => clauseRulesOf({ source })) });
   if (clauseRules.outcome === "failed") {
     return clauseRules;
   }
   const rules = gatheredOutcomes({
-    outcomes: request.checks.filter((check) => runsOnEslint({ check }) === "eslint").map((check) => namedRuleOf({ check, clauseRules: clauseRules.value })),
+    outcomes: request.checks.filter((check) => runsOnEslint({ check }) === "eslint").map((check) => namedRuleOf({ check, clauseRules: clauseRules.value, boundary: request.boundary })),
   });
   return rules.outcome === "failed" ? rules : { outcome: "ok", value: { meta: PLUGIN_META, rules: Object.fromEntries(rules.value) } };
 };

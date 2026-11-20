@@ -6,6 +6,7 @@ import { createDefaultFileTextPort } from "../../../core/platform-ports/file-tex
 import { createDefaultModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
+import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import { honePluginAt } from "./hone-plugin.ts";
 
 const CATALOGUE = symptomCatalogueOf({ document: SYMPTOMS });
@@ -20,6 +21,7 @@ const honePlugin = await honePluginAt({
   fileText: createDefaultFileTextPort({}),
   path,
   modules: createDefaultModuleLoaderPort({}),
+  boundary: SILENT_BOUNDARY,
 });
 
 const ESLINT_CHECKS: readonly { readonly ruleId: string; readonly symptom: string; readonly check: string }[] = [

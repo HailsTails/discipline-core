@@ -7,6 +7,7 @@ import { createSymptomCatalogueRepository, SYMPTOM_CATALOGUE_SEGMENTS } from "..
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
 import type { Result } from "../core/values/result.ts";
 import { TOOL_IDENTITY } from "../core/values/tool-identity.ts";
+import { installedEslintBoundary } from "../mechanisms/eslint/runner/eslint-toolchain.ts";
 import { honePluginAt, honePluginFailureText } from "../mechanisms/eslint/runner/hone-plugin.ts";
 
 export type HoneNodeVisit = { visit(...nodes: unknown[]): void }["visit"];
@@ -32,12 +33,17 @@ const pluginAt = async (request: { readonly installRoot: AbsolutePath }): Promis
   if (catalogue.value.held === "none") {
     return { outcome: "failed", error: `this install holds no ${SYMPTOM_CATALOGUE_SEGMENTS.join("/")} under ${request.installRoot}` };
   }
+  const boundary = await installedEslintBoundary();
+  if (boundary.outcome === "failed") {
+    return boundary;
+  }
   const plugin = await honePluginAt({
     checks: catalogue.value.catalogue.checks,
     installRoot: request.installRoot,
     fileText,
     path,
     modules: createDefaultModuleLoaderPort({}),
+    boundary: boundary.value,
   });
   return plugin.outcome === "failed" ? { outcome: "failed", error: honePluginFailureText({ failure: plugin.error }) } : plugin;
 };

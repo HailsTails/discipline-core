@@ -4,6 +4,7 @@ import type { ModuleLoad, ModuleLoaderPort } from "../../../core/platform-ports/
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { SKIPPED_TESTS_CHECK } from "../../../tests/checks-plugin-catalogue.ts";
+import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import cd27Plugin from "../CD-27/cd27/cd27.eslint-plugin.ts";
 import { type HonePluginFailure, honePluginAt, honePluginFailureText } from "./hone-plugin.ts";
 
@@ -27,6 +28,7 @@ const pluginBuiltFrom = (request: { readonly read: ReturnType<FileTextPort["read
     fileText: { read, exists: vi.fn<FileTextPort["exists"]>(), write: vi.fn<FileTextPort["write"]>() },
     path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
     modules: { load },
+    boundary: SILENT_BOUNDARY,
   });
   return { built, read, load };
 };

@@ -677,22 +677,26 @@ describe("lintSourceCases", () => {
 
 const OPTIONS_CWD = absolutePathSchema.parse("/repo");
 
-describe("eslintOptionsOf, which asks every supported ESLint for the configuration nearest each file", () => {
-  it.each(["10.15.0"])("passes the options through unchanged on ESLint %s, whose default is the nearest-to-file lookup", (version) => {
-    expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({ cwd: OPTIONS_CWD });
+const NO_LOOKUP = { flags: [] };
+
+const NAMED_LOOKUP = { flags: ["a-lookup-flag"] };
+
+describe("eslintOptionsOf, which asks ESLint for the configuration nearest each file", () => {
+  it("passes the options through unchanged when the boundary names no lookup flag", () => {
+    expect(eslintOptionsOf({ nearestLookup: NO_LOOKUP, options: { cwd: OPTIONS_CWD } })).toEqual({ cwd: OPTIONS_CWD });
   });
 
-  it.each(["9.39.5"])("asks ESLint %s for the lookup by its v10 flag, which this release names", (version) => {
-    expect(eslintOptionsOf({ version, options: { cwd: OPTIONS_CWD } })).toEqual({
+  it("asks ESLint for the lookup by the flags the boundary names", () => {
+    expect(eslintOptionsOf({ nearestLookup: NAMED_LOOKUP, options: { cwd: OPTIONS_CWD } })).toEqual({
       cwd: OPTIONS_CWD,
-      flags: ["v10_config_lookup_from_file"],
+      flags: ["a-lookup-flag"],
     });
   });
 
-  it.each(["9.39.5", "10.15.0"])("names no lookup flag for ESLint %s when a configuration file is named", (version) => {
+  it("names no lookup flag when a configuration file is named", () => {
     expect(
       eslintOptionsOf({
-        version,
+        nearestLookup: NAMED_LOOKUP,
         options: { cwd: OPTIONS_CWD, overrideConfigFile: true, ignore: false, allowInlineConfig: false },
       }),
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: true, ignore: false, allowInlineConfig: false });
@@ -748,10 +752,10 @@ describe("ignoredByConfig, whether one named config really ignores a path", () =
 });
 
 describe("eslintOptionsOf for a question about one path", () => {
-  it.each(["9.39.5", "10.15.0"])("matches the named paths with a files-only override block on ESLint %s", (version) => {
+  it("matches the named paths with a files-only override block", () => {
     expect(
       eslintOptionsOf({
-        version,
+        nearestLookup: NO_LOOKUP,
         options: { cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", matchedFiles: ["src/a.ts"] },
       }),
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: "/repo/eslint.config.mjs", overrideConfig: { files: ["src/a.ts"] } });
@@ -801,10 +805,10 @@ describe("ignoredByPatterns, whether ignore patterns given on a command line ign
 });
 
 describe("eslintOptionsOf for ignore patterns", () => {
-  it.each(["9.39.5", "10.15.0"])("passes the patterns to ESLint %s as its own ignorePatterns option", (version) => {
+  it("passes the patterns to ESLint as its own ignorePatterns option", () => {
     expect(
       eslintOptionsOf({
-        version,
+        nearestLookup: NO_LOOKUP,
         options: { cwd: OPTIONS_CWD, overrideConfigFile: true, ignorePatterns: ["dist/**"], matchedFiles: ["src/a.ts"] },
       }),
     ).toEqual({ cwd: OPTIONS_CWD, overrideConfigFile: true, ignorePatterns: ["dist/**"], overrideConfig: { files: ["src/a.ts"] } });

@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import {
   computedModuleLoad,
+  dynamicLoadMatching,
   filesNotMatching,
   filesReachableFrom,
   filesReachingExcept,
   globExtensionsIn,
   importEdgesLeaving,
+  importFactsReaching,
+  importNotMatching,
   importsOutside,
+  importsWithoutFacts,
   importStatementsLeaving,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
@@ -66,6 +70,26 @@ describe("nodeBuiltinImport", () => {
       nodeBuiltinImport({ moduleImport: { specifier: "node:path", form: "dynamic" } }),
       nodeBuiltinImport({ moduleImport: { specifier: "path", form: "value" } }),
     ]).toEqual(["allowed", "outside", "outside"]);
+  });
+});
+
+describe("dynamicLoadMatching", () => {
+  it("allows a dynamic load whose specifier matches and refuses another one or a static import of it", () => {
+    expect([
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "load-one", form: "dynamic" } }),
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "other", form: "dynamic" } }),
+      dynamicLoadMatching({ specifier: /^load-\w+$/ })({ moduleImport: { specifier: "load-one", form: "value" } }),
+    ]).toEqual(["allowed", "outside", "outside"]);
+  });
+});
+
+describe("importNotMatching", () => {
+  it("refuses an import of any form whose specifier matches and allows every other", () => {
+    expect([
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint", form: "type-only" } }),
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint/rules", form: "dynamic" } }),
+      importNotMatching({ specifier: /^eslint(?:\/|$)/ })({ moduleImport: { specifier: "eslint-plugin-x", form: "value" } }),
+    ]).toEqual(["outside", "outside", "allowed"]);
   });
 });
 
@@ -177,6 +201,76 @@ describe("importStatementsReaching", () => {
       { file: "./a.ts", statement: 'import type { One, Two } from "../held/one.ts";' },
       { file: "./a.ts", statement: 'import {\n  Three,\n} from "../held/three.ts";' },
     ]);
+  });
+});
+
+describe("importFactsReaching", () => {
+  it("lists the file, specifier, type-only form and imported names of each import statement whose specifier matches", () => {
+    expect(
+      importFactsReaching({
+        sources: {
+          "./a.ts": 'import type { One, Two } from "../held/one.ts";\nimport { z } from "zod";\nimport {\n  Three,\n} from "../held/three.ts";\nimport Four from "../held/four.ts";\n',
+        },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/three.ts", form: "value", names: ["Three"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/four.ts", form: "value", names: ["Four"] },
+    ]);
+  });
+
+  it("lists a default import beside named ones as separate names, and a namespace import as one", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'import Default, { A } from "../held/one.ts";\nimport * as Everything from "../held/two.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "value", names: ["Default", "A"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "value", names: ["* as Everything"] },
+    ]);
+  });
+
+  it("lists an import as type-only only when the statement itself is marked, since names marked type-only inside it still load the module", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'import { type A, type B } from "../held/one.ts";\nimport type { C, D } from "../held/two.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([
+      { file: "./a.ts", kind: "import", specifier: "../held/one.ts", form: "value", names: ["A", "B"] },
+      { file: "./a.ts", kind: "import", specifier: "../held/two.ts", form: "type-only", names: ["C", "D"] },
+    ]);
+  });
+
+  it("lists a re-export from a matching specifier with the names it passes on", () => {
+    expect(
+      importFactsReaching({
+        sources: { "./a.ts": 'export type { One, Two } from "../held/one.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([{ file: "./a.ts", kind: "re-export", specifier: "../held/one.ts", form: "type-only", names: ["One", "Two"] }]);
+  });
+});
+
+describe("importsWithoutFacts", () => {
+  it("lists a static import or re-export of a matching specifier that the facts do not hold, with how many were found and held", () => {
+    expect(
+      importsWithoutFacts({
+        sources: { "./a.ts": 'import { One } from "../held/one.ts";\nimport "../held/side-effect.ts";\nexport * from "../free/free.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([{ file: "./a.ts", specifier: "../held/side-effect.ts", found: 1, withFacts: 0 }]);
+  });
+
+  it("lists nothing when every static import and re-export of a matching specifier has its facts", () => {
+    expect(
+      importsWithoutFacts({
+        sources: { "./a.ts": 'import { One } from "../held/one.ts";\nexport type { Two } from "../held/one.ts";\n' },
+        specifier: /^\.\.\/held\//,
+      }),
+    ).toEqual([]);
   });
 });
 

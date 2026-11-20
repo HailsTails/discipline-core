@@ -1,5 +1,5 @@
 import { createPathPort, type PathPort } from "../core/platform-ports/path-port.ts";
-import { type ImportStatementIn, importsIn, importStatementsIn, type ModuleImport } from "./module-imports.ts";
+import { type ImportFactsIn, type ImportStatementIn, importFactsIn, importsIn, importStatementsIn, type ModuleImport } from "./module-imports.ts";
 
 export type ConfinementVerdict = "allowed" | "outside";
 
@@ -55,6 +55,16 @@ export const packageDynamicImport =
   (request: { readonly packageName: string }): ImportAllowance =>
   ({ moduleImport }) =>
     moduleImport.specifier === request.packageName && moduleImport.form === "dynamic" ? "allowed" : "outside";
+
+export const dynamicLoadMatching =
+  (request: { readonly specifier: RegExp }): ImportAllowance =>
+  ({ moduleImport }) =>
+    request.specifier.test(moduleImport.specifier) && moduleImport.form === "dynamic" ? "allowed" : "outside";
+
+export const importNotMatching =
+  (request: { readonly specifier: RegExp }): ImportAllowance =>
+  ({ moduleImport }) =>
+    request.specifier.test(moduleImport.specifier) ? "outside" : "allowed";
 
 const reachOf = (request: {
   readonly importingPath: PathPort;
@@ -159,6 +169,44 @@ export const importStatementsReaching = (request: {
       .filter((found) => request.specifier.test(found.specifier))
       .map((found) => statementOf({ file, found })),
   );
+
+export type ImportFacts = ImportFactsIn & { readonly file: string };
+
+export const importFactsReaching = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly ImportFacts[] =>
+  Object.entries(request.sources).flatMap(([file, text]) =>
+    importFactsIn({ file, text })
+      .filter((facts) => request.specifier.test(facts.specifier))
+      .map((facts) => ({ file, ...facts })),
+  );
+
+const STATIC_FORMS_FOUND: readonly ModuleImport["form"][] = ["value", "type-only"];
+
+export type UnfactedImports = {
+  readonly file: string;
+  readonly specifier: string;
+  readonly found: number;
+  readonly withFacts: number;
+};
+
+export const importsWithoutFacts = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly specifier: RegExp;
+}): readonly UnfactedImports[] => {
+  const facts = importFactsReaching(request);
+  return Object.entries(request.sources).flatMap(([file, text]) => {
+    const found = importsIn({ file, text }).filter(
+      (moduleImport) => STATIC_FORMS_FOUND.includes(moduleImport.form) && request.specifier.test(moduleImport.specifier),
+    );
+    return [...new Set(found.map(({ specifier }) => specifier))].flatMap((specifier) => {
+      const foundCount = found.filter((moduleImport) => moduleImport.specifier === specifier).length;
+      const withFacts = facts.filter((fact) => fact.file === file && fact.specifier === specifier).length;
+      return foundCount === withFacts ? [] : [{ file, specifier, found: foundCount, withFacts }];
+    });
+  });
+};
 
 type ImportGraph = ReadonlyMap<string, readonly string[]>;
 

@@ -124,6 +124,7 @@ const builtPlugin = async (request: { readonly run: ChecksRunRequest; readonly c
     fileText: request.platform.fileText,
     path: request.platform.path,
     modules: request.platform.modules,
+    boundary: request.ports.eslint.boundary,
   });
   return plugin.outcome === "failed" ? toolFailed({ detail: honePluginFailureText({ failure: plugin.error }) }) : loadedPlugin({ plugin: plugin.value, checkRuleIds: request.checkRuleIds });
 };

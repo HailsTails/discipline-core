@@ -4,6 +4,7 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import type { ConfigFileSearch, EslintPort, IgnoredState, QueryInstance } from "./eslint-instance.ts";
 import {
   brokenConfigVerdict,
@@ -43,6 +44,7 @@ const teamQuery = (configs: Readonly<Record<string, ConfigFileSearch>>): QueryIn
 });
 
 const portOver = (ignoredByConfig: EslintPort["ignoredByConfig"]): EslintPort => ({
+  boundary: SILENT_BOUNDARY,
   createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>(),
   createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>(),
   lintSourceCases: vi.fn<EslintPort["lintSourceCases"]>(),

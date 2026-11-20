@@ -14,11 +14,13 @@ import type { ChecksRepository } from "./checks-repository.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { checksRunnerOver } from "./checks-runner.ts";
 import type { ChecksRunnerPorts } from "./checks-ports.ts";
+import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type { EslintPort, GovernanceInstance, QueryInstance } from "./eslint-instance.ts";
 import type { CurrentProjection, ProjectionFiles } from "./projection.ts";
 
 const eslint: EslintPort = {
+  boundary: SILENT_BOUNDARY,
   createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>(),
   createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>(),
   ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),
@@ -221,6 +223,7 @@ const lintingNothing = (): GovernanceInstance => ({
 const runnerOverProjection = (stubs: { readonly current: CurrentProjection; readonly ruleState: RuleState; readonly governance: GovernanceInstance }) => {
   const realModules = createDefaultModuleLoaderPort({});
   const stubbedEslint: EslintPort = {
+    boundary: SILENT_BOUNDARY,
     createQueryInstance: vi.fn<EslintPort["createQueryInstance"]>().mockReturnValue(queryInstanceOver(stubs.ruleState)),
     createGovernanceInstance: vi.fn<EslintPort["createGovernanceInstance"]>().mockReturnValue(stubs.governance),
     ignoredByConfig: vi.fn<EslintPort["ignoredByConfig"]>(),

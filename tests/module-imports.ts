@@ -1,4 +1,4 @@
-import type { SyntaxNode, SyntaxTree } from "../mechanisms/audit/runner/typescript-parse.ts";
+import type { ExportDeclaration, ImportDeclaration, SyntaxNode, SyntaxTree } from "../mechanisms/audit/runner/typescript-parse.ts";
 import { defaultParsePort } from "./typescript-parse-port.ts";
 
 export type ImportForm = "type-only" | "value" | "dynamic";
@@ -91,5 +91,67 @@ export const importStatementsIn = (request: SourceText): readonly ImportStatemen
   return sourceFile.statements.flatMap((statement) => {
     const own = statementImportOf({ node: statement, sourceFile });
     return own === undefined ? [] : [{ specifier: own.specifier, statement: statement.getText(sourceFile) }];
+  });
+};
+
+export type ModuleStatementKind = "import" | "re-export";
+
+export type ImportFactsIn = {
+  readonly specifier: string;
+  readonly kind: ModuleStatementKind;
+  readonly form: Exclude<ImportForm, "dynamic">;
+  readonly names: readonly string[];
+};
+
+type ImportClause = NonNullable<ImportDeclaration["importClause"]>;
+
+const importClauseNamesOf = (request: { readonly clause: ImportClause }): readonly string[] => {
+  const defaultNames = request.clause.name === undefined ? [] : [request.clause.name.text];
+  const bound = request.clause.namedBindings;
+  if (bound === undefined) {
+    return defaultNames;
+  }
+  const namedNames = syntaxApi.isNamespaceImport(bound)
+    ? [`* as ${bound.name.text}`]
+    : bound.elements.map((element) => (element.propertyName ?? element.name).text);
+  return [...defaultNames, ...namedNames];
+};
+
+const exportNamesOf = (request: { readonly declaration: ExportDeclaration }): readonly string[] => {
+  const exported = request.declaration.exportClause;
+  if (exported === undefined) {
+    return ["*"];
+  }
+  return syntaxApi.isNamespaceExport(exported)
+    ? [`* as ${exported.name.text}`]
+    : exported.elements.map((element) => (element.propertyName ?? element.name).text);
+};
+
+const statementFactsOf = (request: NodeIn): ImportFactsIn | undefined => {
+  const { node, sourceFile } = request;
+  if (syntaxApi.isImportDeclaration(node) && node.importClause !== undefined) {
+    return {
+      specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
+      kind: "import",
+      form: node.importClause.isTypeOnly ? "type-only" : "value",
+      names: importClauseNamesOf({ clause: node.importClause }),
+    };
+  }
+  if (syntaxApi.isExportDeclaration(node) && node.moduleSpecifier !== undefined) {
+    return {
+      specifier: specifierOf({ expression: node.moduleSpecifier, sourceFile }),
+      kind: "re-export",
+      form: node.isTypeOnly ? "type-only" : "value",
+      names: exportNamesOf({ declaration: node }),
+    };
+  }
+  return undefined;
+};
+
+export const importFactsIn = (request: SourceText): readonly ImportFactsIn[] => {
+  const sourceFile = sourceFileOf(request);
+  return sourceFile.statements.flatMap((statement) => {
+    const facts = statementFactsOf({ node: statement, sourceFile });
+    return facts === undefined ? [] : [facts];
   });
 };

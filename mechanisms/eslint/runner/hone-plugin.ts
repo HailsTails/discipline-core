@@ -12,6 +12,7 @@ import type { Result } from "../../../core/values/result.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { type RuledCheck, runsOnEslint } from "./check-rule-id.ts";
 import { type ChecksPlugin, type ChecksPluginFailure, checksPluginOf, type PieceSource } from "./checks-plugin.ts";
+import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 
 export type HonePluginSources = {
   readonly checks: readonly RuledCheck[];
@@ -19,6 +20,7 @@ export type HonePluginSources = {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly modules: ModuleLoaderPort;
+  readonly boundary: EslintMajorBoundary;
 };
 
 export type HonePluginFailure =
@@ -90,7 +92,7 @@ export const honePluginAt = async (request: HonePluginSources): Promise<Built<Ch
   const sources = gatheredOutcomes({
     outcomes: await Promise.all(eslintDisciplinesOf(request).map((discipline) => pieceSourcesOf({ ...request, discipline }))),
   });
-  return sources.outcome === "failed" ? sources : checksPluginOf({ checks: request.checks, sources: sources.value });
+  return sources.outcome === "failed" ? sources : checksPluginOf({ checks: request.checks, sources: sources.value, boundary: request.boundary });
 };
 
 export const honePluginFailureText = (request: { readonly failure: HonePluginFailure }): string => {
