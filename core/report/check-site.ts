@@ -2,7 +2,8 @@ import type { Finding } from "../governance/governance.ts";
 import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
 import { checkAddressOf, checkNamedAt, checksOf } from "../symptom-catalogue/check-address.ts";
 import type { NamedCheck } from "../symptom-catalogue/check-address.ts";
-import { type Check, type Engine, type Symptom, type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/symptom-catalogue.ts";
+import { type FindingCheck, checkOfFinding } from "../symptom-catalogue/finding-check.ts";
+import type { Check, Engine, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 
@@ -30,30 +31,19 @@ const sitesOfNamed = (request: { readonly named: NamedCheck; readonly engineRequ
   }
 };
 
-const siteOfSymptom = (request: EngineRequest & { readonly symptom: Symptom }): CheckSite => {
-  const sites = checksOf(request)
-    .filter((check) => check.symptom.name === request.symptom.name)
-    .flatMap((check) => sitesOfCheck({ check, mechanism: request.mechanism }));
-  return sites[0] ?? uncheckedSite(request);
-};
-
-const siteOfReading = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding; readonly engineRequest: EngineRequest }): CheckSite => {
-  const reading = symptomReadingOf({ catalogue: request.catalogue, finding: request.finding });
-  return reading.reading === "named" ? siteOfSymptom({ ...request.engineRequest, symptom: reading.symptom }) : uncheckedSite(request.engineRequest);
-};
-
-export const findingSiteOf = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): CheckSite => {
-  const engineRequest: EngineRequest = { catalogue: request.catalogue, clause: request.finding.clause, mechanism: request.finding.mechanism };
-  const named = checkNamedAt({ catalogue: request.catalogue, clause: request.finding.clause, address: request.finding.check });
-  switch (named.named) {
-    case "unnamed":
-      return siteOfReading({ ...request, engineRequest });
-    case "check":
-      return sitesOfCheck({ check: named.check, mechanism: request.finding.mechanism })[0] ?? uncheckedSite(engineRequest);
-    case "not-of-the-clause":
-      return uncheckedSite(engineRequest);
+const siteOfResolved = (request: { readonly resolved: FindingCheck; readonly engineRequest: EngineRequest }): CheckSite => {
+  const { resolved, engineRequest } = request;
+  if (resolved.resolved !== "check") {
+    return uncheckedSite(engineRequest);
   }
+  return sitesOfCheck({ check: resolved.check, mechanism: engineRequest.mechanism })[0] ?? uncheckedSite(engineRequest);
 };
+
+export const findingSiteOf = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): CheckSite =>
+  siteOfResolved({
+    resolved: checkOfFinding(request),
+    engineRequest: { catalogue: request.catalogue, clause: request.finding.clause, mechanism: request.finding.mechanism },
+  });
 
 export const nativeSitesOf = (request: {
   readonly catalogue: SymptomCatalogue;
