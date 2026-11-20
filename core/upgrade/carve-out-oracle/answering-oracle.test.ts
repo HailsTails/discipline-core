@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import { TOOL_RULE_SET } from "../../values/clause-address.ts";
+import type { Result } from "../../values/result.ts";
 import { LOOPS_CLAUSE, SETTINGS_CATALOGUE } from "../../../tests/settings-catalogue.ts";
 import type { Finding, GovernedRun } from "../../governance/governance.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
-import { createAnsweringOracle, type EnginePass } from "./answering-oracle.ts";
+import { createAnsweringOracle, type EngineFindings, type EnginePass, type EnginePassFailure } from "./answering-oracle.ts";
+
+const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
 
 const AUDIT = mechanismIdSchema.parse("audit");
 
@@ -31,9 +36,9 @@ const SUPPRESSING_RUN: GovernedRun = {
   coverableKinds: ["inline-disable"],
 };
 
-const oracleOver = (request: { readonly pass: Awaited<ReturnType<EnginePass["findingsFor"]>> }) => {
+const oracleOver = (request: { readonly pass: Result<EngineFindings, EnginePassFailure> }) => {
   const enginePass: EnginePass = { findingsFor: vi.fn<EnginePass["findingsFor"]>().mockResolvedValue(request.pass) };
-  return { enginePass, oracle: createAnsweringOracle({ enginePass, catalogue: { checks: SETTINGS_CATALOGUE.checks } }) };
+  return { enginePass, oracle: createAnsweringOracle({ enginePass, catalogues: CATALOGUES }) };
 };
 
 describe("createAnsweringOracle", () => {

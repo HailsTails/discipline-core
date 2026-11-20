@@ -1,6 +1,7 @@
 import type { Finding } from "../../governance/governance.ts";
-import { checkNamedAt, checksOf } from "../../symptom-catalogue/check-address.ts";
-import type { Check, SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
+import { sitesOfFinding } from "../../records/debt-sites.ts";
+import { catalogueOf, type RuleSetCatalogue } from "../../settings/check-choices.ts";
+import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
 import { clauseAddressText, sameClauseAddress } from "../../values/clause-address.ts";
 import type { Result } from "../../values/result.ts";
 import type { GovernanceResult } from "../answering/governance.ts";
@@ -10,7 +11,7 @@ import type { CarveOutAnswered, FileCarveOutRecord, OracleFailure } from "./carv
 export type CarveOutAnswersRequest = {
   readonly records: readonly ExceptionRecord[];
   readonly governed: GovernanceResult;
-  readonly catalogue: Pick<SymptomCatalogue, "checks">;
+  readonly catalogues: readonly RuleSetCatalogue[];
 };
 
 const fileCarveOutsOf = (request: { readonly records: readonly ExceptionRecord[] }): readonly FileCarveOutRecord[] =>
@@ -23,24 +24,20 @@ const attributionFailureOf = (request: { readonly finding: Finding }): OracleFai
   check: request.finding.check,
 });
 
-const checkOfFinding = (request: { readonly finding: Finding; readonly catalogue: Pick<SymptomCatalogue, "checks"> }): Result<Check, OracleFailure> => {
-  const { finding, catalogue } = request;
-  const named = checkNamedAt({ catalogue, clause: finding.clause, address: finding.check });
-  if (named.named === "check") {
-    return { outcome: "ok", value: named.check };
-  }
-  const [only, ...others] = checksOf({ catalogue, clause: finding.clause }).filter((check) =>
-    check.engines.some((engine) => engine.mechanism === finding.mechanism),
-  );
-  return named.named === "unnamed" && only !== undefined && others.length === 0
-    ? { outcome: "ok", value: only }
-    : { outcome: "failed", error: attributionFailureOf({ finding }) };
+const checksOfFinding = (request: { readonly finding: Finding; readonly catalogues: readonly RuleSetCatalogue[] }): readonly Check[] => {
+  const { finding, catalogues } = request;
+  const catalogue = catalogueOf({ catalogues, ruleSet: finding.clause.ruleSet });
+  return catalogue === undefined
+    ? []
+    : sitesOfFinding({ catalogue, finding }).flatMap((site) => (site.check.found === "check" ? [site.check.check] : []));
 };
 
-const checksOfFindings = (request: { readonly findings: readonly Finding[]; readonly catalogue: Pick<SymptomCatalogue, "checks"> }): Result<readonly Check[], OracleFailure> => {
-  const checks = request.findings.map((finding) => checkOfFinding({ finding, catalogue: request.catalogue }));
-  const failed = checks.find((check) => check.outcome === "failed");
-  return failed ?? { outcome: "ok", value: checks.flatMap((check) => (check.outcome === "ok" ? [check.value] : [])) };
+const checksOfFindings = (request: { readonly findings: readonly Finding[]; readonly catalogues: readonly RuleSetCatalogue[] }): Result<readonly Check[], OracleFailure> => {
+  const sited = request.findings.map((finding) => ({ finding, checks: checksOfFinding({ finding, catalogues: request.catalogues }) }));
+  const unsited = sited.find(({ checks }) => checks.length === 0);
+  return unsited === undefined
+    ? { outcome: "ok", value: sited.flatMap(({ checks }) => checks) }
+    : { outcome: "failed", error: attributionFailureOf({ finding: unsited.finding }) };
 };
 
 const doublyHeldFailureOf = (request: { readonly record: FileCarveOutRecord; readonly governed: GovernanceResult }): OracleFailure | undefined =>
@@ -53,16 +50,16 @@ const doublyHeldFailureOf = (request: { readonly record: FileCarveOutRecord; rea
 const answeredOf = (request: {
   readonly record: FileCarveOutRecord;
   readonly governed: GovernanceResult;
-  readonly catalogue: Pick<SymptomCatalogue, "checks">;
+  readonly catalogues: readonly RuleSetCatalogue[];
 }): Result<CarveOutAnswered, OracleFailure> => {
-  const { record, governed, catalogue } = request;
+  const { record, governed, catalogues } = request;
   const doublyHeld = doublyHeldFailureOf({ record, governed });
   if (doublyHeld !== undefined) {
     return { outcome: "failed", error: doublyHeld };
   }
   const credited = governed.exempted.filter((exempted) => exempted.by.includes(record)).map((exempted) => exempted.finding);
   if (credited.length > 0) {
-    const checks = checksOfFindings({ findings: credited, catalogue });
+    const checks = checksOfFindings({ findings: credited, catalogues });
     return checks.outcome === "failed" ? checks : { outcome: "ok", value: { record, answer: { credit: "findings", checks: checks.value } } };
   }
   return {
@@ -73,7 +70,7 @@ const answeredOf = (request: {
 
 export const carveOutAnswersOf = (request: CarveOutAnswersRequest): Result<readonly CarveOutAnswered[], OracleFailure> => {
   const answered = fileCarveOutsOf({ records: request.records }).map((record) =>
-    answeredOf({ record, governed: request.governed, catalogue: request.catalogue }),
+    answeredOf({ record, governed: request.governed, catalogues: request.catalogues }),
   );
   const failed = answered.find((each) => each.outcome === "failed");
   return failed ?? { outcome: "ok", value: answered.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };
