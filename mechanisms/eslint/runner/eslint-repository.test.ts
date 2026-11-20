@@ -241,6 +241,24 @@ describe("eslintRepositoryOver, the config lookup", () => {
     expect(fileText.read).toHaveBeenCalledExactlyOnceWith({ path: "/repo/disciplines.json" });
   });
 
+  it("falls back to detection when disciplines.json declares a lookup that is not one of the two settings", () => {
+    const fileText = fileTextReading({ outcome: "ok", value: '{ "version": "10.11.0", "eslintConfigLookup": "anywhere" }' });
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.configLookup({ trackedPaths: [] })).toBe("nearest-to-file");
+  });
+
+  it("names disciplines.json when the repository root has no config for a root-only lookup", () => {
+    const fileText = {
+      ...fileTextReading({ outcome: "ok", value: '{ "version": "9.39.5", "eslintConfigLookup": "repository-root" }' }),
+      exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
+    };
+    const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
+    expect(repository.teamConfigLookup({ trackedPaths: [] })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "team-config-unloadable", detail: expect.stringContaining("nearest-to-file in disciplines.json") },
+    });
+  });
+
   it("names the repository root's eslint.config.js as the team config under the repository-root lookup", () => {
     const fileText = fileTextReading({ outcome: "ok", value: ESLINT_9_PACKAGE });
     const repository = eslintRepositoryOver({ fileText, fileRemoval: REMOVED, path: posixPath, repoRoot: REPO_ROOT });
