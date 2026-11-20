@@ -3,10 +3,7 @@ import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { AUDIT, CAST_EXPRESSIONS, CLOCK_SOURCES, DATE_USED_DIRECTLY, ESLINT, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
 import type { Finding } from "../governance/governance.ts";
 import { answerFindings } from "./answering.ts";
-import type { GitPort } from "../platform-ports/git-port.ts";
-import { touchedSetUnder } from "../touched-set/forfeiture-touched-set.ts";
-import { absolutePathSchema } from "../values/absolute-path.ts";
-import type { ForfeitureAssessment } from "../values/assessment.ts";
+import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { PlacedRecord, RecordsDocument } from "./hone-record.ts";
@@ -14,8 +11,6 @@ import { authoriseOf, pruneDebtOf, type RecordDebtRequest, recordDebtOf } from "
 import { recordsReadingOf } from "./records-reading.ts";
 import type { RecordsSource } from "./records-source.ts";
 import type { RecordsStore } from "./records-store.ts";
-
-const REPO_ROOT = absolutePathSchema.parse("/work/shop");
 
 const ORDER_FILE = repoPathSchema.parse("src/orders/charge-order.ts");
 
@@ -50,37 +45,38 @@ const storeOf = () => {
   return { apply, store: { apply } };
 };
 
-type GitStub = { readonly git: Pick<GitPort, "changedSince"> };
+const NOTHING_CHANGED: TouchedSet = { measured: "yes", paths: new Set() };
 
-const ORDER_UNCHANGED: GitStub = { git: { changedSince: () => ({ outcome: "ok", value: [] }) } };
+const NEW_AND_WEBHOOK_CHANGED: TouchedSet = { measured: "yes", paths: new Set([TOUCHED_FILE, NEW_FILE]) };
 
-const CHANGE_TOUCHES_NEW_AND_WEBHOOK: GitStub = { git: { changedSince: () => ({ outcome: "ok", value: [TOUCHED_FILE, NEW_FILE] }) } };
+const LEFT_TO_ANOTHER_RUN: TouchedSet = { measured: "elsewhere" };
 
-const COMMAND = { catalogue: REPORT_CATALOGUE, repoRoot: REPO_ROOT };
+const UNMEASURED: TouchedSet = { measured: "no", base: { state: "git-failed", revision: "origin/main", gitMessage: "bad revision" } };
 
+const COMMAND = { catalogue: REPORT_CATALOGUE };
 const WEBHOOK_DEBT_DOCUMENT: RecordsDocument = {
   file: repoPathSchema.parse("hone-records/debt/claimed-type.json"),
   document: { version: 2, records: [{ symptom: "claimed-type#cast-expressions", file: TOUCHED_FILE }] },
 };
 
-const answeredFor = (request: { readonly documents: readonly RecordsDocument[]; readonly forfeiture: ForfeitureAssessment; readonly git: GitStub["git"]; readonly finding: Finding }) => {
+const answeredFor = (request: { readonly documents: readonly RecordsDocument[]; readonly touched: TouchedSet; readonly finding: Finding }) => {
   const reading = recordsReadingOf({ documents: request.documents, catalogue: REPORT_CATALOGUE, base: { measured: "no", base: { state: "not-given" } } });
   assert(reading.outcome === "ok", "the records read");
   return answerFindings({
     catalogue: REPORT_CATALOGUE,
     records: reading.value.records,
     findings: [{ finding: request.finding, party: { reported: "not-reported" } }],
-    touched: touchedSetUnder({ forfeiture: request.forfeiture, repoRoot: REPO_ROOT, baseRevision: "origin/main", git: request.git }),
+    touched: request.touched,
     runs: [],
   });
 };
 
 describe("hone record-debt over a run's unanswered findings", () => {
-  const request: RecordDebtRequest = { findings: [CLOCK_FINDING], baseRevision: "origin/main", leave: [], forfeiture: "this-run" };
+  const request: RecordDebtRequest = { findings: [CLOCK_FINDING], touched: NOTHING_CHANGED, leave: [] };
 
   it("writes one debt record under hone-records/debt for the symptom and check, in the format the records reader reads", () => {
     const { apply, store } = storeOf();
-    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...ORDER_UNCHANGED })(request);
+    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })(request);
     expect(recorded).toEqual({ outcome: "ok", value: [{ address: "date-used-directly#clock-sources", file: ORDER_FILE, effect: "recorded" }] });
     expect(apply).toHaveBeenCalledWith({
       edit: { write: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "date-used-directly#clock-sources", file: ORDER_FILE }] } }], remove: [] },
@@ -89,16 +85,17 @@ describe("hone record-debt over a run's unanswered findings", () => {
 
   it("writes nothing the second time, when the first run's records are held", () => {
     const { apply, store } = storeOf();
-    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [DEBT_DOCUMENT] }), store, ...ORDER_UNCHANGED })(request);
+    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [DEBT_DOCUMENT] }), store })(request);
     expect(recorded).toEqual({ outcome: "ok", value: [{ address: "date-used-directly#clock-sources", file: ORDER_FILE, effect: "already-recorded", heldIn: DEBT_FILE }] });
     expect(apply).not.toHaveBeenCalled();
   });
 
   it("declines debt on a file the change created or changed when this run assesses forfeiture, as the check forfeits the same debt", () => {
     const { apply, store } = storeOf();
-    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...CHANGE_TOUCHES_NEW_AND_WEBHOOK })({
+    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({
       ...request,
       findings: [NEW_FILE_FINDING, TOUCHED_FINDING],
+      touched: NEW_AND_WEBHOOK_CHANGED,
     });
     expect(recorded).toEqual({
       outcome: "ok",
@@ -108,34 +105,27 @@ describe("hone record-debt over a run's unanswered findings", () => {
       ],
     });
     expect(apply).not.toHaveBeenCalled();
-    const checked = answeredFor({ documents: [WEBHOOK_DEBT_DOCUMENT], forfeiture: "this-run", ...CHANGE_TOUCHES_NEW_AND_WEBHOOK, finding: TOUCHED_FINDING });
+    const checked = answeredFor({ documents: [WEBHOOK_DEBT_DOCUMENT], touched: NEW_AND_WEBHOOK_CHANGED, finding: TOUCHED_FINDING });
     expect(checked).toMatchObject({ findings: [TOUCHED_FINDING], answered: [], forfeited: [{ place: { file: WEBHOOK_DEBT_DOCUMENT.file, index: 0 } }] });
   });
 
   it("writes debt on a file the change changed when another run assesses forfeiture, as the check answers the finding by it", () => {
     const { apply, store } = storeOf();
-    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...CHANGE_TOUCHES_NEW_AND_WEBHOOK })({
+    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({
       ...request,
       findings: [TOUCHED_FINDING],
-      forfeiture: "elsewhere",
+      touched: LEFT_TO_ANOTHER_RUN,
     });
     expect(recorded).toEqual({ outcome: "ok", value: [{ address: "claimed-type#cast-expressions", file: TOUCHED_FILE, effect: "recorded" }] });
     const [written] = apply.mock.calls;
     assert(written !== undefined, "the debt was written");
-    const checked = answeredFor({ documents: written[0].edit.write, forfeiture: "elsewhere", ...CHANGE_TOUCHES_NEW_AND_WEBHOOK, finding: TOUCHED_FINDING });
+    const checked = answeredFor({ documents: written[0].edit.write, touched: LEFT_TO_ANOTHER_RUN, finding: TOUCHED_FINDING });
     expect(checked).toMatchObject({ findings: [], answered: [{ finding: TOUCHED_FINDING }], forfeited: [] });
-  });
-
-  it("measures nothing, and reads no git, when another run assesses forfeiture", () => {
-    const { store } = storeOf();
-    const changedSince = vi.fn<GitPort["changedSince"]>();
-    recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, git: { changedSince } })({ ...request, forfeiture: "elsewhere" });
-    expect(changedSince).not.toHaveBeenCalled();
   });
 
   it("gives a line to a finding it cannot record debt for, and records the others", () => {
     const { apply, store } = storeOf();
-    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...ORDER_UNCHANGED })({ ...request, findings: [UNCATALOGUED_FINDING, CLOCK_FINDING] });
+    const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({ ...request, findings: [UNCATALOGUED_FINDING, CLOCK_FINDING] });
     expect(recorded).toEqual({
       outcome: "ok",
       value: [
@@ -148,7 +138,7 @@ describe("hone record-debt over a run's unanswered findings", () => {
 
   it("writes nothing when every finding is one it cannot record debt for", () => {
     const { apply, store } = storeOf();
-    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...ORDER_UNCHANGED })({ ...request, findings: [UNCATALOGUED_FINDING] })).toEqual({
+    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({ ...request, findings: [UNCATALOGUED_FINDING] })).toEqual({
       outcome: "ok",
       value: [{ address: "CD-99#nowhere", file: ORDER_FILE, effect: "unrecordable" }],
     });
@@ -157,14 +147,13 @@ describe("hone record-debt over a run's unanswered findings", () => {
 
   it("writes nothing and prints nothing when the run left nothing unanswered", () => {
     const { apply, store } = storeOf();
-    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...ORDER_UNCHANGED })({ ...request, findings: [] })).toEqual({ outcome: "ok", value: [] });
+    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({ ...request, findings: [] })).toEqual({ outcome: "ok", value: [] });
     expect(apply).not.toHaveBeenCalled();
   });
 
-  it("fails with git's own words when the change cannot be measured", () => {
+  it("fails with git's own words when the run could not measure the change", () => {
     const { apply, store } = storeOf();
-    const git: GitStub["git"] = { changedSince: () => ({ outcome: "failed", error: { kind: "git-failed", command: "git diff", detail: "bad revision" } }) };
-    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, git })(request)).toEqual({
+    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({ ...request, touched: UNMEASURED })).toEqual({
       outcome: "failed",
       error: { kind: "git-failed", detail: "bad revision" },
     });
@@ -177,7 +166,6 @@ describe("hone record-debt over a run's unanswered findings", () => {
       ...COMMAND,
       source: sourceOf({ documents: [{ file: DEBT_FILE, document: { records: [] } }] }),
       store,
-      ...ORDER_UNCHANGED,
     })(request);
     expect(recorded).toMatchObject({ outcome: "failed", error: { kind: "records-documents" } });
     expect(apply).not.toHaveBeenCalled();
@@ -186,7 +174,7 @@ describe("hone record-debt over a run's unanswered findings", () => {
   it("passes on the failure of the store that could not write", () => {
     const { apply, store } = storeOf();
     apply.mockReturnValue({ outcome: "failed", error: { kind: "file-unwritable", path: "/work/shop/hone-records/debt/date-used-directly.json", detail: "EACCES" } });
-    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store, ...ORDER_UNCHANGED })(request)).toEqual({
+    expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })(request)).toEqual({
       outcome: "failed",
       error: { kind: "file-unwritable", path: "/work/shop/hone-records/debt/date-used-directly.json", detail: "EACCES" },
     });

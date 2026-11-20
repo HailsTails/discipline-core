@@ -1,17 +1,17 @@
-import { type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../command-line/command-line.ts";
+import { AUTHORISE_COMMAND_OPTIONS, type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../command-line/command-line.ts";
 import { RECORDS_FOLDER } from "../records/records-layout.ts";
 import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 
-export type RunSubcommand = "check" | "project" | "record-debt" | "prune-debt" | "upgrade";
+export type RunSubcommand = "check" | "project" | "record-debt" | "prune-debt" | "authorise" | "upgrade";
 
 export type RunHelpTopic = "tool" | RunSubcommand;
 
 type HelpEntry = { readonly term: string; readonly text: string };
 
-export const RUN_SUBCOMMANDS: readonly RunSubcommand[] = ["check", "project", "record-debt", "prune-debt", "upgrade"];
+export const RUN_SUBCOMMANDS: readonly RunSubcommand[] = ["check", "project", "record-debt", "prune-debt", "authorise", "upgrade"];
 
 const COMMAND = TOOL_IDENTITY.command;
 
@@ -113,6 +113,14 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
     options: [REPO_OPTION, BASE_REVISION_OPTION, FORFEITURE_OPTION],
     exits: [
       { code: 0, meaning: "every debt the run showed paid, stale or forfeited was removed, or none was shown" },
+      { code: 2, meaning: `${LOAD_FAILURE_EXIT}, the records could not be written, or Hone failed unexpectedly` },
+    ],
+  },
+  authorise: {
+    summary: `write one authorised location to ${RECORDS_FOLDER} from the arguments given, with the why chain given, printing what was done`,
+    options: [REPO_OPTION, ...AUTHORISE_COMMAND_OPTIONS],
+    exits: [
+      { code: 0, meaning: "the location was written, was already held, or was refused with each reason printed" },
       { code: 2, meaning: `${LOAD_FAILURE_EXIT}, the records could not be written, or Hone failed unexpectedly` },
     ],
   },

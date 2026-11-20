@@ -5,6 +5,7 @@ import type { Result } from "../values/result.ts";
 import { type ArgumentProblem, argumentsInvalid } from "./argument-problem.ts";
 import {
   ADOPTION_BASE_REVISION_OPTION,
+  AUTHORISE_REPO_OPTION,
   BASE_REVISION_OPTION,
   COMMANDS,
   type CommandOption,
@@ -239,6 +240,22 @@ export const parseSplitRecordsArguments = (request: {
   }
   const repo = requiredRepo({ subcommand: "split-records", values: values.value });
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
+};
+
+export type AuthoriseArguments = {
+  readonly repo: string;
+  readonly values: ReadonlyMap<string, readonly string[]>;
+};
+
+export const parseAuthoriseArguments = (request: {
+  readonly arguments: readonly string[];
+}): Result<AuthoriseArguments, LoadFailure> => {
+  const values = givenOptionValues({ subcommand: "authorise", arguments: request.arguments });
+  if (values.outcome === "failed") {
+    return values;
+  }
+  const repo = requiredValue({ subcommand: "authorise", values: values.value, option: AUTHORISE_REPO_OPTION });
+  return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value, values: values.value } };
 };
 
 const GLOB_MARKER = "*";

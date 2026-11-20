@@ -81,6 +81,7 @@ hone check --repo <dir> [--base-revision <revision>] [--report-output <full|fail
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
 hone split-records --repo <dir>
 hone --help
 hone --version
@@ -100,6 +101,7 @@ commands:
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
   record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
   prune-debt     remove from the exception records each stale or forfeited file carve-out whose file no longer exists or whose clause its mechanism measured on that file with nothing left to hold it, printing each pair removed
+  authorise      write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -194,6 +196,46 @@ options:
 exit codes:
   0  every paid record was removed, or none was paid
   2  a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly
+```
+
+`hone authorise --help` prints:
+
+```text
+usage: hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
+
+write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --symptom <symptom>
+      the catalogue's name for the symptom the location is on
+  --file <path>
+      the file the location is for, relative to --repo
+  --case <case>
+      the case the file is, as the cases page names it
+  --owes <principle>
+      the principle the case owes, as the cases page names it
+  --why <question>
+      one why of the chain, a question; give it, --because and --evidence once for each why, in order
+  --because <answer>
+      the answer to the why in the same place
+  --evidence <evidence>
+      what shows the answer, for the why in the same place
+  --root-cause <text>
+      the cause the fifth why names
+  --root-check <text>
+      what was checked to confirm the cause, and when
+  --readback <text>
+      the chain read back from the cause to the file
+  --owner <owner>
+      who decides whether this stays
+  --help, -h
+      print this help
+
+exit codes:
+  0  the location was written, was already held, or was refused with each reason printed
+  2  a load failure: an input could not be loaded, the records could not be written, or Hone failed unexpectedly
 ```
 
 `hone split-records --help` prints:
@@ -411,8 +453,8 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 | Problem | Line |
 | --- | --- |
-| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt or split-records; run hone --help for usage` |
-| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project, record-debt, prune-debt and split-records; run hone --help for usage` |
+| `command-missing` | `load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt, authorise or split-records; run hone --help for usage` |
+| `command-unknown` | `load failure: arguments-invalid hone has no command "<given>"; its commands are check, project, record-debt, prune-debt, authorise and split-records; run hone --help for usage` |
 | `flag-extra` | `load failure: arguments-invalid hone <flag> takes nothing after it, not "<given>"; run hone --help for usage` |
 | `argument-unexpected` | `load failure: arguments-invalid hone <command> takes options, not "<given>" on its own; give each option and its value as two arguments, as in <option> <value>; run hone <command> --help for its options` |
 | `option-unknown` | `load failure: arguments-invalid hone <command> has no option "<given>"; run hone <command> --help for its options` |
@@ -685,6 +727,7 @@ hone check --repo <dir> [--base-revision <revision>] [--report-output <full|fail
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
 hone upgrade --repo <dir>
 hone --help
 hone --version
@@ -700,6 +743,7 @@ commands:
   project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
+  authorise    write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
   upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
 
 options:
@@ -785,6 +829,44 @@ options:
 
 exit codes:
   0  every debt the run showed paid, stale or forfeited was removed, or none was shown
+  2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
+```
+
+```text
+usage: hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
+
+write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --symptom <symptom>
+      the catalogue's name for the symptom the location is on
+  --file <path>
+      the file the location is for, relative to --repo
+  --case <case>
+      the case the file is, as the cases page names it
+  --owes <principle>
+      the principle the case owes, as the cases page names it
+  --why <question>
+      one why of the chain, a question; give it, --because and --evidence once for each why, in order
+  --because <answer>
+      the answer to the why in the same place
+  --evidence <evidence>
+      what shows the answer, for the why in the same place
+  --root-cause <text>
+      the cause the fifth why names
+  --root-check <text>
+      what was checked to confirm the cause, and when
+  --readback <text>
+      the chain read back from the cause to the file
+  --owner <owner>
+      who decides whether this stays
+  --help, -h
+      print this help
+
+exit codes:
+  0  the location was written, was already held, or was refused with each reason printed
   2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
 ```
 
