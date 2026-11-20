@@ -26,7 +26,13 @@ describe("rewrittenConfigOf rewriting the one import of the version 1 projection
       text: 'import js from "@eslint/js";\nimport rules from "../../disciplines.eslint.mjs";\nexport default [js.configs.recommended, ...rules];\n',
       rewritten: 'import js from "@eslint/js";\nimport rules from "../../hone.eslint.mjs";\nexport default [js.configs.recommended, ...rules];\n',
     },
-  ])("rewrites only the specifier in $name", ({ file, text, rewritten }) => {
+    {
+      name: "a config whose import spans several lines",
+      file: "eslint.config.mjs",
+      text: 'import projection\n  from "./disciplines.eslint.mjs";\nexport default [...projection];\n',
+      rewritten: 'import projection\n  from "./hone.eslint.mjs";\nexport default [...projection];\n',
+    },
+  ])("rewrites only the specifier in $name",({ file, text, rewritten }) => {
     expect(
       rewrittenConfigOf({ file: repoPathSchema.parse(file), text, versionOneProjection: VERSION_ONE, versionTwoProjection: VERSION_TWO }),
     ).toEqual({ outcome: "ok", value: rewritten });
@@ -65,6 +71,29 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
         versionTwoProjection: VERSION_TWO,
       }),
     ).toEqual({ outcome: "failed", error: { kind: "several-projection-imports", file: "eslint.config.mjs", count: 2 } });
+  });
+
+  it.each([
+    { name: "an import commented out with a line comment", text: '// import projection from "./disciplines.eslint.mjs";\nexport default [];\n' },
+    { name: "an import commented out with a block comment", text: '/* import projection from "./disciplines.eslint.mjs"; */\nexport default [];\n' },
+    { name: "an import with a default and named bindings", text: 'import projection, { extra } from "./disciplines.eslint.mjs";\nexport default [...projection];\n' },
+    { name: "a namespace import", text: 'import * as projection from "./disciplines.eslint.mjs";\nexport default [...projection.default];\n' },
+    { name: "a type import", text: 'import type projection from "./disciplines.eslint.mjs";\nexport default [];\n' },
+  ])("refuses a config whose only mention of the projection is $name, naming the file", ({ text }) => {
+    expect(
+      rewrittenConfigOf({ file: repoPathSchema.parse("eslint.config.mjs"), text, versionOneProjection: VERSION_ONE, versionTwoProjection: VERSION_TWO }),
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+  });
+
+  it("refuses a config that names the projection in a string beside its import, naming the file", () => {
+    expect(
+      rewrittenConfigOf({
+        file: repoPathSchema.parse("eslint.config.mjs"),
+        text: 'import projection from "./disciplines.eslint.mjs";\nconst named = "disciplines.eslint.mjs";\nexport default [...projection];\n',
+        versionOneProjection: VERSION_ONE,
+        versionTwoProjection: VERSION_TWO,
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "projection-named-elsewhere", file: "eslint.config.mjs" } });
   });
 
   it("refuses a config that names the projection anywhere else, naming the file", () => {

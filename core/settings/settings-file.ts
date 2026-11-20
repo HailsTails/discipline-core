@@ -10,6 +10,7 @@ import { type ReportOutput, reportOutputSchema } from "../values/report-output.t
 import type { Result } from "../values/result.ts";
 import { type ConventionsReading, type ConventionsWire, conventionsOf, conventionsWireOf } from "./conventions.ts";
 import { type ListedAddress, listedAddressSchema, listedAddressText } from "./listed-address.ts";
+
 export type RuleSetLocation = { readonly location: "repo-root" } | { readonly location: "folder"; readonly path: RepoPath };
 
 export type DeclaredRuleSet = { readonly name: RuleSetName; readonly location: RuleSetLocation };
@@ -141,7 +142,7 @@ const ruleSetFaultOf = (request: { readonly ruleSets: readonly DeclaredRuleSet[]
   return collisions[0];
 };
 
-export const eslintConfigLookupOf =(request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
+export const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
   request.declared === undefined ? { lookup: "detected" } : { lookup: "declared", value: request.declared };
 
 const settingsFileOfWire = (request: { readonly wire: SettingsFileWire; readonly conventions: ConventionsReading }): SettingsFile => ({
@@ -232,7 +233,7 @@ export const settingsWireOf = (request: { readonly settings: SettingsFile }): Se
 export const settingsTextOf = (request: { readonly settings: SettingsFile }): string =>
   `${JSON.stringify(settingsWireOf({ settings: request.settings }), null, JSON_INDENT)}\n`;
 
-export const settingsFileOf =(request: { readonly document: unknown }): Result<SettingsFile, SettingsFileFault> => {
+export const settingsFileOf = (request: { readonly document: unknown }): Result<SettingsFile, SettingsFileFault> => {
   const parsed = settingsFileWireSchema.safeParse(request.document);
   if (!parsed.success) {
     return { outcome: "failed", error: { kind: "malformed", detail: z.prettifyError(parsed.error) } };

@@ -22,8 +22,17 @@ const PATH_SEPARATOR = "/";
 
 const QUOTE_LENGTH = 1;
 
+const COMMENT = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+
+const NOT_A_LINE_BREAK = /[^\n]/g;
+
+const OVERWRITING_SPACE = " ";
+
+const withoutComments = (request: { readonly text: string }): string =>
+  request.text.replace(COMMENT, (comment) => comment.replace(NOT_A_LINE_BREAK, OVERWRITING_SPACE));
+
 const importsOf = (request: { readonly text: string }): readonly ProjectionImport[] =>
-  [...request.text.matchAll(STATIC_DEFAULT_IMPORT)].map((found) => ({
+  [...withoutComments({ text: request.text }).matchAll(STATIC_DEFAULT_IMPORT)].map((found) => ({
     specifierStart: found.index + found[0].length - found[2].length - QUOTE_LENGTH,
     specifier: found[2],
   }));
@@ -35,7 +44,7 @@ const projectionImportsOf = (request: ConfigImportRewriteRequest): readonly Proj
 
 const mentionsOf = (request: { readonly text: string; readonly name: string }): number => request.text.split(request.name).length - 1;
 
-const nameOf = (request: { readonly path: RepoPath }): string => request.path.split(PATH_SEPARATOR).at(-1) ?? request.path;
+const nameOf = (request: { readonly path: RepoPath }): string => request.path.slice(request.path.lastIndexOf(PATH_SEPARATOR) + 1);
 
 export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<string, ConfigImportRefusal> => {
   const found = projectionImportsOf(request);

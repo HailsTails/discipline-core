@@ -99,7 +99,7 @@ export const conventionsWireOf = (request: { readonly reading: ConventionsReadin
   };
 };
 
-export const conventionsOf =(request: { readonly document: unknown }): Result<ConventionsReading, string> => {
+export const conventionsOf = (request: { readonly document: unknown }): Result<ConventionsReading, string> => {
   const parsed = conventionsDocumentSchema.safeParse(request.document);
   return parsed.success ? { outcome: "ok", value: conventionsReadingOf({ document: parsed.data }) } : { outcome: "failed", error: z.prettifyError(parsed.error) };
 };
