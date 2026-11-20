@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { clauseAddressObjectSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { Equal } from "../values/type-equality.ts";
-import { hitSchema, type InlineReach, measuredSchema, type ProjectionState, type ScriptOptionCause } from "./runner-result-schema.ts";
+import type { DeepReadonly, Equal } from "../values/type-equality.ts";
+import { hitSchema, type InlineReach, type NativeException, measuredSchema, type ProjectionState, reportedCheckSchema, type ScriptOptionCause } from "./runner-result-schema.ts";
+
+const namedCheck = { check: reportedCheckSchema.optional() };
 
 const inlineLineSchema = z.number().int().min(1);
 
 export const inlineDisableSchema = z
   .object({
     kind: z.literal("inline-disable"),
+    ...namedCheck,
     clause: clauseAddressObjectSchema,
     file: repoPathSchema,
     line: inlineLineSchema,
@@ -26,11 +29,12 @@ const scriptOptionCauseSchema = z.discriminatedUnion("kind", [
 
 export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
-    .object({ kind: z.literal("ignore"), clause: clauseAddressObjectSchema, file: repoPathSchema })
+    .object({ kind: z.literal("ignore"), ...namedCheck, clause: clauseAddressObjectSchema, file: repoPathSchema })
     .readonly(),
   z
     .object({
       kind: z.literal("config-override"),
+      ...namedCheck,
       clause: clauseAddressObjectSchema,
       file: repoPathSchema,
     })
@@ -38,6 +42,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("suppression-entry"),
+      ...namedCheck,
       clause: clauseAddressObjectSchema,
       file: repoPathSchema,
       location: repoPathSchema,
@@ -47,6 +52,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("inline-rule-config"),
+      ...namedCheck,
       clause: clauseAddressObjectSchema,
       file: repoPathSchema,
       line: inlineLineSchema,
@@ -56,6 +62,7 @@ export const nativeExceptionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("command-line-option"),
+      ...namedCheck,
       clause: clauseAddressObjectSchema,
       location: repoPathSchema,
       script: z.string(),
@@ -105,3 +112,5 @@ export const isScriptOptionCauseEqual: Equal<z.infer<typeof scriptOptionCauseSch
 
 export const isProjectionStateEqual: Equal<EmbeddedRunReport["projection"], ProjectionState> =
   true;
+
+export const isNativeExceptionSchemaEqual: Equal<DeepReadonly<z.output<typeof nativeExceptionSchema>>, NativeException> = true;

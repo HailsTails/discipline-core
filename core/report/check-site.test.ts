@@ -15,6 +15,7 @@ import {
   WALKER,
 } from "../../tests/report-catalogue.ts";
 import type { Finding } from "../governance/governance.ts";
+import type { Check, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { checkSiteText, findingSiteOf, nativeSitesOf } from "./check-site.ts";
 
@@ -34,6 +35,51 @@ const BRANCH_FINDING: Finding = {
 const UNFORMED_FINDING: Finding = { clause: TEST_BODY_LOGIC, mechanism: AUDIT, file: FILE, anchor: { line: 22, column: 2 }, snippet: "if (result.ok) {" };
 
 const TEAM_FINDING: Finding = { clause: TEAM_CLAUSE, mechanism: ESLINT, file: FILE, anchor: { line: 1, column: 0 }, snippet: "moment()" };
+
+const ANGLE_BRACKETS_CHECK: Check = { name: "angle-brackets", symptom: CAST_CHECK.symptom, clause: CAST_EXPRESSIONS, engines: [ESLINT_ENGINE], forms: [] };
+
+const TWO_CAST_CHECKS: SymptomCatalogue = { ...REPORT_CATALOGUE, checks: [...REPORT_CATALOGUE.checks, ANGLE_BRACKETS_CHECK] };
+
+const CAST_FINDING: Finding = { clause: CAST_EXPRESSIONS, mechanism: ESLINT, file: FILE, anchor: { line: 3, column: 4 }, snippet: "<A>b" };
+
+describe("findingSiteOf, a finding that names its check", () => {
+  it("names that check, not the first check of the symptom", () => {
+    expect(findingSiteOf({ catalogue: TWO_CAST_CHECKS, finding: { ...CAST_FINDING, check: "claimed-type#angle-brackets" } })).toEqual({
+      sited: "check",
+      check: ANGLE_BRACKETS_CHECK,
+      engine: ESLINT_ENGINE,
+    });
+  });
+
+  it("names the clause and mechanism when the clause has no such check", () => {
+    expect(findingSiteOf({ catalogue: TWO_CAST_CHECKS, finding: { ...CAST_FINDING, check: "claimed-type#loops" } })).toEqual({
+      sited: "unchecked",
+      clause: CAST_EXPRESSIONS,
+      mechanism: ESLINT,
+    });
+  });
+});
+
+describe("nativeSitesOf, an exception that names its check", () => {
+  it("names only that check", () => {
+    expect(
+      nativeSitesOf({ catalogue: TWO_CAST_CHECKS, exception: { kind: "ignore", clause: CAST_EXPRESSIONS, file: FILE, mechanism: ESLINT, check: "claimed-type#angle-brackets" } }),
+    ).toEqual([{ sited: "check", check: ANGLE_BRACKETS_CHECK, engine: ESLINT_ENGINE }]);
+  });
+
+  it("names every check of the clause on that engine when it names none", () => {
+    expect(nativeSitesOf({ catalogue: TWO_CAST_CHECKS, exception: { kind: "ignore", clause: CAST_EXPRESSIONS, file: FILE, mechanism: ESLINT } })).toEqual([
+      { sited: "check", check: CAST_CHECK, engine: ESLINT_ENGINE },
+      { sited: "check", check: ANGLE_BRACKETS_CHECK, engine: ESLINT_ENGINE },
+    ]);
+  });
+
+  it("names the clause and mechanism when the clause has no such check", () => {
+    expect(
+      nativeSitesOf({ catalogue: TWO_CAST_CHECKS, exception: { kind: "ignore", clause: CAST_EXPRESSIONS, file: FILE, mechanism: ESLINT, check: "claimed-type#loops" } }),
+    ).toEqual([{ sited: "unchecked", clause: CAST_EXPRESSIONS, mechanism: ESLINT }]);
+  });
+});
 
 describe("findingSiteOf", () => {
   it("names the check and engine that saw a finding of a clause with one symptom", () => {

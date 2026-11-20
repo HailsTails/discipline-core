@@ -9,6 +9,8 @@ import type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
 export type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
+export const reportedCheckSchema = z.string().min(1);
+
 export const nativeExceptionKindSchema = z.enum([
   "ignore",
   "config-override",
@@ -27,16 +29,18 @@ export type ScriptOptionCause =
   | { readonly kind: "unreadable"; readonly command: string };
 
 export type NativeException =
-  | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }
-  | { readonly kind: "config-override"; readonly clause: ClauseAddress; readonly file: RepoPath }
+  | { readonly kind: "ignore"; readonly check?: string; readonly clause: ClauseAddress; readonly file: RepoPath }
+  | { readonly kind: "config-override"; readonly check?: string; readonly clause: ClauseAddress; readonly file: RepoPath }
   | {
       readonly kind: "suppression-entry";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly location: RepoPath;
     }
   | {
       readonly kind: "inline-disable";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly line: number;
@@ -45,6 +49,7 @@ export type NativeException =
     }
   | {
       readonly kind: "inline-rule-config";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly file: RepoPath;
       readonly line: number;
@@ -52,6 +57,7 @@ export type NativeException =
     }
   | {
       readonly kind: "command-line-option";
+      readonly check?: string;
       readonly clause: ClauseAddress;
       readonly location: RepoPath;
       readonly script: string;
@@ -83,6 +89,7 @@ export const hitSchema = z
     snippet: snippetSchema,
     remedy: remedySchema.optional(),
     importSpecifier: z.string().min(1).optional(),
+    check: reportedCheckSchema.optional(),
   })
   .readonly();
 

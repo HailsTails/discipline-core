@@ -30,3 +30,21 @@ export const checkOfSymptomAt = (request: {
       (check) => check.symptom.name === request.symptom.name && check.engines.some((engine) => engine.mechanism === request.mechanism),
     ),
   });
+
+export type NamedCheck =
+  | { readonly named: "unnamed" }
+  | { readonly named: "check"; readonly check: Check }
+  | { readonly named: "not-of-the-clause"; readonly address: string };
+
+export const checkNamedAt = (request: {
+  readonly catalogue: Pick<SymptomCatalogue, "checks">;
+  readonly clause: ClauseAddress;
+  readonly address: string | undefined;
+}): NamedCheck => {
+  const { address } = request;
+  if (address === undefined) {
+    return { named: "unnamed" };
+  }
+  const found = foundAmong({ checks: checksOf(request).filter((check) => checkAddressOf({ check }) === address) });
+  return found.found === "check" ? { named: "check", check: found.check } : { named: "not-of-the-clause", address };
+};

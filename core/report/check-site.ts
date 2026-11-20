@@ -1,6 +1,7 @@
 import type { Finding } from "../governance/governance.ts";
 import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
-import { checkAddressOf, checksOf } from "../symptom-catalogue/check-address.ts";
+import { checkAddressOf, checkNamedAt, checksOf } from "../symptom-catalogue/check-address.ts";
+import type { NamedCheck } from "../symptom-catalogue/check-address.ts";
 import { type Check, type Engine, type Symptom, type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/symptom-catalogue.ts";
 import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
@@ -18,6 +19,17 @@ const sitesOfCheck = (request: { readonly check: Check; readonly mechanism: Mech
 
 const sitesAtEngine = (request: EngineRequest): readonly CheckSite[] => checksOf(request).flatMap((check) => sitesOfCheck({ check, mechanism: request.mechanism }));
 
+const sitesOfNamed = (request: { readonly named: NamedCheck; readonly engineRequest: EngineRequest }): readonly CheckSite[] => {
+  switch (request.named.named) {
+    case "unnamed":
+      return sitesAtEngine(request.engineRequest);
+    case "check":
+      return sitesOfCheck({ check: request.named.check, mechanism: request.engineRequest.mechanism });
+    case "not-of-the-clause":
+      return [];
+  }
+};
+
 const siteOfSymptom = (request: EngineRequest & { readonly symptom: Symptom }): CheckSite => {
   const sites = checksOf(request)
     .filter((check) => check.symptom.name === request.symptom.name)
@@ -25,10 +37,22 @@ const siteOfSymptom = (request: EngineRequest & { readonly symptom: Symptom }): 
   return sites[0] ?? uncheckedSite(request);
 };
 
+const siteOfReading = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding; readonly engineRequest: EngineRequest }): CheckSite => {
+  const reading = symptomReadingOf({ catalogue: request.catalogue, finding: request.finding });
+  return reading.reading === "named" ? siteOfSymptom({ ...request.engineRequest, symptom: reading.symptom }) : uncheckedSite(request.engineRequest);
+};
+
 export const findingSiteOf = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): CheckSite => {
   const engineRequest: EngineRequest = { catalogue: request.catalogue, clause: request.finding.clause, mechanism: request.finding.mechanism };
-  const reading = symptomReadingOf({ catalogue: request.catalogue, finding: request.finding });
-  return reading.reading === "named" ? siteOfSymptom({ ...engineRequest, symptom: reading.symptom }) : uncheckedSite(engineRequest);
+  const named = checkNamedAt({ catalogue: request.catalogue, clause: request.finding.clause, address: request.finding.check });
+  switch (named.named) {
+    case "unnamed":
+      return siteOfReading({ ...request, engineRequest });
+    case "check":
+      return sitesOfCheck({ check: named.check, mechanism: request.finding.mechanism })[0] ?? uncheckedSite(engineRequest);
+    case "not-of-the-clause":
+      return uncheckedSite(engineRequest);
+  }
 };
 
 export const nativeSitesOf = (request: {
@@ -36,7 +60,8 @@ export const nativeSitesOf = (request: {
   readonly exception: NativeException & { readonly mechanism: MechanismId };
 }): readonly CheckSite[] => {
   const engineRequest: EngineRequest = { catalogue: request.catalogue, clause: request.exception.clause, mechanism: request.exception.mechanism };
-  const sites = sitesAtEngine(engineRequest);
+  const named = checkNamedAt({ catalogue: request.catalogue, clause: request.exception.clause, address: request.exception.check });
+  const sites = sitesOfNamed({ named, engineRequest });
   return sites.length === 0 ? [uncheckedSite(engineRequest)] : sites;
 };
 

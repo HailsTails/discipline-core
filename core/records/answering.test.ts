@@ -773,3 +773,81 @@ describe("answerFindings, natives held", () => {
     });
   });
 });
+
+const CLASS_HERITAGE = checkOf({ name: "class-heritage", symptom: AUTHORED_CLASS, clause: NO_CLASS });
+
+const TWO_CHECKS_ON_NO_CLASS: SymptomCatalogue = { ...CATALOGUE, checks: [...CATALOGUE.checks, CLASS_HERITAGE] };
+
+const LOCATED_CLASS_HERITAGE_IN_A: PlacedRecord = {
+  place: { file: AUTHORISED_FILE, index: 6 },
+  record: { ...CLASS_LOCATION_IN_A, reach: { reaches: "one-check", check: CLASS_HERITAGE } },
+};
+
+const HERITAGE_FINDING_IN_A: Finding = { ...NO_CLASS_IN_A, check: "authored-class-or-this#class-heritage" };
+
+const MISNAMED_FINDING_IN_A: Finding = { ...NO_CLASS_IN_A, check: "authored-class-or-this#class-keyword" };
+
+const HERITAGE_DISABLE_IN_A: NativeException = { ...DISABLE_IN_A, check: "authored-class-or-this#class-heritage" };
+
+describe("answerFindings, a finding or exception that names its check", () => {
+  it("answers a finding by the record naming that check and not by the record naming the other check of its clause", () => {
+    expect(
+      answerFindings({
+        catalogue: TWO_CHECKS_ON_NO_CLASS,
+        records: [LOCATED_CLASS_SYNTAX_IN_A, LOCATED_CLASS_HERITAGE_IN_A],
+        findings: [unreported(HERITAGE_FINDING_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: HERITAGE_FINDING_IN_A, by: [LOCATED_CLASS_HERITAGE_IN_A] }], stale: [LOCATED_CLASS_SYNTAX_IN_A] });
+  });
+
+  it("does not answer a finding naming a check its clause does not have, even by a record on the whole symptom", () => {
+    expect(
+      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_IN_A], findings: [unreported(MISNAMED_FINDING_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [MISNAMED_FINDING_IN_A], stale: [LOCATED_CLASS_IN_A] });
+  });
+
+  it("does not answer a finding naming a check that its mechanism's engine does not run, by a record naming that check", () => {
+    const heritageByEslint = { ...HERITAGE_FINDING_IN_A, mechanism: ESLINT };
+    expect(
+      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_HERITAGE_IN_A], findings: [unreported(heritageByEslint)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [heritageByEslint], stale: [LOCATED_CLASS_HERITAGE_IN_A] });
+  });
+
+  it("covers an inline disable naming a check by the record naming that check", () => {
+    expect(
+      answerFindings({
+        catalogue: TWO_CHECKS_ON_NO_CLASS,
+        records: [LOCATED_CLASS_HERITAGE_IN_A],
+        findings: [],
+        touched: NOTHING_TOUCHED,
+        runs: [inlineRun({ nativeExceptions: [HERITAGE_DISABLE_IN_A] })],
+      }),
+    ).toEqual(NOTHING_ANSWERED);
+  });
+
+  it("lists an inline disable naming a check when only a record naming the other check of its clause exists", () => {
+    expect(
+      answerFindings({
+        catalogue: TWO_CHECKS_ON_NO_CLASS,
+        records: [LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [],
+        touched: NOTHING_TOUCHED,
+        runs: [inlineRun({ nativeExceptions: [HERITAGE_DISABLE_IN_A] })],
+      }),
+    ).toEqual({ ...NOTHING_ANSWERED, stale: [LOCATED_CLASS_SYNTAX_IN_A], unrecorded: [{ ...HERITAGE_DISABLE_IN_A, mechanism: AUDIT }] });
+  });
+
+  it("covers an inline disable naming no check by a record naming either check of its clause", () => {
+    expect(
+      answerFindings({
+        catalogue: TWO_CHECKS_ON_NO_CLASS,
+        records: [LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [],
+        touched: NOTHING_TOUCHED,
+        runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })],
+      }),
+    ).toEqual(NOTHING_ANSWERED);
+  });
+});

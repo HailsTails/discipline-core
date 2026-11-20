@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type ClauseAddress, clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
-import { checkAddressOf, checkAt, checkOfSymptomAt, checksOf } from "./check-address.ts";
+import { checkAddressOf, checkAt, checkNamedAt, checkOfSymptomAt, checksOf } from "./check-address.ts";
 import type { Check, Engine, Principle, Recipe, RecordKind, Symptom, SymptomCatalogue } from "./symptom-catalogue.ts";
 
 const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
@@ -151,5 +151,27 @@ describe("checksOf", () => {
     { name: "a clause the catalogue does not hold", clause: clauseAddressSchema.parse("CD-99#unheld"), checks: [] },
   ])("gives the checks of $name", ({ clause, checks }) => {
     expect(checksOf({ catalogue: CATALOGUE, clause })).toEqual(checks);
+  });
+});
+
+describe("checkNamedAt", () => {
+  it("is unnamed when no check is named", () => {
+    expect(checkNamedAt({ catalogue: CATALOGUE, clause: TEST_BODY_CLAUSE, address: undefined })).toEqual({ named: "unnamed" });
+  });
+
+  it.each<{ readonly address: string; readonly check: Check }>([
+    { address: "loop-keyword#test-body", check: LOOP_KEYWORD_TEST_BODY },
+    { address: "rebinding#test-body", check: REBINDING_TEST_BODY },
+  ])("is the check $address when the clause has it", ({ address, check }) => {
+    expect(checkNamedAt({ catalogue: CATALOGUE, clause: TEST_BODY_CLAUSE, address })).toEqual({ named: "check", check });
+  });
+
+  it.each<{ readonly name: string; readonly clause: ClauseAddress; readonly address: string }>([
+    { name: "a check of another clause", clause: LOOPS_CLAUSE, address: "rebinding#test-body" },
+    { name: "a check no clause has", clause: TEST_BODY_CLAUSE, address: "rebinding#loops" },
+    { name: "a clause address in place of a check address", clause: TEST_BODY_CLAUSE, address: "CD-27#test-body-logic" },
+    { name: "a name with no hash", clause: TEST_BODY_CLAUSE, address: "nohash" },
+  ])("is not-of-the-clause for $name", ({ clause, address }) => {
+    expect(checkNamedAt({ catalogue: CATALOGUE, clause, address })).toEqual({ named: "not-of-the-clause", address });
   });
 });

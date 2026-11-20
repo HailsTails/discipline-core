@@ -44,6 +44,38 @@ const EVERY_NATIVE_KIND = [
   },
 ];
 
+const CHECK = "authored-class-or-this#class-keyword";
+
+const EVERY_NATIVE_KIND_NAMING_A_CHECK = [
+  { kind: "ignore", check: CHECK, clause: CLASS_SYNTAX, file: "src/generated.ts" },
+  { kind: "config-override", check: CHECK, clause: CLASS_SYNTAX, file: "src/legacy.ts" },
+  { kind: "suppression-entry", check: CHECK, clause: CLASS_SYNTAX, file: "src/old.ts", location: "eslint-suppressions.json" },
+  { kind: "inline-disable", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 4, text: "// eslint-disable-next-line hone/authored-class-or-this/class-keyword", reach: "one-clause" },
+  { kind: "inline-rule-config", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 1, text: '/* eslint hone/authored-class-or-this/class-keyword: "off" */' },
+  { kind: "command-line-option", check: CHECK, clause: CLASS_SYNTAX, location: "package.json", script: "lint", option: "--suppress-all", cause: { kind: "weakens-run" } },
+];
+
+const EMPTY_CHECK_ON_A_NATIVE_EXCEPTION = [
+  { kind: "ignore", check: "", clause: CLASS_SYNTAX, file: "src/generated.ts" },
+];
+
+describe("embeddedRunReportSchema, a hit and a native exception naming their check", () => {
+  it("keeps the check on a hit and on each of the six native exception kinds", () => {
+    const report = { hits: [{ ...HIT_IN_A, check: CHECK }], nativeExceptions: EVERY_NATIVE_KIND_NAMING_A_CHECK, projection: "current", slices: [], unprojectedFolders: [], measured: [] };
+    expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
+  });
+
+  it("rejects an empty check on a hit", () => {
+    const report = { hits: [{ ...HIT_IN_A, check: "" }], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [], measured: [] };
+    expect(embeddedRunReportSchema.safeParse(report).success).toBe(false);
+  });
+
+  it("rejects an empty check on a native exception", () => {
+    const report = { hits: [], nativeExceptions: EMPTY_CHECK_ON_A_NATIVE_EXCEPTION, projection: "current", slices: [], unprojectedFolders: [], measured: [] };
+    expect(embeddedRunReportSchema.safeParse(report).success).toBe(false);
+  });
+});
+
 describe("embeddedRunReportSchema", () => {
   it("accepts a report holding a hit, one native exception of every kind and a not-included projection", () => {
     const report = { hits: [HIT_IN_A], nativeExceptions: EVERY_NATIVE_KIND, projection: "not-included", slices: [], unprojectedFolders: [], measured: [] };
