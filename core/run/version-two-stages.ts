@@ -14,11 +14,11 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { ModuleExtension } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
 import { type CheckedTree, checkedTreeOf } from "./checked-tree-of.ts";
-import { enginesRunOf } from "./engines-run.ts";
+import { type EnginesRunRequest, enginesProjectionOf, enginesRunOf } from "./engines-run.ts";
 import { runFailureOf } from "./run-failure.ts";
 import { toolCatalogueOf } from "./tool-catalogue.ts";
 import { touchedSetOf } from "./touched-set-of.ts";
-import type { VersionTwoStages } from "./version-two-run.ts";
+import type { EngineStageRequest, VersionTwoStages } from "./version-two-run.ts";
 
 export type VersionTwoPorts = {
   readonly fileText: FileTextPort;
@@ -69,20 +69,22 @@ const treeStage = (request: StagesRequest & { readonly settings: SettingsReading
   return tree.outcome === "failed" ? { outcome: "failed", error: runFailureOf({ engines: [], source: tree.error }) } : tree;
 };
 
+const enginesRequestOf = (request: StagesRequest & { readonly stage: EngineStageRequest }): EnginesRunRequest => ({
+  ...request.stage,
+  repoRoot: request.locations.repoRoot,
+  installRoot: request.locations.installRoot,
+  moduleExtension: request.locations.moduleExtension,
+  path: request.ports.path,
+  modules: request.ports.modules,
+});
+
 export const versionTwoStagesOver = (request: StagesRequest): VersionTwoStages => ({
   catalogue: () => toolCatalogueOf({ fileText: request.ports.fileText, path: request.ports.path, installRoot: request.locations.installRoot }),
   settings: (stage) => settingsStage({ ...request, ...stage }),
   records: (stage) => recordsStage({ ...request, ...stage }),
   tree: (stage) => treeStage({ ...request, ...stage }),
-  engines: (stage) =>
-    enginesRunOf({
-      ...stage,
-      repoRoot: request.locations.repoRoot,
-      installRoot: request.locations.installRoot,
-      moduleExtension: request.locations.moduleExtension,
-      path: request.ports.path,
-      modules: request.ports.modules,
-    }),
+  engines: (stage) => enginesRunOf(enginesRequestOf({ ...request, stage })),
+  projections: (stage) => enginesProjectionOf(enginesRequestOf({ ...request, stage })),
   touched: (stage) =>
     touchedSetOf({ assessment: stage.assessment, measuring: stage.measuring, records: stage.records.records, repoRoot: request.locations.repoRoot, baseRevision: request.locations.baseRevision, git: request.ports.git }),
 });

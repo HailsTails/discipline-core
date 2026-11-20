@@ -8,6 +8,8 @@ import type { RunnerFailure } from "./runner-failure.ts";
 import type { StandaloneRunner } from "./runner-module-schema.ts";
 import type { Hit, MeasuredPair, NativeException, ProjectionState } from "./runner-result-schema.ts";
 
+export type ProjectedFile = { readonly file: RepoPath; readonly text: string };
+
 export type AnsweredFile = { readonly symptom: string; readonly check?: string; readonly file: RepoPath };
 
 export type ChecksBinding = {
@@ -52,6 +54,7 @@ export type ChecksRunFailure = RunnerFailure | NotReadyYetFailure;
 export type ChecksRunner = {
   readonly run: (request: ChecksRunRequest) => Promise<Result<ChecksRunReport, ChecksRunFailure>>;
   readonly conform: StandaloneRunner["conform"];
+  readonly project: (request: ChecksRunRequest) => Promise<Result<readonly ProjectedFile[], ChecksRunFailure>>;
 };
 
 export type LoadedChecksRunner = ChecksRunner & { readonly projectedKinds: readonly NativeException["kind"][] };

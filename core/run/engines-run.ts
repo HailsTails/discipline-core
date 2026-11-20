@@ -1,3 +1,4 @@
+import type { ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
@@ -12,7 +13,7 @@ import type { ModuleExtension } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
 import { answeredFilesOf } from "./answered-files.ts";
 import { type CheckedTree, typescriptFilesOf } from "./checked-tree-of.ts";
-import { type EngineRun, type EngineRunRequest, engineRunOf, loadedEngineOf } from "./engine-run.ts";
+import { type EngineRun, type EngineRunRequest, engineProjectionOf, engineRunOf, loadedEngineOf } from "./engine-run.ts";
 import { type RunFailureSource, runFailureOf } from "./run-failure.ts";
 
 export type EnginesRunRequest = {
@@ -51,6 +52,19 @@ const runRequestOf = (request: EnginesRunRequest): EngineRunRequest => ({
 const runOf = async (request: EnginesRunRequest & { readonly mechanism: MechanismId }): Promise<Result<EngineRun, RunFailureSource>> => {
   const engine = await loadedEngineOf(request);
   return engine.outcome === "failed" ? engine : engineRunOf({ engine: engine.value, request: runRequestOf(request) });
+};
+
+const projectionOf = async (request: EnginesRunRequest & { readonly mechanism: MechanismId }): Promise<Result<readonly ProjectedFile[], RunFailureSource>> => {
+  const engine = await loadedEngineOf(request);
+  return engine.outcome === "failed" ? engine : engineProjectionOf({ engine: engine.value, request: runRequestOf(request) });
+};
+
+export const enginesProjectionOf = async (request: EnginesRunRequest): Promise<Result<readonly ProjectedFile[], RunLoadFailure>> => {
+  const projections = await Promise.all(mechanismsOf(request).map((mechanism) => projectionOf({ ...request, mechanism }).then((projected) => listedOutcome({ outcome: projected }))));
+  const gathered = gatheredOutcomes({ outcomes: projections });
+  return gathered.outcome === "failed"
+    ? { outcome: "failed", error: runFailureOf({ engines: request.catalogue.engines, source: gathered.error }) }
+    : { outcome: "ok", value: gathered.value.flat() };
 };
 
 export const enginesRunOf = async (request: EnginesRunRequest): Promise<Result<readonly EngineRun[], RunLoadFailure>> => {

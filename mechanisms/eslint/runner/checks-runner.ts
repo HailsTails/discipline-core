@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { StandaloneRunner } from "../../../core/mechanism-port/runner-module-schema.ts";
+import type { ProjectedFile } from "../../../core/mechanism-port/checks-runner-types.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
@@ -35,6 +36,7 @@ type Outcome<Value> = Result<Value, ChecksRunFailure>;
 export type ChecksRunner = {
   readonly run: (request: ChecksRunRequest) => Promise<Outcome<ChecksRunReport>>;
   readonly conform: StandaloneRunner["conform"];
+  readonly project: (request: ChecksRunRequest) => Promise<Outcome<readonly ProjectedFile[]>>;
 };
 
 const NO_FINDINGS = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [] };
@@ -238,8 +240,25 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
     : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), projection: state.value });
 };
 
+const projectedFilesOf = (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts }): Outcome<readonly ProjectedFile[]> => {
+  const projected = projectedChecksOf({ checks: request.run.checks, bindings: request.run.bindings });
+  if (projected.outcome === "failed") {
+    return { outcome: "failed", error: projectionFailureOf({ failure: projected.error }) };
+  }
+  const selected = selectedChecksOf({ checks: request.run.checks, projected: projected.value });
+  if (selected.outcome === "failed" || selected.value.length === 0) {
+    return selected.outcome === "failed" ? selected : { outcome: "ok", value: [] };
+  }
+  const expected = expectedProjectionOf({ ...request, projected: projected.value });
+  if (expected.outcome === "failed") {
+    return expected;
+  }
+  return { outcome: "ok", value: [{ file: CHECKS_PROJECTION_PATH, text: expected.value }] };
+};
+
 export const checksRunnerOver = (request: { readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
   run: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
+  project: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform }) ?? projectedFilesOf({ run, ports: request.ports })),
   conform: (conform) =>
     conformedCases({
       clause: conform.clause,

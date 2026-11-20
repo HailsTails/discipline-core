@@ -10,7 +10,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import { FIRST_EDITION } from "../values/edition.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { enginesRunOf } from "./engines-run.ts";
+import { enginesProjectionOf, enginesRunOf } from "./engines-run.ts";
 
 const REPO = absolutePathSchema.parse("/repo");
 
@@ -71,6 +71,7 @@ const EMBEDDED_MODULE = {
     projectedKinds: ["config-override"],
     run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: REPORT }),
     conform: vi.fn<(request: unknown) => Promise<unknown>>(),
+    project: vi.fn<(request: unknown) => Promise<unknown>>(),
   },
 };
 
@@ -147,7 +148,7 @@ describe("enginesRunOf", () => {
   });
 
   it("fails as an engine that failed, naming the engine, when its runner fails", async () => {
-    const failing = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "tool-failed", detail: "ESLint stopped" } }), conform: () => Promise.resolve(undefined) } };
+    const failing = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "tool-failed", detail: "ESLint stopped" } }), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) } };
     expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: failing }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "engine-failed", engine: { named: "engine", engine: ESLINT_ENGINE }, failure: { kind: "tool-failed", detail: "ESLint stopped" } },
@@ -155,7 +156,7 @@ describe("enginesRunOf", () => {
   });
 
   it("fails as not ready yet when the ESLint runner says its config roots are not ready", async () => {
-    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }), conform: () => Promise.resolve(undefined) } };
+    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) } };
     expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: notReady }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
@@ -164,5 +165,73 @@ describe("enginesRunOf", () => {
 
   it("runs nothing when the selection binds no mechanism", async () => {
     expect(await runOver({ bindings: [], first: NOT_ASKED_FOR, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({ outcome: "ok", value: [] });
+  });
+});
+
+const WRITTEN_PROJECTION = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "export default [];\n" };
+
+const projectingModule = (request: { readonly returned: unknown }) => ({
+  ...EMBEDDED_MODULE,
+  checksRunner: { ...EMBEDDED_MODULE.checksRunner, project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue(request.returned) },
+});
+
+const projectionOver = (request: { readonly bindings: readonly ClauseBinding[]; readonly first: ModuleLoad; readonly second: ModuleLoad }) =>
+  enginesProjectionOf({
+    catalogue: REPORT_CATALOGUE,
+    settings: settingsBinding({ bindings: request.bindings, lookup: DETECTED }),
+    records: DEBT_ON_A,
+    tree: { tracked: [A, README], declaredConfigRoots: [] },
+    repoRoot: REPO,
+    installRoot: INSTALL,
+    moduleExtension: ".ts",
+    path: POSIX_PATH,
+    modules: modulesOf(request),
+  });
+
+describe("enginesProjectionOf", () => {
+  it("gives the files the checks runner wrote", async () => {
+    const module = projectingModule({ returned: { outcome: "ok", value: [WRITTEN_PROJECTION] } });
+    expect(await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: module }, second: NOT_ASKED_FOR })).toEqual({ outcome: "ok", value: [WRITTEN_PROJECTION] });
+  });
+
+  it("asks the checks runner to project the very request it would run, so a run and a projection cannot see different inputs", async () => {
+    const module = projectingModule({ returned: { outcome: "ok", value: [] } });
+    const run = vi.mocked(EMBEDDED_MODULE.checksRunner.run);
+    run.mockClear();
+    await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: module }, second: NOT_ASKED_FOR });
+    await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: EMBEDDED_MODULE }, second: NOT_ASKED_FOR, lookup: DETECTED });
+    expect(vi.mocked(module.checksRunner.project).mock.calls).toEqual(run.mock.calls);
+  });
+
+  it("writes nothing for a standalone runner, which projects no file", async () => {
+    expect(await projectionOver({ bindings: [bindingOn({ mechanism: AUDIT })], first: { outcome: "ok", value: STANDALONE_MODULE }, second: NOT_ASKED_FOR })).toEqual({ outcome: "ok", value: [] });
+  });
+
+  it("writes nothing when the selection binds no mechanism", async () => {
+    expect(await projectionOver({ bindings: [], first: NOT_ASKED_FOR, second: NOT_ASKED_FOR })).toEqual({ outcome: "ok", value: [] });
+  });
+
+  it("fails as an invalid engine, naming the engine, when its module cannot be loaded", async () => {
+    const unloadable: ModuleLoad = { outcome: "failed", error: { kind: "module-unloadable", path: "/install/mechanisms/eslint/runner/runner.ts", detail: "Cannot find module" } };
+    expect(await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: unloadable, second: NOT_ASKED_FOR })).toEqual({
+      outcome: "failed",
+      error: { kind: "engine-invalid", engine: { named: "engine", engine: ESLINT_ENGINE }, detail: "Cannot find module" },
+    });
+  });
+
+  it("fails as an engine that failed, naming the engine, when the checks runner fails", async () => {
+    const module = projectingModule({ returned: { outcome: "failed", error: { kind: "tool-failed", detail: "disk full" } } });
+    expect(await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: module }, second: NOT_ASKED_FOR })).toEqual({
+      outcome: "failed",
+      error: { kind: "engine-failed", engine: { named: "engine", engine: ESLINT_ENGINE }, failure: { kind: "tool-failed", detail: "disk full" } },
+    });
+  });
+
+  it("fails as not ready yet when the checks runner says its config roots are not ready", async () => {
+    const module = projectingModule({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } } });
+    expect(await projectionOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: module }, second: NOT_ASKED_FOR })).toEqual({
+      outcome: "failed",
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+    });
   });
 });
