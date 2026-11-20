@@ -29,8 +29,13 @@ const upperFirst = (request: { readonly text: string }): string => `${request.te
 const pointedTitleOf = (request: { readonly point: Pointed }): string =>
   request.point.kind === "rule" ? request.point.rule.title : request.point.principle.title;
 
+const indicatedCaseText = (request: { readonly indication: Indication }): string => {
+  const caseText = lowerFirst({ text: request.indication.case.title });
+  return request.indication.situation === undefined ? caseText : `${caseText}: ${request.indication.situation}`;
+};
+
 const indicationText = (request: { readonly indication: Indication }): string =>
-  `${lowerFirst({ text: request.indication.case })} → ${request.indication.points.map((point) => pointedTitleOf({ point })).join(", ")}`;
+  `${indicatedCaseText(request)} → ${request.indication.points.map((point) => pointedTitleOf({ point })).join(", ")}`;
 
 const recipeSentence = (request: { readonly symptom: Symptom }): string => {
   const titles = request.symptom.recipes.map((recipe) => recipe.title);

@@ -30,46 +30,76 @@
     { "name": "upstream-stays-untouched", "title": "Upstream stays untouched", "principle": "outside-risk-is-carried-on-purpose", "standing": "accepted" },
     { "name": "shipped-risk-declared", "title": "Shipped risk declared", "principle": "outside-risk-is-carried-on-purpose", "standing": "proposed" }
   ],
+  "cases": [
+    { "name": "uses-what-a-collaborator-gives-back", "title": "Uses what a collaborator gives back", "standing": "accepted", "owes": [{ "principle": "tests-are-ours" }, { "principle": "one-place-decides" }, { "rule": "written-out-answers" }] },
+    { "name": "states-what-the-unit-gives-back-for-one-case-or-several", "title": "States what the unit gives back, for one case or several", "standing": "accepted", "owes": [{ "principle": "tests-are-ours" }, { "principle": "one-place-decides" }, { "rule": "straight-through-tests" }] },
+    { "name": "checks-a-value-that-may-be-one-of-several-outcomes", "title": "Checks a value that may be one of several outcomes", "standing": "accepted", "owes": [{ "principle": "tests-are-ours" }, { "principle": "the-type-checker-proves-it" }, { "rule": "straight-through-tests" }] },
+    { "name": "gives-each-unit-its-test", "title": "Gives each unit its test", "standing": "accepted", "owes": [{ "principle": "tests-are-ours" }, { "principle": "one-place-decides" }, { "rule": "tested-where-its-owned" }] },
+    { "name": "tests-across-units-or-against-a-real-system", "title": "Tests across units or against a real system", "standing": "accepted", "owes": [{ "principle": "tests-are-ours" }, { "principle": "one-place-decides" }, { "rule": "tested-where-its-owned" }] },
+    { "name": "coordinates-other-units", "title": "Coordinates other units", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "tests-are-ours" }, { "rule": "doer-or-orchestrator" }] },
+    { "name": "does-one-job", "title": "Does one job", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "the-type-checker-proves-it" }, { "rule": "doer-or-orchestrator" }, { "rule": "handed-what-it-uses" }] },
+    { "name": "checks-conditions-before-its-work", "title": "Checks conditions before its work", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "the-type-checker-proves-it" }, { "rule": "guard-first" }] },
+    { "name": "builds-the-real-implementations", "title": "Builds the real implementations", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "external-behaviour-sits-at-a-boundary" }, { "rule": "doer-or-orchestrator" }, { "rule": "ports-declared-inside" }] },
+    { "name": "reuses-behaviour-from-another-unit-or-type", "title": "Reuses behaviour from another unit or type", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "our-code-reads-in-the-common-language" }, { "rule": "one-reason-per-module" }] },
+    { "name": "puts-code-in-a-file-or-folder", "title": "Puts code in a file or folder", "standing": "accepted", "owes": [{ "principle": "one-place-decides" }, { "principle": "our-code-reads-in-the-common-language" }, { "rule": "one-reason-per-module" }] },
+    { "name": "makes-a-new-value-from-what-it-has", "title": "Makes a new value from what it has", "standing": "accepted", "owes": [{ "principle": "no-hidden-effects" }, { "principle": "one-place-decides" }] },
+    { "name": "causes-an-effect", "title": "Causes an effect (writes, logs, sends, exits)", "standing": "accepted", "owes": [{ "principle": "no-hidden-effects" }, { "principle": "external-behaviour-sits-at-a-boundary" }, { "principle": "one-place-decides" }, { "rule": "written-out-answers" }, { "rule": "ports-declared-inside" }] },
+    { "name": "keeps-state-or-settings-across-calls", "title": "Keeps state or settings across calls", "standing": "accepted", "owes": [{ "principle": "no-hidden-effects" }, { "principle": "the-type-checker-proves-it" }] },
+    { "name": "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering", "title": "Needs the current time, a random value, a new id or an outside ordering", "standing": "accepted", "owes": [{ "principle": "external-behaviour-sits-at-a-boundary" }, { "principle": "one-place-decides" }, { "principle": "tests-are-ours" }, { "rule": "ports-declared-inside" }] },
+    { "name": "uses-a-system-or-service-outside-the-program", "title": "Uses a system or service outside the program", "standing": "accepted", "owes": [{ "principle": "external-behaviour-sits-at-a-boundary" }, { "principle": "no-leak-across-a-boundary" }, { "principle": "one-place-decides" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] },
+    { "name": "reads-data-from-outside", "title": "Reads data from outside (request, file, environment, stored row, response)", "standing": "accepted", "owes": [{ "principle": "no-leak-across-a-boundary" }, { "principle": "external-behaviour-sits-at-a-boundary" }, { "principle": "the-type-checker-proves-it" }, { "rule": "one-reason-per-module" }] },
+    { "name": "sends-data-out-of-the-program", "title": "Sends data out of the program", "standing": "accepted", "owes": [{ "principle": "no-leak-across-a-boundary" }, { "principle": "one-place-decides" }, { "rule": "one-reason-per-module" }] },
+    { "name": "an-operation-can-fail", "title": "An operation can fail", "standing": "accepted", "owes": [{ "principle": "the-type-checker-proves-it" }, { "principle": "external-behaviour-sits-at-a-boundary" }, { "rule": "failures-are-values" }] },
+    { "name": "a-value-is-one-of-several-kinds-or-states", "title": "A value is one of several kinds or states", "standing": "accepted", "owes": [{ "principle": "the-type-checker-proves-it" }, { "principle": "our-code-reads-in-the-common-language" }, { "rule": "kinds-are-named" }] },
+    { "name": "gives-a-value-its-type", "title": "Gives a value its type (declares it, or needs it narrower)", "standing": "accepted", "owes": [{ "principle": "the-type-checker-proves-it" }, { "principle": "one-place-decides" }, { "principle": "no-leak-across-a-boundary" }, { "rule": "handed-what-it-uses" }, { "rule": "declared-not-asserted" }] },
+    { "name": "sets-how-strictly-the-checker-works", "title": "Sets how strictly the checker works", "standing": "accepted", "owes": [{ "principle": "the-type-checker-proves-it" }] },
+    { "name": "names-something", "title": "Names something", "standing": "accepted", "owes": [{ "principle": "our-code-reads-in-the-common-language" }, { "principle": "one-place-decides" }, { "rule": "one-word-everywhere" }] },
+    { "name": "explains-something-in-prose", "title": "Explains something in prose", "standing": "accepted", "owes": [{ "principle": "our-code-reads-in-the-common-language" }, { "principle": "the-type-checker-proves-it" }, { "rule": "one-word-everywhere" }] },
+    { "name": "writes-basic-logic", "title": "Writes basic logic (branching, matching, transforming, results)", "standing": "accepted", "owes": [{ "principle": "our-code-reads-in-the-common-language" }, { "principle": "outside-risk-is-carried-on-purpose" }] },
+    { "name": "takes-an-outside-dependency", "title": "Takes an outside dependency", "standing": "accepted", "owes": [{ "principle": "outside-risk-is-carried-on-purpose" }, { "principle": "our-code-reads-in-the-common-language" }, { "principle": "external-behaviour-sits-at-a-boundary" }, { "principle": "one-place-decides" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "outside-dependencies-justified" }, { "rule": "fixed-versions" }, { "rule": "tools-live-in-the-repo" }, { "rule": "upstream-stays-untouched" }] },
+    { "name": "ships-code-for-others", "title": "Ships code for others", "standing": "proposed", "owes": [{ "principle": "outside-risk-is-carried-on-purpose" }, { "rule": "shipped-risk-declared" }] },
+    { "name": "an-adopter-is-not-handed-our-risk", "title": "An adopter is not handed our risk", "standing": "proposed", "owes": [{ "principle": "outside-risk-is-carried-on-purpose" }, { "rule": "outside-dependencies-justified" }] }
+  ],
   "recipes": [
-    { "name": "stub-with-vifn", "title": "Stub with vi.fn", "standing": "accepted" },
-    { "name": "ports-in-the-argument", "title": "Ports in the argument", "standing": "accepted" },
-    { "name": "iteach-over-typed-rows", "title": "it.each over typed rows", "standing": "accepted" },
-    { "name": "assert-to-narrow", "title": "Assert to narrow", "standing": "accepted" },
-    { "name": "whole-written-out-expectation", "title": "Whole written-out expectation", "standing": "accepted" },
-    { "name": "failure-asserted-as-a-value", "title": "Failure asserted as a value", "standing": "accepted" },
-    { "name": "companion-test-file", "title": "Companion test file", "standing": "accepted" },
-    { "name": "integration-test-suffix", "title": "Integration test suffix", "standing": "accepted" },
-    { "name": "integration-test-owns-its-scratch", "title": "Integration test owns its scratch", "standing": "accepted" },
-    { "name": "composed-orchestrator", "title": "Composed orchestrator", "standing": "accepted" },
-    { "name": "functional-iteration", "title": "Functional iteration", "standing": "accepted" },
-    { "name": "one-argument-object", "title": "One argument object", "standing": "accepted" },
-    { "name": "narrow-ports", "title": "Narrow ports", "standing": "accepted" },
-    { "name": "entity-module", "title": "Entity module", "standing": "accepted" },
-    { "name": "guard-clauses", "title": "Guard clauses", "standing": "accepted" },
-    { "name": "screaming-folders", "title": "Screaming folders", "standing": "accepted" },
-    { "name": "copy-never-write-in", "title": "Copy, never write in", "standing": "accepted" },
-    { "name": "closure-factory", "title": "Closure factory", "standing": "accepted" },
-    { "name": "adapter-per-outside-party", "title": "Adapter per outside party", "standing": "accepted" },
-    { "name": "port-in-the-domain", "title": "Port in the domain", "standing": "accepted" },
-    { "name": "world-values-through-a-port", "title": "World values through a port", "standing": "accepted" },
-    { "name": "composition-root", "title": "Composition root", "standing": "accepted" },
-    { "name": "zod-at-the-producers-adapter", "title": "Zod at the producer's adapter", "standing": "accepted" },
-    { "name": "map-out-at-the-adapter", "title": "Map out at the adapter", "standing": "accepted" },
-    { "name": "failure-mapping-at-the-adapter", "title": "Failure mapping at the adapter", "standing": "accepted" },
-    { "name": "result-union", "title": "Result union", "standing": "accepted" },
-    { "name": "named-exported-type", "title": "Named, exported type", "standing": "accepted" },
-    { "name": "fix-the-declaration-not-the-value", "title": "Fix the declaration, not the value", "standing": "accepted" },
-    { "name": "bounded-context-generic", "title": "Bounded context generic", "standing": "accepted" },
-    { "name": "shared-strict-base-config", "title": "Shared strict base config", "standing": "accepted" },
-    { "name": "tagged-union-and-exhaustive-switch", "title": "Tagged union and exhaustive switch", "standing": "accepted" },
-    { "name": "domain-vocabulary-list", "title": "Domain vocabulary list", "standing": "accepted" },
-    { "name": "whole-words", "title": "Whole words", "standing": "accepted" },
-    { "name": "meaning-in-names-not-comments", "title": "Meaning in names, not comments", "standing": "accepted" },
-    { "name": "dependency-record", "title": "Dependency record", "standing": "accepted" },
-    { "name": "exact-pins-and-a-lock-file", "title": "Exact pins and a lock file", "standing": "accepted" },
-    { "name": "repo-scripts-only", "title": "Repo scripts only", "standing": "accepted" },
-    { "name": "extension-outside-the-vendored-code", "title": "Extension outside the vendored code", "standing": "accepted" },
-    { "name": "declared-not-bundled", "title": "Declared, not bundled", "standing": "proposed" }
+    { "name": "stub-with-vifn", "title": "Stub with vi.fn", "standing": "accepted", "reason": { "text": "\"these should be vi.fn, with mockResolvedValue, not custom async functions\"; \"Agents take fake to mean whatever they want it to mean right now.\" The framework's double has no body of ours to hold logic.", "standing": "accepted" } },
+    { "name": "ports-in-the-argument", "title": "Ports in the argument", "standing": "accepted", "reason": { "text": "\"If it calls something and uses its output we hardcode that output using DI.\"; \"there should be absolutely no reason to be setting process env in a test, if you are doing this you have severely messed up your dependency management\".", "standing": "accepted" } },
+    { "name": "iteach-over-typed-rows", "title": "it.each over typed rows", "standing": "accepted", "reason": { "text": "\"It's just boilerplate for cases being tested.\"", "standing": "accepted" } },
+    { "name": "assert-to-narrow", "title": "Assert to narrow", "standing": "accepted", "reason": { "text": "\"use vi assert to validate it's existence first to narrow the type to exclude the need for optional chain\".", "standing": "accepted" } },
+    { "name": "whole-written-out-expectation", "title": "Whole written-out expectation", "standing": "accepted", "reason": { "text": "\"no find, use bare access in tests for determinstic insistence on behaviours\".", "standing": "accepted" } },
+    { "name": "failure-asserted-as-a-value", "title": "Failure asserted as a value", "standing": "accepted", "reason": { "text": "\"more error throwing, not allowed\". A `try` or `catch` in a test is a branch that decides whether the test passes.", "standing": "proposed" } },
+    { "name": "companion-test-file", "title": "Companion test file", "standing": "accepted", "reason": { "text": "\"if its a unit test it covers the unit it is the companion file to\".", "standing": "accepted" } },
+    { "name": "integration-test-suffix", "title": "Integration test suffix", "standing": "accepted", "reason": { "text": "\"a useful pattern to ensure boundaries are clear when to maintain and keep pyramid checkable.\"", "standing": "accepted" } },
+    { "name": "integration-test-owns-its-scratch", "title": "Integration test owns its scratch", "standing": "accepted", "reason": { "text": "An ambient setting broke the shared checkout three times; each fix to one instance left the class open.", "standing": "proposed" } },
+    { "name": "composed-orchestrator", "title": "Composed orchestrator", "standing": "accepted", "reason": { "text": "\"If it's long it's doing too many things inline. I hold to functions are doers or are orchestrator a teaching.\"", "standing": "accepted" } },
+    { "name": "functional-iteration", "title": "Functional iteration", "standing": "accepted", "reason": { "text": "\"For of mutates by its nature. It doesn't return. It's state holding required or side effect based.\"", "standing": "accepted" } },
+    { "name": "one-argument-object", "title": "One argument object", "standing": "accepted", "reason": { "text": "\"Shows up in tests where to avoid writing a large object for 2 fields that impact th test they double cast. It shows the minimum interface principle.\"; \"Functions with no outside influence should take 1. 2 is debatable. But for agents the goal is always 1.\"; \"nope, you will not use tupple like arrays for data\".", "standing": "accepted" } },
+    { "name": "narrow-ports", "title": "Narrow ports", "standing": "accepted", "reason": { "text": "\"Rather than writing 6 different concrete things 1 for each.\"; \"narrowed ports that still help us find the seams where the dependencies link up\".", "standing": "accepted" } },
+    { "name": "entity-module", "title": "Entity module", "standing": "accepted", "reason": { "text": "\"The anaemic concern there is that by writing types with no logic you are failing coupling/cohesion and single responsibility principles.\"", "standing": "accepted" } },
+    { "name": "guard-clauses", "title": "Guard clauses", "standing": "accepted", "reason": { "text": "\"If nested it's a poorly modelled set of questions for a single job.\"", "standing": "accepted" } },
+    { "name": "screaming-folders", "title": "Screaming folders", "standing": "accepted", "reason": { "text": "\"all types have a purpose. that purpose is its reason to exist and its reason to change\"; screaming architecture \"making those boundaries easier to see when broken\".", "standing": "accepted" } },
+    { "name": "copy-never-write-in", "title": "Copy, never write in", "standing": "accepted", "reason": { "text": "\"this is giving mutation of input args vibes, not okay\"; \"pure functions are required\".", "standing": "accepted" } },
+    { "name": "closure-factory", "title": "Closure factory", "standing": "accepted", "reason": { "text": "\"this is a bunch of nullable and state management mess\". Proposed: Once a method travels as a value, its `this` is a fact the checker does not prove.", "standing": "accepted" } },
+    { "name": "adapter-per-outside-party", "title": "Adapter per outside party", "standing": "accepted", "reason": { "text": "\"I didn't want a json parse wrapper. I wanted a boundary on whoever made json\"; \"Json parse has no contract… Http fetch library for example has complexity to bind\".", "standing": "accepted" } },
+    { "name": "port-in-the-domain", "title": "Port in the domain", "standing": "accepted", "reason": { "text": "\"In clean architecture the port is domain and to be kept separate to the concrete implementation or use.\"; \"then host facts source should be declared separately to its concrete implementation to protiect dependency inversion\".", "standing": "accepted" } },
+    { "name": "world-values-through-a-port", "title": "World values through a port", "standing": "accepted", "reason": { "text": "\"date creates non determinism and leaks the world in\"; \"we have a uuid factory, you should not be importing dependencies\".", "standing": "accepted" } },
+    { "name": "composition-root", "title": "Composition root", "standing": "accepted", "reason": { "text": "If a unit builds its own adapter, it imports it, so the port is not passed in and the test cannot stub it.", "standing": "proposed" } },
+    { "name": "zod-at-the-producers-adapter", "title": "Zod at the producer's adapter", "standing": "accepted", "reason": { "text": "\"my insistence on not writing complex logic to parse for cd 4 by being explicit on the tool and method\"; \"Hand rolled is potentially a messy and lossy option?\"; \"Zod is the wire.\"", "standing": "accepted" } },
+    { "name": "map-out-at-the-adapter", "title": "Map out at the adapter", "standing": "accepted", "reason": { "text": "\"As we should be runtime objects not json as soon as we leave a boundary\".", "standing": "accepted" } },
+    { "name": "failure-mapping-at-the-adapter", "title": "Failure mapping at the adapter", "standing": "accepted", "reason": { "text": "\"They are about speaking the language of the caller at the boundary.\"", "standing": "proposed" } },
+    { "name": "result-union", "title": "Result union", "standing": "accepted", "reason": { "text": "\"it makes the output clear to type system instead of hidden in throws\".", "standing": "accepted" } },
+    { "name": "named-exported-type", "title": "Named, exported type", "standing": "accepted", "reason": { "text": "A derived type couples the consumer to the producer's implementation, not its contract.", "standing": "proposed" } },
+    { "name": "fix-the-declaration-not-the-value", "title": "Fix the declaration, not the value", "standing": "accepted", "reason": { "text": "\"the correct amount of casting is **0**\"; \"this feels like its hiding a problem with out modelling\".", "standing": "accepted" } },
+    { "name": "bounded-context-generic", "title": "Bounded context generic", "standing": "accepted", "reason": { "text": "A field read from an open context is either cast or defaulted. Both hide a missing capability until run time.", "standing": "proposed" } },
+    { "name": "shared-strict-base-config", "title": "Shared strict base config", "standing": "accepted", "reason": { "text": "One place sets strictness, so no project weakens it unseen.", "standing": "proposed" } },
+    { "name": "tagged-union-and-exhaustive-switch", "title": "Tagged union and exhaustive switch", "standing": "accepted", "reason": { "text": "\"boolean inputs are a smell, disallowed\"; \"no boolean inputs, breaks clean code\".", "standing": "accepted" } },
+    { "name": "domain-vocabulary-list", "title": "Domain vocabulary list", "standing": "accepted", "reason": { "text": "\"to stop naming things 10 different ways for the same concept.\"", "standing": "accepted" } },
+    { "name": "whole-words", "title": "Whole words", "standing": "accepted", "reason": { "text": "\"dont care if its a lambda function or not, meaningful names always\"; \"no, the problem is the lack of a whole word\".", "standing": "accepted" } },
+    { "name": "meaning-in-names-not-comments", "title": "Meaning in names, not comments", "standing": "accepted", "reason": { "text": "\"If the code isn't self explanatory that's the problem. You shouldn't need usage notes at all.\"", "standing": "accepted" } },
+    { "name": "dependency-record", "title": "Dependency record", "standing": "accepted", "reason": { "text": "\"Packages need a justification for the maintenance they add.\"", "standing": "accepted" } },
+    { "name": "exact-pins-and-a-lock-file", "title": "Exact pins and a lock file", "standing": "accepted", "reason": { "text": "\"dependencies must be pinned\"; \"If we ship with dependencies we need lock files.\"", "standing": "accepted" } },
+    { "name": "repo-scripts-only", "title": "Repo scripts only", "standing": "accepted", "reason": { "text": "\"if this is common script it should be in package json, not run through tsx\"; \"I don't want a custom script, can you get something more standardised and provided by open source or something?\"", "standing": "accepted" } },
+    { "name": "extension-outside-the-vendored-code", "title": "Extension outside the vendored code", "standing": "accepted", "reason": { "text": "\"this must be justified as additional drift as impossible to apply as an extension instead\".", "standing": "accepted" } },
+    { "name": "declared-not-bundled", "title": "Declared, not bundled", "standing": "proposed", "reason": { "text": "\"Do we still bundle Zod which means a Zod cve won't show up accurately?\"; \"Otherwise we ship as a peer dependency declaration only.\"", "standing": "accepted" } }
   ],
   "recordKinds": [
     { "name": "authorised-location", "title": "Authorised location", "phrase": "an authorised location", "todaysFormat": "authorised-location" },
@@ -78,14 +108,18 @@
     { "name": "boundary-record", "title": "Boundary record", "phrase": "a boundary record", "todaysFormat": "authorised-location" },
     { "name": "dependency-record", "title": "Dependency record", "phrase": "a dependency record", "todaysFormat": "none-yet" }
   ],
+  "engines": [
+    { "name": "walker", "mechanism": "audit" },
+    { "name": "eslint", "mechanism": "eslint" }
+  ],
   "symptoms": [
     {
       "name": "date-used-directly",
       "title": "Date used directly",
       "seen": "Any use of `Date` (`Date.now()`, `new Date()`, `new Date(value)`, `Date.parse`) or `performance.now()` outside the places that handle dates.",
       "mayIndicate": [
-        { "case": "Needs the current time", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the unit that should be passed the time, often a doer doing two jobs",
       "recipes": ["world-values-through-a-port"],
@@ -96,7 +130,7 @@
       "title": "Ambient randomness",
       "seen": "`Math.random()`, `crypto.randomUUID()` or `crypto.getRandomValues()` outside their adapter.",
       "mayIndicate": [
-        { "case": "Needs a random value or a new id", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] }
+        { "case": "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering", "points": [{ "rule": "ports-declared-inside" }, { "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the unit that should be passed the value, often a doer doing two jobs",
       "recipes": ["world-values-through-a-port"],
@@ -107,9 +141,9 @@
       "title": "Process global used in place",
       "seen": "`process.env`, `process.argv`, `process.exit`, `process.on`, `console.*` or `globalThis` read outside an adapter.",
       "mayIndicate": [
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
-        { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
-        { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }] }
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "causes-an-effect", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "builds-the-real-implementations", "points": [{ "rule": "ports-declared-inside" }] }
       ],
       "breachUsuallySits": "at a missing port, or at an adapter not built at the entry point",
       "recipes": ["world-values-through-a-port", "adapter-per-outside-party", "composition-root"],
@@ -120,8 +154,8 @@
       "title": "Outside import past a boundary",
       "seen": "An import, `import()` or `require` of an outside dependency or runtime module (`node:*`) in a file with no boundary record.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] },
-        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] },
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "rule": "ports-declared-inside" }] }
       ],
       "breachUsuallySits": "at a missing adapter and port",
       "recipes": ["adapter-per-outside-party", "port-in-the-domain"],
@@ -132,7 +166,7 @@
       "title": "Outside type in a signature",
       "seen": "A type from an outside dependency or runtime library in a business-logic parameter, field or return, imported or inferred.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "no-leak-across-a-boundary" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "no-leak-across-a-boundary" }] }
       ],
       "breachUsuallySits": "in the adapter that hands the outside type inward",
       "recipes": ["adapter-per-outside-party"],
@@ -143,8 +177,8 @@
       "title": "Library class built in place",
       "seen": "`new` on a class from an outside dependency, outside that dependency's adapter.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }] },
-        { "case": "Keeps state or settings across calls", "points": [{ "principle": "no-hidden-effects" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "outside-dependencies-stay-at-boundaries" }] },
+        { "case": "keeps-state-or-settings-across-calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
       "breachUsuallySits": "at a missing adapter",
       "recipes": ["adapter-per-outside-party", "closure-factory"],
@@ -155,10 +189,10 @@
       "title": "Text past its reader",
       "seen": "`JSON.parse`, `JSON.stringify` or a YAML parse or dump outside the adapter for whoever produced or receives the text, tests included.",
       "mayIndicate": [
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
-        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] },
-        { "case": "Uses a system or service outside the program", "points": [{ "principle": "external-behaviour-sits-at-a-boundary" }] },
-        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "sends-data-out-of-the-program", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "principle": "external-behaviour-sits-at-a-boundary" }] },
+        { "case": "states-what-the-unit-gives-back-for-one-case-or-several", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in a port that takes or gives text where it should carry objects",
       "recipes": ["adapter-per-outside-party", "map-out-at-the-adapter", "zod-at-the-producers-adapter", "whole-written-out-expectation"],
@@ -172,8 +206,8 @@
       "title": "Schema past its adapter",
       "seen": "A schema, a `.parse` call or a `z.infer` type outside the producer's adapter, or the same value parsed twice.",
       "mayIndicate": [
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
       "breachUsuallySits": "in the adapter, which hands the wire type inward instead of mapping it",
       "recipes": ["zod-at-the-producers-adapter"],
@@ -184,9 +218,9 @@
       "title": "Claimed type",
       "seen": "`as T` other than `as const`, `<T>x`, `x!` or `x!:`, including `as unknown` and any cast whose type holds `any`.",
       "mayIndicate": [
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
-        { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }] },
-        { "case": "Builds an input for a test with a cast", "points": [{ "rule": "handed-what-it-uses" }] }
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "checks-a-value-that-may-be-one-of-several-outcomes", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "gives-a-value-its-type", "situation": "in a test, a cast to build an input", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
       "breachUsuallySits": "in the declaration: an input too wide, a generic not bounded, a missing parse",
       "recipes": ["fix-the-declaration-not-the-value", "assert-to-narrow", "one-argument-object"],
@@ -197,8 +231,8 @@
       "title": "Untyped value",
       "seen": "`any` in a type position, or a `let` with no type and no initial value.",
       "mayIndicate": [
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
       "breachUsuallySits": "at the boundary that let an unknown shape in",
       "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
@@ -209,8 +243,8 @@
       "title": "Own type guard",
       "seen": "A function of ours whose return type is `x is T` or `asserts x is T`.",
       "mayIndicate": [
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
       "breachUsuallySits": "at a missing schema parse in the adapter, or in a declaration too wide",
       "recipes": ["zod-at-the-producers-adapter", "fix-the-declaration-not-the-value"],
@@ -221,8 +255,8 @@
       "title": "Type derived from code",
       "seen": "`ReturnType<typeof x>`, `Parameters<typeof x>` or `typeof x` used as a type of our own.",
       "mayIndicate": [
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] },
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] },
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the producer, which has no named type",
       "recipes": ["named-exported-type"],
@@ -233,7 +267,7 @@
       "title": "Strictness weakened",
       "seen": "A project whose resolved compiler options leave a strict flag off.",
       "mayIndicate": [
-        { "case": "Sets how strictly the checker works", "points": [{ "principle": "the-type-checker-proves-it" }] }
+        { "case": "sets-how-strictly-the-checker-works", "points": [{ "principle": "the-type-checker-proves-it" }] }
       ],
       "breachUsuallySits": "in the base config or the project that overrides it",
       "recipes": ["shared-strict-base-config"],
@@ -244,7 +278,7 @@
       "title": "Default on a closed union",
       "seen": "`default:` in a `switch` over a closed union.",
       "mayIndicate": [
-        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
+        { "case": "a-value-is-one-of-several-kinds-or-states", "points": [{ "rule": "kinds-are-named" }] }
       ],
       "breachUsuallySits": "in the switch",
       "recipes": ["tagged-union-and-exhaustive-switch"],
@@ -255,8 +289,8 @@
       "title": "Boolean in a signature",
       "seen": "A `boolean` parameter, field, or return that stands for a mode or state.",
       "mayIndicate": [
-        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "a-value-is-one-of-several-kinds-or-states", "points": [{ "rule": "kinds-are-named" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "at a missing named kind, or in a unit with two modes",
       "recipes": ["tagged-union-and-exhaustive-switch"],
@@ -267,8 +301,8 @@
       "title": "Absence standing for a state",
       "seen": "A field typed `T | null` or `T | undefined`, or optional, whose absence means a state rather than \"not given\".",
       "mayIndicate": [
-        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] },
-        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
+        { "case": "a-value-is-one-of-several-kinds-or-states", "points": [{ "rule": "kinds-are-named" }] },
+        { "case": "keeps-state-or-settings-across-calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
       "breachUsuallySits": "in the type, which needs named kinds",
       "recipes": ["tagged-union-and-exhaustive-switch"],
@@ -279,9 +313,9 @@
       "title": "Default for a required value",
       "seen": "`??`, `||` or a parameter default that supplies a required config, context or environment value.",
       "mayIndicate": [
-        { "case": "Reads data from outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
-        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+        { "case": "reads-data-from-outside", "points": [{ "principle": "no-leak-across-a-boundary" }] },
+        { "case": "an-operation-can-fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
       "breachUsuallySits": "in the declaration or the adapter: a missing value is a failure",
       "recipes": ["zod-at-the-producers-adapter", "bounded-context-generic"],
@@ -292,8 +326,8 @@
       "title": "Throw between our units",
       "seen": "`throw` outside an adapter whose caller's contract is exceptions.",
       "mayIndicate": [
-        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
-        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+        { "case": "an-operation-can-fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "sends-data-out-of-the-program", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
       "breachUsuallySits": "in the unit, or at a missing mapping in the adapter",
       "recipes": ["result-union", "failure-mapping-at-the-adapter"],
@@ -304,7 +338,7 @@
       "title": "Thrown non-error",
       "seen": "`throw` of a literal, an object or a template.",
       "mayIndicate": [
-        { "case": "Sends data out", "points": [{ "principle": "no-leak-across-a-boundary" }] }
+        { "case": "sends-data-out-of-the-program", "points": [{ "principle": "no-leak-across-a-boundary" }] }
       ],
       "breachUsuallySits": "at the throw site",
       "recipes": ["failure-mapping-at-the-adapter"],
@@ -315,7 +349,7 @@
       "title": "Failure shaped as success",
       "seen": "A failed path that returns `null`, `false`, `[]`, `undefined` or a default, or a `catch` that returns one.",
       "mayIndicate": [
-        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
+        { "case": "an-operation-can-fail", "points": [{ "rule": "failures-are-values" }] }
       ],
       "breachUsuallySits": "in the unit's return type",
       "recipes": ["result-union"],
@@ -326,8 +360,8 @@
       "title": "Catch-all failure kind",
       "seen": "A failure variant such as `unknown`, `other` or a bare message string, carrying no named cause.",
       "mayIndicate": [
-        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] },
-        { "case": "A value is one of several kinds", "points": [{ "rule": "kinds-are-named" }] }
+        { "case": "an-operation-can-fail", "points": [{ "rule": "failures-are-values" }] },
+        { "case": "a-value-is-one-of-several-kinds-or-states", "points": [{ "rule": "kinds-are-named" }] }
       ],
       "breachUsuallySits": "in the adapter, which did not name the outside failure",
       "recipes": ["result-union", "failure-mapping-at-the-adapter"],
@@ -338,9 +372,9 @@
       "title": "Loop keyword",
       "seen": "`for`, `for…of`, `for…in`, `for await`, `while` or `do`.",
       "mayIndicate": [
-        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] },
-        { "case": "Causes an effect", "points": [{ "rule": "ports-declared-inside" }] },
-        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "makes-a-new-value-from-what-it-has", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "causes-an-effect", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "coordinates-other-units", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the unit",
       "recipes": ["functional-iteration"],
@@ -351,7 +385,7 @@
       "title": "Write into a parameter",
       "seen": "Assigning to or deleting a parameter's field, or calling an in-place method (`push`, `sort`, `splice`) on a parameter.",
       "mayIndicate": [
-        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] }
+        { "case": "makes-a-new-value-from-what-it-has", "points": [{ "principle": "no-hidden-effects" }] }
       ],
       "breachUsuallySits": "in the unit",
       "recipes": ["copy-never-write-in"],
@@ -362,8 +396,8 @@
       "title": "Rebinding",
       "seen": "A `let` assigned again, or a parameter reassigned, incremented or destructured into.",
       "mayIndicate": [
-        { "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "makes-a-new-value-from-what-it-has", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the unit: no caller sees it, so on its own it shows no hidden effect, but it is suspect for work done inline in steps",
       "recipes": ["copy-never-write-in", "functional-iteration"],
@@ -374,9 +408,9 @@
       "title": "Authored class or this",
       "seen": "The `class` keyword in our code, `static`-only classes included, or `this` read outside a class.",
       "mayIndicate": [
-        { "case": "Keeps state or settings across calls", "points": [{ "principle": "no-hidden-effects" }] },
-        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "declared-not-asserted" }] }
+        { "case": "keeps-state-or-settings-across-calls", "points": [{ "principle": "no-hidden-effects" }] },
+        { "case": "reuses-behaviour-from-another-unit-or-type", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "declared-not-asserted" }] }
       ],
       "breachUsuallySits": "in the unit",
       "recipes": ["closure-factory"],
@@ -387,7 +421,7 @@
       "title": "Module-level state",
       "seen": "A module-scope `let`, or a module-scope collection that functions change.",
       "mayIndicate": [
-        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
+        { "case": "keeps-state-or-settings-across-calls", "points": [{ "principle": "no-hidden-effects" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
       ],
       "breachUsuallySits": "at a missing adapter for the state",
       "recipes": ["closure-factory"],
@@ -398,12 +432,12 @@
       "title": "Long function",
       "seen": "A function body over the line limit.",
       "mayIndicate": [
-        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
-        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
-        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
-        { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
+        { "case": "coordinates-other-units", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "checks-conditions-before-its-work", "points": [{ "rule": "guard-first" }] },
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
+        { "case": "names-something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named",
       "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
@@ -414,12 +448,12 @@
       "title": "Tangled function",
       "seen": "A function over the cognitive-complexity limit.",
       "mayIndicate": [
-        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
-        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
-        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
-        { "case": "Names something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
+        { "case": "coordinates-other-units", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "checks-conditions-before-its-work", "points": [{ "rule": "guard-first" }] },
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] },
+        { "case": "names-something", "points": [{ "rule": "one-reason-per-module" }, { "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named",
       "recipes": ["composed-orchestrator", "guard-clauses", "one-argument-object"],
@@ -430,8 +464,8 @@
       "title": "Work inside a condition",
       "seen": "An `if` inside another `if`, or an `else` after a branch that always exits.",
       "mayIndicate": [
-        { "case": "Checks conditions", "points": [{ "rule": "guard-first" }] },
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "checks-conditions-before-its-work", "points": [{ "rule": "guard-first" }] },
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the unit's questions",
       "recipes": ["guard-clauses"],
@@ -442,7 +476,7 @@
       "title": "Orchestrator that computes",
       "seen": "A function that calls two or more units of ours and also branches, computes or reshapes between the calls.",
       "mayIndicate": [
-        { "case": "Coordinates other units", "points": [{ "rule": "doer-or-orchestrator" }] }
+        { "case": "coordinates-other-units", "points": [{ "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the orchestrator",
       "recipes": ["composed-orchestrator"],
@@ -453,8 +487,8 @@
       "title": "Doer calling our own unit",
       "seen": "A function with logic that imports and calls a business-logic unit of ours that is not a port.",
       "mayIndicate": [
-        { "case": "Does one job", "points": [{ "rule": "doer-or-orchestrator" }] },
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+        { "case": "does-one-job", "points": [{ "rule": "doer-or-orchestrator" }] },
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the unit, which mixes two roles",
       "recipes": ["composed-orchestrator", "ports-in-the-argument"],
@@ -465,8 +499,8 @@
       "title": "Positional parameters",
       "seen": "A function of ours, whose shape no outside API fixes, that has two or more parameters.",
       "mayIndicate": [
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] },
-        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] },
+        { "case": "does-one-job", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
       "breachUsuallySits": "in the signature",
       "recipes": ["one-argument-object"],
@@ -477,7 +511,7 @@
       "title": "Tuple as data",
       "seen": "An array literal or type of fixed mixed positions used as a value, such as `[key, value]` pairs or `pair[1]`.",
       "mayIndicate": [
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the data's type",
       "recipes": ["one-argument-object"],
@@ -488,8 +522,8 @@
       "title": "Wide input",
       "seen": "A parameter type holding fields the unit never reads.",
       "mayIndicate": [
-        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] },
-        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] }
+        { "case": "does-one-job", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
       "breachUsuallySits": "in the unit's declared input",
       "recipes": ["one-argument-object", "entity-module"],
@@ -500,7 +534,7 @@
       "title": "Wide port",
       "seen": "A port with methods its consumer never calls.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "handed-what-it-uses" }, { "rule": "ports-declared-inside" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "handed-what-it-uses" }, { "rule": "ports-declared-inside" }] }
       ],
       "breachUsuallySits": "in the port",
       "recipes": ["narrow-ports"],
@@ -511,7 +545,7 @@
       "title": "Inner layer imports outer",
       "seen": "A domain or business-logic file that imports an adapter or infrastructure file.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "ports-declared-inside" }, { "rule": "outside-dependencies-stay-at-boundaries" }, { "principle": "external-behaviour-sits-at-a-boundary" }] }
       ],
       "breachUsuallySits": "in the import, or in a port declared on the wrong side",
       "recipes": ["port-in-the-domain"],
@@ -522,7 +556,7 @@
       "title": "Port outside the domain",
       "seen": "A port interface declared in an adapter's module, or beside its default adapter.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "ports-declared-inside" }] }
       ],
       "breachUsuallySits": "in the port's file",
       "recipes": ["port-in-the-domain"],
@@ -533,7 +567,7 @@
       "title": "Adapter built outside the root",
       "seen": "A call to an adapter's factory anywhere but the entry point.",
       "mayIndicate": [
-        { "case": "Builds the real implementations", "points": [{ "rule": "ports-declared-inside" }, { "rule": "doer-or-orchestrator" }] }
+        { "case": "builds-the-real-implementations", "points": [{ "rule": "ports-declared-inside" }, { "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in the calling unit, which builds what it should be passed",
       "recipes": ["composition-root"],
@@ -544,8 +578,8 @@
       "title": "Port named for a mechanism",
       "seen": "A port named for a technology (`HttpClient`, `Fs`, `Sqlite`) rather than a capability.",
       "mayIndicate": [
-        { "case": "Uses a system or service outside the program", "points": [{ "rule": "ports-declared-inside" }] },
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "uses-a-system-or-service-outside-the-program", "points": [{ "rule": "ports-declared-inside" }] },
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the port",
       "recipes": ["port-in-the-domain"],
@@ -556,7 +590,7 @@
       "title": "Double with a body",
       "seen": "A double that has a function body at all: `vi.fn(impl)`, `mockImplementation`, or a hand-written function or object double. A body that only returns a value is included.",
       "mayIndicate": [
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "handed-what-it-uses" }, { "rule": "doer-or-orchestrator" }] }
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }, { "rule": "handed-what-it-uses" }, { "rule": "doer-or-orchestrator" }] }
       ],
       "breachUsuallySits": "in a port too wide, or in a collaborator holding two decisions",
       "recipes": ["stub-with-vifn"],
@@ -567,7 +601,7 @@
       "title": "Module or global patched",
       "seen": "`vi.mock`, `vi.stubGlobal`, a spy on a global, or `process.env` set in a test.",
       "mayIndicate": [
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }, { "rule": "ports-declared-inside" }] }
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }, { "rule": "ports-declared-inside" }] }
       ],
       "breachUsuallySits": "in the unit, which imports what it should be passed",
       "recipes": ["ports-in-the-argument"],
@@ -578,7 +612,7 @@
       "title": "Branch in a test",
       "seen": "`if`, a ternary, `&&`, `||`, `??`, `?.` or `switch` in a test file.",
       "mayIndicate": [
-        { "case": "Checks a value that may be one of several outcomes", "points": [{ "rule": "straight-through-tests" }, { "rule": "kinds-are-named" }, { "rule": "failures-are-values" }] }
+        { "case": "checks-a-value-that-may-be-one-of-several-outcomes", "points": [{ "rule": "straight-through-tests" }, { "rule": "kinds-are-named" }, { "rule": "failures-are-values" }] }
       ],
       "breachUsuallySits": "in the unit's output type, where optional or loose shapes force the test to branch",
       "recipes": ["assert-to-narrow", "iteach-over-typed-rows"],
@@ -589,7 +623,7 @@
       "title": "Computed value in a test",
       "seen": "A test that builds or picks a value: array methods, `find`, `Math.*`, `Object.assign`, `Object.fromEntries`, `Array.from` or a spread over a list. Calls on the unit's own API are not included.",
       "mayIndicate": [
-        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
+        { "case": "states-what-the-unit-gives-back-for-one-case-or-several", "points": [{ "rule": "straight-through-tests" }, { "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the test, or in logic no unit owns",
       "recipes": ["whole-written-out-expectation", "iteach-over-typed-rows"],
@@ -600,8 +634,8 @@
       "title": "Throw or catch in a test",
       "seen": "`throw`, `try` or `catch` in a test file.",
       "mayIndicate": [
-        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }] },
-        { "case": "An operation can fail", "points": [{ "rule": "failures-are-values" }] }
+        { "case": "states-what-the-unit-gives-back-for-one-case-or-several", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "an-operation-can-fail", "points": [{ "rule": "failures-are-values" }] }
       ],
       "breachUsuallySits": "in the unit, which throws",
       "recipes": ["failure-asserted-as-a-value"],
@@ -612,7 +646,7 @@
       "title": "Unasserted call",
       "seen": "A stub or spy passed to the unit whose calls the test never asserts.",
       "mayIndicate": [
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the test",
       "recipes": ["stub-with-vifn"],
@@ -623,9 +657,9 @@
       "title": "Answer set in a hook",
       "seen": "A test hook that gives a stub its answer (`mockReturnValue`, `mockResolvedValue`, `mockImplementation`) or reassigns a value the tests read. A plain reset in `afterEach` is not this symptom.",
       "mayIndicate": [
-        { "case": "States what the unit gives back", "points": [{ "rule": "straight-through-tests" }] },
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] },
-        { "case": "Keeps state across calls", "points": [{ "principle": "no-hidden-effects" }] }
+        { "case": "states-what-the-unit-gives-back-for-one-case-or-several", "points": [{ "rule": "straight-through-tests" }] },
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }] },
+        { "case": "keeps-state-or-settings-across-calls", "points": [{ "principle": "no-hidden-effects" }] }
       ],
       "breachUsuallySits": "in a double or a value shared across tests at file or suite scope, or in state held in the unit's module",
       "recipes": ["stub-with-vifn"],
@@ -636,7 +670,7 @@
       "title": "Test switched off",
       "seen": "`.only`, `.skip`, `fit` or `xit`.",
       "mayIndicate": [
-        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+        { "case": "gives-each-unit-its-test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
       "breachUsuallySits": "in the test file",
       "recipes": [],
@@ -647,7 +681,7 @@
       "title": "Unit without a running test",
       "seen": "A file with a runtime export and no `name.test.ts` beside it that imports and runs it.",
       "mayIndicate": [
-        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+        { "case": "gives-each-unit-its-test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
       "breachUsuallySits": "in the missing test",
       "recipes": ["companion-test-file"],
@@ -658,8 +692,8 @@
       "title": "Machine touched in a unit test",
       "seen": "A unit test that reads or writes files, spawns a process, opens a socket or makes a temp directory.",
       "mayIndicate": [
-        { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] },
-        { "case": "Uses what a collaborator gives back", "points": [{ "rule": "written-out-answers" }] }
+        { "case": "tests-across-units-or-against-a-real-system", "points": [{ "rule": "tested-where-its-owned" }] },
+        { "case": "uses-what-a-collaborator-gives-back", "points": [{ "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the unit, which has no port, or in a test that is an integration test misnamed",
       "recipes": ["integration-test-owns-its-scratch", "integration-test-suffix", "ports-in-the-argument"],
@@ -670,7 +704,7 @@
       "title": "Inherited environment in a subprocess",
       "seen": "A process spawned in a test with no explicit environment, or one built from `process.env`.",
       "mayIndicate": [
-        { "case": "Tests across units or against a real system", "points": [{ "rule": "tested-where-its-owned" }] }
+        { "case": "tests-across-units-or-against-a-real-system", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
       "breachUsuallySits": "at the spawn site",
       "recipes": ["integration-test-owns-its-scratch"],
@@ -681,8 +715,8 @@
       "title": "Behaviour tested away from its owner",
       "seen": "A unit test that asserts what a collaborator does, or an integration test that pins a rule a unit owns.",
       "mayIndicate": [
-        { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] },
-        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] }
+        { "case": "tests-across-units-or-against-a-real-system", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] },
+        { "case": "gives-each-unit-its-test", "points": [{ "rule": "tested-where-its-owned" }, { "rule": "written-out-answers" }] }
       ],
       "breachUsuallySits": "in the level the test is written at",
       "recipes": ["companion-test-file", "integration-test-suffix"],
@@ -693,7 +727,7 @@
       "title": "Integration-heavy suite",
       "seen": "More integration tests, or more integration test cases, than the bindings to the outside they cover.",
       "mayIndicate": [
-        { "case": "Tests across units", "points": [{ "rule": "tested-where-its-owned" }] }
+        { "case": "tests-across-units-or-against-a-real-system", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
       "breachUsuallySits": "in missing unit tests and ports",
       "recipes": ["integration-test-suffix", "companion-test-file"],
@@ -704,7 +738,7 @@
       "title": "Coverage gate",
       "seen": "A coverage percentage threshold in test config.",
       "mayIndicate": [
-        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }] }
+        { "case": "gives-each-unit-its-test", "points": [{ "rule": "tested-where-its-owned" }] }
       ],
       "breachUsuallySits": "in the config",
       "recipes": ["companion-test-file"],
@@ -715,8 +749,8 @@
       "title": "Large input for a few fields",
       "seen": "A test that writes a large object, or casts, to give the unit the few fields it reads.",
       "mayIndicate": [
-        { "case": "Gives a value its type", "points": [{ "rule": "handed-what-it-uses" }] },
-        { "case": "Does one job", "points": [{ "rule": "handed-what-it-uses" }] }
+        { "case": "gives-a-value-its-type", "points": [{ "rule": "handed-what-it-uses" }] },
+        { "case": "does-one-job", "points": [{ "rule": "handed-what-it-uses" }] }
       ],
       "breachUsuallySits": "in the unit's declared input",
       "recipes": ["one-argument-object"],
@@ -727,7 +761,7 @@
       "title": "Test of the type checker",
       "seen": "A test that asserts only what the types already prove, such as exhaustiveness.",
       "mayIndicate": [
-        { "case": "Gives each unit its test", "points": [{ "rule": "tested-where-its-owned" }, { "principle": "the-type-checker-proves-it" }] }
+        { "case": "gives-each-unit-its-test", "points": [{ "rule": "tested-where-its-owned" }, { "principle": "the-type-checker-proves-it" }] }
       ],
       "breachUsuallySits": "in the test",
       "recipes": [],
@@ -738,7 +772,7 @@
       "title": "Shorthand name",
       "seen": "A name of single letters, an abbreviation or a filler word (`data`, `result`, `options`, `tx`), at any scope.",
       "mayIndicate": [
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the name",
       "recipes": ["whole-words"],
@@ -749,7 +783,7 @@
       "title": "Name off its casing",
       "seen": "An identifier or file name outside the adopter's casing convention.",
       "mayIndicate": [
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the name",
       "recipes": [],
@@ -760,7 +794,7 @@
       "title": "Drawer path",
       "seen": "A file or folder named utils, helpers, types, common, shared or the like.",
       "mayIndicate": [
-        { "case": "Puts code in a file or folder", "points": [{ "rule": "one-reason-per-module" }] }
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }] }
       ],
       "breachUsuallySits": "in the module's contents",
       "recipes": ["screaming-folders"],
@@ -771,8 +805,8 @@
       "title": "Types-only file",
       "seen": "A file that declares only types and is not a port declaration.",
       "mayIndicate": [
-        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] },
-        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] }
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "reuses-behaviour-from-another-unit-or-type", "points": [{ "rule": "one-reason-per-module" }] }
       ],
       "breachUsuallySits": "in the entity's module",
       "recipes": ["entity-module"],
@@ -783,7 +817,7 @@
       "title": "Prose in code",
       "seen": "Any comment or JSDoc other than a tracked pointer or a covered tool directive.",
       "mayIndicate": [
-        { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "explains-something-in-prose", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in a name or type that does not carry the meaning",
       "recipes": ["meaning-in-names-not-comments"],
@@ -794,7 +828,7 @@
       "title": "Untracked escape",
       "seen": "A TODO, linter directive or `@ts-*` directive with no tracked reference and no record.",
       "mayIndicate": [
-        { "case": "Explains something in prose", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "explains-something-in-prose", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the record that is missing, and in whatever rule the directive switches off",
       "recipes": ["meaning-in-names-not-comments"],
@@ -805,7 +839,7 @@
       "title": "Many spellings of one concept",
       "seen": "One domain concept named two or more ways across the code or the wire.",
       "mayIndicate": [
-        { "case": "Names something", "points": [{ "rule": "one-word-everywhere" }] }
+        { "case": "names-something", "points": [{ "rule": "one-word-everywhere" }] }
       ],
       "breachUsuallySits": "in the vocabulary",
       "recipes": ["domain-vocabulary-list"],
@@ -816,8 +850,8 @@
       "title": "Outside dependency vocabulary for basic logic",
       "seen": "An import of a utility or functional outside dependency (lodash, fp-ts) for branching, matching, transforming or results.",
       "mayIndicate": [
-        { "case": "Writes basic logic", "points": [{ "principle": "our-code-reads-in-the-common-language" }] },
-        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
+        { "case": "writes-basic-logic", "points": [{ "principle": "our-code-reads-in-the-common-language" }] },
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
       ],
       "breachUsuallySits": "in the dependency",
       "recipes": [],
@@ -828,8 +862,8 @@
       "title": "Duplicate decision",
       "seen": "The same decision written in two or more places.",
       "mayIndicate": [
-        { "case": "Reuses behaviour", "points": [{ "rule": "one-reason-per-module" }] },
-        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
+        { "case": "reuses-behaviour-from-another-unit-or-type", "points": [{ "rule": "one-reason-per-module" }] },
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }] }
       ],
       "breachUsuallySits": "where the decision's home should be; a clone only surfaces a candidate",
       "recipes": ["entity-module", "screaming-folders"],
@@ -840,7 +874,7 @@
       "title": "Change spread across modules",
       "seen": "One change for one reason touches many modules, or two modules always change together.",
       "mayIndicate": [
-        { "case": "Puts code in a file", "points": [{ "rule": "one-reason-per-module" }] }
+        { "case": "puts-code-in-a-file-or-folder", "points": [{ "rule": "one-reason-per-module" }] }
       ],
       "breachUsuallySits": "in the module boundaries",
       "recipes": ["screaming-folders"],
@@ -851,7 +885,7 @@
       "title": "Floating version",
       "seen": "A range (`^`, `~`, `*`, `x`) or a tag (`latest`, `lts`) for an outside dependency, a runtime or a CI action.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "fixed-versions" }] }
       ],
       "breachUsuallySits": "in the manifest or workflow",
       "recipes": ["exact-pins-and-a-lock-file"],
@@ -862,7 +896,7 @@
       "title": "No lock file",
       "seen": "A repository with dependencies and no committed lock file.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "fixed-versions" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "fixed-versions" }] }
       ],
       "breachUsuallySits": "in the repository",
       "recipes": ["exact-pins-and-a-lock-file"],
@@ -873,7 +907,7 @@
       "title": "Dependency without a record",
       "seen": "A direct dependency, tools included, with no record of the native way weighed.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "outside-dependencies-justified" }] }
       ],
       "breachUsuallySits": "in the missing record",
       "recipes": ["dependency-record"],
@@ -884,7 +918,7 @@
       "title": "Tool fetched at run time",
       "seen": "`npx`, `dlx`, `bunx` or a download-and-run in a script, CI step or doc.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "tools-live-in-the-repo" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "tools-live-in-the-repo" }] }
       ],
       "breachUsuallySits": "in the script",
       "recipes": ["repo-scripts-only"],
@@ -895,7 +929,7 @@
       "title": "Edit inside vendored code",
       "seen": "A change to a file inside a vendored folder.",
       "mayIndicate": [
-        { "case": "Takes an outside dependency", "points": [{ "rule": "upstream-stays-untouched" }] }
+        { "case": "takes-an-outside-dependency", "points": [{ "rule": "upstream-stays-untouched" }] }
       ],
       "breachUsuallySits": "in the change",
       "recipes": ["extension-outside-the-vendored-code"],
@@ -906,7 +940,7 @@
       "title": "Bundled dependency",
       "seen": "Published build output that holds a dependency's code that the package manifest does not declare.",
       "mayIndicate": [
-        { "case": "Ships code for others", "points": [{ "rule": "shipped-risk-declared" }] }
+        { "case": "ships-code-for-others", "points": [{ "rule": "shipped-risk-declared" }] }
       ],
       "breachUsuallySits": "in the build config",
       "recipes": ["declared-not-bundled"],
@@ -1001,5 +1035,53 @@
     { "clause": "CD-44#parameter-reassignment", "sight": { "kind": "one-symptom", "symptom": "rebinding" } },
     { "clause": "CD-45#parse-once", "sight": { "kind": "one-symptom", "symptom": "schema-past-its-adapter" } },
     { "clause": "CD-47#hermetic-git-spawns", "sight": { "kind": "one-symptom", "symptom": "inherited-environment-in-a-subprocess" } }
-  ]
+  ],
+  "checks": [
+    { "symptom": "claimed-type", "name": "cast-to-any", "clause": "CD-1#any-cast", "engines": ["walker"] },
+    { "symptom": "untyped-value", "name": "explicit-any", "clause": "CD-1#explicit-any", "engines": ["eslint"] },
+    { "symptom": "untyped-value", "name": "implicit-any-let", "clause": "CD-1#implicit-any-let", "engines": ["eslint"] },
+    { "symptom": "claimed-type", "name": "unlisted-cast-site", "clause": "CD-2#cast-expressions", "engines": ["walker"] },
+    { "symptom": "claimed-type", "name": "non-null-assertions", "clause": "CD-2#non-null-assertions", "engines": ["eslint"] },
+    { "symptom": "strictness-weakened", "name": "strict", "clause": "CD-3#strict", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "no-unchecked-indexed-access", "clause": "CD-3#no-unchecked-indexed-access", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "exact-optional-property-types", "clause": "CD-3#exact-optional-property-types", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "no-implicit-override", "clause": "CD-3#no-implicit-override", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "no-fallthrough-cases-in-switch", "clause": "CD-3#no-fallthrough-cases-in-switch", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "no-property-access-from-index-signature", "clause": "CD-3#no-property-access-from-index-signature", "engines": ["walker"] },
+    { "symptom": "strictness-weakened", "name": "use-unknown-in-catch-variables", "clause": "CD-3#use-unknown-in-catch-variables", "engines": ["walker"] },
+    { "symptom": "untracked-escape", "name": "directive-pointers", "clause": "CD-5#comments-directives", "engines": ["walker"] },
+    { "symptom": "shorthand-name", "name": "identifier-names", "clause": "CD-6#identifier-names", "engines": ["walker"] },
+    { "symptom": "name-off-its-casing", "name": "naming-convention", "clause": "CD-6#naming-convention", "engines": ["eslint"] },
+    { "symptom": "drawer-path", "name": "drawer-names", "clause": "CD-7#categorical-paths", "engines": ["walker"] },
+    { "symptom": "name-off-its-casing", "name": "filename-case", "clause": "CD-7#filename-case", "engines": ["eslint"] },
+    { "symptom": "type-derived-from-code", "name": "factory-return-types", "clause": "CD-7a#factory-return-types", "engines": ["walker"] },
+    { "symptom": "default-on-a-closed-union", "name": "default-arm", "clause": "CD-8#switch-defaults", "engines": ["walker"] },
+    { "symptom": "throw-or-catch-in-a-test", "name": "throw-statement", "clause": "CD-10#throws-in-tests", "engines": ["walker"] },
+    { "symptom": "thrown-non-error", "name": "throw-only-error", "clause": "CD-10#throw-only-error", "engines": ["eslint"] },
+    { "symptom": "authored-class-or-this", "name": "class-keyword", "clause": "CD-14#class-syntax", "engines": ["walker", "eslint"] },
+    { "symptom": "authored-class-or-this", "name": "static-members-only", "clause": "CD-14#static-only-class", "engines": ["eslint"] },
+    { "symptom": "loop-keyword", "name": "loop-statement", "clause": "CD-15#loops", "engines": ["walker"] },
+    { "symptom": "date-used-directly", "name": "clock-sources", "clause": "CD-17#clock-sources", "engines": ["walker"] },
+    { "symptom": "outside-import-past-a-boundary", "name": "import-or-require", "clause": "CD-19#import-boundaries", "engines": ["walker"] },
+    { "symptom": "unit-without-a-running-test", "name": "companion-test-file", "clause": "CD-23#export-test-sibling", "engines": ["walker"] },
+    { "symptom": "double-with-a-body", "name": "stub-implementation", "clause": "CD-25#dependency-isolation", "engines": ["walker"] },
+    { "symptom": "module-or-global-patched", "name": "module-mock-call", "clause": "CD-26#module-mocking", "engines": ["walker"] },
+    { "symptom": "branch-in-a-test", "name": "test-body", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "throw-or-catch-in-a-test", "name": "try-block", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "rebinding", "name": "test-body", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "computed-value-in-a-test", "name": "test-body", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "text-past-its-reader", "name": "test-body", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "double-with-a-body", "name": "logic-in-a-passed-function", "clause": "CD-27#test-body-logic", "engines": ["walker"] },
+    { "symptom": "test-switched-off", "name": "focused-tests", "clause": "CD-27#focused-tests", "engines": ["eslint"] },
+    { "symptom": "test-switched-off", "name": "skipped-tests", "clause": "CD-27#skipped-tests", "engines": ["eslint"] },
+    { "symptom": "positional-parameters", "name": "parameter-count", "clause": "CD-40#parameter-count", "engines": ["eslint"] },
+    { "symptom": "tangled-function", "name": "cognitive-complexity", "clause": "CD-41#cognitive-complexity", "engines": ["eslint"] },
+    { "symptom": "long-function", "name": "function-length", "clause": "CD-41#function-length", "engines": ["eslint"] },
+    { "symptom": "work-inside-a-condition", "name": "else-after-an-exit", "clause": "CD-42#useless-else", "engines": ["eslint"] },
+    { "symptom": "boolean-in-a-signature", "name": "boolean-annotation", "clause": "CD-43#boolean-signatures", "engines": ["walker"] },
+    { "symptom": "write-into-a-parameter", "name": "parameter-mutation", "clause": "CD-44#parameter-mutation", "engines": ["walker"] },
+    { "symptom": "rebinding", "name": "parameter-reassignment", "clause": "CD-44#parameter-reassignment", "engines": ["eslint"] },
+    { "symptom": "inherited-environment-in-a-subprocess", "name": "git-spawn-environment", "clause": "CD-47#hermetic-git-spawns", "engines": ["walker"] }
+  ],
+  "namedBans": [{ "outsideDependency": "lodash" }]
 }

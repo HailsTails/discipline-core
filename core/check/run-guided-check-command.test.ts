@@ -45,11 +45,15 @@ const GUIDE: SymptomGuide = {
   catalogue: {
     principles: [],
     rules: [],
+    cases: [],
     recipes: [],
     recordKinds: [AUTHORISED_LOCATION, DEBT],
     alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    engines: [],
     symptoms: [],
     clauses: [],
+    checks: [],
+    namedBans: [],
   },
   page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md",
 };

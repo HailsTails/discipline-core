@@ -3,8 +3,9 @@ import type { FilePresence, FileTextPort } from "../platform-ports/file-text-por
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
+import { mechanismIdSchema } from "../values/identifiers.ts";
 import { createSymptomCatalogueRepository, SYMPTOM_CATALOGUE_SEGMENTS } from "./read-symptom-catalogue.ts";
-import type { Principle, RecordKind, Symptom } from "./symptom-catalogue.ts";
+import type { Case, Engine, Principle, RecordKind, Symptom } from "./symptom-catalogue.ts";
 
 const RULE_SET_ROOT = absolutePathSchema.parse("/install");
 
@@ -14,23 +15,27 @@ const CATALOGUE_TEXT = `{
   "version": 1,
   "principles": [{ "name": "no-hidden-effects", "title": "No hidden effects" }],
   "rules": [],
+  "cases": [{ "name": "makes-a-new-value-from-what-it-has", "title": "Makes a new value from what it has", "standing": "accepted", "owes": [{ "principle": "no-hidden-effects" }] }],
   "recipes": [],
   "recordKinds": [
     { "name": "authorised-location", "title": "Authorised location", "phrase": "an authorised location", "todaysFormat": "authorised-location" },
     { "name": "debt", "title": "Debt", "phrase": "debt", "todaysFormat": "file-carve-out" }
   ],
+  "engines": [{ "name": "eslint", "mechanism": "eslint" }],
   "symptoms": [
     {
       "name": "rebinding",
       "title": "Rebinding",
       "seen": "A \`let\` assigned again.",
-      "mayIndicate": [{ "case": "Makes a new value", "points": [{ "principle": "no-hidden-effects" }] }],
+      "mayIndicate": [{ "case": "makes-a-new-value-from-what-it-has", "points": [{ "principle": "no-hidden-effects" }] }],
       "breachUsuallySits": "in the unit",
       "recipes": [],
       "correctUses": []
     }
   ],
-  "clauses": [{ "clause": "CD-44#parameter-reassignment", "sight": { "kind": "one-symptom", "symptom": "rebinding" } }]
+  "clauses": [{ "clause": "CD-44#parameter-reassignment", "sight": { "kind": "one-symptom", "symptom": "rebinding" } }],
+  "checks": [{ "symptom": "rebinding", "name": "parameter-reassignment", "clause": "CD-44#parameter-reassignment", "engines": ["eslint"] }],
+  "namedBans": []
 }`;
 
 const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
@@ -44,11 +49,22 @@ const AUTHORISED_LOCATION: RecordKind = {
 
 const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
+const MAKES_A_NEW_VALUE: Case = {
+  name: "makes-a-new-value-from-what-it-has",
+  title: "Makes a new value from what it has",
+  standing: "accepted",
+  owes: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }],
+};
+
+const ESLINT: Engine = { name: "eslint", mechanism: mechanismIdSchema.parse("eslint") };
+
+const PARAMETER_REASSIGNMENT = clauseAddressSchema.parse("CD-44#parameter-reassignment");
+
 const REBINDING: Symptom = {
   name: "rebinding",
   title: "Rebinding",
   seen: "A `let` assigned again.",
-  mayIndicate: [{ case: "Makes a new value", points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] }],
+  mayIndicate: [{ case: MAKES_A_NEW_VALUE, points: [{ kind: "principle", principle: NO_HIDDEN_EFFECTS }] }],
   breachUsuallySits: "in the unit",
   recipes: [],
   correctUses: [],
@@ -81,11 +97,15 @@ describe("createSymptomCatalogueRepository", () => {
         catalogue: {
           principles: [NO_HIDDEN_EFFECTS],
           rules: [],
+          cases: [MAKES_A_NEW_VALUE],
           recipes: [],
           recordKinds: [AUTHORISED_LOCATION, DEBT],
           alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+          engines: [ESLINT],
           symptoms: [REBINDING],
-          clauses: [{ clause: clauseAddressSchema.parse("CD-44#parameter-reassignment"), sight: { kind: "one-symptom", symptom: REBINDING } }],
+          clauses: [{ clause: PARAMETER_REASSIGNMENT, sight: { kind: "one-symptom", symptom: REBINDING } }],
+          checks: [{ name: "parameter-reassignment", symptom: REBINDING, clause: PARAMETER_REASSIGNMENT, engines: [ESLINT], forms: [] }],
+          namedBans: [],
         },
       },
     });
@@ -135,7 +155,7 @@ describe("createSymptomCatalogueRepository", () => {
       read: {
         outcome: "ok",
         value:
-          '{ "version": 1, "principles": [], "rules": [], "recipes": [], "recordKinds": [{ "name": "authorised-location", "title": "Authorised location", "phrase": "an authorised location", "todaysFormat": "authorised-location" }, { "name": "debt", "title": "Debt", "phrase": "debt", "todaysFormat": "file-carve-out" }], "symptoms": [], "clauses": [{ "clause": "CD-15#loops", "sight": { "kind": "one-symptom", "symptom": "loop-keyword" } }] }',
+          '{ "version": 1, "principles": [], "rules": [], "cases": [], "recipes": [], "recordKinds": [{ "name": "authorised-location", "title": "Authorised location", "phrase": "an authorised location", "todaysFormat": "authorised-location" }, { "name": "debt", "title": "Debt", "phrase": "debt", "todaysFormat": "file-carve-out" }], "engines": [], "symptoms": [], "clauses": [{ "clause": "CD-15#loops", "sight": { "kind": "one-symptom", "symptom": "loop-keyword" } }], "checks": [], "namedBans": [] }',
       },
     });
     expect(createSymptomCatalogueRepository({ fileText, path: pathJoiningTo(CATALOGUE_PATH), ruleSetRoot: RULE_SET_ROOT }).read({})).toEqual({

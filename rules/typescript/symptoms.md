@@ -26,7 +26,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Date used directly
 
 - **Seen:** Any use of `Date` (`Date.now()`, `new Date()`, `new Date(value)`, `Date.parse`) or `performance.now()` outside the places that handle dates.
-- **May indicate:** Needs the current time → Ports declared inside; Written-out answers. Does one job → Doer or orchestrator ("Dating and numbering an order is not the same job as charging it").
+- **May indicate:** Needs the current time, a random value, a new id or an outside ordering → Ports declared inside; Written-out answers. Does one job → Doer or orchestrator ("Dating and numbering an order is not the same job as charging it").
 - **Breach usually sits:** In the unit that should be passed the time; often a doer doing two jobs. Correct use: boundary record on the clock adapter.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -34,7 +34,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Ambient randomness
 
 - **Seen:** `Math.random()`, `crypto.randomUUID()` or `crypto.getRandomValues()` outside their adapter.
-- **May indicate:** Needs a random value or a new id → Ports declared inside; Written-out answers.
+- **May indicate:** Needs the current time, a random value, a new id or an outside ordering → Ports declared inside; Written-out answers.
 - **Breach usually sits:** In the unit that should be passed the value. Correct use: boundary record.
 - **Seen by:** syntax.
 - **Check today:** new.
@@ -42,7 +42,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Process global used in place
 
 - **Seen:** `process.env`, `process.argv`, `process.exit`, `process.on`, `console.*` or `globalThis` read outside an adapter.
-- **May indicate:** Reads data from outside → No leak; Causes an effect → Ports declared inside; Builds the real implementations → Ports declared inside.
+- **May indicate:** Reads data from outside (request, file, environment, stored row, response) → No leak; Causes an effect (writes, logs, sends, exits) → Ports declared inside; Builds the real implementations → Ports declared inside.
 - **Breach usually sits:** A missing port; or an adapter not built at the entry point. "Process env reader is just an external world being wrapped." Correct use: boundary record.
 - **Seen by:** syntax.
 - **Check today:** review.
@@ -78,7 +78,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Text past its reader
 
 - **Seen:** `JSON.parse`, `JSON.stringify` or a YAML parse or dump outside the adapter for whoever produced or receives the text, tests included.
-- **May indicate:** Reads data from outside, Sends data out → No leak; Uses a system or service outside the program → External behaviour sits at a boundary. In a test: States what the unit gives back → Straight-through tests; Written-out answers.
+- **May indicate:** Reads data from outside (request, file, environment, stored row, response), Sends data out of the program → No leak; Uses a system or service outside the program → External behaviour sits at a boundary. In a test: States what the unit gives back, for one case or several → Straight-through tests; Written-out answers.
 - **Breach usually sits:** A port that takes or gives text where it should carry objects: "a boundary on whoever made json". Correct use: in the producer's adapter, a boundary record; at one test site, an authorised location for this symptom alone.
 - **Seen by:** syntax; types to trace the port.
 - **Check today:** partial (tests only).
@@ -86,7 +86,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Schema past its adapter
 
 - **Seen:** A schema, a `.parse` call or a `z.infer` type outside the producer's adapter, or the same value parsed twice.
-- **May indicate:** Reads data from outside → No leak; Gives a value its type → Declared, not asserted.
+- **May indicate:** Reads data from outside (request, file, environment, stored row, response) → No leak; Gives a value its type (declares it, or needs it narrower) → Declared, not asserted.
 - **Breach usually sits:** The adapter, which hands the wire type inward instead of mapping it. Correct use: a boundary record with a Conformist statement, for an outside model adopted as ours.
 - **Seen by:** graph.
 - **Check today:** review.
@@ -96,7 +96,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Claimed type
 
 - **Seen:** `as T` other than `as const`, `<T>x`, `x!` or `x!:`, including `as unknown` and any cast whose type holds `any`.
-- **May indicate:** Gives a value its type → Declared, not asserted. In a test: Checks a value that may be one of several outcomes → Straight-through tests; a cast to build an input → Handed what it uses.
+- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted. In a test: Checks a value that may be one of several outcomes → Straight-through tests; Gives a value its type (declares it, or needs it narrower): a cast to build an input → Handed what it uses.
 - **Breach usually sits:** The declaration: an input too wide, a generic not bounded, a missing parse. "this feels like its hiding a problem with out modelling". Correct use: authorised location in the adapter whose outside contract forces it.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -104,7 +104,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Untyped value
 
 - **Seen:** `any` in a type position, or a `let` with no type and no initial value.
-- **May indicate:** Gives a value its type → Declared, not asserted; Reads data from outside → No leak.
+- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted; Reads data from outside (request, file, environment, stored row, response) → No leak.
 - **Breach usually sits:** The boundary that let an unknown shape in. Correct use: debt.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -112,7 +112,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Own type guard
 
 - **Seen:** A function of ours whose return type is `x is T` or `asserts x is T`.
-- **May indicate:** Gives a value its type → Declared, not asserted; Reads data from outside → No leak.
+- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted; Reads data from outside (request, file, environment, stored row, response) → No leak.
 - **Breach usually sits:** A missing schema parse at the adapter, or a declaration too wide.
 - **Seen by:** syntax.
 - **Check today:** new.
@@ -120,7 +120,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Type derived from code
 
 - **Seen:** `ReturnType<typeof x>`, `Parameters<typeof x>` or `typeof x` used as a type of our own.
-- **May indicate:** Gives a value its type → Declared, not asserted; Names something → One word everywhere.
+- **May indicate:** Gives a value its type (declares it, or needs it narrower) → Declared, not asserted; Names something → One word everywhere.
 - **Breach usually sits:** The producer, which has no named type.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -136,7 +136,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Default on a closed union
 
 - **Seen:** `default:` in a `switch` over a closed union.
-- **May indicate:** A value is one of several kinds → Kinds are named.
+- **May indicate:** A value is one of several kinds or states → Kinds are named.
 - **Breach usually sits:** The switch.
 - **Seen by:** types.
 - **Check today:** reuse.
@@ -144,7 +144,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Boolean in a signature
 
 - **Seen:** A `boolean` parameter, field, or return that stands for a mode or state.
-- **May indicate:** A value is one of several kinds → Kinds are named; Does one job → Doer or orchestrator ("boolean inputs are a smell, disallowed").
+- **May indicate:** A value is one of several kinds or states → Kinds are named; Does one job → Doer or orchestrator ("boolean inputs are a smell, disallowed").
 - **Breach usually sits:** A missing named kind, or a unit with two modes.
 - **Seen by:** syntax; types to tell a predicate.
 - **Check today:** reuse.
@@ -152,7 +152,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Absence standing for a state
 
 - **Seen:** A field typed `T | null` or `T | undefined`, or optional, whose absence means a state rather than "not given".
-- **May indicate:** A value is one of several kinds → Kinds are named; Keeps state across calls → No hidden effects. "this is a bunch of nullable and state management mess".
+- **May indicate:** A value is one of several kinds or states → Kinds are named; Keeps state or settings across calls → No hidden effects. "this is a bunch of nullable and state management mess".
 - **Breach usually sits:** The type, which needs named kinds.
 - **Seen by:** person; types to find candidates.
 - **Check today:** only review.
@@ -160,7 +160,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Default for a required value
 
 - **Seen:** `??`, `||` or a parameter default that supplies a required config, context or environment value.
-- **May indicate:** Reads data from outside → No leak ("no default, must be provided as env var"); An operation can fail → Failures are values; Gives a value its type → Declared, not asserted.
+- **May indicate:** Reads data from outside (request, file, environment, stored row, response) → No leak ("no default, must be provided as env var"); An operation can fail → Failures are values; Gives a value its type (declares it, or needs it narrower) → Declared, not asserted.
 - **Breach usually sits:** The declaration or the adapter: a missing value is a failure.
 - **Seen by:** types.
 - **Check today:** review.
@@ -170,7 +170,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Throw between our units
 
 - **Seen:** `throw` outside an adapter whose caller's contract is exceptions.
-- **May indicate:** An operation can fail → Failures are values; Sends data out → No leak.
+- **May indicate:** An operation can fail → Failures are values; Sends data out of the program → No leak.
 - **Breach usually sits:** The unit, or a missing mapping at the adapter. Correct use: authorised location. "Throwing in specific places allowed is just authorised locations as prose."
 - **Seen by:** syntax; graph for adapters.
 - **Check today:** review.
@@ -178,7 +178,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Thrown non-error
 
 - **Seen:** `throw` of a literal, an object or a template.
-- **May indicate:** Sends data out → No leak, since a thrown value speaks the caller's language.
+- **May indicate:** Sends data out of the program → No leak, since a thrown value speaks the caller's language.
 - **Breach usually sits:** The throw site.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -194,7 +194,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Catch-all failure kind
 
 - **Seen:** A failure variant such as `unknown`, `other` or a bare message string, carrying no named cause.
-- **May indicate:** An operation can fail → Failures are values; A value is one of several kinds → Kinds are named.
+- **May indicate:** An operation can fail → Failures are values; A value is one of several kinds or states → Kinds are named.
 - **Breach usually sits:** The adapter, which did not name the outside failure.
 - **Seen by:** types; person.
 - **Check today:** new.
@@ -204,7 +204,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Loop keyword
 
 - **Seen:** `for`, `for…of`, `for…in`, `for await`, `while` or `do`.
-- **May indicate:** Makes a new value → No hidden effects; Causes an effect → Ports declared inside; Coordinates other units → Doer or orchestrator. "For of mutates by its nature."
+- **May indicate:** Makes a new value from what it has → No hidden effects; Causes an effect (writes, logs, sends, exits) → Ports declared inside; Coordinates other units → Doer or orchestrator. "For of mutates by its nature."
 - **Breach usually sits:** The unit. Correct use: draining a stream in its source's adapter, as an authorised location.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -212,7 +212,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Write into a parameter
 
 - **Seen:** Assigning to or deleting a parameter's field, or calling an in-place method (`push`, `sort`, `splice`) on a parameter.
-- **May indicate:** Makes a new value → No hidden effects.
+- **May indicate:** Makes a new value from what it has → No hidden effects.
 - **Breach usually sits:** The unit.
 - **Seen by:** syntax; types for in-place methods.
 - **Check today:** reuse.
@@ -220,7 +220,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Rebinding
 
 - **Seen:** A `let` assigned again, or a parameter reassigned, incremented or destructured into.
-- **May indicate:** Makes a new value → No hidden effects; Does one job → Doer or orchestrator (work done inline in steps).
+- **May indicate:** Makes a new value from what it has → No hidden effects; Does one job → Doer or orchestrator (work done inline in steps).
 - **Breach usually sits:** The unit. No caller sees it, so on its own it shows no hidden effect; it is suspect for inline work.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -228,7 +228,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Authored class or this
 
 - **Seen:** The `class` keyword in our code, `static`-only classes included, or `this` read outside a class.
-- **May indicate:** Keeps state or settings across calls → No hidden effects; Reuses behaviour → One reason per module; Gives a value its type → Declared, not asserted.
+- **May indicate:** Keeps state or settings across calls → No hidden effects; Reuses behaviour from another unit or type → One reason per module; Gives a value its type (declares it, or needs it narrower) → Declared, not asserted.
 - **Breach usually sits:** The unit.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -236,7 +236,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Module-level state
 
 - **Seen:** A module-scope `let`, or a module-scope collection that functions change.
-- **May indicate:** Keeps state across calls → No hidden effects; External behaviour sits at a boundary.
+- **May indicate:** Keeps state or settings across calls → No hidden effects; External behaviour sits at a boundary.
 - **Breach usually sits:** A missing adapter for the state.
 - **Seen by:** syntax.
 - **Check today:** new.
@@ -246,7 +246,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Long function
 
 - **Seen:** A function body over the line limit.
-- **May indicate:** Coordinates other units, Does one job → Doer or orchestrator; Gives a value its type → Handed what it uses; Checks conditions → Guard first; Puts code in a file, Names something → One reason per module, One word everywhere. "Line and complexity are symptoms that flag many things. Functions doing too many things. Minimal interfaces issues. Nested logic indicating complexity density instead of isolated rules and responsibilities named for what they are."
+- **May indicate:** Coordinates other units, Does one job → Doer or orchestrator; Gives a value its type (declares it, or needs it narrower) → Handed what it uses; Checks conditions before its work → Guard first; Puts code in a file or folder, Names something → One reason per module, One word everywhere. "Line and complexity are symptoms that flag many things. Functions doing too many things. Minimal interfaces issues. Nested logic indicating complexity density instead of isolated rules and responsibilities named for what they are."
 - **Breach usually sits:** The unit: several jobs, an input wider than its use, nested questions, or a responsibility not isolated and named.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -262,7 +262,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Work inside a condition
 
 - **Seen:** An `if` inside another `if`, or an `else` after a branch that always exits.
-- **May indicate:** Checks conditions → Guard first; Does one job → Doer or orchestrator. "If nested it's a poorly modelled set of questions for a single job."
+- **May indicate:** Checks conditions before its work → Guard first; Does one job → Doer or orchestrator. "If nested it's a poorly modelled set of questions for a single job."
 - **Breach usually sits:** The unit's questions.
 - **Seen by:** syntax.
 - **Check today:** partial.
@@ -302,7 +302,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Wide input
 
 - **Seen:** A parameter type holding fields the unit never reads.
-- **May indicate:** Does one job, Gives a value its type → Handed what it uses.
+- **May indicate:** Does one job, Gives a value its type (declares it, or needs it narrower) → Handed what it uses.
 - **Breach usually sits:** The unit's declared input.
 - **Seen by:** types.
 - **Check today:** new.
@@ -378,7 +378,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Computed value in a test
 
 - **Seen:** A test that builds or picks a value: array methods, `find`, `Math.*`, `Object.assign`, `Object.fromEntries`, `Array.from` or a spread over a list. Calls on the unit's own API are not included.
-- **May indicate:** States what the unit gives back → Straight-through tests; Written-out answers. "Math and map are deterministic logic. Banned in tests."
+- **May indicate:** States what the unit gives back, for one case or several → Straight-through tests; Written-out answers. "Math and map are deterministic logic. Banned in tests."
 - **Breach usually sits:** The test, or logic no unit owns.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -386,7 +386,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Throw or catch in a test
 
 - **Seen:** `throw`, `try` or `catch` in a test file.
-- **May indicate:** States what the unit gives back → Straight-through tests; An operation can fail → Failures are values.
+- **May indicate:** States what the unit gives back, for one case or several → Straight-through tests; An operation can fail → Failures are values.
 - **Breach usually sits:** Often the unit, which throws.
 - **Seen by:** syntax.
 - **Check today:** reuse.
@@ -402,7 +402,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Answer set in a hook
 
 - **Seen:** A test hook that gives a stub its answer (`mockReturnValue`, `mockResolvedValue`, `mockImplementation`) or reassigns a value the tests read. A plain reset in `afterEach` is not this symptom. "Nothing wrong with a reset in after each. But something wrong with a remock in after each. Implies the suite knows the input needed for each test." Sharing alone is not the breach: "I have no issue with shared boilerplate or even mock builders when it doesn't hide minimal interfaces issues and doesn't hide assumptions or coupling between tests. But it often does when not done with care."
-- **May indicate:** States what the unit gives back → Straight-through tests (each test is one complete, distinct case); Uses what a collaborator gives back → Written-out answers; Keeps state across calls → No hidden effects.
+- **May indicate:** States what the unit gives back, for one case or several → Straight-through tests (each test is one complete, distinct case); Uses what a collaborator gives back → Written-out answers; Keeps state or settings across calls → No hidden effects.
 - **Breach usually sits:** A double or a value shared across tests at file or suite scope; or state held in the unit's module.
 - **Seen by:** syntax.
 - **Check today:** partial (the `let` form only).
@@ -442,7 +442,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Behaviour tested away from its owner
 
 - **Seen:** A unit test that asserts what a collaborator does, or an integration test that pins a rule a unit owns.
-- **May indicate:** Tests across units, Gives each unit its test → Tested where it's owned; Written-out answers.
+- **May indicate:** Tests across units or against a real system, Gives each unit its test → Tested where it's owned; Written-out answers.
 - **Breach usually sits:** The test level.
 - **Seen by:** person; graph.
 - **Check today:** only review.
@@ -450,7 +450,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Integration-heavy suite
 
 - **Seen:** More integration tests, or more integration test cases, than the bindings to the outside they cover.
-- **May indicate:** Tests across units → Tested where it's owned. "We had excessive integration tests and "fixtures" for what we're unit level business rules."
+- **May indicate:** Tests across units or against a real system → Tested where it's owned. "We had excessive integration tests and "fixtures" for what we're unit level business rules."
 - **Breach usually sits:** Missing unit tests and ports.
 - **Seen by:** files (by the integration test suffix).
 - **Check today:** review.
@@ -466,7 +466,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Large input for a few fields
 
 - **Seen:** A test that writes a large object, or casts, to give the unit the few fields it reads.
-- **May indicate:** Gives a value its type, Does one job → Handed what it uses. "Shows up in tests where to avoid writing a large object for 2 fields that impact th test they double cast."
+- **May indicate:** Gives a value its type (declares it, or needs it narrower), Does one job → Handed what it uses. "Shows up in tests where to avoid writing a large object for 2 fields that impact th test they double cast."
 - **Breach usually sits:** The unit's declared input.
 - **Seen by:** person; syntax for the cast.
 - **Check today:** only review.
@@ -508,7 +508,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Types-only file
 
 - **Seen:** A file that declares only types and is not a port declaration.
-- **May indicate:** Puts code in a file, Reuses behaviour → One reason per module ("There shouldn't be type only files. They should be entities.").
+- **May indicate:** Puts code in a file or folder, Reuses behaviour from another unit or type → One reason per module ("There shouldn't be type only files. They should be entities.").
 - **Breach usually sits:** The entity's module.
 - **Seen by:** syntax.
 - **Check today:** new.
@@ -540,7 +540,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Outside dependency vocabulary for basic logic
 
 - **Seen:** An import of a utility or functional outside dependency (lodash, fp-ts) for branching, matching, transforming or results.
-- **May indicate:** Writes basic logic → Our code reads in the common language; Takes an outside dependency → Outside dependencies justified.
+- **May indicate:** Writes basic logic (branching, matching, transforming, results) → Our code reads in the common language; Takes an outside dependency → Outside dependencies justified.
 - **Breach usually sits:** The dependency.
 - **Seen by:** graph.
 - **Check today:** new.
@@ -548,7 +548,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Duplicate decision
 
 - **Seen:** The same decision written in two or more places.
-- **May indicate:** Reuses behaviour, Puts code in a file → One reason per module. "dry is true but it must be held with reasons to change not "same functional code right now"".
+- **May indicate:** Reuses behaviour from another unit or type, Puts code in a file or folder → One reason per module. "dry is true but it must be held with reasons to change not "same functional code right now"".
 - **Breach usually sits:** Where the decision's home should be. A clone only surfaces a candidate.
 - **Seen by:** person; clone tools surface candidates.
 - **Check today:** only review.
@@ -556,7 +556,7 @@ Outside dependency: what was called a package. An internal package is our own co
 ### Change spread across modules
 
 - **Seen:** One change for one reason touches many modules, or two modules always change together.
-- **May indicate:** Puts code in a file → One reason per module. "Cause 2 things that change together is potentially a sign of reasons to change boundaries are incorrect."
+- **May indicate:** Puts code in a file or folder → One reason per module. "Cause 2 things that change together is potentially a sign of reasons to change boundaries are incorrect."
 - **Breach usually sits:** The module boundaries.
 - **Seen by:** history.
 - **Check today:** new.

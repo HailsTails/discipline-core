@@ -3,7 +3,7 @@ import type { Finding } from "../governance/governance.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { Principle, Recipe, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Principle, Recipe, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import { escapedLineBreaks, locatedFindingLine, symptomFindingLine } from "./finding-line.ts";
 
 const FINDING: Finding = {
@@ -68,11 +68,32 @@ const KINDS_ARE_NAMED: Rule = { name: "kinds-are-named", title: "Kinds are named
 
 const FAILURES_ARE_VALUES: Rule = { name: "failures-are-values", title: "Failures are values", principle: KINDS_ARE_EXPLICIT, standing: "accepted" };
 
-const WORLD_VALUES_THROUGH_A_PORT: Recipe = { name: "world-values-through-a-port", title: "World values through a port", standing: "accepted" };
+const NEEDS_THE_CURRENT_TIME: Case = {
+  name: "needs-the-current-time-a-random-value-a-new-id-or-an-outside-ordering",
+  title: "Needs the current time, a random value, a new id or an outside ordering",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: PORTS_DECLARED_INSIDE }],
+};
 
-const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted" };
+const DOES_ONE_JOB: Case = { name: "does-one-job", title: "Does one job", standing: "accepted", owes: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] };
 
-const ITEACH_OVER_TYPED_ROWS: Recipe = { name: "iteach-over-typed-rows", title: "it.each over typed rows", standing: "accepted" };
+const CHECKS_A_VALUE: Case = {
+  name: "checks-a-value-that-may-be-one-of-several-outcomes",
+  title: "Checks a value that may be one of several outcomes",
+  standing: "accepted",
+  owes: [{ kind: "rule", rule: STRAIGHT_THROUGH_TESTS }],
+};
+
+const WORLD_VALUES_THROUGH_A_PORT: Recipe = {
+  name: "world-values-through-a-port",
+  title: "World values through a port",
+  standing: "accepted",
+  reason: { text: "\"the world reaches a unit through a port\"", standing: "accepted" },
+};
+
+const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted", reason: { text: "\"it narrows the type\"", standing: "accepted" } };
+
+const ITEACH_OVER_TYPED_ROWS: Recipe = { name: "iteach-over-typed-rows", title: "it.each over typed rows", standing: "accepted", reason: { text: "\"each row is a case\"", standing: "accepted" } };
 
 const DATE_USED_DIRECTLY: Symptom = {
   name: "date-used-directly",
@@ -80,13 +101,13 @@ const DATE_USED_DIRECTLY: Symptom = {
   seen: "Any use of `Date` outside the places that handle dates.",
   mayIndicate: [
     {
-      case: "Needs the current time",
+      case: NEEDS_THE_CURRENT_TIME,
       points: [
         { kind: "rule", rule: PORTS_DECLARED_INSIDE },
         { kind: "rule", rule: WRITTEN_OUT_ANSWERS },
       ],
     },
-    { case: "Does one job", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+    { case: DOES_ONE_JOB, points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
   ],
   breachUsuallySits: "in the unit that should be passed the time, often a doer doing two jobs",
   recipes: [WORLD_VALUES_THROUGH_A_PORT],
@@ -99,7 +120,7 @@ const BRANCH_IN_A_TEST: Symptom = {
   seen: "`if`, a ternary, `&&`, `||`, `??`, `?.` or `switch` in a test file.",
   mayIndicate: [
     {
-      case: "Checks a value that may be one of several outcomes",
+      case: CHECKS_A_VALUE,
       points: [
         { kind: "rule", rule: STRAIGHT_THROUGH_TESTS },
         { kind: "rule", rule: KINDS_ARE_NAMED },
