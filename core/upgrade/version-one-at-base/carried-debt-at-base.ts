@@ -1,58 +1,40 @@
 import { z } from "zod";
 import type { RecordsDocument } from "../../records/hone-record.ts";
-import { recordedReachSchema, recordsDocumentSchema } from "../../records/records-wire.ts";
+import { namedRecordsFileOf } from "../../records/records-layout.ts";
+import { RECORDS_VERSION } from "../../records/records-wire.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { checkAddressOf } from "../../symptom-catalogue/check-address.ts";
+import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
 import { clauseAddressSchema } from "../../values/clause-address.ts";
-import { sameJsonValue } from "../../values/json-kind.ts";
-import { repoPathSchema } from "../../values/repo-path.ts";
+import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
 import { checksOfClause } from "../version-two-mapping/clause-checks.ts";
 import type { VersionOneEntry } from "./version-one-entries.ts";
 
-const carriedDebtSchema = z.looseObject({ symptom: recordedReachSchema, file: repoPathSchema, carried: z.json() });
+const carveOutEntrySchema = z.looseObject({ kind: z.literal("file-carve-out"), clause: clauseAddressSchema, file: repoPathSchema });
 
-const carriedCarveOutSchema = z.looseObject({ kind: z.literal("file-carve-out"), clause: clauseAddressSchema, file: repoPathSchema });
+type PlacedDebt = { readonly file: RepoPath; readonly record: { readonly symptom: string; readonly file: RepoPath; readonly carried: VersionOneEntry } };
 
-type BaseStanding = "held-at-base" | "not-held-at-base";
-
-const heldAtBaseOf = (request: {
-  readonly record: unknown;
-  readonly entries: readonly VersionOneEntry[];
-  readonly catalogues: readonly RuleSetCatalogue[];
-}): BaseStanding => {
-  const parsed = carriedDebtSchema.safeParse(request.record);
-  if (!parsed.success || parsed.data.symptom.reaches !== "one-check") {
-    return "not-held-at-base";
-  }
-  const { symptom, file, carried } = parsed.data;
-  const carveOut = carriedCarveOutSchema.safeParse(carried);
-  if (!carveOut.success || carveOut.data.file !== file) {
-    return "not-held-at-base";
-  }
-  const reachedCheck = `${symptom.symptom}#${symptom.check}`;
-  const reachesOneCheckOfClause = checksOfClause({ catalogues: request.catalogues, clause: carveOut.data.clause }).some(
-    (check) => checkAddressOf({ check }) === reachedCheck,
-  );
-  const heldWordForWord = request.entries.some((entry) => sameJsonValue({ left: carried, right: entry }) === "same");
-  return reachesOneCheckOfClause && heldWordForWord ? "held-at-base" : "not-held-at-base";
+const debtAt = (request: { readonly check: Check; readonly entry: VersionOneEntry; readonly file: RepoPath }): readonly PlacedDebt[] => {
+  const filed = namedRecordsFileOf({ kind: "debt", name: request.check.symptom.name });
+  return filed.outcome === "ok"
+    ? [{ file: filed.value, record: { symptom: checkAddressOf({ check: request.check }), file: request.file, carried: request.entry } }]
+    : [];
 };
 
-const documentOf = (request: {
-  readonly head: RecordsDocument;
-  readonly entries: readonly VersionOneEntry[];
-  readonly catalogues: readonly RuleSetCatalogue[];
-}): readonly RecordsDocument[] => {
-  const parsed = recordsDocumentSchema.safeParse(request.head.document);
-  if (!parsed.success) {
-    return [];
-  }
-  const records = parsed.data.records.filter((record) => heldAtBaseOf({ record, entries: request.entries, catalogues: request.catalogues }) === "held-at-base");
-  return records.length === 0 ? [] : [{ file: request.head.file, document: { version: parsed.data.version, records } }];
+const debtOf = (request: { readonly entry: VersionOneEntry; readonly catalogues: readonly RuleSetCatalogue[] }): readonly PlacedDebt[] => {
+  const parsed = carveOutEntrySchema.safeParse(request.entry);
+  return parsed.success
+    ? checksOfClause({ catalogues: request.catalogues, clause: parsed.data.clause }).flatMap((check) => debtAt({ check, entry: request.entry, file: parsed.data.file }))
+    : [];
 };
 
 export const carriedDebtDocumentsAtBaseOf = (request: {
-  readonly head: readonly RecordsDocument[];
   readonly entries: readonly VersionOneEntry[];
   readonly catalogues: readonly RuleSetCatalogue[];
-}): readonly RecordsDocument[] =>
-  request.head.flatMap((head) => documentOf({ head, entries: request.entries, catalogues: request.catalogues }));
+}): readonly RecordsDocument[] => {
+  const placed = request.entries.flatMap((entry) => debtOf({ entry, catalogues: request.catalogues }));
+  return [...new Set(placed.map(({ file }) => file))].map((file) => ({
+    file,
+    document: { version: RECORDS_VERSION, records: placed.filter((debt) => debt.file === file).map(({ record }) => record) },
+  }));
+};

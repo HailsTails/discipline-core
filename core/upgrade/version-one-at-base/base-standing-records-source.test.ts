@@ -108,15 +108,17 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
     });
   });
 
-  it("writes nothing for a file carve-out, whose debt records depend on which checks the version 1 run credited", () => {
-    expect(
-      readAtBaseWith({
-        entries: {
-          outcome: "ok",
-          value: [{ kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", provenance: { kind: "inherited-debt", source: "old", decision: "keep" } }],
+  it("writes a file carve-out as a debt record at each check of its clause, in the debt file of the check's symptom", () => {
+    const carveOut = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", provenance: { kind: "inherited-debt", source: "old", decision: "keep" } };
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [carveOut] } })).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          file: "hone-records/debt/loop-keyword.json",
+          document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: carveOut }] },
         },
-      }),
-    ).toEqual(NO_DOCUMENTS);
+      ],
+    });
   });
 
   it("writes nothing for a clause-wide carve-out", () => {
@@ -216,73 +218,49 @@ describe("baseStandingRecordsSource and what a carried record stands on", () => 
   });
 });
 
-describe("baseStandingRecordsSource establishing the carried debt the head holds", () => {
+describe("baseStandingRecordsSource establishing the carried debt of the base's file carve-outs", () => {
   const CARVE_OUT = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", whyChain: ["a", "b", "c", "d", "e"] };
 
   const DEBT_FILE = repoPathSchema.parse("hone-records/debt/loop-keyword.json");
 
-  const debtRecord = (request: { readonly carried: typeof CARVE_OUT }) => ({ symptom: "loop-keyword#loops", file: "src/a.ts", carried: request.carried });
+  const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json");
 
-  const headDocument = (request: { readonly carried: typeof CARVE_OUT }): RecordsDocument => ({
-    file: DEBT_FILE,
-    document: { version: 2, records: [debtRecord({ carried: request.carried })] },
+  const HEAD_DEBT = { symptom: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT };
+
+  const BASE_DEBT: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [HEAD_DEBT] } };
+
+  const standingAtBase = (request: { readonly file: typeof DEBT_FILE; readonly entry: typeof HEAD_DEBT & { readonly note?: string } }) =>
+    carriedStandingOf({ base: { measured: "yes", documents: [BASE_DEBT] }, file: request.file, entry: request.entry });
+
+  const CHANGED = { outcome: "failed", error: [{ kind: "carried-changed-since-base" }] };
+
+  it("writes the base the debt record its own carve-out entry would have been carried as, in the debt file of the symptom", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual({ outcome: "ok", value: [BASE_DEBT] });
   });
 
-  const readAtBaseWithHead = (request: { readonly head: RecordsDocument; readonly entries: ReturnType<VersionOneEntries["atBase"]> }) =>
-    baseStandingRecordsSource({
-      source: {
-        read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [request.head] }),
-        readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue(NO_DOCUMENTS),
-      },
-      entries: entriesAtBase({ read: request.entries }),
-      catalogues: CATALOGUES,
-    }).readAt({ revision: "origin/main" });
-
-  it("reads the carried debt as established when the base held the carve-out entry word for word", () => {
-    expect(readAtBaseWithHead({ head: headDocument({ carried: CARVE_OUT }), entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual({
-      outcome: "ok",
-      value: [headDocument({ carried: CARVE_OUT })],
-    });
-    expect(carriedStandingOf({ base: { measured: "yes", documents: [headDocument({ carried: CARVE_OUT })] }, file: DEBT_FILE, entry: debtRecord({ carried: CARVE_OUT }) })).toEqual({
-      outcome: "ok",
-      value: "established",
-    });
+  it("reads a head debt record equal to it as established", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: HEAD_DEBT })).toEqual({ outcome: "ok", value: "established" });
   });
 
-  it("reads the carried debt as changed since base when the carried entry was edited", () => {
-    const edited = { ...CARVE_OUT, reason: "edited" };
-    expect(readAtBaseWithHead({ head: headDocument({ carried: edited }), entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual(NO_DOCUMENTS);
-    expect(carriedStandingOf({ base: { measured: "yes", documents: [] }, file: DEBT_FILE, entry: debtRecord({ carried: edited }) })).toEqual({
-      outcome: "failed",
-      error: [{ kind: "carried-changed-since-base" }],
-    });
+  it("reads a head debt record with a note the base never held as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, note: "written at head" } })).toEqual(CHANGED);
+  });
+
+  it("reads the same record filed as an authorised location as changed since base, the entry being a carve-out", () => {
+    expect(standingAtBase({ file: AUTHORISED_FILE, entry: HEAD_DEBT })).toEqual(CHANGED);
+  });
+
+  it("reads a head debt record whose carried entry was edited as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, carried: { ...CARVE_OUT, reason: "edited" } } })).toEqual(CHANGED);
+  });
+
+  it("reads a whole-symptom head debt record as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, symptom: "loop-keyword" } })).toEqual(CHANGED);
   });
 
   it("leaves a debt file the base already holds as a version 2 document as the base holds it", () => {
     const held: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [] } };
-    expect(
-      baseStandingRecordsSource({
-        source: {
-          read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [headDocument({ carried: CARVE_OUT })] }),
-          readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue({ outcome: "ok", value: [held] }),
-        },
-        entries: entriesAtBase({ read: { outcome: "ok", value: [CARVE_OUT] } }),
-        catalogues: CATALOGUES,
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual({ outcome: "ok", value: [held] });
-  });
-
-  it("reads the base without carried debt when the head cannot be read, leaving that failure to the run", () => {
-    expect(
-      baseStandingRecordsSource({
-        source: {
-          read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "failed", error: { kind: "records-folder-unreadable", folder: repoPathSchema.parse("hone-records"), detail: "EACCES" } }),
-          readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue(NO_DOCUMENTS),
-        },
-        entries: entriesAtBase({ read: { outcome: "ok", value: [CARVE_OUT] } }),
-        catalogues: CATALOGUES,
-      }).readAt({ revision: "origin/main" }),
-    ).toEqual(NO_DOCUMENTS);
+    expect(readAtBaseHolding({ entries: { outcome: "ok", value: [CARVE_OUT] }, base: { outcome: "ok", value: [held] } })).toEqual({ outcome: "ok", value: [held] });
   });
 });
 

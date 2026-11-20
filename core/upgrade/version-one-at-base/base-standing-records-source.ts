@@ -50,11 +50,10 @@ export const baseStandingRecordsSource = (request: {
     if (entries.outcome === "failed") {
       return entries;
     }
-    const head = request.source.read();
     const heldAtBase = new Set(base.value.map(({ file }) => file));
     const absentAtBase = [
       ...documentsMappedFrom({ entries: entries.value, catalogues: request.catalogues }),
-      ...(head.outcome === "ok" ? carriedDebtDocumentsAtBaseOf({ head: head.value, entries: entries.value, catalogues: request.catalogues }) : []),
+      ...carriedDebtDocumentsAtBaseOf({ entries: entries.value, catalogues: request.catalogues }),
     ].filter(({ file }) => !heldAtBase.has(file));
     return { outcome: "ok", value: [...base.value, ...absentAtBase] };
   },
