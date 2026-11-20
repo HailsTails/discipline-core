@@ -1,0 +1,75 @@
+import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
+import { enabledRuleEntry } from "./eslint-instance.ts";
+import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
+import { escapedGlobPath } from "./projection.ts";
+import { CHECKS_PLUGIN_NAMESPACE } from "./check-rule-id.ts";
+
+export type ProjectedCheck = { readonly symptom: string; readonly ruleId: string; readonly options: RuleOptions };
+
+export type AnsweredFile = { readonly symptom: string; readonly file: RepoPath };
+
+type AnsweredGroup = { readonly symptoms: readonly string[]; readonly files: readonly RepoPath[] };
+
+type RuleEntry = { readonly ruleId: string; readonly entry: string };
+
+export const CHECKS_PROJECTION_PATH: RepoPath = repoPathSchema.parse("hone.eslint.mjs");
+
+const SOURCE_FILES = "**/*.{ts,tsx,mts,cts}";
+
+const CHECKS_BLOCK = `${CHECKS_PLUGIN_NAMESPACE}/checks`;
+
+const ANSWERED_BLOCK = `${CHECKS_PLUGIN_NAMESPACE}/answered`;
+
+const LIST_SEPARATOR = ", ";
+
+const quoted = (request: { readonly text: string }): string => JSON.stringify(request.text);
+
+const rulesText = (request: { readonly rules: readonly RuleEntry[] }): string => {
+  const entries = request.rules.map((rule) => `${quoted({ text: rule.ruleId })}: ${rule.entry}`);
+  return entries.length === 0 ? "{}" : `{ ${entries.join(LIST_SEPARATOR)} }`;
+};
+
+const enabledRules = (request: { readonly checks: readonly ProjectedCheck[] }): readonly RuleEntry[] =>
+  request.checks
+    .map((check) => ({ ruleId: check.ruleId, entry: JSON.stringify(enabledRuleEntry({ options: check.options })) }))
+    .toSorted((left, right) => codeUnitOrder({ left: left.ruleId, right: right.ruleId }));
+
+const codeUnitOrder = (request: { readonly left: string; readonly right: string }): number => {
+  if (request.left < request.right) {
+    return -1;
+  }
+  return request.left > request.right ? 1 : 0;
+};
+
+const checksBlock = (request: { readonly checks: readonly ProjectedCheck[] }): string =>
+  `{ name: ${quoted({ text: CHECKS_BLOCK })}, files: [${quoted({ text: SOURCE_FILES })}], plugins: { ${CHECKS_PLUGIN_NAMESPACE} }, rules: ${rulesText({ rules: enabledRules(request) })} }`;
+
+const answeredGroupsOf = (request: { readonly checks: readonly ProjectedCheck[]; readonly answered: readonly AnsweredFile[] }): readonly AnsweredGroup[] => {
+  const projectedSymptoms = new Set(request.checks.map((check) => check.symptom));
+  const projectedAnswers = request.answered.filter((answer) => projectedSymptoms.has(answer.symptom));
+  const symptomsByFile = [...Map.groupBy(projectedAnswers, (answer) => answer.file)].map(([file, answers]) => ({
+    file,
+    symptoms: [...new Set(answers.map((answer) => answer.symptom))].toSorted(),
+  }));
+  return [...Map.groupBy(symptomsByFile, (entry) => entry.symptoms.join(LIST_SEPARATOR))]
+    .map(([symptoms, entries]) => ({ symptoms: symptoms.split(LIST_SEPARATOR), files: entries.map((entry) => entry.file).toSorted() }))
+    .toSorted((left, right) => codeUnitOrder({ left: left.symptoms.join(LIST_SEPARATOR), right: right.symptoms.join(LIST_SEPARATOR) }));
+};
+
+const answeredBlock = (request: { readonly group: AnsweredGroup; readonly checks: readonly ProjectedCheck[] }): string => {
+  const offRules = request.checks
+    .filter((check) => request.group.symptoms.includes(check.symptom))
+    .map((check) => ({ ruleId: check.ruleId, entry: quoted({ text: "off" }) }))
+    .toSorted((left, right) => codeUnitOrder({ left: left.ruleId, right: right.ruleId }));
+  const files = request.group.files.map((file) => quoted({ text: escapedGlobPath({ path: file }) })).join(LIST_SEPARATOR);
+  return `{ name: ${quoted({ text: `${ANSWERED_BLOCK}/${request.group.symptoms.join(LIST_SEPARATOR)}` })}, files: [${files}], rules: ${rulesText({ rules: offRules })} }`;
+};
+
+export const checksProjectionText = (request: {
+  readonly pluginImport: string;
+  readonly checks: readonly ProjectedCheck[];
+  readonly answered: readonly AnsweredFile[];
+}): string => {
+  const blocks = [checksBlock(request), ...answeredGroupsOf(request).map((group) => answeredBlock({ group, checks: request.checks }))];
+  return `import ${CHECKS_PLUGIN_NAMESPACE} from ${quoted({ text: request.pluginImport })};\nexport default [${blocks.join(",\n")}];\n`;
+};

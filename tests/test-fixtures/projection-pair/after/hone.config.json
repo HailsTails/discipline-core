@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "ruleSets": {},
+  "checks": {
+    "claimed-type#non-null-assertions": "eslint",
+    "name-off-its-casing#naming-convention": "eslint",
+    "authored-class-or-this#class-keyword": "eslint",
+    "authored-class-or-this#static-members-only": "eslint",
+    "test-switched-off#focused-tests": "eslint",
+    "test-switched-off#skipped-tests": "eslint",
+    "positional-parameters#parameter-count": "eslint",
+    "rebinding#parameter-reassignment": "eslint"
+  }
+}

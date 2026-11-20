@@ -35,7 +35,7 @@ export const TEST_BODY_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-27#
 
 const LAYERING_CLAUSE: ClauseAddress = clauseAddressSchema.parse("CD-13#layering");
 
-const LOOP_KEYWORD_LOOPS: Check = { name: "loops", symptom: LOOP_KEYWORD, clause: LOOPS_CLAUSE, engines: [WALKER, ESLINT], forms: [] };
+export const LOOP_KEYWORD_LOOPS: Check = { name: "loops", symptom: LOOP_KEYWORD, clause: LOOPS_CLAUSE, engines: [WALKER, ESLINT], forms: [] };
 
 const LOOP_KEYWORD_TEST_BODY: Check = { name: "test-body", symptom: LOOP_KEYWORD, clause: TEST_BODY_CLAUSE, engines: [WALKER], forms: ["a-for-loop"] };
 
