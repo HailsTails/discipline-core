@@ -1,7 +1,7 @@
 import type { FoundCheck } from "../symptom-catalogue/check-address.ts";
 import type { Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import type { AuthorisedReach, BoundaryRecord, Debt, Deviation, HoneRecord, OutsideParty, RuntimeFacility, SymptomReach } from "./hone-record.ts";
+import type { AuthorisedReach, BoundaryRecord, Deviation, HoneRecord, OutsideParty, RuntimeFacility } from "./hone-record.ts";
 import { banStandingOf, dependencyOf } from "./outside-dependency.ts";
 
 export type PartyReport = { readonly reported: "specifier"; readonly specifier: string } | { readonly reported: "not-reported" };
@@ -42,16 +42,6 @@ const reachesCheck = (request: { readonly reach: AuthorisedReach; readonly check
 
 const reachesSymptom = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach; readonly site: Site }): Holding =>
   everyHolds({ holdings: [sameName({ left: request.symptom.name, right: request.site.symptom.name }), reachesCheck({ reach: request.reach, check: request.site.check })] });
-
-const reachCovers = (request: { readonly wider: AuthorisedReach; readonly narrower: SymptomReach }): Holding => {
-  const { wider, narrower } = request;
-  switch (narrower.reaches) {
-    case "whole-symptom":
-      return wider.reaches === "whole-symptom" ? "holds" : "does-not-hold";
-    case "one-check":
-      return reachesCheck({ reach: wider, check: { found: "check", check: narrower.check } });
-  }
-};
 
 const clearOfOutsideParties = (request: { readonly symptom: Symptom }): Holding =>
   namedIn({ name: request.symptom.name, names: IMPORTED_PARTY_SYMPTOMS }) === "holds" ? "does-not-hold" : "holds";
@@ -123,42 +113,6 @@ const sitedAt = (request: { readonly record: HoneRecord; readonly site: Site }):
       });
     case "dependency-record":
       return "does-not-hold";
-  }
-};
-
-const runtimeBoundaryCovers = (request: { readonly record: BoundaryRecord; readonly debt: Debt }): Holding => {
-  const party = request.record.outsideParty;
-  switch (party.kind) {
-    case "package":
-    case "scheme-module":
-      return "does-not-hold";
-    case "runtime":
-      return everyHolds({
-        holdings: [moduleCovers({ module: request.record.module, file: request.debt.file }), namedIn({ name: request.debt.symptom.name, names: RUNTIME_REACH[party.facility] })],
-      });
-  }
-};
-
-export const coversDebt = (request: { readonly record: HoneRecord; readonly debt: Debt }): Holding => {
-  const { record, debt } = request;
-  switch (record.kind) {
-    case "debt":
-    case "dependency-record":
-      return "does-not-hold";
-    case "authorised-location":
-      return everyHolds({
-        holdings: [
-          sameName({ left: record.symptom.name, right: debt.symptom.name }),
-          reachCovers({ wider: record.reach, narrower: debt.reach }),
-          sameName({ left: record.file, right: debt.file }),
-        ],
-      });
-    case "deviation":
-      return everyHolds({
-        holdings: [sameName({ left: record.file, right: debt.file }), recipeOfSymptom({ record, symptom: debt.symptom }), clearOfOutsideParties({ symptom: debt.symptom })],
-      });
-    case "boundary-record":
-      return runtimeBoundaryCovers({ record, debt });
   }
 };
 

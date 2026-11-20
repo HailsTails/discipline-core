@@ -546,17 +546,65 @@ describe("answerFindings, paid debt", () => {
     });
   });
 
-  it("does not pay debt on the whole symptom that an authorised location holds for one check only", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+  it("pays debt on the whole symptom when every finding it held was answered by an authorised location on one check, which holds only part of its reach", () => {
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({
       ...NOTHING_ANSWERED,
-      stale: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
+      answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] }],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_SYNTAX_IN_A] }],
     });
   });
 
-  it("does not pay debt on imports that a boundary record holds for its own outside party only, and lists both stale when nothing is found", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY], findings: [], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+  it("pays debt on imports when every import it held was of the outside party a boundary record holds", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
+        findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" })],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
       ...NOTHING_ANSWERED,
-      stale: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
+      answered: [{ finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] }],
+      paid: [{ debt: DEBT_ON_IMPORTS_IN_IDS, answeredBy: [IDS_BOUNDARY] }],
+    });
+  });
+
+  it("names every record that answered in paid debt's place across the findings it held, in the records' order", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_THIS_KEYWORD_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
+        findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [
+        { finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] },
+        { finding: NO_THIS_IN_A, by: [LOCATED_THIS_KEYWORD_IN_A] },
+      ],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_THIS_KEYWORD_IN_A, LOCATED_CLASS_SYNTAX_IN_A] }],
+    });
+  });
+
+  it("does not name a record that answered no finding the debt held among those that paid it", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A],
+        findings: [unreported(NO_THIS_IN_A)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [{ finding: NO_THIS_IN_A, by: [LOCATED_CLASS_IN_A] }],
+      stale: [LOCATED_CLASS_SYNTAX_IN_A],
+      paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }],
     });
   });
 

@@ -5,7 +5,7 @@ import type { Case, Check, Recipe, RecordKind, Symptom, SymptomCatalogue } from 
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { AuthorisedLocation, BoundaryRecord, Debt, HoneRecord, RuntimeFacility, SymptomReach } from "./hone-record.ts";
-import { coversDebt, holdsAt, type PartyReport } from "./record-reach.ts";
+import { holdsAt, type PartyReport } from "./record-reach.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
 
@@ -95,10 +95,6 @@ const DEBT: Debt = { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, 
 
 const CAST_DEBT: Debt = { ...DEBT, reach: { reaches: "one-check", check: CAST_CHECK } };
 
-const STUB_DEBT: Debt = { ...DEBT, symptom: DOUBLE_WITH_A_BODY };
-
-const CLOCK_DEBT: Debt = { ...DEBT, symptom: DATE_USED_DIRECTLY, file: repoPathSchema.parse("src/adapters/system-clock.ts") };
-
 const AUTHORISED_LOCATION: AuthorisedLocation = {
   kind: "authorised-location",
   symptom: CLAIMED_TYPE,
@@ -110,8 +106,6 @@ const AUTHORISED_LOCATION: AuthorisedLocation = {
 const CAST_LOCATION: AuthorisedLocation = { ...AUTHORISED_LOCATION, reach: { reaches: "one-check", check: CAST_CHECK } };
 
 const UNKNOWN_CHECK_LOCATION: AuthorisedLocation = { ...AUTHORISED_LOCATION, reach: { reaches: "unknown-check", check: "cast-expressions-old" } };
-
-type CoverRow = { readonly name: string; readonly record: HoneRecord; readonly debt: Debt };
 
 const AUTHORISED_LOCATION_OFF_THE_CATALOGUE: AuthorisedLocation = {
   kind: "authorised-location",
@@ -346,40 +340,5 @@ describe("holdsAt, a record that names one check of its symptom", () => {
 describe("holdsAt, an authorised location naming a check its symptom does not have", () => {
   it.each([{ check: AT_CAST }, { check: AT_NON_NULL }, { check: UNCHECKED }])("holds no site of its symptom, here one found $check.found, and never widens to the whole symptom", ({ check }) => {
     expect(holdsAt({ record: UNKNOWN_CHECK_LOCATION, site: { check, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
-  });
-});
-
-describe("coversDebt, whatever outside party a finding there names", () => {
-  it.each<CoverRow>([
-    { name: "an authorised location naming no check, over debt naming none", record: AUTHORISED_LOCATION, debt: DEBT },
-    { name: "an authorised location naming no check, over debt naming one", record: AUTHORISED_LOCATION, debt: CAST_DEBT },
-    { name: "an authorised location naming the debt's one check", record: CAST_LOCATION, debt: CAST_DEBT },
-    { name: "a deviation at the debt's file from a recipe of its symptom", record: DEVIATION, debt: STUB_DEBT },
-    {
-      name: "a boundary record on a runtime facility whose module holds the debt's file and whose reach holds its symptom",
-      record: boundaryOn({ module: "src/adapters", outsideParty: { kind: "runtime", facility: "clock" } }),
-      debt: CLOCK_DEBT,
-    },
-  ])("covers debt by $name", ({ record, debt }) => {
-    expect(coversDebt({ record, debt })).toBe("holds");
-  });
-
-  it.each<CoverRow>([
-    { name: "an authorised location naming one check, over debt naming none", record: CAST_LOCATION, debt: DEBT },
-    { name: "an authorised location naming another check of the symptom", record: { ...AUTHORISED_LOCATION, reach: { reaches: "one-check", check: NON_NULL_CHECK } }, debt: CAST_DEBT },
-    { name: "an authorised location naming a check its symptom does not have, over debt naming none", record: UNKNOWN_CHECK_LOCATION, debt: DEBT },
-    { name: "an authorised location naming a check its symptom does not have, over debt on one check", record: UNKNOWN_CHECK_LOCATION, debt: CAST_DEBT },
-    { name: "an authorised location at another file", record: { ...AUTHORISED_LOCATION, file: OTHER_FILE }, debt: DEBT },
-    { name: "an authorised location on another symptom", record: IMPORT_LOCATION, debt: DEBT },
-    { name: "a deviation from a recipe the symptom does not list", record: ADAPTER_DEVIATION, debt: DEBT },
-    { name: "a deviation on an imported party's symptom, since it holds none of a named ban's findings", record: ADAPTER_DEVIATION, debt: IMPORT_DEBT },
-    { name: "a boundary record on a package, since it holds only its own party's findings", record: UUID_BOUNDARY, debt: { ...IMPORT_DEBT, file: IDS_FILE } },
-    { name: "a boundary record on a module its scheme names", record: FILES_BOUNDARY, debt: { ...IMPORT_DEBT, file: READ_TEXT_FILE } },
-    { name: "a boundary record on a runtime facility outside whose reach the symptom sits", record: boundaryOn({ module: "src/adapters", outsideParty: { kind: "runtime", facility: "json" } }), debt: CLOCK_DEBT },
-    { name: "a boundary record on a runtime facility whose module does not hold the debt's file", record: boundaryOn({ module: "src/orders", outsideParty: { kind: "runtime", facility: "clock" } }), debt: CLOCK_DEBT },
-    { name: "other debt on the same symptom and file", record: DEBT, debt: DEBT },
-    { name: "a dependency record", record: { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "Each adapter would repeat its checks." }, debt: DEBT },
-  ])("does not cover debt by $name", ({ record, debt }) => {
-    expect(coversDebt({ record, debt })).toBe("does-not-hold");
   });
 });
