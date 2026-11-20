@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "records": [
+    {
+      "symptom": "claimed-type",
+      "file": "src/adapters/stripe-webhook.ts",
+      "case": "gives-a-value-its-type",
+      "owes": "declared-not-asserted",
+      "whyChain": {
+        "whys": [
+          {
+            "why": "Why does stripe-webhook.ts cast the parsed event to Stripe.Event?",
+            "because": "The Stripe SDK hands the webhook handler an untyped payload and its constructEvent returns the event typed only through its own declaration.",
+            "evidence": "src/adapters/stripe-webhook.ts:12."
+          },
+          {
+            "why": "Why does the Stripe SDK hand the handler an untyped payload?",
+            "because": "Webhook bodies arrive as raw bytes over HTTP, and the signature check must run over those exact bytes before any parsing.",
+            "evidence": "https://stripe.com/docs/webhooks/signatures."
+          },
+          {
+            "why": "Why must the signature check run over the raw bytes?",
+            "because": "Stripe signs the bytes it sent, so any reformatting by a parser would change them and break verification.",
+            "evidence": "https://stripe.com/docs/webhooks/signatures#verify-manually."
+          },
+          {
+            "why": "Why does Stripe sign the bytes it sent rather than a parsed form?",
+            "because": "An HMAC over the transmitted body is the only form both ends can reproduce without agreeing a canonical serialisation.",
+            "evidence": "RFC 2104 defines HMAC over an octet string."
+          },
+          {
+            "why": "Why can both ends reproduce only an HMAC over the transmitted body?",
+            "because": "JSON has no canonical serialisation, so key order and whitespace differ between producers, and only the octets on the wire are shared.",
+            "evidence": "RFC 8259 leaves member order and whitespace to the producer."
+          }
+        ],
+        "rootCause": "JSON has no canonical serialisation, so the octets on the wire are the only shared form a signature can cover.",
+        "rootCheck": "On 2026-11-20, RFC 8259 still leaves member order and whitespace to the producer.",
+        "readback": "JSON has no canonical serialisation, therefore Stripe signs the raw octets, therefore the SDK hands an untyped payload, therefore stripe-webhook.ts casts the parsed event to Stripe.Event.",
+        "owner": "owner decision on example/payments#12"
+      }
+    }
+  ]
+}
