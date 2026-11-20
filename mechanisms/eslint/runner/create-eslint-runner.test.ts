@@ -610,14 +610,9 @@ const FILE_IGNORED_WARNING: LintedMessage = { ruleId: null, line: 0, column: 0, 
 
 describe("the governance run, the clauses it measured on each file", () => {
   it("names each selected clause as measured on each file the governance lint returned", async () => {
-    await expect(runnerOver({}).run(CLASS_RUN)).resolves.toMatchObject({
+    await expect(runnerOver({}).run(CLASS_RUN)).resolves.toEqual({
       outcome: "ok",
-      value: {
-        measured: [
-          { clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" },
-          { clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" },
-        ],
-      },
+      value: { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [], measured: MEASURED_CLASS },
     });
   });
 
@@ -626,7 +621,10 @@ describe("the governance run, the clauses it measured on each file", () => {
       runnerOver({
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: linted({ messagesInA: [FILE_IGNORED_WARNING] }) }) }),
       }).run(CLASS_RUN),
-    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }] } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [], measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }] },
+    });
   });
 
   it("names no clause measured on a file the governance lint did not return", async () => {
@@ -634,7 +632,10 @@ describe("the governance run, the clauses it measured on each file", () => {
       runnerOver({
         eslint: eslintOver({ lintFiles: lintResolving({ outcome: "ok", value: [{ filePath: "/repo/src/factory.ts", messages: [] }] }) }),
       }).run(CLASS_RUN),
-    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }] } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [], measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/factory.ts" }] },
+    });
   });
 });
 

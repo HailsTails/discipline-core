@@ -3,6 +3,7 @@ import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain
 import type { SelectionReading, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../exception-records/exception-records.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
+import type { MeasuredPair } from "../mechanism-port/runner-result-types.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
@@ -1041,8 +1042,24 @@ const unchangedGitTracking = (tracked: readonly RepoPath[]): GitPort =>
 
 const CARVE_OUT_ON_A = firstInSingleFile(carveOutOn("src/a.ts"));
 
-const runnerMeasuring = (measured: readonly unknown[]): ModuleLoaderPort =>
+const runnerMeasuring = (measured: readonly MeasuredPair[]): ModuleLoaderPort =>
   modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured } } }) });
+
+const CLAUSE_WIDE_CLASS_SYNTAX: StructuralExceptionEntry = {
+  kind: "clause-wide-carve-out",
+  clause: "CD-14#class-syntax",
+  reason: "the team's config turns class-syntax off where it migrates",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
+
+const STALE_CARVE_OUT_ON_A = {
+  kind: "file-carve-out",
+  clause: CLASS_SYNTAX_OBJECT,
+  mechanism: "audit",
+  file: "src/a.ts",
+  reason: "legacy class awaiting paydown",
+  whyChain: CAUSAL_WHY_CHAIN,
+};
 
 describe("runReachedCheck handing on debt on a file still on disk from what its runner measured", () => {
   it("hands on a stale file carve-out whose clause its runner measured on that file, pointing at it", async () => {
@@ -1050,20 +1067,31 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
       runReachedCheck(
         checkRequest({
           exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
-          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
           git: unchangedGitTracking(TRACKED_PATHS),
         }),
       ),
-    ).resolves.toMatchObject({
+    ).resolves.toEqual({
       outcome: "ok",
-      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }], report: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1 }] } },
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: { ...EMPTY_REPORT, stale: [STALE_CARVE_OUT_ON_A], readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }] },
+        unprojected: [],
+      },
     });
   });
 
   it("hands on nothing for a stale file carve-out on a file still on disk when its mechanism did not run, its projection missing", async () => {
     await expect(
       runReachedCheck({ ...embeddedCheck({ hits: [], nativeExceptions: [], projection: "missing" }), exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }), git: unchangedGitTracking(TRACKED_PATHS) }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/a.ts" }] } } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [],
+        report: { ...EMPTY_REPORT, stale: [STALE_CARVE_OUT_ON_A], unmeasured: [{ kind: "mechanism-not-run", mechanism: "audit", projection: "missing" }] },
+        unprojected: [],
+      },
+    });
   });
 
   it("refuses the run, handing on nothing, when a runner claims a file the selection excludes", async () => {
@@ -1072,11 +1100,46 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
         checkRequest({
           selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, excluded: [repoPathSchema.parse("src")] }),
           exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
-          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
           git: unchangedGitTracking(TRACKED_PATHS),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-failed", failure: { kind: "runner-invalid-output" } } });
+    ).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "runner-failed",
+        mechanism: "audit",
+        failure: { kind: "runner-invalid-output", detail: "a measured pair names CD-14#class-syntax in src/a.ts, which the request did not hold" },
+      },
+    });
+  });
+
+  it("hands on a forfeited file carve-out whose rule a config override turns off on its file, when a clause-wide carve-out records that override", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A, secondInSingleFile(CLAUSE_WIDE_CLASS_SYNTAX)] }),
+          modules: modulesLoading({
+            runner: embeddedRunnerReporting({
+              report: {
+                hits: [],
+                nativeExceptions: [{ kind: "config-override", clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }],
+                projection: "current",
+                measured: [{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }],
+              },
+            }),
+          }),
+          git: gitMeasuring({ trackedPaths: { outcome: "ok", value: TRACKED_PATHS }, changedSince: { outcome: "ok", value: [repoPathSchema.parse("src/a.ts")] } }),
+        }),
+      ),
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+        report: { ...EMPTY_REPORT, forfeited: [STALE_CARVE_OUT_ON_A], readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: ["audit"] }] },
+        unprojected: [],
+      },
+    });
   });
 
   it("hands on nothing for a stale file carve-out on a file its runner was handed but did not measure", async () => {
@@ -1084,11 +1147,14 @@ describe("runReachedCheck handing on debt on a file still on disk from what its 
       runReachedCheck(
         checkRequest({
           exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/e.js"))] }),
-          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX, file: repoPathSchema.parse("src/a.ts") }]),
           git: unchangedGitTracking(TRACKED_PATHS),
         }),
       ),
-    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/e.js" }] } } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: { paidDebt: [], report: { ...EMPTY_REPORT, stale: [{ ...STALE_CARVE_OUT_ON_A, file: "src/e.js" }] }, unprojected: [] },
+    });
   });
 });
 

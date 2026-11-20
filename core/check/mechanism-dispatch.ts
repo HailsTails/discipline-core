@@ -58,16 +58,16 @@ const standaloneResultSchema = runnerResultSchema({ value: standaloneRunReportSc
 
 type FiledClause = Pick<Hit, "clause" | "file">;
 
-const unrequestedHit = <Filed extends FiledClause>(request: {
-  readonly hits: readonly Filed[];
+const unrequestedEntry = <Filed extends FiledClause>(request: {
+  readonly entries: readonly Filed[];
   readonly run: RunRequest;
   readonly checkedFiles: readonly RepoPath[];
 }): Filed | undefined =>
-  request.hits.find(
-    (hit) =>
-      !request.checkedFiles.includes(hit.file) ||
+  request.entries.find(
+    (entry) =>
+      !request.checkedFiles.includes(entry.file) ||
       !request.run.clauses.some(
-        (clause) => sameClauseAddress({ left: clause.address, right: hit.clause }) === "same",
+        (clause) => sameClauseAddress({ left: clause.address, right: entry.clause }) === "same",
       ),
   );
 
@@ -82,7 +82,7 @@ const firstUnrequestedDetail = (request: {
   readonly checkedFiles: readonly RepoPath[];
 }): string | undefined =>
   request.groups.flatMap((group) => {
-    const unrequested = unrequestedHit({ hits: group.entries, run: request.run, checkedFiles: request.checkedFiles });
+    const unrequested = unrequestedEntry({ entries: group.entries, run: request.run, checkedFiles: request.checkedFiles });
     return unrequested === undefined
       ? []
       : [`${group.noun} names ${clauseAddressText({ address: unrequested.clause })} in ${unrequested.file}, which the request did not hold`];

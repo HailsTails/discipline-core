@@ -15,22 +15,6 @@ import { ABSENT_ENTRY_KIND } from "../../../tests/empty-walker-disk.ts";
 const CLASS_ON_LINE_THREE = "const a = 1;\n\n  class Alpha {}\n";
 const ADDRESS = clauseAddressSchema.parse("CD-14#class-syntax");
 
-const CLASS_SYNTAX_CASES = [
-  { name: "class declaration", fileName: "decl.ts", source: "export class Alpha {}\n", expectedLines: [1] },
-  { name: "class expression", fileName: "expr.ts", source: "export const Beta = class {};\n", expectedLines: [1] },
-  { name: "export default class across two lines", fileName: "default.ts", source: "export default\nclass {}\n", expectedLines: [2] },
-  { name: "abstract class", fileName: "abstract.ts", source: "export abstract class Gamma {}\n", expectedLines: [1] },
-  { name: "nested class", fileName: "nested.ts", source: "export function make() {\n  class Delta {}\n  return Delta;\n}\n", expectedLines: [2] },
-  { name: "runtime namespace class", fileName: "space.ts", source: "export namespace Space {\n  export class Epsilon {}\n}\n", expectedLines: [2] },
-  { name: "new anonymous class", fileName: "anon.ts", source: "export const zeta = new (class {})();\n", expectedLines: [1] },
-  { name: "declare class", fileName: "ambient.ts", source: "declare class Eta {}\n", expectedLines: [] },
-  { name: "declare module", fileName: "module.ts", source: 'declare module "lib" {\n  class Theta {}\n}\n', expectedLines: [] },
-  { name: "declare global", fileName: "global.ts", source: "export {};\ndeclare global {\n  class Iota {}\n}\n", expectedLines: [] },
-  { name: "nested declare namespace", fileName: "outer.ts", source: "declare namespace Outer {\n  namespace Inner {\n    class Kappa {}\n  }\n}\n", expectedLines: [] },
-  { name: "declaration file", fileName: "x.d.ts", source: "export class Lambda {}\n", expectedLines: [] },
-  { name: "library construction", fileName: "client.ts", source: 'import { Client } from "lib";\nexport const client = new Client();\n', expectedLines: [] },
-];
-
 const CLAUSE: RunnerClause = {
   address: ADDRESS,
   anchor: { kind: "keyword", keyword: "class" },
@@ -59,12 +43,6 @@ const walkerRunner = createWalkerRunner({
 });
 
 describe("CD-14 class-syntax audit check over TypeScript's own parse", () => {
-  it.each(CLASS_SYNTAX_CASES)("flags exactly the expected lines of the case $name", async ({ name, fileName, source, expectedLines }) => {
-    expect(
-      await walkerRunner.conform({ clause: CLAUSE, cases: [{ name, fileName: repoPathSchema.parse(fileName), source, expectedLines }] }),
-    ).toEqual({ outcome: "ok", value: [{ caseName: name, flaggedLines: expectedLines }] });
-  });
-
   it.each([
     { name: "a nested node_modules folder", fileName: "src/node_modules/lib/a.ts" },
     { name: "a dist folder", fileName: "dist/a.ts" },

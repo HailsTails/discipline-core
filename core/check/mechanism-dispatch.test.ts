@@ -231,7 +231,19 @@ describe("runMechanism with a standalone runner, the pairs it measured", () => {
           run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [MEASURED_A, { ...MEASURED_A, file: "README.md" }] } }),
         }),
       }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [MEASURED_A, { ...MEASURED_A, file: "README.md" }] } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        mechanism: "audit",
+        hits: [],
+        nativeExceptions: [],
+        coverableKinds: ["inline-disable"],
+        projection: "none",
+        slices: [],
+        unprojectedFolders: [],
+        measured: [MEASURED_A, { clause: CLASS_SYNTAX_OBJECT, file: "README.md" }],
+      },
+    });
   });
 
   it("is runner-invalid-output when a measured pair names a clause the request did not hold", async () => {
@@ -241,7 +253,7 @@ describe("runMechanism with a standalone runner, the pairs it measured", () => {
           run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [{ ...MEASURED_A, clause: ABSTRACT_SYNTAX_OBJECT }] } }),
         }),
       }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#abstract-syntax in src/a.ts, which the request did not hold") } });
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "runner-invalid-output", detail: "a measured pair names CD-14#abstract-syntax in src/a.ts, which the request did not hold" } });
   });
 
   it("is runner-invalid-output when a measured pair names a file that is not tracked", async () => {
@@ -251,7 +263,7 @@ describe("runMechanism with a standalone runner, the pairs it measured", () => {
           run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [{ ...MEASURED_A, file: "src/excluded.ts" }] } }),
         }),
       }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#class-syntax in src/excluded.ts, which the request did not hold") } });
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "runner-invalid-output", detail: "a measured pair names CD-14#class-syntax in src/excluded.ts, which the request did not hold" } });
   });
 });
 
@@ -491,7 +503,19 @@ describe("runMechanism with an embedded runner, the pairs it measured", () => {
       dispatchEmbeddedRun({
         run: embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current", measured: [MEASURED_A] } }),
       }),
-    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [MEASURED_A] } });
+    ).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        mechanism: "eslint",
+        hits: [],
+        nativeExceptions: [],
+        coverableKinds: ["config-override"],
+        projection: "current",
+        slices: [],
+        unprojectedFolders: [],
+        measured: [MEASURED_A],
+      },
+    });
   });
 
   it("is runner-invalid-output when a measured pair names a tracked file that is not in files", async () => {
@@ -502,7 +526,7 @@ describe("runMechanism with an embedded runner, the pairs it measured", () => {
           value: { hits: [], nativeExceptions: [], projection: "current", measured: [{ ...MEASURED_A, file: "README.md" }] },
         }),
       }),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#class-syntax in README.md, which the request did not hold") } });
+    ).resolves.toEqual({ outcome: "failed", error: { kind: "runner-invalid-output", detail: "a measured pair names CD-14#class-syntax in README.md, which the request did not hold" } });
   });
 });
 

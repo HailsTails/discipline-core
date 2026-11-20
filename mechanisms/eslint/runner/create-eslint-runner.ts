@@ -758,7 +758,7 @@ const measuredOn = (request: {
   readonly linted: LintedFile;
   readonly selected: readonly SelectedClause[];
 }): readonly MeasuredPair[] =>
-  ruleCoverageOf(request) === "rule-less-message"
+  ruleCoverageOf({ linted: request.linted }) === "rule-less-message"
     ? []
     : request.selected.map((entry) => ({ clause: entry.clause.address, file: request.file }));
 
