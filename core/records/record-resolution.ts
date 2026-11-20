@@ -41,9 +41,13 @@ export type FiledUnder = { readonly kind: NamedFolderKind } | { readonly kind: S
 
 const RUNTIME_PREFIX = "runtime:";
 
-const BUILT_IN_PREFIX = "node:";
+const NPM_PREFIX = "npm:";
+
+const SCHEME_MARK = /^[a-z][a-z0-9+.-]*:/;
 
 const SCOPE_MARK = "@";
+
+const VERSION_MARK = "@";
 
 const SCOPED_NAME_SEGMENTS = 2;
 
@@ -98,13 +102,21 @@ const placedIn = (request: { readonly file: RepoPath; readonly kind: NamedFolder
 };
 
 const notBanned = (request: { readonly catalogue: SymptomCatalogue; readonly dependency: string }): Resolution<string> =>
-  request.catalogue.namedBans.some((ban) => ban.outsideDependency === request.dependency)
+  request.catalogue.namedBans.some((ban) => ban.outsideDependency.toLowerCase() === request.dependency.toLowerCase())
     ? refusedWith({ kind: "named-ban", dependency: request.dependency })
     : resolved(request.dependency);
 
+const withoutVersion = (request: { readonly segment: string }): string => {
+  const versionAt = request.segment.indexOf(VERSION_MARK);
+  return versionAt === -1 ? request.segment : request.segment.slice(0, versionAt);
+};
+
 const packageOf = (request: { readonly specifier: string }): string => {
   const nameSegments = request.specifier.startsWith(SCOPE_MARK) ? SCOPED_NAME_SEGMENTS : UNSCOPED_NAME_SEGMENTS;
-  return request.specifier.split("/").slice(0, nameSegments).join("/");
+  const segments = request.specifier.split("/");
+  const scope = segments.slice(0, nameSegments - 1);
+  const name = segments.slice(nameSegments - 1, nameSegments).map((segment) => withoutVersion({ segment }));
+  return [...scope, ...name].join("/");
 };
 
 const runtimePartyOf = (request: { readonly text: string }): Resolution<OutsideParty> => {
@@ -116,8 +128,11 @@ const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideP
   if (request.text.startsWith(RUNTIME_PREFIX)) {
     return runtimePartyOf(request);
   }
-  if (request.text.startsWith(BUILT_IN_PREFIX)) {
-    return resolved({ kind: "built-in", specifier: request.text });
+  if (request.text.startsWith(NPM_PREFIX)) {
+    return resolved({ kind: "package", specifier: request.text, dependency: packageOf({ specifier: request.text.slice(NPM_PREFIX.length) }) });
+  }
+  if (SCHEME_MARK.test(request.text)) {
+    return resolved({ kind: "scheme-module", specifier: request.text });
   }
   return resolved({ kind: "package", specifier: request.text, dependency: packageOf({ specifier: request.text }) });
 };

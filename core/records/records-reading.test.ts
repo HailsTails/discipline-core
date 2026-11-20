@@ -189,7 +189,7 @@ describe("recordsReadingOf", () => {
     expect(
       sameRecordIdentity({
         left: { kind: "boundary-record", module: ADAPTER, outsideParty: { kind: "runtime", facility: "clock" }, holding: { held: "stated", ports: ["Clock"] } },
-        right: { kind: "boundary-record", module: ADAPTER, outsideParty: { kind: "built-in", specifier: "runtime:clock" }, holding: { held: "stated", ports: ["Clock"] } },
+        right: { kind: "boundary-record", module: ADAPTER, outsideParty: { kind: "scheme-module", specifier: "runtime:clock" }, holding: { held: "stated", ports: ["Clock"] } },
       }),
     ).toBe("different");
   });

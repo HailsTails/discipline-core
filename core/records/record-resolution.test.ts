@@ -302,6 +302,23 @@ describe("recordOf, authorised locations", () => {
     });
   });
 
+  it.each([
+    { written: { case: "No Such Case" }, note: { kind: "unknown-case", case: "No Such Case", owes: "declared-not-asserted" } },
+    { written: { owes: "Declared, not asserted" }, note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "Declared, not asserted" } },
+  ])("accepts an authorised location whose case or owes is spelt $written, noting it however it is spelt", ({ written, note }) => {
+    expect(
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: AUTHORISED_FILE, filedUnder: { kind: "authorised-locations" }, entry: { ...STATED_AUTHORISED_LOCATION, ...written } }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        file: "src/adapters/stripe-webhook.ts",
+        holding: { held: "stated", owing: { matches: "not-the-catalogue", note }, whyChain: WHY_CHAIN },
+      },
+    });
+  });
+
   it("OPEN TABLE, hone#206: accepts Text past its reader at one test site owing Written-out answers, which its indication points at but its case does not owe, with the note", () => {
     expect(
       recordOf({
@@ -481,7 +498,33 @@ describe("recordOf, boundary records", () => {
       }),
     ).toEqual({
       outcome: "ok",
-      value: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "built-in", specifier: "node:fs" }, holding: { held: "stated", ports: ["FileReader"] } },
+      value: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "scheme-module", specifier: "node:fs" }, holding: { held: "stated", ports: ["FileReader"] } },
+    });
+  });
+
+  it.each([{ outsideParty: "cloudflare:workers" }, { outsideParty: "bun:test" }, { outsideParty: "astro:content" }, { outsideParty: "node:fs/promises" }, { outsideParty: "https://esm.sh/preact@10" }])(
+    "reads $outsideParty as a module its scheme names, which no package provides",
+    ({ outsideParty }) => {
+      expect(
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/platform.ts", outsideParty, ports: ["Platform"] } }),
+      ).toEqual({
+        outcome: "ok",
+        value: { kind: "boundary-record", module: "src/adapters/platform.ts", outsideParty: { kind: "scheme-module", specifier: outsideParty }, holding: { held: "stated", ports: ["Platform"] } },
+      });
+    },
+  );
+
+  it.each([
+    { outsideParty: "JSONStream", dependency: "JSONStream" },
+    { outsideParty: "npm:lodash", dependency: "lodash" },
+    { outsideParty: "npm:lodash@4/fp", dependency: "lodash" },
+    { outsideParty: "npm:@date-fns/tz@1.2.0/locale", dependency: "@date-fns/tz" },
+  ])("reads $outsideParty as the package $dependency", ({ outsideParty, dependency }) => {
+    expect(
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/streams.ts", outsideParty, ports: ["Stream"] } }),
+    ).toEqual({
+      outcome: "ok",
+      value: { kind: "boundary-record", module: "src/adapters/streams.ts", outsideParty: { kind: "package", specifier: outsideParty, dependency }, holding: { held: "stated", ports: ["Stream"] } },
     });
   });
 
@@ -549,8 +592,15 @@ describe("recordOf, boundary records", () => {
     },
   );
 
-  it.each([{ outsideParty: " runtime:clock" }, { outsideParty: "runtime:clock " }, { outsideParty: "Lodash" }, { outsideParty: "npm:lodash" }, { outsideParty: "lodash fp" }])(
-    "refuses an outside party written $outsideParty, which names no module specifier or runtime facility",
+  it.each([
+    { outsideParty: " runtime:clock" },
+    { outsideParty: "runtime:clock " },
+    { outsideParty: "lodash fp" },
+    { outsideParty: "./adapters/clock" },
+    { outsideParty: "/src/adapters/clock" },
+    { outsideParty: "npm:" },
+  ])(
+    "refuses an outside party written $outsideParty, which names no outside module or runtime facility",
     ({ outsideParty }) => {
       expect(
         recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
@@ -667,7 +717,34 @@ describe("recordOf, dependency records", () => {
     ).toEqual({ outcome: "failed", error: [{ kind: "named-ban", dependency: "lodash" }] });
   });
 
-  it.each([{ dependency: "lodash " }, { dependency: " lodash" }, { dependency: "Lodash" }, { dependency: "lodash/fp" }, { dependency: "npm:lodash" }])(
+  it.each([{ dependency: "Lodash" }, { dependency: "LODASH" }])("refuses a dependency record on $dependency, since a ban is not beaten by case", ({ dependency }) => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEPENDENCIES_FILE,
+        filedUnder: { kind: "dependencies" },
+        entry: { dependency, nativeWay: "Array methods", whyNotEnough: "groupBy was missing." },
+      }),
+    ).toEqual({ outcome: "failed", error: [{ kind: "named-ban", dependency }] });
+  });
+
+  it("reads a dependency record on a legacy package name with capitals", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEPENDENCIES_FILE,
+        filedUnder: { kind: "dependencies" },
+        entry: { dependency: "JSONStream", nativeWay: "a hand-written stream parser", whyNotEnough: "The payload is too large to hold." },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: { kind: "dependency-record", dependency: "JSONStream", nativeWay: "a hand-written stream parser", whyNotEnough: "The payload is too large to hold." },
+    });
+  });
+
+  it.each([{ dependency: "lodash " }, { dependency: " lodash" }, { dependency: "lodash/fp" }, { dependency: "npm:lodash" }])(
     "refuses a dependency written $dependency, which is not the name of one direct outside dependency",
     ({ dependency }) => {
       expect(
