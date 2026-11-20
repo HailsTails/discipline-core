@@ -5,7 +5,7 @@ import {
   rejectedCall,
   runnerInvalidOutput,
 } from "../mechanism-port/runner-failure.ts";
-import type { LoadedRunner, RunRequest } from "../mechanism-port/runner-module-schema.ts";
+import type { LoadedStandaloneRunner, RunRequest } from "../mechanism-port/runner-module-schema.ts";
 import {
   type Hit,
   type MeasuredPair,
@@ -33,8 +33,6 @@ export type MechanismRun = {
 const STANDALONE_COVERABLE_KINDS: readonly NativeException["kind"][] = ["inline-disable"];
 
 export const NOTHING_MEASURED: readonly MeasuredPair[] = [];
-
-export type StandaloneLoadedRunner = Extract<LoadedRunner, { readonly exceptionPath: "standalone" }>;
 
 const standaloneResultSchema = runnerResultSchema({ value: standaloneRunReportSchema });
 
@@ -135,7 +133,7 @@ export const unrequestedNativeException = (request: {
   );
 
 export const runMechanism = (request: {
-  readonly runner: StandaloneLoadedRunner;
+  readonly runner: LoadedStandaloneRunner;
   readonly mechanism: MechanismId;
   readonly run: RunRequest;
 }): Promise<Result<MechanismRun, RunnerFailure>> => {

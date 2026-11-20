@@ -567,16 +567,6 @@ describe("runCheck load failures", () => {
     ).resolves.toEqual(failure);
   });
 
-  it("is runner-invalid for a runner export whose exception path is outside every path", async () => {
-    await expect(
-      runCheck(
-        checkRequest({
-          modules: modulesLoading({ runner: { ...standaloneRunner({ runReturns: CLEAN_RUN }), exceptionPath: "unknown-path" } }),
-        }),
-      ),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid", mechanism: "audit" } });
-  });
-
   it("is runner-invalid with the loader's detail when the runner module fails to load", async () => {
     await expect(
       runCheck(
@@ -593,12 +583,6 @@ describe("runCheck load failures", () => {
       outcome: "failed",
       error: { kind: "runner-invalid", mechanism: "audit", detail: "Cannot find package 'typescript'" },
     });
-  });
-
-  it("is runner-invalid for a runner module with no runner export", async () => {
-    await expect(
-      runCheck(checkRequest({ modules: modulesLoading({ createWalkerRunner: vi.fn() }) })),
-    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid", mechanism: "audit" } });
   });
 
   it("is git-failed when git cannot list the tracked paths", async () => {

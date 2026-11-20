@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { type CheckedTree, checkedTreeOf, typescriptFilesOf } from "../run/checked-tree-of.ts";
 import type { SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseBinding, Selection } from "../settings/selection.ts";
@@ -16,12 +15,7 @@ import { paidDebtOf } from "../upgrade/version-one-records/paid-debt.ts";
 import type { Finding } from "../governance/governance.ts";
 import { applyGovernance, type GovernanceResult } from "../upgrade/answering/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
-import {
-  type LoadedRunner,
-  type RunnerClause,
-  type RunRequest,
-  runnerModuleSchema,
-} from "../mechanism-port/runner-module-schema.ts";
+import type { LoadedRunner, RunnerClause, RunRequest } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
@@ -31,7 +25,7 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { UnprojectedFolder } from "../values/unprojected-folder.ts";
-import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
+import type { ModuleExtension } from "../values/install-layout.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type {
@@ -46,6 +40,7 @@ import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import type { MechanismRun } from "../run/mechanism-dispatch.ts";
+import { loadRunner } from "../mechanism-port/load-runner.ts";
 import { runMechanismWithRecords } from "../upgrade/engine-protocol/mechanism-dispatch.ts";
 
 export type CheckRequest = {
@@ -87,8 +82,6 @@ export type LoadedInputs = {
   readonly exceptionBaseline: ExceptionBaseline;
 };
 
-const runnerExportSchema = z.object({ runner: runnerModuleSchema });
-
 const failed = (error: LoadFailure): { readonly outcome: "failed"; readonly error: LoadFailure } => ({
   outcome: "failed",
   error,
@@ -116,26 +109,6 @@ export const runnerFailed = <Value>(request: {
   request.runnerResult.outcome === "failed"
     ? failed({ kind: "runner-failed", mechanism: request.mechanism, failure: request.runnerResult.error })
     : request.runnerResult;
-
-export type RunnerLocation = Pick<LoadRequest, "installRoot" | "moduleExtension" | "modules" | "path"> & {
-  readonly mechanism: MechanismId;
-};
-
-export const loadRunner = async (request: RunnerLocation): Promise<Result<LoadedRunner, LoadFailure>> => {
-  const loaded = await request.modules.load({
-    path: request.path.join({
-      segments: runnerModuleSegmentsOf({ installRoot: request.installRoot, mechanism: request.mechanism, moduleExtension: request.moduleExtension }),
-    }),
-  });
-  if (loaded.outcome === "failed") {
-    return failed({ kind: "runner-invalid", mechanism: request.mechanism, detail: loaded.error.detail });
-  }
-  const parsed = runnerExportSchema.safeParse(loaded.value);
-  if (!parsed.success) {
-    return failed({ kind: "runner-invalid", mechanism: request.mechanism, detail: z.prettifyError(parsed.error) });
-  }
-  return { outcome: "ok", value: parsed.data.runner };
-};
 
 const distinctMechanisms = (request: { readonly bindings: readonly ClauseBinding[] }): readonly MechanismId[] => [
   ...new Set(request.bindings.map((binding) => binding.mechanism)),

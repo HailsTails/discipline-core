@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { EmbeddedRunReport, ReturnedEmbeddedRunReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
-import type { EmbeddedRunner, EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
+import type { EmbeddedRunner, EmbeddedRunRequest, ProjectionRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
-import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
+import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type {
   CaseVerdict,
   Hit,

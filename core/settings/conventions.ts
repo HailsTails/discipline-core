@@ -84,6 +84,21 @@ const conventionsReadingOf = (request: { readonly document: ConventionsDocument 
   };
 };
 
+export type ConventionsWire = {
+  readonly conventions?: { readonly generated: readonly GeneratedFiles[] };
+  readonly layers?: Readonly<Partial<Record<LayerName, readonly string[]>>>;
+};
+
+export const conventionsWireOf = (request: { readonly reading: ConventionsReading }): ConventionsWire => {
+  const { conventions, declared } = request.reading;
+  return {
+    ...(declared.includes("generated") ? { conventions: { generated: conventions.generated } } : {}),
+    ...(declared.includes("layers")
+      ? { layers: Object.fromEntries(conventions.layers.map(({ layer, folders }): readonly [LayerName, readonly string[]] => [layer, folders])) }
+      : {}),
+  };
+};
+
 export const conventionsOf = (request: { readonly document: unknown }): Result<ConventionsReading, string> => {
   const parsed = conventionsDocumentSchema.safeParse(request.document);
   return parsed.success ? { outcome: "ok", value: conventionsReadingOf({ document: parsed.data }) } : { outcome: "failed", error: z.prettifyError(parsed.error) };
