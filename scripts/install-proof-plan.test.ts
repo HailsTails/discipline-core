@@ -109,10 +109,10 @@ describe("toolchainPinsOf, over this package's own package.json read as a build-
     });
   });
 
-  it("pins every peer at the development version, ESLint at the latest 9, for an ESLint 9 consumer", () => {
+  it("pins TypeScript at its floor and the rest at the development versions, ESLint at the latest 9, for an ESLint 9 consumer", () => {
     expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "eslint-9" })).toEqual({
       outcome: "ok",
-      value: { typescript: "6.0.3", eslint: "9.39.5", "@typescript-eslint/parser": "8.73.0", "@typescript-eslint/eslint-plugin": "8.73.0" },
+      value: { typescript: "4.8.4", eslint: "9.39.5", "@typescript-eslint/parser": "8.73.0", "@typescript-eslint/eslint-plugin": "8.73.0" },
     });
   });
 

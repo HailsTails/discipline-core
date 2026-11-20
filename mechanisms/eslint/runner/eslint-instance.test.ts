@@ -22,7 +22,7 @@ const CLASS_LISTENER = "ClassDeclaration";
 
 const FUNCTION_LISTENER = "FunctionDeclaration";
 
-const classAndFunctionPlugin =eslintPluginModuleSchema.parse({
+const classAndFunctionPlugin = eslintPluginModuleSchema.parse({
   default: {
     rules: {
       "no-class": {

@@ -250,7 +250,7 @@ const CURRENT: FloorPins = {
 const FLOOR_PINS: Readonly<Record<ProofToolchain, FloorPins>> = {
   "typescript-floor": TYPESCRIPT_FLOOR,
   current: CURRENT,
-  "eslint-9": { ...CURRENT, eslint: "eslint-9" },
+  "eslint-9": { ...CURRENT, ...TYPESCRIPT_FLOOR, eslint: "eslint-9" },
 };
 
 const manifestInvalid = (request: { readonly detail: string }): Result<never, ManifestFailure> => ({

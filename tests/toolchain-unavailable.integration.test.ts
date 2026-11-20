@@ -27,11 +27,11 @@ const fileText = createDefaultFileTextPort({});
 
 const path = createDefaultPathPort({});
 
-const TYPESCRIPT_UNRESOLVED: Error & { code?: string } = new Error(`Cannot find package 'typescript' imported from ${INSTALL_ROOT}/x.ts`);
-TYPESCRIPT_UNRESOLVED.code = "ERR_MODULE_NOT_FOUND";
+const TYPESCRIPT_NOT_INSTALLED: NodeJS.ErrnoException = new Error("Cannot find package 'typescript' imported from /install/x.ts");
+TYPESCRIPT_NOT_INSTALLED.code = "ERR_MODULE_NOT_FOUND";
 
-const ESLINT_UNRESOLVED: Error & { code?: string } = new Error(`Cannot find package 'eslint' imported from ${INSTALL_ROOT}/x.ts`);
-ESLINT_UNRESOLVED.code = "ERR_MODULE_NOT_FOUND";
+const ESLINT_NOT_INSTALLED: NodeJS.ErrnoException = new Error("Cannot find package 'eslint' imported from /install/x.ts");
+ESLINT_NOT_INSTALLED.code = "ERR_MODULE_NOT_FOUND";
 
 const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.tracked }),
@@ -44,12 +44,12 @@ const pieceLoads = (): ModuleLoaderPort => ({
   load: vi.fn<ModuleLoaderPort["load"]>(),
 });
 
-const unresolvedFirst = (request: { readonly error: Error }): PackageLocationPort => ({
+const unresolvedFirst = (request: { readonly notInstalled: Error }): PackageLocationPort => ({
   installRoot: INSTALL_ROOT,
   installForm: "package",
   locate: vi
     .fn<PackageLocationPort["locate"]>()
-    .mockThrowOnce(request.error)
+    .mockThrowOnce(request.notInstalled)
     .mockReturnValue({ outcome: "ok", value: "/repository/node_modules/peer/index.js" }),
 });
 
@@ -69,7 +69,7 @@ const eslintRunnerLocatingBy = (request: { readonly pieces: ModuleLoaderPort; re
 
 const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPort }) =>
   toolchainBoundStandaloneRunner({
-    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ error: TYPESCRIPT_UNRESOLVED }) } }),
+    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ notInstalled: TYPESCRIPT_NOT_INSTALLED }) } }),
     runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse, entryKind: ABSENT_ENTRY_KIND }),
   });
 
@@ -91,7 +91,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
     const pieces = pieceLoads();
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ error: ESLINT_UNRESOLVED }) }),
+      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ notInstalled: ESLINT_NOT_INSTALLED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     expect({ checked, pieceLoads: vi.mocked(pieces.load).mock.calls }).toEqual({
@@ -110,7 +110,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("prints that failure as one load-failure line telling the adopter what to add, never a stack trace", async () => {
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ error: ESLINT_UNRESOLVED }) }),
+      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ notInstalled: ESLINT_NOT_INSTALLED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     assert(checked.outcome === "failed", "the check fails to load");
