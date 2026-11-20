@@ -13,6 +13,7 @@ export type StagesOver = (request: { readonly ports: VersionTwoPorts; readonly l
 export type VersionTwoRepositoryPorts = {
   readonly gitTree: VersionTwoPorts["gitTree"];
   readonly directory: VersionTwoPorts["directory"];
+  readonly recordsSourceOf: VersionTwoPorts["recordsSourceOf"];
   readonly stagesOver: StagesOver;
 };
 
@@ -43,7 +44,15 @@ export const stagesOverRepository = (request: {
 }): VersionTwoStages => {
   const { path, fileText, modules, git } = request.command;
   return request.ports.stagesOver({
-    ports: { fileText, path, modules, git, gitTree: request.ports.gitTree, directory: request.ports.directory },
+    ports: {
+      fileText,
+      path,
+      modules,
+      git,
+      gitTree: request.ports.gitTree,
+      directory: request.ports.directory,
+      recordsSourceOf: request.ports.recordsSourceOf,
+    },
     locations: {
       repoRoot: request.located.repoRoot,
       installRoot: request.located.installRoot,
