@@ -95,6 +95,25 @@ export const importsOutside = (request: {
       .map((moduleImport) => ({ file, ...moduleImport })),
   );
 
+export const relativeImportNotNaming =
+  (request: { readonly files: readonly string[] }): ImportAllowance =>
+  ({ moduleImport }) =>
+    request.files.some((file) => moduleImport.specifier === `./${file}`) ? "outside" : "allowed";
+
+const fileNameOfSource = (request: { readonly source: string }): string => request.source.split("/").at(-1) ?? "";
+
+export const sourcesNamed = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => request.files.includes(fileNameOfSource({ source }))));
+
+export const sourcesNotNamed = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(fileNameOfSource({ source }))));
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;

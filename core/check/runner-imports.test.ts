@@ -4,8 +4,11 @@ import {
   importsOutside,
   packageImport,
   packageOrComputedImport,
+  relativeImportNotNaming,
   relativeImportOfAnyForm,
   relativeImportReaching,
+  sourcesNamed,
+  sourcesNotNamed,
 } from "../../tests/confinement.ts";
 
 declare global {
@@ -45,32 +48,39 @@ const vendorImportsTestSources = import.meta.glob(["./core/check/vendor-imports.
   eager: true,
 });
 
-const versionTwoRunnerSources = import.meta.glob(
-  [
-    "./mechanisms/eslint/runner/*.ts",
-    "!./mechanisms/eslint/runner/{create-eslint-runner,eslint-repository,namespace-ownership,projection-holding,projection-slices,projection-text,runner,sliced-projection}.ts",
-    "!./mechanisms/eslint/runner/{create-eslint-runner,eslint-repository,namespace-ownership,projection-holding,projection-slices,projection-text,runner,sliced-projection}.*.ts",
-    "!./mechanisms/eslint/runner/{eslint-conformance,native-exceptions}.*.ts",
-  ],
-  {
-    base: "../../",
-    query: "?raw",
-    import: "default",
-    eager: true,
-  },
-);
-
-const versionOneOnlyRunnerFiles = import.meta.glob(["./mechanisms/eslint/runner/{create-eslint-runner,eslint-repository,namespace-ownership,projection-holding,projection-slices,projection-text,runner,sliced-projection}.ts"], {
+const everyRunnerFileSources = import.meta.glob(["./mechanisms/eslint/runner/*.ts"], {
   base: "../../",
   query: "?raw",
   import: "default",
   eager: true,
 });
 
-const reachesNoVersionOneOnlyRunnerFile = relativeImportReaching({
-  importingFolder: "mechanisms/eslint/runner",
-  reach: /^(?!mechanisms\/eslint\/runner\/(?:create-eslint-runner|eslint-repository|namespace-ownership|projection-holding|projection-slices|projection-text|runner|sliced-projection)\.ts$)/,
-});
+const LEFT_OUT_OF_THE_SCAN: readonly string[] = [
+  "create-eslint-runner.ts",
+  "create-eslint-runner.test.ts",
+  "eslint-conformance.test.ts",
+  "eslint-repository.ts",
+  "eslint-repository.test.ts",
+  "namespace-ownership.ts",
+  "namespace-ownership.test.ts",
+  "native-exceptions.integration.test.ts",
+  "projection-holding.ts",
+  "projection-holding.test.ts",
+  "projection-slices.ts",
+  "projection-slices.test.ts",
+  "projection-text.ts",
+  "projection-text.test.ts",
+  "runner.ts",
+  "runner.test.ts",
+  "sliced-projection.ts",
+  "sliced-projection.test.ts",
+];
+
+const versionTwoRunnerSources = sourcesNotNamed({ sources: everyRunnerFileSources, files: LEFT_OUT_OF_THE_SCAN });
+
+const leftOutRunnerSources = sourcesNamed({ sources: everyRunnerFileSources, files: LEFT_OUT_OF_THE_SCAN });
+
+const reachesNoVersionOneOnlyRunnerFile = relativeImportNotNaming({ files: LEFT_OUT_OF_THE_SCAN });
 
 const walkerRunnerReach = relativeImportReaching({
   importingFolder: "mechanisms/audit/runner",
@@ -128,15 +138,25 @@ describe("FR-8 and AR-1 runner reach into core and its own mechanism over what t
     ).toEqual([]);
   });
 
-  it("finds the eight version 1-only runner files, so the check below is not silently against nothing", () => {
-    expect(versionOneOnlyRunnerFiles).toEqual({
+  it("leaves out of the scan exactly the eight version 1-only runner files, their tests, and the two version 1 tests, each by full file name", () => {
+    expect(leftOutRunnerSources).toEqual({
+      "./mechanisms/eslint/runner/create-eslint-runner.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/create-eslint-runner.ts": expect.any(String),
+      "./mechanisms/eslint/runner/eslint-conformance.test.ts": expect.any(String),
+      "./mechanisms/eslint/runner/eslint-repository.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/eslint-repository.ts": expect.any(String),
+      "./mechanisms/eslint/runner/namespace-ownership.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/namespace-ownership.ts": expect.any(String),
+      "./mechanisms/eslint/runner/native-exceptions.integration.test.ts": expect.any(String),
+      "./mechanisms/eslint/runner/projection-holding.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/projection-holding.ts": expect.any(String),
+      "./mechanisms/eslint/runner/projection-slices.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/projection-slices.ts": expect.any(String),
+      "./mechanisms/eslint/runner/projection-text.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/projection-text.ts": expect.any(String),
+      "./mechanisms/eslint/runner/runner.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/runner.ts": expect.any(String),
+      "./mechanisms/eslint/runner/sliced-projection.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/sliced-projection.ts": expect.any(String),
     });
   });
