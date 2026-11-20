@@ -224,7 +224,7 @@ The copy is an older release, so the package checks more than it did. Read these
 
 To move:
 
-1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.28.0 or later on 9 or any 10, and typescript-eslint 8.56.0 or later on 8. Keep the versions the repository already uses.
+1. **Make sure the toolchain resolves from the repository root**, in the ranges [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 lists: TypeScript 4.8.4 up to 6.x, ESLint 9.39.5 or later on 9, or 10.15.0 or later on 10, and typescript-eslint 8.73.0 or later on 8. Keep the versions the repository already uses.
 2. **Install the package** as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 says, including the two `hone:` scripts.
 3. **Repoint every command.** In scripts, CI and the pre-push hook, replace `node tools/discipline-core/core/check/check-command.ts --repo .` with `npm run --silent hone:check`, and `project-command.ts` with `npm run --silent hone:project`. Pass options after `--` with npm, as in `npm run --silent hone:check -- --base-revision origin/main`, and straight after the script name with pnpm, as in `pnpm run --silent hone:check --base-revision origin/main`. A hook or gate that reads the verdict line needs the warning in [ADOPTING.md](ADOPTING.md#5-run-the-check) step 5. Point agent instructions at `node_modules/@hailstails/hone/rules/`.
 4. **Repoint your own pieces and tests.** Nothing outside the package's public entries can be imported now:

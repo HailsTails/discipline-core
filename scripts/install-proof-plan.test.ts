@@ -94,12 +94,6 @@ describe("judgedStep", () => {
   });
 });
 
-const FLOOR_ESLINT_PEERS = {
-  typescript: "4.8.4",
-  "@typescript-eslint/parser": "8.56.0",
-  "@typescript-eslint/eslint-plugin": "8.56.0",
-};
-
 describe("toolchainPinsOf, over this package's own package.json read as a build-time raw module", () => {
   it("pins only typescript, at its floor, for a TypeScript floor consumer", () => {
     expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "typescript-floor" })).toEqual({
@@ -111,17 +105,14 @@ describe("toolchainPinsOf, over this package's own package.json read as a build-
   it("pins every peer at the development version this package is built with for a current consumer", () => {
     expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "current" })).toEqual({
       outcome: "ok",
-      value: { typescript: "6.0.3", eslint: "10.11.0", "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
+      value: { typescript: "6.0.3", eslint: "10.15.0", "@typescript-eslint/parser": "8.73.0", "@typescript-eslint/eslint-plugin": "8.73.0" },
     });
   });
 
-  it.each([
-    { toolchain: "eslint-9-floor", eslint: "9.28.0" },
-    { toolchain: "eslint-10-floor", eslint: "10.0.0" },
-  ] as const)("pins every peer at its floor for a $toolchain consumer, ESLint at $eslint", ({ toolchain, eslint }) => {
-    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
+  it("pins every peer at the development version, ESLint at the latest 9, for an ESLint 9 consumer", () => {
+    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain: "eslint-9" })).toEqual({
       outcome: "ok",
-      value: { ...FLOOR_ESLINT_PEERS, eslint },
+      value: { typescript: "6.0.3", eslint: "9.39.5", "@typescript-eslint/parser": "8.73.0", "@typescript-eslint/eslint-plugin": "8.73.0" },
     });
   });
 
@@ -190,7 +181,7 @@ const ESLINT_MISSING_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 2,
       output:
-        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0; @typescript-eslint/parser found not installed, supported ^8.56.0; @typescript-eslint/eslint-plugin found not installed, supported ^8.56.0: add a supported version of each to the devDependencies of the repository root\n",
+        "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.39.5 || ^10.15.0; @typescript-eslint/parser found not installed, supported ^8.73.0; @typescript-eslint/eslint-plugin found not installed, supported ^8.73.0: add a supported version of each to the devDependencies of the repository root\n",
     },
   },
 ];
@@ -255,15 +246,15 @@ const WORKSPACE_ACTIONS: readonly ProofAction[] = [
 ];
 
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set and its own piece proof on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each supported major, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set and its own piece proof on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
       { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
-      { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
-      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-10", fixture: "eslint", toolchain: "current", typeStripping: "disabled", actions: ESLINT_ACTIONS },
+      { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9", typeStripping: "disabled", actions: ESLINT_ACTIONS },
       { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
       { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: [WRONG_FIELDS_REJECTED] },
       { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
-      { consumer: "workspace", fixture: "workspace", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
+      { consumer: "workspace", fixture: "workspace", toolchain: "current", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },
     ]);
   });
   it("name a packaged consumer's scripts after the command and its subcommands", () => {

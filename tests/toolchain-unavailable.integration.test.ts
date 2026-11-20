@@ -27,10 +27,11 @@ const fileText = createDefaultFileTextPort({});
 
 const path = createDefaultPathPort({});
 
-const notInstalled = (request: { readonly packageName: string }): Error =>
-  Object.assign(new Error(`Cannot find package '${request.packageName}' imported from ${INSTALL_ROOT}/x.ts`), {
-    code: "ERR_MODULE_NOT_FOUND",
-  });
+const TYPESCRIPT_UNRESOLVED: Error & { code?: string } = new Error(`Cannot find package 'typescript' imported from ${INSTALL_ROOT}/x.ts`);
+TYPESCRIPT_UNRESOLVED.code = "ERR_MODULE_NOT_FOUND";
+
+const ESLINT_UNRESOLVED: Error & { code?: string } = new Error(`Cannot find package 'eslint' imported from ${INSTALL_ROOT}/x.ts`);
+ESLINT_UNRESOLVED.code = "ERR_MODULE_NOT_FOUND";
 
 const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.tracked }),
@@ -43,12 +44,12 @@ const pieceLoads = (): ModuleLoaderPort => ({
   load: vi.fn<ModuleLoaderPort["load"]>(),
 });
 
-const unresolvedFirst = (request: { readonly packageName: string }): PackageLocationPort => ({
+const unresolvedFirst = (request: { readonly error: Error }): PackageLocationPort => ({
   installRoot: INSTALL_ROOT,
   installForm: "package",
   locate: vi
     .fn<PackageLocationPort["locate"]>()
-    .mockThrowOnce(notInstalled(request))
+    .mockThrowOnce(request.error)
     .mockReturnValue({ outcome: "ok", value: "/repository/node_modules/peer/index.js" }),
 });
 
@@ -68,7 +69,7 @@ const eslintRunnerLocatingBy = (request: { readonly pieces: ModuleLoaderPort; re
 
 const auditRunnerWithoutTypescript = (request: { readonly pieces: ModuleLoaderPort }) =>
   toolchainBoundStandaloneRunner({
-    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ packageName: "typescript" }) } }),
+    toolchain: loadParsePort({ peers: { modules: defaultTypeScriptModules, location: unresolvedFirst({ error: TYPESCRIPT_UNRESOLVED }) } }),
     runnerOf: (parse) => createWalkerRunner({ fileText, modules: request.pieces, path, parse, entryKind: ABSENT_ENTRY_KIND }),
   });
 
@@ -90,7 +91,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
     const pieces = pieceLoads();
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ packageName: "eslint" }) }),
+      runner: eslintRunnerLocatingBy({ pieces, location: unresolvedFirst({ error: ESLINT_UNRESOLVED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     expect({ checked, pieceLoads: vi.mocked(pieces.load).mock.calls }).toEqual({
@@ -99,7 +100,7 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
         error: {
           kind: "runner-failed",
           mechanism: "eslint",
-          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
+          failure: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.39.5 || ^10.15.0", found: "not installed" }] },
         },
       },
       pieceLoads: [],
@@ -109,12 +110,12 @@ describe("a check whose adopter has not installed a toolchain peer the selected 
   it("prints that failure as one load-failure line telling the adopter what to add, never a stack trace", async () => {
     const checked = await checkWith({
       fixture: "tests/test-fixtures/consumer-proof/eslint",
-      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ packageName: "eslint" }) }),
+      runner: eslintRunnerLocatingBy({ pieces: pieceLoads(), location: unresolvedFirst({ error: ESLINT_UNRESOLVED }) }),
       tracked: [repoPathSchema.parse("src/plain.ts")],
     });
     assert(checked.outcome === "failed", "the check fails to load");
     expect(loadFailureText({ failure: checked.error })).toBe(
-      "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.28.0 || ^10.0.0: add a supported version to the devDependencies of the repository root\n",
+      "load failure: runner-failed eslint toolchain-unavailable eslint found not installed, supported ^9.39.5 || ^10.15.0: add a supported version to the devDependencies of the repository root\n",
     );
   });
 

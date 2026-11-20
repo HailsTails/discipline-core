@@ -16,7 +16,7 @@ const LOADED: Result<Toolchain, RunnerFailure> = { outcome: "ok", value: { name:
 
 const UNAVAILABLE: Result<Toolchain, RunnerFailure> = {
   outcome: "failed",
-  error: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.28.0 || ^10.0.0", found: "not installed" }] },
+  error: { kind: "toolchain-unavailable", peers: [{ packageName: "eslint", peer: "optional", supported: "^9.39.5 || ^10.15.0", found: "not installed" }] },
 };
 
 const REPO = absolutePathSchema.parse("/repo");
