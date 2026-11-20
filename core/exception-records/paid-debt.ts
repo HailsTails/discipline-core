@@ -12,6 +12,7 @@ export type PaidDebtRequest = {
   readonly forfeited: readonly ExceptionRecord[];
   readonly unrecorded: readonly AttributedNativeException[];
   readonly absent: readonly RepoPath[];
+  readonly measured: readonly DebtPair[];
 };
 
 const nativeFileOf = (request: { readonly exception: AttributedNativeException }): RepoPath | undefined => {
@@ -37,12 +38,16 @@ const heldPairKeys = (request: PaidDebtRequest): ReadonlySet<string> =>
     }),
   ]);
 
-const goneFileCarveOutPairs = (request: Pick<PaidDebtRequest, "stale" | "forfeited" | "absent">): readonly DebtPair[] =>
-  [...request.stale, ...request.forfeited].flatMap((record) =>
-    record.kind === "file-carve-out" && request.absent.includes(record.file) ? [{ clause: record.clause, file: record.file }] : [],
+const settledCarveOutPairs = (request: Pick<PaidDebtRequest, "stale" | "forfeited" | "absent" | "measured">): readonly DebtPair[] => {
+  const measured = new Set(request.measured.map((pair) => debtPairKey(pair)));
+  return [...request.stale, ...request.forfeited].flatMap((record) =>
+    record.kind === "file-carve-out" && (request.absent.includes(record.file) || measured.has(debtPairKey(record)))
+      ? [{ clause: record.clause, file: record.file }]
+      : [],
   );
+};
 
 export const paidDebtOf = (request: PaidDebtRequest): readonly DebtPair[] => {
   const held = heldPairKeys(request);
-  return distinctDebtPairs({ pairs: goneFileCarveOutPairs(request).filter((pair) => !held.has(debtPairKey(pair))) });
+  return distinctDebtPairs({ pairs: settledCarveOutPairs(request).filter((pair) => !held.has(debtPairKey(pair))) });
 };

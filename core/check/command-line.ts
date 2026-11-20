@@ -114,7 +114,7 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     ],
   },
   [PRUNE_DEBT_SUBCOMMAND]: {
-    summary: "remove from the exception records each stale or forfeited file carve-out whose file no longer exists, printing each pair removed",
+    summary: "remove from the exception records each stale or forfeited file carve-out whose file no longer exists or whose clause its mechanism measured on that file with nothing left to hold it, printing each pair removed",
     options: [REPO_OPTION, BASE_REVISION_OPTION, FORFEITURE_OPTION],
     exits: [
       { code: 0, meaning: "every paid record was removed, or none was paid" },

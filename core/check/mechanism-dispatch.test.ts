@@ -84,6 +84,7 @@ describe("runMechanism with a standalone runner", () => {
         projection: "none",
         slices: [],
         unprojectedFolders: [],
+        measured: [],
       },
     });
   });
@@ -93,7 +94,7 @@ describe("runMechanism with a standalone runner", () => {
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [] },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [], measured: [] },
     });
   });
 
@@ -141,7 +142,7 @@ describe("runMechanism with a standalone runner", () => {
       dispatchRun({ runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [EXPECTATION_IN_A] } }) }) }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "audit", hits: [], nativeExceptions: [EXPECTATION_IN_A], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [] },
+      value: { mechanism: "audit", hits: [], nativeExceptions: [EXPECTATION_IN_A], coverableKinds: ["inline-disable"], projection: "none", slices: [], unprojectedFolders: [], measured: [] },
     });
   });
 
@@ -217,6 +218,40 @@ describe("runMechanism with a standalone runner", () => {
         runner: standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [{ ...HIT_IN_A, file: "src/untracked.ts" }], nativeExceptions: [] } }) }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a hit names CD-14#class-syntax in src/untracked.ts, which the request did not hold") } });
+  });
+});
+
+const MEASURED_A = { clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" };
+
+describe("runMechanism with a standalone runner, the pairs it measured", () => {
+  it("returns each clause and file the runner says it measured, in a tracked file outside files too", async () => {
+    await expect(
+      dispatchRun({
+        runner: standaloneRunner({
+          run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [MEASURED_A, { ...MEASURED_A, file: "README.md" }] } }),
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [MEASURED_A, { ...MEASURED_A, file: "README.md" }] } });
+  });
+
+  it("is runner-invalid-output when a measured pair names a clause the request did not hold", async () => {
+    await expect(
+      dispatchRun({
+        runner: standaloneRunner({
+          run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [{ ...MEASURED_A, clause: ABSTRACT_SYNTAX_OBJECT }] } }),
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#abstract-syntax in src/a.ts, which the request did not hold") } });
+  });
+
+  it("is runner-invalid-output when a measured pair names a file that is not tracked", async () => {
+    await expect(
+      dispatchRun({
+        runner: standaloneRunner({
+          run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [{ ...MEASURED_A, file: "src/excluded.ts" }] } }),
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#class-syntax in src/excluded.ts, which the request did not hold") } });
   });
 });
 
@@ -315,6 +350,7 @@ describe("runMechanism with an embedded runner", () => {
         projection: "current",
         slices: [],
         unprojectedFolders: [],
+        measured: [],
       },
     });
   });
@@ -326,7 +362,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "not-included", slices: [], unprojectedFolders: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "not-included", slices: [], unprojectedFolders: [], measured: [] },
     });
   });
 
@@ -337,7 +373,7 @@ describe("runMechanism with an embedded runner", () => {
       }),
     ).resolves.toEqual({
       outcome: "ok",
-      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "missing", slices: [], unprojectedFolders: [] },
+      value: { mechanism: "eslint", hits: [], nativeExceptions: [], coverableKinds: ["config-override"], projection: "missing", slices: [], unprojectedFolders: [], measured: [] },
     });
   });
 
@@ -356,6 +392,7 @@ describe("runMechanism with an embedded runner", () => {
         projection: "out-of-date",
         slices: [],
         unprojectedFolders: [],
+        measured: [],
       },
     });
   });
@@ -445,6 +482,27 @@ describe("runMechanism with an embedded runner", () => {
         }),
       }),
     ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a hit names CD-14#class-syntax in README.md, which the request did not hold") } });
+  });
+});
+
+describe("runMechanism with an embedded runner, the pairs it measured", () => {
+  it("returns each clause and file the runner says it measured", async () => {
+    await expect(
+      dispatchEmbeddedRun({
+        run: embeddedResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [], projection: "current", measured: [MEASURED_A] } }),
+      }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { measured: [MEASURED_A] } });
+  });
+
+  it("is runner-invalid-output when a measured pair names a tracked file that is not in files", async () => {
+    await expect(
+      dispatchEmbeddedRun({
+        run: embeddedResolving({
+          outcome: "ok",
+          value: { hits: [], nativeExceptions: [], projection: "current", measured: [{ ...MEASURED_A, file: "README.md" }] },
+        }),
+      }),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-invalid-output", detail: expect.stringContaining("a measured pair names CD-14#class-syntax in README.md, which the request did not hold") } });
   });
 });
 
@@ -545,6 +603,7 @@ describe("runMechanism with an embedded runner, native exceptions against the re
         projection: "current",
         slices: [],
         unprojectedFolders: [],
+        measured: [],
       },
     });
   });

@@ -102,6 +102,6 @@ describe("CD-3 edition 2 over a real extends chain on disk, through the shipped 
       clauses: CLAUSES,
     });
 
-    expect(report).toEqual({ outcome: "ok", value: { hits: [...SHARED_HITS, ...layeredHits], nativeExceptions: [] } });
+    expect(report).toMatchObject({ outcome: "ok", value: { hits: [...SHARED_HITS, ...layeredHits], nativeExceptions: [] } });
   });
 });

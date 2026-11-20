@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
-import type { ReturnedEmbeddedRunReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
+import type { EmbeddedRunReport, ReturnedEmbeddedRunReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner, EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type {
   CaseVerdict,
   Hit,
+  MeasuredPair,
   NativeException,
   ProjectionWrite,
   ScriptOptionCause,
@@ -96,6 +97,8 @@ export type EslintRunnerPorts = {
 };
 
 type Outcome<Value> = Result<Value, RunnerFailure>;
+
+type EslintRunReport = ReturnedEmbeddedRunReport & Required<Pick<EmbeddedRunReport, "measured">>;
 
 type ConfiguredClause = {
   readonly clause: RunnerClause;
@@ -741,7 +744,23 @@ const parseableFile = (request: {
   return file;
 };
 
-type LintFindings = { readonly hits: readonly Hit[]; readonly nativeExceptions: readonly NativeException[] };
+type LintFindings = {
+  readonly hits: readonly Hit[];
+  readonly nativeExceptions: readonly NativeException[];
+  readonly measured: readonly MeasuredPair[];
+};
+
+const ruleCoverageOf = (request: { readonly linted: LintedFile }): "every-rule-ran" | "rule-less-message" =>
+  request.linted.messages.some((message) => message.ruleId === null) ? "rule-less-message" : "every-rule-ran";
+
+const measuredOn = (request: {
+  readonly file: RepoPath;
+  readonly linted: LintedFile;
+  readonly selected: readonly SelectedClause[];
+}): readonly MeasuredPair[] =>
+  ruleCoverageOf(request) === "rule-less-message"
+    ? []
+    : request.selected.map((entry) => ({ clause: entry.clause.address, file: request.file }));
 
 const lintedFindings = (request: {
   readonly linted: LintedFile;
@@ -768,6 +787,7 @@ const lintedFindings = (request: {
     map: (sourceLines): LintFindings => ({
       hits: hitsCutFrom({ file: file.value, ruleHits: reading.value.ruleHits, lines: sourceLines }),
       nativeExceptions: reading.value.nativeExceptions,
+      measured: measuredOn({ file: file.value, linted: request.linted, selected: request.selected }),
     }),
   });
 };
@@ -906,9 +926,9 @@ const trackedExceptions = (request: {
 const reportWith = (request: {
   readonly projection: ReturnedEmbeddedRunReport["projection"];
   readonly slices: readonly SliceProblem[];
-}): Outcome<ReturnedEmbeddedRunReport> => ({
+}): Outcome<EslintRunReport> => ({
   outcome: "ok",
-  value: { hits: [], nativeExceptions: [], projection: request.projection, slices: request.slices },
+  value: { hits: [], nativeExceptions: [], projection: request.projection, slices: request.slices, measured: [] },
 });
 
 const ruleIdsOf = (request: { readonly selected: readonly SelectedClause[] }): readonly string[] =>
@@ -964,7 +984,7 @@ const governedReport = (request: {
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
   readonly lintedFiles: readonly LintedFile[];
-}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
+}): Promise<Outcome<EslintRunReport>> => {
   const findings = gatheredOutcomes({
     outcomes: request.lintedFiles.map((linted) =>
       listedOutcome({
@@ -1008,6 +1028,7 @@ const governedReport = (request: {
         ],
         projection: request.status.projection,
         slices: request.status.slices,
+        measured: findings.value.flatMap((found) => found.measured),
       },
     };
   });
@@ -1021,7 +1042,7 @@ const lintedReport = (request: {
   readonly repository: EslintRepository;
   readonly query: QueryInstance;
   readonly queried: QueriedFiles;
-}): Promise<Outcome<ReturnedEmbeddedRunReport>> =>
+}): Promise<Outcome<EslintRunReport>> =>
   governedLint({ run: request.run, selected: request.selected, eslint: request.ports.eslint }).then(
     (lintedFiles) =>
       lintedFiles.outcome === "failed" ? lintedFiles : governedReport({ ...request, lintedFiles: lintedFiles.value }),
@@ -1096,7 +1117,7 @@ const queriedReport = (request: {
   readonly repository: EslintRepository;
   readonly query: QueryInstance;
   readonly queried: Outcome<QueriedFiles>;
-}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
+}): Promise<Outcome<EslintRunReport>> => {
   if (request.queried.outcome === "failed") {
     return Promise.resolve(request.queried);
   }
@@ -1128,7 +1149,7 @@ const governedRun = (request: {
   readonly lookup: ConfigLookup;
   readonly ports: EslintRunnerPorts;
   readonly repository: EslintRepository;
-}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
+}): Promise<Outcome<EslintRunReport>> => {
   const lookup = request.lookup;
   const query = request.ports.eslint.createQueryInstance(
     lookup.kind === "repository-root"
@@ -1181,7 +1202,7 @@ const selectedRun = (request: {
   readonly selected: readonly SelectedClause[];
   readonly origin: ImportOrigin;
   readonly ports: EslintRunnerPorts;
-}): Promise<Outcome<ReturnedEmbeddedRunReport>> => {
+}): Promise<Outcome<EslintRunReport>> => {
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
   const states = repository.projectionFiles.currentOf({ files: [PROJECTION_PATH] });
   if (states.outcome === "failed") {

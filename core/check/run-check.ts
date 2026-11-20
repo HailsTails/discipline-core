@@ -405,7 +405,11 @@ const checkReportOf = (request: {
     runs: request.runs,
   });
   const projections = request.runs.map((run) => projectionOutcome({ run }));
-  const paidDebt = paidDebtOf({ ...governed, absent: absentFilesOf({ check: request.check, governed }) });
+  const paidDebt = paidDebtOf({
+    ...governed,
+    absent: absentFilesOf({ check: request.check, governed }),
+    measured: request.runs.flatMap((run) => run.measured),
+  });
   const report: CheckReport = {
     excluded: request.inputs.excluded,
     notAdopted: request.inputs.selection.notAdopted,

@@ -1039,7 +1039,60 @@ const carveOutOn = (file: string): StructuralExceptionEntry => ({ ...CARVE_OUT_O
 const unchangedGitTracking = (tracked: readonly RepoPath[]): GitPort =>
   gitMeasuring({ trackedPaths: { outcome: "ok", value: tracked }, changedSince: { outcome: "ok", value: [] } });
 
-describe("runReachedCheck handing on only the debt on a file no longer on disk", () => {
+const CARVE_OUT_ON_A = firstInSingleFile(carveOutOn("src/a.ts"));
+
+const runnerMeasuring = (measured: readonly unknown[]): ModuleLoaderPort =>
+  modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured } } }) });
+
+describe("runReachedCheck handing on debt on a file still on disk from what its runner measured", () => {
+  it("hands on a stale file carve-out whose clause its runner measured on that file, pointing at it", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      value: { paidDebt: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }], report: { readFirst: [{ kind: "paid-debt", fileCarveOuts: 1 }] } },
+    });
+  });
+
+  it("hands on nothing for a stale file carve-out on a file still on disk when its mechanism did not run, its projection missing", async () => {
+    await expect(
+      runReachedCheck({ ...embeddedCheck({ hits: [], nativeExceptions: [], projection: "missing" }), exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }), git: unchangedGitTracking(TRACKED_PATHS) }),
+    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/a.ts" }] } } });
+  });
+
+  it("refuses the run, handing on nothing, when a runner claims a file the selection excludes", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          selectionRepository: selectionRepositoryReading({ ...SELECTION_READING, excluded: [repoPathSchema.parse("src")] }),
+          exceptionRepository: exceptionRepositoryHolding({ working: [CARVE_OUT_ON_A] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "failed", error: { kind: "runner-failed", failure: { kind: "runner-invalid-output" } } });
+  });
+
+  it("hands on nothing for a stale file carve-out on a file its runner was handed but did not measure", async () => {
+    await expect(
+      runReachedCheck(
+        checkRequest({
+          exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/e.js"))] }),
+          modules: runnerMeasuring([{ clause: CLASS_SYNTAX_OBJECT, file: "src/a.ts" }]),
+          git: unchangedGitTracking(TRACKED_PATHS),
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "ok", value: { paidDebt: [], report: { stale: [{ kind: "file-carve-out", file: "src/e.js" }] } } });
+  });
+});
+
+describe("runReachedCheck handing on debt on a file no longer on disk", () => {
   it("hands on a stale file carve-out on a file no longer on disk, pointing at it", async () => {
     await expect(
       runReachedCheck(
@@ -1068,7 +1121,7 @@ describe("runReachedCheck handing on only the debt on a file no longer on disk",
     });
   });
 
-  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists", async () => {
+  it("hands on and points at nothing for a stale file carve-out on a tracked file that still exists and no runner said it measured", async () => {
     await expect(
       runReachedCheck(
         checkRequest({ exceptionRepository: exceptionRepositoryHolding({ working: [firstInSingleFile(carveOutOn("src/a.ts"))] }), git: unchangedGitTracking(TRACKED_PATHS) }),

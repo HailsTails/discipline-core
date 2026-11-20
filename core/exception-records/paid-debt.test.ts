@@ -39,7 +39,7 @@ const directiveAt = (request: { readonly clause: Finding["clause"]; readonly fil
   reach: "one-clause",
 });
 
-const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], absent: [] };
+const NOTHING: PaidDebtRequest = { findings: [], exempted: [], stale: [], forfeited: [], unrecorded: [], absent: [], measured: [] };
 
 const CHECKOUT = repoPathSchema.parse("src/checkout.ts");
 const PRICES = repoPathSchema.parse("src/prices.ts");
@@ -167,6 +167,53 @@ describe("paidDebtOf naming only debt on a file no longer on disk", () => {
         ...GONE,
         stale: [carveOut({ clause: LOOPS, file: BASKET })],
         unrecorded: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("paidDebtOf naming debt on a file still on disk that its mechanism measured", () => {
+  it("names a stale and a forfeited file carve-out whose clause was measured on its file, which is still on disk", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        stale: [carveOut({ clause: LOOPS, file: BASKET })],
+        forfeited: [carveOut({ clause: CASTS, file: LEGACY })],
+        measured: [
+          { clause: LOOPS, file: BASKET },
+          { clause: CASTS, file: LEGACY },
+        ],
+      }),
+    ).toEqual([
+      { clause: LOOPS, file: BASKET },
+      { clause: CASTS, file: LEGACY },
+    ]);
+  });
+
+  it("leaves a stale file carve-out whose file was measured only on another clause", () => {
+    expect(
+      paidDebtOf({ ...NOTHING, stale: [carveOut({ clause: LOOPS, file: BASKET })], measured: [{ clause: CASTS, file: BASKET }] }),
+    ).toEqual([]);
+  });
+
+  it("keeps a forfeited file carve-out whose measured clause and file still hold a finding", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        forfeited: [carveOut({ clause: LOOPS, file: BASKET })],
+        findings: [findingAt({ clause: LOOPS, file: BASKET })],
+        measured: [{ clause: LOOPS, file: BASKET }],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a stale file carve-out whose measured clause and file hold an unrecorded ignore", () => {
+    expect(
+      paidDebtOf({
+        ...NOTHING,
+        stale: [carveOut({ clause: LOOPS, file: BASKET })],
+        unrecorded: [{ kind: "ignore", clause: LOOPS, mechanism: ESLINT, file: BASKET }],
+        measured: [{ clause: LOOPS, file: BASKET }],
       }),
     ).toEqual([]);
   });
