@@ -1,5 +1,6 @@
 import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../upgrade/version-one-records/exception-records.ts";
-import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
+import type { AttributedNativeException } from "../governance/governance.ts";
+import type { ExemptedFinding } from "../upgrade/answering/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { PRUNE_DEBT_SUBCOMMAND } from "../command-line/subcommand-names.ts";
 import { clauseAddressText } from "../values/clause-address.ts";

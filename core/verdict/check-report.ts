@@ -2,12 +2,8 @@ import type {
   ExceptionRecord,
   InvalidRecord,
 } from "../upgrade/version-one-records/exception-records.ts";
-import type {
-  AttributedNativeException,
-  DoublyHeld,
-  ExemptedFinding,
-  Finding,
-} from "../governance/governance.ts";
+import type { AttributedNativeException, Finding } from "../governance/governance.ts";
+import type { DoublyHeld, ExemptedFinding } from "../upgrade/answering/governance.ts";
 import type { FilePresence } from "../platform-ports/file-text-port.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type { ClauseAddress } from "../values/clause-address.ts";

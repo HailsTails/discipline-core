@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
-import type { TouchedSet } from "../touched-set/touched-set.ts";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { mechanismIdSchema } from "../values/identifiers.ts";
-import { repoPathSchema } from "../values/repo-path.ts";
-import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
-import { applyGovernance, type Finding, type GovernanceRequest } from "./governance.ts";
+import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import type { Finding } from "../../governance/governance.ts";
+import type { NativeException } from "../../mechanism-port/runner-result-schema.ts";
+import type { TouchedSet } from "../../touched-set/touched-set.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { mechanismIdSchema } from "../../values/identifiers.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
+import type { ExceptionRecord } from "../version-one-records/exception-records.ts";
+import { applyGovernance, type GovernanceRequest } from "./governance.ts";
 
 const noClass = clauseAddressSchema.parse("CD-14#no-class-syntax");
 const noForOf = clauseAddressSchema.parse("CD-15#no-for-of");
