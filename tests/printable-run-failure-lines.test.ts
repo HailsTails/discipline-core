@@ -47,8 +47,8 @@ describe("RUN_FAILURE_LINES", () => {
 });
 
 describe("RUN_PRINTED_BLOCKS", () => {
-  it("holds the synopsis, then the tool's help and the help of each of the five commands", () => {
-    expect(RUN_PRINTED_BLOCKS).toHaveLength(7);
+  it("holds the synopsis, then the tool's help and the help of each of the six commands", () => {
+    expect(RUN_PRINTED_BLOCKS).toHaveLength(8);
   });
 
   it("opens with the synopsis, which names upgrade and not split-records", () => {

@@ -83,5 +83,5 @@ export const versionTwoStagesOver = (request: StagesRequest): VersionTwoStages =
       modules: request.ports.modules,
     }),
   touched: (stage) =>
-    touchedSetOf({ assessment: stage.assessment, records: stage.records.records, repoRoot: request.locations.repoRoot, baseRevision: request.locations.baseRevision, git: request.ports.git }),
+    touchedSetOf({ assessment: stage.assessment, measuring: stage.measuring, records: stage.records.records, repoRoot: request.locations.repoRoot, baseRevision: request.locations.baseRevision, git: request.ports.git }),
 });

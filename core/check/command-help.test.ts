@@ -10,6 +10,7 @@ commands:
   project        write the native configuration each selected embedded mechanism needs, printing each file as written or unchanged
   record-debt    add a file carve-out naming only its clause and file to the exception records for each clause and file the check finds broken, as inherited debt, printing each pair and what was done
   prune-debt     remove from the exception records each stale or forfeited file carve-out whose file no longer exists or whose clause its mechanism measured on that file with nothing left to hold it, printing each pair removed
+  authorise      write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done
   split-records  move the exception records from discipline-exceptions.json into the discipline-exceptions folder, one file for each record kind and discipline, printing each file as written or removed
 
 options:
@@ -100,6 +101,10 @@ describe("helpText", () => {
     expect(helpText({ topic: "prune-debt" })).toBe(PRUNE_DEBT_HELP);
   });
 
+  it("describes the authorise command's --repo as the folder that holds hone.config.json", () => {
+    expect(helpText({ topic: "authorise" })).toContain("\n  --repo <dir>\n      the folder that holds hone.config.json, usually the repository root\n");
+  });
+
   it("lists the commands and the tool's own options", () => {
     expect(helpText({ topic: "tool" })).toBe(TOOL_HELP);
   });
@@ -124,7 +129,7 @@ describe("helpText", () => {
 describe("SYNOPSIS", () => {
   it("lists each command's usage, then the tool's own flags", () => {
     expect(SYNOPSIS).toBe(
-      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone split-records --repo <dir>\nhone --help\nhone --version\n",
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>\nhone split-records --repo <dir>\nhone --help\nhone --version\n",
     );
   });
 });

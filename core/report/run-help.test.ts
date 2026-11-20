@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { RUN_SYNOPSIS, RUN_SUBCOMMANDS, runHelpText } from "./run-help.ts";
 
 describe("the version 2 commands", () => {
-  it("are check, project, record-debt, prune-debt and upgrade, with split-records gone", () => {
-    expect(RUN_SUBCOMMANDS).toEqual(["check", "project", "record-debt", "prune-debt", "upgrade"]);
+  it("are check, project, record-debt, prune-debt, authorise and upgrade, with split-records gone", () => {
+    expect(RUN_SUBCOMMANDS).toEqual(["check", "project", "record-debt", "prune-debt", "authorise", "upgrade"]);
   });
 
   it("print a synopsis of every command's usage", () => {
@@ -11,6 +11,7 @@ describe("the version 2 commands", () => {
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
 hone upgrade --repo <dir>
 hone --help
 hone --version
@@ -29,6 +30,7 @@ commands:
   project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
+  authorise    write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
   upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
 
 options:

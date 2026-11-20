@@ -14,7 +14,8 @@ import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { type StagesOver, versionTwoCheckCommandOf } from "./version-two-check-command.ts";
+import { versionTwoCheckCommandOf } from "./version-two-check-command.ts";
+import type { StagesOver } from "./version-two-repository.ts";
 import type { VersionTwoStages } from "./version-two-run.ts";
 
 const FILE_A = repoPathSchema.parse("src/a.ts");
