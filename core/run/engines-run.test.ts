@@ -67,7 +67,11 @@ const EMBEDDED_MODULE = {
     conform: () => Promise.resolve(undefined),
     project: () => Promise.resolve(undefined),
   },
-  checksRunner: { projectedKinds: ["config-override"], run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: REPORT }) },
+  checksRunner: {
+    projectedKinds: ["config-override"],
+    run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: REPORT }),
+    conform: vi.fn<(request: unknown) => Promise<unknown>>(),
+  },
 };
 
 const NOT_ASKED_FOR: ModuleLoad = { outcome: "failed", error: { kind: "module-unloadable", path: "/nowhere", detail: "not asked for" } };
@@ -143,7 +147,7 @@ describe("enginesRunOf", () => {
   });
 
   it("fails as an engine that failed, naming the engine, when its runner fails", async () => {
-    const failing = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "tool-failed", detail: "ESLint stopped" } }) } };
+    const failing = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "tool-failed", detail: "ESLint stopped" } }), conform: () => Promise.resolve(undefined) } };
     expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: failing }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "engine-failed", engine: { named: "engine", engine: ESLINT_ENGINE }, failure: { kind: "tool-failed", detail: "ESLint stopped" } },
@@ -151,7 +155,7 @@ describe("enginesRunOf", () => {
   });
 
   it("fails as not ready yet when the ESLint runner says its config roots are not ready", async () => {
-    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }) } };
+    const notReady = { ...EMBEDDED_MODULE, checksRunner: { projectedKinds: [], run: () => Promise.resolve({ outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } }), conform: () => Promise.resolve(undefined) } };
     expect(await runOver({ bindings: [bindingOn({ mechanism: ESLINT })], first: { outcome: "ok", value: notReady }, second: NOT_ASKED_FOR, lookup: DETECTED })).toEqual({
       outcome: "failed",
       error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },

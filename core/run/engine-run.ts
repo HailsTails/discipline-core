@@ -5,6 +5,7 @@ import { checksRunnerModuleSchema } from "../mechanism-port/checks-runner-module
 import { checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
 import type { ChecksRunReport, ChecksRunRequest, MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
 import { rejectedCall, type RunnerFailure, runnerInvalidOutput } from "../mechanism-port/runner-failure.ts";
+import type { RunnerInvalid } from "../mechanism-port/load-runner.ts";
 import { type LoadedRunner, type LoadedStandaloneRunner, runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
@@ -35,7 +36,7 @@ const TYPESCRIPT_RUNNER_MODULE = z.object({ runner: runnerModuleSchema, checksRu
 
 const NO_CHECKS_RUNNER_DETAIL = "the runner module exports no checksRunner, which a version 2 run needs of an engine that runs through a native tool";
 
-const invalid = (request: { readonly mechanism: MechanismId; readonly detail: string }): Outcome<never> => ({
+const invalid = (request: { readonly mechanism: MechanismId; readonly detail: string }): Result<never, RunnerInvalid> => ({
   outcome: "failed",
   error: { kind: "runner-invalid", mechanism: request.mechanism, detail: request.detail },
 });
@@ -51,7 +52,7 @@ export const loadedEngineOf = async (request: {
   readonly moduleExtension: ModuleExtension;
   readonly path: Pick<PathPort, "join">;
   readonly modules: ModuleLoaderPort;
-}): Promise<Outcome<LoadedEngine>> => {
+}): Promise<Result<LoadedEngine, RunnerInvalid>> => {
   const loaded = await request.modules.load({
     path: request.path.join({
       segments: runnerModuleSegmentsOf({ installRoot: request.installRoot, mechanism: request.mechanism, moduleExtension: request.moduleExtension }),

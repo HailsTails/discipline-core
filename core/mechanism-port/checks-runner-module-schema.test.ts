@@ -29,13 +29,22 @@ describe("the checks runner's ties to its module schema", () => {
 });
 
 describe("checksRunnerModuleSchema", () => {
-  it("accepts a module exporting the native exception kinds it projects and a run", () => {
-    const module = { projectedKinds: ["config-override", "inline-disable"], run: () => Promise.resolve(undefined) };
+  it("accepts a module exporting the native exception kinds it projects, a run and a conform", () => {
+    const module = { projectedKinds: ["config-override", "inline-disable"], run: () => Promise.resolve(undefined), conform: () => Promise.resolve(undefined) };
     expect(checksRunnerModuleSchema.safeParse(module).success).toBe(true);
   });
 
   it("rejects a module whose run is not a function", () => {
-    expect(checksRunnerModuleSchema.safeParse({ projectedKinds: [], run: "run" }).success).toBe(false);
+    expect(checksRunnerModuleSchema.safeParse({ projectedKinds: [], run: "run", conform: () => Promise.resolve(undefined) }).success).toBe(false);
+  });
+
+  it("rejects a module with no conform, at the conform key", () => {
+    const module = { projectedKinds: [], run: () => Promise.resolve(undefined) };
+    expect(checksRunnerModuleSchema.safeParse(module)).toMatchObject({ success: false, error: { issues: [{ path: ["conform"] }] } });
+  });
+
+  it("rejects a module whose conform is not a function", () => {
+    expect(checksRunnerModuleSchema.safeParse({ projectedKinds: [], run: () => Promise.resolve(undefined), conform: "conform" }).success).toBe(false);
   });
 });
 

@@ -10,6 +10,7 @@ import { runnerFailureSchema } from "./runner-failure-schema.ts";
 export const checksRunnerModuleSchema = z.object({
   projectedKinds: z.array(nativeExceptionKindSchema),
   run: runnerCallSchema,
+  conform: runnerCallSchema,
 });
 
 export const misnamedRuleIdSchema = z
