@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { LoadFailure } from "../command-line/load-failure.ts";
-import type { Selection } from "../consumer-selection/selection.ts";
+import type { Selection } from "../settings/selection.ts";
 import type { GitFailure } from "../platform-ports/git-port.ts";
 import { parsedJson } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

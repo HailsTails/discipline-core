@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AUDIT, CAST_EXPRESSIONS, CLAIMED_TYPE, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
-import type { ClauseBinding } from "../consumer-selection/selection.ts";
+import type { ClauseBinding } from "../settings/selection.ts";
 import type { ChecksRunRequest } from "../mechanism-port/checks-runner-types.ts";
 import type { ModuleLoad, ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";

@@ -1,4 +1,4 @@
-import type { ClauseEditionReading } from "../consumer-selection/selection.ts";
+import type { ClauseEditionReading } from "../settings/selection.ts";
 import type { CheckEdition } from "../report/run-report.ts";
 import { checksOf } from "../symptom-catalogue/check-address.ts";
 import type { Check, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";

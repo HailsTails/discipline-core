@@ -1,4 +1,4 @@
-import type { ClauseRoot } from "../consumer-selection/selection.ts";
+import type { ClauseRoot } from "../settings/selection.ts";
 import type { Finding } from "../governance/governance.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

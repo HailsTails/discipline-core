@@ -1,6 +1,5 @@
 import type { ExitCode } from "../platform-ports/process-port.ts";
-import { RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
-import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
+import { PRUNE_DEBT_SUBCOMMAND, RECORD_DEBT_SUBCOMMAND } from "./subcommand-names.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 

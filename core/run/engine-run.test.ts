@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ChecksRunReport, ChecksRunner } from "../mechanism-port/checks-runner-types.ts";
 import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
-import type { ClauseBinding } from "../consumer-selection/selection.ts";
+import type { ClauseBinding } from "../settings/selection.ts";
 import type { ModuleLoad, ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import type { Check } from "../symptom-catalogue/symptom-catalogue.ts";

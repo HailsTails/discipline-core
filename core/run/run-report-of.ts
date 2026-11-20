@@ -1,4 +1,4 @@
-import type { Selection } from "../consumer-selection/selection.ts";
+import type { Selection } from "../settings/selection.ts";
 import type { Finding } from "../governance/governance.ts";
 import { type Answering, answerFindings, type RaisedFinding } from "../records/answering.ts";
 import type { RecordsReading } from "../records/hone-record.ts";

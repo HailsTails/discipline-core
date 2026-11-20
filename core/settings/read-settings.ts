@@ -1,6 +1,6 @@
 import type { VersionTwoLoadFailure } from "../command-line/load-failure.ts";
-import type { RunSettings } from "../consumer-selection/consumer-selection.ts";
-import type { ClauseBinding, ClauseEditionReading, ClauseRoot, SelectedClause, SelectionReading } from "../consumer-selection/selection.ts";
+import type { RunSettings } from "./run-settings.ts";
+import type { ClauseBinding, ClauseEditionReading, ClauseRoot, SelectedClause, SelectionReading } from "./selection.ts";
 import type { ClauseExceptions, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
 import type { CatalogueHolding } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

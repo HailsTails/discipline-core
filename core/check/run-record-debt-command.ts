@@ -1,4 +1,5 @@
-import { readSelection, type SelectionReading, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
+import { readSelection, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
+import type { SelectionReading } from "../settings/selection.ts";
 import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
 import {
   type InheritedDebtOutcome,
