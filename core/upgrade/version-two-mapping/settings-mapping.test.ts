@@ -248,35 +248,46 @@ describe("mappedSettings turning clauseSettings into checkSettings", () => {
           clauseSettings: [[TEST_BODY_CLAUSE, { limit: 4 }]],
         },
       }),
-    ).toMatchObject({
-      outcome: "ok",
-      value: {
+    ).toEqual(
+      okWith({
         settings: {
+          checks: [
+            { address: LOOP_KEYWORD_TEST_BODY, state: { state: "run", engine: "walker" } },
+            { address: REBINDING_TEST_BODY, state: { state: "run", engine: "walker" } },
+          ],
           checkSettings: [
             { address: LOOP_KEYWORD_TEST_BODY, values: { limit: 4 } },
             { address: REBINDING_TEST_BODY, values: { limit: 4 } },
           ],
         },
-      },
-    });
+      }),
+    );
   });
 
   it("copies the edition to the check's settings", () => {
     expect(
       mappedSettings({ ...BASE_REQUEST, selection: { ...LOOPS_RUN, clauseSettings: [[LOOPS_CLAUSE, { edition: "2" }]] } }),
-    ).toMatchObject({
-      outcome: "ok",
-      value: { settings: { checkSettings: [{ address: LOOPS_CHECK, values: { edition: "2" } }] } },
-    });
+    ).toEqual(
+      okWith({
+        settings: {
+          checks: [{ address: LOOPS_CHECK, state: { state: "run", engine: "walker" } }],
+          checkSettings: [{ address: LOOPS_CHECK, values: { edition: "2" } }],
+        },
+      }),
+    );
   });
 
   it("gives a setting the check may not declare as it is, leaving version 2's reader to refuse it", () => {
     expect(
       mappedSettings({ ...BASE_REQUEST, selection: { ...LOOPS_RUN, clauseSettings: [[LOOPS_CLAUSE, { colour: "red" }]] } }),
-    ).toMatchObject({
-      outcome: "ok",
-      value: { settings: { checkSettings: [{ address: LOOPS_CHECK, values: { colour: "red" } }] } },
-    });
+    ).toEqual(
+      okWith({
+        settings: {
+          checks: [{ address: LOOPS_CHECK, state: { state: "run", engine: "walker" } }],
+          checkSettings: [{ address: LOOPS_CHECK, values: { colour: "red" } }],
+        },
+      }),
+    );
   });
 });
 

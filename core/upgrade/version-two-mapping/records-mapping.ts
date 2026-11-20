@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { codePointOrder } from "../../records/code-point-order.ts";
 import { type NamedFolderKind, namedRecordsFileOf } from "../../records/records-layout.ts";
-import type { carriedAuthorisedLocationWireSchema, debtWireSchema, RECORDS_VERSION } from "../../records/records-wire.ts";
+import { type carriedAuthorisedLocationWireSchema, type debtWireSchema, RECORDS_VERSION } from "../../records/records-wire.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { checkAddressOf } from "../../symptom-catalogue/check-address.ts";
 import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
@@ -41,8 +41,6 @@ export type MappedRecords = { readonly documents: readonly MappedRecordsDocument
 type PlacedRecord = { readonly file: RepoPath; readonly record: WrittenRecord };
 
 type InputOutcome = { readonly placed: readonly PlacedRecord[]; readonly refusals: readonly UpgradeRefusal[] };
-
-const RECORDS_DOCUMENT_VERSION = 2;
 
 const refusedWith = (request: { readonly refusal: UpgradeRefusal }): InputOutcome => ({ placed: [], refusals: [request.refusal] });
 
@@ -131,7 +129,7 @@ const documentsOf = (request: { readonly placed: readonly PlacedRecord[] }): rea
     .toSorted((left, right) => codePointOrder({ left, right }))
     .map((file) => ({
       file,
-      version: RECORDS_DOCUMENT_VERSION,
+      version: RECORDS_VERSION,
       records: request.placed.filter((placed) => placed.file === file).map(({ record }) => record),
     }));
 

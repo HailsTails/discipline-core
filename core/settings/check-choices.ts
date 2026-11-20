@@ -36,12 +36,12 @@ type ResolvedCheck = FoundCheck & { readonly listed: ListedCheck; readonly choic
 
 type CatalogueRequest = { readonly catalogues: readonly RuleSetCatalogue[] };
 
-const sameRuleSet = (request: { readonly left: ClauseAddress["ruleSet"]; readonly right: ClauseAddress["ruleSet"] }): "same" | "different" =>
+export const sameRuleSet = (request: { readonly left: ClauseAddress["ruleSet"]; readonly right: ClauseAddress["ruleSet"] }): "same" | "different" =>
   (request.left === TOOL_RULE_SET ? TOOL_RULE_SET : request.left.name) === (request.right === TOOL_RULE_SET ? TOOL_RULE_SET : request.right.name)
     ? "same"
     : "different";
 
-const catalogueOf = (request: CatalogueRequest & { readonly ruleSet: ClauseAddress["ruleSet"] }): SymptomCatalogue | undefined =>
+export const catalogueOf = (request: CatalogueRequest & { readonly ruleSet: ClauseAddress["ruleSet"] }): SymptomCatalogue | undefined =>
   request.catalogues.find((held) => sameRuleSet({ left: held.ruleSet, right: request.ruleSet }) === "same")?.catalogue;
 
 const seenSymptomNames = (request: { readonly sight: ClauseSight }): readonly string[] => {
