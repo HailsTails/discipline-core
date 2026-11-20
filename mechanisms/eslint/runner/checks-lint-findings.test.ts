@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
-import { lintedFindingsOf } from "./checks-lint-findings.ts";
+import { repoPathSchema } from "../../../core/values/repo-path.ts";
+import { lintedFindingsOf, measuredOn, parseableFile } from "./checks-lint-findings.ts";
 import type { MisnamedRuleId, SelectedCheck } from "./checks-run-types.ts";
 import type { LintedFile } from "./eslint-instance.ts";
 import type { LinesReader } from "./source-lines.ts";
@@ -58,5 +59,42 @@ describe("lintedFindingsOf", () => {
       outcome: "failed",
       error: { kind: "tool-failed", detail: "ESLint linted /elsewhere/a.ts, which is outside the repository" },
     });
+  });
+});
+
+describe("parseableFile", () => {
+  it("gives the repository path of a linted file with no fatal message", () => {
+    expect(parseableFile({ linted: { filePath: "/repo/src/a.ts", messages: [] }, path: POSIX, repoRoot: absolutePathSchema.parse("/repo") })).toEqual({
+      outcome: "ok",
+      value: "src/a.ts",
+    });
+  });
+
+  it("fails as unparseable, naming the file, on a fatal message", () => {
+    expect(
+      parseableFile({
+        linted: { filePath: "/repo/src/a.ts", messages: [{ ruleId: null, line: 1, column: 1, message: "Parsing error", fatal: true }] },
+        path: POSIX,
+        repoRoot: absolutePathSchema.parse("/repo"),
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "file-unparseable", file: "src/a.ts", detail: "Parsing error" } });
+  });
+});
+
+describe("measuredOn", () => {
+  it("measures each distinct clause once on the file", () => {
+    expect(measuredOn({ file: repoPathSchema.parse("src/a.ts"), linted: { filePath: "/repo/src/a.ts", messages: [] }, clauses: [CLAUSE, CLAUSE] })).toEqual([
+      { clause: CLAUSE, file: "src/a.ts" },
+    ]);
+  });
+
+  it("measures nothing when a message names no rule", () => {
+    expect(
+      measuredOn({
+        file: repoPathSchema.parse("src/a.ts"),
+        linted: { filePath: "/repo/src/a.ts", messages: [{ ruleId: null, line: 1, column: 1, message: "odd" }] },
+        clauses: [CLAUSE],
+      }),
+    ).toEqual([]);
   });
 });

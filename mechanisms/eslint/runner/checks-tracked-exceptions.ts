@@ -1,8 +1,9 @@
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { NativeException, ScriptOptionCause } from "../../../core/mechanism-port/runner-result-schema.ts";
 import { gatheredOutcomes } from "../../../core/values/gathered-outcomes.ts";
-import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
+import type { RepoPath } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
+import { filesNamed, repositoryDirectoryOf } from "./checks-paths.ts";
 import type { SelectedCheck } from "./checks-run-types.ts";
 import { type PackageJsonScan, type PackageScriptsReader, type ScriptOption, scannedPackageScripts, type SelectedRule } from "./package-script-scanner.ts";
 import type { OptionVerdict, ScriptOptionJudge } from "./script-option-effect.ts";
@@ -13,14 +14,6 @@ type Outcome<Value> = Result<Value, RunnerFailure>;
 const SUPPRESSIONS_FILE_NAME = "eslint-suppressions.json";
 
 const PACKAGE_JSON_NAME = "package.json";
-
-const directoryOf = (request: { readonly path: RepoPath }): RepoPath | "repo-root" => {
-  const directory = repoPathSchema.safeParse(request.path.split("/").slice(0, -1).join("/"));
-  return directory.success ? directory.data : "repo-root";
-};
-
-const filesNamed = (request: { readonly trackedPaths: readonly RepoPath[]; readonly name: string }): readonly RepoPath[] =>
-  request.trackedPaths.filter((path) => path.split("/").at(-1) === request.name);
 
 const suppressionsExceptions = (request: {
   readonly suppressionsAt: SuppressionsReader;
@@ -73,7 +66,7 @@ const scannedPackageExceptions = (request: {
         scriptExceptions,
         { outcome: "ok", value: unreadableScriptExceptions({ scan: request.scan }) },
         ...request.scan.suppressionsLocations.map((scripted) =>
-          suppressionsExceptions({ suppressionsAt: request.suppressionsAt, location: scripted.location, keysRelativeTo: directoryOf({ path: request.packagePath }), selectedRules: request.selectedRules }),
+          suppressionsExceptions({ suppressionsAt: request.suppressionsAt, location: scripted.location, keysRelativeTo: repositoryDirectoryOf({ path: request.packagePath }), selectedRules: request.selectedRules }),
         ),
       ],
     }),
@@ -104,7 +97,7 @@ export type TrackedRequest = {
 export const trackedExceptionsOfRules = (request: TrackedRequest & { readonly selectedRules: readonly SelectedRule[] }): Promise<Outcome<readonly NativeException[]>> =>
   Promise.all([
     ...filesNamed({ trackedPaths: request.trackedPaths, name: SUPPRESSIONS_FILE_NAME }).map((location) =>
-      Promise.resolve(suppressionsExceptions({ ...request, location, keysRelativeTo: directoryOf({ path: location }) })),
+      Promise.resolve(suppressionsExceptions({ ...request, location, keysRelativeTo: repositoryDirectoryOf({ path: location }) })),
     ),
     ...filesNamed({ trackedPaths: request.trackedPaths, name: PACKAGE_JSON_NAME }).map((packagePath) => packageJsonExceptions({ ...request, packagePath })),
   ]).then((outcomes) => gatheredOutcomes({ outcomes }));
