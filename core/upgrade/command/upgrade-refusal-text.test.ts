@@ -1,6 +1,7 @@
 import { createPathPort } from "../../platform-ports/path-port.ts";
 import { describe, expect, it } from "vitest";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import { type UpgradeFailure, type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
 
@@ -226,6 +227,14 @@ const ROWS: readonly Row[] = [
     outcome: {
       code: 1,
       text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\nThese files could not be put back; put them right by hand:\n  delete /repo/hone.config.json (EBUSY)\n`,
+    },
+  },
+  {
+    name: "version 1 already reports clauses uncovered",
+    failure: { kind: "version-one-uncovered", clauses: [clauseAddressSchema.parse("CD-1#claimed-type"), clauseAddressSchema.parse("CD-2#claimed-members")], removedByVersionOne: [] },
+    outcome: {
+      code: 1,
+      text: "upgrade refused:\nversion 1 already reports CD-1#claimed-type, CD-2#claimed-members as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.\nNothing was changed.\n",
     },
   },
   {

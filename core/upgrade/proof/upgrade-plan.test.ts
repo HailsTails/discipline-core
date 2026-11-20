@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE } from "../../../tests/settings-catalogue.ts";
+import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
 import type { ConsumerSelectionFile } from "../../consumer-selection/selection-file.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { TOOL_RULE_SET } from "../../values/clause-address.ts";
@@ -10,7 +10,7 @@ import type { FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
 import { type ProjectionFilesOf, type UpgradePlanRequest, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
 
-const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
+const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: { ...SETTINGS_CATALOGUE, checks: [LOOP_KEYWORD_LOOPS] } }];
 
 const AUDIT = mechanismIdSchema.parse("audit");
 
@@ -56,6 +56,21 @@ const PLANNED_DEBT = {
   text: '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "loop-keyword#loops",\n      "file": "src/a.ts",\n      "note": "legacy loop"\n    }\n  ]\n}\n',
 };
 
+const PLANNED_SETTINGS_MARKING_TEST_BODY = { file: "hone.config.json", text: '{\n  "version": 2,\n  "ruleSets": {},\n  "checks": {\n    "loop-keyword#loops": "walker",\n    "loop-keyword#test-body": "not-adopted",\n    "rebinding#test-body": "not-adopted"\n  }\n}\n' };
+
+const LOOPS_SETTINGS = {
+  exclude: [],
+  ruleSets: [],
+  checks: [{ address: { ruleSet: "hone", check: "loop-keyword#loops" }, state: { state: "run", engine: "walker" } }],
+  checkSettings: [],
+  forfeiture: "this-run",
+  reportOutput: "full",
+  checkEditions: "pinned",
+  eslintConfigLookup: { lookup: "detected" },
+  eslintConfigRoots: [],
+  conventions: { conventions: { generated: [], layers: [] }, declared: [] },
+};
+
 const PLANNED_PROJECTION = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" };
 
 const projecting = (request: { readonly files: readonly (typeof PLANNED_PROJECTION)[] }) =>
@@ -73,7 +88,22 @@ describe("upgradePlanOf", () => {
   it("plans the settings, the debt records and the projection for a repository that carries over, naming the projection it planned", async () => {
     await expect(upgradePlanOf(requestOver({}))).resolves.toEqual({
       outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], projected: [PLANNED_PROJECTION] },
+      value: { markedNotAdopted: [], inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], projected: [PLANNED_PROJECTION] },
+    });
+  });
+
+  it("plans the checks of an unselected discipline that share a symptom with a selected one as not-adopted, and names them", async () => {
+    await expect(upgradePlanOf(requestOver({ catalogues: [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }] }))).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        markedNotAdopted: [
+          { check: { ruleSet: "hone", check: "loop-keyword#test-body" }, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+          { check: { ruleSet: "hone", check: "rebinding#test-body" }, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+        ],
+        inputs: [CARVE_OUT_INPUT],
+        files: [PLANNED_SETTINGS_MARKING_TEST_BODY, PLANNED_DEBT, PLANNED_PROJECTION],
+        projected: [PLANNED_PROJECTION],
+      },
     });
   });
 
@@ -83,6 +113,7 @@ describe("upgradePlanOf", () => {
     expect(planned).toEqual({
       outcome: "ok",
       value: {
+        markedNotAdopted: [],
         inputs: [CARVE_OUT_INPUT],
         files: [{ file: "hone.config.json", text: PLANNED_SETTINGS_WITH_PACKAGE_ROOT }, PLANNED_DEBT, PLANNED_PROJECTION],
         projected: [PLANNED_PROJECTION],
@@ -95,18 +126,7 @@ describe("upgradePlanOf", () => {
     const projectionFilesOf = projecting({ files: [PLANNED_PROJECTION] });
     await upgradePlanOf(requestOver({ projectionFilesOf }));
     expect(projectionFilesOf).toHaveBeenCalledExactlyOnceWith({
-      settings: {
-        exclude: [],
-        ruleSets: [],
-        checks: [{ address: { ruleSet: "hone", check: "loop-keyword#loops" }, state: { state: "run", engine: "walker" } }],
-        checkSettings: [],
-        forfeiture: "this-run",
-        reportOutput: "full",
-        checkEditions: "pinned",
-        eslintConfigLookup: { lookup: "detected" },
-        eslintConfigRoots: [],
-        conventions: { conventions: { generated: [], layers: [] }, declared: [] },
-      },
+      settings: LOOPS_SETTINGS,
       documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }] }],
     });
   });
@@ -114,7 +134,7 @@ describe("upgradePlanOf", () => {
   it("plans no projection file when the engines project none", async () => {
     await expect(upgradePlanOf(requestOver({ projectionFilesOf: projecting({ files: [] }) }))).resolves.toEqual({
       outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT], projected: [] },
+      value: { markedNotAdopted: [], inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT], projected: [] },
     });
   });
 

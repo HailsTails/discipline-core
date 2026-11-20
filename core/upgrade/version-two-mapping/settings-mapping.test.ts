@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
+import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
 import type { ConsumerSelectionFile } from "../../consumer-selection/selection-file.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import type { SettingsFile } from "../../settings/settings-file.ts";
@@ -13,7 +13,9 @@ const AUDIT = mechanismIdSchema.parse("audit");
 
 const LAYERING_CLAUSE = clauseAddressSchema.parse("CD-13#layering");
 
-const LOOPS_CHECK = { ruleSet: "hone", check: "loop-keyword#loops" } as const;
+const LOOPS_CHECK = { ruleSet: "hone", check: "loop-count#loops" } as const;
+
+const SHARED_SYMPTOM_LOOPS_CHECK = { ruleSet: "hone", check: "loop-keyword#loops" } as const;
 
 const LOOP_KEYWORD_TEST_BODY = { ruleSet: "hone", check: "loop-keyword#test-body" } as const;
 
@@ -45,9 +47,23 @@ const BASE_SETTINGS: SettingsFile = {
   conventions: { conventions: { generated: [], layers: [] }, declared: [] },
 };
 
+const CROSS_DISCIPLINE_CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: "hone", catalogue: SETTINGS_CATALOGUE }];
+
+const [, TEST_BODY_LOOP_KEYWORD_CHECK, TEST_BODY_REBINDING_CHECK] = SETTINGS_CATALOGUE.checks;
+
+const OWN_SYMPTOM_LOOPS_CHECK: Check = {
+  ...LOOP_KEYWORD_LOOPS,
+  symptom: { ...LOOP_KEYWORD_LOOPS.symptom, name: "loop-count" },
+};
+
 const BASE_REQUEST: SettingsMappingRequest = {
   selection: BASE_SELECTION,
-  catalogues: [{ ruleSet: "hone", catalogue: SETTINGS_CATALOGUE }],
+  catalogues: [
+    {
+      ruleSet: "hone",
+      catalogue: { ...SETTINGS_CATALOGUE, checks: [OWN_SYMPTOM_LOOPS_CHECK, TEST_BODY_LOOP_KEYWORD_CHECK, TEST_BODY_REBINDING_CHECK] },
+    },
+  ],
 };
 
 const WALKER: Engine = { name: "walker", mechanism: AUDIT };
@@ -62,7 +78,7 @@ const TWO_ENGINE_CATALOGUES: readonly RuleSetCatalogue[] = [
 
 const okWith = (request: { readonly settings: Partial<SettingsFile> }) => ({
   outcome: "ok",
-  value: { settings: { ...BASE_SETTINGS, ...request.settings }, drops: [] },
+  value: { settings: { ...BASE_SETTINGS, ...request.settings }, drops: [], markedNotAdopted: [] },
 });
 
 describe("mappedSettings carrying the settings that keep their name", () => {
@@ -111,6 +127,109 @@ describe("mappedSettings carrying the settings that keep their name", () => {
 
   it("writes no ESLint projection setting, since version 1 has none", () => {
     expect(mappedSettings(BASE_REQUEST)).toEqual(okWith({ settings: {} }));
+  });
+});
+
+describe("mappedSettings marking the checks version 2 would call uncovered", () => {
+  const MARKED_TEST_BODY_CHECKS = [
+    { address: LOOP_KEYWORD_TEST_BODY, state: { state: "not-adopted" } },
+    { address: REBINDING_TEST_BODY, state: { state: "not-adopted" } },
+  ];
+
+  it.each([
+    { name: "run", choice: { state: "run", mechanism: AUDIT } as const, state: { state: "run", engine: "walker" } },
+    { name: "marked not-run", choice: { state: "not-run" } as const, state: { state: "not-run" } },
+  ])("writes not-adopted the checks of an unselected discipline that share a symptom with a clause $name", ({ choice, state }) => {
+    expect(
+      mappedSettings({ catalogues: CROSS_DISCIPLINE_CATALOGUES, selection: { ...BASE_SELECTION, clauses: [[LOOPS_CLAUSE, choice]] } }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        settings: { ...BASE_SETTINGS, checks: [{ address: SHARED_SYMPTOM_LOOPS_CHECK, state }, ...MARKED_TEST_BODY_CHECKS] },
+        drops: [],
+        markedNotAdopted: [
+          { check: LOOP_KEYWORD_TEST_BODY, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+          { check: REBINDING_TEST_BODY, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+        ],
+      },
+    });
+  });
+
+  it("marks again over what the marking listed, until a marked clause's other symptoms reach no further unselected discipline", () => {
+    const parameterReassignment = clauseAddressSchema.parse("CD-44#parameter-reassignment");
+    const rebindingParameterReassignment: Check = { ...TEST_BODY_REBINDING_CHECK, name: "parameter-reassignment", clause: parameterReassignment };
+    expect(
+      mappedSettings({
+        selection: { ...BASE_SELECTION, clauses: [[LOOPS_CLAUSE, { state: "run", mechanism: AUDIT }]] },
+        catalogues: [{ ruleSet: "hone", catalogue: { ...SETTINGS_CATALOGUE, checks: [...SETTINGS_CATALOGUE.checks, rebindingParameterReassignment] } }],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        settings: {
+          ...BASE_SETTINGS,
+          checks: [
+            { address: SHARED_SYMPTOM_LOOPS_CHECK, state: { state: "run", engine: "walker" } },
+            ...MARKED_TEST_BODY_CHECKS,
+            { address: { ruleSet: "hone", check: "rebinding#parameter-reassignment" }, state: { state: "not-adopted" } },
+          ],
+        },
+        drops: [],
+        markedNotAdopted: [
+          { check: LOOP_KEYWORD_TEST_BODY, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+          { check: REBINDING_TEST_BODY, clause: TEST_BODY_CLAUSE, reason: "discipline-not-selected" },
+          { check: { ruleSet: "hone", check: "rebinding#parameter-reassignment" }, clause: parameterReassignment, reason: "discipline-not-selected" },
+        ],
+      },
+    });
+  });
+
+  it("never marks a check of a discipline version 1 selected, though version 2 would call it uncovered", () => {
+    const otherTestClause = clauseAddressSchema.parse("CD-27#other-test-rule");
+    const sameSymptomInSelectedDiscipline: Check = { ...LOOP_KEYWORD_LOOPS, name: "other-test-rule", clause: otherTestClause };
+    expect(
+      mappedSettings({
+        selection: { ...BASE_SELECTION, clauses: [[TEST_BODY_CLAUSE, { state: "run", mechanism: AUDIT }]] },
+        catalogues: [{ ruleSet: "hone", catalogue: { ...SETTINGS_CATALOGUE, checks: [...SETTINGS_CATALOGUE.checks, sameSymptomInSelectedDiscipline] } }],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        settings: {
+          ...BASE_SETTINGS,
+          checks: [
+            { address: LOOP_KEYWORD_TEST_BODY, state: { state: "run", engine: "walker" } },
+            { address: REBINDING_TEST_BODY, state: { state: "run", engine: "walker" } },
+            { address: SHARED_SYMPTOM_LOOPS_CHECK, state: { state: "not-adopted" } },
+          ],
+        },
+        drops: [],
+        markedNotAdopted: [{ check: SHARED_SYMPTOM_LOOPS_CHECK, clause: LOOPS_CLAUSE, reason: "discipline-not-selected" }],
+      },
+    });
+  });
+
+  it("marks nothing when no listed check shares a symptom with an unlisted one", () => {
+    expect(
+      mappedSettings({
+        catalogues: CROSS_DISCIPLINE_CATALOGUES,
+        selection: { ...BASE_SELECTION, clauses: [[LOOPS_CLAUSE, { state: "not-adopted" }], [TEST_BODY_CLAUSE, { state: "not-adopted" }]] },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        settings: {
+          ...BASE_SETTINGS,
+          checks: [
+            { address: SHARED_SYMPTOM_LOOPS_CHECK, state: { state: "not-adopted" } },
+            { address: LOOP_KEYWORD_TEST_BODY, state: { state: "not-adopted" } },
+            { address: REBINDING_TEST_BODY, state: { state: "not-adopted" } },
+          ],
+        },
+        drops: [],
+        markedNotAdopted: [],
+      },
+    });
   });
 });
 
@@ -170,7 +289,7 @@ describe("mappedSettings turning clauses into checks", () => {
     const oxlint = mechanismIdSchema.parse("oxlint");
     expect(
       mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, clauses: [[LOOPS_CLAUSE, { state: "run", mechanism: oxlint }]] } }),
-    ).toEqual({ outcome: "failed", error: [{ kind: "no-engine-on-mechanism", check: "loop-keyword#loops", mechanism: oxlint }] });
+    ).toEqual({ outcome: "failed", error: [{ kind: "no-engine-on-mechanism", check: "loop-count#loops", mechanism: oxlint }] });
   });
 
   it("refuses a check with two engines on the mechanism, naming both", () => {
@@ -275,7 +394,7 @@ describe("mappedSettings dropping what version 2 has no setting for", () => {
   it("names the optional file exception why-chains as dropped", () => {
     expect(mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, fileExceptionWhyChains: "optional" } })).toEqual({
       outcome: "ok",
-      value: { settings: BASE_SETTINGS, drops: [{ kind: "file-exception-why-chains", value: "optional" }] },
+      value: { settings: BASE_SETTINGS, drops: [{ kind: "file-exception-why-chains", value: "optional" }], markedNotAdopted: [] },
     });
   });
 

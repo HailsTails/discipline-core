@@ -1,10 +1,12 @@
 import type { RunReport } from "../../report/run-report.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import { clauseAddressText } from "../../values/clause-address.ts";
 import type { CheckReport } from "../../verdict/check-report.ts";
+import type { MarkedNotAdopted } from "../version-two-mapping/settings-mapping.ts";
 import { afterSectionsOf } from "./after-sections.ts";
 import { beforeSectionsOf } from "./before-sections.ts";
 import { multisetRemainderOf } from "./multiset-difference.ts";
-import { PROOF_SECTIONS, type ProofSection, type SectionKeys } from "./section-keys.ts";
+import { PROOF_SECTIONS, type ProofSection, type SectionKeys, uniqueKeys } from "./section-keys.ts";
 
 export type ProofDifference = {
   readonly section: ProofSection;
@@ -21,9 +23,14 @@ const differenceIn = (request: { readonly section: ProofSection; readonly before
 export const proofDifferencesOf = (request: {
   readonly before: CheckReport;
   readonly after: RunReport;
+  readonly marked: readonly MarkedNotAdopted[];
   readonly catalogues: readonly RuleSetCatalogue[];
 }): readonly ProofDifference[] => {
-  const before = beforeSectionsOf({ report: request.before });
+  const reported = beforeSectionsOf({ report: request.before });
+  const before: SectionKeys = {
+    ...reported,
+    notAdopted: uniqueKeys({ keys: [...reported.notAdopted, ...request.marked.map(({ clause }) => clauseAddressText({ address: clause }))] }),
+  };
   const after = afterSectionsOf({ report: request.after, catalogues: request.catalogues });
   return PROOF_SECTIONS.flatMap((section) => differenceIn({ section, before, after }));
 };
