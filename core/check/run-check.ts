@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type CheckedTree, checkedTreeOf, typescriptFilesOf } from "../run/checked-tree-of.ts";
-import type { ClauseBinding, Selection, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
+import type { SelectionRepository } from "../consumer-selection/consumer-selection.ts";
+import type { ClauseBinding, Selection } from "../settings/selection.ts";
 import type { ClauseRoot } from "../settings/selection.ts";
 import {
   type ExceptionRecord,

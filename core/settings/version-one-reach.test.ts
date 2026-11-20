@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { importsOutsideFromOwnFolder, packageOrComputedImport, relativeImportReaching } from "../../tests/confinement.ts";
+import { importsOutsideFromOwnFolder, importStatementsReaching, packageOrComputedImport, relativeImportReaching } from "../../tests/confinement.ts";
 
 declare global {
   interface ImportMeta {
@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/run/**/*.ts", "./core/command-line/**/*.ts", "./core/conformance/**/*.ts"], {
+const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/run/**/*.ts", "./core/command-line/**/*.ts", "./core/conformance/**/*.ts", "./core/records/**/*.ts", "./core/report/**/*.ts", "./core/touched-set/**/*.ts"], {
   base: "../../",
   query: "?raw",
   import: "default",
@@ -27,7 +27,7 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     expect(versionTwoSources).toEqual(expect.objectContaining({ "./core/settings/read-settings.ts": expect.any(String) }));
   });
 
-  it("finds core/settings, core/run, core/command-line and core/conformance taking from core/consumer-selection and core/exception-records only what is listed here, so the list can only shrink", () => {
+  it("finds core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set taking from core/consumer-selection and core/exception-records only what is listed here, so the list can only shrink", () => {
     expect(importsOutsideFromOwnFolder({ sources: versionTwoSources, allowedFrom: reachingNothingInTheVersionOneReaders })).toEqual([
       { file: "./core/command-line/command-outcome.ts", specifier: "../exception-records/debt-pair.ts", form: "type-only" },
       { file: "./core/command-line/command-outcome.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
@@ -36,6 +36,18 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
       { file: "./core/run/mechanism-dispatch.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
       { file: "./core/run/version-chosen-command.test.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
       { file: "./core/run/version-two-check-command.test.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
+    ]);
+  });
+
+  it("finds each of those imports naming only what is listed here, so a new name on an existing import fails", () => {
+    expect(importStatementsReaching({ sources: versionTwoSources, specifier: /\/(?:consumer-selection|exception-records)\// })).toEqual([
+      { file: "./core/command-line/command-outcome.ts", statement: 'import type { DebtPair } from "../exception-records/debt-pair.ts";' },
+      { file: "./core/command-line/command-outcome.ts", statement: 'import type { RecordsSplit } from "../exception-records/exception-records.ts";' },
+      { file: "./core/command-line/command-outcome.ts", statement: 'import type { InheritedDebtOutcome } from "../exception-records/inherited-debt.ts";' },
+      { file: "./core/run/mechanism-dispatch.test.ts", statement: 'import type { ExceptionRecord } from "../exception-records/exception-records.ts";' },
+      { file: "./core/run/mechanism-dispatch.ts", statement: 'import type { ExceptionRecord } from "../exception-records/exception-records.ts";' },
+      { file: "./core/run/version-chosen-command.test.ts", statement: 'import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";' },
+      { file: "./core/run/version-two-check-command.test.ts", statement: 'import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";' },
     ]);
   });
 });
