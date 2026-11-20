@@ -1,5 +1,7 @@
 import type { CommandRequest } from "../../check/run-check-command.ts";
 import { type CheckRequest, runCheck } from "../../check/run-check.ts";
+import { runProject } from "../../check/run-project.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
 import { createSelectionRepository, readRunSettings } from "../../consumer-selection/consumer-selection.ts";
 import { type UpgradeArguments, parseUpgradeArguments } from "../../command-line/command-arguments.ts";
 import { type CommandOutcome, loadFailureOutcome } from "../../command-line/command-outcome.ts";
@@ -21,6 +23,7 @@ import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.t
 import { plannedProjectionOf } from "./planned-projection.ts";
 import { proofRunsOf } from "./proof-runs.ts";
 import { shippedCataloguesOf } from "./shipped-catalogues.ts";
+import { versionOneProjectionsOfRepository } from "./version-one-projections.ts";
 import { type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
 import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "./upgrade-success-text.ts";
 import { recordsOnDiskOf } from "./version-one-records-on-disk.ts";
@@ -39,6 +42,7 @@ type Prepared = {
   readonly check: CheckRequest;
   readonly read: VersionOneRead;
   readonly catalogues: readonly RuleSetCatalogue[];
+  readonly trackedPaths: readonly RepoPath[];
 };
 
 type Stopped = CommandOutcome | UpgradeFailureOutcome;
@@ -108,11 +112,10 @@ const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: C
     path: command.path,
     selectionRepository: check.value.selectionRepository,
     exceptionRepository: check.value.exceptionRepository,
-    trackedPaths: tracked.value,
   });
   return read.outcome === "failed"
-    ? { outcome: "failed", error: upgradeFailureOutcomeOf({ failure: read.error }) }
-    : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value } };
+    ? { outcome: "failed", error: upgradeFailureOutcomeOf({ failure: read.error, placement: { repoRoot: located.repoRoot, path: command.path } }) }
+    : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value, trackedPaths: tracked.value } };
 };
 
 const proofRequestOf = (request: {
@@ -146,6 +149,14 @@ const proofRequestOf = (request: {
     catalogues: prepared.catalogues,
     repoRoot: located.repoRoot,
     projectionFilesOf: plannedProjectionOf({ command, repoRoot: located.repoRoot, installRoot: located.installRoot }),
+    versionOneProjectionsOf: versionOneProjectionsOfRepository({
+      project: runProject,
+      check: prepared.check,
+      fileText: command.fileText,
+      path: command.path,
+      repoRoot: located.repoRoot,
+      trackedPaths: prepared.trackedPaths,
+    }),
   };
 };
 
@@ -157,7 +168,7 @@ const provedOutcomeOf = async (request: {
 }): Promise<Stopped> => {
   const carried = await upgradeProof(proofRequestOf(request));
   return carried.outcome === "failed"
-    ? upgradeFailureOutcomeOf({ failure: carried.error })
+    ? upgradeFailureOutcomeOf({ failure: carried.error, placement: { repoRoot: request.located.repoRoot, path: request.command.path } })
     : upgradeSuccessOutcomeOf({ carried: carried.value, repoRoot: request.located.repoRoot, path: request.command.path });
 };
 

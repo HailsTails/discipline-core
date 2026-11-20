@@ -37,14 +37,7 @@ const CARVE_OUT_HEAD: HeadRecord = {
   entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop" },
 };
 
-const TEAM_CONFIG = { file: repoPathSchema.parse("eslint.config.mjs"), text: 'import disciplines from "./disciplines.eslint.mjs";\nexport default [...disciplines];\n' };
-
-const READING: VersionOneReading = {
-  selection: SELECTION,
-  heads: [CARVE_OUT_HEAD],
-  teamConfig: TEAM_CONFIG,
-  versionOneProjection: repoPathSchema.parse("disciplines.eslint.mjs"),
-};
+const READING: VersionOneReading = { selection: SELECTION, heads: [CARVE_OUT_HEAD] };
 
 const FINDINGS_ON_LOOPS = { record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } } as const;
 
@@ -54,6 +47,9 @@ const PLANNED_SETTINGS = {
   file: "hone.config.json",
   text: '{\n  "version": 2,\n  "ruleSets": {},\n  "checks": {\n    "loop-keyword#loops": "walker"\n  }\n}\n',
 };
+
+const PLANNED_SETTINGS_WITH_PACKAGE_ROOT =
+  '{\n  "version": 2,\n  "ruleSets": {},\n  "checks": {\n    "loop-keyword#loops": "walker"\n  },\n  "eslintConfigRoots": [\n    "packages/a"\n  ]\n}\n';
 
 const PLANNED_DEBT = {
   file: "hone-records/debt/loop-keyword.json",
@@ -65,8 +61,6 @@ const PLANNED_PROJECTION = { file: repoPathSchema.parse("hone.eslint.mjs"), text
 const projecting = (request: { readonly files: readonly (typeof PLANNED_PROJECTION)[] }) =>
   vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: request.files });
 
-const REWRITTEN_CONFIG = { file: "eslint.config.mjs", text: 'import disciplines from "./hone.eslint.mjs";\nexport default [...disciplines];\n' };
-
 const requestOver =(overrides: Partial<UpgradePlanRequest>): UpgradePlanRequest => ({
   reading: READING,
   answered: [FINDINGS_ON_LOOPS],
@@ -76,11 +70,25 @@ const requestOver =(overrides: Partial<UpgradePlanRequest>): UpgradePlanRequest 
 });
 
 describe("upgradePlanOf", () => {
-  it("plans the settings, the debt records, the projection and the rewritten team config for a repository that carries over", async () => {
+  it("plans the settings, the debt records and the projection for a repository that carries over, naming the projection it planned", async () => {
     await expect(upgradePlanOf(requestOver({}))).resolves.toEqual({
       outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], replacement: REWRITTEN_CONFIG },
+      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], projected: [PLANNED_PROJECTION] },
     });
+  });
+
+  it("carries the declared eslintConfigRoots into the settings it plans, and into the settings the projection is asked over", async () => {
+    const projectionFilesOf = projecting({ files: [PLANNED_PROJECTION] });
+    const planned = await upgradePlanOf(requestOver({ projectionFilesOf, reading: { ...READING, selection: { ...SELECTION, eslintConfigRoots: [repoPathSchema.parse("packages/a")] } } }));
+    expect(planned).toEqual({
+      outcome: "ok",
+      value: {
+        inputs: [CARVE_OUT_INPUT],
+        files: [{ file: "hone.config.json", text: PLANNED_SETTINGS_WITH_PACKAGE_ROOT }, PLANNED_DEBT, PLANNED_PROJECTION],
+        projected: [PLANNED_PROJECTION],
+      },
+    });
+    expect(projectionFilesOf).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ settings: expect.objectContaining({ eslintConfigRoots: ["packages/a"] }) }));
   });
 
   it("asks for the projection files over the settings and the record documents it planned", async () => {
@@ -103,10 +111,10 @@ describe("upgradePlanOf", () => {
     });
   });
 
-  it("plans no projection file when the engines project none and there is no team config to point at one", async () => {
-    await expect(upgradePlanOf(requestOver({ projectionFilesOf: projecting({ files: [] }), reading: { ...READING, teamConfig: undefined } }))).resolves.toEqual({
+  it("plans no projection file when the engines project none", async () => {
+    await expect(upgradePlanOf(requestOver({ projectionFilesOf: projecting({ files: [] }) }))).resolves.toEqual({
       outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT], replacement: undefined },
+      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT], projected: [] },
     });
   });
 
@@ -115,13 +123,6 @@ describe("upgradePlanOf", () => {
     await expect(upgradePlanOf(requestOver({ projectionFilesOf: failed }))).resolves.toEqual({
       outcome: "failed",
       error: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } },
-    });
-  });
-
-  it("refuses when the team config would have to import other than exactly one projected file", async () => {
-    await expect(upgradePlanOf(requestOver({ projectionFilesOf: projecting({ files: [] }) }))).resolves.toEqual({
-      outcome: "failed",
-      error: { kind: "projection-not-single", files: [] },
     });
   });
 
@@ -139,24 +140,4 @@ describe("upgradePlanOf", () => {
     });
   });
 
-  it("refuses naming the team config when it holds no import of the version 1 projection", async () => {
-    await expect(upgradePlanOf(requestOver({ reading: { ...READING, teamConfig: { ...TEAM_CONFIG, text: "export default [];\n" } } }))).resolves.toEqual({
-      outcome: "failed",
-      error: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: "eslint.config.mjs", projection: "disciplines.eslint.mjs" } },
-    });
-  });
-
-  it("plans no replacement when version 1 had no projection to import", async () => {
-    await expect(upgradePlanOf(requestOver({ reading: { ...READING, versionOneProjection: undefined } }))).resolves.toEqual({
-      outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], replacement: undefined },
-    });
-  });
-
-  it("plans no replacement when the repository has no team config", async () => {
-    await expect(upgradePlanOf(requestOver({ reading: { ...READING, teamConfig: undefined } }))).resolves.toEqual({
-      outcome: "ok",
-      value: { inputs: [CARVE_OUT_INPUT], files: [PLANNED_SETTINGS, PLANNED_DEBT, PLANNED_PROJECTION], replacement: undefined },
-    });
-  });
 });

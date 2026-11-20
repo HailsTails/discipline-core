@@ -216,7 +216,7 @@ export const projectionOutcome = (request: {
 
 const NESTED_CONFIGURATION = "nested-configuration";
 
-const sliceProblemsOf = (request: { readonly run: MechanismRun }): readonly ProjectionProblem[] =>
+export const sliceProblemsOf = (request: { readonly run: MechanismRun }): readonly ProjectionProblem[] =>
   request.run.slices.flatMap((slice): readonly ProjectionProblem[] =>
     slice.state === NESTED_CONFIGURATION
       ? []

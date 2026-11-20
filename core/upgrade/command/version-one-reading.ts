@@ -1,17 +1,15 @@
 import type { SelectionRepository } from "../../consumer-selection/consumer-selection.ts";
-import type { ConsumerSelectionFile } from "../../consumer-selection/selection-file.ts";
 import { readSelectionFile, selectionFilePathOf } from "../../consumer-selection/selection-reader.ts";
 import type { LoadFailure } from "../../command-line/load-failure.ts";
 import type { FileTextPort } from "../../platform-ports/file-text-port.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../values/absolute-path.ts";
-import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
 import { type HeadRecordsRefusal, headRecordsOf } from "../version-one-head/head-records.ts";
 import { type ExceptionRepository, UNMEASURED_EXCEPTION_BASELINE } from "../version-one-records/exception-records.ts";
 import type { VersionOneReading } from "../proof/upgrade-plan.ts";
 import type { VersionOneFiles } from "../proof/upgrade-proof.ts";
-import { type TeamConfigRefusal, teamConfigOf } from "./team-config-finder.ts";
 import type { RecordsOnDisk } from "./version-one-records-on-disk.ts";
 
 const VERSION_ONE_SETTINGS = repoPathSchema.parse("disciplines.json");
@@ -20,9 +18,7 @@ export type VersionOneRead = { readonly reading: VersionOneReading; readonly ver
 
 export type VersionOneReadFailure =
   | { readonly kind: "version-one-unreadable"; readonly failure: LoadFailure }
-  | { readonly kind: "records-refused"; readonly refusal: HeadRecordsRefusal }
-  | { readonly kind: "several-version-one-projections"; readonly projections: readonly RepoPath[] }
-  | { readonly kind: "team-config-refused"; readonly refusal: TeamConfigRefusal };
+  | { readonly kind: "records-refused"; readonly refusal: HeadRecordsRefusal };
 
 export type VersionOneReadRequest = {
   readonly repoRoot: AbsolutePath;
@@ -30,15 +26,7 @@ export type VersionOneReadRequest = {
   readonly path: PathPort;
   readonly selectionRepository: SelectionRepository;
   readonly exceptionRepository: Pick<ExceptionRepository, "read">;
-  readonly trackedPaths: readonly RepoPath[];
   readonly recordsOnDisk: RecordsOnDisk;
-};
-
-const projectionsPresentOf = (request: { readonly selection: ConsumerSelectionFile; readonly repoRoot: AbsolutePath; readonly fileText: Pick<FileTextPort, "exists">; readonly path: PathPort }): readonly RepoPath[] => {
-  const mechanisms = new Set(request.selection.clauses.flatMap(([, choice]) => (choice.state === "run" ? [choice.mechanism] : [])));
-  return [...mechanisms]
-    .map((mechanism) => repoPathSchema.parse(`disciplines.${mechanism}.mjs`))
-    .filter((projection) => request.fileText.exists({ path: request.path.join({ segments: [request.repoRoot, projection] }) }) === "present");
 };
 
 export const versionOneReadOf = (request: VersionOneReadRequest): Result<VersionOneRead, VersionOneReadFailure> => {
@@ -64,19 +52,10 @@ export const versionOneReadOf = (request: VersionOneReadRequest): Result<Version
   if (heads.outcome === "failed") {
     return { outcome: "failed", error: { kind: "records-refused", refusal: heads.error } };
   }
-  const projections = projectionsPresentOf({ ...request, selection: file.value });
-  if (projections.length > 1) {
-    return { outcome: "failed", error: { kind: "several-version-one-projections", projections } };
-  }
-  const [versionOneProjection] = projections;
-  const teamConfig = teamConfigOf({ repoRoot: request.repoRoot, fileText: request.fileText, path: request.path, trackedPaths: request.trackedPaths, projection: versionOneProjection });
-  if (teamConfig.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "team-config-refused", refusal: teamConfig.error } };
-  }
   return {
     outcome: "ok",
     value: {
-      reading: { selection: file.value, heads: heads.value, teamConfig: teamConfig.value, versionOneProjection },
+      reading: { selection: file.value, heads: heads.value },
       versionOneFiles: {
         recordsFiles: request.recordsOnDisk.files,
         recordsFolders: request.recordsOnDisk.folders,

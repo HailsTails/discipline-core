@@ -21,7 +21,9 @@ const PROJECTION = absolutePathSchema.parse("/repo/disciplines.eslint.mjs");
 
 const SETTINGS = absolutePathSchema.parse("/repo/disciplines.json");
 
-const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsFolders: [], recordsRoot: { kind: "folder", path: ROOT }, projection: PROJECTION, settings: SETTINGS };
+const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_FILE], recordsFolders: [], recordsRoot: { kind: "folder", path: ROOT }, projections: [PROJECTION], settings: SETTINGS };
+
+const SLICE = absolutePathSchema.parse("/repo/packages/a/disciplines.eslint.mjs");
 
 const ok = { outcome: "ok", value: undefined } as const;
 
@@ -117,7 +119,7 @@ describe("removedVersionOneFiles", () => {
   it("tries only the records folder for a records file directly under it", () => {
     const ports = portsOver();
     const direct = absolutePathSchema.parse("/repo/discipline-exceptions/records.json");
-    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [direct], projection: undefined } })).toEqual({
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [direct], projections: [] } })).toEqual({
       outcome: "ok",
       value: { files: [direct, SETTINGS], folders: [ROOT] },
     });
@@ -135,9 +137,18 @@ describe("removedVersionOneFiles", () => {
     expect(sequenceOf({ ports })).toEqual([{ port: "remove", arguments: [{ path: single }] }, REMOVING_PROJECTION, REMOVING_SETTINGS]);
   });
 
+  it("removes every projection, the root one and a slice, after the records and before the settings file", () => {
+    const ports = portsOver();
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [], projections: [PROJECTION, SLICE] } })).toEqual({
+      outcome: "ok",
+      value: { files: [PROJECTION, SLICE, SETTINGS], folders: [] },
+    });
+    expect(sequenceOf({ ports })).toEqual([REMOVING_PROJECTION, { port: "remove", arguments: [{ path: SLICE }] }, REMOVING_SETTINGS]);
+  });
+
   it("removes no projection when none is given", () => {
     const ports = portsOver();
-    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, projection: undefined } })).toEqual({
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, projections: [] } })).toEqual({
       outcome: "ok",
       value: { files: [CARVE_OUT_FILE, AUTHORISED_FILE, SETTINGS], folders: [AUTHORISED_FOLDER, CARVE_OUT_FOLDER, ROOT] },
     });

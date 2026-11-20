@@ -38,8 +38,10 @@ export type ProofWriteRefusal = { readonly failure: ProofWriteFailure; readonly 
 export type ProofWriteRequest = {
   readonly ports: ProofWritePorts;
   readonly files: readonly PlannedFile[];
-  readonly replacement: PlannedFile | undefined;
+  readonly replacements: readonly PlannedFile[];
 };
+
+type Replacement = { readonly file: PlannedFile; readonly original: string };
 
 type Step =
   | { readonly kind: "directory"; readonly path: AbsolutePath }
@@ -66,18 +68,15 @@ const alreadyExisting = (request: { readonly ports: ProofWritePorts; readonly fi
 const stepsOf = (request: {
   readonly ports: ProofWritePorts;
   readonly files: readonly PlannedFile[];
-  readonly replacement: PlannedFile | undefined;
-  readonly original: string | undefined;
+  readonly replacements: readonly Replacement[];
 }): readonly Step[] => {
   const directories = uniquePaths({ paths: request.files.flatMap((file) => missingDirectoriesOf({ ports: request.ports, path: file.path })) }).toSorted(
     (left, right) => left.length - right.length,
   );
-  const replacement: readonly Step[] =
-    request.replacement === undefined || request.original === undefined ? [] : [{ kind: "replacement", file: request.replacement, original: request.original }];
   return [
     ...directories.map((path): Step => ({ kind: "directory", path })),
     ...request.files.map((file): Step => ({ kind: "file", file })),
-    ...replacement,
+    ...request.replacements.map(({ file, original }): Step => ({ kind: "replacement", file, original })),
   ];
 };
 
@@ -154,14 +153,17 @@ const performedAll = (request: {
   return performedAll({ ports: request.ports, steps: rest, done: [...request.done, stepOutcome.value] });
 };
 
-const originalOf = (request: { readonly ports: ProofWritePorts; readonly replacement: PlannedFile | undefined }): Result<string | undefined, ProofWriteFailure> => {
-  if (request.replacement === undefined) {
-    return { outcome: "ok", value: undefined };
-  }
-  const read = request.ports.fileText.read({ path: request.replacement.path });
+const replacementOf = (request: { readonly ports: ProofWritePorts; readonly file: PlannedFile }): Result<Replacement, ProofWriteFailure> => {
+  const read = request.ports.fileText.read({ path: request.file.path });
   return read.outcome === "ok"
-    ? read
-    : { outcome: "failed", error: { kind: "replaced-file-unreadable", path: request.replacement.path, detail: read.error.detail } };
+    ? { outcome: "ok", value: { file: request.file, original: read.value } }
+    : { outcome: "failed", error: { kind: "replaced-file-unreadable", path: request.file.path, detail: read.error.detail } };
+};
+
+const replacementsOf = (request: { readonly ports: ProofWritePorts; readonly files: readonly PlannedFile[] }): Result<readonly Replacement[], ProofWriteFailure> => {
+  const read = request.files.map((file) => replacementOf({ ports: request.ports, file }));
+  const unreadable = read.find((each) => each.outcome === "failed");
+  return unreadable ?? { outcome: "ok", value: read.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };
 };
 
 const refusedBeforeWriting = (request: { readonly failure: ProofWriteFailure }): Result<ProofWrites, ProofWriteRefusal> => ({
@@ -174,13 +176,13 @@ export const writeProofFiles = (request: ProofWriteRequest): Result<ProofWrites,
   if (existing !== undefined) {
     return refusedBeforeWriting({ failure: existing });
   }
-  const original = originalOf({ ports: request.ports, replacement: request.replacement });
-  if (original.outcome === "failed") {
-    return refusedBeforeWriting({ failure: original.error });
+  const replacements = replacementsOf({ ports: request.ports, files: request.replacements });
+  if (replacements.outcome === "failed") {
+    return refusedBeforeWriting({ failure: replacements.error });
   }
   return performedAll({
     ports: request.ports,
-    steps: stepsOf({ ports: request.ports, files: request.files, replacement: request.replacement, original: original.value }),
+    steps: stepsOf({ ports: request.ports, files: request.files, replacements: replacements.value }),
     done: [],
   });
 };

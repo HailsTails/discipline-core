@@ -185,33 +185,13 @@ describe("mappedSettings turning clauses into checks", () => {
       error: [{ kind: "two-engines-on-mechanism", check: "loop-keyword#loops", mechanism: AUDIT, engines: ["walker", "second-walker"] }],
     });
   });
-
-  it("names every refusal at once", () => {
-    expect(
-      mappedSettings({
-        ...BASE_REQUEST,
-        selection: {
-          ...BASE_SELECTION,
-          eslintConfigRoots: [repoPathSchema.parse("packages/a")],
-          clauses: [[LAYERING_CLAUSE, { state: "not-run" }]],
-        },
-      }),
-    ).toEqual({
-      outcome: "failed",
-      error: [
-        { kind: "eslint-config-roots", roots: ["packages/a"] },
-        { kind: "clause-without-check", clause: "CD-13#layering" },
-      ],
-    });
-  });
 });
 
-describe("mappedSettings refusing ESLint config roots", () => {
-  it("refuses a non-empty list, naming the roots", () => {
-    expect(mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, eslintConfigRoots: [repoPathSchema.parse("packages/a")] } })).toEqual({
-      outcome: "failed",
-      error: [{ kind: "eslint-config-roots", roots: ["packages/a"] }],
-    });
+describe("mappedSettings carrying ESLint config roots", () => {
+  it("carries a non-empty list over as it is", () => {
+    expect(mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, eslintConfigRoots: [repoPathSchema.parse("packages/a")] } })).toEqual(
+      okWith({ settings: { eslintConfigRoots: [repoPathSchema.parse("packages/a")] } }),
+    );
   });
 
   it("writes an empty list when version 1 listed none", () => {

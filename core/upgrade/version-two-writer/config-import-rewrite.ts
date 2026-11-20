@@ -7,12 +7,15 @@ export type ConfigImportRefusal =
   | { readonly kind: "several-projection-imports"; readonly file: RepoPath; readonly count: number }
   | { readonly kind: "projection-named-elsewhere"; readonly file: RepoPath };
 
+export type ProjectionPair = { readonly versionOneProjection: RepoPath; readonly versionTwoProjection: RepoPath };
+
 export type ConfigImportRewriteRequest = {
   readonly file: RepoPath;
   readonly text: string;
-  readonly versionOneProjection: RepoPath;
-  readonly versionTwoProjection: RepoPath;
+  readonly pairs: readonly ProjectionPair[];
 };
+
+export type ProjectionImportingRequest = { readonly file: RepoPath; readonly text: string; readonly versionOneProjection: RepoPath };
 
 type ProjectionImport = { readonly specifierStart: number; readonly specifier: string };
 
@@ -37,35 +40,59 @@ const importsOf = (request: { readonly text: string }): readonly ProjectionImpor
     specifier: found[2],
   }));
 
-const projectionImportsOf = (request: ConfigImportRewriteRequest): readonly ProjectionImport[] =>
+const projectionImportsOf = (request: ProjectionImportingRequest): readonly ProjectionImport[] =>
   importsOf({ text: request.text }).filter(
     ({ specifier }) => resolvedPathOf({ directory: directoryOf({ file: request.file }), specifier }) === request.versionOneProjection,
   );
 
 export type ProjectionImporting = "imports" | "does-not-import";
 
-export const projectionImportingOf = (request: ConfigImportRewriteRequest): ProjectionImporting =>
+export const projectionImportingOf = (request: ProjectionImportingRequest): ProjectionImporting =>
   projectionImportsOf(request).length > 0 ? "imports" : "does-not-import";
 
 const mentionsOf = (request: { readonly text: string; readonly name: string }): number => request.text.split(request.name).length - 1;
 
 const nameOf = (request: { readonly path: RepoPath }): string => request.path.slice(request.path.lastIndexOf(PATH_SEPARATOR) + 1);
 
-export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<string, ConfigImportRefusal> => {
-  const found = projectionImportsOf(request);
+type Edit = { readonly specifierStart: number; readonly specifier: string; readonly replacement: string };
+
+const editOf = (request: { readonly config: ConfigImportRewriteRequest; readonly pair: ProjectionPair }): Result<Edit, ConfigImportRefusal> => {
+  const { config, pair } = request;
+  const found = projectionImportsOf({ file: config.file, text: config.text, versionOneProjection: pair.versionOneProjection });
   const [only, ...others] = found;
   if (only === undefined) {
-    return { outcome: "failed", error: { kind: "no-projection-import", file: request.file, projection: request.versionOneProjection } };
+    return { outcome: "failed", error: { kind: "no-projection-import", file: config.file, projection: pair.versionOneProjection } };
   }
   if (others.length > 0) {
-    return { outcome: "failed", error: { kind: "several-projection-imports", file: request.file, count: found.length } };
+    return { outcome: "failed", error: { kind: "several-projection-imports", file: config.file, count: found.length } };
   }
-  if (mentionsOf({ text: request.text, name: nameOf({ path: request.versionOneProjection }) }) > 1) {
-    return { outcome: "failed", error: { kind: "projection-named-elsewhere", file: request.file } };
+  const replacement = relativeSpecifierOf({ directory: directoryOf({ file: config.file }), target: pair.versionTwoProjection });
+  return { outcome: "ok", value: { ...only, replacement } };
+};
+
+const namedElsewhereRefusal = (request: { readonly config: ConfigImportRewriteRequest }): ConfigImportRefusal | undefined => {
+  const named = request.config.pairs.some((pair) => {
+    const name = nameOf({ path: pair.versionOneProjection });
+    const importing = request.config.pairs.filter((other) => nameOf({ path: other.versionOneProjection }) === name).length;
+    return mentionsOf({ text: request.config.text, name }) > importing;
+  });
+  return named ? { kind: "projection-named-elsewhere", file: request.config.file } : undefined;
+};
+
+const appliedTo = (request: { readonly text: string; readonly edits: readonly Edit[] }): string =>
+  request.edits
+    .toSorted((first, second) => second.specifierStart - first.specifierStart)
+    .reduce((text, edit) => `${text.slice(0, edit.specifierStart)}${edit.replacement}${text.slice(edit.specifierStart + edit.specifier.length)}`, request.text);
+
+export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<string, ConfigImportRefusal> => {
+  const edits = request.pairs.map((pair) => editOf({ config: request, pair }));
+  const refused = edits.find((edit) => edit.outcome === "failed");
+  if (refused !== undefined) {
+    return refused;
   }
-  const specifier = relativeSpecifierOf({ directory: directoryOf({ file: request.file }), target: request.versionTwoProjection });
-  return {
-    outcome: "ok",
-    value: `${request.text.slice(0, only.specifierStart)}${specifier}${request.text.slice(only.specifierStart + only.specifier.length)}`,
-  };
+  const named = namedElsewhereRefusal({ config: request });
+  if (named !== undefined) {
+    return { outcome: "failed", error: named };
+  }
+  return { outcome: "ok", value: appliedTo({ text: request.text, edits: edits.flatMap((edit) => (edit.outcome === "ok" ? [edit.value] : [])) }) };
 };

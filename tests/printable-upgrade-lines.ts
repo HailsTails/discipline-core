@@ -3,6 +3,7 @@ import { loadFailureDetail } from "../core/command-line/load-failure-text.ts";
 import { createPathPort } from "../core/platform-ports/path-port.ts";
 import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "../core/upgrade/command/upgrade-success-text.ts";
 import { type UpgradeFailure, UPGRADE_ISSUES_URL, upgradeFailureOutcomeOf } from "../core/upgrade/command/upgrade-refusal-text.ts";
+import type { PlanRefusal } from "../core/upgrade/proof/upgrade-plan.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { mechanismIdSchema } from "../core/values/identifiers.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
@@ -24,24 +25,40 @@ const CONFIG = repoPathSchema.parse("eslint.config.mjs");
 
 const PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
 
+const SLICE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
+
+const SLICE_CONFIG = repoPathSchema.parse("packages/a/eslint.config.mjs");
+
 const UNREADABLE: LoadFailure = { kind: "git-failed", detail: "git ls-files: not a git repository" };
 
 type Sample = { readonly failure: UpgradeFailure; readonly fills: Fills };
 
-const BASE_FILLS: Fills = { "issues page": UPGRADE_ISSUES_URL, clause: CLAUSE, file: FILE, "config file": CONFIG, projection: PROJECTION, detail: "the detail", path: SETTINGS };
+const BASE_FILLS: Fills = {
+  "issues page": UPGRADE_ISSUES_URL,
+  clause: CLAUSE,
+  file: FILE,
+  "config file": CONFIG,
+  projection: PROJECTION,
+  detail: "the detail",
+  path: SETTINGS,
+  specifier: "./disciplines.eslint.mjs",
+};
+
+const planRefused = (request: { readonly refusal: PlanRefusal }): UpgradeFailure => ({ kind: "plan-refused", refusal: request.refusal, removedByVersionOne: [] });
 
 const SAMPLES: readonly Sample[] = [
   { failure: { kind: "oracle-failed", failure: { kind: "version-one-run-failed", detail: "the detail" } }, fills: {} },
   { failure: { kind: "oracle-failed", failure: { kind: "finding-not-attributable", clause: CLAUSE, file: FILE, check: undefined } }, fills: {} },
   { failure: { kind: "oracle-failed", failure: { kind: "record-doubly-held", clause: CLAUSE, file: FILE } }, fills: {} },
-  { failure: { kind: "plan-refused", refusal: { kind: "carve-out-unanswered", clause: CLAUSE, file: FILE } }, fills: {} },
+  { failure: { kind: "oracle-failed", failure: { kind: "projection-not-current", file: SLICE, state: "out-of-date" } }, fills: { projection: SLICE, state: "out-of-date" } },
+  { failure: { kind: "oracle-failed", failure: { kind: "projection-not-current", file: SLICE, state: "missing" } }, fills: { projection: SLICE, state: "missing" } },
+  { failure: { kind: "oracle-failed", failure: { kind: "projection-not-current", file: SLICE, state: "not-applied" } }, fills: { projection: SLICE, state: "not-applied" } },
+  { failure: planRefused({ refusal: { kind: "carve-out-unanswered", clause: CLAUSE, file: FILE } }), fills: {} },
   {
-    failure: {
-      kind: "plan-refused",
+    failure: planRefused({
       refusal: {
         kind: "mapping-refused",
         refusals: [
-          { kind: "eslint-config-roots", roots: [repoPathSchema.parse("packages/a"), repoPathSchema.parse("packages/b")] },
           { kind: "clause-without-check", clause: CLAUSE },
           { kind: "no-engine-on-mechanism", check: "loop-keyword#loops", mechanism: MECHANISM },
           { kind: "two-engines-on-mechanism", check: "loop-keyword#loops", mechanism: MECHANISM, engines: ["eslint", "oxlint"] },
@@ -51,49 +68,74 @@ const SAMPLES: readonly Sample[] = [
           { kind: "records-name-refused", name: "Not A Name" },
         ],
       },
-    },
-    fills: { roots: "packages/a, packages/b", check: "loop-keyword#loops", mechanism: "eslint", engines: "eslint or oxlint", name: "Not A Name" },
+    }),
+    fills: { check: "loop-keyword#loops", mechanism: "eslint", engines: "eslint or oxlint", name: "Not A Name" },
   },
-  { failure: { kind: "plan-refused", refusal: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } } }, fills: { detail: "load failure: unknown-check names#names" } },
+  { failure: planRefused({ refusal: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } } }), fills: { detail: "load failure: unknown-check names#names" } },
   {
-    failure: {
-      kind: "plan-refused",
-      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } },
-    },
+    failure: planRefused({ refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } } }),
     fills: {
       detail:
         "load failure: not-ready-yet eslint-config-roots: this release does not run a repository that holds other version 2 repositories yet; folders holding hone.config.json: vendor/lib; move them out of this repository, and run each on its own with --repo",
     },
   },
-  { failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } }, fills: { count: "0" } },
-  { failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] } }, fills: { records: "loop-keyword#loops in src/b.ts" } },
-  { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: CONFIG, projection: PROJECTION } } }, fills: {} },
-  { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "several-projection-imports", file: CONFIG, count: 2 } } }, fills: { count: "2" } },
-  { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: CONFIG } } }, fills: {} },
-  { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" } }, fills: {} },
-  { failure: { kind: "unplaceable-path", file: FILE }, fills: {} },
-  { failure: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO } }, fills: { root: REPO, path: OLD_FILE } },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] } }, fills: {} },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "directory-uncreatable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-created", path: OLD_FILE, detail: "EBUSY" }] } },
+    failure: planRefused({
+      refusal: { kind: "projections-unpaired", refusal: { kind: "version-one-projection-unpaired", projection: SLICE, config: SLICE_CONFIG, folder: "packages/a" } },
+    }),
+    fills: { projection: SLICE, folder: "packages/a", "config file": SLICE_CONFIG },
+  },
+  {
+    failure: planRefused({ refusal: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: repoPathSchema.parse("packages/a/hone.eslint.mjs"), folder: "packages/a" } } }),
+    fills: { file: "packages/a/hone.eslint.mjs", folder: "packages/a" },
+  },
+  { failure: planRefused({ refusal: { kind: "slice-left-in-place", files: [SLICE] } }), fills: { projection: SLICE } },
+  { failure: planRefused({ refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] } }), fills: { records: "loop-keyword#loops in src/b.ts" } },
+  { failure: planRefused({ refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: SLICE_CONFIG, projection: SLICE } } }), fills: { "config file": SLICE_CONFIG, projection: SLICE } },
+  { failure: planRefused({ refusal: { kind: "config-import-refused", refusal: { kind: "several-projection-imports", file: CONFIG, count: 2 } } }), fills: { count: "2" } },
+  { failure: planRefused({ refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: CONFIG } } }), fills: {} },
+  { failure: planRefused({ refusal: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: PROJECTION } } }), fills: {} },
+  { failure: planRefused({ refusal: { kind: "team-config-refused", refusal: { kind: "config-candidate-unreadable", file: CONFIG, detail: "the detail" } } }), fills: {} },
+  {
+    failure: {
+      kind: "plan-refused",
+      refusal: { kind: "slice-left-in-place", files: [SLICE] },
+      removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
+    },
+    fills: { projection: SLICE, "removed path": "/repo/old/disciplines.eslint.mjs" },
+  },
+  { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "version-one-project-failed", detail: "the detail", removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "version-one-project-rewrote", files: [PROJECTION, SLICE], removedByVersionOne: [] }, fills: { files: "disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs" } },
+  {
+    failure: { kind: "version-one-project-rewrote", files: [PROJECTION], removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] },
+    fills: { files: "disciplines.eslint.mjs", "removed path": "/repo/old/disciplines.eslint.mjs" },
+  },
+  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] }, fills: { "removed path": "/repo/old/disciplines.eslint.mjs" } },
+  { failure: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO }, removedByVersionOne: [] }, fills: { root: REPO, path: OLD_FILE } },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "directory-uncreatable", path: SETTINGS, detail: "the detail" }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  {
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-created", path: OLD_FILE, detail: "EBUSY" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EBUSY" },
   },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "directory-created", path: OLD_FILE, detail: "EACCES" }] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "directory-created", path: OLD_FILE, detail: "EACCES" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EACCES" },
   },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-replaced", path: OLD_FILE, detail: "EPERM" }] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-replaced", path: OLD_FILE, detail: "EPERM" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EPERM" },
   },
-  { failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [] }, fills: {} },
+  { failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [], removedByVersionOne: [] }, fills: {} },
   {
     failure: {
       kind: "differences",
       differences: [{ section: "findings", onlyBefore: ["CD-15#loops src/a.ts 3:1"], onlyAfter: ["CD-15#loops src/a.ts 4:1"] }],
       unrestored: [],
+      removedByVersionOne: [],
     },
     fills: { section: "findings", before: "CD-15#loops src/a.ts 3:1", after: "CD-15#loops src/a.ts 4:1" },
   },
@@ -109,29 +151,22 @@ const SAMPLES: readonly Sample[] = [
     fills: { "records file": "discipline-exceptions.json" },
   },
   { failure: { kind: "version-one-unreadable", failure: UNREADABLE }, fills: { detail: loadFailureDetail({ failure: UNREADABLE }) } },
-  { failure: { kind: "several-version-one-projections", projections: [PROJECTION, repoPathSchema.parse("disciplines.other.mjs")] }, fills: { projections: "disciplines.eslint.mjs, disciplines.other.mjs" } },
-  { failure: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: PROJECTION } }, fills: {} },
-  {
-    failure: { kind: "team-config-refused", refusal: { kind: "several-files-import-projection", projection: PROJECTION, files: [repoPathSchema.parse("a.config.mjs"), repoPathSchema.parse("b.config.mjs")] } },
-    fills: { files: "a.config.mjs, b.config.mjs" },
-  },
-  { failure: { kind: "team-config-refused", refusal: { kind: "config-candidate-unreadable", file: CONFIG, detail: "the detail" } }, fills: {} },
   {
     failure: {
       kind: "removal-failed",
       failure: { kind: "unremovable", path: OLD_FILE, detail: "the detail", removed: { files: [], folders: [] } },
       written: [repoPathSchema.parse("hone.config.json"), repoPathSchema.parse("hone.eslint.mjs")],
-      replaced: CONFIG,
+      replaced: [CONFIG, SLICE_CONFIG],
       remaining: [OLD_FILE],
     },
-    fills: { written: "hone.config.json, hone.eslint.mjs", replaced: "eslint.config.mjs", "removal path": OLD_FILE, "remaining path": OLD_FILE },
+    fills: { written: "hone.config.json, hone.eslint.mjs", replaced: "eslint.config.mjs, packages/a/eslint.config.mjs", "removal path": OLD_FILE, "remaining path": OLD_FILE },
   },
   {
     failure: {
       kind: "removal-failed",
       failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO },
       written: [repoPathSchema.parse("hone.config.json")],
-      replaced: undefined,
+      replaced: [],
       remaining: [OLD_FILE],
     },
     fills: { written: "hone.config.json", "removal path": OLD_FILE, root: REPO, "remaining path": OLD_FILE },
@@ -151,13 +186,13 @@ const SUCCESS_TEXT = upgradeSuccessOutcomeOf({
   path: PATH,
   carried: {
     written: [repoPathSchema.parse("hone.config.json")],
-    replaced: CONFIG,
+    replaced: [CONFIG],
     removed: { files: [absolutePathSchema.parse("/repo/disciplines.json")], folders: [absolutePathSchema.parse("/repo/discipline-exceptions")] },
   },
 }).text;
 
 export const UPGRADE_LINES: readonly PrintedLine[] = [
-  ...SAMPLES.flatMap(({ failure, fills }) => linesOf({ text: upgradeFailureOutcomeOf({ failure }).text, fills: { ...BASE_FILLS, ...fills } })),
+  ...SAMPLES.flatMap(({ failure, fills }) => linesOf({ text: upgradeFailureOutcomeOf({ failure, placement: { repoRoot: REPO, path: PATH } }).text, fills: { ...BASE_FILLS, ...fills } })),
   ...SUCCESS_TEXT.trimEnd()
     .split("\n")
     .map((text): PrintedLine => ({ label: "upgrade", text, fills: { path: text.slice(text.indexOf(" ") + 1) } })),
