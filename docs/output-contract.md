@@ -539,6 +539,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `stale` | failing | records that answer no finding and hold no native exception |
 | `forfeited` | failing | debt on files this change touched |
 | `unrecorded` | failing | native exceptions no record holds |
+| `misnamed` | failing | inline disables that name a version 1 rule id or an id no check of this run has, which suppress nothing |
 | `paid` | next-step | debt another record answers in place of, for a finding this run raised, with the records that answer and the command that removes the debt |
 | `refused` | failing | records that cannot be read or applied |
 | `unmeasured` | failing | what this run could not measure |
@@ -564,7 +565,7 @@ The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-onl
 
 ## Version 2 report lines
 
-A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and so does paid debt, for each record that answers in its place. Debt is paid when every finding it held in this run was answered in its place. Pruning paid debt removes the record whole, so a later finding of another check at that file is a new finding. A stale record prints as its `<subject>`; stale debt then ends with the command that removes it, and forfeited debt with what to do before removing it. A native exception prints one line for each check of its clause that runs on its engine.
+A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and so does paid debt, for each record that answers in its place. Debt is paid when every finding it held in this run was answered in its place. Pruning paid debt removes the record whole, so a later finding of another check at that file is a new finding. A stale record prints as its `<subject>`; stale debt then ends with the command that removes it, and forfeited debt with what to do before removing it. A native exception prints one line for each check of its clause that runs on its engine. An inline disable that names a rule id of the tool's own `hone/` namespace which no check of this run has suppresses nothing, and the finding it was written over is still reported; it prints under `misnamed` as `version-1-id` when the id is one a version 1 piece names, and as `names-no-check` for any other id, and fails the run until the disable names the check's own id, `hone/<symptom>/<check>`.
 
 | Section | Line |
 | --- | --- |
@@ -591,6 +592,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as <invocation>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <wrapper> comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: a quote in the script has no partner, so Hone cannot read what the script passes to <command> or tell what that does to the files under check; pair every quote in the script` |
+| `misnamed` | `<file>:<line> version-1-id <rule id> <comment>` |
+| `misnamed` | `<file>:<line> names-no-check <rule id> <comment>` |
 | `paid` | `<subject> answered by <reference>; run <prune command> to remove the paid debt` |
 | `refused` | `<records file> records[<index>] form-refused <issues>` |
 | `refused` | `<records file> records[<index>] unknown-symptom <given>` |

@@ -1,4 +1,5 @@
 import type { AttributedNativeException } from "../core/governance/governance.ts";
+import type { MisnamedRuleId } from "../core/mechanism-port/checks-runner-types.ts";
 import type { InlineReach, ScriptOptionCause } from "../core/mechanism-port/runner-result-schema.ts";
 import type {
   AuthorisedLocation,
@@ -299,6 +300,17 @@ const INLINE_DISABLES: Readonly<Record<InlineReach, Filled<AttributedNativeExcep
   },
 };
 
+const MISNAMED_RULE_IDS: readonly Filled<MisnamedRuleId>[] = [
+  {
+    entry: { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: WEBHOOK_FILE, line: 3, text: "// eslint-disable-next-line hone/no-class-authoring" },
+    fills: { ...WEBHOOK_FILLS, line: "3", "rule id": "hone/no-class-authoring", comment: "// eslint-disable-next-line hone/no-class-authoring" },
+  },
+  {
+    entry: { kind: "names-no-check", ruleId: "hone/claimed-type/no-such-check", file: WEBHOOK_FILE, line: 6, text: "/* eslint-disable hone/claimed-type/no-such-check */" },
+    fills: { ...WEBHOOK_FILLS, line: "6", "rule id": "hone/claimed-type/no-such-check", comment: "/* eslint-disable hone/claimed-type/no-such-check */" },
+  },
+];
+
 const SCRIPT_OPTIONS: Readonly<Record<ScriptOptionCause["kind"], Filled<AttributedNativeException>>> = {
   "weakens-run": {
     entry: { kind: "command-line-option", clause: CAST_EXPRESSIONS, location: PACKAGE_FILE, script: "lint", option: "--no-inline-config", cause: { kind: "weakens-run" }, mechanism: ESLINT },
@@ -427,6 +439,7 @@ const SECTION_SAMPLES: SectionSamples = {
   stale: [{ entry: LOCATION_PLACED, fills: { subject: 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: gives-a-value-its-type does not owe "written-out-answers"' } }, { entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
   forfeited: [{ entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
   unrecorded: [...Object.values(SIMPLE_NATIVES), ...Object.values(INLINE_DISABLES), ...Object.values(SCRIPT_OPTIONS)],
+  misnamed: MISNAMED_RULE_IDS,
   paid: [{ entry: { debt: DEBT_PLACED, answeredBy: [LOCATION_PLACED] }, fills: { subject: DEBT_SUBJECT, reference: UNOWED_REFERENCE } }],
   refused: [...Object.values(REFUSALS), SPACED_RECORDS_FILE],
   unmeasured: [...RECORDS_UNMEASURED, ...Object.values(ENGINES_NOT_RUN).flat()],
@@ -493,6 +506,7 @@ const EMPTY_REPORT: RunReport = {
   stale: [],
   forfeited: [],
   unrecorded: [],
+  misnamed: [],
   paid: [],
   refused: [],
   unmeasured: [],
@@ -515,6 +529,7 @@ const EVERY_ENTRY: RunReport = {
   stale: entriesOf(SECTION_SAMPLES.stale),
   forfeited: entriesOf(SECTION_SAMPLES.forfeited),
   unrecorded: entriesOf(SECTION_SAMPLES.unrecorded),
+  misnamed: entriesOf(SECTION_SAMPLES.misnamed),
   paid: entriesOf(SECTION_SAMPLES.paid),
   refused: entriesOf(SECTION_SAMPLES.refused),
   unmeasured: entriesOf(SECTION_SAMPLES.unmeasured),

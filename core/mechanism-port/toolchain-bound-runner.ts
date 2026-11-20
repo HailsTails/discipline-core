@@ -1,4 +1,5 @@
 import type { Result } from "../values/result.ts";
+import type { ChecksRunner, LoadedChecksRunner } from "./checks-runner-types.ts";
 import type { EmbeddedRunner } from "./embedded-runner-module-schema.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
 import type { StandaloneRunner } from "./runner-module-schema.ts";
@@ -42,5 +43,18 @@ export const toolchainBoundEmbeddedRunner = <Toolchain>(request: {
     run: (run) => withRunner({ runner, act: (built) => built.run(run) }),
     conform: (conform) => withRunner({ runner, act: (built) => built.conform(conform) }),
     project: (project) => withRunner({ runner, act: (built) => built.project(project) }),
+  };
+};
+
+export const toolchainBoundChecksRunner = <Toolchain>(request: {
+  readonly toolchain: ToolchainLoad<Toolchain>;
+  readonly projectedKinds: readonly NativeException["kind"][];
+  readonly runnerOf: (toolchain: Toolchain) => ChecksRunner;
+}): LoadedChecksRunner => {
+  const runner = builtOnce(request);
+  return {
+    projectedKinds: request.projectedKinds,
+    run: (run) =>
+      runner.then((built) => (built.outcome === "failed" ? built : built.value.run(run))),
   };
 };
