@@ -48,12 +48,17 @@ const whysOf = (request: Reading): Read<readonly Why[]> => {
   const questions = request.values.get(AUTHORISE_OPTIONS.why) ?? [];
   const answers = request.values.get(AUTHORISE_OPTIONS.because) ?? [];
   const evidence = request.values.get(AUTHORISE_OPTIONS.evidence) ?? [];
-  if (questions.length !== answers.length || questions.length !== evidence.length) {
+  const whys = questions.flatMap((why, position) => {
+    const because = answers[position];
+    const proof = evidence[position];
+    return because === undefined || proof === undefined ? [] : [{ why, because, evidence: proof }];
+  });
+  if (whys.length !== questions.length || answers.length !== questions.length || evidence.length !== questions.length) {
     return invalid({
       detail: `needs ${AUTHORISE_OPTIONS.why}, ${AUTHORISE_OPTIONS.because} and ${AUTHORISE_OPTIONS.evidence} the same number of times, one of each for every why`,
     });
   }
-  return { outcome: "ok", value: questions.map((why, position) => ({ why, because: answers[position] ?? "", evidence: evidence[position] ?? "" })) };
+  return { outcome: "ok", value: whys };
 };
 
 const fileOf = (request: Reading): Read<RepoPath> => {

@@ -23,13 +23,13 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} new-file ${FILE}: the base revision does not hold this file, so its debt was not inherited; fix it, or record it as an authorised location`,
+        text: `${ADDRESS} touched ${FILE}: this change created or changed the file, so this run would forfeit debt on it; fix the finding there`,
         fills: { address: ADDRESS, file: FILE },
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} touched ${FILE}: this change changed the file, so debt on it would be forfeited by the same run; fix the finding here, or record it as an authorised location`,
-        fills: { address: ADDRESS, file: FILE },
+        text: `CD-99#nowhere unrecordable ${FILE}: the catalogue gives this finding no symptom or check to record debt against; fix the finding`,
+        fills: { address: ADDRESS, file: FILE, clause: "CD-99#nowhere" },
       },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: paid`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale`, fills: { address: "date-used-directly", file: FILE } },

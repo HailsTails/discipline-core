@@ -23,12 +23,12 @@ const OUTCOME_LINES: readonly (readonly [DebtOutcome, string])[] = [
     "date-used-directly#clock-sources left src/orders/charge-order.ts: under --leave src/orders; record it as an authorised location with its own reason, or fix it",
   ],
   [
-    { ...SITE, effect: "new-file" },
-    "date-used-directly#clock-sources new-file src/orders/charge-order.ts: the base revision does not hold this file, so its debt was not inherited; fix it, or record it as an authorised location",
+    { ...SITE, effect: "touched" },
+    "date-used-directly#clock-sources touched src/orders/charge-order.ts: this change created or changed the file, so this run would forfeit debt on it; fix the finding there",
   ],
   [
-    { ...SITE, effect: "touched" },
-    "date-used-directly#clock-sources touched src/orders/charge-order.ts: this change changed the file, so debt on it would be forfeited by the same run; fix the finding here, or record it as an authorised location",
+    { address: "CD-99#nowhere", file: FILE, effect: "unrecordable" },
+    "CD-99#nowhere unrecordable src/orders/charge-order.ts: the catalogue gives this finding no symptom or check to record debt against; fix the finding",
   ],
 ];
 

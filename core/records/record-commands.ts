@@ -1,13 +1,16 @@
 import type { Finding } from "../governance/governance.ts";
-import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
+import type { GitPort } from "../platform-ports/git-port.ts";
 import type { RunReport } from "../report/run-report.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import { touchedSetUnder } from "../touched-set/forfeiture-touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import type { ForfeitureAssessment } from "../values/assessment.ts";
+import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { type AuthoriseRequest, type Authorising, authorisingOf } from "./authorising.ts";
 import { type DebtOutcome, debtOutcomesOf } from "./debt-effects.ts";
-import { debtSitesOf } from "./debt-sites.ts";
+import { debtSitesOf, unrecordableSitesOf } from "./debt-sites.ts";
 import type { RecordsAtBase, RecordsDocument, RecordsReading } from "./hone-record.ts";
 import { type PrunableDebt, prunableDebtOf } from "./prunable-debt.ts";
 import type { HoneRecordsFailure } from "./read-hone-records.ts";
@@ -25,7 +28,6 @@ export type RecordDebtPorts = {
   readonly repoRoot: AbsolutePath;
   readonly source: Pick<RecordsSource, "read">;
   readonly store: RecordsStore;
-  readonly gitTree: GitTreePort;
   readonly git: Pick<GitPort, "changedSince">;
 };
 
@@ -33,6 +35,7 @@ export type RecordDebtRequest = {
   readonly findings: readonly Finding[];
   readonly baseRevision: string;
   readonly leave: readonly RepoPath[];
+  readonly forfeiture: ForfeitureAssessment;
 };
 
 export type PruneDebtPorts = { readonly source: Pick<RecordsSource, "read">; readonly store: RecordsStore };
@@ -50,9 +53,9 @@ const documentsOf = (request: { readonly source: Pick<RecordsSource, "read"> }):
   return read.outcome === "failed" ? { outcome: "failed", error: { kind: "records-folder", failure: read.error } } : read;
 };
 
-const gitFailure = (request: { readonly error: { readonly command: string; readonly detail: string } }): Commanded<never> => ({
+const unmeasuredFailure = (request: { readonly base: BaseRevisionAvailability }): Commanded<never> => ({
   outcome: "failed",
-  error: { kind: "git-failed", detail: `${request.error.command}: ${request.error.detail}` },
+  error: { kind: "git-failed", detail: request.base.state === "git-failed" ? request.base.gitMessage : "no base revision was given" },
 });
 
 const heldDebtOf = (request: { readonly ports: RecordDebtPorts; readonly documents: readonly RecordsDocument[] }): Commanded<RecordsReading> => {
@@ -91,23 +94,19 @@ const outcomesOf = (request: { readonly ports: RecordDebtPorts; readonly run: Re
   if (held.outcome === "failed") {
     return held;
   }
-  const { repoRoot, gitTree, git } = request.ports;
-  const inBase = gitTree.pathsAt({ repoRoot, revision: request.run.baseRevision });
-  if (inBase.outcome === "failed") {
-    return gitFailure({ error: inBase.error });
-  }
-  const changed = git.changedSince({ repoRoot, baseRevision: request.run.baseRevision });
-  if (changed.outcome === "failed") {
-    return gitFailure({ error: changed.error });
+  const { repoRoot, git } = request.ports;
+  const touched = touchedSetUnder({ forfeiture: request.run.forfeiture, repoRoot, baseRevision: request.run.baseRevision, git });
+  if (touched.measured === "no") {
+    return unmeasuredFailure({ base: touched.base });
   }
   return {
     outcome: "ok",
     value: debtOutcomesOf({
       sites: debtSitesOf({ catalogue: request.ports.catalogue, findings: request.run.findings }),
+      unrecordable: unrecordableSitesOf({ catalogue: request.ports.catalogue, findings: request.run.findings }),
       records: held.value.records,
       leave: request.run.leave,
-      inBase: new Set(inBase.value),
-      touched: new Set(changed.value),
+      touched,
     }),
   };
 };

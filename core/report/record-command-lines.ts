@@ -15,10 +15,10 @@ const detailOf = (request: { readonly outcome: DebtOutcome }): string => {
       return `${recordsFileText({ file: outcome.heldIn })} already holds debt on this symptom and file; the check says why it does not answer`;
     case "left":
       return `under --leave ${outcome.under}; record it as an authorised location with its own reason, or fix it`;
-    case "new-file":
-      return "the base revision does not hold this file, so its debt was not inherited; fix it, or record it as an authorised location";
     case "touched":
-      return "this change changed the file, so debt on it would be forfeited by the same run; fix the finding here, or record it as an authorised location";
+      return "this change created or changed the file, so this run would forfeit debt on it; fix the finding there";
+    case "unrecordable":
+      return "the catalogue gives this finding no symptom or check to record debt against; fix the finding";
   }
 };
 

@@ -24,8 +24,8 @@ const OUTCOMES: readonly (readonly [DebtOutcome, Readonly<Record<string, string>
   [{ ...SITE, effect: "recorded" }, {}],
   [{ ...SITE, effect: "already-recorded", heldIn: RECORDS_FILE }, { "records file": RECORDS_FILE }],
   [{ ...SITE, effect: "left", under: LEFT_UNDER }, { path: LEFT_UNDER }],
-  [{ ...SITE, effect: "new-file" }, {}],
   [{ ...SITE, effect: "touched" }, {}],
+  [{ address: "CD-99#nowhere", file: FILE, effect: "unrecordable" }, { clause: "CD-99#nowhere" }],
 ];
 
 const PRUNED_REASONS: readonly PrunedReason[] = ["paid", "stale", "forfeited"];
@@ -65,7 +65,7 @@ const formRefusalSample = (): readonly (readonly [RecordRefusal, Readonly<Record
 };
 
 export const RECORD_COMMAND_LINES: readonly PrintedLine[] = [
-  ...OUTCOMES.map(([outcome, fills]): PrintedLine => ({ label: "record-debt", text: debtOutcomeLine({ outcome }), fills: { address: ADDRESS, file: FILE, ...fills } })),
+  ...OUTCOMES.map(([outcome, fills]): PrintedLine => ({ label: "record-debt", text: debtOutcomeLine({ outcome }), fills: { file: FILE, address: ADDRESS, ...fills } })),
   ...PRUNED_REASONS.map((reason): PrintedLine => ({ label: "prune-debt", text: prunedDebtLine({ pruned: { place: { file: RECORDS_FILE, index: 0 }, debt: DEBT, reason } }), fills: { address: "date-used-directly", file: FILE } })),
   ...AUTHORISINGS.flatMap(([authorising, fills]) =>
     authorisingLines({ ...ADDRESS_FILE, authorising }).map((text): PrintedLine => ({ label: "authorise", text, fills: { address: ADDRESS, file: FILE, ...fills } })),

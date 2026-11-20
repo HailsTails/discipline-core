@@ -62,6 +62,13 @@ describe("the arguments of hone authorise, read as the record they write", () =>
     });
   });
 
+  it("refuses a --because or --evidence given without its --why, and never supplies the answer a person did not give", () => {
+    expect(authoriseRequestOf({ values: new Map([...FULL_VALUES, [AUTHORISE_OPTIONS.because, ["because one", "because two", "because three", "because four", "because five", "because six"]]]) })).toEqual({
+      outcome: "failed",
+      error: { kind: "arguments-invalid", detail: "hone authorise needs --why, --because and --evidence the same number of times, one of each for every why" },
+    });
+  });
+
   it("needs --file to be a path inside the repository", () => {
     expect(authoriseRequestOf({ values: new Map([...FULL_VALUES, [AUTHORISE_OPTIONS.file, ["../outside.ts"]]]) })).toEqual({
       outcome: "failed",

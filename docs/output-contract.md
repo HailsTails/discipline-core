@@ -805,15 +805,15 @@ exit codes:
 
 The commands that write and remove records in `hone-records` print one line for each record they write, leave or remove, and nothing when there is nothing to say. A line starts with an `<address>`, then a word that says what was done, then the `<file>` the record is about. The `<address>` is the symptom's name, or `<symptom>#<check>` when one check of it found the finding or the record names it. The `<records file>` is the file under `hone-records` that already holds the record, written as a path is.
 
-`hone record-debt` takes the findings a run left unanswered. It writes one debt record under `hone-records/debt/<symptom>.json` for each symptom, check and file, and prints a line for each. It writes nothing it could not stand behind: a file the base revision does not hold, a file this change changed, a file under `--leave` and a record already held get a line and no record, so the same run would not forfeit or refuse what it wrote. It never writes an authorised location, a boundary record or anything that needs an owner's reason. Run twice, it writes nothing the second time.
+`hone record-debt` takes the findings a run left unanswered. It writes one debt record under `hone-records/debt/<symptom>.json` for each symptom, check and file, and prints a line for each finding, so a finding is never passed over without one. It writes nothing it could not stand behind: a file under `--leave`, a record already held, a finding the catalogue gives no symptom or check to record against, and a file this change created or changed when the run assesses forfeiture, get a line and no record. The last is decided by the same `forfeiture` setting and the same measured change as the check's answering, so a debt the command writes is a debt the check keeps; with `forfeiture` set to `elsewhere`, the check forfeits nothing, and the command writes debt on such a file like any other and prints no `touched` line. A finding on a file the run would forfeit is the change's own breach, so its line says to fix it there. The `<clause>` on an `unrecordable` line is the finding's clause address, since it has no symptom to name. It never writes an authorised location, a boundary record or anything that needs an owner's reason. Run twice, it writes nothing the second time.
 
 | Output | Line |
 | --- | --- |
 | `record-debt` | `<address> recorded <file>` |
 | `record-debt` | `<address> already-recorded <file>: <records file> already holds debt on this symptom and file; the check says why it does not answer` |
 | `record-debt` | `<address> left <file>: under --leave <path>; record it as an authorised location with its own reason, or fix it` |
-| `record-debt` | `<address> new-file <file>: the base revision does not hold this file, so its debt was not inherited; fix it, or record it as an authorised location` |
-| `record-debt` | `<address> touched <file>: this change changed the file, so debt on it would be forfeited by the same run; fix the finding here, or record it as an authorised location` |
+| `record-debt` | `<address> touched <file>: this change created or changed the file, so this run would forfeit debt on it; fix the finding there` |
+| `record-debt` | `<clause> unrecordable <file>: the catalogue gives this finding no symptom or check to record debt against; fix the finding` |
 
 `hone prune-debt` takes the debt a run lists under `paid`, `stale` and `forfeited`, which are the records whose lines say to run it, and removes exactly those from `hone-records`, printing one line for each. A file left with no records is deleted. It leaves every other record, so each is still listed by the next run. The word after `removed` says which section listed the debt.
 

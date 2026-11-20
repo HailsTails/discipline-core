@@ -3,7 +3,7 @@ import { AUDIT, CAST_EXPRESSIONS, CLOCK_SOURCES, ESLINT, REPORT_CATALOGUE, TEST_
 import type { Finding } from "../governance/governance.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { debtSitesOf } from "./debt-sites.ts";
+import { debtSitesOf, unrecordableSitesOf } from "./debt-sites.ts";
 
 const ORDER_FILE = repoPathSchema.parse("src/orders/charge-order.ts");
 
@@ -20,6 +20,30 @@ const UNCATALOGUED_FINDING: Finding = {
   anchor: { line: 1, column: 0 },
   snippet: "x",
 };
+
+describe("the findings no debt can be written for", () => {
+  it("names a finding whose clause the catalogue names no symptom for, by its clause", () => {
+    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [UNCATALOGUED_FINDING, CLOCK_FINDING] })).toEqual([{ address: "CD-99#nowhere", file: ORDER_FILE }]);
+  });
+
+  it("names a finding whose named check is not of its clause", () => {
+    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [{ ...CAST_FINDING, check: "claimed-type#no-such-check" }] })).toEqual([
+      { address: "CD-2#cast-expressions", file: WEBHOOK_FILE },
+    ]);
+  });
+
+  it("names a finding whose named check is not run by the engine that raised it", () => {
+    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [{ ...CLOCK_FINDING, mechanism: ESLINT, check: "date-used-directly#clock-sources" }] })).toEqual([
+      { address: "CD-17#clock-sources", file: ORDER_FILE },
+    ]);
+  });
+
+  it("names each clause and file once", () => {
+    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [UNCATALOGUED_FINDING, { ...UNCATALOGUED_FINDING, anchor: { line: 9, column: 1 } }] })).toEqual([
+      { address: "CD-99#nowhere", file: ORDER_FILE },
+    ]);
+  });
+});
 
 describe("the debt a run's unanswered findings call for", () => {
   it("names a finding by its symptom and the check that found it", () => {

@@ -1,4 +1,5 @@
 import type { RunReport } from "../report/run-report.ts";
+import { codePointOrder } from "./code-point-order.ts";
 import type { Debt, PlacedRecord, RecordPlace } from "./hone-record.ts";
 
 export type PrunedReason = "paid" | "stale" | "forfeited";
@@ -7,13 +8,6 @@ export type PrunableDebt = { readonly place: RecordPlace; readonly debt: Debt; r
 
 const reasoned = (request: { readonly placed: readonly PlacedRecord[]; readonly reason: PrunedReason }): readonly PrunableDebt[] =>
   request.placed.flatMap(({ place, record }) => (record.kind === "debt" ? [{ place, debt: record, reason: request.reason }] : []));
-
-const codePointOrder = (request: { readonly left: string; readonly right: string }): number => {
-  if (request.left === request.right) {
-    return 0;
-  }
-  return request.left < request.right ? -1 : 1;
-};
 
 const placeOrder = (request: { readonly left: PrunableDebt; readonly right: PrunableDebt }): number => {
   const byFile = codePointOrder({ left: request.left.place.file, right: request.right.place.file });
