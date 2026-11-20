@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ruleSetNameSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { DEFAULT_CONVENTIONS } from "./conventions.ts";
-import { type SettingsFile, type SettingsFileFault, settingsFileOf } from "./settings-file.ts";
+import { type SettingsFile, type SettingsFileFault, settingsFileOf, settingsTextOf, settingsWireOf } from "./settings-file.ts";
 
 const SMALLEST_DOCUMENT = { version: 2, ruleSets: {}, checks: {} };
 
@@ -173,5 +173,102 @@ describe("settingsFileOf", () => {
     },
   ])("refuses $name", ({ document, fault }) => {
     expect(settingsFileOf({ document })).toEqual({ outcome: "failed", error: fault });
+  });
+});
+
+const FULL_FILE: SettingsFile = {
+  exclude: [repoPathSchema.parse("vendor")],
+  ruleSets: [
+    { name: ruleSetNameSchema.parse("local"), location: { location: "repo-root" } },
+    { name: ruleSetNameSchema.parse("team"), location: { location: "folder", path: repoPathSchema.parse("tools/hone-rules") } },
+  ],
+  checks: [
+    { address: { ruleSet: "hone", check: "claimed-type#non-null-assertions" }, state: { state: "run", engine: "eslint" } },
+    { address: { ruleSet: "hone", check: "date-used-directly#clock-sources" }, state: { state: "run", engine: "walker" } },
+    { address: { ruleSet: "hone", check: "loop-keyword#loop-statement" }, state: { state: "not-adopted" } },
+    { address: { ruleSet: { name: ruleSetNameSchema.parse("team") }, check: "no-tmp-file#tmp-paths" }, state: { state: "not-run" } },
+  ],
+  checkSettings: [
+    { address: { ruleSet: "hone", check: "branch-in-a-test#test-body" }, values: { edition: "2" } },
+    { address: { ruleSet: "hone", check: "outside-import-past-a-boundary#import-or-require" }, values: { confinedOutsideDependencies: ["uuid"] } },
+  ],
+  forfeiture: "elsewhere",
+  reportOutput: "counts",
+  checkEditions: "latest",
+  eslintConfigLookup: { lookup: "declared", value: "nearest-to-file" },
+  eslintConfigRoots: [repoPathSchema.parse("web")],
+  conventions: {
+    conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }], layers: [{ layer: "domain", folders: [repoPathSchema.parse("src/domain")] }] },
+    declared: ["generated", "layers"],
+  },
+};
+
+const UNSORTED_FILE: SettingsFile = {
+  ...SMALLEST_FILE,
+  ruleSets: [
+    { name: ruleSetNameSchema.parse("team"), location: { location: "folder", path: repoPathSchema.parse("tools/hone-rules") } },
+    { name: ruleSetNameSchema.parse("local"), location: { location: "repo-root" } },
+  ],
+  checks: [
+    { address: { ruleSet: "hone", check: "loop-keyword#loop-statement" }, state: { state: "not-adopted" } },
+    { address: { ruleSet: "hone", check: "date-used-directly#clock-sources" }, state: { state: "run", engine: "walker" } },
+  ],
+};
+
+const UNSORTED_TEXT = `{
+  "version": 2,
+  "ruleSets": {
+    "local": ".",
+    "team": "tools/hone-rules"
+  },
+  "checks": {
+    "date-used-directly#clock-sources": "walker",
+    "loop-keyword#loop-statement": "not-adopted"
+  }
+}
+`;
+
+describe("settingsWireOf", () => {
+  it("writes only the version, the rule sets and the checks for the smallest file, every default left out", () => {
+    expect(settingsWireOf({ settings: SMALLEST_FILE })).toEqual({ version: 2, ruleSets: {}, checks: {} });
+  });
+
+  it("writes every field of a full settings file", () => {
+    expect(settingsWireOf({ settings: FULL_FILE })).toEqual({
+      version: 2,
+      ruleSets: { local: ".", team: "tools/hone-rules" },
+      checks: {
+        "claimed-type#non-null-assertions": "eslint",
+        "date-used-directly#clock-sources": "walker",
+        "loop-keyword#loop-statement": "not-adopted",
+        "team/no-tmp-file#tmp-paths": "not-run",
+      },
+      checkSettings: {
+        "branch-in-a-test#test-body": { edition: "2" },
+        "outside-import-past-a-boundary#import-or-require": { confinedOutsideDependencies: ["uuid"] },
+      },
+      exclude: ["vendor"],
+      eslintConfigRoots: ["web"],
+      forfeiture: "elsewhere",
+      reportOutput: "counts",
+      checkEditions: "latest",
+      eslintConfigLookup: "nearest-to-file",
+      conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] },
+      layers: { domain: ["src/domain"] },
+    });
+  });
+
+  it("is read back by settingsFileOf as the same full settings file", () => {
+    expect(settingsFileOf({ document: settingsWireOf({ settings: FULL_FILE }) })).toEqual({ outcome: "ok", value: FULL_FILE });
+  });
+
+  it("is read back by settingsFileOf as the same smallest settings file", () => {
+    expect(settingsFileOf({ document: settingsWireOf({ settings: SMALLEST_FILE }) })).toEqual({ outcome: "ok", value: SMALLEST_FILE });
+  });
+});
+
+describe("settingsTextOf", () => {
+  it("writes rule sets and checks in key order, indented by two spaces, with a closing newline", () => {
+    expect(settingsTextOf({ settings: UNSORTED_FILE })).toBe(UNSORTED_TEXT);
   });
 });
