@@ -8,6 +8,8 @@ import { recordsUnmeasuredOf } from "../records/records-unmeasured.ts";
 import { findingSiteOf } from "../report/check-site.ts";
 import type { ForfeitureElsewhere, RunReport } from "../report/run-report.ts";
 import type { SettingsNote } from "../settings/read-settings.ts";
+import { checkAddressOf } from "../symptom-catalogue/check-address.ts";
+import { checkOfFinding } from "../symptom-catalogue/finding-check.ts";
 import type { Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { Assessment } from "../values/assessment.ts";
@@ -27,8 +29,13 @@ export type RunReportRequest = {
   readonly assessment: Assessment;
 };
 
-const findingsOf = (request: { readonly runs: readonly EngineRun[] }): readonly Finding[] =>
-  request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
+const namingItsCheck = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): Finding => {
+  const resolved = checkOfFinding(request);
+  return resolved.resolved === "check" ? { ...request.finding, check: checkAddressOf({ check: resolved.check }) } : request.finding;
+};
+
+const findingsOf = (request: { readonly catalogue: SymptomCatalogue; readonly runs: readonly EngineRun[] }): readonly Finding[] =>
+  request.runs.flatMap((run) => run.hits.map((hit) => namingItsCheck({ catalogue: request.catalogue, finding: { ...hit, mechanism: run.mechanism } })));
 
 const partyOf = (request: { readonly finding: Finding }): PartyReport =>
   request.finding.importSpecifier === undefined ? { reported: "not-reported" } : { reported: "specifier", specifier: request.finding.importSpecifier };
