@@ -3,7 +3,8 @@ import type { Result } from "../values/result.ts";
 import { checkLocationsFor } from "./check-locations.ts";
 import { type GuidedCheckRun, guidedCheckCommandOutcome } from "../command-line/command-outcome.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
-import { type CheckRunAt, type CommandRequest, checkRunAt, printOutcome } from "./run-check-command.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
+import { type CheckRunAt, type CommandRequest, checkRunAt } from "./run-check-command.ts";
 import { type SymptomGuideIn, symptomGuideIn } from "./symptom-guide.ts";
 
 export type GuidedCheckRequest = {
