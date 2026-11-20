@@ -149,6 +149,8 @@ const refusalDetail = (request: { readonly refusal: RecordRefusal }): string => 
   }
 };
 
+export const refusalText = (request: { readonly refusal: RecordRefusal }): string => `${request.refusal.kind}${refusalDetail(request)}`;
+
 export const refusedLines = (request: { readonly refused: RefusedRecord }): readonly string[] =>
   request.refused.refusals.map((refusal) => `${recordPlaceText(request.refused)} ${refusal.kind}${refusalDetail({ refusal })}`);
 

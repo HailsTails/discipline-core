@@ -804,6 +804,38 @@ exit codes:
   2  a load failure: a version 1 file could not be read or a version 2 file written, or Hone failed unexpectedly
 ```
 
+## Version 2 record commands
+
+The commands that write and remove records in `hone-records` print one line for each record they write, leave or remove, and nothing when there is nothing to say. A line starts with an `<address>`, then a word that says what was done, then the `<file>` the record is about. The `<address>` is the symptom's name, or `<symptom>#<check>` when one check of it found the finding or the record names it. The `<records file>` is the file under `hone-records` that already holds the record, written as a path is.
+
+`hone record-debt` takes the findings a run left unanswered. It writes one debt record under `hone-records/debt/<symptom>.json` for each symptom, check and file, and prints a line for each finding, so a finding is never passed over without one. It writes nothing it could not stand behind: a file under `--leave`, a record already held, a finding the catalogue gives no symptom or check to record against, and a file this change created or changed when the run assesses forfeiture, get a line and no record. The last is decided by the same `forfeiture` setting and the same measured change as the check's answering, so a debt the command writes is a debt the check keeps; with `forfeiture` set to `elsewhere`, the check forfeits nothing, and the command writes debt on such a file like any other and prints no `touched` line. A finding on a file the run would forfeit is the change's own breach, so its line says to fix it there. The `<clause>` on an `unrecordable` line is the finding's clause address, since it has no symptom to name. It never writes an authorised location, a boundary record or anything that needs an owner's reason. Run twice, it writes nothing the second time.
+
+| Output | Line |
+| --- | --- |
+| `record-debt` | `<address> recorded <file>` |
+| `record-debt` | `<address> already-recorded <file>: <records file> already holds debt on this symptom and file; the check says why it does not answer` |
+| `record-debt` | `<address> left <file>: under --leave <path>; record it as an authorised location with its own reason, or fix it` |
+| `record-debt` | `<address> touched <file>: this change created or changed the file, so this run would forfeit debt on it; fix the finding there` |
+| `record-debt` | `<clause> unrecordable <file>: the catalogue gives this finding no symptom or check to record debt against; fix the finding` |
+
+`hone prune-debt` takes the debt a run lists under `paid`, `stale` and `forfeited`, which are the records whose lines say to run it, and removes exactly those from `hone-records`, printing one line for each. A file left with no records is deleted. It leaves every other record, so each is still listed by the next run. The word after `removed` says which section listed the debt.
+
+| Output | Line |
+| --- | --- |
+| `prune-debt` | `<address> removed <file>: paid` |
+| `prune-debt` | `<address> removed <file>: stale` |
+| `prune-debt` | `<address> removed <file>: forfeited` |
+
+`hone authorise` writes one authorised location under `hone-records/authorised-locations/<symptom>.json` from the arguments it is given, with the why chain the person supplied. It never writes a why of its own. It refuses a chain the why-chain form refuses, and a symptom the catalogue does not name, and writes nothing then. It never refuses a case or an `owes` the catalogue does not list: the record is written and the next run prints a note for it. A `refused` line is printed for each reason, and a `form-refused` line names the `<path>` in the record and the `<message>` the form gives; the `<given>` is what was typed, quoted.
+
+| Output | Line |
+| --- | --- |
+| `authorise` | `<address> authorised <file>` |
+| `authorise` | `<address> already-authorised <file>: <records file> already holds this record` |
+| `authorise` | `<address> refused <file>: unknown-symptom "<given>"` |
+| `authorise` | `<address> refused <file>: not-a-records-name "<given>"` |
+| `authorise` | `<address> refused <file>: form-refused <path>: <message>` |
+
 ## Version 2 load failures
 
 A version 2 run that cannot decide prints one line and exits `2`, as in 1.x. The line starts with `load failure: ` and its kind, and the values follow in the order shown. A `<check>` is the address as `hone.config.json` lists it and may hold a space, so a tool reads a load failure by its kind, and by the values only up to the first one that may hold a space. The text after a `:` that ends the values is not stable. A minor release may add a kind; a tool passes over a kind it does not know.

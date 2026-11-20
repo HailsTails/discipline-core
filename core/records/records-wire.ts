@@ -23,7 +23,7 @@ const FILE_SCHEME = "file:";
 
 const SCHEME_MODULE = String.raw`(?!runtime:|npm:|${FILE_SCHEME}|${DRIVE_LETTER})[a-z][a-z0-9+.-]*:\S+`;
 
-const CHECK_MARK = "#";
+export const CHECK_MARK = "#";
 
 const textSchema = z.string().trim().min(1);
 

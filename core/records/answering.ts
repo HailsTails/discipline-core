@@ -5,6 +5,7 @@ import { type Check, type SymptomCatalogue, symptomReadingOf } from "../symptom-
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
+import { debtForfeitureAt } from "./debt-forfeiture.ts";
 import type { HoneRecord, PlacedRecord } from "./hone-record.ts";
 import { holdsAt, type PartyReport, type Site } from "./record-reach.ts";
 
@@ -80,17 +81,8 @@ const paidDebts = (request: {
     return answeredBy.length === 0 ? [] : [{ debt, answeredBy }];
   });
 
-const forfeitedRecords = (request: { readonly records: readonly PlacedRecord[]; readonly touched: TouchedSet }): readonly PlacedRecord[] => {
-  switch (request.touched.measured) {
-    case "no":
-    case "elsewhere":
-      return [];
-    case "yes": {
-      const touchedPaths = request.touched.paths;
-      return request.records.filter((placed) => placed.record.kind === "debt" && touchedPaths.has(placed.record.file));
-    }
-  }
-};
+const forfeitedRecords = (request: { readonly records: readonly PlacedRecord[]; readonly touched: TouchedSet }): readonly PlacedRecord[] =>
+  request.records.filter((placed) => placed.record.kind === "debt" && debtForfeitureAt({ touched: request.touched, file: placed.record.file }) === "forfeits");
 
 const symptomSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
   const { finding, party } = request.raised;
@@ -102,7 +94,7 @@ const symptomSitesOf = (request: { readonly raised: RaisedFinding; readonly cata
   return [{ symptom: reading.symptom, check, file: finding.file, party }];
 };
 
-const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
+export const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
   const { finding, party } = request.raised;
   const named = checkNamedAt({ catalogue: request.catalogue, clause: finding.clause, address: finding.check });
   switch (named.named) {
