@@ -8,6 +8,9 @@ import {
   outsideFiles,
   packageOrComputedImport,
   relativeImportReaching,
+  specifierImportsReached,
+  unresolvedLoadsReached,
+  unscannedEdgesReached,
 } from "../../tests/confinement.ts";
 
 declare global {
@@ -19,14 +22,14 @@ declare global {
   }
 }
 
-const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/run/**/*.ts", "./core/command-line/**/*.ts", "./core/conformance/**/*.ts", "./core/records/**/*.ts", "./core/report/**/*.ts", "./core/touched-set/**/*.ts"], {
+const versionTwoSources = import.meta.glob(["./core/settings/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/run/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/command-line/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/conformance/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/records/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/report/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}", "./core/touched-set/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}"], {
   base: "../../",
   query: "?raw",
   import: "default",
   eager: true,
 });
 
-const everySource = import.meta.glob(["./core/**/*.ts"], {
+const everySource = import.meta.glob(["./core/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}"], {
   base: "../../",
   query: "?raw",
   import: "default",
@@ -53,7 +56,7 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     expect(versionTwoSources).toEqual(expect.objectContaining({ "./core/settings/read-settings.ts": expect.any(String) }));
   });
 
-  it("finds core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set taking from core/consumer-selection, core/exception-records and core/upgrade only what is listed here, so the list can only shrink", () => {
+  it("finds core/settings, core/run, core/command-line, core/conformance, core/records, core/report and core/touched-set taking from core/consumer-selection, core/exception-records, core/upgrade and core/verdict only what is listed here, so the list can only shrink", () => {
     expect(importsOutsideFromOwnFolder({ sources: versionTwoSources, allowedFrom: reachingNothingInTheVersionOneReaders })).toEqual([
       { file: "./core/run/version-chosen-command.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
       { file: "./core/run/version-two-check-command.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
@@ -67,7 +70,7 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
     ]);
   });
 
-  it("finds, in what the version 2 folders reach without entering version 1, each import, re-export or dynamic load that resolves into core/upgrade, core/exception-records, core/consumer-selection or core/check, outside core/run (whose own imports are pinned above and in run-imports.test.ts), only as listed here, so the list can only shrink", () => {
+  it("finds, in what the version 2 folders reach without entering version 1, each import, re-export or dynamic load that resolves into core/upgrade, core/exception-records, core/consumer-selection, core/check or core/verdict, outside core/run (whose own imports are pinned above and in run-imports.test.ts), only as listed here, so the list can only shrink", () => {
     expect(outsideFiles({ held: frontierEdges, files: outsideTheRunImports })).toEqual([]);
   });
 
@@ -97,6 +100,22 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
         reaching: /^\.\/core\/mechanism-port\/(?:embedded-runner-module-schema|toolchain-bound-runner)\.ts$/,
         exceptEdges: frontierEdges,
       }),
+    ).toEqual([]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each dynamic load that no relative path names, as written, only as listed here, so a computed load the graph cannot follow is reviewed and not waved through", () => {
+    expect(unresolvedLoadsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne })).toEqual([
+      { file: "./core/platform-ports/module-loader-port.ts", specifier: "pathToFileURL(request.path).href", form: "dynamic" },
+    ]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each relative import or load that resolves under core/ to no file this scan reads, only as listed here, so an edge the graph cannot follow is reviewed", () => {
+    expect(unscannedEdgesReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne, within: /^\.\/core\// })).toEqual([]);
+  });
+
+  it("finds, in what the version 2 folders reach without entering version 1, each import or load of node:module or module, only as listed here, so a loader the reader cannot trace is reviewed", () => {
+    expect(
+      specifierImportsReached({ sources: everySource, startingFrom: versionTwoFolders, notEntering: versionOne, specifier: /^(?:node:)?module$/ }),
     ).toEqual([]);
   });
 });

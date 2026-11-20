@@ -1,5 +1,5 @@
-import { importsIn, type ModuleImport } from "../core/check/piece-import-rules.ts";
 import { createPathPort, type PathPort } from "../core/platform-ports/path-port.ts";
+import { type ImportStatementIn, importsIn, importStatementsIn, type ModuleImport } from "./module-imports.ts";
 
 export type ConfinementVerdict = "allowed" | "outside";
 
@@ -90,7 +90,7 @@ export const importsOutside = (request: {
   readonly allowed: readonly ImportAllowance[];
 }): readonly ImportOutside[] =>
   Object.entries(request.sources).flatMap(([file, text]) =>
-    importsIn({ text })
+    importsIn({ file, text })
       .filter((moduleImport) => allowanceOf({ allowed: request.allowed, moduleImport }) === "outside")
       .map((moduleImport) => ({ file, ...moduleImport })),
   );
@@ -143,18 +143,21 @@ export const sourcesNotNamed = (request: {
 }): Readonly<Record<string, string>> =>
   Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(fileNameOfSource({ source }))));
 
-const IMPORT_STATEMENT = /^import\s[^;]*?from\s+["']([^"']+)["'];/gm;
-
 export type ImportStatement = { readonly file: string; readonly statement: string };
+
+const statementOf = (request: { readonly file: string; readonly found: ImportStatementIn }): ImportStatement => ({
+  file: request.file,
+  statement: request.found.statement,
+});
 
 export const importStatementsReaching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly specifier: RegExp;
 }): readonly ImportStatement[] =>
   Object.entries(request.sources).flatMap(([file, text]) =>
-    [...text.matchAll(IMPORT_STATEMENT)]
-      .filter(([, specifier]) => request.specifier.test(specifier ?? ""))
-      .map(([statement]) => ({ file, statement })),
+    importStatementsIn({ file, text })
+      .filter((found) => request.specifier.test(found.specifier))
+      .map((found) => statementOf({ file, found })),
   );
 
 type ImportGraph = ReadonlyMap<string, readonly string[]>;
@@ -168,7 +171,7 @@ const scannedImportsOf = (request: {
     flavour: "posix",
     workingDirectory: () => `${INSTALL_ROOT}/${folderOfSource({ source: request.file })}`,
   });
-  return importsIn({ text: request.text })
+  return importsIn({ file: request.file, text: request.text })
     .filter(({ specifier }) => RELATIVE_SPECIFIER.test(specifier))
     .flatMap(({ specifier }) => {
       const location = importingPath.relative({ from: INSTALL_ROOT, to: specifier });
@@ -228,16 +231,48 @@ type FilesLeaving = {
 
 export const importEdgesLeaving = (request: FilesLeaving): readonly ImportEdge[] =>
   Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
-    importsIn({ text })
+    importsIn({ file, text })
       .filter(({ specifier }) => request.reaching.test(resolvedImportOf({ file, specifier }) ?? ""))
       .map(({ specifier, form }) => ({ file, specifier, form })),
   );
 
 export const importStatementsLeaving = (request: FilesLeaving): readonly ImportStatement[] =>
   Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
-    [...text.matchAll(IMPORT_STATEMENT)]
-      .filter(([, specifier]) => request.reaching.test(resolvedImportOf({ file, specifier: specifier ?? "" }) ?? ""))
-      .map(([statement]) => ({ file, statement })),
+    importStatementsIn({ file, text })
+      .filter(({ specifier }) => request.reaching.test(resolvedImportOf({ file, specifier }) ?? ""))
+      .map((found) => statementOf({ file, found })),
+  );
+
+export const unresolvedLoadsReached = (request: Omit<FilesLeaving, "reaching">): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ file, text })
+      .filter(({ specifier, form }) => form === "dynamic" && !RELATIVE_SPECIFIER.test(specifier))
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
+export const MODULE_EXTENSIONS = "{ts,mts,cts,tsx,js,mjs,cjs,jsx}";
+
+const GLOBBED_EXTENSIONS = /\*\*\/\*\.(\{[^}]*\}|\w+)["']/g;
+
+export const globExtensionsIn = (request: { readonly text: string }): readonly string[] => [
+  ...new Set([...request.text.matchAll(GLOBBED_EXTENSIONS)].map(([, extensions]) => extensions ?? "")),
+];
+
+export const unscannedEdgesReached =(request: Omit<FilesLeaving, "reaching"> & { readonly within: RegExp }): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ file, text })
+      .filter(({ specifier }) => {
+        const resolved = resolvedImportOf({ file, specifier });
+        return resolved !== undefined && request.within.test(resolved) && request.sources[resolved] === undefined;
+      })
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
+export const specifierImportsReached = (request: Omit<FilesLeaving, "reaching"> & { readonly specifier: RegExp }): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ file, text })
+      .filter(({ specifier }) => request.specifier.test(specifier))
+      .map(({ specifier, form }) => ({ file, specifier, form })),
   );
 
 export const filesReachingExcept = (request: {
