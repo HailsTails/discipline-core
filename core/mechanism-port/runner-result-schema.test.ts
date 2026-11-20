@@ -76,6 +76,20 @@ describe("hitSchema", () => {
   });
 
   it.each([
+    { name: "a package subpath", importSpecifier: "lodash/fp" },
+    { name: "a scheme module", importSpecifier: "node:fs" },
+    { name: "a scoped package subpath", importSpecifier: "@scope/pkg/sub" },
+  ])("keeps the import specifier that raised the hit, $name, exactly as the source wrote it", ({ importSpecifier }) => {
+    const imported = { ...hit, importSpecifier };
+
+    expect(hitSchema.safeParse(imported)).toEqual({ success: true, data: imported });
+  });
+
+  it("refuses an empty import specifier", () => {
+    expect(hitSchema.safeParse({ ...hit, importSpecifier: "" }).success).toBe(false);
+  });
+
+  it.each([
     { name: "an empty fix", remedy: { fix: "", page: "CHECKS.md", section: "a-class" } },
     { name: "a section with a space", remedy: { fix: "write a factory", page: "CHECKS.md", section: "a class" } },
     { name: "a section with a capital", remedy: { fix: "write a factory", page: "CHECKS.md", section: "A-class" } },

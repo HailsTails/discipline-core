@@ -43,43 +43,48 @@ const bannedHit = (request: { readonly line: number; readonly specifier: string 
   clause: ADDRESS,
   anchor: { line: request.line, column: 0 },
   snippet: `banned third-party import: ${request.specifier} — use its recorded wrapping boundary`,
+  importSpecifier: request.specifier,
 });
 
 type ObservationFixture = {
   readonly tree: SyntaxTree;
   readonly observers: SourceObservers;
+  readonly enter: NonNullable<SourceObservers["enter"]>;
   readonly anchorAt: Mock<(request: { readonly position: number }) => Anchor>;
   readonly readText: Mock<WalkerFile["readText"]>;
   readonly finish: PreparedWalkerCheck["finish"];
 };
 
-const preparedFor = (request: { readonly file: WalkerFile["file"]; readonly clause?: RunnerClause }): PreparedWalkerCheck => {
-  const prepared = check.prepare({ clauses: [request.clause ?? CLAUSE], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
+const preparedFor = (request: { readonly file: WalkerFile["file"]; readonly clause: RunnerClause }): PreparedWalkerCheck => {
+  const prepared = check.prepare({ clauses: [request.clause], repository: { files: [request.file], exists: vi.fn().mockReturnValue("present"), disk: EMPTY_DISK }, syntaxApi: SYNTAX_API });
   assert(prepared.outcome === "ok");
   return prepared.value;
 };
 
-const sourceObservations = (request: { readonly source: string; readonly clause?: RunnerClause }): ObservationFixture => {
-  const prepared = preparedFor({ file: FILE, clause: request.clause ?? CLAUSE });
+const sourceObservations = (request: { readonly source: string; readonly clause: RunnerClause }): ObservationFixture => {
+  const prepared = preparedFor({ file: FILE, clause: request.clause });
   const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file: FILE, detail: "piece must use supplied source" } });
   const file = prepared.prepareFile({ file: FILE, readText });
   assert(file.outcome === "ok");
   assert(file.value.kind === "syntax");
   const tree = SYNTAX_API.createSourceFile(FILE, request.source, SYNTAX_API.ScriptTarget.Latest, true);
   const anchorAt = vi.fn<(request: { readonly position: number }) => Anchor>().mockReturnValue({ line: 1, column: 0 });
-  return { tree, observers: file.value.begin({ sourceFile: tree, anchorAt }), anchorAt, readText, finish: prepared.finish };
+  const observers = file.value.begin({ sourceFile: tree, anchorAt });
+  const { enter } = observers;
+  assert.isDefined(enter);
+  return { tree, observers, enter, anchorAt, readText, finish: prepared.finish };
 };
 
 describe("CD-19 existing third-party and redirected stdlib import observations", () => {
   it("preserves raw type-only and comment matches, per-line policy order, deduplication and known text gaps", () => {
-    const observed = sourceObservations({ source: `${IMPORT} type { Rule } ${FROM} "eslint";\r\nconst literal = " ${FROM} 'hono' ${FROM} 'winston' ${FROM} 'winston' ";\r\n${LINE_COMMENT} ${FROM} "uuid"\r\n${IMPORT} client ${FROM} "hono/client";\r\n${IMPORT} "winston"; ${REQUIRE}("winston"); ${IMPORT}("winston");\r\n${IMPORT} shape ${FROM}\r\n"pino";\r\n` });
+    const observed = sourceObservations({ clause: CLAUSE, source: `${IMPORT} type { Rule } ${FROM} "eslint";\r\nconst literal = " ${FROM} 'hono' ${FROM} 'winston' ${FROM} 'winston' ";\r\n${LINE_COMMENT} ${FROM} "uuid"\r\n${IMPORT} client ${FROM} "hono/client";\r\n${IMPORT} "winston"; ${REQUIRE}("winston"); ${IMPORT}("winston");\r\n${IMPORT} shape ${FROM}\r\n"pino";\r\n` });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "banned third-party import: eslint — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: hono — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "banned third-party import: uuid — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "banned third-party import: hono/client — use its recorded wrapping boundary" },
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "banned third-party import: eslint — use its recorded wrapping boundary", importSpecifier: "eslint" },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary", importSpecifier: "winston" },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: hono — use its recorded wrapping boundary", importSpecifier: "hono" },
+      { clause: ADDRESS, anchor: { line: 3, column: 0 }, snippet: "banned third-party import: uuid — use its recorded wrapping boundary", importSpecifier: "uuid" },
+      { clause: ADDRESS, anchor: { line: 4, column: 0 }, snippet: "banned third-party import: hono/client — use its recorded wrapping boundary", importSpecifier: "hono/client" },
     ]);
     expect(observed.readText).not.toHaveBeenCalled();
     expect(observed.anchorAt).not.toHaveBeenCalled();
@@ -130,7 +135,7 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     { name: "no banned import", source: `const nothing = 1;\n`, hits: [] },
     { name: "an empty file", source: "", hits: [] },
   ])("finds the same per-line banned third-party imports as a scan of every line for $name", ({ source, hits }) => {
-    expect(sourceObservations({ source }).observers.finish()).toEqual(hits);
+    expect(sourceObservations({ clause: CLAUSE, source }).observers.finish()).toEqual(hits);
   });
 
   it.each([
@@ -152,22 +157,22 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
   ])("flags $specifier imported alone in a file", ({ specifier }) => {
     const source = `${IMPORT} a ${FROM} "${specifier}";\n`;
 
-    expect(sourceObservations({ source }).observers.finish()).toEqual([bannedHit({ line: 1, specifier })]);
+    expect(sourceObservations({ clause: CLAUSE, source }).observers.finish()).toEqual([bannedHit({ line: 1, specifier })]);
   });
 
   it("returns every raw hit before earlier and later observed stdlib imports under the CD19 clause", () => {
-    const observed = sourceObservations({ source: `import fs ${FROM} "node:fs";\r\nimport logger ${FROM} "winston";\r\nexport * ${FROM} "node:path";\r\n` });
+    const observed = sourceObservations({ clause: CLAUSE, source: `import fs ${FROM} "node:fs";\r\nimport logger ${FROM} "winston";\r\nexport * ${FROM} "node:path";\r\n` });
     const imported = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree);
     const exported = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree);
     observed.anchorAt.mockReturnValueOnce({ line: 1, column: 15 }).mockReturnValueOnce({ line: 3, column: 14 });
 
-    observed.observers.enter?.({ node: imported });
-    observed.observers.enter?.({ node: exported });
+    observed.enter({ node: imported });
+    observed.enter({ node: exported });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary" },
-      { clause: ADDRESS, anchor: { line: 1, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
-      { clause: ADDRESS, anchor: { line: 3, column: 14 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path" },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: winston — use its recorded wrapping boundary", importSpecifier: "winston" },
+      { clause: ADDRESS, anchor: { line: 1, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs", importSpecifier: "node:fs" },
+      { clause: ADDRESS, anchor: { line: 3, column: 14 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path", importSpecifier: "node:path" },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 15 }], [{ position: 72 }]]);
     expect(observed.readText).not.toHaveBeenCalled();
@@ -175,29 +180,29 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
   });
 
   it("retains import-type, external import-equals, dynamic import and literal require observations in supplied order", () => {
-    const observed = sourceObservations({ source: `type Stats = ${IMPORT}("node:fs").Stats;\n${IMPORT} path = ${REQUIRE}("node:path");\n${IMPORT}("node:url");\n${REQUIRE}("node:crypto");\n` });
+    const observed = sourceObservations({ clause: CLAUSE, source: `type Stats = ${IMPORT}("node:fs").Stats;\n${IMPORT} path = ${REQUIRE}("node:path");\n${IMPORT}("node:url");\n${REQUIRE}("node:crypto");\n` });
     const importType = observed.tree.getChildAt(0, observed.tree).getChildAt(0, observed.tree).getChildAt(3, observed.tree);
     const importEquals = observed.tree.getChildAt(0, observed.tree).getChildAt(1, observed.tree);
     const dynamicImport = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree).getChildAt(0, observed.tree);
     const required = observed.tree.getChildAt(0, observed.tree).getChildAt(3, observed.tree).getChildAt(0, observed.tree);
     observed.anchorAt.mockReturnValueOnce({ line: 1, column: 20 }).mockReturnValueOnce({ line: 2, column: 22 }).mockReturnValueOnce({ line: 3, column: 7 }).mockReturnValueOnce({ line: 4, column: 8 });
 
-    observed.observers.enter?.({ node: importType });
-    observed.observers.enter?.({ node: importEquals });
-    observed.observers.enter?.({ node: dynamicImport });
-    observed.observers.enter?.({ node: required });
+    observed.enter({ node: importType });
+    observed.enter({ node: importEquals });
+    observed.enter({ node: dynamicImport });
+    observed.enter({ node: required });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 1, column: 20 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
-      { clause: ADDRESS, anchor: { line: 2, column: 22 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path" },
-      { clause: ADDRESS, anchor: { line: 3, column: 7 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:url" },
-      { clause: ADDRESS, anchor: { line: 4, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:crypto" },
+      { clause: ADDRESS, anchor: { line: 1, column: 20 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs", importSpecifier: "node:fs" },
+      { clause: ADDRESS, anchor: { line: 2, column: 22 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:path", importSpecifier: "node:path" },
+      { clause: ADDRESS, anchor: { line: 3, column: 7 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:url", importSpecifier: "node:url" },
+      { clause: ADDRESS, anchor: { line: 4, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:crypto", importSpecifier: "node:crypto" },
     ]);
     expect(observed.anchorAt.mock.calls).toEqual([[{ position: 20 }], [{ position: 60 }], [{ position: 81 }], [{ position: 102 }]]);
   });
 
   it("preserves shadowed require and first-argument quirks while excluding property calls, computed strings and unprefixed modules", () => {
-    const observed = sourceObservations({ source: `const ${REQUIRE} = loader;\n${REQUIRE}("node:fs", "ignored");\nloader.${REQUIRE}("node:path");\n${REQUIRE}(name);\n${REQUIRE}("fs");\n${IMPORT}(\`node:${TEMPLATE_SUBSTITUTION}\`);\n` });
+    const observed = sourceObservations({ clause: CLAUSE, source: `const ${REQUIRE} = loader;\n${REQUIRE}("node:fs", "ignored");\nloader.${REQUIRE}("node:path");\n${REQUIRE}(name);\n${REQUIRE}("fs");\n${IMPORT}(\`node:${TEMPLATE_SUBSTITUTION}\`);\n` });
     const shadowedRequire = observed.tree.getChildAt(0, observed.tree).getChildAt(1, observed.tree).getChildAt(0, observed.tree);
     const propertyRequire = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree).getChildAt(0, observed.tree);
     const computedRequire = observed.tree.getChildAt(0, observed.tree).getChildAt(3, observed.tree).getChildAt(0, observed.tree);
@@ -205,14 +210,14 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     const templateImport = observed.tree.getChildAt(0, observed.tree).getChildAt(5, observed.tree).getChildAt(0, observed.tree);
     observed.anchorAt.mockReturnValue({ line: 2, column: 8 });
 
-    observed.observers.enter?.({ node: shadowedRequire });
-    observed.observers.enter?.({ node: propertyRequire });
-    observed.observers.enter?.({ node: computedRequire });
-    observed.observers.enter?.({ node: unprefixedRequire });
-    observed.observers.enter?.({ node: templateImport });
+    observed.enter({ node: shadowedRequire });
+    observed.enter({ node: propertyRequire });
+    observed.enter({ node: computedRequire });
+    observed.enter({ node: unprefixedRequire });
+    observed.enter({ node: templateImport });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 2, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
+      { clause: ADDRESS, anchor: { line: 2, column: 8 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs", importSpecifier: "node:fs" },
     ]);
     expect(observed.anchorAt).toHaveBeenCalledExactlyOnceWith({ position: 32 });
   });
@@ -230,7 +235,7 @@ describe("CD-19 existing third-party and redirected stdlib import observations",
     const file = repoPathSchema.parse(fileName);
     const readText = vi.fn<WalkerFile["readText"]>().mockReturnValue({ outcome: "failed", error: { kind: "file-unreadable", file, detail: "unexpected piece read" } });
 
-    expect(preparedFor({ file }).prepareFile({ file, readText })).toMatchObject({ outcome: "ok", value: { kind } });
+    expect(preparedFor({ file, clause: CLAUSE }).prepareFile({ file, readText })).toMatchObject({ outcome: "ok", value: { kind } });
     expect(readText).not.toHaveBeenCalled();
   });
 });
@@ -244,10 +249,10 @@ describe("CD-19 confined packages come from the clause settings", () => {
     const nodeImport = observed.tree.getChildAt(0, observed.tree).getChildAt(2, observed.tree);
     observed.anchorAt.mockReturnValueOnce({ line: 3, column: 15 });
 
-    observed.observers.enter?.({ node: nodeImport });
+    observed.enter({ node: nodeImport });
 
     expect(observed.observers.finish()).toEqual([
-      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs" },
+      { clause: ADDRESS, anchor: { line: 3, column: 15 }, snippet: "bare node: stdlib import - confined; only a wrapping file this repository records as an authorised location may import it: node:fs", importSpecifier: "node:fs" },
     ]);
   });
 
@@ -260,6 +265,20 @@ describe("CD-19 confined packages come from the clause settings", () => {
     expect(observed.observers.finish()).toEqual([bannedHit({ line: 1, specifier: "@acme/payments" })]);
   });
 
+});
+
+describe("CD-19 names, as data on each hit, the import that raised it", () => {
+  it("gives a confined package's specifier exactly as the source wrote it, subpath and scope included", () => {
+    const observed = sourceObservations({
+      clause: clauseWith({ clauseSettings: { confinedPackages: ["lodash", "@scope/pkg"] } }),
+      source: `${IMPORT} fp ${FROM} "lodash/fp";\n${IMPORT} sub ${FROM} '@scope/pkg/sub';\n`,
+    });
+
+    expect(observed.observers.finish()).toEqual([
+      { clause: ADDRESS, anchor: { line: 1, column: 0 }, snippet: "banned third-party import: lodash/fp — use its recorded wrapping boundary", importSpecifier: "lodash/fp" },
+      { clause: ADDRESS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: @scope/pkg/sub — use its recorded wrapping boundary", importSpecifier: "@scope/pkg/sub" },
+    ]);
+  });
 });
 
 describe("CD-19 package matching", () => {

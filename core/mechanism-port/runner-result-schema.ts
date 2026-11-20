@@ -82,6 +82,7 @@ export const hitSchema = z
     anchor: anchorSchema,
     snippet: snippetSchema,
     remedy: remedySchema.optional(),
+    importSpecifier: z.string().min(1).optional(),
   })
   .readonly();
 
