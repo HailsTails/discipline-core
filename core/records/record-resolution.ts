@@ -42,7 +42,9 @@ export type FiledUnder = { readonly kind: NamedFolderKind } | { readonly kind: S
 
 const RUNTIME_PREFIX = "runtime:";
 
-const BUILT_IN_PREFIX = "node:";
+const NPM_PREFIX = "npm:";
+
+const SCHEME_MARK = /^[a-z][a-z0-9+.-]*:/;
 
 const RUNTIME_FACILITIES: readonly RuntimeFacility[] = ["clock", "random", "process", "json"];
 
@@ -106,8 +108,8 @@ const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideP
   if (request.text.startsWith(RUNTIME_PREFIX)) {
     return runtimePartyOf(request);
   }
-  if (request.text.startsWith(BUILT_IN_PREFIX)) {
-    return resolved({ kind: "built-in", specifier: request.text });
+  if (!request.text.startsWith(NPM_PREFIX) && SCHEME_MARK.test(request.text)) {
+    return resolved({ kind: "scheme-module", specifier: request.text });
   }
   return resolved({ kind: "package", specifier: request.text, dependency: dependencyOf({ specifier: request.text }) });
 };

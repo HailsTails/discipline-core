@@ -30,8 +30,8 @@ const sameOutsideParty = (request: { readonly left: OutsideParty; readonly right
   switch (left.kind) {
     case "package":
       return right.kind === "package" && right.dependency === left.dependency ? "same" : "different";
-    case "built-in":
-      return right.kind === "built-in" && right.specifier === left.specifier ? "same" : "different";
+    case "scheme-module":
+      return right.kind === "scheme-module" && right.specifier === left.specifier ? "same" : "different";
     case "runtime":
       return right.kind === "runtime" && right.facility === left.facility ? "same" : "different";
   }

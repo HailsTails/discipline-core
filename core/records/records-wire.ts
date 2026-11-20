@@ -5,13 +5,17 @@ import { whyChainSchema } from "../values/why-chain.ts";
 
 export const RECORDS_VERSION = 2;
 
-const PACKAGE_NAME = String.raw`(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*`;
+const PACKAGE_NAME = String.raw`(?:@[A-Za-z0-9][A-Za-z0-9._~-]*\/)?[A-Za-z0-9][A-Za-z0-9._~-]*`;
 
-const SUBPATH = String.raw`(?:\/[A-Za-z0-9._~-]+)*`;
+const SUBPATH = String.raw`(?:\/[A-Za-z0-9._~@-]+)*`;
 
-const BUILT_IN = `node:[a-z_][a-z0-9_]*${SUBPATH}`;
+const VERSION = "(?:@[A-Za-z0-9.^~<>=*|+-]+)?";
 
 const RUNTIME = "runtime:[a-z]+";
+
+const NPM_SPECIFIER = `npm:${PACKAGE_NAME}${VERSION}${SUBPATH}`;
+
+const SCHEME_MODULE = String.raw`(?!runtime:|npm:)[a-z][a-z0-9+.-]*:\S+`;
 
 const textSchema = z.string().trim().min(1);
 
@@ -19,7 +23,9 @@ export const packageNameSchema = z.string().regex(new RegExp(`^${PACKAGE_NAME}$`
 
 export const outsidePartySchema = z
   .string()
-  .regex(new RegExp(`^(?:${RUNTIME}|${BUILT_IN}|${PACKAGE_NAME}${SUBPATH})$`), { error: "is not a runtime facility or a module specifier" });
+  .regex(new RegExp(`^(?:${RUNTIME}|${NPM_SPECIFIER}|${SCHEME_MODULE}|${PACKAGE_NAME}${SUBPATH})$`), {
+    error: "is not a runtime facility or an outside module's specifier",
+  });
 
 const carriedEntrySchema = z.record(z.string(), z.json());
 
@@ -32,8 +38,8 @@ export const debtWireSchema = z.strictObject({ symptom: catalogueNameSchema, fil
 export const statedAuthorisedLocationWireSchema = z.strictObject({
   symptom: catalogueNameSchema,
   file: repoPathSchema,
-  case: catalogueNameSchema,
-  owes: catalogueNameSchema,
+  case: textSchema,
+  owes: textSchema,
   whyChain: whyChainSchema,
 });
 

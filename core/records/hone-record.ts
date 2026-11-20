@@ -9,7 +9,7 @@ export type RuntimeFacility = "clock" | "random" | "process" | "json";
 
 export type OutsideParty =
   | { readonly kind: "package"; readonly specifier: string; readonly dependency: string }
-  | { readonly kind: "built-in"; readonly specifier: string }
+  | { readonly kind: "scheme-module"; readonly specifier: string }
   | { readonly kind: "runtime"; readonly facility: RuntimeFacility };
 
 export type Conformist = { readonly model: string; readonly why: string };

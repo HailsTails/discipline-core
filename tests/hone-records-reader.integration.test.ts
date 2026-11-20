@@ -182,14 +182,14 @@ const DATE_FNS_IMPORT_IN_CLOCK_SOURCE = findingAt({ clause: "CD-19#import-bounda
 const FAKE_IN_REPLAY = findingAt({ clause: "CD-25#dependency-isolation", file: "src/sync/replay.test.ts" });
 
 const FINDINGS: readonly RaisedFinding[] = [
-  { finding: CAST_IN_WEBHOOK, raisedBy: { kind: "not-an-import" } },
-  { finding: CAST_IN_ORDERS, raisedBy: { kind: "not-an-import" } },
-  { finding: JSON_IN_ORDER_TEST, raisedBy: { kind: "not-an-import" } },
-  { finding: DATE_IN_SYSTEM_CLOCK, raisedBy: { kind: "not-an-import" } },
-  { finding: FS_IMPORT_IN_FILES, raisedBy: { kind: "import", specifier: "node:fs" } },
-  { finding: UUID_IMPORT_IN_IDS, raisedBy: { kind: "import", specifier: "uuid" } },
-  { finding: DATE_FNS_IMPORT_IN_CLOCK_SOURCE, raisedBy: { kind: "import", specifier: "date-fns" } },
-  { finding: FAKE_IN_REPLAY, raisedBy: { kind: "not-an-import" } },
+  { finding: CAST_IN_WEBHOOK, party: { reported: "not-reported" } },
+  { finding: CAST_IN_ORDERS, party: { reported: "not-reported" } },
+  { finding: JSON_IN_ORDER_TEST, party: { reported: "not-reported" } },
+  { finding: DATE_IN_SYSTEM_CLOCK, party: { reported: "not-reported" } },
+  { finding: FS_IMPORT_IN_FILES, party: { reported: "specifier", specifier: "node:fs" } },
+  { finding: UUID_IMPORT_IN_IDS, party: { reported: "specifier", specifier: "uuid" } },
+  { finding: DATE_FNS_IMPORT_IN_CLOCK_SOURCE, party: { reported: "specifier", specifier: "date-fns" } },
+  { finding: FAKE_IN_REPLAY, party: { reported: "not-reported" } },
 ];
 
 const AUTHORISED_CLAIMED = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
@@ -215,7 +215,7 @@ describe("Hone's records over a real hone-records folder with a git base, built 
           { place: { file: AUTHORISED_CLAIMED, index: 0 }, record: { kind: "authorised-location", symptom: { name: "claimed-type" }, holding: { held: "stated", owing: { matches: "the-catalogue" } } } },
           { place: { file: AUTHORISED_IMPORTS, index: 0 }, record: { kind: "authorised-location", file: "src/adapters/ids.ts", holding: { held: "carried", standing: "established" } } },
           { place: { file: BOUNDARIES, index: 0 }, record: { kind: "boundary-record", outsideParty: { kind: "runtime", facility: "clock" } } },
-          { place: { file: BOUNDARIES, index: 1 }, record: { kind: "boundary-record", outsideParty: { kind: "built-in", specifier: "node:fs" } } },
+          { place: { file: BOUNDARIES, index: 1 }, record: { kind: "boundary-record", outsideParty: { kind: "scheme-module", specifier: "node:fs" } } },
           { place: { file: DEBT, index: 0 }, record: { kind: "debt", symptom: { name: "text-past-its-reader" } } },
           { place: { file: DEPENDENCIES, index: 0 }, record: { kind: "dependency-record", dependency: "zod" } },
           { place: { file: DEVIATIONS, index: 0 }, record: { kind: "deviation", recipe: { name: "stub-with-vifn" } } },

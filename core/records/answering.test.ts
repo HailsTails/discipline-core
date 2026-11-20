@@ -119,7 +119,12 @@ const LODASH_IMPORT_IN_A: Finding = {
   mechanism: AUDIT,
 };
 
-const notAnImport = (finding: Finding): RaisedFinding => ({ finding, raisedBy: { kind: "not-an-import" } });
+const unreported = (finding: Finding): RaisedFinding => ({ finding, party: { reported: "not-reported" } });
+
+const importing = (request: { readonly finding: Finding; readonly specifier: string }): RaisedFinding => ({
+  finding: request.finding,
+  party: { reported: "specifier", specifier: request.specifier },
+});
 
 const DEBT_ON_CLASS_IN_A: PlacedRecord = {
   place: { file: DEBT_FILE, index: 0 },
@@ -221,7 +226,7 @@ const NOTHING_ANSWERED = { findings: [], answered: [], stale: [], forfeited: [],
 
 describe("answerFindings with no records", () => {
   it("keeps every finding and lists nothing else", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [notAnImport(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_A],
     });
@@ -232,7 +237,7 @@ describe("answerFindings, answer", () => {
   it.each([{ placed: DEBT_ON_CLASS_IN_A }, { placed: LOCATED_CLASS_IN_A }, { placed: CARRIED_CLASS_IN_A }])(
     "answers a finding whose symptom and file the $placed.record.kind at $placed.place.file names, and leaves it out of findings",
     ({ placed }) => {
-      expect(answerFindings({ catalogue: CATALOGUE, records: [placed], findings: [notAnImport(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+      expect(answerFindings({ catalogue: CATALOGUE, records: [placed], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
         ...NOTHING_ANSWERED,
         answered: [{ finding: NO_CLASS_IN_A, by: [placed] }],
       });
@@ -244,7 +249,7 @@ describe("answerFindings, answer", () => {
       answerFindings({
         catalogue: CATALOGUE,
         records: [ADAPTER_DEVIATION_IN_A],
-        findings: [{ finding: { ...UUID_IMPORT_IN_IDS, file: FILE_A }, raisedBy: { kind: "import", specifier: "uuid" } }],
+        findings: [importing({ finding: { ...UUID_IMPORT_IN_IDS, file: FILE_A }, specifier: "uuid" })],
         touched: NOTHING_TOUCHED,
         runs: [],
       }),
@@ -256,17 +261,36 @@ describe("answerFindings, answer", () => {
       answerFindings({
         catalogue: CATALOGUE,
         records: [ADAPTER_DEVIATION_IN_A],
-        findings: [{ finding: LODASH_IMPORT_IN_A, raisedBy: { kind: "import", specifier: "lodash/fp" } }],
+        findings: [importing({ finding: LODASH_IMPORT_IN_A, specifier: "lodash/fp" })],
         touched: NOTHING_TOUCHED,
         runs: [],
       }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [LODASH_IMPORT_IN_A], stale: [ADAPTER_DEVIATION_IN_A] });
   });
 
-  it("answers by a boundary record over a finding in a file inside its module", () => {
+  it("does not answer an import finding whose outside party is not reported by a deviation, since it may be a named ban", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [notAnImport(UUID_IMPORT_IN_IDS)], touched: NOTHING_TOUCHED, runs: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [unreported(LODASH_IMPORT_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [LODASH_IMPORT_IN_A], stale: [ADAPTER_DEVIATION_IN_A] });
+  });
+
+  it("answers by a boundary record over an import of its outside party in a file inside its module", () => {
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [IDS_BOUNDARY],
+        findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid/v4" })],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] }] });
+  });
+
+  it("does not answer by a boundary record an import of another outside party in its module, and lists it stale", () => {
+    const lodashInIds: Finding = { ...UUID_IMPORT_IN_IDS, snippet: "banned third-party import: lodash — use its recorded wrapping boundary" };
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [importing({ finding: lodashInIds, specifier: "lodash" })], touched: NOTHING_TOUCHED, runs: [] }),
+    ).toEqual({ ...NOTHING_ANSWERED, findings: [lodashInIds], stale: [IDS_BOUNDARY] });
   });
 
   it("credits every record that holds the finding, in the records' order", () => {
@@ -274,7 +298,7 @@ describe("answerFindings, answer", () => {
       answerFindings({
         catalogue: CATALOGUE,
         records: [LOCATED_UUID_IN_IDS, IDS_BOUNDARY],
-        findings: [notAnImport(UUID_IMPORT_IN_IDS)],
+        findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" })],
         touched: NOTHING_TOUCHED,
         runs: [],
       }),
@@ -282,7 +306,7 @@ describe("answerFindings, answer", () => {
   });
 
   it("does not answer a finding in a file the record does not name", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [notAnImport(NO_CLASS_IN_B)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_B)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_B],
       stale: [DEBT_ON_CLASS_IN_A],
@@ -290,7 +314,7 @@ describe("answerFindings, answer", () => {
   });
 
   it("does not answer a finding of a symptom the record does not name", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [notAnImport(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [FOR_OF_IN_A],
       stale: [DEBT_ON_CLASS_IN_A],
@@ -299,14 +323,14 @@ describe("answerFindings, answer", () => {
 
   it("does not answer a finding whose check the catalogue names no symptom for", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [notAnImport(UNCATALOGUED_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(UNCATALOGUED_IN_A)], touched: NOTHING_TOUCHED, runs: [] }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [UNCATALOGUED_IN_A], stale: [DEBT_ON_CLASS_IN_A] });
   });
 });
 
 describe("answerFindings, forfeit", () => {
   it("forfeits debt whose file was touched, and it answers nothing", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [notAnImport(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_A],
       forfeited: [DEBT_ON_CLASS_IN_A],
@@ -314,7 +338,7 @@ describe("answerFindings, forfeit", () => {
   });
 
   it("does not forfeit an authorised location whose file was touched", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [notAnImport(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [] })).toEqual({
       ...NOTHING_ANSWERED,
       answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }],
     });
@@ -323,7 +347,7 @@ describe("answerFindings, forfeit", () => {
   it.each([{ touched: UNMEASURED }, { touched: ELSEWHERE }])(
     "forfeits nothing when the touched set is measured $touched.measured, so the debt still answers",
     ({ touched }) => {
-      expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [notAnImport(NO_CLASS_IN_A)], touched, runs: [] })).toEqual({
+      expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched, runs: [] })).toEqual({
         ...NOTHING_ANSWERED,
         answered: [{ finding: NO_CLASS_IN_A, by: [DEBT_ON_CLASS_IN_A] }],
       });
@@ -337,7 +361,7 @@ describe("answerFindings, doubly held", () => {
       answerFindings({
         catalogue: CATALOGUE,
         records: [LOCATED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
-        findings: [notAnImport(NO_CLASS_IN_A)],
+        findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
         runs: [],
       }),
@@ -366,12 +390,37 @@ describe("answerFindings, doubly held", () => {
     });
   });
 
+  it("answers by the debt of a pair every finding its pair's other record does not itself answer", () => {
+    const debtOnImportsInIds: PlacedRecord = {
+      place: { file: repoPathSchema.parse("hone-records/debt/outside-import-past-a-boundary.json"), index: 0 },
+      record: { kind: "debt", symptom: OUTSIDE_IMPORT, file: IDS_ADAPTER, holding: { held: "stated" } },
+    };
+    const lodashInIds: Finding = { ...UUID_IMPORT_IN_IDS, anchor: { line: 2, column: 0 }, snippet: "banned third-party import: lodash — use its recorded wrapping boundary" };
+    expect(
+      answerFindings({
+        catalogue: CATALOGUE,
+        records: [debtOnImportsInIds, IDS_BOUNDARY],
+        findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" }), importing({ finding: lodashInIds, specifier: "lodash" }), unreported(lodashInIds)],
+        touched: NOTHING_TOUCHED,
+        runs: [],
+      }),
+    ).toEqual({
+      ...NOTHING_ANSWERED,
+      answered: [
+        { finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] },
+        { finding: lodashInIds, by: [debtOnImportsInIds] },
+        { finding: lodashInIds, by: [debtOnImportsInIds] },
+      ],
+      doublyHeld: [{ debt: debtOnImportsInIds, alsoHeldBy: [IDS_BOUNDARY] }],
+    });
+  });
+
   it("does not list a pair whose debt was forfeited, and the authorised location answers", () => {
     expect(
       answerFindings({
         catalogue: CATALOGUE,
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A],
-        findings: [notAnImport(NO_CLASS_IN_A)],
+        findings: [unreported(NO_CLASS_IN_A)],
         touched: FILE_A_TOUCHED,
         runs: [],
       }),
@@ -454,6 +503,20 @@ describe("answerFindings, natives held", () => {
     expect(
       answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: FILE_A_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })] }),
     ).toEqual({ ...NOTHING_ANSWERED, forfeited: [DEBT_ON_CLASS_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
+  });
+
+  it("lists an inline disable on an import check in a boundary record's module, since a suppression does not report its outside party", () => {
+    const disableInIds: NativeException = { kind: "inline-disable", clause: IMPORT_BOUNDARIES, file: IDS_ADAPTER, line: 1, text: "// eslint-disable-next-line", reach: "one-clause" };
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInIds] })] }),
+    ).toEqual({ ...NOTHING_ANSWERED, stale: [IDS_BOUNDARY], unrecorded: [{ ...disableInIds, mechanism: AUDIT }] });
+  });
+
+  it("lists an inline disable on an import check at a deviation's file, since the import it hides may be a named ban", () => {
+    const disableInA: NativeException = { kind: "inline-disable", clause: IMPORT_BOUNDARIES, file: FILE_A, line: 1, text: "// eslint-disable-next-line", reach: "one-clause" };
+    expect(
+      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInA] })] }),
+    ).toEqual({ ...NOTHING_ANSWERED, stale: [ADAPTER_DEVIATION_IN_A], unrecorded: [{ ...disableInA, mechanism: AUDIT }] });
   });
 
   it("lists a command-line option even where its run makes the kind coverable, since no record names a file it sits in", () => {
