@@ -1,7 +1,7 @@
 import { createSymptomCatalogueRepository } from "../symptom-catalogue/read-symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
 import { checkLocationsFor } from "./check-locations.ts";
-import { type GuidedCheckRun, guidedCheckCommandOutcome } from "../command-line/command-outcome.ts";
+import { type GuidedCheckRun, guidedCheckCommandOutcome } from "./check-command-outcome.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import { type CheckRunAt, type CommandRequest, checkRunAt } from "./run-check-command.ts";
