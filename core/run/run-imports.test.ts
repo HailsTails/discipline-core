@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const runSources = import.meta.glob(["./core/run/**/*.ts"], {
+const runSources = import.meta.glob(["./core/run/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}"], {
   base: "../../",
   query: "?raw",
   import: "default",
