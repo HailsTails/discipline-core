@@ -13,13 +13,10 @@ import type {
 } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
 import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
-import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
-import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { ModuleLoad, ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { sameClauseAddress } from "../../../core/values/clause-address.ts";
-import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -27,6 +24,7 @@ import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import { mappedOutcome } from "./checks-outcomes.ts";
 import { type CheckedFile, type ConfigLocation, queriedFiles, type QueriedFiles } from "./checks-queried-files.ts";
 import { trackedExceptionsOfRules } from "./checks-tracked-exceptions.ts";
+import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
 import { type CoreInstall, coreInstallOf } from "./core-install.ts";
 import { type EslintRepository, eslintRepositoryOver } from "./eslint-repository.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
@@ -72,21 +70,8 @@ import {
   sliceTextOf,
 } from "./sliced-projection.ts";
 
-export type EslintPlatformPorts = {
-  readonly fileText: FileTextPort;
-  readonly fileRemoval: FileRemovalPort;
-  readonly modules: ModuleLoaderPort;
-  readonly path: PathPort;
-  readonly eslint: EslintPort;
-  readonly moduleExtension: ModuleExtension;
-};
-
-export type EslintRunnerPorts = {
+export type EslintRunnerPorts = Omit<ChecksRunnerPorts, "repositoryAt"> & {
   readonly repositoryAt: (request: { readonly repoRoot: AbsolutePath }) => EslintRepository;
-  readonly coreInstall: (request: { readonly installRoot: AbsolutePath }) => Result<CoreInstall, RunnerFailure>;
-  readonly modules: ModuleLoaderPort;
-  readonly path: PathPort;
-  readonly eslint: EslintPort;
 };
 
 type Outcome<Value> = Result<Value, RunnerFailure>;

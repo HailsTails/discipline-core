@@ -2,7 +2,7 @@ import type { ExceptionRecord } from "../../../core/exception-records/exception-
 import type { UnprojectedFolderReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
-import { CONFIG_FILE_NAMES } from "./config-lookup.ts";
+import { configuredDirectoriesOf } from "./checks-config-roots.ts";
 import { PROJECTION_PATH } from "./projection.ts";
 
 export type ConfigRoot =
@@ -45,14 +45,9 @@ type RootsRequest = {
   readonly lookup: EslintConfigLookup;
 };
 
-const configuredDirectories = (request: RootsRequest): readonly string[] =>
-  request.lookup === "nearest-to-file"
-    ? request.trackedPaths.filter((path) => CONFIG_FILE_NAMES.includes(fileNameOf({ path }))).map((path) => directoryOf({ path }))
-    : [];
-
 const packageDirectories = (request: RootsRequest): readonly RepoPath[] => {
   const nested = nestedRepositories(request);
-  const configured = configuredDirectories(request);
+  const configured = configuredDirectoriesOf(request);
   return [...new Set([...configured, ...request.declared])]
     .filter((directory) => directory !== "")
     .filter((directory) => insideNestedRepository({ directory, nested }) === "own")
@@ -131,7 +126,7 @@ export const unprojectedFoldersOf = (request: {
 }): readonly UnprojectedFolderReport[] => {
   const nested = nestedRepositories(request);
   const outermostNested = outermostOf({ nested });
-  const ownConfigured = configuredDirectories({ ...request, declared: [] }).filter(
+  const ownConfigured = configuredDirectoriesOf(request).filter(
     (directory) => directory !== "" && insideNestedRepository({ directory, nested }) === "nested",
   );
   return outermostOf({ nested: ownConfigured })
