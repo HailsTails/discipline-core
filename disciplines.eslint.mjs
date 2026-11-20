@@ -88,7 +88,6 @@ export default [
   {
     name: "hone-core/file-records/CD-41#cognitive-complexity",
     files: [
-      "mechanisms/audit/CD-19/import-boundaries.ts",
       "mechanisms/audit/CD-43/boolean-signatures.ts",
     ],
     rules: { "hone-cd41/cognitive-complexity": "off" },

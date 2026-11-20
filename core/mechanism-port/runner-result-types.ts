@@ -19,4 +19,5 @@ export type Hit = {
   readonly anchor: Anchor;
   readonly snippet: string;
   readonly remedy?: Remedy;
+  readonly importSpecifier?: string;
 };
