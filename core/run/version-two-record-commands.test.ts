@@ -69,6 +69,7 @@ const stagesGiving = (request: Partial<VersionTwoStages>): VersionTwoStages => (
   records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: NO_RECORDS }),
   tree: vi.fn<VersionTwoStages["tree"]>().mockReturnValue({ outcome: "ok", value: { tracked: [FILE_A], declaredConfigRoots: [] } }),
   engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [runOf({ hits: [CAST] })] }),
+  projections: vi.fn<VersionTwoStages["projections"]>(),
   touched: vi.fn<VersionTwoStages["touched"]>().mockReturnValue({ measured: "yes", paths: new Set() }),
   ...request,
 });

@@ -50,6 +50,7 @@ describe("stagesOverRepository", () => {
       records: vi.fn<VersionTwoStages["records"]>(),
       tree: vi.fn<VersionTwoStages["tree"]>(),
       engines: vi.fn<VersionTwoStages["engines"]>(),
+      projections: vi.fn<VersionTwoStages["projections"]>(),
       touched: vi.fn<VersionTwoStages["touched"]>(),
     };
     const stagesOver = vi.fn<StagesOver>().mockReturnValue(stages);

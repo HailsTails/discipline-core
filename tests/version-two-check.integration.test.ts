@@ -95,11 +95,20 @@ describe("the tool's commands on a repository holding hone.config.json, through 
     expect(recorded).toEqual({ writes: [[{ text: "authored-class-or-this#class-keyword recorded kept.ts\n" }]], exits: [[{ code: 0 }]] });
   });
 
-  it("prints one not-ready-yet line for project and exits 2", async () => {
-    const repo = repositories.repositoryWith({ files: { "hone.config.json": CONFIG } });
-    expect(await runCommandIn({ repo, subcommand: "project", options: [] })).toEqual({
-      writes: [[{ text: "load failure: not-ready-yet project: this release runs project on version 1 files only, and this repository holds hone.config.json\n" }]],
-      exits: [[{ code: 2 }]],
+  it("writes the projection through project, confirms it unchanged the second time, and then checks with the projection current", async () => {
+    const repo = trackedRepositoryWith({
+      repositories,
+      commands,
+      files: { "hone.config.json": CONFIG, "eslint.config.mjs": PROJECTION_IMPORT, "kept.ts": "export class Kept {}\n" },
+    });
+    expect({
+      first: await runCommandIn({ repo, subcommand: "project", options: [] }),
+      second: await runCommandIn({ repo, subcommand: "project", options: [] }),
+      checked: await runCommandIn({ repo, subcommand: "check", options: [] }),
+    }).toEqual({
+      first: { writes: [[{ text: "hone.eslint.mjs written\n" }]], exits: [[{ code: 0 }]] },
+      second: { writes: [[{ text: "hone.eslint.mjs unchanged\n" }]], exits: [[{ code: 0 }]] },
+      checked: { writes: [[{ text: EXPECTED_REPORT }]], exits: [[{ code: 1 }]] },
     });
   });
 });

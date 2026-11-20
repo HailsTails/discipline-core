@@ -11,7 +11,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { FIRST_EDITION } from "../values/edition.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { type EngineRunRequest, engineRunOf, loadedEngineOf } from "./engine-run.ts";
+import { type EngineRunRequest, engineProjectionOf, engineRunOf, loadedEngineOf } from "./engine-run.ts";
 
 const ESLINT = mechanismIdSchema.parse("eslint");
 
@@ -70,6 +70,7 @@ const checksRunnerReturning = (request: { readonly returned: ChecksRunResult }) 
   projectedKinds: PROJECTED_KINDS,
   run: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue(request.returned),
   conform: vi.fn<(request: unknown) => Promise<unknown>>(),
+  project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue({ outcome: "ok", value: [] }),
 });
 
 const STANDALONE: LoadedRunner = {
@@ -168,7 +169,7 @@ describe("engineRunOf, a checks runner", () => {
   });
 
   it("fails as a failed runner when the runner throws", async () => {
-    const throwing = { projectedKinds: [], run: () => Promise.reject(new Error("boom")), conform: () => Promise.resolve(undefined) };
+    const throwing = { projectedKinds: [], run: () => Promise.reject(new Error("boom")), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) };
     expect(await engineRunOf({ engine: { mechanism: ESLINT, runner: EMBEDDED, checksRunner: throwing }, request: REQUEST })).toMatchObject({
       outcome: "failed",
       error: { kind: "runner-failed", mechanism: ESLINT, failure: { kind: "runner-invalid-output", detail: "the runner call threw or rejected: boom" } },
@@ -196,6 +197,67 @@ describe("engineRunOf, a standalone runner", () => {
   });
 });
 
+const WRITTEN = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "export default [];\n" };
+
+const projectingWith = (request: { readonly returned: unknown }) => ({
+  engine: { mechanism: ESLINT, runner: EMBEDDED, checksRunner: { ...checksRunnerReturning({ returned: { outcome: "ok", value: REPORT } }), project: vi.fn<(request: unknown) => Promise<unknown>>().mockResolvedValue(request.returned) } },
+  request: REQUEST,
+});
+
+describe("engineProjectionOf, a checks runner", () => {
+  it("gives the files the runner wrote", async () => {
+    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "ok", value: [WRITTEN] } }))).toEqual({ outcome: "ok", value: [WRITTEN] });
+  });
+
+  it("asks the runner with the request it was given", async () => {
+    const asked = projectingWith({ returned: { outcome: "ok", value: [] } });
+    await engineProjectionOf(asked);
+    expect(vi.mocked(asked.engine.checksRunner.project).mock.calls).toEqual([[REQUEST]]);
+  });
+
+  it("fails with the failure the runner gave", async () => {
+    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "failed", error: { kind: "tool-failed", detail: "disk full" } } }))).toEqual({
+      outcome: "failed",
+      error: { kind: "runner-failed", mechanism: ESLINT, failure: { kind: "tool-failed", detail: "disk full" } },
+    });
+  });
+
+  it("fails as not ready yet when the runner says its config roots are not ready", async () => {
+    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } } } }))).toEqual({
+      outcome: "failed",
+      error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } },
+    });
+  });
+
+  it("fails as an invalid output when the runner returns something that is not a list of written files", async () => {
+    expect(await engineProjectionOf(projectingWith({ returned: { outcome: "ok", value: "written" } }))).toMatchObject({
+      outcome: "failed",
+      error: { kind: "runner-failed", mechanism: ESLINT, failure: { kind: "runner-invalid-output" } },
+    });
+  });
+
+  it("fails as a failed runner when the runner throws", async () => {
+    const throwing = { engine: { mechanism: ESLINT, runner: EMBEDDED, checksRunner: { ...checksRunnerReturning({ returned: { outcome: "ok", value: REPORT } }), project: () => Promise.reject(new Error("boom")) } }, request: REQUEST };
+    expect(await engineProjectionOf(throwing)).toMatchObject({
+      outcome: "failed",
+      error: { kind: "runner-failed", mechanism: ESLINT, failure: { kind: "runner-invalid-output", detail: "the runner call threw or rejected: boom" } },
+    });
+  });
+
+  it("fails as an invalid runner when an embedded runner module exports no checks runner", async () => {
+    expect(await engineProjectionOf({ engine: { mechanism: ESLINT, runner: EMBEDDED, checksRunner: undefined }, request: REQUEST })).toMatchObject({
+      outcome: "failed",
+      error: { kind: "runner-invalid", mechanism: ESLINT },
+    });
+  });
+});
+
+describe("engineProjectionOf, a standalone runner", () => {
+  it("writes nothing, as a standalone runner projects nothing", async () => {
+    expect(await engineProjectionOf({ engine: { mechanism: AUDIT, runner: STANDALONE, checksRunner: undefined }, request: REQUEST })).toEqual({ outcome: "ok", value: [] });
+  });
+});
+
 const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/work" });
 
 const loaderGiving = (request: { readonly loaded: ModuleLoad }): ModuleLoaderPort => ({
@@ -207,7 +269,7 @@ const loadedWith = (request: { readonly mechanism: typeof ESLINT; readonly loade
 
 describe("loadedEngineOf", () => {
   it("loads the runner and the checks runner a mechanism's module exports", async () => {
-    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined), conform: () => Promise.resolve(undefined) };
+    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined), conform: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) };
     expect(await loadedWith({ mechanism: ESLINT, loaded: { outcome: "ok", value: { runner: STANDALONE, checksRunner } } })).toMatchObject({
       outcome: "ok",
       value: { mechanism: ESLINT, runner: { exceptionPath: "standalone" }, checksRunner: { projectedKinds: ["config-override"] } },
@@ -222,10 +284,18 @@ describe("loadedEngineOf", () => {
   });
 
   it("fails as an invalid runner when the module's checks runner exports no conform", async () => {
-    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined) };
+    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined), project: () => Promise.resolve(undefined) };
     expect(await loadedWith({ mechanism: ESLINT, loaded: { outcome: "ok", value: { runner: STANDALONE, checksRunner } } })).toEqual({
       outcome: "failed",
       error: { kind: "runner-invalid", mechanism: ESLINT, detail: "✖ Invalid input: expected function, received undefined\n  → at checksRunner.conform" },
+    });
+  });
+
+  it("fails as an invalid runner when the module's checks runner exports no project", async () => {
+    const checksRunner = { projectedKinds: ["config-override"], run: () => Promise.resolve(undefined), conform: () => Promise.resolve(undefined) };
+    expect(await loadedWith({ mechanism: ESLINT, loaded: { outcome: "ok", value: { runner: STANDALONE, checksRunner } } })).toEqual({
+      outcome: "failed",
+      error: { kind: "runner-invalid", mechanism: ESLINT, detail: "✖ Invalid input: expected function, received undefined\n  → at checksRunner.project" },
     });
   });
 
