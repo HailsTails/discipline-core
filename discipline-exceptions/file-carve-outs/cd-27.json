@@ -104,11 +104,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
-      "file": "mechanisms/audit/CD-14/class-syntax.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
       "file": "mechanisms/audit/CD-14/piece.test.ts"
     },
     {
@@ -164,11 +159,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
-      "file": "mechanisms/audit/runner/create-walker-runner.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
       "file": "mechanisms/audit/runner/observe-walker-file.test.ts"
     },
     {
@@ -204,11 +194,6 @@
     {
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
-      "file": "mechanisms/eslint/runner/native-exceptions.integration.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
       "file": "mechanisms/eslint/runner/package-script-scanner.test.ts"
     },
     {
@@ -230,11 +215,6 @@
       "kind": "file-carve-out",
       "clause": "CD-27#test-body-logic",
       "file": "rules/CD-14/discipline.test.ts"
-    },
-    {
-      "kind": "file-carve-out",
-      "clause": "CD-27#test-body-logic",
-      "file": "scripts/install-proof-plan.test.ts"
     },
     {
       "kind": "file-carve-out",

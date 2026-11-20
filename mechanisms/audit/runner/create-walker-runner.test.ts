@@ -154,8 +154,20 @@ describe("createWalkerRunner run", () => {
           { clause: SECOND, file: CONFIG, anchor: { line: 1, column: 0 }, snippet: "repository-wide" },
         ],
         nativeExceptions: [],
+        measured: [
+          { clause: FIRST, file: ALPHA },
+          { clause: SECOND, file: ALPHA },
+          { clause: FIRST, file: CONFIG },
+          { clause: SECOND, file: CONFIG },
+        ],
       },
     });
+  });
+
+  it("names no clause measured on a file every piece skipped, such as a file that is not TypeScript", async () => {
+    expect(
+      await runnerWith({ fileText: fileTextOf({ read: vi.fn() }), modules: modulesOf({ check: { prepare: skippingPrepare() } }) }).run(RUN),
+    ).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [] } });
   });
 
   it("reads a file under the repository root", async () => {
@@ -251,17 +263,16 @@ const SYNTAX_FILE: PreparedFile = { outcome: "ok", value: { kind: "syntax", begi
 
 const SKIPPED_FILE: PreparedFile = { outcome: "ok", value: { kind: "skipped" } };
 
-const READ_ALPHA_AND_BETA: ReadonlyMap<string, PreparedFile> = new Map([
-  [ALPHA, SYNTAX_FILE],
-  [BETA, SYNTAX_FILE],
-]);
-
-const syntaxPieceReading = (request: { readonly read: ReadonlyMap<string, PreparedFile> }): WalkerPiece => ({
-  prepare: () => ({
+const pieceReadingAlphaThenBeta = (): WalkerPiece => ({
+  prepare: vi.fn<WalkerPiece["prepare"]>().mockReturnValue({
     outcome: "ok",
     value: {
-      prepareFile: ({ file }) => request.read.get(file) ?? SKIPPED_FILE,
-      finish: () => ({ outcome: "ok", value: [] }),
+      prepareFile: vi
+        .fn<PreparedWalkerCheck["prepareFile"]>()
+        .mockReturnValueOnce(SYNTAX_FILE)
+        .mockReturnValueOnce(SYNTAX_FILE)
+        .mockReturnValue(SKIPPED_FILE),
+      finish: vi.fn<PreparedWalkerCheck["finish"]>().mockReturnValue({ outcome: "ok", value: [] }),
     },
   }),
 });
@@ -274,7 +285,7 @@ const escapingClause = (request: { readonly address: typeof FIRST; readonly esca
 const directiveRun = (request: { readonly clauses: readonly RunnerClause[] }) =>
   runnerWith({
     fileText: fileTextOf({ read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: DIRECTIVE_SOURCE }) }),
-    modules: modulesOf({ check: syntaxPieceReading({ read: READ_ALPHA_AND_BETA }) }),
+    modules: modulesOf({ check: pieceReadingAlphaThenBeta() }),
   }).run({ ...RUN, files: [ALPHA, BETA, SKIPPED], trackedPaths: [ALPHA, BETA, SKIPPED, CONFIG], clauses: request.clauses });
 
 const inlineDisable = (request: { readonly clause: typeof FIRST; readonly file: typeof ALPHA; readonly line: number; readonly text: string }) => ({
@@ -282,6 +293,13 @@ const inlineDisable = (request: { readonly clause: typeof FIRST; readonly file: 
   ...request,
   reach: "one-clause",
 });
+
+const BOTH_CLAUSES_ON_ALPHA_AND_BETA = [
+  { clause: FIRST, file: ALPHA },
+  { clause: SECOND, file: ALPHA },
+  { clause: FIRST, file: BETA },
+  { clause: SECOND, file: BETA },
+];
 
 describe("createWalkerRunner run, type directives a clause declares as its escapes", () => {
   it("reports each declared directive, tracked reference or not, as an inline disable of that clause in every file its piece reads", async () => {
@@ -296,6 +314,10 @@ describe("createWalkerRunner run, type directives a clause declares as its escap
           inlineDisable({ clause: FIRST, file: BETA, line: 1, text: `// ${NOCHECK}` }),
           inlineDisable({ clause: FIRST, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
           inlineDisable({ clause: FIRST, file: BETA, line: 4, text: `// ${IGNORE} reason (#42)` }),
+        ],
+        measured: [
+          { clause: FIRST, file: ALPHA },
+          { clause: FIRST, file: BETA },
         ],
       },
     });
@@ -314,6 +336,7 @@ describe("createWalkerRunner run, type directives a clause declares as its escap
           inlineDisable({ clause: FIRST, file: ALPHA, line: 4, text: `// ${IGNORE} reason (#42)` }),
           inlineDisable({ clause: FIRST, file: BETA, line: 4, text: `// ${IGNORE} reason (#42)` }),
         ],
+        measured: BOTH_CLAUSES_ON_ALPHA_AND_BETA,
       },
     });
   });
@@ -339,6 +362,7 @@ describe("createWalkerRunner run, type directives several clauses or conform mee
           inlineDisable({ clause: FIRST, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
           inlineDisable({ clause: SECOND, file: BETA, line: 2, text: `// ${EXPECTATION} legacy` }),
         ],
+        measured: BOTH_CLAUSES_ON_ALPHA_AND_BETA,
       },
     });
   });
@@ -346,7 +370,7 @@ describe("createWalkerRunner run, type directives several clauses or conform mee
   it("gives conform's verdict no line for a directive", async () => {
     const runner = runnerWith({
       fileText: fileTextOf({ read: vi.fn() }),
-      modules: modulesOf({ check: syntaxPieceReading({ read: READ_ALPHA_AND_BETA }) }),
+      modules: modulesOf({ check: pieceReadingAlphaThenBeta() }),
     });
 
     expect(

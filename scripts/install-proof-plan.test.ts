@@ -30,7 +30,10 @@ const packageFiles = import.meta.glob(["../package.json", "../pnpm-workspace.yam
   eager: true,
 });
 
-const FAILING_REPORT = "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n";
+const FAILING_REPORT = "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling symptom: unit-without-a-running-test, may indicate: tested-where-its-owned\nreadFirst (3)\nunit-without-a-running-test: Unit without a running test. May indicate: gives each unit its test → Tested where it's owned. The breach usually sits in the missing test. Recipe: Companion test file. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#unit-without-a-running-test\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n";
+
+const FAILING_REPORT_SHOWN =
+  '"findings (1)\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling symptom: unit-without-a-running-test, may indicate: tested-where-its-owned\\nreadFirst (3)\\nunit-without-a-running-test: Unit without a running test. May indicate: gives each unit its test → Tested where it\'s owned. The breach usually sits in the missing test. Recipe: Companion test file. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#unit-without-a-running-test\\nStart from each rule\'s Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\\nverdict: fail\\n"';
 
 const FAILING: StepExpectation = { exitCode: 1, output: FAILING_REPORT };
 
@@ -55,17 +58,24 @@ describe("judgedStep", () => {
     {
       change: "a finding line",
       output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:2:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      shown: '"findings (1)\\nCD-23#export-test-sibling audit src/kept.ts:2:0 missing co-located *.test.ts(x) sibling\\nverdict: fail\\n"',
     },
     {
       change: "a section header",
       output: "findings [1]\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      shown: '"findings [1]\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\\nverdict: fail\\n"',
     },
-    { change: "an extra section", output: `excluded (1)\nvendor\n${FAILING_REPORT}` },
-    { change: "only the verdict line", output: "verdict: fail\n" },
-  ])("fails when $change differs, even with the verdict kept", ({ output }) => {
+    {
+      change: "an extra section",
+      output: `excluded (1)\nvendor\n${FAILING_REPORT}`,
+      shown:
+        '"excluded (1)\\nvendor\\nfindings (1)\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling symptom: unit-without-a-running-test, may indicate: tested-where-its-owned\\nreadFirst (3)\\nunit-without-a-running-test: Unit without a running test. May indicate: gives each unit its test → Tested where it\'s owned. The breach usually sits in the missing test. Recipe: Companion test file. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#unit-without-a-running-test\\nStart from each rule\'s Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\\nverdict: fail\\n"',
+    },
+    { change: "only the verdict line", output: "verdict: fail\n", shown: '"verdict: fail\\n"' },
+  ])("fails when $change differs, even with the verdict kept", ({ output, shown }) => {
     expect(judgedStep({ label: "audit check", expectation: FAILING, run: { outcome: "exited", exitCode: 1, output } })).toEqual({
       outcome: "failed",
-      error: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(FAILING_REPORT)}, got exit 1 and output ${JSON.stringify(output)}`,
+      error: `FAIL: audit check: expected exit 1 and output ${FAILING_REPORT_SHOWN}, got exit 1 and output ${shown}`,
     });
   });
 
@@ -168,7 +178,7 @@ const ESLINT_ACTIONS: readonly ProofAction[] = [
   { kind: "commit", message: "project" },
   {
     kind: "check",
-    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {}\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
+    expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {} symptom: authored-class-or-this, may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted\nreadFirst (3)\nauthored-class-or-this: Authored class or this. May indicate: keeps state or settings across calls → No hidden effects; reuses behaviour → One reason per module; gives a value its type → Declared, not asserted. The breach usually sits in the unit. Recipe: Closure factory. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#authored-class-or-this\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
   },
 ];
 
@@ -238,7 +248,7 @@ const WORKSPACE_ACTIONS: readonly ProofAction[] = [
     expectation: {
       exitCode: 1,
       output:
-        "findings (1)\nCD-14#class-syntax eslint packages/web/src/kept.ts:1:7 export class Kept {}\nexempted (1)\nCD-14#class-syntax eslint packages/web/src/legacy.ts:1:7 export class Legacy {} exempted by file-carve-out\nuncovered (1)\nCD-14#static-only-class\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n",
+        "findings (1)\nCD-14#class-syntax eslint packages/web/src/kept.ts:1:7 export class Kept {} symptom: authored-class-or-this, may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted\nexempted (1)\nCD-14#class-syntax eslint packages/web/src/legacy.ts:1:7 export class Legacy {} exempted by file-carve-out\nuncovered (1)\nCD-14#static-only-class\nreadFirst (3)\nauthored-class-or-this: Authored class or this. May indicate: keeps state or settings across calls → No hidden effects; reuses behaviour → One reason per module; gives a value its type → Declared, not asserted. The breach usually sits in the unit. Recipe: Closure factory. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#authored-class-or-this\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n",
     },
   },
   { kind: "lint", directory: "packages/web", expectation: { exitCode: 1, output: "src/kept.ts:1:8 hone/no-class-authoring\n" } },
@@ -270,17 +280,7 @@ describe("the proof cases", () => {
         packageManager: "pnpm@10.34.9",
       }),
     ).toBe(
-      `${JSON.stringify(
-        {
-          private: true,
-          type: "commonjs",
-          packageManager: "pnpm@10.34.9",
-          scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." },
-          devDependencies: { typescript: "4.8.4" },
-        },
-        null,
-        2,
-      )}\n`,
+      '{\n  "private": true,\n  "type": "commonjs",\n  "packageManager": "pnpm@10.34.9",\n  "scripts": {\n    "core:check": "core check --repo .",\n    "core:project": "core project --repo ."\n  },\n  "devDependencies": {\n    "typescript": "4.8.4"\n  }\n}\n',
     );
   });
 });
@@ -289,7 +289,7 @@ describe("the pnpm a consumer installs with", () => {
   it("is the exact pnpm release this package pins", () => {
     expect(packageManagerPinOf({ developmentManifest: packageFiles["../package.json"] })).toEqual({
       outcome: "ok",
-      value: JSON.parse(packageFiles["../package.json"]).packageManager,
+      value: "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
     });
   });
 

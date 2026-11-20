@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "exceptions": [
+    { "kind": "file-carve-out", "clause": "CD-14#class-syntax", "file": "src/answered.ts" },
+    { "kind": "authorised-location", "clause": "CD-14#class-syntax", "file": "src/answered.ts", "reason": "the one class the fixture authorises" },
+    { "kind": "file-carve-out", "clause": "CD-14#class-syntax", "file": "src/doubly.ts" },
+    { "kind": "authorised-location", "clause": "CD-14#class-syntax", "file": "src/doubly.ts", "reason": "the one class the fixture authorises beside its debt" },
+    { "kind": "file-carve-out", "clause": "CD-14#class-syntax", "file": "src/refused.ts" },
+    { "kind": "authorised-location", "clause": "CD-14#class-syntax", "file": "src/refused.ts", "reason": "a class whose why-chain the form refuses", "whyChain": { "whys": [], "rootCause": "", "owner": "" } }
+  ]
+}

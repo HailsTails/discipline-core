@@ -46,22 +46,22 @@ const EVERY_NATIVE_KIND = [
 
 describe("embeddedRunReportSchema", () => {
   it("accepts a report holding a hit, one native exception of every kind and a not-included projection", () => {
-    const report = { hits: [HIT_IN_A], nativeExceptions: EVERY_NATIVE_KIND, projection: "not-included", slices: [], unprojectedFolders: [] };
+    const report = { hits: [HIT_IN_A], nativeExceptions: EVERY_NATIVE_KIND, projection: "not-included", slices: [], unprojectedFolders: [], measured: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts a current projection with no hits and no native exceptions", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [] };
+    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [], measured: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts an out-of-date projection", () => {
-    const report = { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [], unprojectedFolders: [] };
+    const report = { hits: [HIT_IN_A], nativeExceptions: [], projection: "out-of-date", slices: [], unprojectedFolders: [], measured: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
   it("accepts a missing projection", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "missing", slices: [], unprojectedFolders: [] };
+    const report = { hits: [], nativeExceptions: [], projection: "missing", slices: [], unprojectedFolders: [], measured: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });
 
@@ -80,8 +80,26 @@ describe("embeddedRunReportSchema", () => {
   });
 
   it("reads the folders a runner names as ones whose files load a config the projection does not reach", () => {
-    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [{ folder: "fixtures/deep/tool", selectionFolder: "fixtures/deep" }] };
+    const report = { hits: [], nativeExceptions: [], projection: "current", slices: [], unprojectedFolders: [{ folder: "fixtures/deep/tool", selectionFolder: "fixtures/deep" }], measured: [] };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
+  });
+
+  it("reads the clause and file pairs a runner names as measured", () => {
+    const report = {
+      hits: [],
+      nativeExceptions: [],
+      projection: "current",
+      slices: [],
+      unprojectedFolders: [],
+      measured: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
+    };
+    expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
+  });
+
+  it("refuses a measured file that is not a repo path, within that pair", () => {
+    expect(
+      embeddedRunReportSchema.safeParse({ hits: [], nativeExceptions: [], projection: "current", measured: [{ clause: CLASS_SYNTAX, file: "/repo/src/a.ts" }] }),
+    ).toMatchObject({ success: false, error: { issues: [{ path: ["measured", 0, "file"] }] } });
   });
 
   it("refuses an unprojected folder that is not a repo path", () => {
@@ -181,6 +199,7 @@ describe("embeddedRunReportSchema", () => {
       projection: "current",
       slices: [],
       unprojectedFolders: [],
+      measured: [],
     };
     expect(embeddedRunReportSchema.safeParse(report)).toEqual({ success: true, data: report });
   });

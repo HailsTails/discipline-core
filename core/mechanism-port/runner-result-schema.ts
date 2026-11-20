@@ -5,9 +5,9 @@ import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import { snippetSchema } from "../values/snippet.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import { runnerFailureSchema } from "./runner-failure-schema.ts";
-import type { Hit } from "./runner-result-types.ts";
+import type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
-export type { Hit } from "./runner-result-types.ts";
+export type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
 export const nativeExceptionKindSchema = z.enum([
   "ignore",
@@ -86,6 +86,17 @@ export const hitSchema = z
   .readonly();
 
 export const isHitSchemaEqual: Equal<DeepReadonly<z.output<typeof hitSchema>>, Hit> = true;
+
+export const measuredPairSchema = z
+  .object({
+    clause: clauseAddressObjectSchema,
+    file: repoPathSchema,
+  })
+  .readonly();
+
+export const isMeasuredPairSchemaEqual: Equal<DeepReadonly<z.output<typeof measuredPairSchema>>, MeasuredPair> = true;
+
+export const measuredSchema = z.array(measuredPairSchema).readonly().optional();
 
 export const caseVerdictSchema = z
   .object({
