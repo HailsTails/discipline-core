@@ -1,5 +1,5 @@
 import { type DebtPair, debtPairKey } from "../upgrade/version-one-records/debt-pair.ts";
-import type { GovernanceResult } from "../governance/governance.ts";
+import type { GovernanceResult } from "../upgrade/answering/governance.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { PaidDebtNote } from "../verdict/check-report.ts";
 import type { MechanismRun } from "../run/mechanism-dispatch.ts";

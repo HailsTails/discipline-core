@@ -3,10 +3,15 @@ import { createPathPort } from "../core/platform-ports/path-port.ts";
 import {
   computedModuleLoad,
   filesNotMatching,
+  filesReachableFrom,
+  filesReachingExcept,
+  importEdgesLeaving,
   importsOutside,
+  importStatementsLeaving,
   importsOutsideFromOwnFolder,
   importStatementsReaching,
   nodeBuiltinImport,
+  outsideFiles,
   packageImport,
   packageOrComputedImport,
   packageTypeImport,
@@ -16,6 +21,7 @@ import {
   relativeImportNotNaming,
   relativeImportReaching,
   sourcesNamed,
+  sourcesOfFiles,
   sourcesNotNamed,
 } from "./confinement.ts";
 
@@ -133,6 +139,25 @@ describe("importsOutsideFromOwnFolder", () => {
   });
 });
 
+describe("filesReachableFrom", () => {
+  const sources = {
+    "./core/run/start.ts": 'import { a } from "../mid/a.ts";\nimport { h } from "../held/h.ts";\n',
+    "./core/mid/a.ts": 'import { b } from "./b.ts";\n',
+    "./core/mid/b.ts": "export const b = 1;\n",
+    "./core/held/h.ts": 'import { far } from "../far/far.ts";\n',
+    "./core/far/far.ts": "export const far = 1;\n",
+    "./core/other/unrelated.ts": "export const unrelated = 1;\n",
+  };
+
+  it("lists the starting files and every scanned file they reach without entering the files not to be entered", () => {
+    expect(filesReachableFrom({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\// })).toEqual([
+      "./core/mid/a.ts",
+      "./core/mid/b.ts",
+      "./core/run/start.ts",
+    ]);
+  });
+});
+
 describe("importStatementsReaching", () => {
   it("lists each import statement whose specifier matches, whole, with its file, so the names it imports are pinned", () => {
     expect(
@@ -215,6 +240,90 @@ describe("sourcesNotNamed", () => {
 
   it("gives the sources whose file name is not in the list", () => {
     expect(sourcesNotNamed({ sources, files: ["a.ts", "c.ts"] })).toEqual({ "./dir/b.ts": "b" });
+  });
+});
+
+describe("the reach leaving a start without entering what is held", () => {
+  const sources = {
+    "./core/run/start.ts":
+      'import { a } from "../mid/a.ts";\nimport { h } from "../held/h.ts";\nexport type { T } from "../held/t.ts";\nconst loaded = await import("../held/d.ts");\n',
+    "./core/run/held/local.ts": "export const local = 1;\n",
+    "./core/run/uses-local.ts": 'import { local } from "./held/local.ts";\n',
+    "./core/mid/a.ts": 'import { b } from "../held/b.ts";\n',
+    "./core/held/h.ts": 'import { far } from "../far/far.ts";\n',
+  };
+  const leaving = {
+    sources,
+    startingFrom: /^\.\/core\/run\//,
+    notEntering: /^\.\/core\/held\//,
+    reaching: /^\.\/core\/held\//,
+  };
+
+  it("lists each import edge into the held files of any form, resolved from its own file, so a re-export or a dynamic load is listed beside an import and a lookalike folder is not", () => {
+    expect(importEdgesLeaving(leaving)).toEqual([
+      { file: "./core/run/start.ts", specifier: "../held/h.ts", form: "value" },
+      { file: "./core/run/start.ts", specifier: "../held/t.ts", form: "type-only" },
+      { file: "./core/run/start.ts", specifier: "../held/d.ts", form: "dynamic" },
+      { file: "./core/mid/a.ts", specifier: "../held/b.ts", form: "value" },
+    ]);
+  });
+
+  it("lists each whole import statement into the held files, resolved from its own file", () => {
+    expect(importStatementsLeaving(leaving)).toEqual([
+      { file: "./core/run/start.ts", statement: 'import { h } from "../held/h.ts";' },
+      { file: "./core/mid/a.ts", statement: 'import { b } from "../held/b.ts";' },
+    ]);
+  });
+
+  it("drops what is held in files matching", () => {
+    expect(outsideFiles({ held: importEdgesLeaving(leaving), files: /^\.\/core\/run\// })).toEqual([
+      { file: "./core/mid/a.ts", specifier: "../held/b.ts", form: "value" },
+    ]);
+  });
+});
+
+describe("filesReachingExcept", () => {
+  const sources = {
+    "./core/run/direct.ts": 'import { a } from "../held/a.ts";\n',
+    "./core/run/chained.ts": 'import { b } from "../mid/b.ts";\n',
+    "./core/run/reexporting.ts": 'export type { T } from "../held/t.ts";\n',
+    "./core/mid/b.ts": 'import { a } from "../held/a.ts";\n',
+    "./core/held/a.ts": "export const a = 1;\n",
+    "./core/held/t.ts": "export type T = string;\n",
+  };
+  const reaching = { sources, startingFrom: /^\.\/core\/run\//, reaching: /^\.\/core\/held\// };
+
+  it("lists the files still reaching the held files once the excepted edges are removed from the graph, whatever form the edge has", () => {
+    expect(
+      filesReachingExcept({
+        ...reaching,
+        exceptEdges: [
+          { file: "./core/run/direct.ts", specifier: "../held/a.ts", form: "value" },
+          { file: "./core/run/reexporting.ts", specifier: "../held/t.ts", form: "type-only" },
+        ],
+      }),
+    ).toEqual(["./core/run/chained.ts"]);
+  });
+
+  it("lists nothing when every reaching edge is excepted", () => {
+    expect(
+      filesReachingExcept({
+        ...reaching,
+        exceptEdges: [
+          { file: "./core/run/direct.ts", specifier: "../held/a.ts", form: "value" },
+          { file: "./core/run/reexporting.ts", specifier: "../held/t.ts", form: "type-only" },
+          { file: "./core/mid/b.ts", specifier: "../held/a.ts", form: "value" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("sourcesOfFiles", () => {
+  const sources = { "./dir/a.ts": "a", "./dir/b.ts": "b", "./other/a.ts": "c" };
+
+  it("keeps only the sources at the listed paths", () => {
+    expect(sourcesOfFiles({ sources, files: ["./dir/a.ts", "./other/a.ts"] })).toEqual({ "./dir/a.ts": "a", "./other/a.ts": "c" });
   });
 });
 
