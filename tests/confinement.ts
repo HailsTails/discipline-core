@@ -186,21 +186,6 @@ const reachedFrom = (request: {
   return fresh.length === 0 ? request.seen : reachedFrom({ graph: request.graph, frontier: fresh, seen: new Set([...request.seen, ...fresh]) });
 };
 
-export const filesReaching = (request: {
-  readonly sources: Readonly<Record<string, string>>;
-  readonly startingFrom: RegExp;
-  readonly reaching: RegExp;
-}): readonly string[] => {
-  const scanned = new Set(Object.keys(request.sources));
-  const graph: ImportGraph = new Map(
-    Object.entries(request.sources).map(([file, text]) => [file, scannedImportsOf({ file, text, scanned })]),
-  );
-  return [...scanned]
-    .filter((file) => request.startingFrom.test(file))
-    .filter((file) => [...reachedFrom({ graph, frontier: [file], seen: new Set([file]) })].some((reached) => request.reaching.test(reached)))
-    .sort();
-};
-
 export const filesReachableFrom = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly startingFrom: RegExp;
