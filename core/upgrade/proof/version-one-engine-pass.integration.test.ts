@@ -5,7 +5,9 @@ import { createDefaultFileTextPort } from "../../platform-ports/file-text-port.t
 import type { GitPort } from "../../platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../../platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../../platform-ports/path-port.ts";
+import type { Finding } from "../../governance/governance.ts";
 import { createSymptomCatalogueRepository } from "../../symptom-catalogue/read-symptom-catalogue.ts";
+import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../values/absolute-path.ts";
 import { DEFAULT_ASSESSMENT } from "../../values/assessment.ts";
 import { clauseAddressSchema, TOOL_RULE_SET } from "../../values/clause-address.ts";
@@ -17,6 +19,7 @@ import { repositoryRootOf } from "../../../tests/allowed-forms-proof.ts";
 import { defaultEslintPort } from "../../../tests/eslint-toolchains.ts";
 import { withSingleFileRecords } from "../../../tests/records-disk.ts";
 import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-ports.ts";
+import { shippedCheckOf } from "../../../tests/shipped-check.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
@@ -29,7 +32,9 @@ const fileText = createDefaultFileTextPort({});
 
 const INSTALL_ROOT = absolutePathSchema.parse(repositoryRootOf({ testFolder: `${import.meta.dirname}/../../../tests` }));
 
-const repositories = scratchRepositoriesUnder({ parent: `${INSTALL_ROOT}/artefacts`, fileText, scratch: createDefaultScratchFilesPort({}) });
+const SCRATCH = createDefaultScratchFilesPort({});
+
+const repositories = scratchRepositoriesUnder({ parent: `${INSTALL_ROOT}/artefacts`, fileText, scratch: SCRATCH });
 
 afterAll(() => {
   repositories.removeAll();
@@ -50,7 +55,19 @@ assert(resolvedRunner.outcome === "ok", "the ESLint runner path resolves");
 
 const ESLINT_RUNNER = resolvedRunner.value;
 
-const checkPortsOver = (request: { readonly repoRoot: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {
+type CheckPorts = {
+  readonly modules: ModuleLoaderPort;
+  readonly ports: {
+    readonly repoRoot: AbsolutePath;
+    readonly installRoot: AbsolutePath;
+    readonly moduleExtension: ".ts";
+    readonly fileText: typeof fileText;
+    readonly path: typeof path;
+    readonly git: GitPort;
+  };
+};
+
+const checkPortsOver = (request: { readonly repoRoot: AbsolutePath; readonly tracked: readonly RepoPath[] }): CheckPorts => {
   const pieceModules: ModuleLoaderPort = { load: createDefaultModuleLoaderPort({}).load };
   const runners: Readonly<Record<string, unknown>> = {
     [ESLINT_RUNNER]: { runner: createEslintRunner({ fileText, fileRemoval: createDefaultFileRemovalPort({}), modules: pieceModules, path, eslint: defaultEslintPort, moduleExtension: ".ts" }) },
@@ -59,10 +76,8 @@ const checkPortsOver = (request: { readonly repoRoot: AbsolutePath; readonly tra
   return { modules, ports: { repoRoot: request.repoRoot, installRoot: INSTALL_ROOT, moduleExtension: ".ts" as const, fileText, path, git: trackedIn({ files: request.tracked }) } };
 };
 
-const scratchScratch = createDefaultScratchFilesPort({});
-
 const repositoryOf = (request: { readonly files: Readonly<Record<string, string>> }): AbsolutePath =>
-  repositoryWithSubfolder({ repositories, scratch: scratchScratch, fileText, files: request.files, subfolder: "src", subfolderFiles: { "kept.ts": KEPT_SOURCE } });
+  repositoryWithSubfolder({ repositories, scratch: SCRATCH, fileText, files: request.files, subfolder: "src", subfolderFiles: { "kept.ts": KEPT_SOURCE } });
 
 const carvedRepository = async (): Promise<AbsolutePath> => {
   const repoRoot = repositoryOf({ files: { "disciplines.json": SELECTION, "discipline-exceptions.json": EXCEPTIONS, "eslint.config.mjs": TEAM_CONFIG } });
@@ -85,12 +100,12 @@ const CARVE_OUT: FileCarveOutRecord = {
   reason: "legacy class",
 };
 
-const CLASS_FINDING = {
-  clause: { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" },
-  file: "src/kept.ts",
+const CLASS_FINDING: Finding = {
+  clause: clauseAddressSchema.parse("CD-14#class-syntax"),
+  file: KEPT,
   anchor: { line: 1, column: 7 },
   snippet: "export class Kept {}",
-  mechanism: "eslint",
+  mechanism: mechanismIdSchema.parse("eslint"),
 };
 
 const catalogues = () => {
@@ -100,7 +115,9 @@ const catalogues = () => {
   return [{ ruleSet: TOOL_RULE_SET, catalogue: holding.value.catalogue }];
 };
 
-const trackedIn = (request: { readonly files: readonly RepoPath[] }): GitPort => ({
+const classKeywordCheck = (): Check => shippedCheckOf({ catalogues: catalogues(), discipline: "CD-14", name: "class-keyword" });
+
+const trackedIn =(request: { readonly files: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.files }),
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
@@ -148,7 +165,7 @@ describe("the version 1 engine pass over a real ESLint run of a repository that 
   it("lets the oracle credit the carve-out with the findings it holds", async () => {
     const oracle = createAnsweringOracle({ enginePass: enginePassOver({ repoRoot: await carvedRepository(), tracked: CARVED_TRACKED }), catalogues: catalogues() });
     const answered = await oracle.answer({ records: [CARVE_OUT] });
-    expect(answered).toMatchObject({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings" } }] });
+    expect(answered).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [classKeywordCheck()] } }] });
   });
 });
 
