@@ -4,9 +4,12 @@ import { joinedKey, PROOF_SECTIONS, uniqueKeys } from "./section-keys.ts";
 describe("PROOF_SECTIONS", () => {
   it("names every compared section, the verdict last", () => {
     expect(PROOF_SECTIONS).toEqual([
+      "excluded",
       "findings",
       "answered",
       "unrecorded",
+      "misnamed",
+      "paid",
       "stale",
       "forfeited",
       "doublyHeld",

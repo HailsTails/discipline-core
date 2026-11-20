@@ -3,6 +3,8 @@ import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE } from "../../../t
 import type { Finding } from "../../governance/governance.ts";
 import type { PlacedRecord } from "../../records/hone-record.ts";
 import type { RunReport } from "../../report/run-report.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
+import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import { afterSectionsOf } from "./after-sections.ts";
@@ -48,14 +50,21 @@ const DEBT: PlacedRecord = {
   record: { kind: "debt", symptom: LOOP_KEYWORD_LOOPS.symptom, reach: { reaches: "one-check", check: LOOP_KEYWORD_LOOPS }, file: SRC_A, holding: { held: "stated" } },
 };
 
-const sectionsOf = (request: { readonly report: RunReport }) => afterSectionsOf({ report: request.report, catalogue: SETTINGS_CATALOGUE });
+const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
+
+const sectionsOf = (request: { readonly report: RunReport }) => afterSectionsOf({ report: request.report, catalogues: CATALOGUES });
+
+const sectionsOfWithoutCatalogues = (request: { readonly report: RunReport }) => afterSectionsOf({ report: request.report, catalogues: [] });
 
 describe("afterSectionsOf", () => {
   it("holds nothing but a passing verdict for a report that holds nothing", () => {
     expect(sectionsOf({ report: EMPTY_AFTER })).toEqual({
+      excluded: [],
       findings: [],
       answered: [],
       unrecorded: [],
+      misnamed: [],
+      paid: [],
       stale: [],
       forfeited: [],
       doublyHeld: [],
@@ -76,8 +85,11 @@ describe("afterSectionsOf", () => {
       sectionsOf({
         report: {
           ...EMPTY_AFTER,
+          excluded: [repoPathSchema.parse("generated")],
           findings: [{ ...NAMED_LOOP_FINDING, check: "rebinding#test-body" }],
           answered: [{ finding: NAMED_LOOP_FINDING, by: [DEBT] }],
+          misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable" }],
+          paid: [{ debt: DEBT, answeredBy: [DEBT] }],
           stale: [DEBT],
           forfeited: [DEBT],
           uncovered: [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_LOOPS],
@@ -88,9 +100,12 @@ describe("afterSectionsOf", () => {
         },
       }),
     ).toEqual({
+      excluded: ["generated"],
       findings: ["CD-27#test-body-logic src/a.ts 3:1"],
       answered: ["CD-15#loops src/a.ts 3:1 answered by debt"],
       unrecorded: [],
+      misnamed: ["names-no-check hone/loop-keyword/none src/a.ts 4"],
+      paid: ["hone-records/debt/loop-keyword.json 0"],
       stale: ["src/a.ts"],
       forfeited: ["src/a.ts"],
       doublyHeld: [],
@@ -104,5 +119,21 @@ describe("afterSectionsOf", () => {
       assessment: ["forfeiture elsewhere"],
       verdict: ["fail"],
     });
+  });
+
+  it("keys a finding naming no check as an unknown check, never at its own clause", () => {
+    expect(sectionsOf({ report: { ...EMPTY_AFTER, findings: [{ ...NAMED_LOOP_FINDING, check: undefined }] } }).findings).toEqual(["unknown-check none src/a.ts 3:1"]);
+  });
+
+  it("keys a finding naming a check the catalogue does not hold as that unknown check", () => {
+    expect(sectionsOf({ report: { ...EMPTY_AFTER, findings: [{ ...NAMED_LOOP_FINDING, check: "loop-keyword#lops" }] } }).findings).toEqual([
+      "unknown-check loop-keyword#lops src/a.ts 3:1",
+    ]);
+  });
+
+  it("keys a finding of a rule set no catalogue was given for as an unknown check", () => {
+    expect(sectionsOfWithoutCatalogues({ report: { ...EMPTY_AFTER, findings: [NAMED_LOOP_FINDING] } }).findings).toEqual([
+      "unknown-check loop-keyword#loops src/a.ts 3:1",
+    ]);
   });
 });

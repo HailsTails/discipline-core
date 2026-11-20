@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
+import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { RecordInput, WrittenRecord } from "../version-two-mapping/records-mapping.ts";
@@ -23,7 +24,7 @@ const DEBT: WrittenRecord = { symptom: "loop-keyword#loops", file: "src/a.ts", n
 const BOTH_INPUTS: readonly RecordInput[] = [CARVE_OUT_INPUT, AUTHORISED_INPUT];
 
 const reachBeyond = (request: { readonly written: readonly WrittenRecord[]; readonly inputs: readonly RecordInput[] }) =>
-  reachBeyondEntriesOf({ written: request.written, inputs: request.inputs, catalogue: SETTINGS_CATALOGUE });
+  reachBeyondEntriesOf({ written: request.written, inputs: request.inputs, catalogues: [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }] });
 
 describe("reachBeyondEntriesOf", () => {
   it("finds no record beyond the entries when each sits at a check of one entry's clause and file", () => {

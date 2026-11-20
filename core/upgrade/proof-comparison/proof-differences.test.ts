@@ -3,6 +3,7 @@ import { LOOP_KEYWORD_LOOPS, LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE 
 import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
 import type { PlacedRecord } from "../../records/hone-record.ts";
 import type { RunReport } from "../../report/run-report.ts";
+import { TOOL_RULE_SET } from "../../values/clause-address.ts";
 import { FIRST_EDITION } from "../../values/edition.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
@@ -93,7 +94,11 @@ const INLINE_DISABLE: AttributedNativeException = {
 };
 
 const differencesBetween = (request: { readonly before?: Partial<CheckReport>; readonly after?: Partial<RunReport> }) =>
-  proofDifferencesOf({ before: { ...EMPTY_BEFORE, ...request.before }, after: { ...EMPTY_AFTER, ...request.after }, catalogue: SETTINGS_CATALOGUE });
+  proofDifferencesOf({
+    before: { ...EMPTY_BEFORE, ...request.before },
+    after: { ...EMPTY_AFTER, ...request.after },
+    catalogues: [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }],
+  });
 
 describe("proofDifferencesOf", () => {
   it("finds no difference between two reports that hold nothing", () => {
@@ -174,6 +179,37 @@ describe("proofDifferencesOf", () => {
     expect(differencesBetween({ before: { stale: [CARVE_OUT] } })).toEqual([
       { section: "stale", onlyBefore: ["src/a.ts"], onlyAfter: [] },
       { section: "verdict", onlyBefore: ["fail"], onlyAfter: ["pass"] },
+    ]);
+  });
+
+  it("names a finding whose check version 2 does not name, never reading it at the finding's own clause", () => {
+    expect(differencesBetween({ before: { findings: [LOOP_FINDING] }, after: { findings: [LOOP_FINDING] } })).toEqual([
+      { section: "findings", onlyBefore: ["CD-15#loops src/a.ts 3:1"], onlyAfter: ["unknown-check none src/a.ts 3:1"] },
+    ]);
+  });
+
+  it("names a finding whose check the catalogue does not hold", () => {
+    expect(differencesBetween({ before: { findings: [LOOP_FINDING] }, after: { findings: [{ ...LOOP_FINDING, check: "loop-keyword#lops" }] } })).toEqual([
+      { section: "findings", onlyBefore: ["CD-15#loops src/a.ts 3:1"], onlyAfter: ["unknown-check loop-keyword#lops src/a.ts 3:1"] },
+    ]);
+  });
+
+  it("names a rule id version 2 reads as naming no check, with the verdict that follows", () => {
+    expect(differencesBetween({ after: { misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable" }] } })).toEqual([
+      { section: "misnamed", onlyBefore: [], onlyAfter: ["names-no-check hone/loop-keyword/none src/a.ts 4"] },
+      { section: "verdict", onlyBefore: ["pass"], onlyAfter: ["fail"] },
+    ]);
+  });
+
+  it("names a debt version 2 finds paid, which a wrong write would be", () => {
+    expect(differencesBetween({ after: { paid: [{ debt: DEBT, answeredBy: [AUTHORISED_LOCATION] }] } })).toEqual([
+      { section: "paid", onlyBefore: [], onlyAfter: ["hone-records/debt/loop-keyword.json 0"] },
+    ]);
+  });
+
+  it("names a file excluded on one side only", () => {
+    expect(differencesBetween({ before: { excluded: [SRC_A] }, after: { excluded: [repoPathSchema.parse("generated")] } })).toEqual([
+      { section: "excluded", onlyBefore: ["src/a.ts"], onlyAfter: ["generated"] },
     ]);
   });
 

@@ -43,6 +43,7 @@ const recordFileKeyOf = (request: { readonly record: ExceptionRecord }): string 
 export const beforeSectionsOf = (request: { readonly report: CheckReport }): SectionKeys => {
   const { report } = request;
   return {
+    excluded: report.excluded,
     findings: report.findings.map((finding) => findingKeyOf({ finding, clauseText: clauseAddressText({ address: finding.clause }) })),
     answered: report.exempted.map(({ finding, by }) =>
       answeredKeyOf({
@@ -51,6 +52,8 @@ export const beforeSectionsOf = (request: { readonly report: CheckReport }): Sec
       }),
     ),
     unrecorded: report.unrecorded.map((exception) => nativeKeyOf({ exception })),
+    misnamed: [],
+    paid: [],
     stale: report.stale.map((record) => recordFileKeyOf({ record })),
     forfeited: report.forfeited.map((record) => recordFileKeyOf({ record })),
     doublyHeld: report.doublyHeld.map(({ clause, file, mechanism }) => joinedKey({ parts: [clauseAddressText({ address: clause }), file, mechanism] })),

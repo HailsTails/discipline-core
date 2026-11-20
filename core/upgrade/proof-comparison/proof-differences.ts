@@ -1,5 +1,5 @@
 import type { RunReport } from "../../report/run-report.ts";
-import type { SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import type { CheckReport } from "../../verdict/check-report.ts";
 import { afterSectionsOf } from "./after-sections.ts";
 import { beforeSectionsOf } from "./before-sections.ts";
@@ -21,9 +21,9 @@ const differenceIn = (request: { readonly section: ProofSection; readonly before
 export const proofDifferencesOf = (request: {
   readonly before: CheckReport;
   readonly after: RunReport;
-  readonly catalogue: SymptomCatalogue;
+  readonly catalogues: readonly RuleSetCatalogue[];
 }): readonly ProofDifference[] => {
   const before = beforeSectionsOf({ report: request.before });
-  const after = afterSectionsOf({ report: request.after, catalogue: request.catalogue });
+  const after = afterSectionsOf({ report: request.after, catalogues: request.catalogues });
   return PROOF_SECTIONS.flatMap((section) => differenceIn({ section, before, after }));
 };

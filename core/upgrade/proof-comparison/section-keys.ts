@@ -1,7 +1,10 @@
 export const PROOF_SECTIONS = [
+  "excluded",
   "findings",
   "answered",
   "unrecorded",
+  "misnamed",
+  "paid",
   "stale",
   "forfeited",
   "doublyHeld",

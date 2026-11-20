@@ -72,9 +72,12 @@ describe("nativeKeyOf", () => {
 describe("beforeSectionsOf", () => {
   it("holds nothing but a passing verdict for a report that holds nothing", () => {
     expect(beforeSectionsOf({ report: EMPTY_BEFORE })).toEqual({
+      excluded: [],
       findings: [],
       answered: [],
       unrecorded: [],
+      misnamed: [],
+      paid: [],
       stale: [],
       forfeited: [],
       doublyHeld: [],
@@ -95,6 +98,7 @@ describe("beforeSectionsOf", () => {
       beforeSectionsOf({
         report: {
           ...EMPTY_BEFORE,
+          excluded: [repoPathSchema.parse("generated")],
           findings: [LOOP_FINDING],
           exempted: [{ finding: LOOP_FINDING, by: [CARVE_OUT] }],
           unrecorded: [COMMAND_LINE_OPTION],
@@ -108,9 +112,12 @@ describe("beforeSectionsOf", () => {
         },
       }),
     ).toEqual({
+      excluded: ["generated"],
       findings: ["CD-15#loops src/a.ts 3:1"],
       answered: ["CD-15#loops src/a.ts 3:1 answered by debt"],
       unrecorded: ["audit command-line-option CD-15#loops package.json lint --ignore-pattern"],
+      misnamed: [],
+      paid: [],
       stale: ["CD-15#loops"],
       forfeited: ["src/a.ts"],
       doublyHeld: ["CD-15#loops src/a.ts audit"],

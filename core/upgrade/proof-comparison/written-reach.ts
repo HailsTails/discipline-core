@@ -1,6 +1,7 @@
 import { recordedReachSchema } from "../../records/records-wire.ts";
+import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { checkAt } from "../../symptom-catalogue/check-address.ts";
-import type { SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
+import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
 import { sameClauseAddress } from "../../values/clause-address.ts";
 import type { RecordInput, WrittenRecord } from "../version-two-mapping/records-mapping.ts";
 
@@ -8,17 +9,22 @@ export type ReachBeyondEntries = { readonly symptom: string; readonly file: stri
 
 type Reach = "within-an-entry" | "beyond-the-entries";
 
-const reachOf = (request: { readonly written: WrittenRecord; readonly inputs: readonly RecordInput[]; readonly catalogue: SymptomCatalogue }): Reach => {
+const checkNamed = (request: { readonly address: string; readonly catalogues: readonly RuleSetCatalogue[] }): Check | undefined =>
+  request.catalogues
+    .map(({ catalogue }) => checkAt({ catalogue, address: request.address }))
+    .flatMap((found) => (found.found === "check" ? [found.check] : []))[0];
+
+const reachOf = (request: { readonly written: WrittenRecord; readonly inputs: readonly RecordInput[]; readonly catalogues: readonly RuleSetCatalogue[] }): Reach => {
   const reach = recordedReachSchema.safeParse(request.written.symptom);
   if (!reach.success || reach.data.reaches !== "one-check") {
     return "beyond-the-entries";
   }
-  const found = checkAt({ catalogue: request.catalogue, address: request.written.symptom });
+  const check = checkNamed({ address: request.written.symptom, catalogues: request.catalogues });
   const held =
-    found.found === "check" &&
+    check !== undefined &&
     request.inputs.some(
       (input) =>
-        input.kind !== "clause-wide-carve-out" && input.record.file === request.written.file && sameClauseAddress({ left: input.record.clause, right: found.check.clause }) === "same",
+        input.kind !== "clause-wide-carve-out" && input.record.file === request.written.file && sameClauseAddress({ left: input.record.clause, right: check.clause }) === "same",
     );
   return held ? "within-an-entry" : "beyond-the-entries";
 };
@@ -26,8 +32,8 @@ const reachOf = (request: { readonly written: WrittenRecord; readonly inputs: re
 export const reachBeyondEntriesOf = (request: {
   readonly written: readonly WrittenRecord[];
   readonly inputs: readonly RecordInput[];
-  readonly catalogue: SymptomCatalogue;
+  readonly catalogues: readonly RuleSetCatalogue[];
 }): readonly ReachBeyondEntries[] =>
   request.written
-    .filter((written) => reachOf({ written, inputs: request.inputs, catalogue: request.catalogue }) === "beyond-the-entries")
+    .filter((written) => reachOf({ written, inputs: request.inputs, catalogues: request.catalogues }) === "beyond-the-entries")
     .map(({ symptom, file }) => ({ symptom, file }));
