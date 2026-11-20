@@ -77,7 +77,20 @@ const standaloneRunner = (request: { readonly runReturns: unknown }): LoadedRunn
   conform: vi.fn<LoadedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
 });
 
-const modulesLoading = (module: unknown): ModuleLoaderPort => ({
+type EmbeddedRunner = Extract<LoadedRunner, { readonly exceptionPath: "embedded" }>;
+
+const embeddedRunner = (request: { readonly projection: "current" | "missing" | "not-included" | "out-of-date"; readonly hits: readonly unknown[] }): EmbeddedRunner => ({
+  exceptionPath: "embedded",
+  projectedKinds: ["config-override"],
+  run: vi.fn<EmbeddedRunner["run"]>().mockResolvedValue({
+    outcome: "ok",
+    value: { hits: request.hits, nativeExceptions: [], projection: request.projection, slices: [], unprojectedFolders: [] },
+  }),
+  conform: vi.fn<EmbeddedRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  project: vi.fn<EmbeddedRunner["project"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+});
+
+const modulesLoading =(module: unknown): ModuleLoaderPort => ({
   load: vi.fn<ModuleLoaderPort["load"]>().mockResolvedValue({ outcome: "ok", value: module }),
 });
 
@@ -128,6 +141,52 @@ describe("createVersionOneEnginePass", () => {
           },
         ],
       },
+    });
+  });
+
+  it("gives the findings of an embedded runner whose projection is current, its projected kinds as what a record can cover", async () => {
+    const pass = createVersionOneEnginePass({ check: checkRequest({ modules: modulesLoading({ runner: embeddedRunner({ projection: "current", hits: [HIT_IN_A] }) }) }) });
+    await expect(pass.findingsFor({ records: [CARVE_OUT_ON_A] })).resolves.toEqual({
+      outcome: "ok",
+      value: {
+        findings: [{ ...HIT_IN_A, mechanism: "audit" }],
+        runs: [
+          {
+            mechanism: "audit",
+            hits: [HIT_IN_A],
+            nativeExceptions: [],
+            coverableKinds: ["config-override"],
+            projection: "current",
+            slices: [],
+            unprojectedFolders: [],
+            measured: [],
+          },
+        ],
+      },
+    });
+  });
+
+  it("fails naming the mechanism when its projection is missing, which version 1 reads as the mechanism not run", async () => {
+    const pass = createVersionOneEnginePass({ check: checkRequest({ modules: modulesLoading({ runner: embeddedRunner({ projection: "missing", hits: [] }) }) }) });
+    await expect(pass.findingsFor({ records: [CARVE_OUT_ON_A] })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-one-run-failed", detail: "audit not run: its projection is missing" },
+    });
+  });
+
+  it("fails naming the mechanism when its projection is not included by the team's configuration", async () => {
+    const pass = createVersionOneEnginePass({ check: checkRequest({ modules: modulesLoading({ runner: embeddedRunner({ projection: "not-included", hits: [] }) }) }) });
+    await expect(pass.findingsFor({ records: [CARVE_OUT_ON_A] })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-one-run-failed", detail: "audit not run: its projection is not-included" },
+    });
+  });
+
+  it("fails naming the mechanism when its projection is out of date, which version 1 itself fails", async () => {
+    const pass = createVersionOneEnginePass({ check: checkRequest({ modules: modulesLoading({ runner: embeddedRunner({ projection: "out-of-date", hits: [HIT_IN_A] }) }) }) });
+    await expect(pass.findingsFor({ records: [CARVE_OUT_ON_A] })).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-one-run-failed", detail: "audit projection is out-of-date" },
     });
   });
 

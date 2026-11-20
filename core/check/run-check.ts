@@ -188,7 +188,7 @@ export const recordsOf = (request: {
 }): readonly ExceptionRecord[] =>
   request.records.filter((record) => record.mechanism === request.mechanism);
 
-const projectionOutcome = (request: {
+export const projectionOutcome = (request: {
   readonly run: MechanismRun;
 }): { readonly unmeasured: readonly Unmeasured[]; readonly problems: readonly ProjectionProblem[] } => {
   switch (request.run.projection) {
