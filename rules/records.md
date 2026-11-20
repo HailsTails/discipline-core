@@ -11,7 +11,7 @@ Five kinds cover everything. They are the model Hone's records take on with 2.0,
 ### Authorised location
 
 - **Answers:** A symptom whose correct use a case makes right at one place: Claimed type forced by an outside contract, Throw between our units at an adapter whose caller expects a throw, Loop keyword draining a stream, Shorthand name or Name off its casing fixed by an outside contract, Text past its reader at one test site, Edit inside vendored code.
-- **States:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner. In the model it is never refused for what it claims: what it lacks is [noted](#what-is-noted-never-refused), and a note changes no verdict.
+- **States:** The symptom; the site; the case that makes it correct here and the rule or principle that case owes; a why-chain whose root, if it changed, would remove the need; an owner. In the model it is never refused for what it claims: what it lacks is [noted](#what-is-noted-never-refused), and a note changes no verdict. A why that only restates the symptom is [refused](#what-is-refused).
 - **Scope:** One symptom at one site: a file, or a span within it.
 - **Stale or paid when:** Stale when the symptom is no longer at the site. A vendored edit is also re-tested when the vendored version moves. A person removes it.
 - **Industry name:** suppression with justification; a MISRA deviation permit. A suppression with a stated justification, as .NET and MISRA permits do.
@@ -72,10 +72,11 @@ Only the tool, and only debt, for findings the base revision already held ("reco
 
 ## What is refused
 
-In the model, an authorised location is never refused for what it claims; what it lacks is [noted](#what-is-noted-never-refused). A record file that cannot be read at all is refused, whatever it holds. Every other record must contain what its kind states. Anything less is refused, as follows.
+In the model, an authorised location is never refused for what it claims; what it lacks is [noted](#what-is-noted-never-refused). Its why-chain must still be a reason. A record file that cannot be read at all is refused, whatever it holds. Every other record must contain what its kind states. Anything less is refused, as follows.
 
 | Refused | Why | Does Hone refuse it from the form today? |
 |---|---|---|
+| An authorised location whose why only restates the symptom ("needed here", "the check flags this") | The why-chain's purpose: "to ensure an agent has thought deeply about what its doing". | Yes, as today: the why-chain checks refuse stock restatements and answers with no new cause, the record is listed under invalid records and the run fails. A reworded restatement is left to review. |
 | A deviation that only shows another method works | "The proof of burden is on the deviation to show that the reason it was chosen no longer holds." | Not yet enforced. In the model the form must name the recipe and use its reason's words; whether the reason fails here is left to review. |
 | A fake with no showing that a stub cannot do the test | "Moving a fake is only allowed if the test cannot be done with deterministic stubs or hardcoded things." | No; review. |
 | A deviation or a dependency record that makes a named ban correct. Debt is not refused. | "Lodash is banned." and "Debt is debt. Not blockers." | Not yet enforced. |
@@ -91,8 +92,6 @@ An authorised location answers a check that is wrong at that place, so the form 
 
 - **A case that is missing, or not in the [case list](cases.md).** A thought-through use names its case. Whether the case is true is left to review. Today's tool does not read a case name.
 - **A symptom that no case makes correct, such as a branch in a test.** "who the heck added an authorised location for an if in a test?" In spirit it is not allowed.
-- **A why that only restates the symptom** ("needed here", "the check flags this"). The why-chain's purpose: "to ensure an agent has thought deeply about what its doing". Today the why-chain checks still refuse stock restatements and answers with no new cause: the record is listed under invalid records and the run fails. With 2.0 that becomes a note. A reworded restatement is left to review.
-
 ## The cost side
 
 **What holds today:**
