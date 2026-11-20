@@ -1,4 +1,4 @@
-import type { Recipe, RecipeReason, Standing, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Recipe, RecipeReason, Standing, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 
 export type PageCase = { readonly title: string; readonly standing: Standing };
 
@@ -31,12 +31,15 @@ const INDICATION_LINE = /^- \*\*May indicate:\*\* (.+)$/;
 
 const TEST_QUALIFIER = "In a test: ";
 
+const SITUATION_SEPARATOR = ": ";
+
 const caseSpellingsBefore = (request: { readonly indications: string }): readonly string[] =>
   request.indications
     .split(" → ")
     .slice(0, -1)
     .map((before) => before.split(/\. |; /).at(-1) ?? before)
-    .map((spelling) => (spelling.startsWith(TEST_QUALIFIER) ? spelling.slice(TEST_QUALIFIER.length) : spelling));
+    .map((spelling) => (spelling.startsWith(TEST_QUALIFIER) ? spelling.slice(TEST_QUALIFIER.length) : spelling))
+    .map((spelling) => spelling.split(SITUATION_SEPARATOR)[0] ?? spelling);
 
 const pageSpellingsOf = (request: { readonly cases: readonly PageCase[] }): readonly string[] =>
   request.cases
@@ -115,3 +118,102 @@ export const proposedReasonsOf = (request: { readonly recipes: readonly Recipe[]
 
 export const reasonMismatchesOf = (request: { readonly recipes: readonly Recipe[]; readonly page: readonly PageReason[] }): readonly string[] =>
   request.recipes.filter((recipe) => reasonFitOf({ recipe, page: request.page }) === "differs").map((recipe) => recipe.name);
+
+export type PageOwes = { readonly title: string; readonly principles: readonly string[]; readonly rules: readonly string[] };
+
+export type ProseLink = { readonly sentence: string; readonly cases: readonly string[] };
+
+const SHORT_NAME = /([A-Z][A-Za-z ]*?) \(\[[^\]]+\]\(principles\.md#([a-z-]+)\)\)/g;
+
+const OWES_ROW = /^\| (.+?) \| (.+?) \| .* \|$/;
+
+const OUTSIDE_THE_CASES = "## Outside the cases";
+
+const RULE_HEADING = /^### (.+)$/;
+
+const CASE_SENTENCE = " a case";
+
+const shortNamesOn = (request: { readonly casesPage: string }): ReadonlyMap<string, string> =>
+  new Map([...request.casesPage.matchAll(SHORT_NAME)].flatMap((match) => (match[1] === undefined || match[2] === undefined ? [] : [[match[1], match[2]] as const])));
+
+const ruleTitlesOn = (request: { readonly pages: readonly string[] }): readonly string[] =>
+  request.pages.flatMap((page) => page.split("\n").flatMap((line) => RULE_HEADING.exec(line)?.slice(1, 2) ?? []));
+
+type Serving = { readonly rule: string; readonly case: string };
+
+type ServingReading = { readonly rule: string | undefined; readonly servings: readonly Serving[] };
+
+const servingReadingAfter = (reading: ServingReading, line: string): ServingReading => {
+  const heading = RULE_HEADING.exec(line)?.[1];
+  if (heading !== undefined) {
+    return { ...reading, rule: heading };
+  }
+  const rule = reading.rule;
+  return rule === undefined ? reading : { ...reading, servings: [...reading.servings, ...servedSpellingsOn({ line }).map((served) => ({ rule, case: served }))] };
+};
+
+const servingsOnRulesPage = (request: { readonly rulesPage: string }): readonly Serving[] =>
+  request.rulesPage.split("\n").reduce<ServingReading>(servingReadingAfter, { rule: undefined, servings: [] }).servings;
+
+const linkedServings = (request: { readonly pages: readonly string[]; readonly links: readonly ProseLink[] }): readonly Serving[] => {
+  const titles = ruleTitlesOn(request);
+  return request.links
+    .filter((link) => request.pages.some((page) => page.includes(link.sentence)))
+    .flatMap((link) => titles.filter((title) => link.sentence.includes(title)).flatMap((rule) => link.cases.map((served) => ({ rule, case: served }))));
+};
+
+const owedRows = (request: { readonly casesPage: string }): readonly (readonly [string, string])[] =>
+  (request.casesPage.split(OUTSIDE_THE_CASES)[0] ?? "").split("\n").flatMap((line) => {
+    const row = OWES_ROW.exec(line);
+    const title = row?.[1];
+    const owes = row?.[2];
+    return title === undefined || owes === undefined || NOT_A_CASE_TITLE.has(title) ? [] : [[title, owes] as const];
+  });
+
+export const owesOnPages = (request: { readonly casesPage: string; readonly rulesPage: string; readonly links: readonly ProseLink[] }): readonly PageOwes[] => {
+  const shortNames = shortNamesOn(request);
+  const pages = [request.rulesPage, request.casesPage];
+  const servings = [...servingsOnRulesPage(request), ...linkedServings({ pages, links: request.links })];
+  const titles = ruleTitlesOn({ pages: [request.rulesPage] });
+  return owedRows(request).map(([title, owes]) => ({
+    title,
+    principles: owes.split(/; |, /).map((short) => shortNames.get(short) ?? `unknown short name ${short}`),
+    rules: titles.filter((rule) => servings.some((serving) => serving.rule === rule && serving.case === title)),
+  }));
+};
+
+const lineKindOf = (request: { readonly line: string }): "prose" | "other" => (/^[A-Za-z"]/.test(request.line) ? "prose" : "other");
+
+const SENTENCE_BREAK = /(?<=\.) (?!That is a case\.)/;
+
+const sentencesOf = (request: { readonly paragraph: string }): readonly string[] => request.paragraph.split(SENTENCE_BREAK);
+
+export const unlinkedCaseSentencesOn = (request: { readonly pages: readonly string[]; readonly links: readonly ProseLink[] }): readonly string[] => {
+  const titles = ruleTitlesOn(request);
+  return request.pages
+    .flatMap((page) => page.split("\n").filter((line) => lineKindOf({ line }) === "prose"))
+    .flatMap((paragraph) => sentencesOf({ paragraph }))
+    .filter((sentence) => sentence.includes(CASE_SENTENCE) && titles.some((title) => sentence.includes(title)))
+    .filter((sentence) => !request.links.some((link) => link.sentence === sentence));
+};
+
+export const missingLinkSentencesOn = (request: { readonly pages: readonly string[]; readonly links: readonly ProseLink[] }): readonly string[] =>
+  request.links.filter((link) => !request.pages.some((page) => page.includes(link.sentence))).map((link) => link.sentence);
+
+export const owesOfCatalogue = (request: { readonly catalogue: Pick<SymptomCatalogue, "cases"> }): readonly PageOwes[] =>
+  request.catalogue.cases.map((entry) => ({
+    title: entry.title,
+    principles: entry.owes.flatMap((point) => (point.kind === "principle" ? [point.principle.name] : [])),
+    rules: entry.owes.flatMap((point) => (point.kind === "rule" ? [point.rule.title] : [])),
+  }));
+const PARENTHETICAL = /\s*\([^)]*\)/g;
+
+const caseNameOfTitle = (request: { readonly title: string }): string =>
+  request.title
+    .replace(PARENTHETICAL, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+export const caseNamesOffTheirTitles = (request: { readonly cases: readonly Pick<Case, "name" | "title">[] }): readonly string[] =>
+  request.cases.filter((entry) => entry.name !== caseNameOfTitle({ title: entry.title })).map((entry) => entry.name);

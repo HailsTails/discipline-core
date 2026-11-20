@@ -120,7 +120,10 @@ const DOUBLE_WITH_A_BODY: Symptom = {
   name: "double-with-a-body",
   title: "Double with a body",
   seen: "A double that has a function body.",
-  mayIndicate: [{ case: USES_WHAT_A_COLLABORATOR_GIVES_BACK, points: [{ kind: "rule", rule: HANDED_WHAT_IT_USES }] }],
+  mayIndicate: [
+    { case: USES_WHAT_A_COLLABORATOR_GIVES_BACK, points: [{ kind: "rule", rule: HANDED_WHAT_IT_USES }] },
+    { case: DOES_ONE_JOB, situation: "in a test, a stub that works out its answer", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+  ],
   breachUsuallySits: "in a port too wide",
   recipes: [],
   correctUses: [
@@ -220,7 +223,7 @@ const BRANCH_NOTE =
   "branch-in-a-test: Branch in a test. May indicate: checks a value that may be one of several outcomes → Straight-through tests, No hidden effects. The breach usually sits in the unit's output type, where optional or loose shapes force the test to branch. Recipes: Assert to narrow; it.each over typed rows. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#branch-in-a-test";
 
 const DOUBLE_NOTE =
-  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Handed what it uses. The breach usually sits in a port too wide. A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). A spy on a port the unit owns: a boundary record (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#double-with-a-body";
+  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Handed what it uses; does one job: in a test, a stub that works out its answer → Doer or orchestrator. The breach usually sits in a port too wide. A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). A spy on a port the unit owns: a boundary record (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#double-with-a-body";
 
 describe("symptomNoteLinesOf", () => {
   it("writes one note for a symptom, with its cases and rules, where its breach sits, its recipe, its correct use, and known debt", () => {
@@ -234,7 +237,7 @@ describe("symptomNoteLinesOf", () => {
     ]);
   });
 
-  it("names no recipe when the symptom has none, lists each correct use in order, and says when a record kind has no format yet", () => {
+  it("names no recipe when the symptom has none, writes the situation an indication is about after its case, lists each correct use in order, and says when a record kind has no format yet", () => {
     expect(symptomNoteLinesOf({ guide: GUIDE, findings: [DOUBLE_FINDING] })).toEqual([DOUBLE_NOTE]);
   });
 

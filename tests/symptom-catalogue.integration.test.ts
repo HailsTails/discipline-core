@@ -5,7 +5,21 @@ import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { TEST_BODY_SECTIONS } from "../mechanisms/audit/CD-27/test-body-logic.ts";
 import { repositoryRootOf } from "./allowed-forms-proof.ts";
-import { casesOfCatalogue, casesOnCasesPage, proposedReasonsOf, reasonMismatchesOf, recipeReasonsOnPage, unlistedCaseNamesOn, unservedCaseNamesOn } from "./catalogue-pages.ts";
+import {
+  caseNamesOffTheirTitles,
+  casesOfCatalogue,
+  casesOnCasesPage,
+  missingLinkSentencesOn,
+  owesOfCatalogue,
+  owesOnPages,
+  type ProseLink,
+  proposedReasonsOf,
+  reasonMismatchesOf,
+  recipeReasonsOnPage,
+  unlinkedCaseSentencesOn,
+  unlistedCaseNamesOn,
+  unservedCaseNamesOn,
+} from "./catalogue-pages.ts";
 import { foldersUnder } from "./conformance-rows.ts";
 import {
   catalogueCoverageOf,
@@ -119,7 +133,7 @@ const NOTES_OF_SYMPTOMS_WITH_A_CORRECT_USE = [
   "library-class-built-in-place: Library class built in place. May indicate: takes an outside dependency → Outside dependencies stay at boundaries; keeps state or settings across calls → No hidden effects. The breach usually sits at a missing adapter. Recipes: Adapter per outside party; Closure factory. Correct use: a boundary record on that dependency's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#library-class-built-in-place",
   "text-past-its-reader: Text past its reader. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; sends data out of the program → No leak across a boundary; uses a system or service outside the program → External behaviour sits at a boundary; states what the unit gives back, for one case or several → Straight-through tests, Written-out answers. The breach usually sits in a port that takes or gives text where it should carry objects. Recipes: Adapter per outside party; Map out at the adapter; Zod at the producer's adapter; Whole written-out expectation. Correct use: a boundary record on the adapter for whoever produced or receives the text (today: authorised-location). A use at one test site: an authorised location for this symptom alone (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#text-past-its-reader",
   "schema-past-its-adapter: Schema past its adapter. May indicate: reads data from outside (request, file, environment, stored row, response) → No leak across a boundary; gives a value its type (declares it, or needs it narrower) → Declared, not asserted. The breach usually sits in the adapter, which hands the wire type inward instead of mapping it. Recipe: Zod at the producer's adapter. An outside model adopted as ours: a boundary record with a Conformist statement (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#schema-past-its-adapter",
-  "claimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted, Handed what it uses; checks a value that may be one of several outcomes → Straight-through tests. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#claimed-type",
+  "claimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#claimed-type",
   "type-derived-from-code: Type derived from code. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; names something → One word everywhere. The breach usually sits in the producer, which has no named type. Recipe: Named, exported type. Correct use: an authorised location in the adapter for an outside dependency that gives no named type (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#type-derived-from-code",
   "throw-between-our-units: Throw between our units. May indicate: an operation can fail → Failures are values; sends data out of the program → No leak across a boundary. The breach usually sits in the unit, or at a missing mapping in the adapter. Recipes: Result union; Failure mapping at the adapter. Correct use: an authorised location at an adapter whose caller's contract is exceptions (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#throw-between-our-units",
   "loop-keyword: Loop keyword. May indicate: makes a new value from what it has → No hidden effects; causes an effect (writes, logs, sends, exits) → Ports declared inside; coordinates other units → Doer or orchestrator. The breach usually sits in the unit. Recipe: Functional iteration. Draining a stream: an authorised location in its source's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-keyword",
@@ -149,10 +163,10 @@ const RECIPES_WITH_A_PROPOSED_REASON = [
 ];
 
 const OUTSIDE_ADDRESSES = [
-  { address: "claimed-type#any-cast", clause: "CD-1#any-cast" },
+  { address: "claimed-type#cast-to-any", clause: "CD-1#any-cast" },
   { address: "untyped-value#explicit-any", clause: "CD-1#explicit-any" },
   { address: "untyped-value#implicit-any-let", clause: "CD-1#implicit-any-let" },
-  { address: "claimed-type#cast-expressions", clause: "CD-2#cast-expressions" },
+  { address: "claimed-type#unlisted-cast-site", clause: "CD-2#cast-expressions" },
   { address: "claimed-type#non-null-assertions", clause: "CD-2#non-null-assertions" },
   { address: "strictness-weakened#strict", clause: "CD-3#strict" },
   { address: "strictness-weakened#no-unchecked-indexed-access", clause: "CD-3#no-unchecked-indexed-access" },
@@ -161,39 +175,58 @@ const OUTSIDE_ADDRESSES = [
   { address: "strictness-weakened#no-fallthrough-cases-in-switch", clause: "CD-3#no-fallthrough-cases-in-switch" },
   { address: "strictness-weakened#no-property-access-from-index-signature", clause: "CD-3#no-property-access-from-index-signature" },
   { address: "strictness-weakened#use-unknown-in-catch-variables", clause: "CD-3#use-unknown-in-catch-variables" },
-  { address: "untracked-escape#comments-directives", clause: "CD-5#comments-directives" },
+  { address: "untracked-escape#directive-pointers", clause: "CD-5#comments-directives" },
   { address: "shorthand-name#identifier-names", clause: "CD-6#identifier-names" },
   { address: "name-off-its-casing#naming-convention", clause: "CD-6#naming-convention" },
-  { address: "drawer-path#categorical-paths", clause: "CD-7#categorical-paths" },
+  { address: "drawer-path#drawer-names", clause: "CD-7#categorical-paths" },
   { address: "name-off-its-casing#filename-case", clause: "CD-7#filename-case" },
   { address: "type-derived-from-code#factory-return-types", clause: "CD-7a#factory-return-types" },
-  { address: "default-on-a-closed-union#switch-defaults", clause: "CD-8#switch-defaults" },
-  { address: "throw-or-catch-in-a-test#throws-in-tests", clause: "CD-10#throws-in-tests" },
+  { address: "default-on-a-closed-union#default-arm", clause: "CD-8#switch-defaults" },
+  { address: "throw-or-catch-in-a-test#throw-statement", clause: "CD-10#throws-in-tests" },
   { address: "thrown-non-error#throw-only-error", clause: "CD-10#throw-only-error" },
-  { address: "authored-class-or-this#class-syntax", clause: "CD-14#class-syntax" },
-  { address: "authored-class-or-this#static-only-class", clause: "CD-14#static-only-class" },
-  { address: "loop-keyword#loops", clause: "CD-15#loops" },
+  { address: "authored-class-or-this#class-keyword", clause: "CD-14#class-syntax" },
+  { address: "authored-class-or-this#static-members-only", clause: "CD-14#static-only-class" },
+  { address: "loop-keyword#loop-statement", clause: "CD-15#loops" },
   { address: "date-used-directly#clock-sources", clause: "CD-17#clock-sources" },
-  { address: "outside-import-past-a-boundary#import-boundaries", clause: "CD-19#import-boundaries" },
-  { address: "unit-without-a-running-test#export-test-sibling", clause: "CD-23#export-test-sibling" },
-  { address: "double-with-a-body#dependency-isolation", clause: "CD-25#dependency-isolation" },
-  { address: "module-or-global-patched#module-mocking", clause: "CD-26#module-mocking" },
+  { address: "outside-import-past-a-boundary#import-or-require", clause: "CD-19#import-boundaries" },
+  { address: "unit-without-a-running-test#companion-test-file", clause: "CD-23#export-test-sibling" },
+  { address: "double-with-a-body#stub-implementation", clause: "CD-25#dependency-isolation" },
+  { address: "module-or-global-patched#module-mock-call", clause: "CD-26#module-mocking" },
   { address: "branch-in-a-test#test-body", clause: "CD-27#test-body-logic" },
-  { address: "throw-or-catch-in-a-test#test-body", clause: "CD-27#test-body-logic" },
+  { address: "throw-or-catch-in-a-test#try-block", clause: "CD-27#test-body-logic" },
   { address: "rebinding#test-body", clause: "CD-27#test-body-logic" },
   { address: "computed-value-in-a-test#test-body", clause: "CD-27#test-body-logic" },
   { address: "text-past-its-reader#test-body", clause: "CD-27#test-body-logic" },
-  { address: "double-with-a-body#test-body", clause: "CD-27#test-body-logic" },
+  { address: "double-with-a-body#logic-in-a-passed-function", clause: "CD-27#test-body-logic" },
   { address: "test-switched-off#focused-tests", clause: "CD-27#focused-tests" },
   { address: "test-switched-off#skipped-tests", clause: "CD-27#skipped-tests" },
   { address: "positional-parameters#parameter-count", clause: "CD-40#parameter-count" },
   { address: "tangled-function#cognitive-complexity", clause: "CD-41#cognitive-complexity" },
   { address: "long-function#function-length", clause: "CD-41#function-length" },
-  { address: "work-inside-a-condition#useless-else", clause: "CD-42#useless-else" },
-  { address: "boolean-in-a-signature#boolean-signatures", clause: "CD-43#boolean-signatures" },
+  { address: "work-inside-a-condition#else-after-an-exit", clause: "CD-42#useless-else" },
+  { address: "boolean-in-a-signature#boolean-annotation", clause: "CD-43#boolean-signatures" },
   { address: "write-into-a-parameter#parameter-mutation", clause: "CD-44#parameter-mutation" },
   { address: "rebinding#parameter-reassignment", clause: "CD-44#parameter-reassignment" },
-  { address: "inherited-environment-in-a-subprocess#hermetic-git-spawns", clause: "CD-47#hermetic-git-spawns" },
+  { address: "inherited-environment-in-a-subprocess#git-spawn-environment", clause: "CD-47#hermetic-git-spawns" },
+];
+
+const PROSE_LINKS: readonly ProseLink[] = [
+  {
+    sentence: "Building every real implementation in one place at start-up is a case: Doer or orchestrator plus Ports declared inside give it.",
+    cases: ["Builds the real implementations"],
+  },
+  {
+    sentence: "The clock, random values, new ids and outside ordering are a case: the principle plus Ports declared inside give it.",
+    cases: ["Needs the current time, a random value, a new id or an outside ordering"],
+  },
+  {
+    sentence: "The principle, now covering data and failures, plus One reason per module, gives one adapter per outside party that maps both ways. That is a case.",
+    cases: ["Reads data from outside (request, file, environment, stored row, response)", "Sends data out of the program"],
+  },
+  {
+    sentence: "A case under [Outside dependencies justified](rules.md#outside-dependencies-justified).",
+    cases: ["An adopter is not handed our risk"],
+  },
 ];
 
 const reading = createSymptomCatalogueRepository({ fileText: FILE_TEXT, path: PATH, ruleSetRoot: REPO_ROOT }).read({});
@@ -256,6 +289,13 @@ describe("rules/typescript/symptoms.json, read from this repository through the 
     expect(casesOfCatalogue({ catalogue: reading.value.catalogue })).toEqual(casesOnCasesPage({ text: CASES_PAGE.value }));
   });
 
+  it("names every case by one rule: its title without its parenthetical, hyphenated", () => {
+    assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
+
+    expect(caseNamesOffTheirTitles({ cases: reading.value.catalogue.cases })).toEqual([]);
+  });
+
   it("names on rules/typescript/symptoms.md only cases on rules/cases.md, spelled as that page spells them", () => {
     assert(CASES_PAGE.outcome === "ok");
     assert(SYMPTOMS_PAGE.outcome === "ok");
@@ -268,6 +308,27 @@ describe("rules/typescript/symptoms.json, read from this repository through the 
     assert(RULES_PAGE.outcome === "ok");
 
     expect(unservedCaseNamesOn({ rulesPage: RULES_PAGE.value, cases: casesOnCasesPage({ text: CASES_PAGE.value }) })).toEqual([]);
+  });
+
+  it("holds what each case owes as the pages give it: the principles of its Owes column, then the rules that serve it or that the pages' prose says give it", () => {
+    assert(reading.outcome === "ok");
+    assert(reading.value.held === "catalogue");
+    assert(CASES_PAGE.outcome === "ok");
+    assert(RULES_PAGE.outcome === "ok");
+
+    expect(owesOfCatalogue({ catalogue: reading.value.catalogue })).toEqual(
+      owesOnPages({ casesPage: CASES_PAGE.value, rulesPage: RULES_PAGE.value, links: PROSE_LINKS }),
+    );
+  });
+
+  it("lists every sentence on rules/rules.md that makes a case of rules, and finds each listed sentence on its page", () => {
+    assert(CASES_PAGE.outcome === "ok");
+    assert(RULES_PAGE.outcome === "ok");
+
+    expect({
+      unlinked: unlinkedCaseSentencesOn({ pages: [RULES_PAGE.value], links: PROSE_LINKS }),
+      missing: missingLinkSentencesOn({ pages: [RULES_PAGE.value, CASES_PAGE.value], links: PROSE_LINKS }),
+    }).toEqual({ unlinked: [], missing: [] });
   });
 
   it("carries each recipe's reason in rules/typescript/recipes.md's words, proposed where the page proposes it", () => {

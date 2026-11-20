@@ -76,8 +76,8 @@ export const checkAddressTableOf = (request: { readonly catalogue: SymptomCatalo
   request.catalogue.checks.map((check) => ({ address: checkAddressOf({ check }), clause: clauseAddressText({ address: check.clause }) }));
 
 const resolutionOf = (request: { readonly catalogue: SymptomCatalogue; readonly check: Check }): "resolves" | "elsewhere" => {
-  const finding = checkAt({ catalogue: request.catalogue, address: checkAddressOf({ check: request.check }) });
-  return finding.found === "check" && finding.check === request.check ? "resolves" : "elsewhere";
+  const atAddress = checkAt({ catalogue: request.catalogue, address: checkAddressOf({ check: request.check }) });
+  return atAddress.found === "check" && atAddress.check === request.check ? "resolves" : "elsewhere";
 };
 
 export const unresolvedAddressesOf = (request: { readonly catalogue: SymptomCatalogue }): readonly string[] => {

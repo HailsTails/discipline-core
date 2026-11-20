@@ -219,6 +219,41 @@ describe("symptomCatalogueOf", () => {
     });
   });
 
+  it("reads the situation an indication of a case is about, and takes one case once in each situation", () => {
+    expect(
+      symptomCatalogueOf({
+        document: {
+          ...SYMPTOM_HOLDING_DOCUMENT,
+          symptoms: [
+            {
+              ...SYMPTOM_DOCUMENT,
+              mayIndicate: [
+                { case: "checks-conditions-before-its-work", points: [{ principle: "one-place-decides" }] },
+                { case: "checks-conditions-before-its-work", situation: "in a test, a cast to build an input", points: [{ principle: "no-hidden-effects" }] },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        symptoms: [
+          {
+            mayIndicate: [
+              { case: { name: "checks-conditions-before-its-work" }, points: [{ principle: { name: "one-place-decides" } }] },
+              {
+                case: { name: "checks-conditions-before-its-work" },
+                situation: "in a test, a cast to build an input",
+                points: [{ principle: { name: "no-hidden-effects" } }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
   it("reads a catalogue that holds only the record kinds every symptom takes", () => {
     expect(symptomCatalogueOf({ document: EMPTY_DOCUMENT })).toEqual({
       outcome: "ok",
@@ -312,7 +347,46 @@ describe("symptomCatalogueOf", () => {
           { symptom: "work-inside-a-condition", name: "useless-else", clause: "CD-42#useless-else", engines: ["eslint"] },
         ],
       },
-      refusal: "✖ checks holds work-inside-a-condition#useless-else more than once",
+      refusal:
+        "✖ checks holds work-inside-a-condition#useless-else more than once\n✖ the checks of work-inside-a-condition holds CD-42#useless-else more than once",
+    },
+    {
+      name: "an engine listed twice under one mechanism",
+      document: {
+        ...SYMPTOM_HOLDING_DOCUMENT,
+        engines: [
+          { name: "eslint", mechanism: "eslint" },
+          { name: "linter", mechanism: "eslint" },
+        ],
+      },
+      refusal: "✖ the mechanisms of engines holds eslint more than once",
+    },
+    {
+      name: "two checks of one symptom on one clause",
+      document: {
+        ...SYMPTOM_HOLDING_DOCUMENT,
+        checks: [
+          { symptom: "work-inside-a-condition", name: "useless-else", clause: "CD-42#useless-else", engines: ["eslint"] },
+          { symptom: "work-inside-a-condition", name: "else-after-an-exit", clause: "hone/CD-42#useless-else", engines: ["eslint"] },
+        ],
+      },
+      refusal: "✖ the checks of work-inside-a-condition holds CD-42#useless-else more than once",
+    },
+    {
+      name: "a symptom naming one case twice in one situation",
+      document: {
+        ...SYMPTOM_HOLDING_DOCUMENT,
+        symptoms: [
+          {
+            ...SYMPTOM_DOCUMENT,
+            mayIndicate: [
+              { case: "checks-conditions-before-its-work", situation: "in a test", points: [{ principle: "one-place-decides" }] },
+              { case: "checks-conditions-before-its-work", situation: "in a test", points: [{ principle: "no-hidden-effects" }] },
+            ],
+          },
+        ],
+      },
+      refusal: "✖ the cases of work-inside-a-condition holds checks-conditions-before-its-work: in a test more than once",
     },
     {
       name: "a symptom naming one case twice",
