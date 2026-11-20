@@ -304,3 +304,72 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
     });
   });
 });
+
+const SUB_SLICE = repoPathSchema.parse("sub/hone.eslint.mjs");
+
+const SUB_PROJECTION_TEXT = checksProjectionText({ pluginImport: "../../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: [] });
+
+const PACKAGE_CONFIG =`import hone from "./${CHECKS_PROJECTION_PATH}";\nexport default [{ files: ["**/*.ts"] }, ...hone];\n`;
+
+const PACKAGE_RUN = {
+  ...ROOT_FILE_RUN,
+  declaredConfigLookup: "nearest-to-file" as const,
+  queried: [SUB_FILE],
+  tracked: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("sub/eslint.config.mjs"), SUB_FILE],
+  files: { "eslint.config.mjs": SUB_CONFIG_WITHOUT_THE_CHECKS, [CHECKS_PROJECTION_PATH]: PROJECTION_TEXT },
+  sub: { "eslint.config.mjs": PACKAGE_CONFIG, "kept.ts": ONE_CLASS, [CHECKS_PROJECTION_PATH]: SUB_PROJECTION_TEXT },
+};
+
+describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repository whose package config spreads its own hone.eslint.mjs", (line) => {
+  it("projects the root file and the package's file as the texts on disk, and reports the projection current and the class in the package's file", async () => {
+    const runner = await runnerOn({ line });
+    const repoRoot = repositoryHoldingSub(PACKAGE_RUN);
+    const projected = await runner.project({
+      repoRoot,
+      installRoot: INSTALL_ROOT,
+      files: PACKAGE_RUN.queried,
+      trackedPaths: PACKAGE_RUN.tracked,
+      checks: CATALOGUE.value.checks,
+      bindings: BINDINGS,
+      answered: [],
+      declaredConfigRoots: [],
+      declaredConfigLookup: PACKAGE_RUN.declaredConfigLookup,
+    });
+    const run = await runner.run({
+      repoRoot,
+      installRoot: INSTALL_ROOT,
+      files: PACKAGE_RUN.queried,
+      trackedPaths: PACKAGE_RUN.tracked,
+      checks: CATALOGUE.value.checks,
+      bindings: BINDINGS,
+      answered: [],
+      declaredConfigRoots: [],
+      declaredConfigLookup: PACKAGE_RUN.declaredConfigLookup,
+    });
+    expect({ projected, run }).toEqual({
+      projected: {
+        outcome: "ok",
+        value: [
+          { file: CHECKS_PROJECTION_PATH, text: PROJECTION_TEXT },
+          { file: SUB_SLICE, text: SUB_PROJECTION_TEXT },
+        ],
+      },
+      run: { outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } },
+    });
+  });
+
+  it("matches an answer for a package file in that package's own file, written relative to the package, without reporting its off block as an override", async () => {
+    const answered = [{ symptom: "authored-class-or-this", check: "class-keyword", file: SUB_FILE }];
+    const answeredWithinSub = [{ symptom: "authored-class-or-this", check: "class-keyword", file: SOURCE_FILE }];
+    const rootText = checksProjectionText({ pluginImport: "../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered });
+    const subText = checksProjectionText({ pluginImport: "../../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: answeredWithinSub });
+    const outcome = await runOver({
+      ...PACKAGE_RUN,
+      line,
+      answered,
+      files: { ...PACKAGE_RUN.files, [CHECKS_PROJECTION_PATH]: rootText },
+      sub: { ...PACKAGE_RUN.sub, [CHECKS_PROJECTION_PATH]: subText },
+    });
+    expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } });
+  });
+});
