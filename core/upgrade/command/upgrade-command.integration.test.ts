@@ -13,6 +13,7 @@ import { listedPathsOf, treeOf } from "../../../tests/repository-tree.ts";
 import { checkModulesOn, ESLINT_LINES, type EslintLine } from "../../../tests/eslint-toolchains.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
+import { exceptionsTextOf, selectionTextOf } from "../../../tests/version-one-files.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
 
@@ -410,11 +411,24 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
   });
 });
 
-const AUDIT_SELECTION = '{ "version": 1, "ruleSets": {}, "clauses": { "CD-1#any-cast": "audit", "CD-1#explicit-any": "eslint", "CD-1#implicit-any-let": "eslint", "CD-2#cast-expressions": "audit", "CD-2#non-null-assertions": "eslint" } }\n';
+const AUDIT_SELECTION = selectionTextOf({
+  clauses: {
+    "CD-1#any-cast": "audit",
+    "CD-1#explicit-any": "eslint",
+    "CD-1#implicit-any-let": "eslint",
+    "CD-2#cast-expressions": "audit",
+    "CD-2#non-null-assertions": "eslint",
+  },
+});
 
 const ANY_CAST = "export const parsed = JSON.parse(text) as any;\n";
 
-const AUDIT_EXCEPTIONS = '{ "version": 1, "exceptions": [{ "kind": "file-carve-out", "clause": "CD-1#any-cast", "file": "src/owed.ts", "reason": "legacy cast" }, { "kind": "file-carve-out", "clause": "CD-1#explicit-any", "file": "src/owed.ts", "reason": "legacy cast" }] }\n';
+const AUDIT_EXCEPTIONS = exceptionsTextOf({
+  exceptions: [
+    { kind: "file-carve-out", clause: "CD-1#any-cast", file: "src/owed.ts", reason: "legacy cast" },
+    { kind: "file-carve-out", clause: "CD-1#explicit-any", file: "src/owed.ts", reason: "legacy cast" },
+  ],
+});
 
 describe("hone upgrade over a real repository whose clause is bound to the audit mechanism", () => {
   it("upgrades it, with one finding open and one answered by debt, and checks both with the check each names", async () => {
