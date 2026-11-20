@@ -3,12 +3,12 @@ import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { configuredDirectoriesOf, packageConfigRootCountOf } from "./checks-config-roots.ts";
 
 const TRACKED = [
-  "eslint.config.mjs",
-  "package.json",
-  "packages/a/eslint.config.js",
-  "packages/a/src/a.ts",
-  "packages/b/tools/eslint.config.ts",
-].map((path) => repoPathSchema.parse(path));
+  repoPathSchema.parse("eslint.config.mjs"),
+  repoPathSchema.parse("package.json"),
+  repoPathSchema.parse("packages/a/eslint.config.js"),
+  repoPathSchema.parse("packages/a/src/a.ts"),
+  repoPathSchema.parse("packages/b/tools/eslint.config.ts"),
+];
 
 const PACKAGE_A = repoPathSchema.parse("packages/a");
 
