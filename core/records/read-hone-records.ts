@@ -2,7 +2,7 @@ import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts
 import { baseRevisionAvailabilityOf } from "../touched-set/touched-set.ts";
 import type { Result } from "../values/result.ts";
 import type { RecordsAtBase, RecordsDocumentRefusal, RecordsReading } from "./hone-record.ts";
-import type { RecordsFolderFailure, RecordsSource } from "./records-folder.ts";
+import type { RecordsFolderFailure, RecordsSource } from "./records-source.ts";
 import { recordsReadingOf } from "./records-reading.ts";
 
 export type HoneRecordsFailure =

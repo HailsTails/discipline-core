@@ -1,4 +1,6 @@
+import { catalogueNameSchema } from "../symptom-catalogue/symptom-catalogue-wire.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
+import type { Result } from "../values/result.ts";
 import type { RecordsFolderKind } from "./hone-record.ts";
 
 export const RECORDS_FOLDER = "hone-records";
@@ -17,6 +19,8 @@ export type RecordsFileStanding =
   | { readonly standing: "named"; readonly kind: NamedFolderKind; readonly name: string }
   | { readonly standing: "single"; readonly kind: SingleFileKind }
   | { readonly standing: "not-a-records-file" };
+
+export type NotARecordsName = { readonly kind: "not-a-records-name"; readonly name: string };
 
 const NOT_A_RECORDS_FILE: RecordsFileStanding = { standing: "not-a-records-file" };
 
@@ -40,8 +44,8 @@ export const recordsFileStandingOf = (request: { readonly file: RepoPath }): Rec
   return second === undefined ? singleFileOf({ name: first }) : namedFileOf({ folder: first, name: second });
 };
 
-export const namedRecordsFileOf = (request: { readonly kind: NamedFolderKind; readonly name: string }): RepoPath =>
-  repoPathSchema.parse(`${RECORDS_FOLDER}/${request.kind}/${request.name}${RECORDS_FILE_EXTENSION}`);
-
-export const singleRecordsFileOf = (request: { readonly kind: SingleFileKind }): RepoPath =>
-  repoPathSchema.parse(`${RECORDS_FOLDER}/${request.kind}${RECORDS_FILE_EXTENSION}`);
+export const namedRecordsFileOf = (request: { readonly kind: NamedFolderKind; readonly name: string }): Result<RepoPath, NotARecordsName> => {
+  const name = catalogueNameSchema.safeParse(request.name);
+  const file = name.success ? repoPathSchema.safeParse(`${RECORDS_FOLDER}/${request.kind}/${name.data}${RECORDS_FILE_EXTENSION}`) : name;
+  return file.success ? { outcome: "ok", value: file.data } : { outcome: "failed", error: { kind: "not-a-records-name", name: request.name } };
+};

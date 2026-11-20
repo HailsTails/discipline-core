@@ -7,7 +7,10 @@ import type { WhyChain } from "../values/why-chain.ts";
 
 export type RuntimeFacility = "clock" | "random" | "process" | "json";
 
-export type OutsideParty = { readonly kind: "specifier"; readonly specifier: string } | { readonly kind: "runtime"; readonly facility: RuntimeFacility };
+export type OutsideParty =
+  | { readonly kind: "package"; readonly specifier: string; readonly dependency: string }
+  | { readonly kind: "built-in"; readonly specifier: string }
+  | { readonly kind: "runtime"; readonly facility: RuntimeFacility };
 
 export type Conformist = { readonly model: string; readonly why: string };
 
@@ -32,13 +35,19 @@ export type Debt = {
 
 export type AuthorisedLocationLack = "case" | "owes" | "whyChain";
 
+export type CatalogueNote =
+  | { readonly kind: "unknown-case"; readonly case: string; readonly owes: string }
+  | { readonly kind: "owes-not-owed"; readonly case: Case; readonly owes: string };
+
+export type Owing =
+  | { readonly matches: "the-catalogue"; readonly case: Case; readonly owes: Pointed }
+  | { readonly matches: "not-the-catalogue"; readonly note: CatalogueNote };
+
 export type AuthorisedLocation = {
   readonly kind: "authorised-location";
   readonly symptom: Symptom;
   readonly file: RepoPath;
-  readonly holding:
-    | (Stated & { readonly case: Case; readonly owes: Pointed; readonly whyChain: WhyChain })
-    | Carried<AuthorisedLocationLack>;
+  readonly holding: (Stated & { readonly owing: Owing; readonly whyChain: WhyChain }) | Carried<AuthorisedLocationLack>;
 };
 
 export type Deviation = {
@@ -79,12 +88,11 @@ export type RecordRefusal =
   | { readonly kind: "form-refused"; readonly issues: readonly z.core.$ZodIssue[] }
   | { readonly kind: "unknown-symptom"; readonly symptom: string }
   | { readonly kind: "unknown-recipe"; readonly recipe: string }
-  | { readonly kind: "unknown-case"; readonly case: string }
-  | { readonly kind: "owes-not-owed"; readonly case: Case; readonly owes: string }
   | { readonly kind: "recipe-reason-not-the-catalogues"; readonly recipe: Recipe; readonly recipeReason: string }
   | { readonly kind: "named-ban"; readonly dependency: string }
   | { readonly kind: "unknown-runtime-facility"; readonly outsideParty: string }
   | { readonly kind: "misplaced"; readonly belongsIn: RepoPath }
+  | { readonly kind: "not-a-records-name"; readonly name: string }
   | { readonly kind: "carried-changed-since-base" }
   | { readonly kind: "duplicate"; readonly of: RecordPlace };
 
@@ -102,9 +110,15 @@ export type CarriedListing = {
   readonly standing: CarriedStanding;
 };
 
+export type BaseMeasurement = { readonly measured: "yes" } | { readonly measured: "no"; readonly base: BaseRevisionAvailability };
+
+export type RecordNote = { readonly place: RecordPlace; readonly note: CatalogueNote };
+
 export type RecordsReading = {
   readonly records: readonly PlacedRecord[];
   readonly refused: readonly RefusedRecord[];
+  readonly notes: readonly RecordNote[];
+  readonly base: BaseMeasurement;
 };
 
 export type RecordsDocumentRefusal =

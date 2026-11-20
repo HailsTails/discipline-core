@@ -1,6 +1,6 @@
 import type { DirectoryEntry, DirectoryPort } from "../platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { GitFailure, GitPort, GitTreePort } from "../platform-ports/git-port.ts";
+import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.ts";
 import { parsedJson } from "../values/parsed-json.ts";
@@ -8,18 +8,7 @@ import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { RecordsDocument } from "./hone-record.ts";
 import { RECORDS_FOLDER, recordsFileStandingOf } from "./records-layout.ts";
-
-export type RecordsFolderFailure =
-  | { readonly kind: "records-folder-unreadable"; readonly folder: RepoPath; readonly detail: string }
-  | { readonly kind: "records-file-unreadable"; readonly file: RepoPath; readonly detail: string }
-  | { readonly kind: "records-file-not-json"; readonly file: RepoPath; readonly detail: string }
-  | { readonly kind: "not-a-records-file"; readonly file: RepoPath }
-  | GitFailure;
-
-export type RecordsSource = {
-  readonly read: () => Result<readonly RecordsDocument[], RecordsFolderFailure>;
-  readonly readAt: (request: { readonly revision: string }) => Result<readonly RecordsDocument[], RecordsFolderFailure>;
-};
+import type { RecordsFolderFailure, RecordsSource } from "./records-source.ts";
 
 export type RecordsFolderPorts = {
   readonly fileText: Pick<FileTextPort, "exists" | "read">;
@@ -33,15 +22,27 @@ type FolderRequest = RecordsFolderPorts & { readonly repoRoot: AbsolutePath };
 
 type Listed = Result<readonly RepoPath[], RecordsFolderFailure>;
 
+type Documents = Result<readonly RecordsDocument[], RecordsFolderFailure>;
+
 const RECORDS_FOLDER_PATH = repoPathSchema.parse(RECORDS_FOLDER);
 
 const absoluteOf = (request: FolderRequest & { readonly file: RepoPath }): AbsolutePath =>
   absolutePathSchema.parse(request.path.join({ segments: [request.repoRoot, request.file] }));
 
-const childOf = (request: { readonly folder: RepoPath; readonly entry: DirectoryEntry }): RepoPath => repoPathSchema.parse(`${request.folder}/${request.entry.name}`);
+const childOf = (request: { readonly folder: RepoPath; readonly entry: DirectoryEntry }): Result<RepoPath, RecordsFolderFailure> => {
+  const child = repoPathSchema.safeParse(`${request.folder}/${request.entry.name}`);
+  return child.success ? { outcome: "ok", value: child.data } : { outcome: "failed", error: { kind: "not-a-records-name", folder: request.folder, name: request.entry.name } };
+};
+
+const codePointOrder = (request: { readonly left: string; readonly right: string }): number => {
+  if (request.left === request.right) {
+    return 0;
+  }
+  return request.left < request.right ? -1 : 1;
+};
 
 const inPathOrder = (request: { readonly files: readonly RepoPath[] }): readonly RepoPath[] =>
-  request.files.toSorted((left, right) => left.localeCompare(right, "en"));
+  request.files.toSorted((left, right) => codePointOrder({ left, right }));
 
 const joined = (request: { readonly listings: readonly Listed[] }): Listed => {
   const failure = request.listings.find((listing) => listing.outcome === "failed");
@@ -53,52 +54,47 @@ const entriesIn = (request: FolderRequest & { readonly folder: RepoPath }): Resu
   return listed.outcome === "failed" ? { outcome: "failed", error: { kind: "records-folder-unreadable", folder: request.folder, detail: listed.error.detail } } : listed;
 };
 
+const kindFolderEntryFiles = (request: { readonly folder: RepoPath; readonly entry: DirectoryEntry }): Listed => {
+  const child = childOf(request);
+  if (child.outcome === "failed") {
+    return child;
+  }
+  return request.entry.kind === "directory" ? { outcome: "failed", error: { kind: "not-a-records-file", file: child.value } } : { outcome: "ok", value: [child.value] };
+};
+
 const kindFolderFiles = (request: FolderRequest & { readonly folder: RepoPath }): Listed => {
   const entries = entriesIn(request);
-  if (entries.outcome === "failed") {
-    return entries;
+  return entries.outcome === "failed" ? entries : joined({ listings: entries.value.map((entry) => kindFolderEntryFiles({ folder: request.folder, entry })) });
+};
+
+const recordsFolderEntryFiles = (request: FolderRequest & { readonly entry: DirectoryEntry }): Listed => {
+  const child = childOf({ folder: RECORDS_FOLDER_PATH, entry: request.entry });
+  if (child.outcome === "failed") {
+    return child;
   }
-  const directory = entries.value.find((entry) => entry.kind === "directory");
-  return directory === undefined
-    ? { outcome: "ok", value: entries.value.map((entry) => childOf({ folder: request.folder, entry })) }
-    : { outcome: "failed", error: { kind: "not-a-records-file", file: childOf({ folder: request.folder, entry: directory }) } };
+  return request.entry.kind === "directory" ? kindFolderFiles({ ...request, folder: child.value }) : { outcome: "ok", value: [child.value] };
 };
 
 const recordsFolderFiles = (request: FolderRequest): Listed => {
   const entries = entriesIn({ ...request, folder: RECORDS_FOLDER_PATH });
-  if (entries.outcome === "failed") {
-    return entries;
-  }
-  return joined({
-    listings: entries.value.map((entry) => {
-      const child = childOf({ folder: RECORDS_FOLDER_PATH, entry });
-      return entry.kind === "directory" ? kindFolderFiles({ ...request, folder: child }) : { outcome: "ok", value: [child] };
-    }),
-  });
+  return entries.outcome === "failed" ? entries : joined({ listings: entries.value.map((entry) => recordsFolderEntryFiles({ ...request, entry })) });
 };
 
-const documentOfText = (request: { readonly file: RepoPath; readonly text: string }): Result<RecordsDocument, RecordsFolderFailure> => {
+const listedDocument = (request: { readonly file: RepoPath; readonly text: string }): Documents => {
   const parsed = parsedJson({ text: request.text });
   return parsed.outcome === "failed"
     ? { outcome: "failed", error: { kind: "records-file-not-json", file: request.file, detail: parsed.error } }
-    : { outcome: "ok", value: { file: request.file, document: parsed.value } };
+    : { outcome: "ok", value: [{ file: request.file, document: parsed.value }] };
 };
 
-type Documents = Result<readonly RecordsDocument[], RecordsFolderFailure>;
-
-const documentsOf = (request: { readonly files: readonly RepoPath[]; readonly documentsAt: (file: RepoPath) => Documents }): Documents =>
+const documentsOf = (request: { readonly files: readonly RepoPath[]; readonly documentsAt: (at: { readonly file: RepoPath }) => Documents }): Documents =>
   request.files.reduce<Documents>((sofar, file) => {
     if (sofar.outcome === "failed") {
       return sofar;
     }
-    const documents = request.documentsAt(file);
+    const documents = request.documentsAt({ file });
     return documents.outcome === "failed" ? documents : { outcome: "ok", value: [...sofar.value, ...documents.value] };
   }, { outcome: "ok", value: [] });
-
-const listedDocument = (request: { readonly file: RepoPath; readonly text: string }): Documents => {
-  const document = documentOfText(request);
-  return document.outcome === "failed" ? document : { outcome: "ok", value: [document.value] };
-};
 
 const workingDocumentsAt = (request: FolderRequest & { readonly file: RepoPath }): Documents => {
   if (recordsFileStandingOf({ file: request.file }).standing === "not-a-records-file") {
@@ -110,14 +106,14 @@ const workingDocumentsAt = (request: FolderRequest & { readonly file: RepoPath }
     : listedDocument({ file: request.file, text: text.value });
 };
 
-const workingDocuments = (request: FolderRequest): Result<readonly RecordsDocument[], RecordsFolderFailure> => {
+const workingDocuments = (request: FolderRequest): Documents => {
   if (request.fileText.exists({ path: absoluteOf({ ...request, file: RECORDS_FOLDER_PATH }) }) === "absent") {
     return { outcome: "ok", value: [] };
   }
   const files = recordsFolderFiles(request);
   return files.outcome === "failed"
     ? files
-    : documentsOf({ files: inPathOrder({ files: files.value }), documentsAt: (file) => workingDocumentsAt({ ...request, file }) });
+    : documentsOf({ files: inPathOrder({ files: files.value }), documentsAt: (at) => workingDocumentsAt({ ...request, file: at.file }) });
 };
 
 const baseDocumentsAt = (request: FolderRequest & { readonly revision: string; readonly file: RepoPath }): Documents => {
@@ -128,13 +124,13 @@ const baseDocumentsAt = (request: FolderRequest & { readonly revision: string; r
   return text.value.presence === "present-in-base" ? listedDocument({ file: request.file, text: text.value.text }) : { outcome: "ok", value: [] };
 };
 
-const baseDocuments = (request: FolderRequest & { readonly revision: string }): Result<readonly RecordsDocument[], RecordsFolderFailure> => {
+const baseDocuments = (request: FolderRequest & { readonly revision: string }): Documents => {
   const paths = request.gitTree.pathsAt({ repoRoot: request.repoRoot, revision: request.revision });
   if (paths.outcome === "failed") {
     return paths;
   }
   const files = paths.value.filter((file) => recordsFileStandingOf({ file }).standing !== "not-a-records-file");
-  return documentsOf({ files: inPathOrder({ files }), documentsAt: (file) => baseDocumentsAt({ ...request, file }) });
+  return documentsOf({ files: inPathOrder({ files }), documentsAt: (at) => baseDocumentsAt({ ...request, file: at.file }) });
 };
 
 export const createRecordsFolder = (request: FolderRequest): RecordsSource => ({

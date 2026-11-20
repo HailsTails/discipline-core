@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { RecordsAtBase } from "./hone-record.ts";
-import { carriedListingOf, recordsReadingOf } from "./records-reading.ts";
+import { carriedListingOf, recordsReadingOf, sameRecordIdentity } from "./records-reading.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
 
@@ -32,6 +32,22 @@ const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
 
 const ADAPTER = repoPathSchema.parse("src/adapters/ids.ts");
 
+const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
+
+const WHY_CHAIN = {
+  whys: [
+    { why: "Why does held.ts hold this symptom?", because: "An outside contract fixes the shape the unit must meet at this place.", evidence: "src/held.ts:1." },
+    { why: "Why does an outside contract fix the shape?", because: "The vendor publishes the payload format and validates requests against it.", evidence: "https://example.com/spec." },
+    { why: "Why does the vendor validate requests against the payload format?", because: "Its gateway rejects any field outside the published schema before routing.", evidence: "https://example.com/gateway." },
+    { why: "Why does the gateway reject fields outside the published schema?", because: "Strict schemas let the vendor version its interface without silent drift.", evidence: "https://example.com/versioning." },
+    { why: "Why do strict schemas let the vendor version without drift?", because: "Clients that send unknown fields fail fast, so every client upgrades on purpose.", evidence: "https://example.com/upgrades." },
+  ],
+  rootCause: "Clients that send unknown fields fail fast, so every client upgrades on purpose.",
+  rootCheck: "On 2026-11-20, https://example.com/upgrades still says unknown fields fail fast.",
+  readback: "Clients that send unknown fields fail fast, therefore the vendor keeps strict schemas, therefore held.ts holds this symptom.",
+  owner: "owner decision on example/app#1",
+};
+
 describe("recordsReadingOf", () => {
   it("places each record by its file and its index there, in the order the documents come", () => {
     expect(
@@ -55,6 +71,8 @@ describe("recordsReadingOf", () => {
           { place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } },
         ],
         refused: [],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
       },
     });
   });
@@ -71,7 +89,77 @@ describe("recordsReadingOf", () => {
       value: {
         records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } }],
         refused: [{ place: { file: DEBT_FILE, index: 0 }, refusals: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["file"] })] }] }],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
       },
+    });
+  });
+
+  it("refuses a record whose own text names no file it could be filed in, and still reads the records beside it", () => {
+    expect(
+      recordsReadingOf({
+        documents: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "/x", file: "src/a.ts" }, { symptom: "claimed-type", file: "src/b.ts" }] } }],
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        records: [{ place: { file: DEBT_FILE, index: 1 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/b.ts", holding: { held: "stated" } } }],
+        refused: [{ place: { file: DEBT_FILE, index: 0 }, refusals: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["symptom"] })] }] }],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
+      },
+    });
+  });
+
+  it("keeps an authorised location whose case is not the catalogue's among the records, and notes it by its place for the report", () => {
+    expect(
+      recordsReadingOf({
+        documents: [
+          { file: AUTHORISED_FILE, document: { version: 2, records: [{ symptom: "claimed-type", file: "src/held.ts", case: "needs-it-here", owes: "declared-not-asserted", whyChain: WHY_CHAIN }] } },
+        ],
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        records: [
+          {
+            place: { file: AUTHORISED_FILE, index: 0 },
+            record: {
+              kind: "authorised-location",
+              symptom: CLAIMED_TYPE,
+              file: "src/held.ts",
+              holding: {
+                held: "stated",
+                owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } },
+                whyChain: WHY_CHAIN,
+              },
+            },
+          },
+        ],
+        refused: [],
+        notes: [{ place: { file: AUTHORISED_FILE, index: 0 }, note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } }],
+        base: { measured: "no", base: { state: "not-given" } },
+      },
+    });
+  });
+
+  it("says the base revision was measured when it was", () => {
+    expect(recordsReadingOf({ documents: [], catalogue: CATALOGUE, base: { measured: "yes", documents: [] } })).toEqual({
+      outcome: "ok",
+      value: { records: [], refused: [], notes: [], base: { measured: "yes" } },
+    });
+  });
+
+  it("says why the base revision was not measured, as the value it was handed", () => {
+    expect(
+      recordsReadingOf({ documents: [], catalogue: CATALOGUE, base: { measured: "no", base: { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad revision" } } }),
+    ).toEqual({
+      outcome: "ok",
+      value: { records: [], refused: [], notes: [], base: { measured: "no", base: { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad revision" } } },
     });
   });
 
@@ -82,8 +170,28 @@ describe("recordsReadingOf", () => {
       value: {
         records: [{ place: { file: DEBT_FILE, index: 0 }, record: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/a.ts", holding: { held: "stated" } } }],
         refused: [{ place: { file: DEBT_FILE, index: 1 }, refusals: [{ kind: "duplicate", of: { file: DEBT_FILE, index: 0 } }] }],
+        notes: [],
+        base: { measured: "no", base: { state: "not-given" } },
       },
     });
+  });
+
+  it("holds two records the same only when each field of their identity is the same, never by joined text", () => {
+    expect(
+      sameRecordIdentity({
+        left: { kind: "boundary-record", module: repoPathSchema.parse("src/a b"), outsideParty: { kind: "package", specifier: "c", dependency: "c" }, holding: { held: "stated", ports: ["P"] } },
+        right: { kind: "boundary-record", module: repoPathSchema.parse("src/a"), outsideParty: { kind: "package", specifier: "b c", dependency: "b c" }, holding: { held: "stated", ports: ["P"] } },
+      }),
+    ).toBe("different");
+  });
+
+  it("holds a package and a runtime facility different even where their text could meet", () => {
+    expect(
+      sameRecordIdentity({
+        left: { kind: "boundary-record", module: ADAPTER, outsideParty: { kind: "runtime", facility: "clock" }, holding: { held: "stated", ports: ["Clock"] } },
+        right: { kind: "boundary-record", module: ADAPTER, outsideParty: { kind: "built-in", specifier: "runtime:clock" }, holding: { held: "stated", ports: ["Clock"] } },
+      }),
+    ).toBe("different");
   });
 
   it("refuses a second boundary record for one module and outside party", () => {
@@ -113,7 +221,7 @@ describe("recordsReadingOf", () => {
             record: {
               kind: "boundary-record",
               module: ADAPTER,
-              outsideParty: { kind: "specifier", specifier: "uuid" },
+              outsideParty: { kind: "package", specifier: "uuid", dependency: "uuid" },
               holding: { held: "carried", entry: { kind: "authorised-location" }, lacks: ["ports"], standing: "established" },
             },
           },

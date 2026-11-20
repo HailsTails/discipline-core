@@ -237,7 +237,7 @@ describe("recordOf, authorised locations", () => {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
         file: "src/adapters/stripe-webhook.ts",
-        holding: { held: "stated", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED }, whyChain: WHY_CHAIN },
+        holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
       },
     });
   });
@@ -257,21 +257,79 @@ describe("recordOf, authorised locations", () => {
         kind: "authorised-location",
         symptom: BRANCH_IN_A_TEST,
         file: "src/adapters/stripe-webhook.ts",
-        holding: { held: "stated", case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: { kind: "rule", rule: STRAIGHT_THROUGH_TESTS }, whyChain: WHY_CHAIN },
+        holding: {
+          held: "stated",
+          owing: { matches: "the-catalogue", case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: { kind: "rule", rule: STRAIGHT_THROUGH_TESTS } },
+          whyChain: WHY_CHAIN,
+        },
       },
     });
   });
 
-  it("refuses an authorised location naming a case the catalogue does not hold", () => {
+  it("accepts an authorised location naming a case the catalogue does not hold, noting the case for the report", () => {
     expect(
       recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: AUTHORISED_FILE, filedUnder: { kind: "authorised-locations" }, entry: { ...STATED_AUTHORISED_LOCATION, case: "needs-it-here" } }),
-    ).toEqual({ outcome: "failed", error: [{ kind: "unknown-case", case: "needs-it-here" }] });
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        file: "src/adapters/stripe-webhook.ts",
+        holding: {
+          held: "stated",
+          owing: { matches: "not-the-catalogue", note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" } },
+          whyChain: WHY_CHAIN,
+        },
+      },
+    });
   });
 
-  it("refuses an authorised location whose owes is not a rule or principle its case owes", () => {
+  it("accepts an authorised location whose owes is not a rule or principle its case owes, noting the owes for the report", () => {
     expect(
       recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: AUTHORISED_FILE, filedUnder: { kind: "authorised-locations" }, entry: { ...STATED_AUTHORISED_LOCATION, owes: "written-out-answers" } }),
-    ).toEqual({ outcome: "failed", error: [{ kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" }] });
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        file: "src/adapters/stripe-webhook.ts",
+        holding: {
+          held: "stated",
+          owing: { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } },
+          whyChain: WHY_CHAIN,
+        },
+      },
+    });
+  });
+
+  it("OPEN TABLE, hone#206: accepts Text past its reader at one test site owing Written-out answers, which its indication points at but its case does not owe, with the note", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: repoPathSchema.parse("hone-records/authorised-locations/text-past-its-reader.json"),
+        filedUnder: { kind: "authorised-locations" },
+        entry: {
+          ...STATED_AUTHORISED_LOCATION,
+          symptom: "text-past-its-reader",
+          file: "src/orders/charge-order.test.ts",
+          case: "states-what-the-unit-gives-back-for-one-case-or-several",
+          owes: "written-out-answers",
+        },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: TEXT_PAST_ITS_READER,
+        file: "src/orders/charge-order.test.ts",
+        holding: {
+          held: "stated",
+          owing: { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: "written-out-answers" } },
+          whyChain: WHY_CHAIN,
+        },
+      },
+    });
   });
 
   it("refuses an authorised location whose why-chain does not hold, with the chain's issues as values", () => {
@@ -289,20 +347,32 @@ describe("recordOf, authorised locations", () => {
 
 describe("owedBy", () => {
   it("finds a rule the case owes", () => {
-    expect(owedBy({ case: GIVES_A_VALUE_ITS_TYPE, owes: "declared-not-asserted" })).toEqual({ outcome: "ok", value: { kind: "rule", rule: DECLARED_NOT_ASSERTED } });
-  });
-
-  it("finds a principle the case owes", () => {
-    expect(owedBy({ case: GIVES_A_VALUE_ITS_TYPE, owes: "the-type-checker-proves-it" })).toEqual({
-      outcome: "ok",
-      value: { kind: "principle", principle: THE_TYPE_CHECKER_PROVES_IT },
+    expect(owedBy({ catalogue: CATALOGUE, case: "gives-a-value-its-type", owes: "declared-not-asserted" })).toEqual({
+      matches: "the-catalogue",
+      case: GIVES_A_VALUE_ITS_TYPE,
+      owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED },
     });
   });
 
-  it("refuses a rule that a symptom's indication points at but the case does not owe", () => {
-    expect(owedBy({ case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: "written-out-answers" })).toEqual({
-      outcome: "failed",
-      error: [{ kind: "owes-not-owed", case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: "written-out-answers" }],
+  it("finds a principle the case owes", () => {
+    expect(owedBy({ catalogue: CATALOGUE, case: "gives-a-value-its-type", owes: "the-type-checker-proves-it" })).toEqual({
+      matches: "the-catalogue",
+      case: GIVES_A_VALUE_ITS_TYPE,
+      owes: { kind: "principle", principle: THE_TYPE_CHECKER_PROVES_IT },
+    });
+  });
+
+  it("notes a rule that a symptom's indication points at but the case does not owe", () => {
+    expect(owedBy({ catalogue: CATALOGUE, case: "states-what-the-unit-gives-back-for-one-case-or-several", owes: "written-out-answers" })).toEqual({
+      matches: "not-the-catalogue",
+      note: { kind: "owes-not-owed", case: STATES_WHAT_THE_UNIT_GIVES_BACK, owes: "written-out-answers" },
+    });
+  });
+
+  it("notes a case the catalogue does not hold", () => {
+    expect(owedBy({ catalogue: CATALOGUE, case: "needs-it-here", owes: "declared-not-asserted" })).toEqual({
+      matches: "not-the-catalogue",
+      note: { kind: "unknown-case", case: "needs-it-here", owes: "declared-not-asserted" },
     });
   });
 });
@@ -361,7 +431,7 @@ describe("recordOf, carried records", () => {
       value: {
         kind: "boundary-record",
         module: "src/adapters/ids.ts",
-        outsideParty: { kind: "specifier", specifier: "uuid" },
+        outsideParty: { kind: "package", specifier: "uuid", dependency: "uuid" },
         holding: { held: "carried", entry, lacks: ["ports"], standing: "unjudged" },
       },
     });
@@ -411,7 +481,7 @@ describe("recordOf, boundary records", () => {
       }),
     ).toEqual({
       outcome: "ok",
-      value: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "specifier", specifier: "node:fs" }, holding: { held: "stated", ports: ["FileReader"] } },
+      value: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "built-in", specifier: "node:fs" }, holding: { held: "stated", ports: ["FileReader"] } },
     });
   });
 
@@ -430,7 +500,7 @@ describe("recordOf, boundary records", () => {
       value: {
         kind: "boundary-record",
         module: "src/adapters/orders",
-        outsideParty: { kind: "specifier", specifier: "@acme/orders-schema" },
+        outsideParty: { kind: "package", specifier: "@acme/orders-schema", dependency: "@acme/orders-schema" },
         holding: { held: "stated", ports: ["OrderStore"], conformist },
       },
     });
@@ -442,18 +512,68 @@ describe("recordOf, boundary records", () => {
     ).toEqual({ outcome: "failed", error: [{ kind: "unknown-runtime-facility", outsideParty: "runtime:env" }] });
   });
 
-  it("accepts a boundary record on a named ban, since a ban refuses only a deviation or a dependency record", () => {
+  it("reads a subpath of a package as that package, the outside dependency it names", () => {
     expect(
       recordOf({
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: BOUNDARIES_FILE,
         filedUnder: { kind: "boundaries" },
-        entry: { module: "src/adapters/collections.ts", outsideParty: "lodash", ports: ["Grouping"] },
+        entry: { module: "src/adapters/dates.ts", outsideParty: "@date-fns/tz/locale", ports: ["Calendar"] },
       }),
     ).toEqual({
       outcome: "ok",
-      value: { kind: "boundary-record", module: "src/adapters/collections.ts", outsideParty: { kind: "specifier", specifier: "lodash" }, holding: { held: "stated", ports: ["Grouping"] } },
+      value: {
+        kind: "boundary-record",
+        module: "src/adapters/dates.ts",
+        outsideParty: { kind: "package", specifier: "@date-fns/tz/locale", dependency: "@date-fns/tz" },
+        holding: { held: "stated", ports: ["Calendar"] },
+      },
+    });
+  });
+
+  it.each([{ outsideParty: "lodash" }, { outsideParty: "lodash/fp" }])(
+    "accepts a boundary record on $outsideParty, since a ban refuses only a deviation or a dependency record",
+    ({ outsideParty }) => {
+      expect(
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
+      ).toEqual({
+        outcome: "ok",
+        value: {
+          kind: "boundary-record",
+          module: "src/adapters/collections.ts",
+          outsideParty: { kind: "package", specifier: outsideParty, dependency: "lodash" },
+          holding: { held: "stated", ports: ["Grouping"] },
+        },
+      });
+    },
+  );
+
+  it.each([{ outsideParty: " runtime:clock" }, { outsideParty: "runtime:clock " }, { outsideParty: "Lodash" }, { outsideParty: "npm:lodash" }, { outsideParty: "lodash fp" }])(
+    "refuses an outside party written $outsideParty, which names no module specifier or runtime facility",
+    ({ outsideParty }) => {
+      expect(
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
+      ).toEqual({ outcome: "failed", error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["outsideParty"] })] }] });
+    },
+  );
+});
+
+describe("recordOf, a record's own text never stops the reader", () => {
+  it.each([{ symptom: "/x" }, { symptom: "../claimed-type" }, { symptom: "claimed type" }, { symptom: "Claimed-Type" }])(
+    "refuses debt whose symptom is written $symptom as a form refusal",
+    ({ symptom }) => {
+      expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom, file: "src/held.ts" } })).toEqual({
+        outcome: "failed",
+        error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["symptom"] })] }],
+      });
+    },
+  );
+
+  it("refuses a deviation whose recipe holds a line break as a form refusal", () => {
+    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEVIATIONS_FILE, filedUnder: { kind: "deviations" }, entry: { ...DEVIATION, recipe: "stub-with-vifn\n" } })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["recipe"] })] }],
     });
   });
 });
@@ -546,6 +666,36 @@ describe("recordOf, dependency records", () => {
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "named-ban", dependency: "lodash" }] });
   });
+
+  it.each([{ dependency: "lodash " }, { dependency: " lodash" }, { dependency: "Lodash" }, { dependency: "lodash/fp" }, { dependency: "npm:lodash" }])(
+    "refuses a dependency written $dependency, which is not the name of one direct outside dependency",
+    ({ dependency }) => {
+      expect(
+        recordOf({
+          catalogue: CATALOGUE,
+          base: UNMEASURED,
+          file: DEPENDENCIES_FILE,
+          filedUnder: { kind: "dependencies" },
+          entry: { dependency, nativeWay: "Array methods", whyNotEnough: "groupBy was missing." },
+        }),
+      ).toEqual({ outcome: "failed", error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["dependency"] })] }] });
+    },
+  );
+
+  it("reads a scoped dependency by its full name", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEPENDENCIES_FILE,
+        filedUnder: { kind: "dependencies" },
+        entry: { dependency: "@typescript-eslint/parser", nativeWay: "TypeScript's own parser", whyNotEnough: "ESLint reads only an ESTree." },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: { kind: "dependency-record", dependency: "@typescript-eslint/parser", nativeWay: "TypeScript's own parser", whyNotEnough: "ESLint reads only an ESTree." },
+    });
+  });
 });
 
 describe("recordOf, a named ban refuses no debt and no authorised location", () => {
@@ -576,7 +726,7 @@ describe("recordOf, a named ban refuses no debt and no authorised location", () 
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
         file: "src/collections/lodash-grouping.ts",
-        holding: { held: "stated", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED }, whyChain: WHY_CHAIN },
+        holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
       },
     });
   });

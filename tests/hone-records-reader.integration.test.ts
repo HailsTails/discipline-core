@@ -60,7 +60,7 @@ describe("Hone's records reader over a real hone-records folder, read from disk 
         records: [
           { place: { file: "hone-records/authorised-locations/claimed-type.json", index: 0 }, record: { kind: "authorised-location", symptom: { name: "claimed-type" }, file: "src/adapters/stripe-webhook.ts" } },
           { place: { file: "hone-records/boundaries.json", index: 0 }, record: { kind: "boundary-record", module: "src/adapters/system-clock.ts", outsideParty: { kind: "runtime", facility: "clock" } } },
-          { place: { file: "hone-records/boundaries.json", index: 1 }, record: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "specifier", specifier: "node:fs" } } },
+          { place: { file: "hone-records/boundaries.json", index: 1 }, record: { kind: "boundary-record", module: "src/adapters/files", outsideParty: { kind: "built-in", specifier: "node:fs" } } },
           { place: { file: "hone-records/debt/text-past-its-reader.json", index: 0 }, record: { kind: "debt", symptom: { name: "text-past-its-reader" }, file: "src/orders/charge-order.test.ts" } },
           { place: { file: "hone-records/dependencies.json", index: 0 }, record: { kind: "dependency-record", dependency: "zod" } },
           { place: { file: "hone-records/deviations/stub-with-vifn.json", index: 0 }, record: { kind: "deviation", recipe: { name: "stub-with-vifn" }, file: "src/sync/replay.test.ts" } },

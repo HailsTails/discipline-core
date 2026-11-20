@@ -2,11 +2,13 @@ import type { z } from "zod";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
 import type {
+  BaseMeasurement,
   CarriedListing,
   HoneRecord,
   OutsideParty,
   PlacedRecord,
   RecordPlace,
+  RecordNote,
   RecordsAtBase,
   RecordsDocument,
   RecordsDocumentRefusal,
@@ -21,21 +23,34 @@ type PlacedEntry = { readonly place: RecordPlace; readonly filedUnder: FiledUnde
 
 type Judged = { readonly placed: "record"; readonly record: PlacedRecord } | { readonly placed: "refused"; readonly refused: RefusedRecord };
 
-const outsidePartyText = (request: { readonly party: OutsideParty }): string =>
-  request.party.kind === "specifier" ? request.party.specifier : `runtime:${request.party.facility}`;
+export type Sameness = "same" | "different";
 
-const identityOf = (request: { readonly record: HoneRecord }): string => {
-  const { record } = request;
-  switch (record.kind) {
+const sameOutsideParty = (request: { readonly left: OutsideParty; readonly right: OutsideParty }): Sameness => {
+  const { left, right } = request;
+  switch (left.kind) {
+    case "package":
+      return right.kind === "package" && right.dependency === left.dependency ? "same" : "different";
+    case "built-in":
+      return right.kind === "built-in" && right.specifier === left.specifier ? "same" : "different";
+    case "runtime":
+      return right.kind === "runtime" && right.facility === left.facility ? "same" : "different";
+  }
+};
+
+export const sameRecordIdentity = (request: { readonly left: HoneRecord; readonly right: HoneRecord }): Sameness => {
+  const { left, right } = request;
+  switch (left.kind) {
     case "debt":
     case "authorised-location":
-      return `${record.kind} ${record.symptom.name} ${record.file}`;
+      return right.kind === left.kind && right.symptom.name === left.symptom.name && right.file === left.file ? "same" : "different";
     case "deviation":
-      return `${record.kind} ${record.recipe.name} ${record.file}`;
+      return right.kind === "deviation" && right.recipe.name === left.recipe.name && right.file === left.file ? "same" : "different";
     case "boundary-record":
-      return `${record.kind} ${record.module} ${outsidePartyText({ party: record.outsideParty })}`;
+      return right.kind === "boundary-record" && right.module === left.module && sameOutsideParty({ left: left.outsideParty, right: right.outsideParty }) === "same"
+        ? "same"
+        : "different";
     case "dependency-record":
-      return `${record.kind} ${record.dependency}`;
+      return right.kind === "dependency-record" && right.dependency === left.dependency ? "same" : "different";
   }
 };
 
@@ -60,26 +75,41 @@ const judgedEntry = (request: { readonly placed: PlacedEntry; readonly catalogue
     : { placed: "record", record: { place, record: record.value } };
 };
 
-const withoutDuplicates = (request: { readonly judged: readonly Judged[] }): readonly Judged[] => {
-  const firstPlaces = new Map<string, RecordPlace>();
-  return request.judged.map((judged) => {
-    if (judged.placed === "refused") {
-      return judged;
-    }
-    const identity = identityOf({ record: judged.record.record });
-    const first = firstPlaces.get(identity);
-    if (first === undefined) {
-      firstPlaces.set(identity, judged.record.place);
-      return judged;
-    }
-    return { placed: "refused", refused: { place: judged.record.place, refusals: [{ kind: "duplicate", of: first }] } };
-  });
+const duplicateJudged = (request: { readonly judged: Judged; readonly earlier: readonly Judged[] }): Judged => {
+  const { judged } = request;
+  if (judged.placed === "refused") {
+    return judged;
+  }
+  const first = request.earlier.find(
+    (candidate) => candidate.placed === "record" && sameRecordIdentity({ left: candidate.record.record, right: judged.record.record }) === "same",
+  );
+  return first === undefined || first.placed === "refused"
+    ? judged
+    : { placed: "refused", refused: { place: judged.record.place, refusals: [{ kind: "duplicate", of: first.record.place }] } };
 };
 
-const readingOf = (request: { readonly judged: readonly Judged[] }): RecordsReading => ({
-  records: request.judged.flatMap((judged) => (judged.placed === "record" ? [judged.record] : [])),
-  refused: request.judged.flatMap((judged) => (judged.placed === "refused" ? [judged.refused] : [])),
-});
+const withoutDuplicates = (request: { readonly judged: readonly Judged[] }): readonly Judged[] =>
+  request.judged.map((judged, index) => duplicateJudged({ judged, earlier: request.judged.slice(0, index) }));
+
+const baseMeasurementOf = (request: { readonly base: RecordsAtBase }): BaseMeasurement =>
+  request.base.measured === "yes" ? { measured: "yes" } : { measured: "no", base: request.base.base };
+
+const notesOf = (request: { readonly placed: PlacedRecord }): readonly RecordNote[] => {
+  const { place, record } = request.placed;
+  return record.kind === "authorised-location" && record.holding.held === "stated" && record.holding.owing.matches === "not-the-catalogue"
+    ? [{ place, note: record.holding.owing.note }]
+    : [];
+};
+
+const readingOf = (request: { readonly judged: readonly Judged[]; readonly base: RecordsAtBase }): RecordsReading => {
+  const records = request.judged.flatMap((judged) => (judged.placed === "record" ? [judged.record] : []));
+  return {
+    records,
+    refused: request.judged.flatMap((judged) => (judged.placed === "refused" ? [judged.refused] : [])),
+    notes: records.flatMap((placed) => notesOf({ placed })),
+    base: baseMeasurementOf(request),
+  };
+};
 
 const carriedOf = (request: { readonly record: HoneRecord }): readonly Omit<CarriedListing, "place">[] => {
   const { record } = request;
@@ -109,5 +139,5 @@ export const recordsReadingOf = (request: {
   }
   const placed = entries.flatMap((listed) => (listed.outcome === "ok" ? listed.value : []));
   const judged = placed.map((entry) => judgedEntry({ placed: entry, catalogue: request.catalogue, base: request.base }));
-  return { outcome: "ok", value: readingOf({ judged: withoutDuplicates({ judged }) }) };
+  return { outcome: "ok", value: readingOf({ judged: withoutDuplicates({ judged }), base: request.base }) };
 };

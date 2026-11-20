@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { namedRecordsFileOf, recordsFileStandingOf, singleRecordsFileOf } from "./records-layout.ts";
+import { namedRecordsFileOf, recordsFileStandingOf } from "./records-layout.ts";
 
 describe("recordsFileStandingOf", () => {
   it.each([
@@ -28,10 +28,13 @@ describe("recordsFileStandingOf", () => {
 
 describe("the records file a record belongs in", () => {
   it("names a kind folder's file after the symptom or recipe it holds", () => {
-    expect(namedRecordsFileOf({ kind: "authorised-locations", name: "claimed-type" })).toBe("hone-records/authorised-locations/claimed-type.json");
+    expect(namedRecordsFileOf({ kind: "authorised-locations", name: "claimed-type" })).toEqual({
+      outcome: "ok",
+      value: "hone-records/authorised-locations/claimed-type.json",
+    });
   });
 
-  it("names a single file after its kind", () => {
-    expect(singleRecordsFileOf({ kind: "boundaries" })).toBe("hone-records/boundaries.json");
+  it.each([{ name: "/x" }, { name: "../claimed-type" }, { name: "claimed-type\n" }, { name: "" }])("names no file for a name written $name, without throwing", ({ name }) => {
+    expect(namedRecordsFileOf({ kind: "debt", name })).toEqual({ outcome: "failed", error: { kind: "not-a-records-name", name } });
   });
 });

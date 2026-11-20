@@ -7,6 +7,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { createRecordsFolder, type RecordsFolderPorts } from "./records-folder.ts";
 
+
 const REPO = absolutePathSchema.parse("/repo");
 
 const path = createPathPort({ flavour: "posix", workingDirectory: vi.fn<(request: Record<string, never>) => string>().mockReturnValue("/repo") });
@@ -90,6 +91,19 @@ describe("createRecordsFolder, read", () => {
       repoRoot: REPO,
     });
     expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "not-a-records-file", file: "hone-records/debt/team" } });
+  });
+
+  it("fails naming an entry on disk whose name is no repository path, without throwing", () => {
+    const folder = createRecordsFolder({
+      ...portsWith({
+        exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
+        read: vi.fn<FileTextPort["read"]>(),
+        list: vi.fn<DirectoryPort["list"]>().mockReturnValueOnce({ outcome: "ok", value: [{ name: "..", kind: "file" }] }),
+        ...UNUSED_BASE,
+      }),
+      repoRoot: REPO,
+    });
+    expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "not-a-records-name", folder: "hone-records", name: ".." } });
   });
 
   it("fails naming a folder it cannot list", () => {

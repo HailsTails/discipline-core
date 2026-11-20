@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { type Case, type Pointed, pointedNameOf, type Recipe, type Symptom, type SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import { type Case, pointedNameOf, type Recipe, type Symptom, type SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { carriedStandingOf } from "./carried-standing.ts";
@@ -11,6 +11,7 @@ import type {
   Deviation,
   HoneRecord,
   OutsideParty,
+  Owing,
   RecordRefusal,
   RecordsAtBase,
   RuntimeFacility,
@@ -40,6 +41,14 @@ export type FiledUnder = { readonly kind: NamedFolderKind } | { readonly kind: S
 
 const RUNTIME_PREFIX = "runtime:";
 
+const BUILT_IN_PREFIX = "node:";
+
+const SCOPE_MARK = "@";
+
+const SCOPED_NAME_SEGMENTS = 2;
+
+const UNSCOPED_NAME_SEGMENTS = 1;
+
 const RUNTIME_FACILITIES: readonly RuntimeFacility[] = ["clock", "random", "process", "json"];
 
 const resolved = <Value>(found: Value): Resolution<Value> => ({ outcome: "ok", value: found });
@@ -66,30 +75,56 @@ const recipeNamed = (request: { readonly catalogue: SymptomCatalogue; readonly n
   return recipe === undefined ? refusedWith({ kind: "unknown-recipe", recipe: request.name }) : resolved(recipe);
 };
 
-const caseNamed = (request: { readonly catalogue: SymptomCatalogue; readonly name: string }): Resolution<Case> => {
-  const found = request.catalogue.cases.find((candidate) => candidate.name === request.name);
-  return found === undefined ? refusedWith({ kind: "unknown-case", case: request.name }) : resolved(found);
-};
-
-export const owedBy = (request: { readonly case: Case; readonly owes: string }): Resolution<Pointed> => {
+const owedWithin = (request: { readonly case: Case; readonly owes: string }): Owing => {
   const point = request.case.owes.find((candidate) => pointedNameOf({ point: candidate }) === request.owes);
-  return point === undefined ? refusedWith({ kind: "owes-not-owed", case: request.case, owes: request.owes }) : resolved(point);
+  return point === undefined
+    ? { matches: "not-the-catalogue", note: { kind: "owes-not-owed", case: request.case, owes: request.owes } }
+    : { matches: "the-catalogue", case: request.case, owes: point };
 };
 
-const placedIn = (request: { readonly file: RepoPath; readonly belongsIn: RepoPath }): Resolution<RepoPath> =>
-  request.file === request.belongsIn ? resolved(request.file) : refusedWith({ kind: "misplaced", belongsIn: request.belongsIn });
+export const owedBy = (request: { readonly catalogue: SymptomCatalogue; readonly case: string; readonly owes: string }): Owing => {
+  const found = request.catalogue.cases.find((candidate) => candidate.name === request.case);
+  return found === undefined
+    ? { matches: "not-the-catalogue", note: { kind: "unknown-case", case: request.case, owes: request.owes } }
+    : owedWithin({ case: found, owes: request.owes });
+};
 
-const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideParty> => {
-  if (!request.text.startsWith(RUNTIME_PREFIX)) {
-    return resolved({ kind: "specifier", specifier: request.text });
+const placedIn = (request: { readonly file: RepoPath; readonly kind: NamedFolderKind; readonly name: string }): Resolution<RepoPath> => {
+  const belongsIn = namedRecordsFileOf({ kind: request.kind, name: request.name });
+  if (belongsIn.outcome === "failed") {
+    return refusedWith(belongsIn.error);
   }
+  return request.file === belongsIn.value ? resolved(request.file) : refusedWith({ kind: "misplaced", belongsIn: belongsIn.value });
+};
+
+const notBanned = (request: { readonly catalogue: SymptomCatalogue; readonly dependency: string }): Resolution<string> =>
+  request.catalogue.namedBans.some((ban) => ban.outsideDependency === request.dependency)
+    ? refusedWith({ kind: "named-ban", dependency: request.dependency })
+    : resolved(request.dependency);
+
+const packageOf = (request: { readonly specifier: string }): string => {
+  const nameSegments = request.specifier.startsWith(SCOPE_MARK) ? SCOPED_NAME_SEGMENTS : UNSCOPED_NAME_SEGMENTS;
+  return request.specifier.split("/").slice(0, nameSegments).join("/");
+};
+
+const runtimePartyOf = (request: { readonly text: string }): Resolution<OutsideParty> => {
   const facility = RUNTIME_FACILITIES.find((candidate) => `${RUNTIME_PREFIX}${candidate}` === request.text);
   return facility === undefined ? refusedWith({ kind: "unknown-runtime-facility", outsideParty: request.text }) : resolved({ kind: "runtime", facility });
 };
 
+const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideParty> => {
+  if (request.text.startsWith(RUNTIME_PREFIX)) {
+    return runtimePartyOf(request);
+  }
+  if (request.text.startsWith(BUILT_IN_PREFIX)) {
+    return resolved({ kind: "built-in", specifier: request.text });
+  }
+  return resolved({ kind: "package", specifier: request.text, dependency: packageOf({ specifier: request.text }) });
+};
+
 const symptomFiledAt = (request: Resolving & { readonly kind: NamedFolderKind; readonly symptom: string }): Resolution<Symptom> => {
   const symptom = symptomNamed({ catalogue: request.catalogue, name: request.symptom });
-  const placed = placedIn({ file: request.file, belongsIn: namedRecordsFileOf({ kind: request.kind, name: request.symptom }) });
+  const placed = placedIn({ file: request.file, kind: request.kind, name: request.symptom });
   return symptom.outcome === "failed" || placed.outcome === "failed" ? { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(placed)] } : symptom;
 };
 
@@ -121,16 +156,14 @@ const statedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedLo
     return form;
   }
   const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", symptom: form.value.symptom });
-  const found = caseNamed({ catalogue: request.catalogue, name: form.value.case });
-  const owes = found.outcome === "failed" ? found : owedBy({ case: found.value, owes: form.value.owes });
-  if (symptom.outcome === "failed" || found.outcome === "failed" || owes.outcome === "failed") {
-    return { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(owes)] };
+  if (symptom.outcome === "failed") {
+    return symptom;
   }
   return resolved({
     kind: "authorised-location",
     symptom: symptom.value,
     file: form.value.file,
-    holding: { held: "stated", case: found.value, owes: owes.value, whyChain: form.value.whyChain },
+    holding: { held: "stated", owing: owedBy({ catalogue: request.catalogue, case: form.value.case, owes: form.value.owes }), whyChain: form.value.whyChain },
   });
 };
 
@@ -199,7 +232,7 @@ const deviationOf = (request: Resolving): Resolution<Deviation> => {
   const { recipe: name, file, recipeReason, reasonFails, evidence, ruleHolds } = form.value;
   const found = recipeNamed({ catalogue: request.catalogue, name });
   const recipe = found.outcome === "failed" ? found : recipeReasonHeld({ recipe: found.value, recipeReason });
-  const placed = placedIn({ file: request.file, belongsIn: namedRecordsFileOf({ kind: "deviations", name }) });
+  const placed = placedIn({ file: request.file, kind: "deviations", name });
   if (recipe.outcome === "failed" || placed.outcome === "failed") {
     return { outcome: "failed", error: [...refusalsOf(recipe), ...refusalsOf(placed)] };
   }
@@ -211,10 +244,11 @@ const dependencyRecordOf = (request: Resolving): Resolution<DependencyRecord> =>
   if (form.outcome === "failed") {
     return form;
   }
-  const { dependency, nativeWay, whyNotEnough, peerRisk } = form.value;
-  return request.catalogue.namedBans.some((ban) => ban.outsideDependency === dependency)
-    ? refusedWith({ kind: "named-ban", dependency })
-    : resolved({ kind: "dependency-record", dependency, nativeWay, whyNotEnough, ...(peerRisk === undefined ? {} : { peerRisk }) });
+  const { nativeWay, whyNotEnough, peerRisk } = form.value;
+  const dependency = notBanned({ catalogue: request.catalogue, dependency: form.value.dependency });
+  return dependency.outcome === "failed"
+    ? dependency
+    : resolved({ kind: "dependency-record", dependency: dependency.value, nativeWay, whyNotEnough, ...(peerRisk === undefined ? {} : { peerRisk }) });
 };
 
 export const recordOf = (request: Resolving & { readonly filedUnder: FiledUnder }): Resolution<HoneRecord> => {

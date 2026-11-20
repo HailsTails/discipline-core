@@ -3,7 +3,7 @@ import type { RecordKind, Symptom, SymptomCatalogue } from "../symptom-catalogue
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { RecordsDocument } from "./hone-record.ts";
 import { readHoneRecords } from "./read-hone-records.ts";
-import type { RecordsSource } from "./records-folder.ts";
+import type { RecordsSource } from "./records-source.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
 
@@ -42,7 +42,7 @@ describe("readHoneRecords", () => {
       baseRevision: undefined,
     });
     expect({ reading, readAt: readAt.mock.calls }).toMatchObject({
-      reading: { outcome: "ok", value: { records: [{ record: { holding: { held: "carried", standing: "unjudged" } } }], refused: [] } },
+      reading: { outcome: "ok", value: { records: [{ record: { holding: { held: "carried", standing: "unjudged" } } }], refused: [], base: { measured: "no", base: { state: "not-given" } } } },
       readAt: [],
     });
   });
@@ -55,7 +55,7 @@ describe("readHoneRecords", () => {
       baseRevision: "origin/main",
     });
     expect({ reading, readAt: readAt.mock.calls }).toMatchObject({
-      reading: { outcome: "ok", value: { records: [{ record: { holding: { held: "carried", standing: "established" } } }], refused: [] } },
+      reading: { outcome: "ok", value: { records: [{ record: { holding: { held: "carried", standing: "established" } } }], refused: [], base: { measured: "yes" } } },
       readAt: [[{ revision: "origin/main" }]],
     });
   });
@@ -70,7 +70,14 @@ describe("readHoneRecords", () => {
         catalogue: CATALOGUE,
         baseRevision: "nowhere",
       }),
-    ).toMatchObject({ outcome: "ok", value: { records: [{ record: { holding: { held: "carried", standing: "unjudged" } } }], refused: [] } });
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        records: [{ record: { holding: { held: "carried", standing: "unjudged" } } }],
+        refused: [],
+        base: { measured: "no", base: { state: "git-failed", revision: "nowhere", gitMessage: "fatal: bad revision" } },
+      },
+    });
   });
 
   it("fails with the folder's failure when the working records cannot be read", () => {
