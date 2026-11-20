@@ -22,7 +22,8 @@ import type {
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
-import { escapedLineBreaks, findingLine, locatedFindingLine } from "./finding-line.ts";
+import { escapedLineBreaks, locatedFindingLine, symptomFindingLine } from "./finding-line.ts";
+import { NO_SYMPTOM_GUIDE, type SymptomGuide, symptomNoteLinesOf, symptomReadingIn } from "./symptom-notes.ts";
 
 const importNote = (request: { readonly record: ExceptionRecord }): string => {
   const recordImport = recordImportOf(request);
@@ -315,7 +316,9 @@ const readFirstLine = (request: NextCommands & { readonly entry: ReadFirstEntry;
   }
 };
 
-type ReportLines = (request: NextCommands & { readonly report: CheckReport }) => readonly string[];
+type GuidedReport = NextCommands & { readonly report: CheckReport; readonly guide: SymptomGuide };
+
+type ReportLines = (request: GuidedReport) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   excluded: (request) => request.report.excluded,
@@ -326,7 +329,10 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     request.report.editions.map(
       (reading) => `${clauseAddressText({ address: reading.address })} ${reading.mechanism} edition ${reading.edition} of ${reading.latest}`,
     ),
-  findings: (request) => request.report.findings.map((finding) => findingLine({ finding })),
+  findings: (request) =>
+    request.report.findings.map((finding) =>
+      symptomFindingLine({ finding, reading: symptomReadingIn({ guide: request.guide, finding }) }),
+    ),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),
   stale: (request) => request.report.stale.map((record) => recordLine({ record })),
@@ -346,11 +352,14 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
   readFirst: (request) => {
     const spiritBelow = spiritBelowIn({ entries: request.report.readFirst });
-    return request.report.readFirst.map((entry) => readFirstLine({ ...request, entry, spiritBelow }));
+    return [
+      ...symptomNoteLinesOf({ guide: request.guide, findings: request.report.findings }),
+      ...request.report.readFirst.map((entry) => readFirstLine({ ...request, entry, spiritBelow })),
+    ];
   },
 };
 
-const reportSections = (request: NextCommands & { readonly report: CheckReport }): readonly ReportSection[] =>
+const reportSections = (request: GuidedReport): readonly ReportSection[] =>
   SECTION_NAMES.map((name) => ({ name, lines: SECTION_LINES[name](request) }));
 
 const verdictLine = (request: { readonly report: CheckReport }): string =>
@@ -358,11 +367,13 @@ const verdictLine = (request: { readonly report: CheckReport }): string =>
     ? `verdict: ${verdictOf(request)}`
     : `verdict: ${verdictOf(request)} (partial assessment)`;
 
-export const renderReportText = (
-  request: NextCommands & { readonly report: CheckReport; readonly output: ReportOutput },
-): string => {
+export const renderGuidedReportText = (request: GuidedReport & { readonly output: ReportOutput }): string => {
   const sectionLines = reportSections(request)
     .filter((section) => section.lines.length > 0)
     .flatMap((section) => printedSectionLines({ output: request.output, section }));
   return `${[...sectionLines, verdictLine(request)].join("\n")}\n`;
 };
+
+export const renderReportText = (
+  request: NextCommands & { readonly report: CheckReport; readonly output: ReportOutput },
+): string => renderGuidedReportText({ ...request, guide: NO_SYMPTOM_GUIDE });

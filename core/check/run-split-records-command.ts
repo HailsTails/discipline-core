@@ -4,7 +4,8 @@ import { parseSplitRecordsArguments } from "./command-arguments.ts";
 import { splitRecordsCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from "./run-check-command.ts";
+import { repoRootOf } from "./check-locations.ts";
+import { type CommandRequest, printOutcome, withShownPaths } from "./run-check-command.ts";
 
 const recordsSplit = (request: CommandRequest): Result<RecordsSplit, LoadFailure> => {
   const parsed = parseSplitRecordsArguments({ arguments: request.process.arguments });

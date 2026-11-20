@@ -42,6 +42,8 @@ import type {
   Unmeasured,
 } from "../core/verdict/check-report.ts";
 import { SECTION_NAMES, type SectionName, sectionRoleOf } from "../core/verdict/section-roles.ts";
+import { NO_SYMPTOM_GUIDE, type SymptomGuide, type UnreadableGuide } from "../core/verdict/symptom-notes.ts";
+import type { Principle, Recipe, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import type { Verdict } from "../core/verdict/verdict.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, reportLinesOf } from "./output-contract.ts";
@@ -452,16 +454,269 @@ const VERDICT_REPORTS: Readonly<Record<Verdict, Readonly<Record<"whole" | "parti
 
 const EVERY_OUTPUT: readonly ReportOutput[] = reportOutputSchema.options;
 
+const SYMPTOM_PAGE = "node_modules/@hailstails/hone/rules/typescript/symptoms.md";
+
+const CHECKS_PAGE = "node_modules/@hailstails/hone/rules/CD-27/CHECKS.md";
+
+const AUDIT = mechanismIdSchema.parse("audit");
+
+const TEST_BODY_LOGIC = clauseAddressSchema.parse("CD-27#test-body-logic");
+
+const TEST_FILE = repoPathSchema.parse("src/orders/charge-order.test.ts");
+
+const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
+
+const TESTS_ARE_OURS: Principle = { name: "tests-are-ours", title: "Tests are ours" };
+
+const AT_A_BOUNDARY: Principle = { name: "external-behaviour-sits-at-a-boundary", title: "External behaviour sits at a boundary" };
+
+const ONE_PLACE_DECIDES: Principle = { name: "one-place-decides", title: "One place decides" };
+
+const PORTS_DECLARED_INSIDE: Rule = { name: "ports-declared-inside", title: "Ports declared inside", principle: AT_A_BOUNDARY, standing: "accepted" };
+
+const WRITTEN_OUT_ANSWERS: Rule = { name: "written-out-answers", title: "Written-out answers", principle: TESTS_ARE_OURS, standing: "accepted" };
+
+const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
+
+const STRAIGHT_THROUGH_TESTS: Rule = { name: "straight-through-tests", title: "Straight-through tests", principle: TESTS_ARE_OURS, standing: "accepted" };
+
+const HANDED_WHAT_IT_USES: Rule = { name: "handed-what-it-uses", title: "Handed what it uses", principle: ONE_PLACE_DECIDES, standing: "accepted" };
+
+const WORLD_VALUES_THROUGH_A_PORT: Recipe = { name: "world-values-through-a-port", title: "World values through a port", standing: "accepted" };
+
+const ASSERT_TO_NARROW: Recipe = { name: "assert-to-narrow", title: "Assert to narrow", standing: "accepted" };
+
+const ITEACH_OVER_TYPED_ROWS: Recipe = { name: "iteach-over-typed-rows", title: "it.each over typed rows", standing: "accepted" };
+
+const BOUNDARY_RECORD: RecordKind = { name: "boundary-record", title: "Boundary record", phrase: "a boundary record", todaysFormat: "authorised-location" };
+
+const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
+
+const DEVIATION: RecordKind = { name: "deviation", title: "Deviation", phrase: "a deviation", todaysFormat: "none-yet" };
+
+const AUTHORISED_LOCATION: RecordKind = {
+  name: "authorised-location",
+  title: "Authorised location",
+  phrase: "an authorised location",
+  todaysFormat: "authorised-location",
+};
+
+const DATE_USED_DIRECTLY: Symptom = {
+  name: "date-used-directly",
+  title: "Date used directly",
+  seen: "Any use of `Date` outside the places that handle dates.",
+  mayIndicate: [
+    {
+      case: "Needs the current time",
+      points: [
+        { kind: "rule", rule: PORTS_DECLARED_INSIDE },
+        { kind: "rule", rule: WRITTEN_OUT_ANSWERS },
+      ],
+    },
+    { case: "Does one job", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+  ],
+  breachUsuallySits: "in the unit that should be passed the time, often a doer doing two jobs",
+  recipes: [WORLD_VALUES_THROUGH_A_PORT],
+  correctUses: [{ situation: "correct use", kind: BOUNDARY_RECORD, at: "on the clock adapter" }],
+};
+
+const BRANCH_IN_A_TEST: Symptom = {
+  name: "branch-in-a-test",
+  title: "Branch in a test",
+  seen: "`if` in a test file.",
+  mayIndicate: [
+    {
+      case: "Checks a value that may be one of several outcomes",
+      points: [
+        { kind: "rule", rule: STRAIGHT_THROUGH_TESTS },
+        { kind: "principle", principle: NO_HIDDEN_EFFECTS },
+      ],
+    },
+  ],
+  breachUsuallySits: "in the unit's output type, where optional or loose shapes force the test to branch",
+  recipes: [ASSERT_TO_NARROW, ITEACH_OVER_TYPED_ROWS],
+  correctUses: [],
+};
+
+const DOUBLE_WITH_A_BODY: Symptom = {
+  name: "double-with-a-body",
+  title: "Double with a body",
+  seen: "A double that has a function body.",
+  mayIndicate: [{ case: "Uses what a collaborator gives back", points: [{ kind: "rule", rule: HANDED_WHAT_IT_USES }] }],
+  breachUsuallySits: "in a port too wide",
+  recipes: [],
+  correctUses: [{ situation: "a fake, where a stub cannot do the test", kind: DEVIATION, at: "from Stub with vi.fn" }],
+};
+
+const SYMPTOM_GUIDE: SymptomGuide = {
+  guide: "catalogue",
+  page: SYMPTOM_PAGE,
+  catalogue: {
+    principles: [NO_HIDDEN_EFFECTS, TESTS_ARE_OURS, AT_A_BOUNDARY, ONE_PLACE_DECIDES],
+    rules: [PORTS_DECLARED_INSIDE, WRITTEN_OUT_ANSWERS, DOER_OR_ORCHESTRATOR, STRAIGHT_THROUGH_TESTS, HANDED_WHAT_IT_USES],
+    recipes: [WORLD_VALUES_THROUGH_A_PORT, ASSERT_TO_NARROW, ITEACH_OVER_TYPED_ROWS],
+    recordKinds: [AUTHORISED_LOCATION, BOUNDARY_RECORD, DEBT, DEVIATION],
+    alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    symptoms: [DATE_USED_DIRECTLY, BRANCH_IN_A_TEST, DOUBLE_WITH_A_BODY],
+    clauses: [
+      { clause: clauseAddressSchema.parse("CD-17#clock-sources"), sight: { kind: "one-symptom", symptom: DATE_USED_DIRECTLY } },
+      {
+        clause: TEST_BODY_LOGIC,
+        sight: {
+          kind: "symptom-by-form",
+          forms: [
+            { section: "branching-with-if", symptom: BRANCH_IN_A_TEST },
+            { section: "logic-inside-a-function-the-test-passes-on", symptom: DOUBLE_WITH_A_BODY },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+const SYMPTOM_FINDINGS: readonly Filled<Finding>[] = [
+  {
+    entry: {
+      clause: clauseAddressSchema.parse("CD-17#clock-sources"),
+      mechanism: AUDIT,
+      file: repoPathSchema.parse("src/orders/charge-order.ts"),
+      anchor: { line: 14, column: 0 },
+      snippet: "const chargedAt = clock.now();",
+    },
+    fills: {
+      clause: "CD-17#clock-sources",
+      mechanism: "audit",
+      file: "src/orders/charge-order.ts",
+      line: "14",
+      column: "0",
+      snippet: "const chargedAt = clock.now();",
+      symptom: "date-used-directly",
+      indicated: "ports-declared-inside, written-out-answers, doer-or-orchestrator",
+    },
+  },
+  {
+    entry: {
+      clause: TEST_BODY_LOGIC,
+      mechanism: AUDIT,
+      file: TEST_FILE,
+      anchor: { line: 22, column: 2 },
+      snippet: "if (result.ok) {",
+      remedy: { fix: "write one test per case, or one it.each table", page: CHECKS_PAGE, section: "branching-with-if" },
+    },
+    fills: {
+      clause: "CD-27#test-body-logic",
+      mechanism: "audit",
+      file: "src/orders/charge-order.test.ts",
+      line: "22",
+      column: "2",
+      snippet: "if (result.ok) {",
+      symptom: "branch-in-a-test",
+      indicated: "straight-through-tests, no-hidden-effects",
+      fix: "write one test per case, or one it.each table",
+      "fix page": CHECKS_PAGE,
+      section: "branching-with-if",
+    },
+  },
+  {
+    entry: {
+      clause: TEST_BODY_LOGIC,
+      mechanism: AUDIT,
+      file: TEST_FILE,
+      anchor: { line: 30, column: 4 },
+      snippet: "kindOf: () => \"file\"",
+      remedy: { fix: "make it a vi.fn spy", page: CHECKS_PAGE, section: "logic-inside-a-function-the-test-passes-on" },
+    },
+    fills: {
+      clause: "CD-27#test-body-logic",
+      mechanism: "audit",
+      file: "src/orders/charge-order.test.ts",
+      line: "30",
+      column: "4",
+      snippet: "kindOf: () => \"file\"",
+      symptom: "double-with-a-body",
+      indicated: "handed-what-it-uses",
+      fix: "make it a vi.fn spy",
+      "fix page": CHECKS_PAGE,
+      section: "logic-inside-a-function-the-test-passes-on",
+    },
+  },
+];
+
+const SYMPTOM_NOTE_FILLS: readonly Fills[] = [
+  {
+    symptom: "date-used-directly",
+    title: "Date used directly",
+    indications: "needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator",
+    breach: "in the unit that should be passed the time, often a doer doing two jobs",
+    recipe: "World values through a port",
+    answers: "Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out)",
+    "symptom page": SYMPTOM_PAGE,
+  },
+  {
+    symptom: "branch-in-a-test",
+    title: "Branch in a test",
+    indications: "checks a value that may be one of several outcomes → Straight-through tests, No hidden effects",
+    breach: "in the unit's output type, where optional or loose shapes force the test to branch",
+    recipes: "Assert to narrow; it.each over typed rows",
+    answers: "Known debt: debt (today: file-carve-out)",
+    "symptom page": SYMPTOM_PAGE,
+  },
+  {
+    symptom: "double-with-a-body",
+    title: "Double with a body",
+    indications: "uses what a collaborator gives back → Handed what it uses",
+    breach: "in a port too wide",
+    answers: "A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). Known debt: debt (today: file-carve-out)",
+    "symptom page": SYMPTOM_PAGE,
+  },
+];
+
+const SYMPTOM_FILLS: Partial<Record<SectionName, readonly Fills[]>> = {
+  findings: SYMPTOM_FINDINGS.map((sample) => sample.fills),
+  readFirst: SYMPTOM_NOTE_FILLS,
+};
+
+const symptomFills: EntryFills = ({ section, position }) => ({ ...SYMPTOM_FILLS[section]?.[position] });
+
+const SYMPTOM_CATALOGUE = "node_modules/@hailstails/hone/rules/typescript/symptoms.json";
+
+const UNREAD_CATALOGUES: readonly Filled<UnreadableGuide>[] = [
+  { entry: { guide: "unreadable", failure: `file-unreadable ${SYMPTOM_CATALOGUE} EACCES` }, fills: { path: SYMPTOM_CATALOGUE, detail: "EACCES" } },
+  { entry: { guide: "unreadable", failure: `file-malformed ${SYMPTOM_CATALOGUE} Unexpected end` }, fills: { path: SYMPTOM_CATALOGUE, detail: "Unexpected end" } },
+  { entry: { guide: "unreadable", failure: `unsupported-version ${SYMPTOM_CATALOGUE} 2` }, fills: { path: SYMPTOM_CATALOGUE, "version found": "2" } },
+];
+
 const REPORT_LINES: readonly PrintedLine[] = [
-  ...EVERY_OUTPUT.flatMap((output) => reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sampleFills })),
+  ...EVERY_OUTPUT.flatMap((output) =>
+    reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sampleFills, guide: NO_SYMPTOM_GUIDE }),
+  ),
   ...reportLinesOf({
     report: { ...EMPTY_REPORT, unmeasured: entriesOf(UNSLICED_UNRUN) },
     output: "full",
     projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
     entryFills: unslicedFills,
+    guide: NO_SYMPTOM_GUIDE,
   }),
   ...[...NOTED_REPORTS, ...Object.values(VERDICT_REPORTS).flatMap((byPart) => Object.values(byPart))].flatMap((report) =>
-    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sharedFills }),
+    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sharedFills, guide: NO_SYMPTOM_GUIDE }),
+  ),
+  ...reportLinesOf({
+    report: { ...EMPTY_REPORT, findings: entriesOf(SYMPTOM_FINDINGS) },
+    output: "full",
+    projectCommand: PROJECT_COMMAND,
+    pruneCommand: PRUNE_COMMAND,
+    entryFills: symptomFills,
+    guide: SYMPTOM_GUIDE,
+  }),
+  ...UNREAD_CATALOGUES.flatMap((sample) =>
+    reportLinesOf({
+      report: EMPTY_REPORT,
+      output: "full",
+      projectCommand: PROJECT_COMMAND,
+      pruneCommand: PRUNE_COMMAND,
+      entryFills: () => sample.fills,
+      guide: sample.entry,
+    }),
   ),
 ];
 

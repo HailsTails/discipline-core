@@ -1,8 +1,10 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
-import { checkCommandOutcome } from "../core/check/command-outcome.ts";
+import { guidedCheckCommandOutcome } from "../core/check/command-outcome.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import { runCheckCommand } from "../core/check/run-check-command.ts";
+import { runGuidedCheckCommand } from "../core/check/run-guided-check-command.ts";
+import { symptomGuideIn } from "../core/check/symptom-guide.ts";
+import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
@@ -18,6 +20,8 @@ const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 const PRUNE_COMMAND = "node core/check/tool-command.ts prune-debt --repo .";
 
 const path = createDefaultPathPort({});
+
+const ENTRY_URL = new URL("../core/check/tool-command.ts", import.meta.url).href;
 
 const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
   const resolved = path.resolve(request);
@@ -69,7 +73,16 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     git: trackingGit({ tracked: request.tracked }),
   }));
   assert(checked.outcome === "ok", `${request.repo} loads`);
-  return checkCommandOutcome({ result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } });
+  const guide = symptomGuideIn({
+    path,
+    fileText: createDefaultFileTextPort({}),
+    repoRoot: request.repo,
+    installRoot: INSTALL_ROOT,
+    symptomCatalogueOf: createSymptomCatalogueRepository,
+  });
+  return guidedCheckCommandOutcome({
+    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide } },
+  });
 };
 
 const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tracked: readonly RepoPath[] }) => {
@@ -79,14 +92,14 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
     writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
   };
-  await runCheckCommand(
+  await runGuidedCheckCommand(
     withSingleFileRecordsOf({
       process: processPort,
       path,
       fileText: createDefaultFileTextPort({}),
       modules: createDefaultModuleLoaderPort({}),
       git: trackingGit({ tracked: request.tracked }),
-      moduleUrl: new URL("../core/check/tool-command.ts", import.meta.url).href,
+      moduleUrl: ENTRY_URL,
     }),
   );
   return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };

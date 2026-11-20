@@ -37,7 +37,7 @@ Edition 2 also flags:
 - `??`, `||` and `&&`, and their assignment forms `??=`, `||=` and `&&=`.
 - Optional chaining: `a?.b`, `a?.[key]` and `f?.()`.
 - `switch` statements.
-- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method. A finding on `JSON.stringify` or `JSON.parse` points at [CD-19](../CD-19/README.md); see [Serialising or parsing JSON](#serialising-or-parsing-json).
+- Computing calls on a built-in namespace: `JSON.stringify`, `JSON.parse`, `Object.assign`, `Object.fromEntries`, `Array.from` and any `Math` method. A finding on `JSON.stringify` or `JSON.parse` names [Serialising or parsing JSON](#serialising-or-parsing-json).
 
 Neither edition flags element access such as `calls[0]`, calls to free functions, a method called through a computed key, such as `rows["map"]`, or text built with a template literal. Helper files that tests import are not checked; only the test files themselves are.
 
@@ -70,7 +70,7 @@ Write the expected value out. A method call in the act step is flagged too, so m
 Each finding ends with `fix:` and the page and section for what it flagged, such as `(node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#an-optional-chain-after-an-index)`.
 
 ## Allowed forms in a test
-Each section shows a flagged form first, then the forms to write instead, or the rule the finding points at. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
+Each section shows a flagged form first, then the forms to write instead. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
 
 ### Branching with if
 ```ts
@@ -361,7 +361,14 @@ it.each([
 declare const render: (row: { readonly id: string }) => string;
 expect(JSON.parse(render({ id: "a" }))).toEqual({ id: "a" });
 ```
-A finding on `JSON.stringify` or `JSON.parse` names this section. [CD-19](../CD-19/README.md) is the rule for the runtime's standard library.
+A finding on `JSON.stringify` or `JSON.parse` names this section. Assert the object the unit gives back, written out:
+
+```ts
+declare const rowOf: (row: { readonly id: string }) => { readonly id: string };
+expect(rowOf({ id: "a" })).toEqual({ id: "a" });
+```
+
+A unit that gives back only text should hand over an object, leaving the text to the adapter at its edge.
 
 ### Merging objects
 ```ts
@@ -439,7 +446,7 @@ expect(isInstalled({ kindOf })).toBe("installed");
 expect(kindOf).toHaveBeenCalledExactlyOnceWith("bin/hone.js");
 ```
 
-[CD-25](../CD-25/README.md) is the rule for test doubles.
+The recipe is [Stub with vi.fn](../typescript/recipes.md#stub-with-vifn).
 
 ## Exceptions
 Add an entry to `discipline-exceptions.json` at the repository root. Use `file-carve-out` for debt in one file: it is forfeited once the file is touched, and needs no `whyChain`. The form accepts an `authorised-location` for this clause, as for any; in spirit [Branch in a test](../typescript/symptoms.md#branch-in-a-test) and [Computed value in a test](../typescript/symptoms.md#computed-value-in-a-test) have no correct use, and a reviewer refuses one. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).

@@ -1,4 +1,5 @@
 import type { Finding } from "../governance/governance.ts";
+import { indicatedNamesOf, type SymptomReading } from "../symptom-catalogue/symptom-catalogue.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 
 export const escapedLineBreaks = (request: { readonly text: string }): string =>
@@ -12,5 +13,10 @@ const remedyNote = (request: { readonly finding: Finding }): string =>
     ? ""
     : ` fix: ${escapedLineBreaks({ text: request.finding.remedy.fix })} (${request.finding.remedy.page}#${request.finding.remedy.section})`;
 
-export const findingLine = (request: { readonly finding: Finding }): string =>
-  `${locatedFindingLine(request)}${remedyNote(request)}`;
+const symptomNote = (request: { readonly reading: SymptomReading }): string =>
+  request.reading.reading === "named"
+    ? ` symptom: ${request.reading.symptom.name}, may indicate: ${indicatedNamesOf({ symptom: request.reading.symptom }).join(", ")}`
+    : "";
+
+export const symptomFindingLine = (request: { readonly finding: Finding; readonly reading: SymptomReading }): string =>
+  `${locatedFindingLine(request)}${symptomNote(request)}${remedyNote(request)}`;

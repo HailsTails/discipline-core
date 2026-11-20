@@ -1,8 +1,9 @@
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { ReportOutput } from "../core/values/report-output.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
-import { renderReportText } from "../core/verdict/report-text.ts";
+import { renderGuidedReportText } from "../core/verdict/report-text.ts";
 import { SECTION_NAMES, type SectionName } from "../core/verdict/section-roles.ts";
+import type { SymptomGuide } from "../core/verdict/symptom-notes.ts";
 
 export type Fills = Readonly<Record<string, string>>;
 
@@ -34,6 +35,8 @@ const TEMPLATE_ROW = /^\| `([^`]+)` \| `([^`]+)` \|$/;
 const ROLE_ROW = /^\| `([^`]+)` \| (failing|informational|guidance) \|/;
 
 const PLACEHOLDER = /<([^<>]+)>/g;
+
+const HEADING_LINE = /^(\S+) \((\d+)\)(?: |$)/;
 
 const HEADING_LABEL = "heading";
 
@@ -83,19 +86,21 @@ type Attribution = {
   readonly lines: readonly PrintedLine[];
 };
 
-const headedSection = (request: { readonly report: CheckReport; readonly line: string }): SectionName | undefined =>
-  SECTION_NAMES.find((name) => {
-    const heading = `${name} (${request.report[name].length})`;
-    return request.line === heading || request.line.startsWith(`${heading} `);
-  });
+type Heading = { readonly section: SectionName; readonly count: string };
+
+const headingOf = (request: { readonly line: string }): Heading | undefined => {
+  const heading = HEADING_LINE.exec(request.line);
+  const section = SECTION_NAMES.find((name) => name === heading?.[1]);
+  return section === undefined || heading === null ? undefined : { section, count: heading[2] };
+};
 
 const attributed =
-  (request: { readonly report: CheckReport; readonly entryFills: EntryFills }) =>
+  (request: { readonly entryFills: EntryFills }) =>
   (sofar: Attribution, line: string): Attribution => {
-    const heading = headedSection({ report: request.report, line });
+    const heading = headingOf({ line });
     if (heading !== undefined) {
-      const fills = { section: heading, count: String(request.report[heading].length) };
-      return { section: heading, position: 0, lines: [...sofar.lines, { label: HEADING_LABEL, text: line, fills }] };
+      const fills = { section: heading.section, count: heading.count };
+      return { section: heading.section, position: 0, lines: [...sofar.lines, { label: HEADING_LABEL, text: line, fills }] };
     }
     const section = sofar.section ?? SECTION_NAMES[0];
     const fills = request.entryFills({ section, position: sofar.position });
@@ -108,8 +113,9 @@ export const reportLinesOf = (request: {
   readonly projectCommand: string;
   readonly pruneCommand: string;
   readonly entryFills: EntryFills;
+  readonly guide: SymptomGuide;
 }): readonly PrintedLine[] => {
-  const lines = renderReportText(request).split("\n").slice(0, -1);
+  const lines = renderGuidedReportText(request).split("\n").slice(0, -1);
   const entries = lines.slice(0, -1).reduce<Attribution>(attributed(request), { section: undefined, position: 0, lines: [] });
   return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "", fills: {} }];
 };

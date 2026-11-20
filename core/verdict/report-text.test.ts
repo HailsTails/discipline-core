@@ -9,7 +9,9 @@ import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport, ClauseReading, PartialAssessment, ProjectionProblem, Unmeasured } from "./check-report.ts";
-import { renderReportText } from "./report-text.ts";
+import type { Principle, Recipe, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import { renderGuidedReportText, renderReportText } from "./report-text.ts";
+import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "./symptom-notes.ts";
 
 const RECORDS_FILE = repoPathSchema.parse("discipline-exceptions.json");
 
@@ -1124,5 +1126,152 @@ describe("renderReportText clause editions", () => {
     expect(
       renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "failures-only", report: { ...emptyReport, editions: [editionReading] } }),
     ).toBe("verdict: pass\n");
+  });
+});
+
+const CLOCK_SOURCES = clauseAddressSchema.parse("CD-17#clock-sources");
+
+const clockFinding: Finding = {
+  clause: CLOCK_SOURCES,
+  mechanism: audit,
+  file: repoPathSchema.parse("src/orders/charge-order.ts"),
+  anchor: { line: 14, column: 0 },
+  snippet: "const chargedAt = clock.now();",
+};
+
+const clockReading: ClauseReading = {
+  kind: "clause",
+  clause: CLOCK_SOURCES,
+  assessmentSection: "unread",
+  rulePage: { path: "node_modules/@hailstails/hone/rules/CD-17/README.md", presence: "present" },
+};
+
+const TESTS_ARE_OURS: Principle = { name: "tests-are-ours", title: "Tests are ours" };
+
+const AT_A_BOUNDARY: Principle = { name: "external-behaviour-sits-at-a-boundary", title: "External behaviour sits at a boundary" };
+
+const ONE_PLACE_DECIDES: Principle = { name: "one-place-decides", title: "One place decides" };
+
+const PORTS_DECLARED_INSIDE: Rule = { name: "ports-declared-inside", title: "Ports declared inside", principle: AT_A_BOUNDARY, standing: "accepted" };
+
+const WRITTEN_OUT_ANSWERS: Rule = { name: "written-out-answers", title: "Written-out answers", principle: TESTS_ARE_OURS, standing: "accepted" };
+
+const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
+
+const WORLD_VALUES_THROUGH_A_PORT: Recipe = { name: "world-values-through-a-port", title: "World values through a port", standing: "accepted" };
+
+const BOUNDARY_RECORD: RecordKind = { name: "boundary-record", title: "Boundary record", phrase: "a boundary record", todaysFormat: "authorised-location" };
+
+const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
+
+const AUTHORISED_LOCATION: RecordKind = {
+  name: "authorised-location",
+  title: "Authorised location",
+  phrase: "an authorised location",
+  todaysFormat: "authorised-location",
+};
+
+const DATE_USED_DIRECTLY: Symptom = {
+  name: "date-used-directly",
+  title: "Date used directly",
+  seen: "Any use of `Date` outside the places that handle dates.",
+  mayIndicate: [
+    {
+      case: "Needs the current time",
+      points: [
+        { kind: "rule", rule: PORTS_DECLARED_INSIDE },
+        { kind: "rule", rule: WRITTEN_OUT_ANSWERS },
+      ],
+    },
+    { case: "Does one job", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] },
+  ],
+  breachUsuallySits: "in the unit that should be passed the time, often a doer doing two jobs",
+  recipes: [WORLD_VALUES_THROUGH_A_PORT],
+  correctUses: [{ situation: "correct use", kind: BOUNDARY_RECORD, at: "on the clock adapter" }],
+};
+
+const clockGuide: SymptomGuide = {
+  guide: "catalogue",
+  page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md",
+  catalogue: {
+    principles: [TESTS_ARE_OURS, AT_A_BOUNDARY, ONE_PLACE_DECIDES],
+    rules: [PORTS_DECLARED_INSIDE, WRITTEN_OUT_ANSWERS, DOER_OR_ORCHESTRATOR],
+    recipes: [WORLD_VALUES_THROUGH_A_PORT],
+    recordKinds: [AUTHORISED_LOCATION, BOUNDARY_RECORD, DEBT],
+    alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    symptoms: [DATE_USED_DIRECTLY],
+    clauses: [{ clause: CLOCK_SOURCES, sight: { kind: "one-symptom", symptom: DATE_USED_DIRECTLY } }],
+  },
+};
+
+describe("renderGuidedReportText", () => {
+  it("names a finding's symptom on its line, and puts the symptom's note in readFirst ahead of the clause line", () => {
+    expect(
+      renderGuidedReportText({
+        projectCommand: PROJECT_COMMAND,
+        pruneCommand: PRUNE_COMMAND,
+        output: "full",
+        guide: clockGuide,
+        report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
+      }),
+    ).toBe(
+      "findings (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now(); symptom: date-used-directly, may indicate: ports-declared-inside, written-out-answers, doer-or-orchestrator\nreadFirst (2)\ndate-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly\nCD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit\nverdict: fail\n",
+    );
+  });
+
+  it("prints exactly what renderReportText prints when there is no catalogue", () => {
+    expect(
+      renderGuidedReportText({
+        projectCommand: PROJECT_COMMAND,
+        pruneCommand: PRUNE_COMMAND,
+        output: "full",
+        guide: NO_SYMPTOM_GUIDE,
+        report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
+      }),
+    ).toBe(
+      "findings (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now();\nreadFirst (1)\nCD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit\nverdict: fail\n",
+    );
+  });
+
+  it("prints the findings and verdict as with no catalogue, and opens readFirst saying the catalogue was not read, when it was not", () => {
+    expect(
+      renderGuidedReportText({
+        projectCommand: PROJECT_COMMAND,
+        pruneCommand: PRUNE_COMMAND,
+        output: "full",
+        guide: { guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" },
+        report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
+      }),
+    ).toBe(
+      "findings (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now();\nreadFirst (2)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nCD-17#clock-sources: read node_modules/@hailstails/hone/rules/CD-17/README.md#spirit\nverdict: fail\n",
+    );
+  });
+
+  it("says the catalogue was not read on a passing report, which still passes", () => {
+    expect(
+      renderGuidedReportText({
+        projectCommand: PROJECT_COMMAND,
+        pruneCommand: PRUNE_COMMAND,
+        output: "full",
+        guide: { guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" },
+        report: emptyReport,
+      }),
+    ).toBe(
+      "readFirst (1)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nverdict: pass\n",
+    );
+  });
+
+  it("leaves an exempted finding's line unnamed", () => {
+    expect(
+      renderGuidedReportText({
+        projectCommand: PROJECT_COMMAND,
+        pruneCommand: PRUNE_COMMAND,
+        output: "full",
+        guide: clockGuide,
+        report: { ...emptyReport, exempted: [{ finding: clockFinding, by: [carved] }] },
+      }),
+    ).toBe(
+      "exempted (1)\nCD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now(); exempted by file-carve-out\nverdict: pass\n",
+    );
   });
 });

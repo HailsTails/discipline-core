@@ -8,7 +8,8 @@ import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { helpText } from "./command-help.ts";
 import type { CommandRequest } from "./run-check-command.ts";
-import { type CommandHandler, type Subcommands, toolCommandOf } from "./run-tool-command.ts";
+import { runGuidedCheckCommand } from "./run-guided-check-command.ts";
+import { type CommandHandler, type Subcommands, TOOL_SUBCOMMANDS, toolCommandOf } from "./run-tool-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
@@ -230,5 +231,11 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
     await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, "split-records": handler } })(commandRequest({ process: processPort }));
 
     expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
+  });
+});
+
+describe("TOOL_SUBCOMMANDS", () => {
+  it("runs check through the guided check, which names each finding's symptom", () => {
+    expect(TOOL_SUBCOMMANDS.check).toBe(runGuidedCheckCommand);
   });
 });

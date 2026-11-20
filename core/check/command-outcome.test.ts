@@ -5,9 +5,12 @@ import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
+import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../verdict/symptom-notes.ts";
+import type { Principle, RecordKind, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import {
   checkCommandOutcome,
   inheritedDebtLine,
+  guidedCheckCommandOutcome,
   projectCommandOutcome,
   pruneDebtCommandOutcome,
   splitRecordsCommandOutcome,
@@ -138,6 +141,105 @@ describe("checkCommandOutcome on a load failure", () => {
         },
       }),
     ).toEqual({ code: 2, text: "load failure: runner-failed audit runner-invalid-output run rejected\n" });
+  });
+});
+
+const ONE_PLACE_DECIDES: Principle = { name: "one-place-decides", title: "One place decides" };
+
+const DOER_OR_ORCHESTRATOR: Rule = { name: "doer-or-orchestrator", title: "Doer or orchestrator", principle: ONE_PLACE_DECIDES, standing: "accepted" };
+
+const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
+
+const AUTHORISED_LOCATION: RecordKind = {
+  name: "authorised-location",
+  title: "Authorised location",
+  phrase: "an authorised location",
+  todaysFormat: "authorised-location",
+};
+
+const CLASS_DECLARED: Symptom = {
+  name: "class-declared",
+  title: "Class declared",
+  seen: "A class declaration.",
+  mayIndicate: [{ case: "Holds state", points: [{ kind: "rule", rule: DOER_OR_ORCHESTRATOR }] }],
+  breachUsuallySits: "in the unit that holds state",
+  recipes: [],
+  correctUses: [],
+};
+
+const CLASS_GUIDE: SymptomGuide = {
+  guide: "catalogue",
+  page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md",
+  catalogue: {
+    principles: [ONE_PLACE_DECIDES],
+    rules: [DOER_OR_ORCHESTRATOR],
+    recipes: [],
+    recordKinds: [AUTHORISED_LOCATION, DEBT],
+    alwaysRecordable: { debt: DEBT, authorisedLocation: AUTHORISED_LOCATION },
+    symptoms: [CLASS_DECLARED],
+    clauses: [{ clause: clauseAddressSchema.parse("CD-14#class-syntax"), sight: { kind: "one-symptom", symptom: CLASS_DECLARED } }],
+  },
+};
+
+const UNREAD_GUIDE: SymptomGuide = {
+  guide: "unreadable",
+  failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end",
+};
+
+describe("guidedCheckCommandOutcome", () => {
+  it("exits 0 and prints the report when the verdict is pass", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE } },
+      }),
+    ).toEqual({ code: 0, text: "verdict: pass\n" });
+  });
+
+  it("exits 1 and names each finding's symptom from the guide, with the symptom's note in readFirst", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: CLASS_GUIDE },
+        },
+      }),
+    ).toEqual({
+      code: 1,
+      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: holds state → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
+    });
+  });
+
+  it("exits 1 for findings when the catalogue was not read, saying so in readFirst", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: {
+          outcome: "ok",
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE },
+        },
+      }),
+    ).toEqual({
+      code: 1,
+      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nreadFirst (1)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nverdict: fail\n",
+    });
+  });
+
+  it("exits 0 for a clean report when the catalogue was not read, saying so in readFirst", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE } },
+      }),
+    ).toEqual({
+      code: 0,
+      text: "readFirst (1)\nsymptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end\nverdict: pass\n",
+    });
+  });
+
+  it("exits 2 and prints the load failure line when an input could not be loaded", () => {
+    expect(
+      guidedCheckCommandOutcome({
+        result: { outcome: "failed", error: { kind: "file-malformed", path: "/repo/rules/typescript/symptoms.json", detail: "Unexpected end" } },
+      }),
+    ).toEqual({ code: 2, text: "load failure: file-malformed /repo/rules/typescript/symptoms.json Unexpected end\n" });
   });
 });
 
