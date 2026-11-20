@@ -165,7 +165,7 @@ describe("the version 1 engine pass over a real ESLint run of a repository that 
   it("lets the oracle credit the carve-out with the findings it holds", async () => {
     const oracle = createAnsweringOracle({ enginePass: enginePassOver({ repoRoot: await carvedRepository(), tracked: CARVED_TRACKED }), catalogues: catalogues() });
     const answered = await oracle.answer({ records: [CARVE_OUT] });
-    expect(answered).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [classKeywordCheck()] } }] });
+    expect(answered).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [classKeywordCheck()] } }] });
   });
 });
 

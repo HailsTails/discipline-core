@@ -40,7 +40,7 @@ const CARVE_OUT_HEAD: HeadRecord = {
 
 const READING: VersionOneReading = { selection: SELECTION, heads: [CARVE_OUT_HEAD] };
 
-const FINDINGS_ON_LOOPS = { record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } } as const;
+const FINDINGS_ON_LOOPS = { kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } } as const;
 
 const CARVE_OUT_INPUT: RecordInput = { ...CARVE_OUT_HEAD, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } };
 
@@ -150,7 +150,7 @@ describe("upgradePlanOf", () => {
   });
 
   it("refuses with the mapping's own refusals when a carve-out answered nothing", async () => {
-    await expect(upgradePlanOf(requestOver({ answered: [{ record: CARVE_OUT, answer: { credit: "nothing" } }] }))).resolves.toEqual({
+    await expect(upgradePlanOf(requestOver({ answered: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } }] }))).resolves.toEqual({
       outcome: "failed",
       error: { kind: "mapping-refused", refusals: [{ kind: "record-answers-nothing", clause: "CD-15#loops", file: "src/a.ts", credited: "nothing" }] },
     });

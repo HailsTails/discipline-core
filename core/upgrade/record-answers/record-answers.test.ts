@@ -43,7 +43,7 @@ describe("recordAnswersOf crediting a file carve-out with the findings it exempt
         governed: { ...NOTHING_GOVERNED, exempted: [{ finding: LOOP_FINDING, by: [CARVE_OUT] }] },
         catalogues,
       }),
-    ).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] });
+    ).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] });
   });
 
   it("credits each check of the findings a carve-out exempted, in the order the findings came", () => {
@@ -62,7 +62,7 @@ describe("recordAnswersOf crediting a file carve-out with the findings it exempt
         },
         catalogues,
       }),
-    ).toEqual({ outcome: "ok", value: [{ record: carveOut, answer: { credit: "findings", checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] } }] });
+    ).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: carveOut, answer: { credit: "findings", checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] } }] });
   });
 
   it("credits the one check of the clause run by the finding's mechanism when the finding names none", () => {
@@ -72,7 +72,7 @@ describe("recordAnswersOf crediting a file carve-out with the findings it exempt
         governed: { ...NOTHING_GOVERNED, exempted: [{ finding: { ...LOOP_FINDING, mechanism: ESLINT, check: undefined }, by: [CARVE_OUT] }] },
         catalogues,
       }),
-    ).toEqual({ outcome: "ok", value: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] });
+    ).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] });
   });
 
   it("fails when a finding names no check and its mechanism runs two checks of the clause", () => {
@@ -96,7 +96,7 @@ describe("recordAnswersOf crediting a file carve-out with the findings it exempt
     };
     expect(
       recordAnswersOf({ records: [carveOut], governed: { ...NOTHING_GOVERNED, exempted: [{ finding: letFinding, by: [carveOut] }] }, catalogues }),
-    ).toEqual({ outcome: "ok", value: [{ record: carveOut, answer: { credit: "findings", checks: [REBINDING_TEST_BODY] } }] });
+    ).toEqual({ outcome: "ok", value: [{ kind: "file-carve-out", record: carveOut, answer: { credit: "findings", checks: [REBINDING_TEST_BODY] } }] });
   });
 
   it("fails when a finding names a check its mechanism does not run, which version 2 would never site", () => {
@@ -132,14 +132,14 @@ describe("recordAnswersOf answering a file carve-out that exempted no finding", 
   it("answers nothing for a carve-out the governance found stale", () => {
     expect(recordAnswersOf({ records: [CARVE_OUT], governed: { ...NOTHING_GOVERNED, stale: [CARVE_OUT] }, catalogues })).toEqual({
       outcome: "ok",
-      value: [{ record: CARVE_OUT, answer: { credit: "nothing" } }],
+      value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } }],
     });
   });
 
   it("answers suppression-only for a carve-out that is neither stale nor credited a finding, held up by a native suppression alone", () => {
     expect(recordAnswersOf({ records: [CARVE_OUT], governed: NOTHING_GOVERNED, catalogues })).toEqual({
       outcome: "ok",
-      value: [{ record: CARVE_OUT, answer: { credit: "suppression-only" } }],
+      value: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "suppression-only" } }],
     });
   });
 
@@ -164,7 +164,7 @@ describe("recordAnswersOf crediting an authorised location with the findings it 
         governed: { ...NOTHING_GOVERNED, exempted: [{ finding: LOOP_FINDING, by: [authorisedOnLoops] }] },
         catalogues,
       }),
-    ).toEqual({ outcome: "ok", value: [{ record: authorisedOnLoops, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
+    ).toEqual({ outcome: "ok", value: [{ kind: "authorised-location", record: authorisedOnLoops, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
   });
 
   it("credits each check of the findings it exempted, in the order the findings came", () => {
@@ -184,18 +184,18 @@ describe("recordAnswersOf crediting an authorised location with the findings it 
       }),
     ).toEqual({
       outcome: "ok",
-      value: [{ record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] } }],
+      value: [{ kind: "authorised-location", record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_TEST_BODY, REBINDING_TEST_BODY] } }],
     });
   });
 
   it("keeps the whole clause for a location that exempted no finding, stale or held up by a native suppression", () => {
     expect(recordAnswersOf({ records: [AUTHORISED], governed: { ...NOTHING_GOVERNED, stale: [AUTHORISED] }, catalogues })).toEqual({
       outcome: "ok",
-      value: [{ record: AUTHORISED, answer: { reach: "whole-clause" } }],
+      value: [{ kind: "authorised-location", record: AUTHORISED, answer: { reach: "whole-clause" } }],
     });
     expect(recordAnswersOf({ records: [AUTHORISED], governed: NOTHING_GOVERNED, catalogues })).toEqual({
       outcome: "ok",
-      value: [{ record: AUTHORISED, answer: { reach: "whole-clause" } }],
+      value: [{ kind: "authorised-location", record: AUTHORISED, answer: { reach: "whole-clause" } }],
     });
   });
 
@@ -223,9 +223,9 @@ describe("recordAnswersOf over every record of the file", () => {
     ).toEqual({
       outcome: "ok",
       value: [
-        { record: AUTHORISED, answer: { reach: "whole-clause" } },
-        { record: CARVE_OUT, answer: { credit: "nothing" } },
-        { record: second, answer: { credit: "nothing" } },
+        { kind: "authorised-location", record: AUTHORISED, answer: { reach: "whole-clause" } },
+        { kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } },
+        { kind: "file-carve-out", record: second, answer: { credit: "nothing" } },
       ],
     });
   });

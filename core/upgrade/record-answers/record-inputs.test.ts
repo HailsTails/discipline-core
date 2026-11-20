@@ -42,7 +42,7 @@ const CLAUSE_WIDE_HEAD: HeadRecord = { kind: "clause-wide-carve-out", record: CL
 
 describe("recordInputsOf", () => {
   it("gives a file carve-out the answer the oracle gave for that very record", () => {
-    expect(recordInputsOf({ heads: [CARVE_OUT_HEAD], answered: [{ record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] })).toEqual({
+    expect(recordInputsOf({ heads: [CARVE_OUT_HEAD], answered: [{ kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }] })).toEqual({
       outcome: "ok",
       value: [{ ...CARVE_OUT_HEAD, answer: { credit: "findings", checks: [LOOP_KEYWORD_LOOPS] } }],
     });
@@ -50,7 +50,7 @@ describe("recordInputsOf", () => {
 
   it("gives an authorised location the answer the oracle gave for that very record", () => {
     expect(
-      recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [{ record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] }),
+      recordInputsOf({ heads: [AUTHORISED_HEAD], answered: [{ kind: "authorised-location", record: AUTHORISED, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] }),
     ).toEqual({ outcome: "ok", value: [{ ...AUTHORISED_HEAD, answer: { reach: "answered-checks", checks: [LOOP_KEYWORD_LOOPS] } }] });
   });
 
@@ -59,8 +59,8 @@ describe("recordInputsOf", () => {
       recordInputsOf({
         heads: [AUTHORISED_HEAD, CARVE_OUT_HEAD, CLAUSE_WIDE_HEAD],
         answered: [
-          { record: CARVE_OUT, answer: { credit: "nothing" } },
-          { record: AUTHORISED, answer: { reach: "whole-clause" } },
+          { kind: "file-carve-out", record: CARVE_OUT, answer: { credit: "nothing" } },
+          { kind: "authorised-location", record: AUTHORISED, answer: { reach: "whole-clause" } },
         ],
       }),
     ).toEqual({

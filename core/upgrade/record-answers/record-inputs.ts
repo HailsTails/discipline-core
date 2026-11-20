@@ -1,7 +1,6 @@
 import { clauseAddressText } from "../../values/clause-address.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
-import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import type { RecordInput } from "../version-two-mapping/records-mapping.ts";
 import type { RecordAnswered } from "./record-answer-oracle.ts";
@@ -12,16 +11,13 @@ export type LocationUnanswered = { readonly kind: "location-unanswered"; readonl
 
 export type Unanswered = CarveOutUnanswered | LocationUnanswered;
 
-const answerGivenFor = (request: { readonly record: ExceptionRecord; readonly answered: readonly RecordAnswered[] }): RecordAnswered["answer"] | undefined =>
-  request.answered.find((each) => each.record === request.record)?.answer;
-
 const carveOutInputOf = (request: {
   readonly head: Extract<HeadRecord, { readonly kind: "file-carve-out" }>;
   readonly answered: readonly RecordAnswered[];
 }): Result<RecordInput, CarveOutUnanswered> => {
   const { head } = request;
-  const answer = answerGivenFor({ record: head.record, answered: request.answered });
-  return answer === undefined || !("credit" in answer)
+  const [answer] = request.answered.flatMap((each) => (each.kind === "file-carve-out" && each.record === head.record ? [each.answer] : []));
+  return answer === undefined
     ? { outcome: "failed", error: { kind: "carve-out-unanswered", clause: clauseAddressText({ address: head.record.clause }), file: head.record.file } }
     : { outcome: "ok", value: { ...head, answer } };
 };
@@ -31,8 +27,8 @@ const locationInputOf = (request: {
   readonly answered: readonly RecordAnswered[];
 }): Result<RecordInput, LocationUnanswered> => {
   const { head } = request;
-  const answer = answerGivenFor({ record: head.record, answered: request.answered });
-  return answer === undefined || !("reach" in answer)
+  const [answer] = request.answered.flatMap((each) => (each.kind === "authorised-location" && each.record === head.record ? [each.answer] : []));
+  return answer === undefined
     ? { outcome: "failed", error: { kind: "location-unanswered", clause: clauseAddressText({ address: head.record.clause }), file: head.record.file } }
     : { outcome: "ok", value: { ...head, answer } };
 };

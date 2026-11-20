@@ -8,7 +8,7 @@ import type { GovernanceResult } from "../answering/governance.ts";
 import type { ExceptionRecord } from "../version-one-records/exception-record.ts";
 import type { AuthorisedLocationRecord, CarveOutAnswered, FileCarveOutRecord, LocationAnswered, OracleFailure, RecordAnswered } from "./record-answer-oracle.ts";
 
-export type CarveOutAnswersRequest = {
+export type RecordAnswersRequest = {
   readonly records: readonly ExceptionRecord[];
   readonly governed: GovernanceResult;
   readonly catalogues: readonly RuleSetCatalogue[];
@@ -60,11 +60,11 @@ const carveOutAnsweredOf = (request: {
   const credited = findingsExemptedBy({ record, governed });
   if (credited.length > 0) {
     const checks = checksOfFindings({ findings: credited, catalogues });
-    return checks.outcome === "failed" ? checks : { outcome: "ok", value: { record, answer: { credit: "findings", checks: checks.value } } };
+    return checks.outcome === "failed" ? checks : { outcome: "ok", value: { kind: "file-carve-out", record, answer: { credit: "findings", checks: checks.value } } };
   }
   return {
     outcome: "ok",
-    value: { record, answer: { credit: governed.stale.includes(record) ? "nothing" : "suppression-only" } },
+    value: { kind: "file-carve-out", record, answer: { credit: governed.stale.includes(record) ? "nothing" : "suppression-only" } },
   };
 };
 
@@ -76,10 +76,10 @@ const locationAnsweredOf = (request: {
   const { record, governed, catalogues } = request;
   const credited = findingsExemptedBy({ record, governed });
   if (credited.length === 0) {
-    return { outcome: "ok", value: { record, answer: { reach: "whole-clause" } } };
+    return { outcome: "ok", value: { kind: "authorised-location", record, answer: { reach: "whole-clause" } } };
   }
   const checks = checksOfFindings({ findings: credited, catalogues });
-  return checks.outcome === "failed" ? checks : { outcome: "ok", value: { record, answer: { reach: "answered-checks", checks: checks.value } } };
+  return checks.outcome === "failed" ? checks : { outcome: "ok", value: { kind: "authorised-location", record, answer: { reach: "answered-checks", checks: checks.value } } };
 };
 
 const answeredOf = (request: {
@@ -98,7 +98,7 @@ const answeredOf = (request: {
   }
 };
 
-export const recordAnswersOf = (request: CarveOutAnswersRequest): Result<readonly RecordAnswered[], OracleFailure> => {
+export const recordAnswersOf = (request: RecordAnswersRequest): Result<readonly RecordAnswered[], OracleFailure> => {
   const answered = request.records.flatMap((record) => answeredOf({ record, governed: request.governed, catalogues: request.catalogues }));
   const failed = answered.find((each) => each.outcome === "failed");
   return failed ?? { outcome: "ok", value: answered.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };

@@ -7,11 +7,11 @@ export type FileCarveOutRecord = Extract<ExceptionRecord, { readonly kind: "file
 
 export type AuthorisedLocationRecord = Extract<ExceptionRecord, { readonly kind: "authorised-location" }>;
 
-export type CarveOutAnswered = { readonly record: FileCarveOutRecord; readonly answer: CarveOutAnswer };
+export type CarveOutAnswered = { readonly kind: "file-carve-out"; readonly record: FileCarveOutRecord; readonly answer: CarveOutAnswer };
 
 export type ProjectionNotCurrentState = "out-of-date" | "missing" | "not-applied" | "not-included" | "unconfigured";
 
-export type LocationAnswered = { readonly record: AuthorisedLocationRecord; readonly answer: LocationAnswer };
+export type LocationAnswered = { readonly kind: "authorised-location"; readonly record: AuthorisedLocationRecord; readonly answer: LocationAnswer };
 
 export type RecordAnswered = CarveOutAnswered | LocationAnswered;
 
