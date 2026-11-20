@@ -131,7 +131,7 @@ describe("toolchainBoundEmbeddedRunner", () => {
 
 const CHECKS_RUN: ChecksRunRequest = { repoRoot: REPO, installRoot: REPO, files: [], trackedPaths: [], checks: [], bindings: [], answered: [], declaredConfigRoots: [], declaredConfigLookup: undefined };
 
-const CHECKS_REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", misnamedRuleIds: [] } as const;
+const CHECKS_REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", slices: [], misnamedRuleIds: [] } as const;
 
 const WRITTEN = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "export default [];\n" };
 

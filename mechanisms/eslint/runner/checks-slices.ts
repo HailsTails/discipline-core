@@ -1,10 +1,12 @@
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
-import { packageConfigFilesOf } from "./checks-config-roots.ts";
+import { outsideNestedRepositories, packageConfigFilesOf } from "./checks-config-roots.ts";
 import { directoryOf } from "./checks-paths.ts";
 import { type AnsweredFile, CHECKS_PROJECTION_PATH } from "./checks-projection.ts";
 
 export type ChecksSlice = { readonly directory: RepoPath | undefined; readonly file: RepoPath };
+
+export type ChecksSlices = { readonly root: ChecksSlice; readonly packages: readonly ChecksSlice[] };
 
 const ROOT_SLICE: ChecksSlice = { directory: undefined, file: CHECKS_PROJECTION_PATH };
 
@@ -18,12 +20,17 @@ export const slicesOf = (request: {
   readonly declared: readonly RepoPath[];
   readonly lookup: EslintConfigLookup;
   readonly nestedRepositories: readonly string[];
-}): readonly ChecksSlice[] => [
-  ROOT_SLICE,
-  ...[...new Set([...packageConfigFilesOf(request).map((path) => directoryOf({ path })), ...request.declared])]
+}): ChecksSlices => ({
+  root: ROOT_SLICE,
+  packages: [
+    ...new Set([
+      ...packageConfigFilesOf(request).map((path) => directoryOf({ path })),
+      ...outsideNestedRepositories({ directories: request.declared, nestedRepositories: request.nestedRepositories }),
+    ]),
+  ]
     .toSorted()
     .map((directory) => packageSliceOf({ directory })),
-];
+});
 
 export const answeredWithin = (request: { readonly answered: readonly AnsweredFile[]; readonly slice: ChecksSlice }): readonly AnsweredFile[] => {
   const { directory } = request.slice;

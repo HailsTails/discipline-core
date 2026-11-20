@@ -135,7 +135,7 @@ const engineRunOfReport = (request: {
       nativeExceptions: request.report.nativeExceptions,
       coverableKinds: request.projectedKinds,
       projection: request.report.projection,
-      slices: [],
+      slices: request.report.slices,
       unprojectedFolders: [],
       measured: request.report.measured,
       misnamedRuleIds: request.report.misnamedRuleIds,

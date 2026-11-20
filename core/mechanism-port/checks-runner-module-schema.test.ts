@@ -17,6 +17,7 @@ const REPORT = {
   nativeExceptions: [{ kind: "ignore", check: "authored-class-or-this#class-keyword", clause: CLASS_SYNTAX, file: "src/gen.ts" }],
   measured: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
   projection: "current",
+  slices: [{ slice: "packages/web/hone.eslint.mjs", state: "out-of-date" }],
   misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "src/a.ts", line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" }],
 };
 
@@ -108,5 +109,15 @@ describe("checksRunResultSchema", () => {
   it("rejects a report that leaves out the misnamed rule ids", () => {
     const { misnamedRuleIds: _left, ...withoutMisnamed } = REPORT;
     expect(checksRunResultSchema.safeParse({ outcome: "ok", value: withoutMisnamed }).success).toBe(false);
+  });
+
+  it("rejects a report that leaves out the slice problems", () => {
+    const { slices: _left, ...withoutSlices } = REPORT;
+    expect(checksRunResultSchema.safeParse({ outcome: "ok", value: withoutSlices }).success).toBe(false);
+  });
+
+  it("rejects a slice problem in a state that is not a slice state", () => {
+    const report = { ...REPORT, slices: [{ slice: "packages/web/hone.eslint.mjs", state: "stale" }] };
+    expect(checksRunResultSchema.safeParse({ outcome: "ok", value: report }).success).toBe(false);
   });
 });

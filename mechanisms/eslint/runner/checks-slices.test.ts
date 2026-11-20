@@ -13,26 +13,27 @@ const ROOT_SLICE = { directory: undefined, file: repoPathSchema.parse("hone.esli
 
 const PACKAGE_A_SLICE = { directory: repoPathSchema.parse("packages/a"), file: repoPathSchema.parse("packages/a/hone.eslint.mjs") };
 
+const PACKAGE_B_TOOLS_SLICE = { directory: repoPathSchema.parse("packages/b/tools"), file: repoPathSchema.parse("packages/b/tools/hone.eslint.mjs") };
+
 const PACKAGE_C_SLICE = { directory: repoPathSchema.parse("packages/c"), file: repoPathSchema.parse("packages/c/hone.eslint.mjs") };
 
 describe("slicesOf", () => {
   it("names the root slice and one slice per package config, in code unit order, when each file looks up its nearest config", () => {
-    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "nearest-to-file", nestedRepositories: [] })).toEqual([
-      ROOT_SLICE,
-      PACKAGE_A_SLICE,
-      { directory: "packages/b/tools", file: "packages/b/tools/hone.eslint.mjs" },
-    ]);
+    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "nearest-to-file", nestedRepositories: [] })).toEqual({
+      root: ROOT_SLICE,
+      packages: [PACKAGE_A_SLICE, PACKAGE_B_TOOLS_SLICE],
+    });
   });
 
   it("names only the root slice when only the repository root's config is looked up", () => {
-    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "repository-root", nestedRepositories: [] })).toEqual([ROOT_SLICE]);
+    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "repository-root", nestedRepositories: [] })).toEqual({ root: ROOT_SLICE, packages: [] });
   });
 
   it("names no slice for a config inside a nested repository, which belongs to that repository", () => {
-    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "nearest-to-file", nestedRepositories: ["packages/a"] })).toEqual([
-      ROOT_SLICE,
-      { directory: "packages/b/tools", file: "packages/b/tools/hone.eslint.mjs" },
-    ]);
+    expect(slicesOf({ trackedPaths: TRACKED, declared: [], lookup: "nearest-to-file", nestedRepositories: ["packages/a"] })).toEqual({
+      root: ROOT_SLICE,
+      packages: [PACKAGE_B_TOOLS_SLICE],
+    });
   });
 
   it("names a declared folder once when it is also configured, and adds one that is only declared", () => {
@@ -43,12 +44,20 @@ describe("slicesOf", () => {
         lookup: "nearest-to-file",
         nestedRepositories: [],
       }),
-    ).toEqual([
-      ROOT_SLICE,
-      PACKAGE_A_SLICE,
-      { directory: "packages/b/tools", file: "packages/b/tools/hone.eslint.mjs" },
-      PACKAGE_C_SLICE,
-    ]);
+    ).toEqual({ root: ROOT_SLICE, packages: [PACKAGE_A_SLICE, PACKAGE_B_TOOLS_SLICE, PACKAGE_C_SLICE] });
+  });
+});
+
+describe("slicesOf, declared folders and nested repositories", () => {
+  it("names no slice for a declared folder that is a nested repository or inside one", () => {
+    expect(
+      slicesOf({
+        trackedPaths: [],
+        declared: [repoPathSchema.parse("vendor/lib"), repoPathSchema.parse("vendor/lib/tools"), repoPathSchema.parse("packages/c")],
+        lookup: "repository-root",
+        nestedRepositories: ["vendor/lib"],
+      }),
+    ).toEqual({ root: ROOT_SLICE, packages: [PACKAGE_C_SLICE] });
   });
 });
 

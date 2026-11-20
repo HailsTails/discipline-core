@@ -57,7 +57,7 @@ const STANDALONE_MODULE = {
   },
 };
 
-const REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", misnamedRuleIds: [] };
+const REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", slices: [], misnamedRuleIds: [] };
 
 const EMBEDDED_MODULE = {
   runner: {

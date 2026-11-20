@@ -117,7 +117,7 @@ const ONE_CLASS = "export class Kept {}\n";
 
 const sourceDisabling = (request: { readonly ruleId: string }): string => `// eslint-disable-next-line ${request.ruleId}\n${ONE_CLASS}`;
 
-const REPORT = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" };
+const REPORT = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] };
 
 const V1_CLAUSE: RunnerClause = {
   address: CLASS_SYNTAX,
@@ -371,5 +371,62 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
       sub: { ...PACKAGE_RUN.sub, [CHECKS_PROJECTION_PATH]: subText },
     });
     expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } });
+  });
+});
+
+const SUB_DIRECTORY = repoPathSchema.parse("sub");
+
+const ROOT_CONFIG_IMPORTING_THE_SUB_SLICE = `import hone from "./${CHECKS_PROJECTION_PATH}";
+import sub from "./${SUB_SLICE}";
+export default [...hone, ...sub];
+`;
+
+const DECLARED_RUN = {
+  ...ROOT_FILE_RUN,
+  declaredConfigLookup: REPOSITORY_ROOT_LOOKUP,
+  declaredConfigRoots: [SUB_DIRECTORY],
+  queried: [SUB_FILE],
+  tracked: [SUB_FILE],
+  files: { "eslint.config.mjs": ROOT_CONFIG_IMPORTING_THE_SUB_SLICE, [CHECKS_PROJECTION_PATH]: PROJECTION_TEXT },
+};
+
+const SUB_MEASURED = [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }];
+
+describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repository that declares a config root with a repository-root lookup", (line) => {
+  it("reports the class in the declared folder, and no slice problem, when the root config imports that folder's file and it holds what project writes", async () => {
+    const outcome = await runOver({ ...DECLARED_RUN, line, sub: { "kept.ts": ONE_CLASS, [CHECKS_PROJECTION_PATH]: SUB_PROJECTION_TEXT } });
+    expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: SUB_MEASURED } });
+  });
+
+  it("names the declared folder's file out of date, and still reports the class, when that file differs from what project writes", async () => {
+    const outcome = await runOver({ ...DECLARED_RUN, line, sub: { "kept.ts": ONE_CLASS, [CHECKS_PROJECTION_PATH]: `${SUB_PROJECTION_TEXT}\n` } });
+    expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: SUB_MEASURED, slices: [{ slice: SUB_SLICE, state: "out-of-date" }] } });
+  });
+
+  it("names the declared folder's file missing, and lints nothing, when that file is not written", async () => {
+    const outcome = await runOver({ ...DECLARED_RUN, line, sub: { "kept.ts": ONE_CLASS } });
+    expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, slices: [{ slice: SUB_SLICE, state: "missing" }] } });
+  });
+
+  it("gives the declared folder's file beside the root file", async () => {
+    const runner = await runnerOn({ line });
+    const projected = await runner.project({
+      repoRoot: repositoryHoldingSub({ ...DECLARED_RUN, sub: { "kept.ts": ONE_CLASS } }),
+      installRoot: INSTALL_ROOT,
+      files: DECLARED_RUN.queried,
+      trackedPaths: DECLARED_RUN.tracked,
+      checks: CATALOGUE.value.checks,
+      bindings: BINDINGS,
+      answered: [],
+      declaredConfigRoots: DECLARED_RUN.declaredConfigRoots,
+      declaredConfigLookup: DECLARED_RUN.declaredConfigLookup,
+    });
+    expect(projected).toEqual({
+      outcome: "ok",
+      value: [
+        { file: CHECKS_PROJECTION_PATH, text: PROJECTION_TEXT },
+        { file: SUB_SLICE, text: SUB_PROJECTION_TEXT },
+      ],
+    });
   });
 });

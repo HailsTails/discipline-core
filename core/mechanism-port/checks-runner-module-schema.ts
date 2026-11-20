@@ -2,7 +2,7 @@ import { z } from "zod";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
 import type { ChecksRunReport, LoadedChecksRunner, MisnamedRuleId, NotReadyYetFailure, ProjectedFile } from "./checks-runner-types.ts";
-import { nativeExceptionSchema } from "./embedded-run-report-schema.ts";
+import { nativeExceptionSchema, sliceProblemSchema } from "./embedded-run-report-schema.ts";
 import { runnerCallSchema } from "./runner-module-schema.ts";
 import { hitSchema, measuredPairSchema, nativeExceptionKindSchema } from "./runner-result-schema.ts";
 import { runnerFailureSchema } from "./runner-failure-schema.ts";
@@ -30,6 +30,7 @@ export const checksRunReportSchema = z
     nativeExceptions: z.array(nativeExceptionSchema).readonly(),
     measured: z.array(measuredPairSchema).readonly(),
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
+    slices: z.array(sliceProblemSchema).readonly(),
     misnamedRuleIds: z.array(misnamedRuleIdSchema).readonly(),
   })
   .readonly();

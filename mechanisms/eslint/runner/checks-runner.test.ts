@@ -1,6 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { createDefaultFileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
-import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import { createDefaultFileTextPort, type FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../../../core/platform-ports/path-port.ts";
 import { symptomCatalogueOf } from "../../../core/symptom-catalogue/symptom-catalogue-wire.ts";
@@ -49,15 +49,9 @@ const REQUEST: ChecksRunRequest = {
   declaredConfigLookup: undefined,
 };
 
-const NOT_READY_DECLARED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "declared-roots", paths: ["packages/web"] } } };
-
 const NOT_READY_NESTED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "nested-repositories", paths: ["vendor/lib"] } } };
 
 describe("checksRunnerOver", () => {
-  it("is not ready for a repository that declares ESLint config roots, before touching any port", async () => {
-    expect(await runner.run({ ...REQUEST, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY_DECLARED);
-  });
-
   it("is not ready for a repository holding a nested repository with files to check", async () => {
     expect(
       await runner.run({
@@ -85,7 +79,7 @@ describe("checksRunnerOver", () => {
   it("reports a current projection and no findings when no check runs on ESLint", async () => {
     expect(await runner.run(REQUEST)).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" },
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] },
     });
   });
 });
@@ -160,7 +154,9 @@ const lintingNothing = (): GovernanceInstance => ({
   lintFiles: vi.fn<GovernanceInstance["lintFiles"]>().mockResolvedValue({ outcome: "ok", value: [] }),
 });
 
-const runnerOverProjection = (stubs: { readonly currents: ReadonlyMap<RepoPath, CurrentProjection>; readonly ruleState: RuleState; readonly governance: GovernanceInstance }) => {
+type ProjectionStubs = { readonly currents: ReadonlyMap<RepoPath, CurrentProjection>; readonly ruleState: RuleState; readonly governance: GovernanceInstance };
+
+const runnerOverProjectionReading = (stubs: ProjectionStubs & { readonly fileText: FileTextPort }) => {
   const realModules = createDefaultModuleLoaderPort({});
   const stubbedEslint: EslintPort = {
     boundary: SILENT_BOUNDARY,
@@ -178,16 +174,18 @@ const runnerOverProjection = (stubs: { readonly currents: ReadonlyMap<RepoPath, 
       path,
       eslint: stubbedEslint,
     },
-    platform: { fileText: createDefaultFileTextPort({}), fileRemoval: createDefaultFileRemovalPort({}), modules: realModules, path, eslint: stubbedEslint, moduleExtension: ".ts" },
+    platform: { fileText: stubs.fileText, fileRemoval: createDefaultFileRemovalPort({}), modules: realModules, path, eslint: stubbedEslint, moduleExtension: ".ts" },
   });
 };
+
+const runnerOverProjection = (stubs: ProjectionStubs) => runnerOverProjectionReading({ ...stubs, fileText: createDefaultFileTextPort({}) });
 
 describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repository's reader", () => {
   it("reports a missing projection, and lints nothing, when hone.eslint.mjs is not written", async () => {
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_NOT_WRITTEN), ruleState: CONFIGURED_ON, governance }).run(SELECTING_THE_CLASS_CHECK);
     expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
-      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "missing" } },
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "missing", slices: [] } },
       linted: [],
     });
   });
@@ -196,7 +194,7 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_THAT_DIFFERS), ruleState: CONFIGURED_ON, governance }).run(SELECTING_THE_CLASS_CHECK);
     expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
-      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date" } },
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date", slices: [] } },
       linted: [[{ files: SELECTING_THE_CLASS_CHECK.files }]],
     });
   });
@@ -205,7 +203,7 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: CONFIGURED_ON, governance }).run(SELECTING_THE_CLASS_CHECK);
     expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
-      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } },
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } },
       linted: [[{ files: SELECTING_THE_CLASS_CHECK.files }]],
     });
   });
@@ -214,7 +212,7 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: RULE_ABSENT, governance }).run(SELECTING_THE_CLASS_CHECK);
     expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
-      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "not-included" } },
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "not-included", slices: [] } },
       linted: [],
     });
   });
@@ -241,32 +239,99 @@ const runOverSlices = (request: { readonly root: CurrentProjection; readonly web
   runnerOverProjection({ currents: slicesHolding(request), ruleState: CONFIGURED_ON, governance: lintingNothing() }).run(WITH_A_PACKAGE_CONFIG);
 
 describe("checksRunnerOver, over a repository holding a package eslint.config.*", () => {
-  it("reports the projection current when the root file and the package's file both hold what project writes", async () => {
+  it("reports the projection current, and no slice problem, when the root file and the package's file both hold what project writes", async () => {
     expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT })).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" },
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] },
     });
   });
 
-  it("reports the projection out of date when only the package's file differs", async () => {
+  it("names the package's file out of date, beside a current root file, when only the package's file differs", async () => {
     expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS })).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date" },
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "out-of-date" }] },
     });
   });
 
-  it("reports the projection missing, rather than out of date, when the package's file is not written and the root file differs", async () => {
+  it("names the package's file missing, beside an out-of-date root file, when the package's file is not written and the root file differs", async () => {
     expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PROJECTION_NOT_WRITTEN })).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "missing" },
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date", slices: [{ slice: PACKAGE_SLICE_PATH, state: "missing" }] },
     });
   });
 
-  it("reports the projection out of date when the root file differs and the package's file is current", async () => {
+  it("reports the root file out of date, and no slice problem, when the root file differs and the package's file is current", async () => {
     expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PACKAGE_PROJECTION_PRESENT })).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date" },
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date", slices: [] },
     });
+  });
+
+  it("reports the root file missing, and the package's file current, when only the root file is not written", async () => {
+    expect(await runOverSlices({ root: PROJECTION_NOT_WRITTEN, web: PACKAGE_PROJECTION_PRESENT })).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "missing", slices: [] },
+    });
+  });
+
+  it("lints nothing when a package's file is not written, and names it", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_NOT_WRITTEN }),
+      ruleState: CONFIGURED_ON,
+      governance,
+    }).run(WITH_A_PACKAGE_CONFIG);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "missing" }] } },
+      linted: [],
+    });
+  });
+
+  it("still lints the files when a package's file is out of date, and names it", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS }),
+      ruleState: CONFIGURED_ON,
+      governance,
+    }).run(WITH_A_PACKAGE_CONFIG);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "out-of-date" }] } },
+      linted: [[{ files: WITH_A_PACKAGE_CONFIG.files }]],
+    });
+  });
+
+  it("names a declared folder's file missing when it holds no eslint.config.* and its file is not written", async () => {
+    const request = { ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] };
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_NOT_WRITTEN }),
+      ruleState: CONFIGURED_ON,
+      governance: lintingNothing(),
+    }).run(request);
+    expect(outcome).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "missing" }] },
+    });
+  });
+
+  it("reads the installed ESLint version once for the whole run, not once for its slices and again for its query", async () => {
+    const declaring = createDefaultFileTextPort({});
+    const detecting = createDefaultFileTextPort({});
+    const readWhenDeclared = vi.spyOn(declaring, "read");
+    const readWhenDetecting = vi.spyOn(detecting, "read");
+    const stubs = { currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT }), ruleState: CONFIGURED_ON, governance: lintingNothing() };
+    await runnerOverProjectionReading({ ...stubs, fileText: declaring }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: "nearest-to-file" });
+    await runnerOverProjectionReading({ ...stubs, fileText: detecting }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: undefined });
+    expect({ declared: readWhenDeclared.mock.calls.length, detecting: readWhenDetecting.mock.calls.length }).toEqual({ declared: 11, detecting: 12 });
+  });
+
+  it("reads no slice for a declared folder that is a nested repository", async () => {
+    const request = {
+      ...SELECTING_THE_CLASS_CHECK,
+      declaredConfigRoots: [repoPathSchema.parse("vendor/lib")],
+      trackedPaths: [repoPathSchema.parse("kept.ts"), repoPathSchema.parse("vendor/lib/hone.config.json")],
+    };
+    const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: CONFIGURED_ON, governance: lintingNothing() }).run(request);
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } });
   });
 
   it("reads no slice for a nested repository's lint config, when the nested repository holds no file to check", async () => {
@@ -275,7 +340,7 @@ describe("checksRunnerOver, over a repository holding a package eslint.config.*"
       trackedPaths: [repoPathSchema.parse("kept.ts"), repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/eslint.config.mjs")],
     };
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: CONFIGURED_ON, governance: lintingNothing() }).run(request);
-    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } });
   });
 });
 
@@ -349,8 +414,34 @@ describe("checksRunnerOver, giving the projection as project", () => {
     expect(await projectingRunner().runnerOver.project(REQUEST)).toEqual({ outcome: "ok", value: [] });
   });
 
-  it("is not ready for a repository that declares ESLint config roots", async () => {
-    expect(await projectingRunner().runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY_DECLARED);
+  it("gives a file in a declared folder that holds no eslint.config.*, beside the root file", async () => {
+    expect(await projectingRunner().runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual({
+      outcome: "ok",
+      value: [
+        { file: CHECKS_PROJECTION_PATH, text: CURRENT_PROJECTION_TEXT },
+        { file: PACKAGE_SLICE_PATH, text: PACKAGE_PROJECTION_TEXT },
+      ],
+    });
+  });
+
+  it("gives one file for a folder that is both declared and holds an eslint.config.*", async () => {
+    expect(await projectingRunner().runnerOver.project({ ...WITH_A_PACKAGE_CONFIG, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual({
+      outcome: "ok",
+      value: [
+        { file: CHECKS_PROJECTION_PATH, text: CURRENT_PROJECTION_TEXT },
+        { file: PACKAGE_SLICE_PATH, text: PACKAGE_PROJECTION_TEXT },
+      ],
+    });
+  });
+
+  it("gives no file for a declared folder that is a nested repository", async () => {
+    expect(
+      await projectingRunner().runnerOver.project({
+        ...SELECTING_THE_CLASS_CHECK,
+        declaredConfigRoots: [repoPathSchema.parse("vendor/lib")],
+        trackedPaths: [repoPathSchema.parse("kept.ts"), repoPathSchema.parse("vendor/lib/hone.config.json")],
+      }),
+    ).toEqual({ outcome: "ok", value: [{ file: CHECKS_PROJECTION_PATH, text: CURRENT_PROJECTION_TEXT }] });
   });
 
   it("gives the text a run then reports as current, so the two read one source", async () => {
@@ -360,6 +451,6 @@ describe("checksRunnerOver, giving the projection as project", () => {
     const [file] = projected.value;
     assert(file !== undefined, "one file is given");
     const outcome = await runnerOverProjection({ currents: rootOnly({ presence: "present", text: file.text }), ruleState: CONFIGURED_ON, governance }).run(SELECTING_THE_CLASS_CHECK);
-    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } });
   });
 });

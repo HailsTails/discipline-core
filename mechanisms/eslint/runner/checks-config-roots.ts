@@ -11,6 +11,9 @@ const configFilesOf = (request: ConfigFilesRequest): readonly RepoPath[] =>
 const placementOf = (request: { readonly path: RepoPath; readonly folders: readonly string[] }): "inside" | "outside" =>
   request.folders.some((folder) => request.path.startsWith(`${folder}/`)) ? "inside" : "outside";
 
+export const outsideNestedRepositories = (request: { readonly directories: readonly string[]; readonly nestedRepositories: readonly string[] }): readonly string[] =>
+  request.directories.filter((directory) => !request.nestedRepositories.some((folder) => directory === folder || directory.startsWith(`${folder}/`)));
+
 export const configuredDirectoriesOf = (request: ConfigFilesRequest): readonly string[] => configFilesOf(request).map((path) => directoryOf({ path }));
 
 export const packageConfigFilesOf = (request: ConfigFilesRequest & { readonly nestedRepositories: readonly string[] }): readonly RepoPath[] =>

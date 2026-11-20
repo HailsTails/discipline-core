@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { configuredDirectoriesOf, packageConfigFilesOf } from "./checks-config-roots.ts";
+import { configuredDirectoriesOf, outsideNestedRepositories, packageConfigFilesOf } from "./checks-config-roots.ts";
 
 const TRACKED = [
   repoPathSchema.parse("eslint.config.mjs"),
@@ -36,5 +36,16 @@ describe("packageConfigFilesOf", () => {
 
   it("leaves out an ESLint config inside a nested repository, which belongs to that repository", () => {
     expect(packageConfigFilesOf({ trackedPaths: TRACKED, lookup: "nearest-to-file", nestedRepositories: ["packages/a"] })).toEqual(["packages/b/tools/eslint.config.ts"]);
+  });
+});
+
+describe("outsideNestedRepositories", () => {
+  it("keeps the folders outside every nested repository, and not the nested repository itself, a folder inside it, or one that only shares its prefix", () => {
+    expect(
+      outsideNestedRepositories({
+        directories: ["vendor/lib", "vendor/lib/tools", "vendor/library", "packages/a"],
+        nestedRepositories: ["vendor/lib"],
+      }),
+    ).toEqual(["vendor/library", "packages/a"]);
   });
 });
