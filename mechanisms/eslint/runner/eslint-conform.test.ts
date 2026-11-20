@@ -8,7 +8,6 @@ import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 import {
   type ConfiguredClause,
   conformedCases,
@@ -32,6 +31,8 @@ const CLASS_CLAUSE: RunnerClause = {
   edition: FIRST_EDITION,
   settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
 };
+
+const ACME_CLAUSE: RunnerClause = { ...CLASS_CLAUSE, address: clauseAddressSchema.parse("acme/ACME-2#scratch-files") };
 
 const PLUGIN = { rules: { "no-class-authoring": { meta: { type: "problem" as const }, create: () => ({}) } } };
 
@@ -73,17 +74,36 @@ describe("configuredClause", () => {
   });
 
   it("is piece-invalid for the namespace reserved for the tool's own rules", () => {
-    const reserved = { pluginNamespace: TOOL_IDENTITY.reservedEslintNamespace, pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" };
-    expect(configuredClause({ clause: { ...CLASS_CLAUSE, settings: reserved }, path: POSIX_PATH })).toMatchObject({
+    const reserved = { pluginNamespace: "hone-core", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" };
+    expect(configuredClause({ clause: { ...CLASS_CLAUSE, settings: reserved }, path: POSIX_PATH })).toEqual({
       outcome: "failed",
-      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: expect.stringContaining("is reserved for") },
+      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "the plugin namespace hone-core is reserved for hone's own rules" },
+    });
+  });
+
+  it("is piece-invalid for a namespace the clause's rule set does not own", () => {
+    const foreign = { pluginNamespace: "other", pluginModule: "scratch/scratch.eslint-plugin.ts", rule: "no-scratch" };
+    expect(configuredClause({ clause: { ...ACME_CLAUSE, settings: foreign }, path: POSIX_PATH })).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "the plugin namespace other is not owned by the rule set acme; use acme or acme-<name>" },
+    });
+  });
+
+  it("refuses a namespace another rule set owns before the reserved namespace", () => {
+    const reserved = { pluginNamespace: "hone-core", pluginModule: "scratch/scratch.eslint-plugin.ts", rule: "no-scratch" };
+    expect(configuredClause({ clause: { ...ACME_CLAUSE, settings: reserved }, path: POSIX_PATH })).toEqual({
+      outcome: "failed",
+      error: { kind: "piece-invalid", pieceRoot: PIECE_ROOT, detail: "the plugin namespace hone-core belongs to Hone; the rule set acme must use acme or acme-<name>" },
     });
   });
 });
 
 describe("parsedPluginOf", () => {
   it("gives the plugin a loaded module exports as its default", () => {
-    expect(parsedPluginOf({ loaded: { outcome: "ok", value: { default: PLUGIN } } })).toMatchObject({ outcome: "ok" });
+    expect(parsedPluginOf({ loaded: { outcome: "ok", value: { default: PLUGIN } } })).toEqual({
+      outcome: "ok",
+      value: { rules: { "no-class-authoring": { meta: { type: "problem" }, create: expect.any(Function) } } },
+    });
   });
 
   it("gives the loader's detail when the module did not load", () => {
