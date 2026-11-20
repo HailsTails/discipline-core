@@ -157,6 +157,115 @@ export const importStatementsReaching = (request: {
       .map(([statement]) => ({ file, statement })),
   );
 
+type ImportGraph = ReadonlyMap<string, readonly string[]>;
+
+const scannedImportsOf = (request: {
+  readonly file: string;
+  readonly text: string;
+  readonly scanned: ReadonlySet<string>;
+}): readonly string[] => {
+  const importingPath = createPathPort({
+    flavour: "posix",
+    workingDirectory: () => `${INSTALL_ROOT}/${folderOfSource({ source: request.file })}`,
+  });
+  return importsIn({ text: request.text })
+    .filter(({ specifier }) => RELATIVE_SPECIFIER.test(specifier))
+    .flatMap(({ specifier }) => {
+      const location = importingPath.relative({ from: INSTALL_ROOT, to: specifier });
+      return location.relation === "within-root" ? [`./${location.path}`] : [];
+    })
+    .filter((resolved) => request.scanned.has(resolved));
+};
+
+const reachedFrom = (request: {
+  readonly graph: ImportGraph;
+  readonly frontier: readonly string[];
+  readonly seen: ReadonlySet<string>;
+}): ReadonlySet<string> => {
+  const fresh = [...new Set(request.frontier.flatMap((file) => request.graph.get(file) ?? []))].filter((file) => !request.seen.has(file));
+  return fresh.length === 0 ? request.seen : reachedFrom({ graph: request.graph, frontier: fresh, seen: new Set([...request.seen, ...fresh]) });
+};
+
+export const filesReachableFrom = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly notEntering: RegExp;
+}): readonly string[] => {
+  const scanned = new Set(Object.keys(request.sources).filter((file) => !request.notEntering.test(file)));
+  const graph: ImportGraph = new Map(
+    [...scanned].map((file) => [file, scannedImportsOf({ file, text: request.sources[file] ?? "", scanned })]),
+  );
+  const starts = [...scanned].filter((file) => request.startingFrom.test(file));
+  return [...reachedFrom({ graph, frontier: starts, seen: new Set(starts) })].sort();
+};
+
+export const sourcesOfFiles = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => request.files.includes(source)));
+
+export type ImportEdge = { readonly file: string; readonly specifier: string; readonly form: ModuleImport["form"] };
+
+const resolvedImportOf = (request: { readonly file: string; readonly specifier: string }): string | undefined => {
+  if (!RELATIVE_SPECIFIER.test(request.specifier)) {
+    return undefined;
+  }
+  const importingPath = createPathPort({
+    flavour: "posix",
+    workingDirectory: () => `${INSTALL_ROOT}/${folderOfSource({ source: request.file })}`,
+  });
+  const location = importingPath.relative({ from: INSTALL_ROOT, to: request.specifier });
+  return location.relation === "within-root" ? `./${location.path}` : undefined;
+};
+
+type FilesLeaving = {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly notEntering: RegExp;
+  readonly reaching: RegExp;
+};
+
+export const importEdgesLeaving = (request: FilesLeaving): readonly ImportEdge[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    importsIn({ text })
+      .filter(({ specifier }) => request.reaching.test(resolvedImportOf({ file, specifier }) ?? ""))
+      .map(({ specifier, form }) => ({ file, specifier, form })),
+  );
+
+export const importStatementsLeaving = (request: FilesLeaving): readonly ImportStatement[] =>
+  Object.entries(sourcesOfFiles({ sources: request.sources, files: filesReachableFrom(request) })).flatMap(([file, text]) =>
+    [...text.matchAll(IMPORT_STATEMENT)]
+      .filter(([, specifier]) => request.reaching.test(resolvedImportOf({ file, specifier: specifier ?? "" }) ?? ""))
+      .map(([statement]) => ({ file, statement })),
+  );
+
+export const filesReachingExcept = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly startingFrom: RegExp;
+  readonly reaching: RegExp;
+  readonly exceptEdges: readonly ImportEdge[];
+}): readonly string[] => {
+  const scanned = new Set(Object.keys(request.sources));
+  const exceptedFrom = (file: string): ReadonlySet<string | undefined> =>
+    new Set(request.exceptEdges.filter((edge) => edge.file === file).map((edge) => resolvedImportOf(edge)));
+  const graph: ImportGraph = new Map(
+    Object.entries(request.sources).map(([file, text]) => [
+      file,
+      scannedImportsOf({ file, text, scanned }).filter((resolved) => !exceptedFrom(file).has(resolved)),
+    ]),
+  );
+  return [...scanned]
+    .filter((file) => request.startingFrom.test(file))
+    .filter((file) => [...reachedFrom({ graph, frontier: [file], seen: new Set([file]) })].some((reached) => request.reaching.test(reached)))
+    .sort();
+};
+
+export const outsideFiles = <Held extends { readonly file: string }>(request: {
+  readonly held: readonly Held[];
+  readonly files: RegExp;
+}): readonly Held[] => request.held.filter(({ file }) => !request.files.test(file));
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;
