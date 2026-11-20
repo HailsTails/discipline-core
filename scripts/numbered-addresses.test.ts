@@ -39,6 +39,38 @@ describe("numberedAddressesOf", () => {
     ).toEqual(["README.md:3 names CD-14", "README.md:4 names CD-2", "README.md:4 names CD-27", "README.md:7 names CD-40"]);
   });
 
+  it("names a number in prose or in a link target whatever its case or separator", () => {
+    expect(
+      numberedAddressesOf({
+        pages: [
+          {
+            path: "MIGRATING.md",
+            text: "Moving cd-14 first.\nThen cd 4 and CD 40.\nCD27 last.\nSee [the rule](rules/cd-2/README.md).\n",
+          },
+        ],
+        pinned: [],
+      }),
+    ).toEqual(["MIGRATING.md:1 names cd-14", "MIGRATING.md:2 names cd 4", "MIGRATING.md:2 names CD 40", "MIGRATING.md:3 names CD27", "MIGRATING.md:4 names cd-2"]);
+  });
+
+  it("accepts, inside code, a lower-case number in a file or namespace name, and names an upper-case one without its clause", () => {
+    expect(
+      numberedAddressesOf({
+        pages: [
+          {
+            path: "docs/extending.md",
+            text: "Load `cd14/cd14.eslint-plugin.ts` under `hone-cd14`.\n\n```\nhone-cd27/skipped-tests\nCD14\n```\n",
+          },
+        ],
+        pinned: [],
+      }),
+    ).toEqual(["docs/extending.md:5 names CD14"]);
+  });
+
+  it("leaves a word that only ends in cd alone", () => {
+    expect(numberedAddressesOf({ pages: [{ path: "README.md", text: "Run abcd 14 times, or abcd14.\n" }], pinned: [] })).toEqual([]);
+  });
+
   it("names a number that follows a fenced block once the fence has closed", () => {
     expect(
       numberedAddressesOf({

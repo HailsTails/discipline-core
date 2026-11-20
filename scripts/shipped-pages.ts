@@ -6,9 +6,10 @@ import type { ShippedPage } from "./numbered-addresses.ts";
 import { LEFT_OUT_FOLDERS, ROOT_FILES, SOURCE_FOLDERS } from "./package-build.ts";
 
 type PageSources = {
-  readonly scratch: ScratchFilesPort;
-  readonly fileText: FileTextPort;
-  readonly path: PathPort;
+  readonly listTree: ScratchFilesPort["listTree"];
+  readonly read: FileTextPort["read"];
+  readonly exists: FileTextPort["exists"];
+  readonly join: PathPort["join"];
   readonly packageRoot: string;
 };
 
@@ -24,7 +25,7 @@ const pageKindOf = (request: { readonly path: string }): PageKind =>
   request.path.endsWith(PAGE_SUFFIX) && request.path.split("/").every((segment) => !LEFT_OUT_FOLDERS.has(segment)) ? "shipped-page" : "other";
 
 const pagesUnder = (request: PageSources & { readonly folder: string }): Read<readonly string[]> => {
-  const listed = request.scratch.listTree({ path: request.path.join({ segments: [request.packageRoot, request.folder] }) });
+  const listed = request.listTree({ path: request.join({ segments: [request.packageRoot, request.folder] }) });
   if (listed.outcome === "failed") {
     return { outcome: "failed", error: `list ${request.folder}: ${listed.error.detail}` };
   }
@@ -39,7 +40,7 @@ const pagesUnder = (request: PageSources & { readonly folder: string }): Read<re
 
 const presentRootPages = (request: PageSources): readonly string[] =>
   ROOT_FILES.filter(
-    (name) => name.endsWith(PAGE_SUFFIX) && request.fileText.exists({ path: request.path.join({ segments: [request.packageRoot, name] }) }) === "present",
+    (name) => name.endsWith(PAGE_SUFFIX) && request.exists({ path: request.join({ segments: [request.packageRoot, name] }) }) === "present",
   );
 
 const pagePaths = (request: PageSources): Read<readonly string[]> =>
@@ -52,7 +53,7 @@ const pagePaths = (request: PageSources): Read<readonly string[]> =>
   }, { outcome: "ok", value: presentRootPages(request) });
 
 const pageAt = (request: PageSources & { readonly page: string }): Read<ShippedPage> => {
-  const read = request.fileText.read({ path: request.path.join({ segments: [request.packageRoot, ...request.page.split("/")] }) });
+  const read = request.read({ path: request.join({ segments: [request.packageRoot, ...request.page.split("/")] }) });
   return read.outcome === "failed"
     ? { outcome: "failed", error: `read ${request.page}: ${read.error.detail}` }
     : { outcome: "ok", value: { path: request.page, text: read.value } };

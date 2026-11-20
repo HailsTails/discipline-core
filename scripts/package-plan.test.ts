@@ -48,15 +48,7 @@ const AUDIT_PIECE = {
 
 const ESLINT_PIECE = {
   path: "mechanisms/eslint/CD-14/piece.json",
-  text: JSON.stringify({
-    version: 1,
-    discipline: "CD-14",
-    mechanism: "eslint",
-    clauses: [
-      { clause: "class-syntax", settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class" } },
-      { clause: "static-only-class", settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "static" } },
-    ],
-  }),
+  text: '{ "version": 1, "discipline": "CD-14", "mechanism": "eslint", "clauses": [ { "clause": "class-syntax", "settings": { "pluginNamespace": "hone", "pluginModule": "cd14/cd14.eslint-plugin.ts", "rule": "no-class" } }, { "clause": "static-only-class", "settings": { "pluginNamespace": "hone", "pluginModule": "cd14/cd14.eslint-plugin.ts", "rule": "static" } } ] }',
 };
 
 describe("piecePathsIn", () => {
@@ -78,6 +70,7 @@ describe("packagePlanOf", () => {
         entryPoints: [
           "core/check/tool-command.ts",
           "api/audit.ts",
+          "api/eslint-plugin.ts",
           "api/rule-set.ts",
           "api/testing.ts",
           "mechanisms/audit/runner/runner.ts",
@@ -123,16 +116,20 @@ describe("packagePlanOf", () => {
         pieces: [
           {
             path: "mechanisms/audit/CD-23/piece.json",
-            text: `${JSON.stringify(
-              {
-                version: 1,
-                discipline: "CD-23",
-                mechanism: "audit",
-                clauses: [{ clause: "export-test-sibling", settings: { module: "export-test-sibling.js" } }],
-              },
-              null,
-              2,
-            )}\n`,
+            text: `{
+  "version": 1,
+  "discipline": "CD-23",
+  "mechanism": "audit",
+  "clauses": [
+    {
+      "clause": "export-test-sibling",
+      "settings": {
+        "module": "export-test-sibling.js"
+      }
+    }
+  ]
+}
+`,
           },
           {
             path: "mechanisms/eslint/CD-14/piece.json",
@@ -150,17 +147,7 @@ describe("packagePlanOf", () => {
   it("rewrites only the module keys of each clause's settings, leaving a rule option or top-level field of that name alone", () => {
     const piece = {
       path: "mechanisms/eslint/CD-14/piece.json",
-      text: JSON.stringify({
-        version: 1,
-        module: "top.ts",
-        clauses: [
-          {
-            clause: "class-syntax",
-            module: "clause.ts",
-            settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class", options: [{ module: "option.ts" }] },
-          },
-        ],
-      }),
+      text: '{ "version": 1, "module": "top.ts", "clauses": [ { "clause": "class-syntax", "module": "clause.ts", "settings": { "pluginNamespace": "hone", "pluginModule": "cd14/cd14.eslint-plugin.ts", "rule": "no-class", "options": [ { "module": "option.ts" } ] } } ] }',
     };
     expect(packagePlanOf({ sourcePaths: SOURCE_PATHS, pieces: [piece] })).toMatchObject({
       outcome: "ok",
@@ -168,21 +155,27 @@ describe("packagePlanOf", () => {
         pieces: [
           {
             path: piece.path,
-            text: `${JSON.stringify(
-              {
-                version: 1,
-                module: "top.ts",
-                clauses: [
-                  {
-                    clause: "class-syntax",
-                    module: "clause.ts",
-                    settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.js", rule: "no-class", options: [{ module: "option.ts" }] },
-                  },
-                ],
-              },
-              null,
-              2,
-            )}\n`,
+            text: `{
+  "version": 1,
+  "module": "top.ts",
+  "clauses": [
+    {
+      "clause": "class-syntax",
+      "module": "clause.ts",
+      "settings": {
+        "pluginNamespace": "hone",
+        "pluginModule": "cd14/cd14.eslint-plugin.js",
+        "rule": "no-class",
+        "options": [
+          {
+            "module": "option.ts"
+          }
+        ]
+      }
+    }
+  ]
+}
+`,
           },
         ],
       },

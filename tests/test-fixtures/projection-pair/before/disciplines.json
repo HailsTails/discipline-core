@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": {
+    "CD-2#non-null-assertions": "eslint",
+    "CD-6#naming-convention": "eslint",
+    "CD-14#class-syntax": "eslint",
+    "CD-14#static-only-class": "eslint",
+    "CD-27#focused-tests": "eslint",
+    "CD-27#skipped-tests": "eslint",
+    "CD-40#parameter-count": "eslint",
+    "CD-44#parameter-reassignment": "eslint"
+  }
+}

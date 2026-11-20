@@ -49,7 +49,7 @@ The Spirit section does not talk about syntax, detectors or linting. [rules/SPIR
 
 A mechanical clause's `cases` hold `flag` and `allow` lists. Each case is `{ "name", "fileName", "source", "expectedLines" }`: a flag case lists the lines that must be flagged (at least one), and an allow case lists none. `fileName` is a repository path and may be a declaration file such as `x.d.ts`. There must be at least one of each.
 
-The cases are shared by every mechanism the clause lists. A mechanism conforms for a clause when, run over each case's source, it flags exactly the expected lines. That is how two mechanisms are held to the same verdict: the cases behind `authored-class-or-this#class-keyword` are run through both the walker and the ESLint runner.
+The cases are shared by every mechanism the clause lists. A mechanism conforms for a clause when, run over each case's source, it flags exactly the expected lines. That is how two mechanisms are held to the same verdict: the cases behind `authored-class-or-this#class-keyword` are run through both the walker and the ESLint runner. `authored-class-or-this#class-keyword` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0.
 
 ### 3. A piece per mechanism
 

@@ -2,11 +2,13 @@ export type ShippedPage = { readonly path: string; readonly text: string };
 
 type Span = { readonly start: number; readonly end: number };
 
-type NumberPlace = "clause-address-in-code" | "pinned-page-in-code" | "address";
+type NumberPlace = "clause-address-in-code" | "pinned-page-in-code" | "lower-case-name-in-code" | "address";
 
 const PAGE_SUFFIX = ".md";
 
-const NUMBER = /CD-\d+[a-z]?(?:#[a-z0-9-]+)?/g;
+const NUMBER = /\bcd[- ]?\d+[a-z]?(?:#[a-z0-9-]+)?/gi;
+
+const LOWER_CASE_NUMBER = /^cd/;
 
 const CODE = /```[\s\S]*?```|`[^`\n]+`/g;
 
@@ -35,6 +37,9 @@ const placeOf = (request: { readonly found: string; readonly at: number; readonl
   }
   if (request.found.includes(CLAUSE_SEPARATOR)) {
     return "clause-address-in-code";
+  }
+  if (LOWER_CASE_NUMBER.test(request.found)) {
+    return "lower-case-name-in-code";
   }
   return placementIn({ at: request.at, spans: request.spans.pinnedPaths }) === "inside" ? "pinned-page-in-code" : "address";
 };

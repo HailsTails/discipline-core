@@ -7,10 +7,13 @@ import { shippedPagesAt } from "./shipped-pages.ts";
 
 const path = createDefaultPathPort({});
 
+const fileText = createDefaultFileTextPort({});
+
 const PAGES = shippedPagesAt({
-  scratch: createDefaultScratchFilesPort({}),
-  fileText: createDefaultFileTextPort({}),
-  path,
+  listTree: createDefaultScratchFilesPort({}).listTree,
+  read: fileText.read,
+  exists: fileText.exists,
+  join: path.join,
   packageRoot: path.join({ segments: [import.meta.dirname, ".."] }),
 });
 

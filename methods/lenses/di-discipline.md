@@ -37,7 +37,7 @@ Across codebases the concept recurs under different names (constructor
 injection, hexagonal ports-and-adapters, "no ambient singletons", "depend on
 abstractions"). The loaded rules tell you this codebase's exact shape: which
 capabilities are named ports, the single permitted site for each ambient
-binding (the adapter), the adapter naming convention, any
+binding (the adapter), the default-adapter naming convention, any
 type-level constraint on context-consuming middleware, and the closed list of
 banned module-interception mechanisms. Read them first; they override any default
 intuition.
