@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { commandOver, gitTreeStub, memoryRepositoryOf, recordedProcessWith } from "../../tests/command-harness.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
+import type { RecordsSourceOf } from "../records/records-folder.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import { type StagesOver, repoRootOf, repositoryLocatedOf, stagesOverRepository } from "./version-two-repository.ts";
@@ -53,15 +54,16 @@ describe("stagesOverRepository", () => {
     };
     const stagesOver = vi.fn<StagesOver>().mockReturnValue(stages);
     const gitTree = gitTreeStub();
+    const recordsSourceOf = vi.fn<RecordsSourceOf>();
     const built = stagesOverRepository({
-      ports: { gitTree, directory: memory.directory, stagesOver },
+      ports: { gitTree, directory: memory.directory, recordsSourceOf, stagesOver },
       command,
       located: { repoRoot: absolutePathSchema.parse("/repo"), installRoot: absolutePathSchema.parse("/install") },
       baseRevision: "origin/main",
     });
     expect(built).toBe(stages);
     expect(stagesOver).toHaveBeenCalledWith({
-      ports: expect.objectContaining({ gitTree, directory: memory.directory, fileText: memory.fileText, git: command.git }),
+      ports: expect.objectContaining({ gitTree, directory: memory.directory, recordsSourceOf, fileText: memory.fileText, git: command.git }),
       locations: { repoRoot: "/repo", installRoot: "/install", moduleExtension: ".ts", baseRevision: "origin/main" },
     });
   });
