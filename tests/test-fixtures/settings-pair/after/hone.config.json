@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "exclude": ["vendor"],
+  "ruleSets": { "team": "tools/hone-rules" },
+  "checks": {
+    "date-used-directly#clock-sources": "walker",
+    "claimed-type#unlisted-cast-site": "walker",
+    "claimed-type#non-null-assertions": "eslint",
+    "untracked-escape#directive-pointers": "walker",
+    "outside-import-past-a-boundary#import-or-require": "walker",
+    "branch-in-a-test#test-body": "walker",
+    "computed-value-in-a-test#test-body": "walker",
+    "rebinding#test-body": "walker",
+    "text-past-its-reader#test-body": "walker",
+    "throw-or-catch-in-a-test#try-block": "walker",
+    "double-with-a-body#logic-in-a-passed-function": "walker",
+    "loop-keyword#loop-statement": "not-adopted"
+  },
+  "checkSettings": {
+    "untracked-escape#directive-pointers": { "trackerPatterns": ["^\\(spec-\\d+\\)$"] },
+    "outside-import-past-a-boundary#import-or-require": { "confinedOutsideDependencies": ["uuid"] },
+    "branch-in-a-test#test-body": { "edition": "2" }
+  },
+  "forfeiture": "elsewhere",
+  "conventions": {},
+  "layers": {}
+}
