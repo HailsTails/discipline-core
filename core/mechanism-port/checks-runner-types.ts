@@ -5,6 +5,7 @@ import type { ClauseAddress } from "../values/clause-address-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 import type { Result } from "../values/result.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
+import type { StandaloneRunner } from "./runner-module-schema.ts";
 import type { Hit, MeasuredPair, NativeException, ProjectionState } from "./runner-result-schema.ts";
 
 export type AnsweredFile = { readonly symptom: string; readonly check?: string; readonly file: RepoPath };
@@ -50,6 +51,7 @@ export type ChecksRunFailure = RunnerFailure | NotReadyYetFailure;
 
 export type ChecksRunner = {
   readonly run: (request: ChecksRunRequest) => Promise<Result<ChecksRunReport, ChecksRunFailure>>;
+  readonly conform: StandaloneRunner["conform"];
 };
 
 export type LoadedChecksRunner = ChecksRunner & { readonly projectedKinds: readonly NativeException["kind"][] };

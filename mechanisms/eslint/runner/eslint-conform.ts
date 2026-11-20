@@ -3,7 +3,7 @@ import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { CaseVerdict } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { SourceCase } from "../../../core/rule-set-reader/rule-set-reader.ts";
-import type { ModuleLoad } from "../../../core/platform-ports/module-loader-port.ts";
+import type { ModuleLoad, ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import type { Result } from "../../../core/values/result.ts";
@@ -95,6 +95,14 @@ export const pluginOf = <Clause extends ConfiguredClause>(request: {
   }
   return { outcome: "ok", value: { ...request.configured, plugin: request.parsed.value } };
 };
+
+export const loadedPieceClauseOf = (request: {
+  readonly configured: ConfiguredClause;
+  readonly modules: ModuleLoaderPort;
+}): Promise<Outcome<LoadedClause<ConfiguredClause>>> =>
+  request.modules.load({ path: request.configured.modulePath }).then((loaded) =>
+    pluginOf({ parsed: parsedPluginOf({ loaded }), configured: request.configured }),
+  );
 
 const lintedSourceCases = (request: {
   readonly selected: Outcome<LoadedClause<ConfiguredClause>>;
