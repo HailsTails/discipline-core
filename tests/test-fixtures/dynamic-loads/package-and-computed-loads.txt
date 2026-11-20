@@ -1,0 +1,5 @@
+import { a } from "./a.ts";
+const relative = await import("./a.ts");
+const named = await import("zod");
+const computed = await import(`${folder}/mod.ts`);
+const viaVariable = await import(modulePath);

@@ -1,6 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
+import { requiredEntry } from "../../tests/required-entry.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import { importsIn, pieceImportRefusals } from "./piece-import-rules.ts";
+
+declare global {
+  interface ImportMeta {
+    readonly glob: (
+      patterns: readonly string[],
+      options: { readonly base: string; readonly query: "?raw"; readonly import: "default"; readonly eager: true },
+    ) => Readonly<Record<string, string>>;
+  }
+}
+
+const fixtures = import.meta.glob(["./tests/test-fixtures/dynamic-loads/computed-loads.txt"], {
+  base: "../../",
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
 
 describe("importsIn", () => {
   it("reads a static import, a type-only import and a re-export with the specifier as written", () => {
@@ -12,7 +29,7 @@ describe("importsIn", () => {
   });
 
   it("reads a dynamic load of a quoted path as the path", () => {
-    expect(importsIn({ text: 'const a = await import("./a.ts");\nconst b = require(\'../b.ts\');\n' })).toEqual([
+    expect(importsIn({ text: `const a = await import("./a.ts");\nconst b = require('../b.ts');\n` })).toEqual([
       { specifier: "./a.ts", form: "dynamic" },
       { specifier: "../b.ts", form: "dynamic" },
     ]);
@@ -25,23 +42,15 @@ describe("importsIn", () => {
     ]);
   });
 
-  it("keeps a template literal with a substitution as the text written, because the path it names is computed", () => {
-    expect(importsIn({ text: "const a = await import(`${folder}/a.ts`);\nconst b = await import(`./$${name}.ts`);\n" })).toEqual([
-      { specifier: "`${folder}/a.ts`", form: "dynamic" },
-      { specifier: "`./$${name}.ts`", form: "dynamic" },
+  it("keeps a template literal with a substitution or an escape, quoted backticks and a variable as the text written, because the path each names is computed or is not the path between them", () => {
+    const text = requiredEntry({ table: fixtures, key: "./tests/test-fixtures/dynamic-loads/computed-loads.txt" });
+    expect(importsIn({ text })).toEqual([
+      { specifier: `\`\${folder}/a.ts\``, form: "dynamic" },
+      { specifier: `\`./$\${name}.ts\``, form: "dynamic" },
+      { specifier: "`./a\\.ts`", form: "dynamic" },
+      { specifier: "`./a.ts`", form: "dynamic" },
+      { specifier: "modulePath", form: "dynamic" },
     ]);
-  });
-
-  it("keeps a template literal holding an escape as the text written", () => {
-    expect(importsIn({ text: "const a = await import(`./a\\u0041.ts`);\n" })).toEqual([{ specifier: "`./a\\u0041.ts`", form: "dynamic" }]);
-  });
-
-  it("keeps a quoted path holding backticks as the path between its quotes", () => {
-    expect(importsIn({ text: 'const a = await import("`./a.ts`");\n' })).toEqual([{ specifier: "`./a.ts`", form: "dynamic" }]);
-  });
-
-  it("keeps a computed argument as the text written", () => {
-    expect(importsIn({ text: "const a = await import(modulePath);\n" })).toEqual([{ specifier: "modulePath", form: "dynamic" }]);
   });
 });
 

@@ -1,0 +1,5 @@
+const withSubstitution = await import(`${folder}/a.ts`);
+const withEscapedDollar = await import(`./$${name}.ts`);
+const withEscape = await import(`./a\.ts`);
+const quotedBackticks = await import("`./a.ts`");
+const viaVariable = await import(modulePath);

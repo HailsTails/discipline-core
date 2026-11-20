@@ -25,6 +25,26 @@ import {
   sourcesNotNamed,
   unresolvedLoadsReached,
 } from "./confinement.ts";
+import { requiredEntry } from "./required-entry.ts";
+
+declare global {
+  interface ImportMeta {
+    readonly glob: (
+      patterns: readonly string[],
+      options: { readonly base: string; readonly query: "?raw"; readonly import: "default"; readonly eager: true },
+    ) => Readonly<Record<string, string>>;
+  }
+}
+
+const dynamicLoadFixtures = import.meta.glob(["./tests/test-fixtures/dynamic-loads/*.txt"], {
+  base: "../",
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+
+const fixtureText = (request: { readonly name: string }): string =>
+  requiredEntry({ table: dynamicLoadFixtures, key: `./tests/test-fixtures/dynamic-loads/${request.name}.txt` });
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
 
@@ -317,17 +337,16 @@ describe("a dynamic load written as a template literal without substitutions", (
 
 describe("unresolvedLoadsReached", () => {
   const sources = {
-    "./core/run/start.ts":
-      'import { a } from "./a.ts";\nconst relative = await import("./a.ts");\nconst named = await import("zod");\nconst computed = await import(`${folder}/mod.ts`);\nconst viaVariable = await import(modulePath);\n',
+    "./core/run/start.ts": fixtureText({ name: "package-and-computed-loads" }),
     "./core/run/a.ts": "export const a = 1;\n",
-    "./core/held/h.ts": "const hidden = await import(somewhere);\n",
-    "./core/unreached/u.ts": "const hidden = await import(elsewhere);\n",
+    "./core/held/h.ts": fixtureText({ name: "variable-load" }),
+    "./core/unreached/u.ts": fixtureText({ name: "variable-load" }),
   };
 
   it("lists each dynamic load in the reached files that no relative path names, as written, and none it cannot enter", () => {
     expect(unresolvedLoadsReached({ sources, startingFrom: /^\.\/core\/run\//, notEntering: /^\.\/core\/held\// })).toEqual([
       { file: "./core/run/start.ts", specifier: "zod", form: "dynamic" },
-      { file: "./core/run/start.ts", specifier: "`${folder}/mod.ts`", form: "dynamic" },
+      { file: "./core/run/start.ts", specifier: `\`\${folder}/mod.ts\``, form: "dynamic" },
       { file: "./core/run/start.ts", specifier: "modulePath", form: "dynamic" },
     ]);
   });
