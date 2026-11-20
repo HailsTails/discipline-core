@@ -1,4 +1,5 @@
 import type { DirectoryRemovalPort } from "../../platform-ports/directory-removal-port.ts";
+import type { FileCreationPort } from "../../platform-ports/file-creation-port.ts";
 import type { FileRemovalPort } from "../../platform-ports/file-removal-port.ts";
 import type { DirectoryPort, EntryKindPort, FileTextPort } from "../../platform-ports/file-system-port.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
@@ -9,6 +10,7 @@ export type PlannedFile = { readonly path: AbsolutePath; readonly text: string }
 
 export type ProofWritePorts = {
   readonly fileText: FileTextPort;
+  readonly fileCreation: FileCreationPort;
   readonly fileRemoval: FileRemovalPort;
   readonly directory: DirectoryPort;
   readonly directoryRemoval: DirectoryRemovalPort;
@@ -89,10 +91,17 @@ const performed = (request: { readonly ports: ProofWritePorts; readonly step: St
         : { outcome: "failed", error: { kind: "directory-uncreatable", path: step.path, detail: created.error.detail } };
     }
     case "file": {
-      const written = ports.fileText.write({ path: step.file.path, text: step.file.text });
-      return written.outcome === "ok"
-        ? { outcome: "ok", value: { kind: "file-created", path: step.file.path } }
-        : { outcome: "failed", error: { kind: "unwritable", path: step.file.path, detail: written.error.detail } };
+      const created = ports.fileCreation.createNew({ path: step.file.path, text: step.file.text });
+      if (created.outcome === "ok") {
+        return { outcome: "ok", value: { kind: "file-created", path: step.file.path } };
+      }
+      return {
+        outcome: "failed",
+        error:
+          created.error.kind === "already-exists"
+            ? { kind: "path-already-exists", path: step.file.path }
+            : { kind: "unwritable", path: step.file.path, detail: created.error.detail },
+      };
     }
     case "replacement": {
       const written = ports.fileText.write({ path: step.file.path, text: step.file.text });

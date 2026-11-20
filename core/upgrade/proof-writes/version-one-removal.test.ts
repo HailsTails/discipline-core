@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { callSequenceOf } from "../../../tests/call-sequence.ts";
 import type { DirectoryRemovalPort } from "../../platform-ports/directory-removal-port.ts";
 import type { FileRemovalPort } from "../../platform-ports/file-removal-port.ts";
 import type { DirectoryPort } from "../../platform-ports/file-system-port.ts";
@@ -24,15 +25,51 @@ const REMOVAL: VersionOneRemoval = { recordsFiles: [CARVE_OUT_FILE, AUTHORISED_F
 
 const ok = { outcome: "ok", value: undefined } as const;
 
-const portsOver = () => ({
+type MockedPorts = {
+  readonly fileRemoval: { readonly remove: Mock<FileRemovalPort["remove"]> };
+  readonly directory: { readonly list: Mock<DirectoryPort["list"]>; readonly create: Mock<DirectoryPort["create"]> };
+  readonly directoryRemoval: { readonly removeEmpty: Mock<DirectoryRemovalPort["removeEmpty"]> };
+  readonly path: VersionOneRemovalPorts["path"];
+};
+
+const portsOver = (): MockedPorts => ({
   fileRemoval: { remove: vi.fn<FileRemovalPort["remove"]>().mockReturnValue(ok) },
   directory: { list: vi.fn<DirectoryPort["list"]>().mockReturnValue({ outcome: "ok", value: [] }), create: vi.fn<DirectoryPort["create"]>() },
   directoryRemoval: { removeEmpty: vi.fn<DirectoryRemovalPort["removeEmpty"]>().mockReturnValue(ok) },
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
-}) satisfies VersionOneRemovalPorts;
+});
+
+const sequenceOf = (request: { readonly ports: MockedPorts }) =>
+  callSequenceOf({
+    mocks: { remove: request.ports.fileRemoval.remove, list: request.ports.directory.list, removeEmpty: request.ports.directoryRemoval.removeEmpty },
+  });
+
+const REMOVING_RECORDS = [
+  { port: "remove", arguments: [{ path: CARVE_OUT_FILE }] },
+  { port: "remove", arguments: [{ path: AUTHORISED_FILE }] },
+];
+
+const REMOVING_AUTHORISED_FOLDER = [
+  { port: "list", arguments: [{ path: AUTHORISED_FOLDER }] },
+  { port: "removeEmpty", arguments: [{ path: AUTHORISED_FOLDER }] },
+];
+
+const REMOVING_CARVE_OUT_FOLDER = [
+  { port: "list", arguments: [{ path: CARVE_OUT_FOLDER }] },
+  { port: "removeEmpty", arguments: [{ path: CARVE_OUT_FOLDER }] },
+];
+
+const REMOVING_ROOT = [
+  { port: "list", arguments: [{ path: ROOT }] },
+  { port: "removeEmpty", arguments: [{ path: ROOT }] },
+];
+
+const REMOVING_PROJECTION = { port: "remove", arguments: [{ path: PROJECTION }] };
+
+const REMOVING_SETTINGS = { port: "remove", arguments: [{ path: SETTINGS }] };
 
 describe("removedVersionOneFiles", () => {
-  it("removes the records files, then the projection, and the settings file last", () => {
+  it("removes the records files, then the emptied folders deepest first, the records folder last of them, then the projection, and the settings file last", () => {
     const ports = portsOver();
     expect(removedVersionOneFiles({ ports, removal: REMOVAL })).toEqual({
       outcome: "ok",
@@ -41,22 +78,14 @@ describe("removedVersionOneFiles", () => {
         folders: [AUTHORISED_FOLDER, CARVE_OUT_FOLDER, ROOT],
       },
     });
-    expect(ports.fileRemoval.remove.mock.calls).toEqual([[{ path: CARVE_OUT_FILE }], [{ path: AUTHORISED_FILE }], [{ path: PROJECTION }], [{ path: SETTINGS }]]);
-  });
-
-  it("removes the emptied folders deepest first, then the records folder itself", () => {
-    const ports = portsOver();
-    removedVersionOneFiles({ ports, removal: REMOVAL });
-    expect(ports.directoryRemoval.removeEmpty.mock.calls).toEqual([[{ path: AUTHORISED_FOLDER }], [{ path: CARVE_OUT_FOLDER }], [{ path: ROOT }]]);
-  });
-
-  it("removes the folders after the records files and before the settings file", () => {
-    const ports = portsOver();
-    removedVersionOneFiles({ ports, removal: REMOVAL });
-    const [lastRecords, , , settings] = ports.fileRemoval.remove.mock.invocationCallOrder;
-    const [firstFolder] = ports.directoryRemoval.removeEmpty.mock.invocationCallOrder;
-    expect(lastRecords).toBeLessThan(firstFolder);
-    expect(firstFolder).toBeLessThan(settings);
+    expect(sequenceOf({ ports })).toEqual([
+      ...REMOVING_RECORDS,
+      ...REMOVING_AUTHORISED_FOLDER,
+      ...REMOVING_CARVE_OUT_FOLDER,
+      ...REMOVING_ROOT,
+      REMOVING_PROJECTION,
+      REMOVING_SETTINGS,
+    ]);
   });
 
   it("leaves a folder that still holds something", () => {
@@ -66,6 +95,24 @@ describe("removedVersionOneFiles", () => {
       outcome: "ok",
       value: { files: [CARVE_OUT_FILE, AUTHORISED_FILE, PROJECTION, SETTINGS], folders: [AUTHORISED_FOLDER, ROOT] },
     });
+    expect(sequenceOf({ ports })).toEqual([
+      ...REMOVING_RECORDS,
+      ...REMOVING_AUTHORISED_FOLDER,
+      { port: "list", arguments: [{ path: CARVE_OUT_FOLDER }] },
+      ...REMOVING_ROOT,
+      REMOVING_PROJECTION,
+      REMOVING_SETTINGS,
+    ]);
+  });
+
+  it("tries only the records folder for a records file directly under it", () => {
+    const ports = portsOver();
+    const direct = absolutePathSchema.parse("/repo/discipline-exceptions/records.json");
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [direct], projection: undefined } })).toEqual({
+      outcome: "ok",
+      value: { files: [direct, SETTINGS], folders: [ROOT] },
+    });
+    expect(sequenceOf({ ports })).toEqual([{ port: "remove", arguments: [{ path: direct }] }, ...REMOVING_ROOT, REMOVING_SETTINGS]);
   });
 
   it("removes no projection when none is given", () => {
@@ -74,6 +121,36 @@ describe("removedVersionOneFiles", () => {
       outcome: "ok",
       value: { files: [CARVE_OUT_FILE, AUTHORISED_FILE, SETTINGS], folders: [AUTHORISED_FOLDER, CARVE_OUT_FOLDER, ROOT] },
     });
+    expect(sequenceOf({ ports })).toEqual([...REMOVING_RECORDS, ...REMOVING_AUTHORISED_FOLDER, ...REMOVING_CARVE_OUT_FOLDER, ...REMOVING_ROOT, REMOVING_SETTINGS]);
+  });
+
+  it("refuses, before removing anything, a records file that is not under the records folder", () => {
+    const ports = portsOver();
+    const outside = absolutePathSchema.parse("/repo/tools/x.json");
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [CARVE_OUT_FILE, outside] } })).toEqual({
+      outcome: "failed",
+      error: { kind: "records-file-outside-root", path: outside, root: ROOT },
+    });
+    expect(sequenceOf({ ports })).toEqual([]);
+  });
+
+  it("refuses a records file whose path differs from the records folder's only in case", () => {
+    const ports = portsOver();
+    const otherCase = absolutePathSchema.parse("/repo/Discipline-Exceptions/file-carve-outs/cd-15.json");
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [otherCase] } })).toEqual({
+      outcome: "failed",
+      error: { kind: "records-file-outside-root", path: otherCase, root: ROOT },
+    });
+    expect(sequenceOf({ ports })).toEqual([]);
+  });
+
+  it("refuses the records folder itself listed as a records file", () => {
+    const ports = portsOver();
+    expect(removedVersionOneFiles({ ports, removal: { ...REMOVAL, recordsFiles: [ROOT] } })).toEqual({
+      outcome: "failed",
+      error: { kind: "records-file-outside-root", path: ROOT, root: ROOT },
+    });
+    expect(sequenceOf({ ports })).toEqual([]);
   });
 
   it("stops at the first file it cannot remove and says what it had removed, so the settings file stays", () => {
@@ -83,7 +160,7 @@ describe("removedVersionOneFiles", () => {
       outcome: "failed",
       error: { kind: "unremovable", path: AUTHORISED_FILE, detail: "EBUSY", removed: { files: [CARVE_OUT_FILE], folders: [] } },
     });
-    expect(ports.fileRemoval.remove).toHaveBeenCalledTimes(2);
+    expect(sequenceOf({ ports })).toEqual(REMOVING_RECORDS);
   });
 
   it("stops when a folder cannot be listed", () => {
@@ -93,6 +170,7 @@ describe("removedVersionOneFiles", () => {
       outcome: "failed",
       error: { kind: "unremovable", path: AUTHORISED_FOLDER, detail: "EACCES", removed: { files: [CARVE_OUT_FILE, AUTHORISED_FILE], folders: [] } },
     });
+    expect(sequenceOf({ ports })).toEqual([...REMOVING_RECORDS, { port: "list", arguments: [{ path: AUTHORISED_FOLDER }] }]);
   });
 
   it("stops when a listed empty folder cannot be removed", () => {
@@ -102,5 +180,6 @@ describe("removedVersionOneFiles", () => {
       outcome: "failed",
       error: { kind: "unremovable", path: AUTHORISED_FOLDER, detail: "EBUSY", removed: { files: [CARVE_OUT_FILE, AUTHORISED_FILE], folders: [] } },
     });
+    expect(sequenceOf({ ports })).toEqual([...REMOVING_RECORDS, ...REMOVING_AUTHORISED_FOLDER]);
   });
 });

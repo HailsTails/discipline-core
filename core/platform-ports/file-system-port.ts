@@ -1,6 +1,7 @@
 import { accessSync, mkdirSync, readFileSync, readdirSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
+import { failureDetailOf as failureDetail } from "./failure-detail.ts";
 
 export type FilePresence = "present" | "absent";
 
@@ -44,9 +45,6 @@ const presenceAfterAccessFailure = (request: { readonly thrown: unknown }): File
   request.thrown instanceof Error && "code" in request.thrown && request.thrown.code === NO_SUCH_FILE_CODE
     ? "absent"
     : "present";
-
-const failureDetail = (request: { readonly thrown: unknown }): string =>
-  request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
 
 export const createFileTextPort = (options: {
   readonly fileSystem: FileSystemSurface;
@@ -137,39 +135,13 @@ const defaultFileRemovalSurface: FileRemovalSurface = {
 export const createDefaultFileRemovalPort = (_options: Record<string, never>): FileRemovalPort =>
   createFileRemovalPort({ fileSystem: defaultFileRemovalSurface });
 
-export type DirectoryRemovalFailure = {
-  readonly kind: "directory-unremovable";
-  readonly path: AbsolutePath;
-  readonly detail: string;
+export const removeEmptyDirectory = (request: { readonly path: AbsolutePath }): void => {
+  rmdirSync(request.path);
 };
 
-export type DirectoryRemovalPort = {
-  readonly removeEmpty: (request: { readonly path: AbsolutePath }) => Result<void, DirectoryRemovalFailure>;
+export const createFileExclusively = (request: { readonly path: AbsolutePath; readonly text: string }): void => {
+  writeFileSync(request.path, request.text, { flag: "wx" });
 };
-
-export type DirectoryRemovalSurface = {
-  readonly removeEmpty: (request: { readonly path: AbsolutePath }) => void;
-};
-
-export const createDirectoryRemovalPort = (options: { readonly surface: DirectoryRemovalSurface }): DirectoryRemovalPort => ({
-  removeEmpty: (request) => {
-    try {
-      options.surface.removeEmpty({ path: request.path });
-      return { outcome: "ok", value: undefined };
-    } catch (thrown) {
-      return { outcome: "failed", error: { kind: "directory-unremovable", path: request.path, detail: failureDetail({ thrown }) } };
-    }
-  },
-});
-
-const defaultDirectoryRemovalSurface: DirectoryRemovalSurface = {
-  removeEmpty: (request) => {
-    rmdirSync(request.path);
-  },
-};
-
-export const createDefaultDirectoryRemovalPort = (_options: Record<string, never>): DirectoryRemovalPort =>
-  createDirectoryRemovalPort({ surface: defaultDirectoryRemovalSurface });
 
 export type DirectoryEntry = {
   readonly name: string;
