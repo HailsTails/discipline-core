@@ -247,3 +247,56 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     });
   });
 });
+
+const projectingRunner = () => {
+  const realModules = createDefaultModuleLoaderPort({});
+  const repositoryAt = vi.fn<ChecksRunnerPorts["repositoryAt"]>();
+  const runnerOver = checksRunnerOver({
+    ports: {
+      repositoryAt,
+      coreInstall: vi.fn<ChecksRunnerPorts["coreInstall"]>().mockReturnValue({ outcome: "ok", value: { form: "source" } }),
+      modules: realModules,
+      path,
+      eslint,
+    },
+    platform: { fileText: createDefaultFileTextPort({}), fileRemoval: createDefaultFileRemovalPort({}), modules: realModules, path, eslint, moduleExtension: ".ts" },
+  });
+  return { runnerOver, repositoryAt };
+};
+
+describe("checksRunnerOver, giving the projection as project", () => {
+  it("gives exactly the text a run compares against, for hone.eslint.mjs, and touches no repository", async () => {
+    const { runnerOver, repositoryAt } = projectingRunner();
+    expect({ outcome: await runnerOver.project(SELECTING_THE_CLASS_CHECK), touched: repositoryAt.mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: [{ file: CHECKS_PROJECTION_PATH, text: CURRENT_PROJECTION_TEXT }] },
+      touched: [],
+    });
+  });
+
+  it("gives the answered files as off blocks, so records change the projection", async () => {
+    const { runnerOver } = projectingRunner();
+    const answered = [{ symptom: "authored-class-or-this", check: "class-keyword", file: repoPathSchema.parse("kept.ts") }];
+    expect(await runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, answered })).toEqual({
+      outcome: "ok",
+      value: [{ file: CHECKS_PROJECTION_PATH, text: checksProjectionText({ pluginImport: "../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered }) }],
+    });
+  });
+
+  it("gives no files when no check runs on ESLint", async () => {
+    expect(await projectingRunner().runnerOver.project(REQUEST)).toEqual({ outcome: "ok", value: [] });
+  });
+
+  it("is not ready for a repository that declares ESLint config roots", async () => {
+    expect(await projectingRunner().runnerOver.project({ ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] })).toEqual(NOT_READY);
+  });
+
+  it("gives the text a run then reports as current, so the two read one source", async () => {
+    const governance = lintingNothing();
+    const projected = await projectingRunner().runnerOver.project(SELECTING_THE_CLASS_CHECK);
+    assert(projected.outcome === "ok", "the projection is given");
+    const [file] = projected.value;
+    assert(file !== undefined, "one file is given");
+    const outcome = await runnerOverProjection({ current: { presence: "present", text: file.text }, ruleState: CONFIGURED_ON, governance }).run(SELECTING_THE_CLASS_CHECK);
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
+  });
+});

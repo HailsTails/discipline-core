@@ -133,9 +133,12 @@ const CHECKS_RUN: ChecksRunRequest = { repoRoot: REPO, installRoot: REPO, files:
 
 const CHECKS_REPORT = { hits: [], nativeExceptions: [], measured: [], projection: "current", misnamedRuleIds: [] } as const;
 
+const WRITTEN = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "export default [];\n" };
+
 const checksOver = (): ChecksRunner => ({
   run: vi.fn<ChecksRunner["run"]>().mockResolvedValue({ outcome: "ok", value: CHECKS_REPORT }),
   conform: vi.fn<ChecksRunner["conform"]>().mockResolvedValue({ outcome: "ok", value: [] }),
+  project: vi.fn<ChecksRunner["project"]>().mockResolvedValue({ outcome: "ok", value: [WRITTEN] }),
 });
 
 describe("toolchainBoundChecksRunner", () => {
@@ -177,5 +180,20 @@ describe("toolchainBoundChecksRunner", () => {
       refused: await unavailable.conform({ clause: CLAUSE, cases: [] }),
       unbuilt: unbuilt.mock.calls.length,
     }).toEqual({ conformed: { outcome: "ok", value: [] }, built: 1, delegated: [[{ clause: CLAUSE, cases: [] }]], refused: UNAVAILABLE, unbuilt: 0 });
+  });
+
+  it("delegates project to the runner built once, and answers it with the toolchain failure, building nothing, when the toolchain is unavailable", async () => {
+    const inner = checksOver();
+    const runnerOf = vi.fn<(toolchain: Toolchain) => ChecksRunner>().mockReturnValue(inner);
+    const bound = toolchainBoundChecksRunner({ toolchain: Promise.resolve(LOADED), projectedKinds: ["config-override"], runnerOf });
+    const unbuilt = vi.fn<(toolchain: Toolchain) => ChecksRunner>();
+    const unavailable = toolchainBoundChecksRunner({ toolchain: Promise.resolve(UNAVAILABLE), projectedKinds: ["config-override"], runnerOf: unbuilt });
+    expect({
+      projected: await bound.project(CHECKS_RUN),
+      built: runnerOf.mock.calls.length,
+      delegated: vi.mocked(inner.project).mock.calls,
+      refused: await unavailable.project(CHECKS_RUN),
+      unbuilt: unbuilt.mock.calls.length,
+    }).toEqual({ projected: { outcome: "ok", value: [WRITTEN] }, built: 1, delegated: [[CHECKS_RUN]], refused: UNAVAILABLE, unbuilt: 0 });
   });
 });

@@ -1,3 +1,4 @@
+import type { ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import type { RunReport } from "../report/run-report.ts";
@@ -20,17 +21,20 @@ export type VersionTwoRun = {
   readonly output: ReportOutput;
 };
 
+export type EngineStageRequest = {
+  readonly catalogue: SymptomCatalogue;
+  readonly settings: SettingsReading;
+  readonly records: RecordsReading;
+  readonly tree: CheckedTree;
+};
+
 export type VersionTwoStages = {
   readonly catalogue: () => Result<SymptomCatalogue, RunLoadFailure>;
   readonly settings: (request: { readonly catalogue: SymptomCatalogue }) => Result<SettingsReading, RunLoadFailure>;
   readonly records: (request: { readonly catalogue: SymptomCatalogue }) => Result<RecordsReading, RunLoadFailure>;
   readonly tree: (request: { readonly settings: SettingsReading }) => Result<CheckedTree, RunLoadFailure>;
-  readonly engines: (request: {
-    readonly catalogue: SymptomCatalogue;
-    readonly settings: SettingsReading;
-    readonly records: RecordsReading;
-    readonly tree: CheckedTree;
-  }) => Promise<Result<readonly EngineRun[], RunLoadFailure>>;
+  readonly engines: (request: EngineStageRequest) => Promise<Result<readonly EngineRun[], RunLoadFailure>>;
+  readonly projections: (request: EngineStageRequest) => Promise<Result<readonly ProjectedFile[], RunLoadFailure>>;
   readonly touched: (request: { readonly assessment: Assessment; readonly measuring: TouchedMeasuring; readonly records: RecordsReading }) => TouchedSet;
 };
 
@@ -40,13 +44,9 @@ export type VersionTwoRequest = {
   readonly measuring: TouchedMeasuring;
 };
 
-type Inputs = {
-  readonly catalogue: SymptomCatalogue;
-  readonly settings: SettingsReading;
-  readonly records: RecordsReading;
-};
+type Inputs = Omit<EngineStageRequest, "tree">;
 
-const inputsOf = (request: { readonly stages: VersionTwoStages }): Result<Inputs, RunLoadFailure> => {
+export const versionTwoInputsOf = (request: { readonly stages: VersionTwoStages }): Result<Inputs, RunLoadFailure> => {
   const catalogue = request.stages.catalogue();
   if (catalogue.outcome === "failed") {
     return catalogue;
@@ -60,7 +60,7 @@ const inputsOf = (request: { readonly stages: VersionTwoStages }): Result<Inputs
 };
 
 export const versionTwoRunOver = async (request: { readonly stages: VersionTwoStages; readonly arguments: VersionTwoRequest }): Promise<Result<VersionTwoRun, RunLoadFailure>> => {
-  const inputs = inputsOf(request);
+  const inputs = versionTwoInputsOf(request);
   if (inputs.outcome === "failed") {
     return inputs;
   }
