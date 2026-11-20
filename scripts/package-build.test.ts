@@ -11,23 +11,10 @@ const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/"
 
 const STAGE_SOURCE = "/tmp/hailstails-hone-package-stage-1/source";
 
-const developmentManifestDeclaring = (request: { readonly dependencies: Readonly<Record<string, string>> }): string =>
-  JSON.stringify({
-    version: "0.0.0",
-    private: true,
-    type: "module",
-    description: "Runs disciplines.",
-    keywords: ["disciplines"],
-    license: "MIT-0",
-    author: "Example Author",
-    engines: { node: ">=22.18.0" },
-    dependencies: request.dependencies,
-    peerDependencies: { eslint: "^9.28.0 || ^10.0.0", typescript: ">=4.8.4 <7.0.0" },
-    peerDependenciesMeta: { eslint: { optional: true }, typescript: { optional: true } },
-    devDependencies: { esbuild: "0.25.12" },
-  });
+const developmentManifestDeclaring = (request: { readonly dependencies: string }): string =>
+  `{ "version": "0.0.0", "private": true, "type": "module", "description": "Runs disciplines.", "keywords": ["disciplines"], "license": "MIT-0", "author": "Example Author", "engines": { "node": ">=22.18.0" }, "dependencies": ${request.dependencies}, "peerDependencies": { "eslint": "^9.28.0 || ^10.0.0", "typescript": ">=4.8.4 <7.0.0" }, "peerDependenciesMeta": { "eslint": { "optional": true }, "typescript": { "optional": true } }, "devDependencies": { "esbuild": "0.25.12" } }`;
 
-const DEVELOPMENT_MANIFEST = developmentManifestDeclaring({ dependencies: { zod: "^4.4.3" } });
+const DEVELOPMENT_MANIFEST = developmentManifestDeclaring({ dependencies: '{ "zod": "^4.4.3" }' });
 
 const LOCK = `lockfileVersion: '9.0'
 importers:
@@ -51,6 +38,7 @@ const SOURCE: Readonly<Record<string, string>> = {
   "/package/LICENSE": "MIT No Attribution\n",
   "/package/pnpm-lock.yaml": LOCK,
   "/package/api/audit.ts": "export const folderScope = 1;\n",
+  "/package/api/eslint-plugin.ts": "export default {};\n",
   "/package/api/rule-set.ts": "export {};\n",
   "/package/api/testing.ts": "export const repoPathOf = 1;\n",
   "/package/core/check/tool-command.ts": "await run();\n",
@@ -88,6 +76,8 @@ const TOOL_COMMAND = entryOutput({
 
 const API_AUDIT = entryOutput({ source: "api/audit.ts", path: "api/audit.js", text: "export const folderScope = 1;\n" });
 
+const API_ESLINT_PLUGIN = entryOutput({ source: "api/eslint-plugin.ts", path: "api/eslint-plugin.js", text: "export default {};\n" });
+
 const API_RULE_SET = entryOutput({ source: "api/rule-set.ts", path: "api/rule-set.js", text: "export {};\n" });
 
 const API_TESTING = entryOutput({ source: "api/testing.ts", path: "api/testing.js", text: "export const repoPathOf = 1;\n" });
@@ -97,7 +87,7 @@ const RUNNER = entryOutput({ source: "mechanisms/audit/runner/runner.ts", path: 
 const LOOPS = entryOutput({ source: "mechanisms/audit/CD-15/loops.ts", path: "mechanisms/audit/CD-15/loops.js", text: "export const check = {};\n" });
 
 const BUNDLE: Bundle = {
-  outputs: [TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, CHUNK],
+  outputs: [TOOL_COMMAND, API_AUDIT, API_ESLINT_PLUGIN, API_RULE_SET, API_TESTING, RUNNER, LOOPS, CHUNK],
   packageRoots: [],
 };
 
@@ -130,6 +120,8 @@ const SHIPPED_FILES = [
   "README.md",
   "api/audit.d.ts",
   "api/audit.js",
+  "api/eslint-plugin.d.ts",
+  "api/eslint-plugin.js",
   "api/rule-set.d.ts",
   "api/rule-set.js",
   "api/testing.d.ts",
@@ -149,7 +141,7 @@ const SHIPPED_FILES = [
 const NOTHING_WRITTEN = { "/out/stale.js": "stale\n" };
 
 describe("buildPackage", () => {
-  it("bundles the command, the public entries, the runners and the shipped piece modules from a stage holding only core's code, with each peer and each dependency external", async () => {
+  it("bundles the command, the public entries, the runners and the shipped piece modules from a stage holding only core's code and the rule data it imports, with each peer and each dependency external", async () => {
     const files = inMemoryFiles({ initial: SOURCE });
     const recording = recordingBundler({ files, stage: STAGE_SOURCE, bundle: { outcome: "ok", value: BUNDLE } });
 
@@ -176,6 +168,7 @@ describe("buildPackage", () => {
           entryPoints: [
             "core/check/tool-command.ts",
             "api/audit.ts",
+            "api/eslint-plugin.ts",
             "api/rule-set.ts",
             "api/testing.ts",
             "mechanisms/audit/runner/runner.ts",
@@ -187,6 +180,7 @@ describe("buildPackage", () => {
       ],
       staged: [
         "api/audit.ts",
+        "api/eslint-plugin.ts",
         "api/rule-set.ts",
         "api/testing.ts",
         "core/check/tool-command.ts",
@@ -194,6 +188,8 @@ describe("buildPackage", () => {
         "mechanisms/audit/CD-15/piece.json",
         "mechanisms/audit/runner/runner.ts",
         "package.json",
+        "rules/CD-15/README.md",
+        "rules/CD-15/discipline.json",
         "tsconfig.base.json",
         "tsconfig.json",
       ],
@@ -239,7 +235,7 @@ describe("buildPackage", () => {
       "/out/api/testing.d.ts": "export declare const repoPathOf: 1;\n",
       "/out/core/values/result.d.ts": "export type Result = 1;\n",
       "/out/package.json": expect.stringContaining(
-        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.js"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.js"\n    },\n    "./testing": {\n      "types": "./api/testing.d.ts",\n      "default": "./api/testing.js"\n    }',
+        '"./audit": {\n      "types": "./api/audit.d.ts",\n      "default": "./api/audit.js"\n    },\n    "./eslint-plugin": {\n      "types": "./api/eslint-plugin.d.ts",\n      "default": "./api/eslint-plugin.js"\n    },\n    "./rule-set": {\n      "types": "./api/rule-set.d.ts",\n      "default": "./api/rule-set.js"\n    },\n    "./testing": {\n      "types": "./api/testing.d.ts",\n      "default": "./api/testing.js"\n    }',
       ),
     });
   });
@@ -247,7 +243,7 @@ describe("buildPackage", () => {
   it("fails naming each output that imports a package declared neither as a peer nor as a dependency, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
+      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_ESLINT_PLUGIN, API_RULE_SET, API_TESTING, RUNNER, LOOPS, { ...CHUNK, externalImports: ["levn", "typescript"] }]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
@@ -262,7 +258,7 @@ describe("buildPackage", () => {
   it("fails naming an entry whose code was moved into a shared chunk, writing nothing", async () => {
     const { files, built } = builtWith({
       source: SOURCE,
-      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_RULE_SET, API_TESTING, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
+      bundler: withOutputs([TOOL_COMMAND, API_AUDIT, API_ESLINT_PLUGIN, API_RULE_SET, API_TESTING, { ...RUNNER, inputs: [] }, LOOPS, CHUNK]),
     });
 
     expect({ result: await built, written: files.textsUnder({ folder: "/out" }) }).toEqual({
@@ -278,7 +274,7 @@ describe("buildPackage", () => {
   it("fails naming a dependency published as a range wider than a caret, or from another floor than the version core's lock holds, before bundling, writing nothing", async () => {
     const bundler = bundlerReturning({ outcome: "ok", value: BUNDLE });
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: ">=4.4.3", levn: "^0.4.0" } }) },
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: '{ "zod": ">=4.4.3", "levn": "^0.4.0" }' }) },
       bundler,
     });
 
@@ -294,7 +290,7 @@ describe("buildPackage", () => {
 
   it("fails naming a dependency of core the lock does not hold, writing nothing", async () => {
     const { files, built } = builtWith({
-      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: { zod: "^4.4.3", other: "^1.0.0" } }) },
+      source: { ...SOURCE, "/package/package.json": developmentManifestDeclaring({ dependencies: '{ "zod": "^4.4.3", "other": "^1.0.0" }' }) },
       bundler: bundlerReturning({ outcome: "ok", value: BUNDLE }),
     });
 
