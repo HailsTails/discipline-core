@@ -1,20 +1,8 @@
 import type { RepoPath } from "../../../core/values/repo-path.ts";
+import { commentValueOf } from "./checks-comment-value.ts";
 import type { MisnamedRuleId } from "./checks-run-types.ts";
 import type { LintedMessage } from "./eslint-instance.ts";
 import { MISNAMED_DISABLE_RULE_ID, namedRuleIdsOf, OWN_RULE_ID_PREFIX } from "./misnamed-disable-rule.ts";
-
-const LINE_COMMENT = "//";
-
-const BLOCK_OPEN = "/*";
-
-const BLOCK_CLOSE = "*/";
-
-const commentValueOf = (request: { readonly text: string }): string => {
-  if (request.text.startsWith(LINE_COMMENT)) {
-    return request.text.slice(LINE_COMMENT.length);
-  }
-  return request.text.startsWith(BLOCK_OPEN) && request.text.endsWith(BLOCK_CLOSE) ? request.text.slice(BLOCK_OPEN.length, -BLOCK_CLOSE.length) : request.text;
-};
 
 const misnamingOf = (request: {
   readonly ruleId: string;

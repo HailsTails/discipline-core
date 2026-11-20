@@ -1,12 +1,13 @@
-import { type CommandOutcome, type GuidedCheckRun, guidedCheckCommandOutcome } from "../core/check/command-outcome.ts";
-import type { LoadFailure } from "../core/check/load-failure.ts";
+import { type CommandOutcome, type GuidedCheckRun, guidedCheckCommandOutcome } from "../core/command-line/command-outcome.ts";
+import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import { runProjectCommand } from "../core/check/run-project-command.ts";
 import { runPruneDebtCommand } from "../core/check/run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "../core/check/run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "../core/check/run-split-records-command.ts";
 import { createDefaultGitTreePort } from "../core/platform-ports/git-port.ts";
 import { type CommandHandler, TOOL_SUBCOMMANDS, toolCommandOf } from "../core/check/run-tool-command.ts";
-import { type CommandRequest, printOutcome } from "../core/check/run-check-command.ts";
+import type { CommandRequest } from "../core/check/run-check-command.ts";
+import { printOutcome } from "../core/command-line/print-outcome.ts";
 import { installedGuidedCheckRunFor } from "../core/check/run-guided-check-command.ts";
 import type { Result } from "../core/values/result.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";

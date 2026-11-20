@@ -13,7 +13,7 @@ import { repoPathSchema } from "../core/values/repo-path.ts";
 import { type AnsweredFile, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
 import { projectedChecksOf } from "../mechanisms/eslint/runner/projected-checks.ts";
 import { resolvedConfigSchema } from "../mechanisms/eslint/runner/eslint-config-schema.ts";
-import { projectionText } from "../mechanisms/eslint/runner/projection.ts";
+import { projectionText } from "../mechanisms/eslint/runner/projection-text.ts";
 import { createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { repositoryRootOf } from "./allowed-forms-proof.ts";
 import { ESLINT_LINES, type EslintLine, eslintClassOn } from "./eslint-toolchains.ts";

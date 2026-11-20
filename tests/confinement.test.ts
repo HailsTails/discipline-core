@@ -4,6 +4,7 @@ import {
   computedModuleLoad,
   filesNotMatching,
   importsOutside,
+  importsOutsideFromOwnFolder,
   nodeBuiltinImport,
   packageImport,
   packageOrComputedImport,
@@ -11,7 +12,10 @@ import {
   pathCallsOutside,
   relativeImport,
   relativeImportOfAnyForm,
+  relativeImportNotNaming,
   relativeImportReaching,
+  sourcesNamed,
+  sourcesNotNamed,
 } from "./confinement.ts";
 
 const posixPath = createPathPort({ flavour: "posix", workingDirectory: () => "/install" });
@@ -110,6 +114,24 @@ describe("relativeImportReaching", () => {
   });
 });
 
+describe("importsOutsideFromOwnFolder", () => {
+  const sources = {
+    "./core/run/a.ts": 'import { x } from "../values/x.ts";\nimport { y } from "../check/y.ts";\n',
+    "./core/run/deeper/b.ts": 'import { x } from "../../values/x.ts";\nimport { y } from "../../check/y.ts";\nimport { z } from "../check/z.ts";\n',
+  };
+
+  const reachingNothingUnderCheck = ({ importingFolder }: { readonly importingFolder: string }) => [
+    relativeImportReaching({ importingFolder, reach: /^(?!core\/check\/)/ }),
+  ];
+
+  it("resolves each import from its own file's folder, so a file in a subfolder reaching core/check is refused", () => {
+    expect(importsOutsideFromOwnFolder({ sources, allowedFrom: reachingNothingUnderCheck })).toEqual([
+      { file: "./core/run/a.ts", specifier: "../check/y.ts", form: "value" },
+      { file: "./core/run/deeper/b.ts", specifier: "../../check/y.ts", form: "value" },
+    ]);
+  });
+});
+
 describe("importsOutside", () => {
   it("lists each import no allowance allows, with its file, in source order", () => {
     expect(
@@ -133,6 +155,48 @@ describe("importsOutside", () => {
         allowed: [relativeImport, packageImport({ packageName: "vitest" })],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("relativeImportNotNaming", () => {
+  const notNamingTwo = relativeImportNotNaming({ importingFolder: "pkg/runner", files: ["a.ts", "b.test.ts"] });
+
+  it("allows a sibling import of a file not named, an import of a same-named file in another folder, and a package import", () => {
+    expect([
+      notNamingTwo({ moduleImport: { specifier: "./c.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "../other/a.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "zod", form: "value" } }),
+    ]).toEqual(["allowed", "allowed", "allowed"]);
+  });
+
+  it("refuses an import of each file named, in any form", () => {
+    expect([
+      notNamingTwo({ moduleImport: { specifier: "./a.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "./b.test.ts", form: "type-only" } }),
+    ]).toEqual(["outside", "outside"]);
+  });
+
+  it("refuses an import of a file named however its specifier reaches the folder", () => {
+    expect([
+      notNamingTwo({ moduleImport: { specifier: "../runner/a.ts", form: "value" } }),
+      notNamingTwo({ moduleImport: { specifier: "./x/../a.ts", form: "value" } }),
+    ]).toEqual(["outside", "outside"]);
+  });
+});
+
+describe("sourcesNamed", () => {
+  const sources = { "./dir/a.ts": "a", "./dir/b.ts": "b", "./dir/c.ts": "c" };
+
+  it("gives the sources whose file name is in the list", () => {
+    expect(sourcesNamed({ sources, files: ["a.ts", "c.ts"] })).toEqual({ "./dir/a.ts": "a", "./dir/c.ts": "c" });
+  });
+});
+
+describe("sourcesNotNamed", () => {
+  const sources = { "./dir/a.ts": "a", "./dir/b.ts": "b", "./dir/c.ts": "c" };
+
+  it("gives the sources whose file name is not in the list", () => {
+    expect(sourcesNotNamed({ sources, files: ["a.ts", "c.ts"] })).toEqual({ "./dir/b.ts": "b" });
   });
 });
 

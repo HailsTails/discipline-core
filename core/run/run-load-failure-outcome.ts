@@ -1,4 +1,4 @@
-import type { CommandOutcome } from "../check/command-outcome.ts";
+import type { CommandOutcome } from "../command-line/command-outcome.ts";
 import { runLoadFailureLine } from "../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 

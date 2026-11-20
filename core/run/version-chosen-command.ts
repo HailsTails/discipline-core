@@ -1,5 +1,6 @@
-import type { Subcommand } from "../check/command-line.ts";
-import { printOutcome, type CommandRequest } from "../check/run-check-command.ts";
+import type { Subcommand } from "../command-line/command-line.ts";
+import type { CommandRequest } from "../check/run-check-command.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { repoArgumentOf } from "./repo-argument.ts";
 import { runLoadFailureOutcomeOf } from "./run-load-failure-outcome.ts";

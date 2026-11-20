@@ -7,6 +7,7 @@ import {
   repositoryRootOf,
   rowsNamed,
   sectionNamesOf,
+  typeErrorsAmong,
   typeErrorsOf,
   VITEST_PRELUDE,
 } from "./allowed-forms-proof.ts";
@@ -21,27 +22,75 @@ const SECTIONS = [
   { heading: "A Math call", section: "a-math-call", flagged: "Math.round(2.5);\n", allowed: [] },
 ];
 
+const TYPE_ERRORS_OF_THREE_FORMS = typeErrorsOf({
+  syntaxApi: SYNTAX_API,
+  repoRoot: REPO_ROOT,
+  blocks: [
+    { name: "indexed", source: "declare const rows: readonly { readonly id: string }[];\nexpect(rows[0].id).toBe(\"a\");\n" },
+    {
+      name: "narrowed",
+      source: "declare const rows: readonly { readonly id: string }[];\nconst [first] = rows;\nassert.isDefined(first);\nexpect(first.id).toBe(\"a\");\n",
+    },
+    { name: "optional", source: "const options: { readonly limit?: number } = { limit: undefined };\nexpect(options).toEqual({});\n" },
+  ],
+});
+
 describe("typeErrorsOf", () => {
   it("reports reading an indexed element that may be missing, as noUncheckedIndexedAccess types it", () => {
-    expect(
-      typeErrorsOf({ syntaxApi: SYNTAX_API, repoRoot: REPO_ROOT, source: "declare const rows: readonly { readonly id: string }[];\nexpect(rows[0].id).toBe(\"a\");\n" }),
-    ).toEqual(["Object is possibly 'undefined'."]);
+    expect(TYPE_ERRORS_OF_THREE_FORMS.blocks).toContainEqual({ name: "indexed", errors: ["Object is possibly 'undefined'."] });
   });
 
   it("accepts the element once assert.isDefined has narrowed it", () => {
-    expect(
-      typeErrorsOf({
-        syntaxApi: SYNTAX_API,
-        repoRoot: REPO_ROOT,
-        source: "declare const rows: readonly { readonly id: string }[];\nconst [first] = rows;\nassert.isDefined(first);\nexpect(first.id).toBe(\"a\");\n",
-      }),
-    ).toEqual([]);
+    expect(TYPE_ERRORS_OF_THREE_FORMS.blocks).toContainEqual({ name: "narrowed", errors: [] });
   });
 
   it("reports an optional property given undefined, as exactOptionalPropertyTypes types it", () => {
+    expect(TYPE_ERRORS_OF_THREE_FORMS.blocks).toContainEqual({ name: "optional", errors: [expect.any(String)] });
+  });
+
+  it("reports no diagnostic outside the forms when each form compiles on its own terms", () => {
+    expect(TYPE_ERRORS_OF_THREE_FORMS.unattributed).toEqual([]);
+  });
+});
+
+describe("typeErrorsAmong", () => {
+  const FORMS = [
+    { name: "first", path: "/repo/allowed-form-0.test.ts" },
+    { name: "second", path: "/repo/allowed-form-1.test.ts" },
+  ];
+
+  it("gives each form the diagnostics in its own file", () => {
     expect(
-      typeErrorsOf({ syntaxApi: SYNTAX_API, repoRoot: REPO_ROOT, source: "const options: { readonly limit?: number } = { limit: undefined };\nexpect(options).toEqual({});\n" }),
-    ).toHaveLength(1);
+      typeErrorsAmong({
+        forms: FORMS,
+        diagnostics: [
+          { fileName: "/repo/allowed-form-1.test.ts", message: "in second" },
+          { fileName: "/repo/allowed-form-0.test.ts", message: "in first" },
+        ],
+      }),
+    ).toEqual({
+      blocks: [
+        { name: "first", errors: ["in first"] },
+        { name: "second", errors: ["in second"] },
+      ],
+      unattributed: [],
+    });
+  });
+
+  it("keeps a diagnostic with no file as unattributed, so a broken option set cannot pass a form", () => {
+    expect(typeErrorsAmong({ forms: FORMS, diagnostics: [{ fileName: undefined, message: "option 'strict' is invalid" }] })).toEqual({
+      blocks: [
+        { name: "first", errors: [] },
+        { name: "second", errors: [] },
+      ],
+      unattributed: ["option 'strict' is invalid"],
+    });
+  });
+
+  it("keeps a diagnostic in another file as unattributed, naming the file", () => {
+    expect(typeErrorsAmong({ forms: FORMS, diagnostics: [{ fileName: "/repo/core/imported.ts", message: "broken through an import" }] }).unattributed).toEqual([
+      "/repo/core/imported.ts: broken through an import",
+    ]);
   });
 });
 

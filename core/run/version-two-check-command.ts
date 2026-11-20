@@ -1,10 +1,11 @@
-import { type CheckArguments, parseCheckArguments } from "../check/command-arguments.ts";
-import { type CommandOutcome, loadFailureOutcome } from "../check/command-outcome.ts";
-import type { LoadFailure } from "../check/load-failure.ts";
-import { packageLinkOf } from "../check/package-link.ts";
-import { type CommandRequest, printOutcome } from "../check/run-check-command.ts";
-import { shownPathOf } from "../check/shown-path.ts";
-import { projectCommandOf, pruneCommandOf } from "../check/tool-invocations.ts";
+import { type CheckArguments, parseCheckArguments } from "../command-line/command-arguments.ts";
+import { type CommandOutcome, loadFailureOutcome } from "../command-line/command-outcome.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
+import { packageLinkOf } from "../command-line/package-link.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
+import { shownPathOf } from "../command-line/shown-path.ts";
+import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
+import type { CommandRequest } from "../check/run-check-command.ts";
 import { renderRunReportText } from "../report/run-report-text.ts";
 import { runVerdictOf } from "../report/report-sections.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

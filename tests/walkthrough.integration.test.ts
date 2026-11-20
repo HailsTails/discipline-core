@@ -1,6 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
-import { guidedCheckCommandOutcome } from "../core/check/command-outcome.ts";
+import { guidedCheckCommandOutcome } from "../core/command-line/command-outcome.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { runGuidedCheckCommand } from "../core/check/run-guided-check-command.ts";
 import { symptomGuideIn } from "../core/check/symptom-guide.ts";

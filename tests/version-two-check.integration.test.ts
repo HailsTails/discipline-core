@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import type { Subcommand } from "../core/check/command-line.ts";
+import type { Subcommand } from "../core/command-line/command-line.ts";
 import { TOOL_SUBCOMMANDS } from "../core/check/run-tool-command.ts";
 import type { ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";

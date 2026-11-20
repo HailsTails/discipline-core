@@ -1,7 +1,7 @@
-import { type AuthoriseArguments, parseAuthoriseArguments } from "../check/command-arguments.ts";
-import { loadFailureOutcome } from "../check/command-outcome.ts";
+import { type AuthoriseArguments, parseAuthoriseArguments } from "../command-line/command-arguments.ts";
+import { loadFailureOutcome } from "../command-line/command-outcome.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
-import { printOutcome } from "../check/run-check-command.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
 import type { FilePresence } from "../platform-ports/file-text-port.ts";
 import { VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { printFailure, type VersionedHandler } from "./version-chosen-command.ts";

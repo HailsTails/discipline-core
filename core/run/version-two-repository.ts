@@ -1,6 +1,6 @@
-import { argumentsInvalid } from "../check/argument-problem.ts";
-import { installRootOf } from "../check/install-root.ts";
-import type { LoadFailure } from "../check/load-failure.ts";
+import { argumentsInvalid } from "../command-line/argument-problem.ts";
+import { installRootOf } from "../command-line/install-root.ts";
+import type { LoadFailure } from "../command-line/load-failure.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
