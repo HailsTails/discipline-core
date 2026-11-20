@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
-import type { ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
+import type { ClauseSettingValues } from "../../mechanism-port/runner-module-types.ts";
+import type { ClauseSettingDeclarations } from "../../rule-set-reader/rule-set-reader.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { clauseSettingsSchema, settledClauseSettings } from "./clause-settings.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-6#naming-convention");
 
@@ -23,12 +23,6 @@ describe("clauseSettingsSchema", () => {
     { name: "settings that are not an object", settings: { "CD-19#import-boundaries": "eslint" } },
   ])("refuses $name", ({ settings }) => {
     expect(clauseSettingsSchema.safeParse(settings).success).toBe(false);
-  });
-});
-
-describe("defaultClauseSettings", () => {
-  it("takes each declared key's default", () => {
-    expect(defaultClauseSettings({ declarations: DECLARATIONS })).toEqual({ confinedPackages: [], convention: "camelCase" });
   });
 });
 

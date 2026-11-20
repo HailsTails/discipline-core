@@ -1,9 +1,9 @@
-import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
+import { assessmentSchema, DEFAULT_ASSESSMENT } from "../values/assessment.ts";
 import { checkEditionsSchema } from "../values/check-editions.ts";
 import type { ClauseEditions } from "../values/edition.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
-import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
+import { reportOutputSchema } from "../values/report-output.ts";
 import { z } from "zod";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";
@@ -37,12 +37,13 @@ import {
 } from "../values/identifiers.ts";
 import { type ModuleExtension, runnerModuleSegmentsOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import { editionPinOf, settledClauseEdition } from "./clause-edition.ts";
-import { clauseSettingsSchema, defaultClauseSettings, settledClauseSettings } from "./clause-settings.ts";
+import { settledClauseEdition } from "../upgrade/version-one-settings/clause-edition.ts";
+import { clauseSettingsSchema, settledClauseSettings } from "../upgrade/version-one-settings/clause-settings.ts";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
-import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "./selection.ts";
-
-export type { ClauseBinding, ClauseEditionReading, SelectedClause, Selection, SelectionReading } from "./selection.ts";
+import { defaultClauseSettings } from "../settings/default-clause-settings.ts";
+import { editionPinOf } from "../settings/edition-pin.ts";
+import type { RunSettings } from "../settings/run-settings.ts";
+import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "../settings/selection.ts";
 
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
@@ -664,11 +665,6 @@ const withClauseSettings = (request: {
 
 const selectionFilePath = (request: { readonly path: PathPort; readonly repoRoot: AbsolutePath }): string =>
   request.path.join({ segments: [request.repoRoot, "disciplines.json"] });
-
-export type RunSettings = {
-  readonly reportOutput: ReportOutput;
-  readonly assessment: Assessment;
-};
 
 export const readRunSettings = (request: {
   readonly fileText: FileTextPort;

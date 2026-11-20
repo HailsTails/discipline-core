@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { type CheckedTree, checkedTreeOf, typescriptFilesOf } from "../run/checked-tree-of.ts";
-import type { ClauseBinding, Selection, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
-import type { ClauseRoot } from "../consumer-selection/selection.ts";
+import type { SelectionRepository } from "../consumer-selection/consumer-selection.ts";
+import type { ClauseBinding, Selection } from "../settings/selection.ts";
+import type { ClauseRoot } from "../settings/selection.ts";
 import {
   type ExceptionRecord,
   type ExceptionBaseline,
@@ -9,9 +10,9 @@ import {
   type InvalidRecord,
   parseExceptionEntries,
   type StructuralExceptionEntry,
-} from "../exception-records/exception-records.ts";
-import type { DebtPair } from "../exception-records/debt-pair.ts";
-import { paidDebtOf } from "../exception-records/paid-debt.ts";
+} from "../upgrade/version-one-records/exception-records.ts";
+import type { DebtPair } from "../upgrade/version-one-records/debt-pair.ts";
+import { paidDebtOf } from "../upgrade/version-one-records/paid-debt.ts";
 import { applyGovernance, type Finding, type GovernanceResult } from "../governance/governance.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import {

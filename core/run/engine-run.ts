@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runMechanism, type MechanismRun } from "./mechanism-dispatch.ts";
-import type { ClauseBinding } from "../consumer-selection/selection.ts";
+import type { ClauseBinding } from "../settings/selection.ts";
 import { checksRunnerModuleSchema } from "../mechanism-port/checks-runner-module-schema.ts";
 import { checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
 import type { ChecksRunReport, ChecksRunRequest, MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExceptionRepository } from "../exception-records/exception-records.ts";
+import type { ExceptionRepository } from "../upgrade/version-one-records/exception-records.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";

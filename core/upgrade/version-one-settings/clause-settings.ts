@@ -1,10 +1,11 @@
 import { z } from "zod";
-import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
-import type { ClauseSettingDeclaration, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
-import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
-import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../values/json-kind.ts";
-import type { ReadonlyJsonValue } from "../values/json-value.ts";
-import type { Result } from "../values/result.ts";
+import type { ClauseSettingValues } from "../../mechanism-port/runner-module-types.ts";
+import type { ClauseSettingDeclaration, ClauseSettingDeclarations } from "../../rule-set-reader/rule-set-reader.ts";
+import { defaultClauseSettings } from "../../settings/default-clause-settings.ts";
+import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../../values/clause-address.ts";
+import { JSON_KIND_NAMES, jsonKindOf, sameJsonValue } from "../../values/json-kind.ts";
+import type { ReadonlyJsonValue } from "../../values/json-value.ts";
+import type { Result } from "../../values/result.ts";
 
 export const clauseSettingsSchema = z
   .record(z.string(), z.record(z.string(), z.json()))
@@ -25,9 +26,6 @@ const refusal = (request: { readonly address: ClauseAddress; readonly detail: st
   outcome: "failed",
   error: `clauseSettings for ${clauseAddressText({ address: request.address })}: ${request.detail}`,
 });
-
-export const defaultClauseSettings = (request: { readonly declarations: ClauseSettingDeclarations }): ClauseSettingValues =>
-  Object.fromEntries(Object.entries(request.declarations).map(([key, declaration]) => [key, declaration.default]));
 
 const listed = (request: { readonly values: readonly ReadonlyJsonValue[] }): string =>
   request.values.map((choice) => JSON.stringify(choice)).join(", ");

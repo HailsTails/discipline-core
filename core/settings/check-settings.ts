@@ -1,5 +1,5 @@
-import { editionPinOf } from "../consumer-selection/clause-edition.ts";
-import { defaultClauseSettings } from "../consumer-selection/clause-settings.ts";
+import { defaultClauseSettings } from "./default-clause-settings.ts";
+import { editionPinOf } from "./edition-pin.ts";
 import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.ts";
 import type { ClauseSettingDeclaration, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
 import type { CheckEditions } from "../values/check-editions.ts";

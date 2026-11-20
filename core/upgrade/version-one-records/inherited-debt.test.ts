@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { AttributedNativeException, Finding } from "../governance/governance.ts";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { mechanismIdSchema } from "../values/identifiers.ts";
-import { repoPathSchema } from "../values/repo-path.ts";
+import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { mechanismIdSchema } from "../../values/identifiers.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
 import { type InheritedDebtOutcome, inheritedDebtEntriesOf, inheritedDebtOf, type InheritedDebtRequest, reachedDebtOf } from "./inherited-debt.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");

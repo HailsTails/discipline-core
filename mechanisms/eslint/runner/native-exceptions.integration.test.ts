@@ -2,7 +2,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
 import { loadRunner, runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { LoadedRunner, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { createDefaultFileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";

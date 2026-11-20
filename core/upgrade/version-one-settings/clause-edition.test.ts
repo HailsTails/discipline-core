@@ -1,33 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { clauseEditionsSchema } from "../values/edition.ts";
-import type { CheckEditions } from "../values/check-editions.ts";
-import { editionPinOf, settledClauseEdition } from "./clause-edition.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { clauseEditionsSchema } from "../../values/edition.ts";
+import type { CheckEditions } from "../../values/check-editions.ts";
+import { settledClauseEdition } from "./clause-edition.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-27#test-body-logic");
 const TWO_EDITIONS = clauseEditionsSchema.parse(["1", "2"]);
 const ONE_EDITION = clauseEditionsSchema.parse(undefined);
-
-describe("editionPinOf", () => {
-  it("is unpinned with no settings given", () => {
-    expect(editionPinOf({ given: undefined })).toEqual({ pin: undefined, rest: undefined });
-  });
-
-  it("separates the edition from the piece's own settings", () => {
-    expect(editionPinOf({ given: { edition: "2", trackerPatterns: ["^x$"] } })).toEqual({
-      pin: "2",
-      rest: { trackerPatterns: ["^x$"] },
-    });
-  });
-
-  it("leaves no piece settings when the edition is all that is given", () => {
-    expect(editionPinOf({ given: { edition: "1" } })).toEqual({ pin: "1", rest: undefined });
-  });
-
-  it("keeps an empty settings object as given when it names no edition", () => {
-    expect(editionPinOf({ given: {} })).toEqual({ pin: undefined, rest: {} });
-  });
-});
 
 describe("settledClauseEdition", () => {
   it("runs the default edition when pinned and not given one", () => {

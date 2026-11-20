@@ -1,10 +1,8 @@
-import type { AttributedNativeException, ExemptedFinding, Finding } from "../governance/governance.ts";
-import type { RepoPath } from "../values/repo-path.ts";
+import type { AttributedNativeException, ExemptedFinding, Finding } from "../../governance/governance.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
 import { type DebtPair, debtPairKey, distinctDebtPairs } from "./debt-pair.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
 import { authorisationStandingOf, type ExceptionBaseline } from "./exception-records.ts";
-
-export const PRUNE_DEBT_SUBCOMMAND = "prune-debt";
 
 export type PaidDebtRequest = {
   readonly findings: readonly Finding[];

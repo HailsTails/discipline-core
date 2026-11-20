@@ -1,11 +1,12 @@
-import { readSelection, type SelectionReading, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
-import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
+import { readSelection, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
+import type { SelectionReading } from "../settings/selection.ts";
+import type { ExceptionRepository, PlacedEntry } from "../upgrade/version-one-records/exception-records.ts";
 import {
   type InheritedDebtOutcome,
   inheritedDebtEntriesOf,
   inheritedDebtOf,
   reachedDebtOf,
-} from "../exception-records/inherited-debt.ts";
+} from "../upgrade/version-one-records/inherited-debt.ts";
 import type { GitTreePort } from "../platform-ports/git-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
@@ -15,7 +16,7 @@ import { moduleExtensionOf } from "../values/install-layout.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { parseRecordDebtArguments, type RecordDebtArguments } from "../command-line/command-arguments.ts";
-import { recordDebtCommandOutcome } from "../command-line/command-outcome.ts";
+import { recordDebtCommandOutcome } from "../upgrade/version-one-records/record-command-outcomes.ts";
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";

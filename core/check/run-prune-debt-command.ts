@@ -1,12 +1,13 @@
-import { createSelectionRepository, readRunSettings, type RunSettings } from "../consumer-selection/consumer-selection.ts";
-import type { DebtPair } from "../exception-records/debt-pair.ts";
-import type { ExceptionRepository } from "../exception-records/exception-records.ts";
+import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import type { RunSettings } from "../settings/run-settings.ts";
+import type { DebtPair } from "../upgrade/version-one-records/debt-pair.ts";
+import type { ExceptionRepository } from "../upgrade/version-one-records/exception-records.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { type Assessment, assessmentInEffect } from "../values/assessment.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
 import { parsePruneDebtArguments, type PruneDebtArguments } from "../command-line/command-arguments.ts";
-import { pruneDebtCommandOutcome } from "../command-line/command-outcome.ts";
+import { pruneDebtCommandOutcome } from "../upgrade/version-one-records/record-command-outcomes.ts";
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";

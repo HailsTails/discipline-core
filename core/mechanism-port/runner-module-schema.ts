@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ExceptionRecord } from "../exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import type { SourceCase } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { RepoPath } from "../values/repo-path.ts";

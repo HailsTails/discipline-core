@@ -84,21 +84,21 @@ const reachesNoVersionOneOnlyRunnerFile = relativeImportNotNaming({ importingFol
 
 const walkerRunnerReach = relativeImportReaching({
   importingFolder: "mechanisms/audit/runner",
-  reach: /^(?:mechanisms\/audit\/runner\/|core\/(?:mechanism-port|values|platform-ports|rule-set-reader|exception-records)\/)/,
+  reach: /^(?:mechanisms\/audit\/runner\/|core\/(?:mechanism-port|values|platform-ports|rule-set-reader|upgrade\/version-one-records)\/)/,
 });
 
 const eslintRunnerReach = relativeImportReaching({
   importingFolder: "mechanisms/eslint/runner",
-  reach: /^(?:mechanisms\/eslint\/runner\/|core\/(?:mechanism-port|values|platform-ports|rule-set-reader|exception-records)\/)/,
+  reach: /^(?:mechanisms\/eslint\/runner\/|core\/(?:mechanism-port|values|platform-ports|rule-set-reader|upgrade\/version-one-records)\/)/,
 });
 
 const vitestImport = packageImport({ packageName: "vitest" });
 
 const REACHES_ONLY_NAMED_CORE_FOLDERS =
-  /^(?!.*(?:\bfrom|\bimport)\s*\(?\s*["'](?:\.\.\/)+core\/(?!(?:mechanism-port|values|platform-ports|rule-set-reader|exception-records)\/)).*$/s;
+  /^(?!.*(?:\bfrom|\bimport)\s*\(?\s*["'](?:\.\.\/)+core\/(?!(?:mechanism-port|values|platform-ports|rule-set-reader|upgrade\/version-one-records)\/)).*$/s;
 
 const TAKES_ONLY_TYPES_FROM_EXCEPTION_RECORDS =
-  /^(?!.*(?:\b(?:import|export)\s+(?!type\s)[^;]*?\bfrom\s*|\bimport\s*\(?\s*)["'](?:\.\.\/)+core\/exception-records\/).*$/s;
+  /^(?!.*(?:\b(?:import|export)\s+(?!type\s)[^;]*?\bfrom\s*|\bimport\s*\(?\s*)["'](?:\.\.\/)+core\/upgrade\/version-one-records\/).*$/s;
 
 
 describe("FR-8 and AR-1 runner reach into core and its own mechanism over what this repository's own runner source imports, read as build-time raw modules (CD-47: that source is the assertion's subject and no fake can stand in for it; nothing is spawned or written)", () => {
@@ -113,7 +113,7 @@ describe("FR-8 and AR-1 runner reach into core and its own mechanism over what t
     });
   });
 
-  it("finds every runner file importing from core only mechanism-port, values, platform-ports, rule-set-reader, and types from exception-records", () => {
+  it("finds every runner file importing from core only mechanism-port, values, platform-ports, rule-set-reader, and types from upgrade/version-one-records", () => {
     expect({
       importingACoreFolderOutsideTheNamedFolders: filesNotMatching({
         sources: runnerSources,

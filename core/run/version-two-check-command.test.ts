@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CAST_EXPRESSIONS, ESLINT, REPORT_CATALOGUE } from "../../tests/report-catalogue.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
-import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
+import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { DirectoryPort } from "../platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
@@ -14,7 +14,8 @@ import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { type StagesOver, versionTwoCheckCommandOf } from "./version-two-check-command.ts";
+import { versionTwoCheckCommandOf } from "./version-two-check-command.ts";
+import type { StagesOver } from "./version-two-repository.ts";
 import type { VersionTwoStages } from "./version-two-run.ts";
 
 const FILE_A = repoPathSchema.parse("src/a.ts");
