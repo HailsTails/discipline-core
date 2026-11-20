@@ -1,7 +1,7 @@
-import type { RecordsSplit } from "../exception-records/exception-records.ts";
+import type { RecordsSplit } from "../upgrade/version-one-records/exception-records.ts";
 import type { Result } from "../values/result.ts";
 import { parseSplitRecordsArguments } from "../command-line/command-arguments.ts";
-import { splitRecordsCommandOutcome } from "../command-line/command-outcome.ts";
+import { splitRecordsCommandOutcome } from "../upgrade/version-one-records/record-command-outcomes.ts";
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";

@@ -1,9 +1,6 @@
-import { assert, describe, expect, it, } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import { recordsDisk } from "../../tests/records-disk.ts";
-import { createExceptionRepository } from "../exception-records/exception-layout.ts";
-import { parseExceptionEntries, UNMEASURED_EXCEPTION_BASELINE } from "../exception-records/exception-records.ts";
-import type { ExceptionRecord } from "../exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
@@ -146,29 +143,27 @@ describe("applyGovernance with no records", () => {
 
 describe("applyGovernance with provenance-only inherited debt", () => {
   it("preserves provenance when exempting untouched debt and forfeits the same complete record when touched", () => {
-    const provenance = {
-      kind: "inherited-debt",
-      source: "fictional unit input governance.test.ts; not historical debt",
-      decision: "fictional initial baseline assertion; not a live debt decision",
+    const inheritedDebt: ExceptionRecord = {
+      kind: "file-carve-out",
+      clause: noClass,
+      mechanism: audit,
+      file: fileA,
+      reason: "fictional inherited-debt fixture",
+      provenance: {
+        kind: "inherited-debt",
+        source: "fictional unit input governance.test.ts; not historical debt",
+        decision: "fictional initial baseline assertion; not a live debt decision",
+      },
     };
-    const disk = recordsDisk({
-      working: { "discipline-exceptions.json": JSON.stringify({ version: 1, exceptions: [{ kind: "file-carve-out", clause: "CD-14#no-class-syntax", file: "src/a.ts", reason: "fictional inherited-debt fixture", provenance }] }) },
-      base: {},
-    });
-    const entries = createExceptionRepository({ ...disk.ports, repoRoot: disk.repoRoot }).read();
-    assert(entries.outcome === "ok");
-    const exceptionReading = { outcome: "ok", value: parseExceptionEntries({ entries: entries.value, selection: { selected: [{ address: noClass, mechanism: audit, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [], editions: [] }, baseline: UNMEASURED_EXCEPTION_BASELINE, fileExceptionWhyChains: "required" }) } as const;
 
-    expect(exceptionReading).toMatchObject({ outcome: "ok", value: { invalid: [] } });
-    assert(exceptionReading.outcome === "ok");
-    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: nothingTouched, runs: [quietWalker] })).toEqual({
+    expect(applyGovernance({ findings: [noClassInA], records: [inheritedDebt], touched: nothingTouched, runs: [quietWalker] })).toEqual({
       ...nothingGoverned,
-      exempted: [{ finding: noClassInA, by: [{ kind: "file-carve-out", clause: noClass, mechanism: audit, file: fileA, reason: "fictional inherited-debt fixture", provenance }] }],
+      exempted: [{ finding: noClassInA, by: [inheritedDebt] }],
     });
-    expect(applyGovernance({ findings: [noClassInA], records: exceptionReading.value.records, touched: fileATouched, runs: [quietWalker] })).toEqual({
+    expect(applyGovernance({ findings: [noClassInA], records: [inheritedDebt], touched: fileATouched, runs: [quietWalker] })).toEqual({
       ...nothingGoverned,
       findings: [noClassInA],
-      forfeited: [{ kind: "file-carve-out", clause: noClass, mechanism: audit, file: fileA, reason: "fictional inherited-debt fixture", provenance }],
+      forfeited: [inheritedDebt],
     });
   });
 });

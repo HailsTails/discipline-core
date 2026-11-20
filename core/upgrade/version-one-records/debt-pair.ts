@@ -1,5 +1,5 @@
-import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../values/clause-address.ts";
-import type { RepoPath } from "../values/repo-path.ts";
+import { type ClauseAddress, clauseAddressSchema, clauseAddressText } from "../../values/clause-address.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
 import type { StructuralExceptionEntry } from "./exception-records.ts";
 
 export type DebtPair = {

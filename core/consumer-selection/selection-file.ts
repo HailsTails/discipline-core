@@ -16,7 +16,7 @@ import { reportOutputSchema } from "../values/report-output.ts";
 import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
-import { clauseSettingsSchema } from "./clause-settings.ts";
+import { clauseSettingsSchema } from "../upgrade/version-one-settings/clause-settings.ts";
 
 export type RuleSetLocation =
   | { readonly location: "repo-root" }

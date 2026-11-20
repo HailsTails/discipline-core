@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { AttributedNativeException, Finding } from "../governance/governance.ts";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { mechanismIdSchema } from "../values/identifiers.ts";
-import { repoPathSchema } from "../values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { mechanismIdSchema } from "../../values/identifiers.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
+import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
 import { UNMEASURED_EXCEPTION_BASELINE } from "./exception-records.ts";
 import { paidDebtOf, type PaidDebtRequest } from "./paid-debt.ts";

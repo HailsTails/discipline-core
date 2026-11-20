@@ -1,7 +1,7 @@
 import type {
   ExceptionRecord,
   InvalidRecord,
-} from "../exception-records/exception-records.ts";
+} from "../upgrade/version-one-records/exception-records.ts";
 import type {
   AttributedNativeException,
   DoublyHeld,

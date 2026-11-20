@@ -1,6 +1,6 @@
 import { createSelectionRepository, type SelectionRepository } from "../core/consumer-selection/consumer-selection.ts";
 import { createExceptionRepository, type ExceptionLayoutPorts } from "../core/exception-records/exception-layout.ts";
-import type { ExceptionRepository, ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
+import type { ExceptionRepository, ExceptionRepositoryOf } from "../core/upgrade/version-one-records/exception-records.ts";
 import type { DirectoryEntry } from "../core/platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";

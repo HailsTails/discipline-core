@@ -3,6 +3,8 @@ import type { ClauseSettingValues } from "../mechanism-port/runner-module-types.
 import { createDefaultFileTextPort, type FileTextPort } from "../platform-ports/file-text-port.ts";
 import { createDefaultPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ClauseExceptions, ClauseSettingDeclarations, DisciplineFile, PieceFile } from "../rule-set-reader/rule-set-reader.ts";
+import { settledClauseEdition } from "../upgrade/version-one-settings/clause-edition.ts";
+import { settledClauseSettings } from "../upgrade/version-one-settings/clause-settings.ts";
 import { defaultClauseSettings } from "../settings/default-clause-settings.ts";
 import { editionPinOf } from "../settings/edition-pin.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
@@ -13,8 +15,6 @@ import type { ClauseEditions } from "../values/edition.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { ModuleExtension } from "../values/install-layout.ts";
 import type { Result } from "../values/result.ts";
-import { settledClauseEdition } from "./clause-edition.ts";
-import { settledClauseSettings } from "./clause-settings.ts";
 import { createRuleSetFiles, type RuleSetFiles } from "../rule-set-reader/rule-set-files.ts";
 import { type ConsumerSelectionFile, type RuleSetLocation, runSettingsOf, type UnrunState } from "./selection-file.ts";
 import { readSelectionFile, selectionFilePathOf } from "./selection-reader.ts";

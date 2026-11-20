@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import type { ExceptionRecord } from "../exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import type { Finding } from "../governance/governance.ts";
 import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
