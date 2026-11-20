@@ -12,6 +12,7 @@ import {
   correctUseNotesOf,
   formSectionsOf,
   symptomNamesOf,
+  symptomsNamedByRecordReachButNotCatalogued,
   unresolvedAddressesOf,
 } from "./symptom-catalogue-coverage.ts";
 
@@ -169,6 +170,40 @@ describe("symptomNamesOf", () => {
       "rebinding",
       "loop-keyword",
     ]);
+  });
+});
+
+const NAMED_BY_RECORD_REACH: readonly string[] = [
+  "outside-import-past-a-boundary",
+  "library-class-built-in-place",
+  "outside-type-in-a-signature",
+  "date-used-directly",
+  "ambient-randomness",
+  "process-global-used-in-place",
+  "text-past-its-reader",
+];
+
+describe("symptomsNamedByRecordReachButNotCatalogued", () => {
+  it("lists every symptom a record's reach names when the catalogue holds none", () => {
+    expect(symptomsNamedByRecordReachButNotCatalogued({ catalogue: NOTHING_CATALOGUED })).toEqual(NAMED_BY_RECORD_REACH);
+  });
+
+  it("lists only the symptoms the catalogue lacks", () => {
+    expect(
+      symptomsNamedByRecordReachButNotCatalogued({
+        catalogue: {
+          ...NOTHING_CATALOGUED,
+          symptoms: [
+            symptomNamed("outside-import-past-a-boundary"),
+            symptomNamed("library-class-built-in-place"),
+            symptomNamed("outside-type-in-a-signature"),
+            symptomNamed("date-used-directly"),
+            symptomNamed("ambient-randomness"),
+            symptomNamed("process-global-used-in-place"),
+          ],
+        },
+      }),
+    ).toEqual(["text-past-its-reader"]);
   });
 });
 

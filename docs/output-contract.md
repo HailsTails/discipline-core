@@ -820,6 +820,8 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 
 `catalogue-not-read` is printed when the tool's own symptom catalogue is absent or cannot be read, since every record resolves against it. A team rule set with no catalogue is not a load failure. `upgrade-needed` is printed when a version 2 run finds version 1 files.
 
+`settings-in-both-versions` is printed when the folder holds both `disciplines.json` and `hone.config.json`, since no run can tell which one the repository means. `not-ready-yet` is printed when a version 2 repository asks for something this release does not yet run on version 2 files: a command, named by the command, or `eslintConfigRoots`, named `eslint-config-roots`. Each release that makes one of them run stops printing it for that one.
+
 | Kind | Line |
 | --- | --- |
 | `arguments-invalid` | `load failure: arguments-invalid <detail>` |
@@ -836,6 +838,9 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `config-root-untracked` | `load failure: config-root-untracked <config root>: an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in hone.config.json` |
 | `unexpected-error` | `load failure: unexpected-error <detail>` |
 | `config-absent` | `load failure: config-absent <dir> holds no hone.config.json; give the folder that holds it, usually the repository root` |
+| `settings-in-both-versions` | `load failure: settings-in-both-versions <dir>: it holds both disciplines.json and hone.config.json; keep the one this repository runs on and remove the other` |
+| `not-ready-yet` | `load failure: not-ready-yet <command>: this release runs <command> on version 1 files only, and this repository holds hone.config.json` |
+| `not-ready-yet` | `load failure: not-ready-yet eslint-config-roots: this release does not run eslintConfigRoots on version 2 files yet; remove it from hone.config.json to run on the repository root` |
 | `unknown-check` | `load failure: unknown-check <check>` |
 | `review-only-listed` | `load failure: review-only-listed <check>: a check enforced by review has no engine and is left out of checks; remove it` |
 | `duplicate-check` | `load failure: duplicate-check <settings key> <check> <check with its rule set>` |

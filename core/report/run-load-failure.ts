@@ -1,4 +1,4 @@
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { LoadFailure, VersionTwoLoadFailure } from "../check/load-failure.ts";
 import type { RunnerFailure } from "../mechanism-port/runner-failure.ts";
 import type { RecordsDocumentRefusal } from "../records/hone-record.ts";
 import type { HoneRecordsFailure } from "../records/read-hone-records.ts";
@@ -7,8 +7,6 @@ import type { CheckChoiceRefusal, CheckSettingsListing } from "../settings/check
 import type { Engine } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-
-type RemovedKind = "why-chains-required" | "records-in-both-layouts" | "records-unsplittable";
 
 type KeptKind =
   | "arguments-invalid"
@@ -25,7 +23,7 @@ type KeptKind =
   | "config-root-untracked"
   | "unexpected-error";
 
-export type VersionTwoLoadFailure = Exclude<LoadFailure, { readonly kind: RemovedKind }>;
+export type NotReadyYet = { readonly thing: "command"; readonly command: string } | { readonly thing: "eslint-config-roots" };
 
 export type CatalogueUnread = { readonly reason: "absent" } | { readonly reason: "unreadable"; readonly detail: string };
 
@@ -42,6 +40,8 @@ export type AllowedEngines = { readonly stated: "by-catalogue"; readonly engines
 export type RunLoadFailure =
   | Extract<LoadFailure, { readonly kind: KeptKind }>
   | { readonly kind: "config-absent"; readonly repo: string }
+  | { readonly kind: "settings-in-both-versions"; readonly repo: string }
+  | { readonly kind: "not-ready-yet"; readonly what: NotReadyYet }
   | { readonly kind: "unknown-check"; readonly check: string }
   | { readonly kind: "review-only-listed"; readonly check: string }
   | { readonly kind: "duplicate-check"; readonly key: "checks" | "checkSettings"; readonly check: string; readonly prefixedCheck: string }

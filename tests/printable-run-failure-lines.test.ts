@@ -27,6 +27,18 @@ describe("RUN_FAILURE_LINES", () => {
   it.each([
     { label: "records-refused", text: "load failure: records-refused hone-records/debt/claimed-type.json document-refused records.0.file: expected a repository path; hone-records/notes.md not-a-records-file" },
     { label: "engine-failed", text: "load failure: engine-failed eslint tool-failed eslint exited 2" },
+    {
+      label: "settings-in-both-versions",
+      text: "load failure: settings-in-both-versions /work/shop: it holds both disciplines.json and hone.config.json; keep the one this repository runs on and remove the other",
+    },
+    {
+      label: "not-ready-yet",
+      text: "load failure: not-ready-yet record-debt: this release runs record-debt on version 1 files only, and this repository holds hone.config.json",
+    },
+    {
+      label: "not-ready-yet",
+      text: "load failure: not-ready-yet eslint-config-roots: this release does not run eslintConfigRoots on version 2 files yet; remove it from hone.config.json to run on the repository root",
+    },
     { label: "upgrade-needed", text: "load failure: upgrade-needed disciplines.json: this is a version 1 file; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js upgrade --repo /work/shop, which rewrites every version 1 file as version 2, and commit what it writes" },
   ])("includes the $label line $text", (line) => {
     expect(RUN_FAILURE_LINES).toContainEqual(expect.objectContaining(line));

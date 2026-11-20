@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LoadFailure } from "../check/load-failure.ts";
+import type { VersionTwoLoadFailure } from "../check/load-failure.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
@@ -36,7 +36,7 @@ export { parsedJson } from "../values/parsed-json.ts";
 export const readVersionOneJson = (request: {
   readonly fileText: FileTextPort;
   readonly path: string;
-}): Result<unknown, LoadFailure> => {
+}): Result<unknown, VersionTwoLoadFailure> => {
   const text = request.fileText.read({ path: request.path });
   if (text.outcome === "failed") {
     return {
@@ -192,7 +192,7 @@ const isContentRefusal = (
 const schemaRefusal = (request: {
   readonly path: string;
   readonly error: z.ZodError;
-}): LoadFailure => {
+}): VersionTwoLoadFailure => {
   const detail = z.prettifyError(request.error);
   return request.error.issues.every(isContentRefusal)
     ? { kind: "rule-set-invalid", path: request.path, detail }
@@ -202,7 +202,7 @@ const schemaRefusal = (request: {
 const ruleSetInvalid = (request: {
   readonly path: string;
   readonly detail: string;
-}): { readonly outcome: "failed"; readonly error: LoadFailure } => ({
+}): { readonly outcome: "failed"; readonly error: VersionTwoLoadFailure } => ({
   outcome: "failed",
   error: { kind: "rule-set-invalid", path: request.path, detail: request.detail },
 });
@@ -237,7 +237,7 @@ export const readDisciplineFile = (request: {
   readonly path: PathPort;
   readonly ruleSetRoot: AbsolutePath;
   readonly discipline: DisciplineId;
-}): Result<DisciplineFile, LoadFailure> => {
+}): Result<DisciplineFile, VersionTwoLoadFailure> => {
   const path = disciplineFilePath(request);
   const document = readVersionOneJson({ fileText: request.fileText, path });
   if (document.outcome === "failed") {
@@ -284,7 +284,7 @@ export const readPieceFile = (request: {
   readonly ruleSetRoot: AbsolutePath;
   readonly mechanism: MechanismId;
   readonly discipline: DisciplineFile;
-}): Result<PieceFile, LoadFailure> => {
+}): Result<PieceFile, VersionTwoLoadFailure> => {
   const path = pieceFilePath({
     path: request.path,
     ruleSetRoot: request.ruleSetRoot,

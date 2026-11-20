@@ -1,6 +1,6 @@
 import { type CommandOption, type CommandSpec, HELP_FLAGS, VERSION_FLAG } from "../check/command-line.ts";
 import { RECORDS_FOLDER } from "../records/records-layout.ts";
-import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
+import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
 import { reportOutputSchema } from "../values/report-output.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
@@ -14,8 +14,6 @@ type HelpEntry = { readonly term: string; readonly text: string };
 export const RUN_SUBCOMMANDS: readonly RunSubcommand[] = ["check", "project", "record-debt", "prune-debt", "upgrade"];
 
 const COMMAND = TOOL_IDENTITY.command;
-
-const VERSION_ONE_SETTINGS_FILE = "disciplines.json";
 
 const DESCRIPTION = `Checks a repository against the checks ${SETTINGS_FILE_NAME} lists, answers its findings by the records in ${RECORDS_FOLDER} and prints one verdict.`;
 
@@ -41,7 +39,7 @@ const REPO_OPTION: CommandOption = {
 
 const UPGRADE_REPO_OPTION: CommandOption = {
   ...REPO_OPTION,
-  summary: `the folder that holds ${VERSION_ONE_SETTINGS_FILE}, usually the repository root; upgrade writes ${SETTINGS_FILE_NAME} beside it`,
+  summary: `the folder that holds ${VERSION_ONE_SETTINGS_FILE_NAME}, usually the repository root; upgrade writes ${SETTINGS_FILE_NAME} beside it`,
 };
 
 const BASE_REVISION_OPTION: CommandOption = {
@@ -119,7 +117,7 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
     ],
   },
   upgrade: {
-    summary: `rewrite version 1 files as version 2: ${VERSION_ONE_SETTINGS_FILE} as ${SETTINGS_FILE_NAME} and the exception records as ${RECORDS_FOLDER}, printing each file as written or removed`,
+    summary: `rewrite version 1 files as version 2: ${VERSION_ONE_SETTINGS_FILE_NAME} as ${SETTINGS_FILE_NAME} and the exception records as ${RECORDS_FOLDER}, printing each file as written or removed`,
     options: [UPGRADE_REPO_OPTION],
     exits: [
       { code: 0, meaning: "every version 1 file was rewritten, or none was found" },

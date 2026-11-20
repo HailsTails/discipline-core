@@ -12,9 +12,9 @@ export type Holding = "holds" | "does-not-hold";
 
 const FOLDER_SEPARATOR = "/";
 
-const IMPORTED_PARTY_SYMPTOMS: readonly string[] = ["outside-import-past-a-boundary", "library-class-built-in-place", "outside-type-in-a-signature"];
+export const IMPORTED_PARTY_SYMPTOMS: readonly string[] = ["outside-import-past-a-boundary", "library-class-built-in-place", "outside-type-in-a-signature"];
 
-const RUNTIME_REACH: Readonly<Record<RuntimeFacility, readonly string[]>> = {
+export const RUNTIME_REACH: Readonly<Record<RuntimeFacility, readonly string[]>> = {
   clock: ["date-used-directly"],
   random: ["ambient-randomness"],
   process: ["process-global-used-in-place"],

@@ -4,11 +4,11 @@ import { NOT_INSTALLED } from "../mechanism-port/toolchain-requirement.ts";
 import type { RecordsDocumentRefusal } from "../records/hone-record.ts";
 import { NAMED_FOLDER_KINDS, RECORDS_FILE_EXTENSION, RECORDS_FOLDER, SINGLE_FILE_KINDS } from "../records/records-layout.ts";
 import type { CheckSettingsListing } from "../settings/check-choices.ts";
-import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
+import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import { onOneLine, quoted } from "./printed-text.ts";
 import { recordsFileText } from "./record-lines.ts";
-import type { AllowedEngines, CatalogueNotRead, EngineNaming, RunLoadFailure } from "./run-load-failure.ts";
+import type { AllowedEngines, CatalogueNotRead, EngineNaming, NotReadyYet, RunLoadFailure } from "./run-load-failure.ts";
 
 const LOAD_FAILURE_LEAD = "load failure:";
 
@@ -98,6 +98,16 @@ const catalogueFields = (request: { readonly failure: CatalogueNotRead }): reado
   }
 };
 
+const notReadyFields = (request: { readonly what: NotReadyYet }): readonly string[] => {
+  const { what } = request;
+  switch (what.thing) {
+    case "command":
+      return [`${what.command}:`, `this release runs ${what.command} on version 1 files only, and this repository holds ${SETTINGS_FILE_NAME}`];
+    case "eslint-config-roots":
+      return ["eslint-config-roots:", `this release does not run eslintConfigRoots on version 2 files yet; remove it from ${SETTINGS_FILE_NAME} to run on the repository root`];
+  }
+};
+
 type ToolFailure = Extract<
   RunLoadFailure,
   {
@@ -115,7 +125,9 @@ type ToolFailure = Extract<
       | "unknown-rule-set"
       | "rule-set-name-collision"
       | "config-root-untracked"
-      | "config-absent";
+      | "config-absent"
+      | "settings-in-both-versions"
+      | "not-ready-yet";
   }
 >;
 
@@ -179,6 +191,10 @@ const toolFields = (request: { readonly failure: ToolFailure }): readonly string
       return [`${failure.root}:`, CONFIG_ROOT_REPAIR];
     case "config-absent":
       return [failure.repo, `holds no ${SETTINGS_FILE_NAME}; give the folder that holds it, usually the repository root`];
+    case "settings-in-both-versions":
+      return [`${failure.repo}:`, `it holds both ${VERSION_ONE_SETTINGS_FILE_NAME} and ${SETTINGS_FILE_NAME}; keep the one this repository runs on and remove the other`];
+    case "not-ready-yet":
+      return notReadyFields({ what: failure.what });
   }
 };
 
@@ -248,6 +264,8 @@ const failureFields = (request: { readonly failure: RunLoadFailure; readonly upg
     case "rule-set-name-collision":
     case "config-root-untracked":
     case "config-absent":
+    case "settings-in-both-versions":
+    case "not-ready-yet":
       return toolFields({ failure });
     case "unknown-check":
     case "review-only-listed":

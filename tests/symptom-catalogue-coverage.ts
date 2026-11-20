@@ -1,6 +1,7 @@
 import type { LoadFailure } from "../core/check/load-failure.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
+import { IMPORTED_PARTY_SYMPTOMS, RUNTIME_REACH } from "../core/records/record-reach.ts";
 import { type DisciplineFile, readDisciplineFile } from "../core/rule-set-reader/rule-set-reader.ts";
 import { checkAddressOf, checkAt, checksOf } from "../core/symptom-catalogue/check-address.ts";
 import type { Check, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
@@ -109,6 +110,13 @@ export const formSectionsOf = (request: { readonly catalogue: SymptomCatalogue; 
 
 export const symptomNamesOf = (request: { readonly catalogue: SymptomCatalogue }): readonly string[] =>
   request.catalogue.symptoms.map((symptom) => symptom.name);
+
+const NAMED_BY_RECORD_REACH: readonly string[] = [...IMPORTED_PARTY_SYMPTOMS, ...Object.values(RUNTIME_REACH).flat()];
+
+export const symptomsNamedByRecordReachButNotCatalogued = (request: { readonly catalogue: SymptomCatalogue }): readonly string[] => {
+  const catalogued = symptomNamesOf(request);
+  return NAMED_BY_RECORD_REACH.filter((name) => !catalogued.includes(name));
+};
 
 export const correctUseNotesOf = (request: { readonly guide: CatalogueGuide }): readonly string[] =>
   request.guide.catalogue.symptoms
