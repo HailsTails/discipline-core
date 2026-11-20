@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import type { Selection } from "../../settings/selection.ts";
 import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import { type PlacedEntry, UNMEASURED_EXCEPTION_BASELINE } from "../version-one-records/exception-records.ts";
-import { headRecordsOf } from "./head-records.ts";
+import type { Result } from "../../values/result.ts";
+import { type HeadRecord, type HeadRecordsRefusal, headRecordsOf } from "./head-records.ts";
 
 const RECORDS_FILE = repoPathSchema.parse("discipline-exceptions.json");
 
@@ -34,7 +36,9 @@ const CARVE_OUT: PlacedEntry = {
   entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/b.ts", reason: "legacy loop" },
 };
 
-const headRecords = (request: { readonly entries: readonly PlacedEntry[] }) =>
+const AT_2 = { layout: "single-file", file: RECORDS_FILE, index: 2 } as const;
+
+const headRecords = (request: { readonly entries: readonly PlacedEntry[] }): Result<readonly HeadRecord[], HeadRecordsRefusal> =>
   headRecordsOf({ entries: request.entries, selection: SELECTION, fileExceptionWhyChains: "optional", baseline: UNMEASURED_EXCEPTION_BASELINE });
 
 describe("headRecordsOf", () => {
@@ -82,17 +86,73 @@ describe("headRecordsOf", () => {
     });
   });
 
+  it("pairs a file carve-out that carries a provenance with the whole entry, provenance included", () => {
+    const provenance = { kind: "inherited-debt", source: "the old repository", decision: "keep until rewritten" } as const;
+    expect(
+      headRecords({ entries: [{ place: AT_1, entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/b.ts", reason: "legacy loop", provenance } }] }),
+    ).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          kind: "file-carve-out",
+          record: { kind: "file-carve-out", clause: LOOPS, mechanism: AUDIT, file: "src/b.ts", reason: "legacy loop", provenance },
+          entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/b.ts", reason: "legacy loop", provenance },
+        },
+      ],
+    });
+  });
+
+  it("pairs a clause-wide carve-out with no entry, since version 2 holds none of it", () => {
+    expect(headRecords({ entries: [{ place: AT_0, entry: { kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "generated", whyChain: CAUSAL_WHY_CHAIN } }] })).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          kind: "clause-wide-carve-out",
+          record: { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: AUDIT, reason: "generated", whyChain: CAUSAL_WHY_CHAIN },
+        },
+      ],
+    });
+  });
+
   it("refuses every invalid record of the file, naming where each sits", () => {
-    expect(headRecords({ entries: [AUTHORISED, { place: AT_1, entry: { ...AUTHORISED.entry, reason: "kept again" } }] })).toEqual({
+    expect(
+      headRecords({
+        entries: [
+          AUTHORISED,
+          { place: AT_1, entry: { ...AUTHORISED.entry, reason: "kept again" } },
+          { place: AT_2, entry: { ...AUTHORISED.entry, clause: "CD-16#unselected" } },
+        ],
+      }),
+    ).toEqual({
       outcome: "failed",
-      error: [{ place: AT_1, problem: { kind: "duplicate", of: AT_0 } }],
+      error: {
+        kind: "invalid-records",
+        invalid: [
+          { place: AT_1, problem: { kind: "duplicate", of: AT_0 } },
+          { place: AT_2, problem: { kind: "clause-not-selected", clause: clauseAddressSchema.parse("CD-16#unselected") } },
+        ],
+      },
     });
   });
 
   it("refuses an entry whose clause the selection does not run", () => {
     expect(headRecords({ entries: [{ place: AT_0, entry: { ...AUTHORISED.entry, clause: "CD-16#unselected" } }] })).toEqual({
       outcome: "failed",
-      error: [{ place: AT_0, problem: { kind: "clause-not-selected", clause: clauseAddressSchema.parse("CD-16#unselected") } }],
+      error: {
+        kind: "invalid-records",
+        invalid: [{ place: AT_0, problem: { kind: "clause-not-selected", clause: clauseAddressSchema.parse("CD-16#unselected") } }],
+      },
+    });
+  });
+
+  it("refuses an entry that is not a JSON value rather than dropping its record, however many valid entries follow", () => {
+    expect(
+      headRecords({
+        entries: [{ place: AT_0, entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/b.ts", reason: undefined } }, AUTHORISED],
+      }),
+    ).toEqual({
+      outcome: "failed",
+      error: { kind: "entry-not-json", place: AT_0 },
     });
   });
 });

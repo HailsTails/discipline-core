@@ -8,16 +8,17 @@ import {
   type InvalidRecord,
   type PlacedEntry,
   parseExceptionEntries,
+  type RecordPlace,
 } from "../version-one-records/exception-records.ts";
 import type { CarriedEntry, RecordInput } from "../version-two-mapping/records-mapping.ts";
 
 export type HeadRecord =
   | Exclude<RecordInput, { readonly kind: "file-carve-out" }>
-  | {
-      readonly kind: "file-carve-out";
-      readonly record: Extract<ExceptionRecord, { readonly kind: "file-carve-out" }>;
-      readonly entry: CarriedEntry;
-    };
+  | Omit<Extract<RecordInput, { readonly kind: "file-carve-out" }>, "answer">;
+
+export type HeadRecordsRefusal =
+  | { readonly kind: "invalid-records"; readonly invalid: readonly InvalidRecord[] }
+  | { readonly kind: "entry-not-json"; readonly place: RecordPlace };
 
 export type HeadRecordsRequest = {
   readonly entries: readonly PlacedEntry[];
@@ -25,6 +26,8 @@ export type HeadRecordsRequest = {
   readonly fileExceptionWhyChains: FileExceptionWhyChains;
   readonly baseline: ExceptionBaseline;
 };
+
+type JsonEntry = { readonly placed: PlacedEntry; readonly entry: CarriedEntry };
 
 const carriedEntrySchema = z.record(z.string(), z.json());
 
@@ -40,15 +43,24 @@ const headRecordOf = (request: { readonly record: ExceptionRecord; readonly entr
   }
 };
 
-const headRecordsOfPlaced = (request: HeadRecordsRequest & { readonly placed: PlacedEntry }): readonly HeadRecord[] => {
-  const entry = carriedEntrySchema.safeParse(request.placed.entry);
-  const { records } = parseExceptionEntries({ ...request, entries: [request.placed] });
-  return entry.success ? records.map((record) => headRecordOf({ record, entry: entry.data })) : [];
+const jsonEntriesOf = (request: { readonly entries: readonly PlacedEntry[] }): Result<readonly JsonEntry[], HeadRecordsRefusal> => {
+  const parsed = request.entries.map((placed) => ({ placed, entry: carriedEntrySchema.safeParse(placed.entry) }));
+  const refused = parsed.find(({ entry }) => !entry.success);
+  return refused === undefined
+    ? { outcome: "ok", value: parsed.flatMap(({ placed, entry }) => (entry.success ? [{ placed, entry: entry.data }] : [])) }
+    : { outcome: "failed", error: { kind: "entry-not-json", place: refused.placed.place } };
 };
 
-export const headRecordsOf = (request: HeadRecordsRequest): Result<readonly HeadRecord[], readonly InvalidRecord[]> => {
+const headRecordsOfEntry = (request: HeadRecordsRequest & { readonly json: JsonEntry }): readonly HeadRecord[] =>
+  parseExceptionEntries({ ...request, entries: [request.json.placed] }).records.map((record) => headRecordOf({ record, entry: request.json.entry }));
+
+export const headRecordsOf = (request: HeadRecordsRequest): Result<readonly HeadRecord[], HeadRecordsRefusal> => {
+  const json = jsonEntriesOf({ entries: request.entries });
+  if (json.outcome === "failed") {
+    return json;
+  }
   const { invalid } = parseExceptionEntries(request);
   return invalid.length > 0
-    ? { outcome: "failed", error: invalid }
-    : { outcome: "ok", value: request.entries.flatMap((placed) => headRecordsOfPlaced({ ...request, placed })) };
+    ? { outcome: "failed", error: { kind: "invalid-records", invalid } }
+    : { outcome: "ok", value: json.value.flatMap((each) => headRecordsOfEntry({ ...request, json: each })) };
 };
