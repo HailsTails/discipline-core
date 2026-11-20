@@ -97,8 +97,6 @@ const sliceProblemReason = (request: ProjectCommand & { readonly problem: SliceP
       return `that slice differs from what hone project writes now; ${refreshStep({ ...request, engine })}`;
     case "missing":
       return `that slice is not written; ${refreshStep({ ...request, engine })}`;
-    case "not-applied":
-      return `the ${engine.name} configuration for ${folder} leaves records of that slice out of effect; spread the default export of ${slice} last in that package's configuration, in place of any other projection it spreads, ${GENERATED_CONFIGURATION}`;
     case "unconfigured":
       return `${folder} has no ${engine.name} configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check`;
   }

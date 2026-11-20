@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AUDIT, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE } from "../../tests/report-catalogue.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
+import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
 import { engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
 
@@ -50,6 +51,33 @@ describe("engineProblemsOf", () => {
   it("names the engine whose projection differs from what project writes now", () => {
     expect(engineProblemsOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "out-of-date" })] })).toEqual([
       { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" },
+    ]);
+  });
+
+  it("names each package file a run found missing, out of date or not loaded, beside a current root projection", () => {
+    const run: EngineRun = {
+      ...runWith({ mechanism: ESLINT, projection: "current" }),
+      slices: [
+        { slice: repoPathSchema.parse("packages/a/hone.eslint.mjs"), state: "missing" },
+        { slice: repoPathSchema.parse("packages/b/hone.eslint.mjs"), state: "out-of-date" },
+        { slice: repoPathSchema.parse("packages/c/hone.eslint.mjs"), state: "unconfigured" },
+      ],
+    };
+    expect(engineProblemsOf({ catalogue: REPORT_CATALOGUE, runs: [run] })).toEqual([
+      { scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: "packages/a/hone.eslint.mjs" },
+      { scope: "slice", engine: ESLINT_ENGINE, state: "out-of-date", slice: "packages/b/hone.eslint.mjs" },
+      { scope: "slice", engine: ESLINT_ENGINE, state: "unconfigured", slice: "packages/c/hone.eslint.mjs" },
+    ]);
+  });
+
+  it("names the root projection first, then the package files, when both differ", () => {
+    const run: EngineRun = {
+      ...runWith({ mechanism: ESLINT, projection: "out-of-date" }),
+      slices: [{ slice: repoPathSchema.parse("packages/a/hone.eslint.mjs"), state: "out-of-date" }],
+    };
+    expect(engineProblemsOf({ catalogue: REPORT_CATALOGUE, runs: [run] })).toEqual([
+      { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" },
+      { scope: "slice", engine: ESLINT_ENGINE, state: "out-of-date", slice: "packages/a/hone.eslint.mjs" },
     ]);
   });
 

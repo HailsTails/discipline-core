@@ -14,6 +14,7 @@ import type { ChecksRepository } from "./checks-repository.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { checksRunnerOver } from "./checks-runner.ts";
 import type { ChecksRunnerPorts } from "./checks-ports.ts";
+import { countedReadsOver } from "../../../tests/counted-reads.ts";
 import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type { EslintPort, GovernanceInstance, QueryInstance } from "./eslint-instance.ts";
@@ -87,6 +88,8 @@ describe("checksRunnerOver", () => {
 const REAL_INSTALL_ROOT = absolutePathSchema.parse(`${import.meta.dirname}/../../..`);
 
 const SCRATCH_REPO_ROOT = absolutePathSchema.parse(`${REAL_INSTALL_ROOT}/artefacts/scratch`);
+
+const INSTALLED_ESLINT_PACKAGE_JSON = path.join({ segments: [SCRATCH_REPO_ROOT, "node_modules", "eslint", "package.json"] });
 
 const SYMPTOM_CATALOGUE = symptomCatalogueOf({ document: SYMPTOMS });
 
@@ -300,7 +303,7 @@ describe("checksRunnerOver, over a repository holding a package eslint.config.*"
     });
   });
 
-  it("names a declared folder's file missing when it holds no eslint.config.* and its file is not written", async () => {
+  it("names a declared folder's file missing, and unconfigured, when it holds no eslint.config.* on disk and its file is not written", async () => {
     const request = { ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] };
     const outcome = await runnerOverProjection({
       currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_NOT_WRITTEN }),
@@ -309,19 +312,58 @@ describe("checksRunnerOver, over a repository holding a package eslint.config.*"
     }).run(request);
     expect(outcome).toEqual({
       outcome: "ok",
-      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "missing" }] },
+      value: {
+        hits: [],
+        nativeExceptions: [],
+        measured: [],
+        misnamedRuleIds: [],
+        projection: "current",
+        slices: [
+          { slice: PACKAGE_SLICE_PATH, state: "missing" },
+          { slice: PACKAGE_SLICE_PATH, state: "unconfigured" },
+        ],
+      },
     });
   });
 
+  it("names a declared folder's file unconfigured, and still lints, when the file is written but the folder holds no eslint.config.* on disk", async () => {
+    const governance = lintingNothing();
+    const request = { ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] };
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT }),
+      ruleState: CONFIGURED_ON,
+      governance,
+    }).run(request);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "unconfigured" }] } },
+      linted: [[{ files: request.files }]],
+    });
+  });
+
+  it("names no declared folder unconfigured when it holds an eslint.config.* on disk, whatever the lookup", async () => {
+    const present = { ...createDefaultFileTextPort({}), exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present") };
+    const request = { ...SELECTING_THE_CLASS_CHECK, declaredConfigRoots: [repoPathSchema.parse("packages/web")] };
+    const outcome = await runnerOverProjectionReading({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT }),
+      ruleState: CONFIGURED_ON,
+      governance: lintingNothing(),
+      fileText: present,
+    }).run(request);
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } });
+  });
+
+  it("names a folder unconfigured only when it is declared, not when a tracked eslint.config.* is merely absent from disk", async () => {
+    const outcome = await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT });
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [] } });
+  });
+
   it("reads the installed ESLint version once for the whole run, not once for its slices and again for its query", async () => {
-    const declaring = createDefaultFileTextPort({});
-    const detecting = createDefaultFileTextPort({});
-    const readWhenDeclared = vi.spyOn(declaring, "read");
-    const readWhenDetecting = vi.spyOn(detecting, "read");
+    const declaring = countedReadsOver({ fileText: createDefaultFileTextPort({}) });
+    const detecting = countedReadsOver({ fileText: createDefaultFileTextPort({}) });
     const stubs = { currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT }), ruleState: CONFIGURED_ON, governance: lintingNothing() };
-    await runnerOverProjectionReading({ ...stubs, fileText: declaring }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: "nearest-to-file" });
-    await runnerOverProjectionReading({ ...stubs, fileText: detecting }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: undefined });
-    expect({ declared: readWhenDeclared.mock.calls.length, detecting: readWhenDetecting.mock.calls.length }).toEqual({ declared: 11, detecting: 12 });
+    await runnerOverProjectionReading({ ...stubs, fileText: declaring.fileText }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: "nearest-to-file" });
+    await runnerOverProjectionReading({ ...stubs, fileText: detecting.fileText }).run({ ...WITH_A_PACKAGE_CONFIG, declaredConfigLookup: undefined });
+    expect({ declared: declaring.readsOf({ path: INSTALLED_ESLINT_PACKAGE_JSON }), detecting: detecting.readsOf({ path: INSTALLED_ESLINT_PACKAGE_JSON }) }).toEqual({ declared: 0, detecting: 1 });
   });
 
   it("reads no slice for a declared folder that is a nested repository", async () => {

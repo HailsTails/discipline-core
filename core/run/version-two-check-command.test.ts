@@ -55,6 +55,14 @@ const FAILING_RUN: EngineRun = {
   hits: [{ clause: CAST_EXPRESSIONS, file: FILE_A, anchor: { line: 4, column: 9 }, snippet: "body as Event", check: "claimed-type#cast-expressions" }],
 };
 
+const SLICES_RUN: EngineRun = {
+  ...CLEAN_RUN,
+  slices: [
+    { slice: repoPathSchema.parse("packages/a/hone.eslint.mjs"), state: "missing" },
+    { slice: repoPathSchema.parse("packages/b/hone.eslint.mjs"), state: "out-of-date" },
+  ],
+};
+
 const stagesGiving = (request: Partial<VersionTwoStages>): VersionTwoStages => ({
   catalogue: vi.fn<VersionTwoStages["catalogue"]>().mockReturnValue({ outcome: "ok", value: REPORT_CATALOGUE }),
   settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: SETTINGS }),
@@ -131,6 +139,25 @@ describe("versionTwoCheckCommandOf", () => {
   it("prints the findings and the verdict, and exits 1, when the run fails", async () => {
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages: FAILING_STAGES }) });
     expect(ran).toEqual({ writes: [[{ text: FAILING_REPORT }]], exits: [[{ code: 1 }]] });
+  });
+
+  it("prints a line for each package file the engine found missing or out of date, and fails, though the root projection is current", async () => {
+    const stages = stagesGiving({ engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [SLICES_RUN] }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverGiving({ stages }) });
+    expect(ran).toEqual({
+      writes: [
+        [
+          {
+            text: `projectionProblems (2)
+eslint missing packages/a/hone.eslint.mjs: that slice is not written; run node /install/core/check/tool-command.ts project --repo /repo and commit every hone.eslint.mjs it writes
+eslint out-of-date packages/b/hone.eslint.mjs: that slice differs from what hone project writes now; run node /install/core/check/tool-command.ts project --repo /repo and commit every hone.eslint.mjs it writes
+verdict: fail
+`,
+          },
+        ],
+      ],
+      exits: [[{ code: 1 }]],
+    });
   });
 
   it("builds the stages over the repository, the install the command runs from and the base revision given", async () => {

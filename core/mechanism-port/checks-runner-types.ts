@@ -4,7 +4,6 @@ import type { EslintConfigLookup } from "../values/eslint-config-lookup.ts";
 import type { ClauseAddress } from "../values/clause-address-types.ts";
 import type { RepoPath } from "../values/repo-path-types.ts";
 import type { Result } from "../values/result.ts";
-import type { SliceProblem } from "./embedded-run-report-schema.ts";
 import type { RunnerFailure } from "./runner-failure.ts";
 import type { StandaloneRunner } from "./runner-module-schema.ts";
 import type { Hit, MeasuredPair, NativeException, ProjectionState } from "./runner-result-schema.ts";
@@ -40,12 +39,14 @@ export type MisnamedRuleId = {
   readonly text: string;
 };
 
+export type ChecksSliceProblem = { readonly slice: RepoPath; readonly state: "missing" | "out-of-date" | "unconfigured" };
+
 export type ChecksRunReport = {
   readonly hits: readonly Hit[];
   readonly nativeExceptions: readonly NativeException[];
   readonly measured: readonly MeasuredPair[];
   readonly projection: ProjectionState;
-  readonly slices: readonly SliceProblem[];
+  readonly slices: readonly ChecksSliceProblem[];
   readonly misnamedRuleIds: readonly MisnamedRuleId[];
 };
 

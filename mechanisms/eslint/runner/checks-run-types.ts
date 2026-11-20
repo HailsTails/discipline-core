@@ -1,4 +1,4 @@
-import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
+import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { Hit, MeasuredPair, NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
@@ -45,7 +45,7 @@ export type ChecksRunReport = {
   readonly nativeExceptions: readonly NativeException[];
   readonly measured: readonly MeasuredPair[];
   readonly projection: ChecksProjectionState;
-  readonly slices: readonly SliceProblem[];
+  readonly slices: readonly ChecksSliceProblem[];
   readonly misnamedRuleIds: readonly MisnamedRuleId[];
 };
 

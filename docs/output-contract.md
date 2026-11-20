@@ -752,7 +752,6 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `projectionProblems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
 | `projectionProblems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
 | `projectionProblems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every hone.<engine>.mjs it writes` |
-| `projectionProblems` | `<engine> not-applied <slice>: the <engine> configuration for <folder> leaves records of that slice out of effect; spread the default export of <slice> last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
 | `projectionProblems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
 | `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
 | `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |

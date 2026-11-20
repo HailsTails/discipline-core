@@ -20,10 +20,10 @@ import { coreInstallOf } from "./core-install.ts";
 import { MISNAMED_DISABLE_RULE, MISNAMED_DISABLE_RULE_ID, misnamedDisableRule } from "./misnamed-disable-rule.ts";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
-import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
+import { configLookupDeclaring, folderConfigurationOf, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
 import { answeredWithin, type ChecksSlice, type ChecksSlices, slicesOf } from "./checks-slices.ts";
-import type { SliceProblem } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
+import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { conformedCases, loadedPieceClauseOf } from "./eslint-conform.ts";
@@ -43,7 +43,7 @@ export type ChecksRunner = {
 
 const NO_FINDINGS = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [] };
 
-const reportAs = (request: { readonly projection: ChecksProjectionState; readonly slices: readonly SliceProblem[] }): Outcome<ChecksRunReport> => ({
+const reportAs = (request: { readonly projection: ChecksProjectionState; readonly slices: readonly ChecksSliceProblem[] }): Outcome<ChecksRunReport> => ({
   outcome: "ok",
   value: { ...NO_FINDINGS, projection: request.projection, slices: request.slices },
 });
@@ -145,7 +145,7 @@ type SliceRequest = {
 
 type ExpectedFiles = { readonly root: ProjectedFile; readonly packages: readonly ProjectedFile[] };
 
-type ProjectionStatus = { readonly projection: GeneratedState; readonly slices: readonly SliceProblem[] };
+type ProjectionStatus = { readonly projection: GeneratedState; readonly slices: readonly ChecksSliceProblem[] };
 
 const importingDirectoryOf = (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts; readonly slice: ChecksSlice }): Result<AbsolutePath, RunnerFailure> => {
   const { directory } = request.slice;
@@ -188,7 +188,7 @@ const sliceStateOf = (request: { readonly states: ProjectionStates; readonly exp
   return current.outcome === "failed" ? current : { outcome: "ok", value: projectionState({ current: current.value, generated: request.expected.text }) };
 };
 
-const packageProblemOf = (request: { readonly states: ProjectionStates; readonly expected: ProjectedFile }): Result<readonly SliceProblem[], RunnerFailure> => {
+const packageProblemOf = (request: { readonly states: ProjectionStates; readonly expected: ProjectedFile }): Result<readonly ChecksSliceProblem[], RunnerFailure> => {
   const state = sliceStateOf(request);
   if (state.outcome === "failed") {
     return state;
@@ -214,6 +214,15 @@ const currentProjectionStatus = (request: SliceRequest): Result<ProjectionStatus
   const problems = gatheredOutcomes({ outcomes: packages.map((file) => packageProblemOf({ states: states.value, expected: file })) });
   return problems.outcome === "failed" ? problems : { outcome: "ok", value: { projection: rootState.value, slices: problems.value } };
 };
+
+const unconfiguredSlicesOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly slices: ChecksSlices }): readonly ChecksSliceProblem[] =>
+  request.slices.packages.flatMap((slice) =>
+    slice.directory !== undefined &&
+    request.run.declaredConfigRoots.includes(slice.directory) &&
+    folderConfigurationOf({ fileText: request.platform.fileText, path: request.platform.path, repoRoot: request.run.repoRoot, folder: slice.directory }) === "unconfigured"
+      ? [{ slice: slice.file, state: "unconfigured" as const }]
+      : [],
+  );
 
 type LintRequest = {
   readonly run: ChecksRunRequest;
@@ -299,17 +308,19 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
     return selected.outcome === "failed" ? selected : reportAs({ projection: "current", slices: [] });
   }
   const lookup = lookupOf(request);
-  const status = currentProjectionStatus({ run: request.run, ports: request.ports, projected: projected.value, slices: slicesOver({ run: request.run, lookup }) });
-  if (status.outcome === "failed") {
-    return status;
+  const slices = slicesOver({ run: request.run, lookup });
+  const written = currentProjectionStatus({ run: request.run, ports: request.ports, projected: projected.value, slices });
+  if (written.outcome === "failed") {
+    return written;
   }
-  if (status.value.projection === "missing" || status.value.slices.some((slice) => slice.state === "missing")) {
-    return reportAs(status.value);
+  const status: ProjectionStatus = { ...written.value, slices: [...written.value.slices, ...unconfiguredSlicesOf({ run: request.run, platform: request.platform, slices })] };
+  if (status.projection === "missing" || status.slices.some((slice) => slice.state === "missing")) {
+    return reportAs(status);
   }
   const plugin = await builtPlugin({ ...request, checkRuleIds: eslintRuleIdsOf({ checks: request.run.checks }) });
   return plugin.outcome === "failed"
     ? plugin
-    : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), status: status.value, lookup });
+    : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), status, lookup });
 };
 
 const projectedFilesOf = (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): Outcome<readonly ProjectedFile[]> => {

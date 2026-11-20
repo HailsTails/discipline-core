@@ -377,7 +377,6 @@ const sliceProblem = (request: { readonly state: SliceState }): Filled<RunProjec
 const SLICE_PROBLEMS: Readonly<Record<SliceState, Filled<RunProjectionProblem>>> = {
   "out-of-date": sliceProblem({ state: "out-of-date" }),
   missing: sliceProblem({ state: "missing" }),
-  "not-applied": sliceProblem({ state: "not-applied" }),
   unconfigured: sliceProblem({ state: "unconfigured" }),
 };
 

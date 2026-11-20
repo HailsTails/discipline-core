@@ -18,7 +18,7 @@ export type RunUnmeasured = RecordsUnmeasured | EngineNotRun;
 
 export type RunProjectionProblem =
   | { readonly scope: "projection"; readonly engine: Engine; readonly state: "out-of-date" }
-  | { readonly scope: "slice"; readonly engine: Engine; readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured"; readonly slice: RepoPath };
+  | { readonly scope: "slice"; readonly engine: Engine; readonly state: "out-of-date" | "missing" | "unconfigured"; readonly slice: RepoPath };
 
 export type ForfeitureElsewhere = { readonly concern: "forfeiture"; readonly assessedBy: "elsewhere"; readonly debts: number };
 
