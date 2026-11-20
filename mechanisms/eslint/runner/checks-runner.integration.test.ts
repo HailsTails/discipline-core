@@ -357,4 +357,19 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
       run: { outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } },
     });
   });
+
+  it("matches an answer for a package file in that package's own file, written relative to the package, without reporting its off block as an override", async () => {
+    const answered = [{ symptom: "authored-class-or-this", check: "class-keyword", file: SUB_FILE }];
+    const answeredWithinSub = [{ symptom: "authored-class-or-this", check: "class-keyword", file: SOURCE_FILE }];
+    const rootText = checksProjectionText({ pluginImport: "../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered });
+    const subText = checksProjectionText({ pluginImport: "../../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: answeredWithinSub });
+    const outcome = await runOver({
+      ...PACKAGE_RUN,
+      line,
+      answered,
+      files: { ...PACKAGE_RUN.files, [CHECKS_PROJECTION_PATH]: rootText },
+      sub: { ...PACKAGE_RUN.sub, [CHECKS_PROJECTION_PATH]: subText },
+    });
+    expect(outcome).toEqual({ outcome: "ok", value: { ...REPORT, hits: [SUB_HIT], measured: [{ clause: CLASS_SYNTAX, file: "sub/kept.ts" }] } });
+  });
 });

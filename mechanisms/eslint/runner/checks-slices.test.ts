@@ -35,17 +35,18 @@ describe("slicesOf", () => {
     ]);
   });
 
-  it("names a declared folder once when it is also configured, and once more when it is not", () => {
+  it("names a declared folder once when it is also configured, and adds one that is only declared", () => {
     expect(
       slicesOf({
         trackedPaths: TRACKED,
         declared: [repoPathSchema.parse("packages/c"), repoPathSchema.parse("packages/a")],
-        lookup: "repository-root",
+        lookup: "nearest-to-file",
         nestedRepositories: [],
       }),
     ).toEqual([
       ROOT_SLICE,
       PACKAGE_A_SLICE,
+      { directory: "packages/b/tools", file: "packages/b/tools/hone.eslint.mjs" },
       PACKAGE_C_SLICE,
     ]);
   });

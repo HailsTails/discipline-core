@@ -82,24 +82,6 @@ describe("checksRunnerOver", () => {
     ).toEqual(NOT_READY_NESTED);
   });
 
-  it("does not report a nested repository's lint config as a package config of this one when the nested repository holds no file to check", async () => {
-    const outcome = await runner.run({
-      ...REQUEST,
-      files: [],
-      trackedPaths: [repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/eslint.config.mjs")],
-    });
-    expect(outcome).toEqual({ outcome: "ok", value: expect.anything() });
-  });
-
-  it("does not count a subfolder config as a root when the repository declares a repository-root lookup", async () => {
-    const outcome = await runner.run({
-      ...REQUEST,
-      declaredConfigLookup: "repository-root",
-      trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("packages/web/eslint.config.mjs"), repoPathSchema.parse("src/a.ts")],
-    });
-    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
-  });
-
   it("reports a current projection and no findings when no check runs on ESLint", async () => {
     expect(await runner.run(REQUEST)).toEqual({
       outcome: "ok",
@@ -260,19 +242,40 @@ const runOverSlices = (request: { readonly root: CurrentProjection; readonly web
 
 describe("checksRunnerOver, over a repository holding a package eslint.config.*", () => {
   it("reports the projection current when the root file and the package's file both hold what project writes", async () => {
-    expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT })).toMatchObject({ outcome: "ok", value: { projection: "current" } });
+    expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PACKAGE_PROJECTION_PRESENT })).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" },
+    });
   });
 
   it("reports the projection out of date when only the package's file differs", async () => {
-    expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS })).toMatchObject({ outcome: "ok", value: { projection: "out-of-date" } });
+    expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS })).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date" },
+    });
   });
 
   it("reports the projection missing, rather than out of date, when the package's file is not written and the root file differs", async () => {
-    expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PROJECTION_NOT_WRITTEN })).toMatchObject({ outcome: "ok", value: { projection: "missing" } });
+    expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PROJECTION_NOT_WRITTEN })).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "missing" },
+    });
   });
 
   it("reports the projection out of date when the root file differs and the package's file is current", async () => {
-    expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PACKAGE_PROJECTION_PRESENT })).toMatchObject({ outcome: "ok", value: { projection: "out-of-date" } });
+    expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PACKAGE_PROJECTION_PRESENT })).toEqual({
+      outcome: "ok",
+      value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date" },
+    });
+  });
+
+  it("reads no slice for a nested repository's lint config, when the nested repository holds no file to check", async () => {
+    const request = {
+      ...SELECTING_THE_CLASS_CHECK,
+      trackedPaths: [repoPathSchema.parse("kept.ts"), repoPathSchema.parse("vendor/lib/hone.config.json"), repoPathSchema.parse("vendor/lib/eslint.config.mjs")],
+    };
+    const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: CONFIGURED_ON, governance: lintingNothing() }).run(request);
+    expect(outcome).toEqual({ outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current" } });
   });
 });
 
