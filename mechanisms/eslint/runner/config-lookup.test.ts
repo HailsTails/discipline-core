@@ -4,7 +4,8 @@ import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
 import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
-import { teamConfigLookup } from "./config-lookup.ts";
+import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
+import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
 
 const REPO = absolutePathSchema.parse("/repo");
 
@@ -21,26 +22,41 @@ const noFiles: FileTextPort = {
 };
 
 const eslintInstalled = (request: { readonly version: string }) => ({
-  "/repo/node_modules/eslint/package.json": JSON.stringify({ version: request.version }),
+  "/repo/node_modules/eslint/package.json": `{ "version": "${request.version}" }`,
 });
 
 const lintScript = (request: { readonly command: string }) => ({
-  "/repo/package.json": JSON.stringify({ scripts: { lint: request.command } }),
+  "/repo/package.json": `{ "scripts": { "lint": "${request.command}" } }`,
 });
 
-const declaredLookup = (request: { readonly lookup: string }) => ({
-  "/repo/disciplines.json": JSON.stringify({ eslintConfigLookup: request.lookup }),
-});
-
-const lookupOver = (request: { readonly files: Readonly<Record<string, string>> }) =>
-  teamConfigLookup({
+const lookupDeclaring = (request: { readonly files: Readonly<Record<string, string>>; readonly declared: EslintConfigLookup | undefined }) => {
+  const lookupRequest = {
     fileText: overlaidFileText({ base: noFiles, files: request.files }),
     path,
     repoRoot: REPO,
     trackedPaths: [repoPathSchema.parse("package.json")],
+  };
+  return teamConfigLookupFor({
+    ...lookupRequest,
+    settingsFile: "hone.config.json",
+    lookup: configLookupDeclaring({ ...lookupRequest, declared: request.declared }),
+  });
+};
+
+const lookupOver = (request: { readonly files: Readonly<Record<string, string>> }) => lookupDeclaring({ ...request, declared: undefined });
+
+describe("teamConfigLookupFor", () => {
+  it("names the settings file it was given when the repository root has no config for a root-only lookup", () => {
+    expect(lookupDeclaring({ files: eslintInstalled({ version: "9.39.5" }), declared: undefined })).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "team-config-unloadable",
+        detail:
+          "the repository root has no eslint.config.* for a root-only config lookup; add one there, or set eslintConfigLookup to nearest-to-file in hone.config.json if ESLint runs from each package",
+      },
+    });
   });
 
-describe("teamConfigLookup", () => {
   it.each([
     { name: "ESLint 10", files: { ...eslintInstalled({ version: "10.11.0" }), ...ROOT_CONFIG } },
     { name: "an ESLint that is not installed at the repository root", files: ROOT_CONFIG },
@@ -82,36 +98,22 @@ describe("teamConfigLookup", () => {
 
   it("lets a declared nearest-to-file win over detecting a plain ESLint 9 run", () => {
     expect(
-      lookupOver({
-        files: {
-          ...eslintInstalled({ version: "9.39.5" }),
-          ...lintScript({ command: "turbo run lint" }),
-          ...declaredLookup({ lookup: "nearest-to-file" }),
-          ...ROOT_CONFIG,
-        },
+      lookupDeclaring({
+        files: { ...eslintInstalled({ version: "9.39.5" }), ...lintScript({ command: "turbo run lint" }), ...ROOT_CONFIG },
+        declared: "nearest-to-file",
       }),
     ).toEqual(NEAREST);
   });
 
   it("lets a declared repository-root win over detecting ESLint 10", () => {
     expect(
-      lookupOver({
-        files: {
-          ...eslintInstalled({ version: "10.11.0" }),
-          ...lintScript({ command: "eslint ." }),
-          ...declaredLookup({ lookup: "repository-root" }),
-          ...ROOT_CONFIG,
-        },
+      lookupDeclaring({
+        files: { ...eslintInstalled({ version: "10.11.0" }), ...lintScript({ command: "eslint ." }), ...ROOT_CONFIG },
+        declared: "repository-root",
       }),
     ).toEqual({
       outcome: "ok",
       value: { kind: "repository-root", configFile: "/repo/eslint.config.mjs" },
     });
-  });
-
-  it("falls back to detection when the declaration is not one of the two settings", () => {
-    expect(
-      lookupOver({ files: { ...eslintInstalled({ version: "10.11.0" }), ...declaredLookup({ lookup: "anywhere" }), ...ROOT_CONFIG } }),
-    ).toEqual(NEAREST);
   });
 });
