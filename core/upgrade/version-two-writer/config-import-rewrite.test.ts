@@ -85,6 +85,28 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
     ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
   });
 
+  it("refuses a config whose import follows a string holding two slashes on its line, as the comment blanking hides it", () => {
+    expect(
+      rewrittenConfigOf({
+        file: repoPathSchema.parse("eslint.config.mjs"),
+        text: 'const docs = "https://example.test"; import projection from "./disciplines.eslint.mjs";\nexport default [...projection];\n',
+        versionOneProjection: VERSION_ONE,
+        versionTwoProjection: VERSION_TWO,
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "no-projection-import", file: "eslint.config.mjs" } });
+  });
+
+  it("refuses a config whose second import of the projection a string holding two slashes hides, never rewriting only the first", () => {
+    expect(
+      rewrittenConfigOf({
+        file: repoPathSchema.parse("eslint.config.mjs"),
+        text: 'import first from "./disciplines.eslint.mjs";\nconst docs = "https://example.test"; import second from "./disciplines.eslint.mjs";\n',
+        versionOneProjection: VERSION_ONE,
+        versionTwoProjection: VERSION_TWO,
+      }),
+    ).toEqual({ outcome: "failed", error: { kind: "projection-named-elsewhere", file: "eslint.config.mjs" } });
+  });
+
   it("refuses a config that names the projection in a string beside its import, naming the file", () => {
     expect(
       rewrittenConfigOf({
