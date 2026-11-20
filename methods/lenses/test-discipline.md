@@ -49,7 +49,7 @@ they override any default intuition.
 
 Walk the test files and the authored files in the diff. The strands below are
 the generic detection insight; each maps to a loaded rule, which you cite by the
-discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`).
+discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)).
 
 ### Sibling floor
 
@@ -163,6 +163,6 @@ inspected, siblings present vs missing, test files inspected, zero-logic
 construct violations, vague-matcher assertions, delegation leaks, mis-scoped
 tests by direction, tautological-act tests, valueless tests, uniform cases written out by hand). Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and — for a mis-scope, delegation, or act
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)), and — for a mis-scope, delegation, or act
 finding — naming what fixes it (the layer to move to, the call-shape assertion
 to use, or the upstream bound that deletes the test). State the rule-page paths you resolved and which rule ids you loaded under this lens.

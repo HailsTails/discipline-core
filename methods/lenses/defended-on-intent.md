@@ -44,7 +44,7 @@ This lens applies **no lens filter to the rule pages**. Instead:
 2. For each PASS, the rule pages are consulted **solely to
    look up the literal text of the cited clause** — never to find new clauses to
    test. Resolve the rule pages: `rules/*/README.md` in the Hone install (the folder holding `core/` and `rules/`), and in each rule set the repository's `disciplines.json` names under `ruleSets`. Every rule page in scope is loaded, not filtered by lens. If no rule pages can be read at all, STOP and return CANNOT-REVIEW naming the rule-page paths you resolved — an unloadable ruleset is never a codebase without discipline. Each PASS
-   cites a rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`), and that rule page is where the literal
+   cites a rule by the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)), and that rule page is where the literal
    text and its governing principle live, together with the `## Exceptions` section of its sibling `CHECKS.md` and the repository's `discipline-exceptions.json` entries for that discipline.
 3. If the bundle carries zero PASS claims with cited artefacts, produce an empty
    gap set — do not invent claims to test.
@@ -112,7 +112,7 @@ intent sentence as a test. Three outcomes:
   sentence); (4) the **structural reframing** the author would need to retract
   the PASS. The reframing field is load-bearing — a gap without a named
   reframing is a complaint, not a finding. The reframing names the concrete
-  change (a new constructor parameter, a port, a wrapping-factory move) that
+  change (a new constructor parameter, a port, an adapter move) that
   makes *both* letter and intent pass, and names which lens the retracted PASS
   becomes a VIOLATION on.
 - **c. Intent-test fails identically to the letter-test.** This is not a

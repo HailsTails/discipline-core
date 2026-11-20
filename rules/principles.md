@@ -14,6 +14,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** In the unit that reads the world itself (also a breach of External behaviour sits at a boundary), or whose port cannot take a plain stub (also a breach of One place decides). Shows in the test: computed expectations, stubs with logic, module mocks, waits.
 - **Rules under it:** [Written-out answers](rules.md#written-out-answers), [Straight-through tests](rules.md#straight-through-tests), [Tested where it's owned](rules.md#tested-where-its-owned).
 - **Source:** Freeman and Pryce teach that you mock only types you own; this principle keeps tests on what is ours.
+- **Quoted reasons:** "testing what is ours not what isn't. And limiting fragility." "tests that turn red for the right reasons". "A unit test is a why that exposes coupling and side effects."
 
 ## One place decides
 
@@ -23,6 +24,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** In the unit holding a second decision, the second unit re-making one, or the library making one that is ours. Shows as long or nested functions, mode flags, a clock or id read inside a job that is not dating or numbering.
 - **Rules under it:** [Doer or orchestrator](rules.md#doer-or-orchestrator), [Handed what it uses](rules.md#handed-what-it-uses), [Guard first](rules.md#guard-first), [One reason per module](rules.md#one-reason-per-module).
 - **Source:** Parnas hides each decision that may change inside one module; Martin gathers what changes for the same reason.
+- **Quoted reasons:** "Dating and numbering an order is not the same job as charging it." "functions are doers or are orchestrator". "narrowing coupling is about reasonable coupling of reasons to change."
 
 ## No hidden effects
 
@@ -32,6 +34,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** In the function that writes to something it was not passed, changes its input, or changes a value of its own after making it. Shows as tests that patch a global to see an effect.
 - **Rules under it:** none. The principle decides.
 - **Source:** This is Bernhardt's functional core, imperative shell: decisions stay pure and effects stay in sight.
+- **Quoted reasons:** "If the unit calls something we check it calls it."
 
 ## External behaviour sits at a boundary
 
@@ -41,6 +44,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** In the business-logic file that makes the call. Shows as a vendor or adapter import in business logic, a module mock, or a result that differs per machine.
 - **Rules under it:** [Outside dependencies stay at boundaries](rules.md#outside-dependencies-stay-at-boundaries), [Ports declared inside](rules.md#ports-declared-inside).
 - **Source:** This is Cockburn's ports and adapters, and Martin's rule that dependencies point inwards.
+- **Quoted reasons:** "Http fetch library for example has complexity to bind." "date creates non determinism and leaks the world in."
 
 ## No leak across a boundary
 
@@ -52,6 +56,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Record:** an externally defined model adopted as the definitive thing. Evans's *Conformist*. It is a statement on a [boundary record](records.md#boundary-record).
 - **Rules under it:** none. The principle decides.
 - **Source:** This is Evans's anticorruption layer, applied to failures as well as data, in both directions.
+- **Quoted reasons:** "we always map to our own type to decouple even if they are basically the same contents." "Throws are not about start up. They are about speaking the language of the caller at the boundary."
 
 ## The type checker proves it
 
@@ -61,6 +66,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** At the declaration that admits too much. Shows at uses: casts.
 - **Rules under it:** [Failures are values](rules.md#failures-are-values), [Declared, not asserted](rules.md#declared-not-asserted), [Kinds are named](rules.md#kinds-are-named).
 - **Source:** Minsky makes illegal states unrepresentable; King parses once at the edge, so the types carry the proof.
+- **Quoted reasons:** On failures as values: "sounds like a rule of the type checker in a way. As it makes the output clear to type system instead of hidden in throws".
 
 ## Our code reads in the common language
 
@@ -70,6 +76,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Breach:** At the declaration or call that borrows a library's vocabulary or leaves meaning to prose. Shows as comments and utility-type outside dependencies.
 - **Rules under it:** [One word everywhere](rules.md#one-word-everywhere).
 - **Source:** This is Evans's ubiquitous language, held across the whole codebase rather than one context.
+- **Quoted reasons:** "Creates an entire language for basic logical concepts." "language additions beyond the common language expected of engineers in the space and language obscuring standard operations." "the second language they do know is our domain. Consistently applied."
 
 ## Outside risk is carried on purpose
 
@@ -80,6 +87,7 @@ Principles name no language, tool or library. [Cases](cases.md) say what to do f
 - **Differs from External behaviour sits at a boundary:** that principle keeps an outside change from editing business logic. This one decides whether the outside thing is here at all, and at which version.
 - **Rules under it:** [Outside dependencies justified](rules.md#outside-dependencies-justified), [Fixed versions](rules.md#fixed-versions), [Tools live in the repo](rules.md#tools-live-in-the-repo), [Upstream stays untouched](rules.md#upstream-stays-untouched). Proposed, not accepted: [Shipped risk declared](rules.md#shipped-risk-declared).
 - **Source:** This follows Twelve-Factor, OpenSSF and the SBOM: every dependency is declared, pinned and recorded.
+- **Quoted reasons:** "it sounds like packages is a rule not a principle. The principles is something to do with external risks impact on maintenance." "Packages need a justification for the maintenance they add. And native things are preferred when they achieve the same thing without over levels of complexity." On type-only outside dependencies: "Has to be a real inescapable need which is unlikely to happen."
 
 ## Not principles
 

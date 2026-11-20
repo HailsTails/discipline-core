@@ -36,7 +36,7 @@ Outside dependency: what was called a package. An internal package is our own co
 
 | Check for | Reports | Needs | Today | Margin | Settings traced to |
 |---|---|---|---|---|---|
-| Text past its reader | seen → breach (the port that carries text, by types) | syntax; boundary records | partial (tests only) | — / production sites | the edition: **nothing** |
+| Text past its reader | seen → breach (the port that carries text, by types) | syntax; boundary records | partial (tests only) | — / production sites | the edition: backwards compatibility for adopters since the npm release (see Edition defaults below) |
 | Schema past its adapter | seen | graph; boundary records | review | — / — | none |
 
 ## Claimed or loose types

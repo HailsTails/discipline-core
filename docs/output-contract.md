@@ -47,7 +47,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 
 | Value | Printed as | Space |
 | --- | --- | --- |
-| `<clause>` | in the report, a clause address: `CD-15#loops` for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's; in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
+| `<clause>` | in the report, a clause address: `CD-15#loops` (`loop-keyword#loop-statement`) for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's (`loop-keyword#loop-statement` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0); in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
 | `<mechanism>` | a mechanism id, such as `audit` or `eslint` | never |
 | `<record kind>`, `<section>`, `<package>` | a word from the lines below, a section name, or an npm package name | never |
 | `<line>`, `<column>` | a 1-based line and a 0-based column | never |
@@ -268,7 +268,7 @@ The verdict line reads `(partial assessment)` whenever the report has an `assess
 
 ## Report lines
 
-Each section's entries take one of these shapes. A finding names its symptom with ` symptom: <symptom>, may indicate: <indicated>` after the snippet when the installed symptom catalogue reads one for its clause, and for `CD-27#test-body-logic` for the form it flagged; a finding the catalogue reads no symptom for prints without it. A finding ends with ` fix: <fix> (<fix page>#<section>)` when its clause's piece names what to write instead of the form it flagged and the page that shows it, as `CD-27#test-body-logic` does; an exempted finding never carries either. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
+Each section's entries take one of these shapes. A finding names its symptom with ` symptom: <symptom>, may indicate: <indicated>` after the snippet when the installed symptom catalogue reads one for its clause, and for `CD-27#test-body-logic`, whose test-body checks such as `branch-in-a-test#test-body` each see one symptom, for the form it flagged; a finding the catalogue reads no symptom for prints without it. A finding ends with ` fix: <fix> (<fix page>#<section>)` when its clause's piece names what to write instead of the form it flagged and the page that shows it, as `CD-27#test-body-logic` does; an exempted finding never carries either. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
 
 | Section | Line |
 | --- | --- |
