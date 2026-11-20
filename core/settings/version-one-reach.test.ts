@@ -71,7 +71,6 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
 
   it("finds, in what the version 2 folders reach without entering version 1, each import into core/upgrade, core/exception-records, core/consumer-selection or core/check outside core/run (whose own imports are pinned above and in run-imports.test.ts) only as listed here, so the list can only shrink", () => {
     expect(statementsOutsideFiles({ statements: frontier, files: /^\.\/core\/run\// })).toEqual([
-      { file: "./core/conformance/clause-conformance.ts", statement: 'import { loadRunner, type RunnerLocation } from "../check/run-check.ts";' },
       { file: "./core/mechanism-port/runner-module-schema.ts", statement: 'import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";' },
       { file: "./core/verdict/check-report.ts", statement: 'import type {\n  ExceptionRecord,\n  InvalidRecord,\n} from "../upgrade/version-one-records/exception-records.ts";' },
       { file: "./core/verdict/check-report.ts", statement: 'import type { DoublyHeld, ExemptedFinding } from "../upgrade/answering/governance.ts";' },
