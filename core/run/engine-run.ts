@@ -2,7 +2,7 @@ import { z } from "zod";
 import { runMechanism, type MechanismRun } from "./mechanism-dispatch.ts";
 import type { ClauseBinding } from "../settings/selection.ts";
 import { checksProjectResultSchema, checksRunnerModuleSchema, checksRunResultSchema } from "../mechanism-port/checks-runner-module-schema.ts";
-import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, MisnamedRuleId, ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
+import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksSliceProblem, MisnamedRuleId, ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
 import { rejectedCall, type RunnerFailure, runnerInvalidOutput } from "../mechanism-port/runner-failure.ts";
 import type { RunnerInvalid } from "../mechanism-port/load-runner.ts";
 import { type LoadedRunner, type LoadedStandaloneRunner, runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
@@ -19,7 +19,7 @@ import type { RunFailureSource } from "./run-failure.ts";
 
 type ParsedChecksRunner = z.output<typeof checksRunnerModuleSchema>;
 
-export type EngineRun = MechanismRun & { readonly misnamedRuleIds: readonly MisnamedRuleId[] };
+export type EngineRun = Omit<MechanismRun, "slices"> & { readonly slices: readonly ChecksSliceProblem[]; readonly misnamedRuleIds: readonly MisnamedRuleId[] };
 
 export type LoadedEngine = {
   readonly mechanism: MechanismId;
@@ -81,7 +81,7 @@ const standaloneRunOf = async (request: { readonly runner: LoadedStandaloneRunne
       clauses: clausesOf({ request: request.run, mechanism: request.mechanism }),
     },
   });
-  return ran.outcome === "failed" ? runnerFailed({ mechanism: request.mechanism, failure: ran.error }) : { outcome: "ok", value: { ...ran.value, misnamedRuleIds: [] } };
+  return ran.outcome === "failed" ? runnerFailed({ mechanism: request.mechanism, failure: ran.error }) : { outcome: "ok", value: { ...ran.value, slices: [], misnamedRuleIds: [] } };
 };
 
 type Filed = { readonly clause: ChecksRunRequest["bindings"][number]["clause"]["address"]; readonly file: RepoPath };
@@ -135,7 +135,7 @@ const engineRunOfReport = (request: {
       nativeExceptions: request.report.nativeExceptions,
       coverableKinds: request.projectedKinds,
       projection: request.report.projection,
-      slices: [],
+      slices: request.report.slices,
       unprojectedFolders: [],
       measured: request.report.measured,
       misnamedRuleIds: request.report.misnamedRuleIds,

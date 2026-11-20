@@ -5,6 +5,7 @@ import {
   checksRunResultSchema,
   isChecksModuleKeySetEqual,
   isChecksRunReportSchemaEqual,
+  isChecksSliceProblemSchemaEqual,
   isMisnamedRuleIdSchemaEqual,
   isNotReadyYetFailureSchemaEqual,
   isProjectedFileSchemaEqual,
@@ -17,6 +18,7 @@ const REPORT = {
   nativeExceptions: [{ kind: "ignore", check: "authored-class-or-this#class-keyword", clause: CLASS_SYNTAX, file: "src/gen.ts" }],
   measured: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
   projection: "current",
+  slices: [{ slice: "packages/web/hone.eslint.mjs", state: "out-of-date" }],
   misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "src/a.ts", line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" }],
 };
 
@@ -25,8 +27,14 @@ describe("the checks runner's ties to its module schema", () => {
     expect(isChecksModuleKeySetEqual).toBe(true);
   });
 
-  it("holds the same report, misnamed rule id, not-ready-yet failure and projected file as the types", () => {
-    expect([isChecksRunReportSchemaEqual, isMisnamedRuleIdSchemaEqual, isNotReadyYetFailureSchemaEqual, isProjectedFileSchemaEqual]).toEqual([true, true, true, true]);
+  it("holds the same report, slice problem, misnamed rule id, not-ready-yet failure and projected file as the types", () => {
+    expect([isChecksRunReportSchemaEqual, isChecksSliceProblemSchemaEqual, isMisnamedRuleIdSchemaEqual, isNotReadyYetFailureSchemaEqual, isProjectedFileSchemaEqual]).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
   });
 });
 
@@ -108,5 +116,33 @@ describe("checksRunResultSchema", () => {
   it("rejects a report that leaves out the misnamed rule ids", () => {
     const { misnamedRuleIds: _left, ...withoutMisnamed } = REPORT;
     expect(checksRunResultSchema.safeParse({ outcome: "ok", value: withoutMisnamed }).success).toBe(false);
+  });
+
+  it("rejects a report that leaves out the slice problems", () => {
+    const { slices: _left, ...withoutSlices } = REPORT;
+    expect(checksRunResultSchema.safeParse({ outcome: "ok", value: withoutSlices }).success).toBe(false);
+  });
+
+  it("rejects a slice problem in a state that is not a slice state", () => {
+    const report = { ...REPORT, slices: [{ slice: "packages/web/hone.eslint.mjs", state: "stale" }] };
+    expect(checksRunResultSchema.safeParse({ outcome: "ok", value: report }).success).toBe(false);
+  });
+
+  it("rejects the slice states that only a version 1 runner reports", () => {
+    const notApplied = { ...REPORT, slices: [{ slice: "packages/web/hone.eslint.mjs", state: "not-applied" }] };
+    const nested = { ...REPORT, slices: [{ slice: "packages/web/hone.eslint.mjs", state: "nested-configuration" }] };
+    expect([checksRunResultSchema.safeParse({ outcome: "ok", value: notApplied }).success, checksRunResultSchema.safeParse({ outcome: "ok", value: nested }).success]).toEqual([false, false]);
+  });
+
+  it("accepts a package file that is missing, out of date, or that nothing loads", () => {
+    const report = {
+      ...REPORT,
+      slices: [
+        { slice: "packages/a/hone.eslint.mjs", state: "missing" },
+        { slice: "packages/b/hone.eslint.mjs", state: "out-of-date" },
+        { slice: "packages/c/hone.eslint.mjs", state: "unconfigured" },
+      ],
+    };
+    expect(checksRunResultSchema.safeParse({ outcome: "ok", value: report })).toEqual({ success: true, data: { outcome: "ok", value: report } });
   });
 });

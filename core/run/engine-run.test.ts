@@ -60,7 +60,16 @@ const REQUEST: EngineRunRequest = {
 
 const HIT = { clause: CLASS_CLAUSE, file: A, anchor: { line: 1, column: 7 }, snippet: "export class A {}", check: "authored-class-or-this#class-keyword" };
 
-const REPORT: ChecksRunReport = { hits: [HIT], nativeExceptions: [], measured: [{ clause: CLASS_CLAUSE, file: A }], projection: "missing", misnamedRuleIds: [] };
+const MISSING_SLICE = { slice: repoPathSchema.parse("packages/web/hone.eslint.mjs"), state: "missing" } as const;
+
+const REPORT: ChecksRunReport = {
+  hits: [HIT],
+  nativeExceptions: [],
+  measured: [{ clause: CLASS_CLAUSE, file: A }],
+  projection: "missing",
+  slices: [MISSING_SLICE],
+  misnamedRuleIds: [],
+};
 
 const PROJECTED_KINDS: NativeException["kind"][] = ["config-override", "inline-disable"];
 
@@ -93,7 +102,7 @@ const embeddedWith = (request: { readonly returned: ChecksRunResult }) => ({
 });
 
 describe("engineRunOf, a checks runner", () => {
-  it("gives the report's hits, native exceptions, measured pairs, projection and misnamed rule ids, coverable by the kinds the runner projects", async () => {
+  it("gives the report's hits, native exceptions, measured pairs, projection, slice problems and misnamed rule ids, coverable by the kinds the runner projects", async () => {
     expect(await engineRunOf(embeddedWith({ returned: { outcome: "ok", value: REPORT } }))).toEqual({
       outcome: "ok",
       value: {
@@ -102,7 +111,7 @@ describe("engineRunOf, a checks runner", () => {
         nativeExceptions: [],
         coverableKinds: ["config-override", "inline-disable"],
         projection: "missing",
-        slices: [],
+        slices: [MISSING_SLICE],
         unprojectedFolders: [],
         measured: [{ clause: CLASS_CLAUSE, file: A }],
         misnamedRuleIds: [],

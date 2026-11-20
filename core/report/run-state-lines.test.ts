@@ -89,11 +89,6 @@ describe("projectionProblemLine", () => {
       line: `eslint missing packages/web/hone.eslint.mjs: that slice is not written; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
     },
     {
-      name: "a slice not applied",
-      problem: { scope: "slice", engine: ESLINT_ENGINE, state: "not-applied", slice: SLICE },
-      line: "eslint not-applied packages/web/hone.eslint.mjs: the eslint configuration for packages/web leaves records of that slice out of effect; spread the default export of packages/web/hone.eslint.mjs last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes",
-    },
-    {
       name: "a slice with no configuration to load it",
       problem: { scope: "slice", engine: ESLINT_ENGINE, state: "unconfigured", slice: SLICE },
       line: "eslint unconfigured packages/web/hone.eslint.mjs: packages/web has no eslint configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check",

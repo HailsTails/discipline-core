@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { DeepReadonly, Equal } from "../values/type-equality.ts";
-import type { ChecksRunReport, LoadedChecksRunner, MisnamedRuleId, NotReadyYetFailure, ProjectedFile } from "./checks-runner-types.ts";
+import type { ChecksRunReport, ChecksSliceProblem, LoadedChecksRunner, MisnamedRuleId, NotReadyYetFailure, ProjectedFile } from "./checks-runner-types.ts";
 import { nativeExceptionSchema } from "./embedded-run-report-schema.ts";
 import { runnerCallSchema } from "./runner-module-schema.ts";
 import { hitSchema, measuredPairSchema, nativeExceptionKindSchema } from "./runner-result-schema.ts";
@@ -24,12 +24,20 @@ export const misnamedRuleIdSchema = z
   })
   .readonly();
 
+export const checksSliceProblemSchema = z
+  .object({
+    slice: repoPathSchema,
+    state: z.enum(["missing", "out-of-date", "unconfigured"]),
+  })
+  .readonly();
+
 export const checksRunReportSchema = z
   .object({
     hits: z.array(hitSchema).readonly(),
     nativeExceptions: z.array(nativeExceptionSchema).readonly(),
     measured: z.array(measuredPairSchema).readonly(),
     projection: z.enum(["current", "out-of-date", "missing", "not-included"]),
+    slices: z.array(checksSliceProblemSchema).readonly(),
     misnamedRuleIds: z.array(misnamedRuleIdSchema).readonly(),
   })
   .readonly();
@@ -64,6 +72,8 @@ export const isProjectedFileSchemaEqual: Equal<DeepReadonly<z.output<typeof proj
 export const isChecksModuleKeySetEqual: Equal<keyof LoadedChecksRunner, keyof z.output<typeof checksRunnerModuleSchema>> = true;
 
 export const isChecksRunReportSchemaEqual: Equal<DeepReadonly<z.output<typeof checksRunReportSchema>>, ChecksRunReport> = true;
+
+export const isChecksSliceProblemSchemaEqual: Equal<DeepReadonly<z.output<typeof checksSliceProblemSchema>>, ChecksSliceProblem> = true;
 
 export const isMisnamedRuleIdSchemaEqual: Equal<DeepReadonly<z.output<typeof misnamedRuleIdSchema>>, MisnamedRuleId> = true;
 

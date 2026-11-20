@@ -20,9 +20,10 @@ import { coreInstallOf } from "./core-install.ts";
 import { MISNAMED_DISABLE_RULE, MISNAMED_DISABLE_RULE_ID, misnamedDisableRule } from "./misnamed-disable-rule.ts";
 import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
-import { configLookupDeclaring, teamConfigLookupFor } from "./config-lookup.ts";
+import { configLookupDeclaring, folderConfigurationOf, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
-import { answeredWithin, type ChecksSlice, slicesOf } from "./checks-slices.ts";
+import { answeredWithin, type ChecksSlice, type ChecksSlices, slicesOf } from "./checks-slices.ts";
+import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
 import { conformedCases, loadedPieceClauseOf } from "./eslint-conform.ts";
@@ -42,9 +43,9 @@ export type ChecksRunner = {
 
 const NO_FINDINGS = { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [] };
 
-const reportAs = (request: { readonly projection: ChecksProjectionState }): Outcome<ChecksRunReport> => ({
+const reportAs = (request: { readonly projection: ChecksProjectionState; readonly slices: readonly ChecksSliceProblem[] }): Outcome<ChecksRunReport> => ({
   outcome: "ok",
-  value: { ...NO_FINDINGS, projection: request.projection },
+  value: { ...NO_FINDINGS, projection: request.projection, slices: request.slices },
 });
 
 const toolFailed = (request: { readonly detail: string }): { readonly outcome: "failed"; readonly error: RunnerFailure } => ({
@@ -85,28 +86,26 @@ const notReadyFor = (request: { readonly cause: NotReadyCause; readonly paths: r
   error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: request.cause, paths: request.paths } },
 });
 
-const notReadyOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): Outcome<never> | undefined => {
-  const { run } = request;
-  if (run.declaredConfigRoots.length > 0) {
-    return notReadyFor({ cause: "declared-roots", paths: run.declaredConfigRoots });
-  }
-  const nested = nestedVersionTwoRepositoriesOf({ trackedPaths: run.trackedPaths, files: run.files });
-  if (nested.length > 0) {
-    return notReadyFor({ cause: "nested-repositories", paths: nested });
-  }
-  return undefined;
+const notReadyOver = (request: { readonly run: ChecksRunRequest }): Outcome<never> | undefined => {
+  const nested = nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files });
+  return nested.length > 0 ? notReadyFor({ cause: "nested-repositories", paths: nested }) : undefined;
 };
 
-const slicesOver = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): readonly ChecksSlice[] =>
+const slicesOver = (request: { readonly run: ChecksRunRequest; readonly lookup: EslintConfigLookup }): ChecksSlices =>
   slicesOf({
     trackedPaths: request.run.trackedPaths,
     declared: request.run.declaredConfigRoots,
-    lookup: lookupOf(request),
+    lookup: request.lookup,
     nestedRepositories: nestedVersionTwoFoldersOf({ trackedPaths: request.run.trackedPaths }),
   });
 
-const queryInstanceOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly ports: ChecksRunnerPorts }): Result<QueryInstance, RunnerFailure> => {
-  const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: lookupOf(request), settingsFile: SETTINGS_FILE_NAME });
+const queryInstanceOf = (request: {
+  readonly run: ChecksRunRequest;
+  readonly platform: EslintPlatformPorts;
+  readonly ports: ChecksRunnerPorts;
+  readonly lookup: EslintConfigLookup;
+}): Result<QueryInstance, RunnerFailure> => {
+  const lookup = teamConfigLookupFor({ ...lookupRequestOf(request), lookup: request.lookup, settingsFile: SETTINGS_FILE_NAME });
   if (lookup.outcome === "failed") {
     return lookup;
   }
@@ -141,8 +140,12 @@ type SliceRequest = {
   readonly run: ChecksRunRequest;
   readonly projected: readonly ProjectedCheck[];
   readonly ports: ChecksRunnerPorts;
-  readonly slices: readonly ChecksSlice[];
+  readonly slices: ChecksSlices;
 };
+
+type ExpectedFiles = { readonly root: ProjectedFile; readonly packages: readonly ProjectedFile[] };
+
+type ProjectionStatus = { readonly projection: GeneratedState; readonly slices: readonly ChecksSliceProblem[] };
 
 const importingDirectoryOf = (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts; readonly slice: ChecksSlice }): Result<AbsolutePath, RunnerFailure> => {
   const { directory } = request.slice;
@@ -171,32 +174,55 @@ const expectedSliceOf = (request: Omit<SliceRequest, "slices"> & { readonly slic
     : toolFailed({ detail: `the Hone plugin cannot be imported from ${importing.value}` });
 };
 
-const expectedSlicesOf = (request: SliceRequest): Result<readonly ProjectedFile[], RunnerFailure> =>
-  gatheredOutcomes({ outcomes: request.slices.map((slice) => listedOutcome({ outcome: expectedSliceOf({ ...request, slice }) })) });
-
-const WORST_FIRST: readonly GeneratedState[] = ["missing", "out-of-date", "current"];
-
-const worstOf = (request: { readonly states: readonly GeneratedState[] }): GeneratedState =>
-  WORST_FIRST.find((state) => request.states.includes(state)) ?? "current";
+const expectedFilesOf = (request: SliceRequest): Result<ExpectedFiles, RunnerFailure> => {
+  const root = expectedSliceOf({ ...request, slice: request.slices.root });
+  if (root.outcome === "failed") {
+    return root;
+  }
+  const packages = gatheredOutcomes({ outcomes: request.slices.packages.map((slice) => listedOutcome({ outcome: expectedSliceOf({ ...request, slice }) })) });
+  return packages.outcome === "failed" ? packages : { outcome: "ok", value: { root: root.value, packages: packages.value } };
+};
 
 const sliceStateOf = (request: { readonly states: ProjectionStates; readonly expected: ProjectedFile }): Result<GeneratedState, RunnerFailure> => {
   const current = projectionStateAt({ states: request.states, file: request.expected.file });
   return current.outcome === "failed" ? current : { outcome: "ok", value: projectionState({ current: current.value, generated: request.expected.text }) };
 };
 
-const currentProjectionState = (request: SliceRequest): Result<GeneratedState, RunnerFailure> => {
-  const expected = expectedSlicesOf(request);
+const packageProblemOf = (request: { readonly states: ProjectionStates; readonly expected: ProjectedFile }): Result<readonly ChecksSliceProblem[], RunnerFailure> => {
+  const state = sliceStateOf(request);
+  if (state.outcome === "failed") {
+    return state;
+  }
+  return { outcome: "ok", value: state.value === "current" ? [] : [{ slice: request.expected.file, state: state.value }] };
+};
+
+const currentProjectionStatus = (request: SliceRequest): Result<ProjectionStatus, RunnerFailure> => {
+  const expected = expectedFilesOf(request);
   if (expected.outcome === "failed") {
     return expected;
   }
+  const { root, packages } = expected.value;
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
-  const states = repository.projectionFiles.currentOf({ files: expected.value.map((file) => file.file) });
+  const states = repository.projectionFiles.currentOf({ files: [root.file, ...packages.map((file) => file.file)] });
   if (states.outcome === "failed") {
     return states;
   }
-  const sliceStates = gatheredOutcomes({ outcomes: expected.value.map((file) => listedOutcome({ outcome: sliceStateOf({ states: states.value, expected: file }) })) });
-  return sliceStates.outcome === "failed" ? sliceStates : { outcome: "ok", value: worstOf({ states: sliceStates.value }) };
+  const rootState = sliceStateOf({ states: states.value, expected: root });
+  if (rootState.outcome === "failed") {
+    return rootState;
+  }
+  const problems = gatheredOutcomes({ outcomes: packages.map((file) => packageProblemOf({ states: states.value, expected: file })) });
+  return problems.outcome === "failed" ? problems : { outcome: "ok", value: { projection: rootState.value, slices: problems.value } };
 };
+
+const unconfiguredSlicesOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts; readonly slices: ChecksSlices }): readonly ChecksSliceProblem[] =>
+  request.slices.packages.flatMap((slice) =>
+    slice.directory !== undefined &&
+    request.run.declaredConfigRoots.includes(slice.directory) &&
+    folderConfigurationOf({ fileText: request.platform.fileText, path: request.platform.path, repoRoot: request.run.repoRoot, folder: slice.directory }) === "unconfigured"
+      ? [{ slice: slice.file, state: "unconfigured" as const }]
+      : [],
+  );
 
 type LintRequest = {
   readonly run: ChecksRunRequest;
@@ -208,7 +234,7 @@ type LintRequest = {
   readonly versionOneRuleIds: readonly string[];
 };
 
-const lintedReport = async (request: LintRequest & { readonly projection: ChecksProjectionState }): Promise<Outcome<ChecksRunReport>> => {
+const lintedReport = async (request: LintRequest & { readonly status: ProjectionStatus }): Promise<Outcome<ChecksRunReport>> => {
   const { run, ports } = request;
   const repository = ports.repositoryAt({ repoRoot: run.repoRoot });
   const linted = await ports.eslint
@@ -244,13 +270,16 @@ const lintedReport = async (request: LintRequest & { readonly projection: Checks
           hits: findings.value.flatMap((found) => found.hits),
           nativeExceptions: [...queryExceptionsOf({ selected: request.selected, answered: run.answered, queried: request.queried }), ...findings.value.flatMap((found) => found.nativeExceptions), ...tracked.value],
           measured: findings.value.flatMap((found) => found.measured),
-          projection: request.projection,
+          projection: request.status.projection,
+          slices: request.status.slices,
           misnamedRuleIds: findings.value.flatMap((found) => found.misnamedRuleIds),
         },
       };
 };
 
-const queriedRun = async (request: Omit<LintRequest, "queried" | "query"> & { readonly platform: EslintPlatformPorts; readonly projection: ChecksProjectionState }): Promise<Outcome<ChecksRunReport>> => {
+const queriedRun = async (
+  request: Omit<LintRequest, "queried" | "query"> & { readonly platform: EslintPlatformPorts; readonly status: ProjectionStatus; readonly lookup: EslintConfigLookup },
+): Promise<Outcome<ChecksRunReport>> => {
   const query = queryInstanceOf(request);
   if (query.outcome === "failed") {
     return query;
@@ -265,7 +294,7 @@ const queriedRun = async (request: Omit<LintRequest, "queried" | "query"> & { re
     return queried;
   }
   return projectionEffectOf({ selected: request.selected, answered: request.run.answered, queried: queried.value }) === "not-in-effect"
-    ? reportAs({ projection: "not-included" })
+    ? reportAs({ projection: "not-included", slices: request.status.slices })
     : lintedReport({ ...request, query: query.value, queried: queried.value });
 };
 
@@ -276,16 +305,22 @@ const projectedRun = async (request: { readonly run: ChecksRunRequest; readonly 
   }
   const selected = selectedChecksOf({ checks: request.run.checks, projected: projected.value });
   if (selected.outcome === "failed" || selected.value.length === 0) {
-    return selected.outcome === "failed" ? selected : reportAs({ projection: "current" });
+    return selected.outcome === "failed" ? selected : reportAs({ projection: "current", slices: [] });
   }
-  const state = currentProjectionState({ run: request.run, ports: request.ports, projected: projected.value, slices: slicesOver(request) });
-  if (state.outcome === "failed" || state.value === "missing") {
-    return state.outcome === "failed" ? state : reportAs({ projection: "missing" });
+  const lookup = lookupOf(request);
+  const slices = slicesOver({ run: request.run, lookup });
+  const written = currentProjectionStatus({ run: request.run, ports: request.ports, projected: projected.value, slices });
+  if (written.outcome === "failed") {
+    return written;
+  }
+  const status: ProjectionStatus = { ...written.value, slices: [...written.value.slices, ...unconfiguredSlicesOf({ run: request.run, platform: request.platform, slices })] };
+  if (status.projection === "missing" || status.slices.some((slice) => slice.state === "missing")) {
+    return reportAs(status);
   }
   const plugin = await builtPlugin({ ...request, checkRuleIds: eslintRuleIdsOf({ checks: request.run.checks }) });
   return plugin.outcome === "failed"
     ? plugin
-    : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), projection: state.value });
+    : queriedRun({ run: request.run, platform: request.platform, selected: selected.value, plugin: plugin.value, ports: request.ports, versionOneRuleIds: versionOneRuleIdsOf(request.run), status, lookup });
 };
 
 const projectedFilesOf = (request: { readonly run: ChecksRunRequest; readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): Outcome<readonly ProjectedFile[]> => {
@@ -297,12 +332,13 @@ const projectedFilesOf = (request: { readonly run: ChecksRunRequest; readonly po
   if (selected.outcome === "failed" || selected.value.length === 0) {
     return selected.outcome === "failed" ? selected : { outcome: "ok", value: [] };
   }
-  return expectedSlicesOf({ run: request.run, ports: request.ports, projected: projected.value, slices: slicesOver(request) });
+  const expected = expectedFilesOf({ run: request.run, ports: request.ports, projected: projected.value, slices: slicesOver({ run: request.run, lookup: lookupOf(request) }) });
+  return expected.outcome === "failed" ? expected : { outcome: "ok", value: [expected.value.root, ...expected.value.packages] };
 };
 
 export const checksRunnerOver = (request: { readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({
-  run: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
-  project: (run) => Promise.resolve(notReadyOver({ run, platform: request.platform }) ?? projectedFilesOf({ run, ports: request.ports, platform: request.platform })),
+  run: (run) => Promise.resolve(notReadyOver({ run })).then((notReady) => notReady ?? projectedRun({ run, ports: request.ports, platform: request.platform })),
+  project: (run) => Promise.resolve(notReadyOver({ run }) ?? projectedFilesOf({ run, ports: request.ports, platform: request.platform })),
   conform: (conform) =>
     conformedCases({
       clause: conform.clause,
