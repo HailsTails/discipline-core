@@ -102,7 +102,7 @@ const symptomSitesOf = (request: { readonly raised: RaisedFinding; readonly cata
   return [{ symptom: reading.symptom, check, file: finding.file, party }];
 };
 
-const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
+export const findingSitesOf = (request:{ readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
   const { finding, party } = request.raised;
   const named = checkNamedAt({ catalogue: request.catalogue, clause: finding.clause, address: finding.check });
   switch (named.named) {

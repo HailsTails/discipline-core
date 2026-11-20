@@ -1,0 +1,76 @@
+import { type AuthoriseRequest, type Authorising, authorisingOf } from "../core/records/authorising.ts";
+import type { DebtOutcome } from "../core/records/debt-effects.ts";
+import type { Debt, RecordRefusal } from "../core/records/hone-record.ts";
+import type { PrunedReason } from "../core/records/prunable-debt.ts";
+import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "../core/report/record-command-lines.ts";
+import { repoPathSchema } from "../core/values/repo-path.ts";
+import type { PrintedLine } from "./output-contract.ts";
+import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
+import { DATE_USED_DIRECTLY, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "./report-catalogue.ts";
+
+const FILE = repoPathSchema.parse("src/orders/charge-order.ts");
+
+const RECORDS_FILE = repoPathSchema.parse("hone-records/debt/date-used-directly.json");
+
+const ADDRESS = "date-used-directly#clock-sources";
+
+const SITE = { address: ADDRESS, file: FILE } as const;
+
+const LEFT_UNDER = repoPathSchema.parse("src/orders");
+
+const DEBT: Debt = { kind: "debt", symptom: DATE_USED_DIRECTLY, reach: WHOLE_SYMPTOM, file: FILE, holding: { held: "stated" } };
+
+const OUTCOMES: readonly (readonly [DebtOutcome, Readonly<Record<string, string>>])[] = [
+  [{ ...SITE, effect: "recorded" }, {}],
+  [{ ...SITE, effect: "already-recorded", heldIn: RECORDS_FILE }, { "records file": RECORDS_FILE }],
+  [{ ...SITE, effect: "left", under: LEFT_UNDER }, { path: LEFT_UNDER }],
+  [{ ...SITE, effect: "new-file" }, {}],
+  [{ ...SITE, effect: "touched" }, {}],
+];
+
+const PRUNED_REASONS: readonly PrunedReason[] = ["paid", "stale", "forfeited"];
+
+const AUTHORISINGS: readonly (readonly [Authorising, Readonly<Record<string, string>>])[] = [
+  [{ judged: "accepted", edit: { write: [], remove: [] } }, {}],
+  [{ judged: "already-held", heldIn: RECORDS_FILE }, { "records file": RECORDS_FILE }],
+];
+
+const REFUSALS: readonly (readonly [RecordRefusal, Readonly<Record<string, string>>])[] = [
+  [{ kind: "unknown-symptom", symptom: "no-such-symptom" }, { given: "no-such-symptom" }],
+  [{ kind: "not-a-records-name", name: "Not A Name" }, { given: "Not A Name" }],
+];
+
+const ADDRESS_FILE = { address: ADDRESS, file: FILE };
+
+const MISTAKEN_CHAIN: AuthoriseRequest = {
+  symptom: "claimed-type",
+  file: FILE,
+  case: "gives-a-value-its-type",
+  owes: "declared-not-asserted",
+  whys: CAUSAL_WHY_CHAIN.whys,
+  rootCause: "no",
+  rootCheck: CAUSAL_WHY_CHAIN.rootCheck,
+  readback: CAUSAL_WHY_CHAIN.readback,
+  owner: CAUSAL_WHY_CHAIN.owner,
+};
+
+const formRefusalSample = (): readonly (readonly [RecordRefusal, Readonly<Record<string, string>>])[] => {
+  const judged = authorisingOf({ request: MISTAKEN_CHAIN, documents: [], catalogue: REPORT_CATALOGUE });
+  if (judged.outcome === "failed" || judged.value.judged !== "refused") {
+    return [];
+  }
+  return judged.value.refusals.flatMap((refusal) =>
+    refusal.kind === "form-refused" ? refusal.issues.map((issue): readonly [RecordRefusal, Readonly<Record<string, string>>] => [{ kind: "form-refused", issues: [issue] }, { path: issue.path.join("."), message: issue.message }]) : [],
+  );
+};
+
+export const RECORD_COMMAND_LINES: readonly PrintedLine[] = [
+  ...OUTCOMES.map(([outcome, fills]): PrintedLine => ({ label: "record-debt", text: debtOutcomeLine({ outcome }), fills: { address: ADDRESS, file: FILE, ...fills } })),
+  ...PRUNED_REASONS.map((reason): PrintedLine => ({ label: "prune-debt", text: prunedDebtLine({ pruned: { place: { file: RECORDS_FILE, index: 0 }, debt: DEBT, reason } }), fills: { address: "date-used-directly", file: FILE } })),
+  ...AUTHORISINGS.flatMap(([authorising, fills]) =>
+    authorisingLines({ ...ADDRESS_FILE, authorising }).map((text): PrintedLine => ({ label: "authorise", text, fills: { address: ADDRESS, file: FILE, ...fills } })),
+  ),
+  ...[...REFUSALS, ...formRefusalSample()].flatMap(([refusal, fills]) =>
+    authorisingLines({ ...ADDRESS_FILE, authorising: { judged: "refused", refusals: [refusal] } }).map((text): PrintedLine => ({ label: "authorise", text, fills: { address: ADDRESS, file: FILE, ...fills } })),
+  ),
+];
