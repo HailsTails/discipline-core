@@ -8,6 +8,7 @@ import type { AbsolutePath } from "../../values/absolute-path.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRepository } from "../version-one-records/exception-records.ts";
 import { type RecordInput, mappedRecords } from "../version-two-mapping/records-mapping.ts";
+import { carriedDebtDocumentsAtBaseOf } from "./carried-debt-at-base.ts";
 import { type VersionOneEntries, type VersionOneEntry, versionOneEntriesOf } from "./version-one-entries.ts";
 
 const authorisedLocationEntrySchema = z.object({
@@ -50,7 +51,10 @@ export const baseStandingRecordsSource = (request: {
       return entries;
     }
     const heldAtBase = new Set(base.value.map(({ file }) => file));
-    const absentAtBase = documentsMappedFrom({ entries: entries.value, catalogues: request.catalogues }).filter(({ file }) => !heldAtBase.has(file));
+    const absentAtBase = [
+      ...documentsMappedFrom({ entries: entries.value, catalogues: request.catalogues }),
+      ...carriedDebtDocumentsAtBaseOf({ entries: entries.value, catalogues: request.catalogues }),
+    ].filter(({ file }) => !heldAtBase.has(file));
     return { outcome: "ok", value: [...base.value, ...absentAtBase] };
   },
 });
