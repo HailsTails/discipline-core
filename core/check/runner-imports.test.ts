@@ -61,8 +61,6 @@ const LEFT_OUT_OF_THE_SCAN: readonly string[] = [
   "eslint-conformance.test.ts",
   "eslint-repository.ts",
   "eslint-repository.test.ts",
-  "namespace-ownership.ts",
-  "namespace-ownership.test.ts",
   "native-exceptions.integration.test.ts",
   "projection-holding.ts",
   "projection-holding.test.ts",
@@ -138,15 +136,13 @@ describe("FR-8 and AR-1 runner reach into core and its own mechanism over what t
     ).toEqual([]);
   });
 
-  it("leaves out of the scan exactly the eight version 1-only runner files, their tests, and the two version 1 tests, each by full file name", () => {
+  it("leaves out of the scan exactly the seven version 1-only runner files, their tests, and the two version 1 tests, each by full file name", () => {
     expect(leftOutRunnerSources).toEqual({
       "./mechanisms/eslint/runner/create-eslint-runner.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/create-eslint-runner.ts": expect.any(String),
       "./mechanisms/eslint/runner/eslint-conformance.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/eslint-repository.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/eslint-repository.ts": expect.any(String),
-      "./mechanisms/eslint/runner/namespace-ownership.test.ts": expect.any(String),
-      "./mechanisms/eslint/runner/namespace-ownership.ts": expect.any(String),
       "./mechanisms/eslint/runner/native-exceptions.integration.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/projection-holding.test.ts": expect.any(String),
       "./mechanisms/eslint/runner/projection-holding.ts": expect.any(String),
