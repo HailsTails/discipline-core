@@ -4,6 +4,7 @@ import type {
   CompilerOptions,
   CustomTransformers,
   Diagnostic,
+  ExportAssignment,
   ExportDeclaration,
   ImportDeclaration,
   Statement,
@@ -178,6 +179,13 @@ const otherStatementPublication = (request: StatementRequest): StatementPublicat
   return refused({ reason: `a statement of kind ${statement.kind}` });
 };
 
+const exportAssignmentPublication = (request: PublicationRequest & { readonly assigned: ExportAssignment }): StatementPublication => {
+  const { syntaxApi, assigned } = request;
+  const namesPrivateValue =
+    assigned.isExportEquals !== true && syntaxApi.isIdentifier(assigned.expression) && request.bindings.privateValues.has(assigned.expression.text);
+  return request.role === "entry" && namesPrivateValue ? { kind: "kept", statement: assigned } : { kind: "dropped" };
+};
+
 const statementPublication = (request: PublicationRequest): StatementPublication => {
   const syntaxApi = request.syntaxApi;
   const statement = request.statement;
@@ -196,7 +204,7 @@ const statementPublication = (request: PublicationRequest): StatementPublication
     return visibilityOf(request) === "exported" && request.role === "internal" ? { kind: "dropped" } : { kind: "kept", statement };
   }
   if (syntaxApi.isExportAssignment(statement)) {
-    return { kind: "dropped" };
+    return exportAssignmentPublication({ ...request, assigned: statement });
   }
   return otherStatementPublication(request);
 };

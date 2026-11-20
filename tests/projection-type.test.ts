@@ -67,7 +67,22 @@ const NO_DECLARATION_TO_IMPORT = {
 
 const NOT_A_CONFIG_BLOCK = { file: "eslint.config.mjs", code: 2322 };
 
-const PLUGIN_WITHOUT_A_DEFAULT = { file: "hone.eslint.mjs", code: 1192 };
+const ESLINT_PACKAGE = "eslint";
+
+const PLUGIN_USE = `import type { ESLint, Linter } from "${ESLINT_PACKAGE}";
+import hone from "${PLUGIN_SPECIFIER}";
+
+export const plugin: ESLint.Plugin = hone;
+
+export const configs: Linter.Config[] = [{ plugins: { hone } }];
+`;
+
+const PLUGIN_USED_AS_A_STRING = `import hone from "${PLUGIN_SPECIFIER}";
+
+export const name: string = hone;
+`;
+
+const PLUGIN_NOT_A_STRING = { file: "plugin-misuse.ts", code: 2322, message: "Type 'HonePlugin' is not assignable to type 'string'." };
 
 describe.each(ESLINT_LINES)("a typed ESLint config importing a version 2 projection, compiled in memory against the consumer's own node_modules/eslint on %s, under strict with skipLibCheck off (CD-47: nothing is spawned or written)", (line) => {
   describe.each(RESOLUTIONS)("under %s resolution", (resolution) => {
@@ -122,7 +137,15 @@ describe.each(ESLINT_LINES)("a typed ESLint config importing a version 2 project
     it("leaves a checked .mjs config importing a projection typed as the union of the shapes its blocks have when no declaration is beside it", () => {
       expect(
         consumerLocationsOn({ line, resolution, form: "checked-javascript", entry: "eslint.config.mjs", files: withEntry({ entry: "eslint.config.mjs", entryText: ROOT_CONFIG, declaration: NO_DECLARATIONS }) }),
-      ).toEqual([NOT_A_CONFIG_BLOCK, NOT_A_CONFIG_BLOCK, PLUGIN_WITHOUT_A_DEFAULT]);
+      ).toEqual([NOT_A_CONFIG_BLOCK, NOT_A_CONFIG_BLOCK]);
+    });
+
+    it("takes the shipped plugin declaration as ESLint's plugin type, alone and in a flat config", () => {
+      expect(consumerDiagnosticsOn({ line, resolution, form: "typescript", entry: "plugin-use.ts", files: { "plugin-use.ts": PLUGIN_USE } })).toEqual([]);
+    });
+
+    it("types the shipped plugin's default export as the plugin, not as any", () => {
+      expect(consumerDiagnosticsOn({ line, resolution, form: "typescript", entry: "plugin-misuse.ts", files: { "plugin-misuse.ts": PLUGIN_USED_AS_A_STRING } })).toEqual([PLUGIN_NOT_A_STRING]);
     });
   });
 });

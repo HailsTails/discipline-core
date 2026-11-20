@@ -9,6 +9,7 @@ export type ImportDeclaration = typescript.ImportDeclaration;
 export type CallExpression = typescript.CallExpression;
 export type PropertyAccessExpression = typescript.PropertyAccessExpression;
 export type ExportDeclaration = typescript.ExportDeclaration;
+export type ExportAssignment = typescript.ExportAssignment;
 export type Diagnostic = typescript.Diagnostic;
 export type CompilerOptions = typescript.CompilerOptions;
 export type CustomTransformers = typescript.CustomTransformers;

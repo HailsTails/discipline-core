@@ -125,6 +125,23 @@ describe("publishedDeclarationText, for an entry declaration", () => {
     });
   });
 
+  it("keeps a default export naming a private value, the module's runtime default now declared", () => {
+    expect(
+      publishedDeclarationText({
+        syntaxApi,
+        path: "api/eslint-plugin.d.ts",
+        role: "entry",
+        text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\nexport default plugin;\n",
+      }),
+    ).toEqual({ text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\nexport default plugin;\n", refusals: [] });
+  });
+
+  it("drops a default export naming no private value of the entry", () => {
+    expect(
+      publishedDeclarationText({ syntaxApi, path: "api/eslint-plugin.d.ts", role: "entry", text: "export type Plugin = 1;\nexport default other;\n" }),
+    ).toEqual({ text: "export type Plugin = 1;\n", refusals: [] });
+  });
+
   it("still refuses a value re-export, whose module declares no values", () => {
     expect(publishedDeclarationText({ syntaxApi, path: "api/audit.d.ts", role: "entry", text: 'export { answer } from "./other.js";\n' })).toEqual({
       text: "export {};\n",
