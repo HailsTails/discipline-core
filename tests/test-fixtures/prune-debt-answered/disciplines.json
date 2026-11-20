@@ -1,6 +1,6 @@
 {
   "version": 1,
   "ruleSets": {},
-  "clauses": { "CD-15#loops": "audit" },
+  "clauses": { "CD-14#class-syntax": "audit" },
   "fileExceptionWhyChains": "optional"
 }

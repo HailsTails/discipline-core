@@ -1,22 +1,24 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { runPruneDebtCommand } from "../core/check/run-prune-debt-command.ts";
-import { createDefaultExceptionRepositoryOf } from "../core/exception-records/exception-layout.ts";
-import type { ExceptionRepository } from "../core/exception-records/exception-records.ts";
+import { exceptionRepositoryOf } from "../core/exception-records/exception-layout.ts";
+import type { FileRemovalPort } from "../core/platform-ports/file-removal-port.ts";
+import { createDefaultDirectoryPort } from "../core/platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort, type FileTextPort } from "../core/platform-ports/file-text-port.ts";
-import type { GitPort } from "../core/platform-ports/git-port.ts";
+import type { GitPort, GitTreePort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort, type ModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
-import { clauseAddressSchema } from "../core/values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { createWalkerRunner } from "../mechanisms/audit/runner/create-walker-runner.ts";
 import { ABSENT_ENTRY_KIND } from "./empty-walker-disk.ts";
 import { modulesServingRunner } from "./eslint-toolchains.ts";
-import { overlaidFileText } from "./overlaid-file-text.ts";
+import { inMemoryOverlay } from "./overlaid-file-text.ts";
 import { defaultParsePort } from "./typescript-parse-port.ts";
 
 const path = createDefaultPathPort({});
+
+const disk = createDefaultFileTextPort({});
 
 const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
   const resolved = path.resolve(request);
@@ -26,45 +28,38 @@ const resolvedPath = (request: { readonly path: string }): AbsolutePath => {
 
 const FIXTURE = resolvedPath({ path: `${import.meta.dirname}/test-fixtures/prune-debt-answered` });
 
-const TOOL_COMMAND_URL = new URL("../core/check/tool-command.ts", import.meta.url).href;
+const RECORDS_PATH = `${FIXTURE}/discipline-exceptions.json`;
 
-const LOOPS = clauseAddressSchema.parse("CD-15#loops");
+const recordsOnDisk = disk.read({ path: RECORDS_PATH });
+assert(recordsOnDisk.outcome === "ok", "the fixture's records read from disk");
+
+const TOOL_COMMAND_URL = new URL("../core/check/tool-command.ts", import.meta.url).href;
 
 const ANSWERED = repoPathSchema.parse("src/answered.ts");
 const DOUBLY = repoPathSchema.parse("src/doubly.ts");
 const REFUSED = repoPathSchema.parse("src/refused.ts");
 
-const LOOP_SOURCE = "export const totalOf = (prices: readonly number[]): number => {\n  let total = 0;\n  for (const price of prices) {\n    total += price;\n  }\n  return total;\n};\n";
+const CLASS_SOURCE = "export class Basket {}\n";
 
 const TRACKED = [repoPathSchema.parse("discipline-exceptions.json"), repoPathSchema.parse("disciplines.json"), ANSWERED, DOUBLY, REFUSED];
 
-const fixtureFiles: FileTextPort = overlaidFileText({
-  base: createDefaultFileTextPort({}),
-  files: {
-    [`${FIXTURE}/src/answered.ts`]: LOOP_SOURCE,
-    [`${FIXTURE}/src/doubly.ts`]: LOOP_SOURCE,
-    [`${FIXTURE}/src/refused.ts`]: LOOP_SOURCE,
-  },
-});
+const fixtureRepository = (): FileTextPort =>
+  inMemoryOverlay({
+    base: { ...disk, write: vi.fn<FileTextPort["write"]>() },
+    files: {
+      [RECORDS_PATH]: recordsOnDisk.value,
+      [`${FIXTURE}/src/answered.ts`]: CLASS_SOURCE,
+      [`${FIXTURE}/src/doubly.ts`]: CLASS_SOURCE,
+      [`${FIXTURE}/src/refused.ts`]: CLASS_SOURCE,
+    },
+  });
 
-const auditRunnerOverFixture: ModuleLoaderPort = modulesServingRunner({
-  runnerSuffix: "/mechanisms/audit/runner/runner.ts",
-  runner: createWalkerRunner({
-    fileText: fixtureFiles,
-    modules: createDefaultModuleLoaderPort({}),
-    path,
-    parse: defaultParsePort,
-    entryKind: ABSENT_ENTRY_KIND,
-  }),
-  base: createDefaultModuleLoaderPort({}),
-});
-
-const processGiven = (argumentsGiven: readonly string[]): ProcessPort => ({
-  arguments: argumentsGiven,
-  writeOut: vi.fn<ProcessPort["writeOut"]>(),
-  writeError: vi.fn<ProcessPort["writeError"]>(),
-  exitWith: vi.fn<ProcessPort["exitWith"]>(),
-});
+const auditRunnerOver = (fileText: FileTextPort): ModuleLoaderPort =>
+  modulesServingRunner({
+    runnerSuffix: "/mechanisms/audit/runner/runner.ts",
+    runner: createWalkerRunner({ fileText, modules: createDefaultModuleLoaderPort({}), path, parse: defaultParsePort, entryKind: ABSENT_ENTRY_KIND }),
+    base: createDefaultModuleLoaderPort({}),
+  });
 
 const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: TRACKED }),
@@ -73,27 +68,58 @@ const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
   textInBase: vi.fn<GitPort["textInBase"]>(),
 });
 
-const pruneDebtOverFixture = (request: { readonly git: GitPort; readonly remove: ExceptionRepository["remove"] }) =>
-  runPruneDebtCommand({
-    process: processGiven(["--repo", FIXTURE, "--base-revision", "origin/main"]),
+const pruneDebtOver = async (request: {
+  readonly fileText: FileTextPort;
+  readonly git: GitPort;
+}) => {
+  const writeOut = vi.fn<ProcessPort["writeOut"]>();
+  const exitWith = vi.fn<ProcessPort["exitWith"]>();
+  const process: ProcessPort = {
+    arguments: ["--repo", FIXTURE, "--base-revision", "origin/main"],
+    writeOut,
+    writeError: vi.fn<ProcessPort["writeError"]>(),
+    exitWith,
+  };
+  const repositoryOf = exceptionRepositoryOf({
+    fileText: request.fileText,
     path,
-    fileText: fixtureFiles,
-    modules: auditRunnerOverFixture,
+    directory: createDefaultDirectoryPort({}),
+    fileRemoval: { remove: vi.fn<FileRemovalPort["remove"]>() },
     git: request.git,
-    exceptionRepositoryOf: (repository) => ({ ...createDefaultExceptionRepositoryOf({})(repository), remove: request.remove }),
+    gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>().mockReturnValue({ outcome: "ok", value: [] }) },
+  });
+  await runPruneDebtCommand({
+    process,
+    path,
+    fileText: request.fileText,
+    modules: auditRunnerOver(request.fileText),
+    git: request.git,
+    exceptionRepositoryOf: repositoryOf,
     moduleUrl: TOOL_COMMAND_URL,
   });
+  return { printed: writeOut.mock.calls, exits: exitWith.mock.calls };
+};
 
-describe("hone prune-debt over debt whose every finding an authorised location answers, through the walker over written-out sources (CD-47: the fixture repository's records are the subject; nothing is spawned or written)", () => {
-  it("removes the forfeited carve-out whose loop an authorised location answers, and keeps the doubly held one and the one beside a refused authorised location", async () => {
-    const remove = vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [{ clause: LOOPS, file: ANSWERED }] });
-    await pruneDebtOverFixture({ git: gitChanging([ANSWERED, REFUSED]), remove });
-    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [{ clause: LOOPS, file: ANSWERED }] });
+describe("hone prune-debt over debt whose every finding an authorised location answers, through the walker over written-out sources (CD-47: the fixture repository's records are the subject; nothing is spawned or written to disk)", () => {
+  it("removes the forfeited carve-out whose class an authorised location answers, and keeps the doubly held one and the one beside a refused authorised location", async () => {
+    expect(await pruneDebtOver({ fileText: fixtureRepository(), git: gitChanging([ANSWERED, REFUSED]) })).toEqual({
+      printed: [[{ text: "CD-14#class-syntax removed src/answered.ts\n" }]],
+      exits: [[{ code: 0 }]],
+    });
   });
 
   it("removes nothing when no file changed, since a carve-out in force beside an authorised location is doubly held, not paid", async () => {
-    const remove = vi.fn<ExceptionRepository["remove"]>().mockReturnValue({ outcome: "ok", value: [] });
-    await pruneDebtOverFixture({ git: gitChanging([]), remove });
-    expect(remove).toHaveBeenCalledExactlyOnceWith({ pairs: [] });
+    expect(await pruneDebtOver({ fileText: fixtureRepository(), git: gitChanging([]) })).toEqual({ printed: [[{ text: "" }]], exits: [[{ code: 0 }]] });
+  });
+
+  it("removes the answered carve-out from the records on a first run, and nothing on a second run over the records the first left", async () => {
+    const fileText = fixtureRepository();
+    const git = gitChanging([ANSWERED, REFUSED]);
+    const first = await pruneDebtOver({ fileText, git });
+    const second = await pruneDebtOver({ fileText, git });
+    expect({ first, second }).toEqual({
+      first: { printed: [[{ text: "CD-14#class-syntax removed src/answered.ts\n" }]], exits: [[{ code: 0 }]] },
+      second: { printed: [[{ text: "" }]], exits: [[{ code: 0 }]] },
+    });
   });
 });
