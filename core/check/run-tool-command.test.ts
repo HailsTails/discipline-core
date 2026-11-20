@@ -59,6 +59,7 @@ const subcommandsSpied = (): Subcommands => ({
   project: vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "record-debt": vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "prune-debt": vi.fn<CommandHandler>().mockResolvedValue(undefined),
+  authorise: vi.fn<CommandHandler>().mockResolvedValue(undefined),
   "split-records": vi.fn<CommandHandler>().mockResolvedValue(undefined),
 });
 
@@ -143,10 +144,10 @@ const ranNothing = { check: [], project: [], recordDebt: [], pruneDebt: [] };
 
 describe("toolCommandOf refusing an invocation it cannot read", () => {
   it.each([
-    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt or split-records; run hone --help for usage\n" },
+    { given: [], line: "load failure: arguments-invalid hone needs a command, check, project, record-debt, prune-debt, authorise or split-records; run hone --help for usage\n" },
     {
       given: ["lint", "--repo", "/repo"],
-      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt, prune-debt and split-records; run hone --help for usage\n',
+      line: 'load failure: arguments-invalid hone has no command "lint"; its commands are check, project, record-debt, prune-debt, authorise and split-records; run hone --help for usage\n',
     },
   ])("exits 2 with the arguments-invalid line and runs nothing, given $given", async ({ given, line }) => {
     const subcommands = subcommandsSpied();
@@ -227,14 +228,32 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
   ])("exits 2 with an unexpected-error load failure line, so exit 1 always means a failing verdict: $line", async ({ handler, line }) => {
     const processPort = processWith({ arguments: ["check", "--repo", "/repo"] });
 
-    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, "split-records": handler } })(commandRequest({ process: processPort }));
+    await toolCommandOf({ subcommands: { check: handler, project: handler, "record-debt": handler, "prune-debt": handler, authorise: handler, "split-records": handler } })(commandRequest({ process: processPort }));
 
     expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
   });
 });
 
+describe("TOOL_SUBCOMMANDS authorise on a repository holding disciplines.json", () => {
+  it("prints the upgrade-needed line for the version 1 file and exits 2, since authorise has no version 1 form", async () => {
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+    const request = {
+      ...commandRequest({ process: processPort }),
+      path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
+      fileText: { ...UNUSED_FILE_TEXT, exists: vi.fn<FileTextPort["exists"]>().mockReturnValueOnce("present").mockReturnValueOnce("absent") },
+    };
+
+    await TOOL_SUBCOMMANDS.authorise(request);
+
+    expect(outputOf({ process: processPort })).toEqual({
+      writes: [[{ text: "load failure: upgrade-needed disciplines.json: this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files\n" }]],
+      exits: [[{ code: 2 }]],
+    });
+  });
+});
+
 describe("TOOL_SUBCOMMANDS on a repository holding hone.config.json", () => {
-  it.each(["project", "record-debt", "prune-debt", "split-records"] as const)(
+  it.each(["project", "split-records"] as const)(
     "prints one not-ready-yet line naming %s and exits 2",
     async (subcommand) => {
       const processPort = processWith({ arguments: ["--repo", "/repo"] });

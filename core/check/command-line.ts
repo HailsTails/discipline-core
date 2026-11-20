@@ -6,13 +6,31 @@ import { reportOutputSchema } from "../values/report-output.ts";
 
 export const SPLIT_RECORDS_SUBCOMMAND = "split-records";
 
-export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, PRUNE_DEBT_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
+export const AUTHORISE_SUBCOMMAND = "authorise";
+
+export const SUBCOMMANDS = ["check", "project", RECORD_DEBT_SUBCOMMAND, PRUNE_DEBT_SUBCOMMAND, AUTHORISE_SUBCOMMAND, SPLIT_RECORDS_SUBCOMMAND] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
 export type HelpTopic = "tool" | Subcommand;
 
-export type OptionName = "--repo" | "--base-revision" | "--report-output" | "--forfeiture" | "--leave";
+export type OptionName =
+  | "--repo"
+  | "--base-revision"
+  | "--report-output"
+  | "--forfeiture"
+  | "--leave"
+  | "--symptom"
+  | "--file"
+  | "--case"
+  | "--owes"
+  | "--why"
+  | "--because"
+  | "--evidence"
+  | "--root-cause"
+  | "--root-check"
+  | "--readback"
+  | "--owner";
 
 export type CommandOption = {
   readonly name: OptionName;
@@ -87,6 +105,32 @@ export const LEAVE_OPTION: CommandOption = {
   summary: "a file or folder, relative to --repo, that gets no record because a person records it as an authorised location; give it once for each path",
 };
 
+const onceRequired = (request: { readonly name: OptionName; readonly value: string; readonly summary: string }): CommandOption => ({
+  ...request,
+  need: "required",
+  occurrence: "once",
+});
+
+const repeatedRequired = (request: { readonly name: OptionName; readonly value: string; readonly summary: string }): CommandOption => ({
+  ...request,
+  need: "required",
+  occurrence: "repeated",
+});
+
+export const AUTHORISE_COMMAND_OPTIONS: readonly CommandOption[] = [
+  onceRequired({ name: "--symptom", value: "<symptom>", summary: "the catalogue's name for the symptom the location is on" }),
+  onceRequired({ name: "--file", value: "<path>", summary: "the file the location is for, relative to --repo" }),
+  onceRequired({ name: "--case", value: "<case>", summary: "the case the file is, as the cases page names it" }),
+  onceRequired({ name: "--owes", value: "<principle>", summary: "the principle the case owes, as the cases page names it" }),
+  repeatedRequired({ name: "--why", value: "<question>", summary: "one why of the chain, a question; give it, --because and --evidence once for each why, in order" }),
+  repeatedRequired({ name: "--because", value: "<answer>", summary: "the answer to the why in the same place" }),
+  repeatedRequired({ name: "--evidence", value: "<evidence>", summary: "what shows the answer, for the why in the same place" }),
+  onceRequired({ name: "--root-cause", value: "<text>", summary: "the cause the fifth why names" }),
+  onceRequired({ name: "--root-check", value: "<text>", summary: "what was checked to confirm the cause, and when" }),
+  onceRequired({ name: "--readback", value: "<text>", summary: "the chain read back from the cause to the file" }),
+  onceRequired({ name: "--owner", value: "<owner>", summary: "who decides whether this stays" }),
+];
+
 export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
   check: {
     summary: "check the repository against the disciplines it selects and print the report, ending in its verdict",
@@ -119,6 +163,14 @@ export const COMMANDS: Readonly<Record<Subcommand, CommandSpec>> = {
     exits: [
       { code: 0, meaning: "every paid record was removed, or none was paid" },
       { code: 2, meaning: "a load failure: an input could not be loaded, a mechanism failed, the records could not be written, or Hone failed unexpectedly" },
+    ],
+  },
+  [AUTHORISE_SUBCOMMAND]: {
+    summary: "write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done",
+    options: [REPO_OPTION, ...AUTHORISE_COMMAND_OPTIONS],
+    exits: [
+      { code: 0, meaning: "the location was written, was already held, or was refused with each reason printed" },
+      { code: 2, meaning: "a load failure: an input could not be loaded, the records could not be written, or Hone failed unexpectedly" },
     ],
   },
   [SPLIT_RECORDS_SUBCOMMAND]: {

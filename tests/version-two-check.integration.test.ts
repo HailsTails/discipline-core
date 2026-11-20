@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
+import type { Subcommand } from "../core/check/command-line.ts";
 import { TOOL_SUBCOMMANDS } from "../core/check/run-tool-command.ts";
 import type { ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -54,9 +55,9 @@ authored-class-or-this: Authored class or this. May indicate: keeps state or set
 verdict: fail
 `;
 
-const runCommandIn = async (request: { readonly repo: string; readonly subcommand: "check" | "project" }) => {
+const runCommandIn = async (request: { readonly repo: string; readonly subcommand: Subcommand; readonly options: readonly string[] }) => {
   const processPort: ProcessPort = {
-    arguments: ["--repo", request.repo],
+    arguments: ["--repo", request.repo, ...request.options],
     writeOut: vi.fn<ProcessPort["writeOut"]>(),
     writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
@@ -80,12 +81,22 @@ describe("the tool's commands on a repository holding hone.config.json, through 
       commands,
       files: { "hone.config.json": CONFIG, "eslint.config.mjs": PROJECTION_IMPORT, [CHECKS_PROJECTION_PATH]: PROJECTION, "kept.ts": "export class Kept {}\n" },
     });
-    expect(await runCommandIn({ repo, subcommand: "check" })).toEqual({ writes: [[{ text: EXPECTED_REPORT }]], exits: [[{ code: 1 }]] });
+    expect(await runCommandIn({ repo, subcommand: "check", options: [] })).toEqual({ writes: [[{ text: EXPECTED_REPORT }]], exits: [[{ code: 1 }]] });
   });
+
+  it("records the class the base revision holds as debt through record-debt, printing the symptom and file and exiting 0", async () => {
+    const repo = trackedRepositoryWith({
+      repositories,
+      commands,
+      files: { "hone.config.json": CONFIG, "eslint.config.mjs": PROJECTION_IMPORT, [CHECKS_PROJECTION_PATH]: PROJECTION, "kept.ts": "export class Kept {}\n" },
+    });
+    commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: repo });
+    const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
+    expect(recorded).toEqual({ writes: [[{ text: "authored-class-or-this#class-keyword recorded kept.ts\n" }]], exits: [[{ code: 0 }]] });  });
 
   it("prints one not-ready-yet line for project and exits 2", async () => {
     const repo = repositories.repositoryWith({ files: { "hone.config.json": CONFIG } });
-    expect(await runCommandIn({ repo, subcommand: "project" })).toEqual({
+    expect(await runCommandIn({ repo, subcommand: "project", options: [] })).toEqual({
       writes: [[{ text: "load failure: not-ready-yet project: this release runs project on version 1 files only, and this repository holds hone.config.json\n" }]],
       exits: [[{ code: 2 }]],
     });

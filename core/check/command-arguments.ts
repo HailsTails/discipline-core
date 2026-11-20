@@ -241,6 +241,22 @@ export const parseSplitRecordsArguments = (request: {
   return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value } };
 };
 
+export type AuthoriseArguments = {
+  readonly repo: string;
+  readonly values: ReadonlyMap<string, readonly string[]>;
+};
+
+export const parseAuthoriseArguments = (request: {
+  readonly arguments: readonly string[];
+}): Result<AuthoriseArguments, LoadFailure> => {
+  const values = givenOptionValues({ subcommand: "authorise", arguments: request.arguments });
+  if (values.outcome === "failed") {
+    return values;
+  }
+  const repo = requiredRepo({ subcommand: "authorise", values: values.value });
+  return repo.outcome === "failed" ? repo : { outcome: "ok", value: { repo: repo.value, values: values.value } };
+};
+
 const GLOB_MARKER = "*";
 
 const leavePaths = (request: { readonly values: OptionValues }): Result<readonly RepoPath[], LoadFailure> => {

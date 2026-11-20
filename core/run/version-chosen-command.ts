@@ -37,6 +37,11 @@ export const versionChosenCommandOf =
     return chosen.value === "version-2" ? request.versionTwo(command) : request.versionOne(command);
   };
 
+export const upgradeNeededCommandOf =
+  (request: { readonly settingsFile: string }): VersionedHandler =>
+  (command) =>
+    printFailure({ command, failure: { kind: "upgrade-needed", path: request.settingsFile } });
+
 export const notReadyCommandOf =
   (request: { readonly command: Subcommand }): VersionedHandler =>
   (command) =>

@@ -1,7 +1,10 @@
 import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.ts";
+import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
-import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
+import { notReadyCommandOf, upgradeNeededCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
 import { installedStagesOver, versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
+import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "../run/version-two-record-commands.ts";
+import { VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { parseInvocation } from "./command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
@@ -57,13 +60,18 @@ export const toolCommandOf =
 
 const gitTree = createDefaultGitTreePort({});
 
-const versionTwoCheck = versionTwoCheckCommandOf({ gitTree, directory: createDefaultDirectoryPort({}), stagesOver: installedStagesOver });
+const versionTwoPorts = { gitTree, directory: createDefaultDirectoryPort({}), stagesOver: installedStagesOver };
+
+const versionTwoCheck = versionTwoCheckCommandOf(versionTwoPorts);
+
+const versionTwoRecordPorts = { ...versionTwoPorts, removal: createDefaultFileRemovalPort({}) };
 
 export const TOOL_SUBCOMMANDS: Subcommands = {
   check: versionChosenCommandOf({ versionOne: runGuidedCheckCommand, versionTwo: versionTwoCheck }),
   project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: notReadyCommandOf({ command: "project" }) }),
-  "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: notReadyCommandOf({ command: "record-debt" }) }),
-  "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: notReadyCommandOf({ command: "prune-debt" }) }),
+  "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: versionTwoRecordDebtCommandOf(versionTwoRecordPorts) }),
+  "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: versionTwoPruneDebtCommandOf(versionTwoRecordPorts) }),
+  authorise: versionChosenCommandOf({ versionOne: upgradeNeededCommandOf({ settingsFile: VERSION_ONE_SETTINGS_FILE_NAME }), versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
   "split-records": versionChosenCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
 };
 
