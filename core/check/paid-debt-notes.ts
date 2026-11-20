@@ -2,7 +2,7 @@ import { type DebtPair, debtPairKey } from "../exception-records/debt-pair.ts";
 import type { GovernanceResult } from "../governance/governance.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { PaidDebtNote } from "../verdict/check-report.ts";
-import type { MechanismRun } from "./mechanism-dispatch.ts";
+import type { MechanismRun } from "../run/mechanism-dispatch.ts";
 
 type GovernedRecords = Pick<GovernanceResult, "stale" | "forfeited">;
 

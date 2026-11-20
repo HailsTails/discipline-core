@@ -4,7 +4,8 @@ import { type CommandOutcome, loadFailureOutcome } from "../command-line/command
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { packageLinkOf } from "../command-line/package-link.ts";
-import { type CommandRequest, printOutcome } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../check/run-check-command.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
 import { shownPathOf } from "../command-line/shown-path.ts";
 import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
 import { runLoadFailureLine } from "../report/load-failure-lines.ts";

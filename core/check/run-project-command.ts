@@ -7,7 +7,8 @@ import { moduleExtensionOf } from "../values/install-layout.ts";
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
-import { type CommandRequest, printOutcome, withShownPaths } from "./run-check-command.ts";
+import { printOutcome } from "../command-line/print-outcome.ts";
+import { type CommandRequest, withShownPaths } from "./run-check-command.ts";
 import { runProject } from "./run-project.ts";
 
 const projectionsIn = (

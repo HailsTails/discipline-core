@@ -43,7 +43,7 @@ import { packageLinkOf } from "../command-line/package-link.ts";
 import { paidDebtNotesOf } from "./paid-debt-notes.ts";
 import { shownRemediesOf } from "./shown-remedies.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
-import { type MechanismRun, runMechanism } from "./mechanism-dispatch.ts";
+import { type MechanismRun, runMechanism } from "../run/mechanism-dispatch.ts";
 
 export type CheckRequest = {
   readonly repoRoot: AbsolutePath;
