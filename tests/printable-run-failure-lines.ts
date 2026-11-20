@@ -128,12 +128,15 @@ const FAILURE_SAMPLES: FailureSamples = {
     { entry: { kind: "catalogue-not-read", path: CATALOGUE_PATH, reason: { reason: "absent" } }, fills: { path: CATALOGUE_PATH } },
     { entry: { kind: "catalogue-not-read", path: CATALOGUE_PATH, reason: { reason: "unreadable", detail: "symptoms: expected an array" } }, fills: { path: CATALOGUE_PATH, detail: "symptoms: expected an array" } },
   ],
-  "upgrade-needed": [{ entry: { kind: "upgrade-needed", path: "disciplines.json" }, fills: { path: "disciplines.json", "upgrade command": UPGRADE_COMMAND } }],
+  "upgrade-needed": [
+    { entry: { kind: "upgrade-needed", path: "disciplines.json" }, fills: { path: "disciplines.json", "upgrade command": UPGRADE_COMMAND } },
+    { entry: { kind: "upgrade-needed", path: "disciplines.json" }, fills: { path: "disciplines.json" } },
+  ],
 };
 
 const failureLineOf = (request: { readonly sample: Filled<RunLoadFailure> }): PrintedLine => ({
   label: request.sample.entry.kind,
-  text: runLoadFailureLine({ failure: request.sample.entry, upgradeCommand: UPGRADE_COMMAND }),
+  text: runLoadFailureLine({ failure: request.sample.entry, upgradeCommand: request.sample.fills["upgrade command"] }),
   fills: request.sample.fills,
 });
 

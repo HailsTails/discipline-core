@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { checksRunnerModuleSchema } from "../../../core/mechanism-port/checks-runner-module-schema.ts";
 import { runnerModuleSchema } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { runner } from "./runner.ts";
+import { checksRunner, runner } from "./runner.ts";
 import { FIRST_EDITION } from "../../../core/values/edition.ts";
 
 describe("runner", () => {
@@ -10,6 +11,13 @@ describe("runner", () => {
     expect(runnerModuleSchema.safeParse(runner)).toMatchObject({
       success: true,
       data: { exceptionPath: "embedded", projectedKinds: ["config-override", "inline-disable"] },
+    });
+  });
+
+  it("exports a checks runner module core accepts, projecting config overrides and inline disables", () => {
+    expect(checksRunnerModuleSchema.safeParse(checksRunner)).toMatchObject({
+      success: true,
+      data: { projectedKinds: ["config-override", "inline-disable"] },
     });
   });
 

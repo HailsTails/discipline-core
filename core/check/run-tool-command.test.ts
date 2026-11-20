@@ -8,7 +8,6 @@ import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { helpText } from "./command-help.ts";
 import type { CommandRequest } from "./run-check-command.ts";
-import { runGuidedCheckCommand } from "./run-guided-check-command.ts";
 import { type CommandHandler, type Subcommands, TOOL_SUBCOMMANDS, toolCommandOf } from "./run-tool-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
@@ -234,8 +233,24 @@ describe("toolCommandOf when a command fails unexpectedly", () => {
   });
 });
 
-describe("TOOL_SUBCOMMANDS", () => {
-  it("runs check through the guided check, which names each finding's symptom", () => {
-    expect(TOOL_SUBCOMMANDS.check).toBe(runGuidedCheckCommand);
-  });
+describe("TOOL_SUBCOMMANDS on a repository holding hone.config.json", () => {
+  it.each(["project", "record-debt", "prune-debt", "split-records"] as const)(
+    "prints one not-ready-yet line naming %s and exits 2",
+    async (subcommand) => {
+      const processPort = processWith({ arguments: ["--repo", "/repo"] });
+      const request = {
+        ...commandRequest({ process: processPort }),
+        path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
+        fileText: { ...UNUSED_FILE_TEXT, exists: vi.fn<FileTextPort["exists"]>().mockReturnValueOnce("absent").mockReturnValueOnce("present") },
+      };
+
+      await TOOL_SUBCOMMANDS[subcommand](request);
+
+      expect(outputOf({ process: processPort })).toEqual({
+        writes: [[{ text: `load failure: not-ready-yet ${subcommand}: this release runs ${subcommand} on version 1 files only, and this repository holds hone.config.json
+` }]],
+        exits: [[{ code: 2 }]],
+      });
+    },
+  );
 });

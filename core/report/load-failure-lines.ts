@@ -226,7 +226,7 @@ const checkFields = (request: { readonly failure: CheckFailure }): readonly stri
   }
 };
 
-const recordsFields = (request: { readonly failure: RecordsFailure; readonly upgradeCommand: string }): readonly string[] => {
+const recordsFields = (request: { readonly failure: RecordsFailure; readonly upgradeCommand: string | undefined }): readonly string[] => {
   const { failure } = request;
   switch (failure.kind) {
     case "records-folder-unreadable":
@@ -243,11 +243,13 @@ const recordsFields = (request: { readonly failure: RecordsFailure; readonly upg
     case "catalogue-not-read":
       return catalogueFields({ failure });
     case "upgrade-needed":
-      return [`${failure.path}:`, `this is a version 1 file; run ${request.upgradeCommand}, which rewrites every version 1 file as version 2, and commit what it writes`];
+      return request.upgradeCommand === undefined
+        ? [`${failure.path}:`, "this is a version 1 file, and this release has no command that rewrites it yet; keep running this repository on version 1 files"]
+        : [`${failure.path}:`, `this is a version 1 file; run ${request.upgradeCommand}, which rewrites every version 1 file as version 2, and commit what it writes`];
   }
 };
 
-const failureFields = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string }): readonly string[] => {
+const failureFields = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string | undefined }): readonly string[] => {
   const { failure } = request;
   switch (failure.kind) {
     case "arguments-invalid":
@@ -291,5 +293,5 @@ const failureFields = (request: { readonly failure: RunLoadFailure; readonly upg
   }
 };
 
-export const runLoadFailureLine = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string }): string =>
+export const runLoadFailureLine = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string | undefined }): string =>
   [LOAD_FAILURE_LEAD, request.failure.kind, ...failureFields(request).map((text) => onOneLine({ text }))].join(" ");

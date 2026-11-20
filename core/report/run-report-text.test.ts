@@ -66,6 +66,7 @@ const EMPTY_REPORT: RunReport = {
   stale: [],
   forfeited: [],
   unrecorded: [],
+  misnamed: [],
   paid: [],
   refused: [],
   unmeasured: [],
@@ -88,6 +89,7 @@ const EVERY_SECTION: RunReport = {
   stale: [NOTED_LOCATION],
   forfeited: [DEBT],
   unrecorded: [{ kind: "ignore", clause: CAST_EXPRESSIONS, file: WEBHOOK_FILE, mechanism: ESLINT }],
+  misnamed: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: WEBHOOK_FILE, line: 3, text: "// eslint-disable-next-line hone/no-class-authoring" }],
   paid: [{ debt: DEBT, answeredBy: [NOTED_LOCATION] }],
   refused: [{ place: { file: AUTHORISED_FILE, index: 1 }, refusals: [{ kind: "carried-changed-since-base" }] }],
   unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }],
@@ -112,6 +114,7 @@ const LINES = {
   stale: `claimed-type authorised-location src/adapters/stripe-webhook.ts ${NOTE}`,
   forfeited: `claimed-type debt src/adapters/stripe-webhook.ts; this change touched its file, so it no longer answers: fix what it held, then run ${PRUNE_COMMAND} to remove it`,
   unrecorded: "claimed-type#cast-expressions eslint ignore src/adapters/stripe-webhook.ts",
+  misnamed: "src/adapters/stripe-webhook.ts:3 version-1-id hone/no-class-authoring // eslint-disable-next-line hone/no-class-authoring",
   paid: `claimed-type debt src/adapters/stripe-webhook.ts answered by authorised-location ${NOTE}; run ${PRUNE_COMMAND} to remove the paid debt`,
   refused: "hone-records/authorised-locations/claimed-type.json records[1] carried-changed-since-base",
   unmeasured:
@@ -134,19 +137,19 @@ describe("renderRunReportText", () => {
 
   it("prints every non-empty section in order, each headed by its count, then the verdict", () => {
     expect(rendered({ report: EVERY_SECTION, output: "full" })).toBe(
-      `excluded (1)\n${LINES.excluded}\nnotAdopted (1)\n${LINES.notAdopted}\nnotRun (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nnotes (1)\n${LINES.notes}\nrecordNotes (1)\n${LINES.recordNotes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `excluded (1)\n${LINES.excluded}\nnotAdopted (1)\n${LINES.notAdopted}\nnotRun (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nnotes (1)\n${LINES.notes}\nrecordNotes (1)\n${LINES.recordNotes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
   it("leaves out the informational sections when it prints failures only, and keeps paid debt, whose next step a hook must see", () => {
     expect(rendered({ report: EVERY_SECTION, output: "failures-only" })).toBe(
-      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
   it("prints each section's heading alone, naming the role of each that does not fail the run, when it prints counts", () => {
     expect(rendered({ report: EVERY_SECTION, output: "counts" })).toBe(
-      `excluded (1) informational\nnotAdopted (1) informational\nnotRun (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\npaid (1) next-step\nrefused (1)\nunmeasured (1)\nprojectionProblems (1)\nassessment (1) informational\nnotes (1) informational\nrecordNotes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
+      `excluded (1) informational\nnotAdopted (1) informational\nnotRun (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\nmisnamed (1)\npaid (1) next-step\nrefused (1)\nunmeasured (1)\nprojectionProblems (1)\nassessment (1) informational\nnotes (1) informational\nrecordNotes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
     );
   });
 

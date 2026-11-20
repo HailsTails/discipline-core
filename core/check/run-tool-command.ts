@@ -1,4 +1,7 @@
+import { createDefaultDirectoryPort } from "../platform-ports/file-system-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
+import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
+import { installedStagesOver, versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
 import { parseInvocation } from "./command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
@@ -52,12 +55,16 @@ export const toolCommandOf =
         });
       });
 
+const gitTree = createDefaultGitTreePort({});
+
+const versionTwoCheck = versionTwoCheckCommandOf({ gitTree, directory: createDefaultDirectoryPort({}), stagesOver: installedStagesOver });
+
 export const TOOL_SUBCOMMANDS: Subcommands = {
-  check: runGuidedCheckCommand,
-  project: runProjectCommand,
-  "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
-  "prune-debt": runPruneDebtCommand,
-  "split-records": runSplitRecordsCommand,
+  check: versionChosenCommandOf({ versionOne: runGuidedCheckCommand, versionTwo: versionTwoCheck }),
+  project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: notReadyCommandOf({ command: "project" }) }),
+  "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: notReadyCommandOf({ command: "record-debt" }) }),
+  "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: notReadyCommandOf({ command: "prune-debt" }) }),
+  "split-records": versionChosenCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
 };
 
 export const runToolCommand: CommandHandler = toolCommandOf({ subcommands: TOOL_SUBCOMMANDS });

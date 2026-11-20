@@ -37,6 +37,7 @@ describe("RUN_SECTION_ROLES", () => {
       { section: "stale", role: "failing" },
       { section: "forfeited", role: "failing" },
       { section: "unrecorded", role: "failing" },
+      { section: "misnamed", role: "failing" },
       { section: "paid", role: "next-step" },
       { section: "refused", role: "failing" },
       { section: "unmeasured", role: "failing" },

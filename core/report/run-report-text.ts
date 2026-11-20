@@ -2,6 +2,7 @@ import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts
 import type { ReportOutput } from "../values/report-output.ts";
 import { forfeitedLine, type PruneCommand, paidLine, staleLine } from "./debt-lines.ts";
 import { answeredLine, checkLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
+import { misnamedLine } from "./misnamed-lines.ts";
 import { carriedLine, recordNoteLine, refusedLines } from "./record-lines.ts";
 import { RUN_SECTION_NAMES, type RunSectionName, runSectionRoleOf, runVerdictOf } from "./report-sections.ts";
 import type { RunReport } from "./run-report.ts";
@@ -29,6 +30,7 @@ const SECTION_LINES: Readonly<Record<RunSectionName, SectionLines>> = {
   stale: (request) => request.report.stale.map((placed) => staleLine({ placed, pruneCommand: request.pruneCommand })),
   forfeited: (request) => request.report.forfeited.map((placed) => forfeitedLine({ placed, pruneCommand: request.pruneCommand })),
   unrecorded: (request) => request.report.unrecorded.flatMap((exception) => unrecordedLines({ catalogue: request.catalogue, exception })),
+  misnamed: (request) => request.report.misnamed.map((misnamed) => misnamedLine({ misnamed })),
   paid: (request) => request.report.paid.map((paid) => paidLine({ paid, pruneCommand: request.pruneCommand })),
   refused: (request) => request.report.refused.flatMap((refused) => refusedLines({ refused })),
   unmeasured: (request) =>
