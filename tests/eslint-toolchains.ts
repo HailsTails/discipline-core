@@ -149,6 +149,16 @@ export const modulesServingRunner = (request: {
       : request.base.load(load),
 });
 
+export const checkModulesOn = (request: { readonly line: EslintLine }): ModuleLoaderPort => {
+  const pieces = pieceModulesOn({ line: request.line, base: createDefaultModuleLoaderPort({}) });
+  return {
+    load: (load) =>
+      load.path.replaceAll("\\", "/").endsWith(RUNNER_MODULE_SUFFIX)
+        ? Promise.resolve({ outcome: "ok", value: { runner: eslintRunnerOn(request), checksRunner: eslintChecksRunnerOn(request) } })
+        : pieces.load(load),
+  };
+};
+
 export const runnerModulesOn = (request: { readonly line: EslintLine; readonly base: ModuleLoaderPort }): ModuleLoaderPort =>
   modulesServingRunner({ runnerSuffix: RUNNER_MODULE_SUFFIX, runner: eslintRunnerOn({ line: request.line }), base: request.base });
 
