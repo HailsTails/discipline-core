@@ -216,6 +216,76 @@ describe("baseStandingRecordsSource and what a carried record stands on", () => 
   });
 });
 
+describe("baseStandingRecordsSource establishing the carried debt the head holds", () => {
+  const CARVE_OUT = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", whyChain: ["a", "b", "c", "d", "e"] };
+
+  const DEBT_FILE = repoPathSchema.parse("hone-records/debt/loop-keyword.json");
+
+  const debtRecord = (request: { readonly carried: typeof CARVE_OUT }) => ({ symptom: "loop-keyword#loops", file: "src/a.ts", carried: request.carried });
+
+  const headDocument = (request: { readonly carried: typeof CARVE_OUT }): RecordsDocument => ({
+    file: DEBT_FILE,
+    document: { version: 2, records: [debtRecord({ carried: request.carried })] },
+  });
+
+  const readAtBaseWithHead = (request: { readonly head: RecordsDocument; readonly entries: ReturnType<VersionOneEntries["atBase"]> }) =>
+    baseStandingRecordsSource({
+      source: {
+        read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [request.head] }),
+        readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue(NO_DOCUMENTS),
+      },
+      entries: entriesAtBase({ read: request.entries }),
+      catalogues: CATALOGUES,
+    }).readAt({ revision: "origin/main" });
+
+  it("reads the carried debt as established when the base held the carve-out entry word for word", () => {
+    expect(readAtBaseWithHead({ head: headDocument({ carried: CARVE_OUT }), entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual({
+      outcome: "ok",
+      value: [headDocument({ carried: CARVE_OUT })],
+    });
+    expect(carriedStandingOf({ base: { measured: "yes", documents: [headDocument({ carried: CARVE_OUT })] }, file: DEBT_FILE, entry: debtRecord({ carried: CARVE_OUT }) })).toEqual({
+      outcome: "ok",
+      value: "established",
+    });
+  });
+
+  it("reads the carried debt as changed since base when the carried entry was edited", () => {
+    const edited = { ...CARVE_OUT, reason: "edited" };
+    expect(readAtBaseWithHead({ head: headDocument({ carried: edited }), entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual(NO_DOCUMENTS);
+    expect(carriedStandingOf({ base: { measured: "yes", documents: [] }, file: DEBT_FILE, entry: debtRecord({ carried: edited }) })).toEqual({
+      outcome: "failed",
+      error: [{ kind: "carried-changed-since-base" }],
+    });
+  });
+
+  it("leaves a debt file the base already holds as a version 2 document as the base holds it", () => {
+    const held: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [] } };
+    expect(
+      baseStandingRecordsSource({
+        source: {
+          read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [headDocument({ carried: CARVE_OUT })] }),
+          readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue({ outcome: "ok", value: [held] }),
+        },
+        entries: entriesAtBase({ read: { outcome: "ok", value: [CARVE_OUT] } }),
+        catalogues: CATALOGUES,
+      }).readAt({ revision: "origin/main" }),
+    ).toEqual({ outcome: "ok", value: [held] });
+  });
+
+  it("reads the base without carried debt when the head cannot be read, leaving that failure to the run", () => {
+    expect(
+      baseStandingRecordsSource({
+        source: {
+          read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "failed", error: { kind: "records-folder-unreadable", folder: repoPathSchema.parse("hone-records"), detail: "EACCES" } }),
+          readAt: vi.fn<RecordsSource["readAt"]>().mockReturnValue(NO_DOCUMENTS),
+        },
+        entries: entriesAtBase({ read: { outcome: "ok", value: [CARVE_OUT] } }),
+        catalogues: CATALOGUES,
+      }).readAt({ revision: "origin/main" }),
+    ).toEqual(NO_DOCUMENTS);
+  });
+});
+
 describe("versionOneAwareRecordsSourceOf", () => {
   it("builds the source for a repository from the factory it wraps, the version 1 repository of the same root and the catalogue given", () => {
     const repoRoot = absolutePathSchema.parse("/repo");
