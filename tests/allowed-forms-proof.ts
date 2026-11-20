@@ -67,11 +67,31 @@ export const rowsNamed = <Row extends { readonly name: string }>(request: {
 
 export type BlockTypeErrors = { readonly name: string; readonly errors: readonly string[] };
 
+export type FormDiagnostic = { readonly fileName: string | undefined; readonly message: string };
+
+export type TypeErrors = { readonly blocks: readonly BlockTypeErrors[]; readonly unattributed: readonly string[] };
+
+export const typeErrorsAmong = (request: {
+  readonly forms: readonly { readonly name: string; readonly path: string }[];
+  readonly diagnostics: readonly FormDiagnostic[];
+}): TypeErrors => {
+  const formPaths = request.forms.map((form) => form.path);
+  return {
+    blocks: request.forms.map((form) => ({
+      name: form.name,
+      errors: request.diagnostics.filter((diagnostic) => diagnostic.fileName === form.path).map((diagnostic) => diagnostic.message),
+    })),
+    unattributed: request.diagnostics
+      .filter((diagnostic) => diagnostic.fileName === undefined || !formPaths.includes(diagnostic.fileName))
+      .map((diagnostic) => (diagnostic.fileName === undefined ? diagnostic.message : `${diagnostic.fileName}: ${diagnostic.message}`)),
+  };
+};
+
 export const typeErrorsOf = (request: {
   readonly syntaxApi: SyntaxApi;
   readonly repoRoot: string;
   readonly blocks: readonly AllowedBlock[];
-}): readonly BlockTypeErrors[] => {
+}): TypeErrors => {
   const { syntaxApi } = request;
   const options = cd3CompilerOptionsOf({ syntaxApi });
   const root = request.repoRoot.replaceAll("\\", "/");
@@ -98,13 +118,13 @@ export const typeErrorsOf = (request: {
       },
     },
   });
-  const diagnostics = syntaxApi.getPreEmitDiagnostics(program);
-  return forms.map((form) => ({
-    name: form.name,
-    errors: diagnostics
-      .filter((diagnostic) => diagnostic.file?.fileName.replaceAll("\\", "/") === form.path)
-      .map((diagnostic) => syntaxApi.flattenDiagnosticMessageText(diagnostic.messageText, "\n")),
-  }));
+  return typeErrorsAmong({
+    forms,
+    diagnostics: syntaxApi.getPreEmitDiagnostics(program).map((diagnostic) => ({
+      fileName: diagnostic.file?.fileName.replaceAll("\\", "/"),
+      message: syntaxApi.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+    })),
+  });
 };
 
 export const remedySectionsOf = async (request: {

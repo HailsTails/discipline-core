@@ -86,8 +86,12 @@ describe("rules/CD-27/CHECKS.md, Allowed forms in a test", () => {
     expect(await remedySectionsOf({ repoRoot: REPO_ROOT, parse: defaultParsePort, clause: secondEditionRow.clause, source: flagged })).toContain(section);
   });
 
-  it.each(TYPE_ERRORS)("compiles $name under the compiler options CD-3 requires", ({ errors }) => {
+  it.each(TYPE_ERRORS.blocks)("compiles $name under the compiler options CD-3 requires", ({ errors }) => {
     expect(errors).toEqual([]);
+  });
+
+  it("compiles with no diagnostic outside the forms, under the compiler options CD-3 requires", () => {
+    expect(TYPE_ERRORS.unattributed).toEqual([]);
   });
 
   it.each(AUDIT_ROWS)("has no form to write instead that the audit runner flags under $name", async (row) => {

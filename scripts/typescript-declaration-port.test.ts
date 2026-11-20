@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import { defaultParsePort } from "../tests/typescript-parse-port.ts";
 import { createDefaultTypeScriptDeclarationPort, publishedDeclarationText } from "./typescript-declaration-port.ts";
 
@@ -13,18 +13,17 @@ const ENTRIES_EMITTED_TOGETHER = emitted({
 });
 
 describe("the TypeScript declaration port, emitting in memory with the repository's own TypeScript and tsconfig (CD-47: nothing is spawned or written)", () => {
-  it("emits a declaration per source module the entries import, without diagnostics", async () => {
-    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
-      outcome: "ok",
-      value: {
-        diagnostics: [],
-        declarations: expect.arrayContaining([
-          expect.objectContaining({ path: "core/mechanism-port/piece-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"] }),
-          expect.objectContaining({ path: "core/values/branded.d.ts", specifiers: [] }),
-          expect.objectContaining({ path: "core/values/repo-path-types.d.ts", specifiers: ["./branded.js"] }),
-        ]),
-      },
-    });
+  it("emits a declaration per source module the entries import, and nothing else, without diagnostics", async () => {
+    const entriesEmit = await ENTRIES_EMITTED_TOGETHER;
+    assert(entriesEmit.outcome === "ok");
+
+    expect(entriesEmit.value.diagnostics).toEqual([]);
+    expect(entriesEmit.value.declarations).toMatchObject([
+      { path: "core/mechanism-port/piece-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"], refusals: [] },
+      { path: "core/values/branded.d.ts", specifiers: [], refusals: [] },
+      { path: "core/values/repo-path-types.d.ts", specifiers: ["./branded.js"], refusals: [] },
+      { path: "mechanisms/audit/runner/typescript-parse.d.ts", specifiers: ["typescript"], refusals: [] },
+    ]);
   });
 
   it("rewrites relative .ts specifiers to the .js form a published declaration resolves from", async () => {

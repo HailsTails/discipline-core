@@ -191,6 +191,25 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
     });
   });
 
+  it("reports an inline disable written with a version 1 id as misnamed and suppresses nothing", async () => {
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/no-class-authoring" }) } })).toEqual({
+      outcome: "ok",
+      value: {
+        ...REPORT,
+        hits: [CLASS_HIT_ON_LINE_2],
+        measured: MEASURED,
+        misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "kept.ts", line: 1, text: "// eslint-disable-next-line hone/no-class-authoring" }],
+      },
+    });
+  });
+
+  it("does not call a disable misnamed when it names a real check of the catalogue that the repository has not selected", async () => {
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/authored-class-or-this/static-members-only" }) } })).toEqual({
+      outcome: "ok",
+      value: { ...REPORT, hits: [CLASS_HIT_ON_LINE_2], measured: MEASURED },
+    });
+  });
+
   it("reports a global ignore over the source as a native exception on the check", async () => {
     expect(await runOver({ ...ROOT_FILE_RUN, line, files: { "eslint.config.mjs": IGNORING_THE_SOURCE, [CHECKS_PROJECTION_PATH]: PROJECTION_TEXT, "kept.ts": ONE_CLASS } })).toEqual({
       outcome: "ok",
