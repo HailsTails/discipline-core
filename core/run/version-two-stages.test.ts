@@ -92,7 +92,7 @@ describe("versionTwoStagesOver", () => {
   it("touches nothing when no record is debt, without asking git", () => {
     const git = gitListing({ tracked: vi.fn<GitPort["trackedPaths"]>() });
     const records: RecordsReading = { records: [], refused: [], notes: [], base: { measured: "yes" } };
-    expect(stagesOver({ git, baseRevision: "origin/main" }).touched({ assessment: { forfeiture: "this-run" }, records })).toEqual({ measured: "yes", paths: new Set() });
+    expect(stagesOver({ git, baseRevision: "origin/main" }).touched({ assessment: { forfeiture: "this-run" }, measuring: "when-debt-held", records })).toEqual({ measured: "yes", paths: new Set() });
     expect(vi.mocked(git.changedSince).mock.calls).toEqual([]);
   });
 
@@ -110,7 +110,7 @@ describe("versionTwoStagesOver", () => {
       notes: [],
       base: { measured: "yes" },
     };
-    expect(stagesOver({ git, baseRevision: "origin/main" }).touched({ assessment: { forfeiture: "this-run" }, records })).toEqual({
+    expect(stagesOver({ git, baseRevision: "origin/main" }).touched({ assessment: { forfeiture: "this-run" }, measuring: "when-debt-held", records })).toEqual({
       measured: "yes",
       paths: new Set([repoPathSchema.parse("src/a.ts")]),
     });

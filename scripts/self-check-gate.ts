@@ -5,7 +5,7 @@ import { runPruneDebtCommand } from "../core/check/run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "../core/check/run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "../core/check/run-split-records-command.ts";
 import { createDefaultGitTreePort } from "../core/platform-ports/git-port.ts";
-import { type CommandHandler, toolCommandOf } from "../core/check/run-tool-command.ts";
+import { type CommandHandler, TOOL_SUBCOMMANDS, toolCommandOf } from "../core/check/run-tool-command.ts";
 import type { CommandRequest } from "../core/check/run-check-command.ts";
 import { printOutcome } from "../core/command-line/print-outcome.ts";
 import { installedGuidedCheckRunFor } from "../core/check/run-guided-check-command.ts";
@@ -57,6 +57,7 @@ export const runSelfCheck: CommandHandler = toolCommandOf({
     project: runProjectCommand,
     "record-debt": recordDebtCommandOf({ gitTree: createDefaultGitTreePort({}) }),
     "prune-debt": runPruneDebtCommand,
+    authorise: TOOL_SUBCOMMANDS.authorise,
     "split-records": runSplitRecordsCommand,
   },
 });

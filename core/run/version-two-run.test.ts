@@ -7,7 +7,7 @@ import { DEFAULT_CONVENTIONS } from "../settings/conventions.ts";
 import type { SettingsReading } from "../settings/read-settings.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { type VersionTwoStages, versionTwoRunOver } from "./version-two-run.ts";
+import { type VersionTwoRequest, type VersionTwoStages, versionTwoRunOver } from "./version-two-run.ts";
 
 const FILE_A = repoPathSchema.parse("src/a.ts");
 
@@ -56,7 +56,7 @@ const stagesGiving = (request: Partial<VersionTwoStages>): VersionTwoStages => (
   ...request,
 });
 
-const NO_ARGUMENTS = { forfeiture: undefined, reportOutput: undefined };
+const NO_ARGUMENTS: VersionTwoRequest = { forfeiture: undefined, reportOutput: undefined, measuring: "when-debt-held" };
 
 describe("versionTwoRunOver", () => {
   it("reports the findings the engines raised, with the catalogue and the output the settings name", async () => {
@@ -69,9 +69,17 @@ describe("versionTwoRunOver", () => {
 
   it("takes the report output and the forfeiture assessment the command line gave over the settings", async () => {
     const touched = vi.fn<VersionTwoStages["touched"]>().mockReturnValue({ measured: "elsewhere" });
-    const run = await versionTwoRunOver({ stages: stagesGiving({ touched }), arguments: { forfeiture: "elsewhere", reportOutput: "counts" } });
+    const run = await versionTwoRunOver({ stages: stagesGiving({ touched }), arguments: { forfeiture: "elsewhere", reportOutput: "counts", measuring: "when-debt-held" } });
     expect(run).toMatchObject({ outcome: "ok", value: { output: "counts" } });
-    expect(touched.mock.calls).toEqual([[{ assessment: { forfeiture: "elsewhere" }, records: RECORDS }]]);
+    expect(touched.mock.calls).toEqual([[{ assessment: { forfeiture: "elsewhere" }, measuring: "when-debt-held", records: RECORDS }]]);
+  });
+
+  it("hands back the touched set it measured once, and the measuring it was asked for reaches the stage", async () => {
+    const measured = { measured: "yes", paths: new Set([FILE_A]) } as const;
+    const touched = vi.fn<VersionTwoStages["touched"]>().mockReturnValue(measured);
+    const run = await versionTwoRunOver({ stages: stagesGiving({ touched }), arguments: { ...NO_ARGUMENTS, measuring: "always" } });
+    expect(run).toMatchObject({ outcome: "ok", value: { touched: measured } });
+    expect(touched.mock.calls).toEqual([[{ assessment: { forfeiture: "this-run" }, measuring: "always", records: RECORDS }]]);
   });
 
   it("asks the settings and the records with the catalogue, and the engines with everything read", async () => {
