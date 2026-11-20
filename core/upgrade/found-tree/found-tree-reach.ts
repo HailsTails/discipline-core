@@ -18,7 +18,7 @@ export const foundTreeCheckReachOf = (request: {
 
 export const foundTreeRunReachOf = (request: {
   readonly recordsSourceOf: RecordsSourceOf;
-  readonly command: Pick<CommandRequest, "git" | "path" | "exceptionRepositoryOf"> & { readonly fileText: Pick<FileTextPort, "read"> };
+  readonly command: Pick<CommandRequest, "git" | "path" | "exceptionRepositoryOf"> & { readonly fileText: Pick<FileTextPort, "read" | "exists"> };
 }): { readonly baseRevision: string; readonly git: CommandRequest["git"]; readonly recordsSourceOf: RecordsSourceOf } => ({
   baseRevision: FOUND_TREE_REVISION,
   git: foundTreeGitOf({ git: request.command.git, fileText: request.command.fileText, path: request.command.path }),

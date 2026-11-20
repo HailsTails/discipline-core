@@ -1,20 +1,30 @@
 import type { FileTextPort } from "../../platform-ports/file-text-port.ts";
-import type { BaseFileText, GitContentQuery, GitPort } from "../../platform-ports/git-port.ts";
+import type { BaseFileText, GitContentQuery, GitFailure, GitPort } from "../../platform-ports/git-port.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
 import type { Result } from "../../values/result.ts";
 
-const textInTreeOf = (request: { readonly fileText: Pick<FileTextPort, "read">; readonly path: PathPort; readonly query: GitContentQuery }): BaseFileText => {
-  const location = request.path.join({ segments: [request.query.repoRoot, request.query.file] });
-  const read = request.fileText.read({ path: location });
-  return read.outcome === "ok" ? { presence: "present-in-base", text: read.value } : { presence: "absent-from-base" };
+type TreeReach = { readonly fileText: Pick<FileTextPort, "read" | "exists">; readonly path: PathPort };
+
+const locationOf = (request: TreeReach & { readonly query: GitContentQuery }): string =>
+  request.path.join({ segments: [request.query.repoRoot, request.query.file] });
+
+const textInTreeOf = (request: TreeReach & { readonly query: GitContentQuery }): Result<BaseFileText, GitFailure> => {
+  const path = locationOf(request);
+  if (request.fileText.exists({ path }) === "absent") {
+    return { outcome: "ok", value: { presence: "absent-from-base" } };
+  }
+  const read = request.fileText.read({ path });
+  return read.outcome === "ok"
+    ? { outcome: "ok", value: { presence: "present-in-base", text: read.value } }
+    : { outcome: "failed", error: { kind: "git-failed", command: "read the tree the upgrade found", detail: read.error.detail } };
 };
 
-export const foundTreeGitOf = (request: { readonly git: GitPort; readonly fileText: Pick<FileTextPort, "read">; readonly path: PathPort }): GitPort => ({
+export const foundTreeGitOf = (request: { readonly git: GitPort } & TreeReach): GitPort => ({
   trackedPaths: request.git.trackedPaths,
   changedSince: () => ({ outcome: "ok", value: [] }),
-  contentInBase: (query): Result<"present-in-base" | "absent-from-base", never> => ({
+  contentInBase: (query) => ({
     outcome: "ok",
-    value: textInTreeOf({ ...request, query }).presence,
+    value: request.fileText.exists({ path: locationOf({ ...request, query }) }) === "present" ? "present-in-base" : "absent-from-base",
   }),
-  textInBase: (query) => ({ outcome: "ok", value: textInTreeOf({ ...request, query }) }),
+  textInBase: (query) => textInTreeOf({ ...request, query }),
 });

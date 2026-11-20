@@ -1,17 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
+import { SETTINGS_CATALOGUE } from "../../../tests/settings-catalogue.ts";
 import type { CheckRequest } from "../../check/run-check.ts";
-import type { CommandRequest } from "../../check/run-check-command.ts";
-import type { GitPort } from "../../platform-ports/git-port.ts";
+import type { DirectoryPort } from "../../platform-ports/file-system-port.ts";
+import type { GitPort, GitTreePort } from "../../platform-ports/git-port.ts";
 import { createPathPort } from "../../platform-ports/path-port.ts";
-import type { RecordsSource } from "../../records/records-source.ts";
+import type { RecordsDocument } from "../../records/hone-record.ts";
 import type { RecordsSourceOf } from "../../records/records-folder.ts";
+import type { RecordsSource } from "../../records/records-source.ts";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
-import type { ExceptionRepository } from "../version-one-records/exception-records.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
+import type { ExceptionRepository, PlacedEntry } from "../version-one-records/exception-records.ts";
 import { FOUND_TREE_REVISION, foundTreeCheckReachOf, foundTreeRunReachOf } from "./found-tree-reach.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 
 const PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
+
+const ENTRY = { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "kept" } as const;
+
+const PLACED: PlacedEntry = { place: { layout: "single-file", file: repoPathSchema.parse("discipline-exceptions.json"), index: 0 }, entry: ENTRY };
+
+const AUTHORISED_DOCUMENT: RecordsDocument = {
+  file: repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json"),
+  document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: ENTRY }] },
+};
 
 const git = (): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>(),
@@ -26,7 +38,7 @@ const fileText = (): CheckRequest["fileText"] => ({
 });
 
 const exceptions = (): ExceptionRepository => ({
-  read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: [] }),
+  read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: [PLACED] }),
   readAt: vi.fn<ExceptionRepository["readAt"]>(),
   add: vi.fn<ExceptionRepository["add"]>(),
   remove: vi.fn<ExceptionRepository["remove"]>(),
@@ -34,39 +46,45 @@ const exceptions = (): ExceptionRepository => ({
 });
 
 describe("foundTreeCheckReachOf", () => {
-  it("measures a version 1 check against the tree the upgrade found: nothing changed since the base, and the entries at the base are the working tree's", () => {
-    const underlying = exceptions();
-    const reach = foundTreeCheckReachOf({ check: { git: git(), fileText: fileText(), path: PATH, exceptionRepository: underlying } });
+  it("gives a version 1 check the tree the upgrade found as its base revision, git and entries at the base", () => {
+    const underlyingGit = git();
+    const underlyingExceptions = exceptions();
+    const reach = foundTreeCheckReachOf({ check: { git: underlyingGit, fileText: fileText(), path: PATH, exceptionRepository: underlyingExceptions } });
     expect({
       baseRevision: reach.baseRevision,
-      changed: reach.git.changedSince({ repoRoot: REPO_ROOT, baseRevision: FOUND_TREE_REVISION }),
+      changedSince: reach.git.changedSince({ repoRoot: REPO_ROOT, baseRevision: FOUND_TREE_REVISION }),
       entriesAtBase: reach.exceptionRepository.readAt({ revision: FOUND_TREE_REVISION }),
-      askedGit: vi.mocked(underlying.readAt).mock.calls,
+      askedGit: [vi.mocked(underlyingGit.changedSince).mock.calls, vi.mocked(underlyingExceptions.readAt).mock.calls],
     }).toEqual({
       baseRevision: FOUND_TREE_REVISION,
-      changed: { outcome: "ok", value: [] },
-      entriesAtBase: { outcome: "ok", value: [] },
-      askedGit: [],
+      changedSince: { outcome: "ok", value: [] },
+      entriesAtBase: { outcome: "ok", value: [ENTRY] },
+      askedGit: [[], []],
     });
   });
 });
 
 describe("foundTreeRunReachOf", () => {
-  it("measures a version 2 run against the tree the upgrade found, with records at the base that never ask git", () => {
-    const underlying = vi.fn<RecordsSourceOf>().mockReturnValue({
-      read: vi.fn<RecordsSource["read"]>().mockReturnValue({ outcome: "ok", value: [] }),
-      readAt: vi.fn<RecordsSource["readAt"]>(),
+  it("gives a version 2 run the tree the upgrade found as its base revision and git, and records at the base made from the working tree's entries", () => {
+    const underlyingSource: RecordsSource = { read: vi.fn<RecordsSource["read"]>(), readAt: vi.fn<RecordsSource["readAt"]>() };
+    const underlyingGit = git();
+    const directory: Pick<DirectoryPort, "list"> = { list: vi.fn<DirectoryPort["list"]>() };
+    const gitTree: GitTreePort = { pathsAt: vi.fn<GitTreePort["pathsAt"]>() };
+    const reach = foundTreeRunReachOf({
+      recordsSourceOf: vi.fn<RecordsSourceOf>().mockReturnValue(underlyingSource),
+      command: { git: underlyingGit, fileText: fileText(), path: PATH, exceptionRepositoryOf: () => exceptions() },
     });
-    const command: Pick<CommandRequest, "git" | "path" | "exceptionRepositoryOf"> & { readonly fileText: CheckRequest["fileText"] } = {
-      git: git(),
-      fileText: fileText(),
-      path: PATH,
-      exceptionRepositoryOf: () => exceptions(),
-    };
-    const reach = foundTreeRunReachOf({ recordsSourceOf: underlying, command });
+    const folder = { fileText: fileText(), path: PATH, directory, git: underlyingGit, gitTree, repoRoot: REPO_ROOT, catalogue: SETTINGS_CATALOGUE };
     expect({
       baseRevision: reach.baseRevision,
-      changed: reach.git.changedSince({ repoRoot: REPO_ROOT, baseRevision: reach.baseRevision }),
-    }).toEqual({ baseRevision: FOUND_TREE_REVISION, changed: { outcome: "ok", value: [] } });
+      changedSince: reach.git.changedSince({ repoRoot: REPO_ROOT, baseRevision: FOUND_TREE_REVISION }),
+      recordsAtBase: reach.recordsSourceOf(folder).readAt({ revision: FOUND_TREE_REVISION }),
+      askedRecords: vi.mocked(underlyingSource.readAt).mock.calls,
+    }).toEqual({
+      baseRevision: FOUND_TREE_REVISION,
+      changedSince: { outcome: "ok", value: [] },
+      recordsAtBase: { outcome: "ok", value: [AUTHORISED_DOCUMENT] },
+      askedRecords: [],
+    });
   });
 });

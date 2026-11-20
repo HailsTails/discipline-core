@@ -20,15 +20,24 @@ const underlyingGit = (): GitPort => ({
   textInBase: vi.fn<GitPort["textInBase"]>(),
 });
 
-const treeHolding = (request: { readonly text: string }): Pick<FileTextPort, "read"> => ({
+type Tree = Pick<FileTextPort, "read" | "exists">;
+
+const treeHolding = (request: { readonly text: string }): Tree => ({
   read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.text }),
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
 });
 
-const treeLacking = (): Pick<FileTextPort, "read"> => ({
-  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "failed", error: { kind: "unreadable", path: "/repo/src/a.ts", detail: "ENOENT" } }),
+const treeLacking = (): Tree => ({
+  read: vi.fn<FileTextPort["read"]>(),
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
 });
 
-const foundTreeOver = (request: { readonly fileText: Pick<FileTextPort, "read"> }) => {
+const treeUnreadable = (): Tree => ({
+  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "failed", error: { kind: "unreadable", path: "/repo/src/a.ts", detail: "EACCES" } }),
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
+});
+
+const foundTreeOver = (request: { readonly fileText: Tree }) => {
   const git = underlyingGit();
   return { git, found: foundTreeGitOf({ git, fileText: request.fileText, path: PATH }) };
 };
@@ -56,6 +65,14 @@ describe("foundTreeGitOf, git with the tree the upgrade found as its base", () =
   it("reports a file the working tree lacks as absent from the base", () => {
     const { found } = foundTreeOver({ fileText: treeLacking() });
     expect(found.textInBase(QUERY)).toEqual({ outcome: "ok", value: { presence: "absent-from-base" } });
+  });
+
+  it("fails, naming the tree, when a file the working tree holds cannot be read, rather than calling it absent", () => {
+    const { found } = foundTreeOver({ fileText: treeUnreadable() });
+    expect(found.textInBase(QUERY)).toEqual({
+      outcome: "failed",
+      error: { kind: "git-failed", command: "read the tree the upgrade found", detail: "EACCES" },
+    });
   });
 
   it("reports a file's membership in the base from the working tree", () => {

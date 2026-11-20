@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
 import type { LoadFailure } from "../../command-line/load-failure.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
 import type { ExceptionRepository, PlacedEntry } from "../version-one-records/exception-records.ts";
@@ -29,9 +30,9 @@ describe("foundTreeExceptionsOf, the version 1 entries at the tree the upgrade f
   it("fails as a git failure naming the tree when the working tree's entries cannot be read", () => {
     const failure: LoadFailure = { kind: "file-unreadable", path: "discipline-exceptions.json", detail: "EACCES" };
     const repository = repositoryReading({ read: { outcome: "failed", error: failure } });
-    expect(foundTreeExceptionsOf({ repository }).readAt({ revision: FOUND_TREE_REVISION })).toMatchObject({
+    expect(foundTreeExceptionsOf({ repository }).readAt({ revision: FOUND_TREE_REVISION })).toEqual({
       outcome: "failed",
-      error: { kind: "git-failed", command: "read the tree the upgrade found" },
+      error: { kind: "git-failed", command: "read the tree the upgrade found", detail: loadFailureDetail({ failure }) },
     });
   });
 
