@@ -21,7 +21,7 @@ export const inSiteOrder = <Placed extends DebtSite>(request: { readonly sites: 
   return distinct.toSorted((left, right) => codePointOrder({ left: siteKey({ site: left }), right: siteKey({ site: right }) }));
 };
 
-const sitesOfFinding = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): readonly Site[] =>
+export const sitesOfFinding = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): readonly Site[] =>
   findingSitesOf({ raised: { finding: request.finding, party: NOT_REPORTED }, catalogue: request.catalogue });
 
 export const debtSitesOf = (request: { readonly catalogue: SymptomCatalogue; readonly findings: readonly Finding[] }): readonly DebtSite[] =>

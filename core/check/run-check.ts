@@ -271,7 +271,7 @@ const mechanismRunOf = (request: {
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 
-const mechanismRuns = async (request: {
+export const mechanismRuns = async (request: {
   readonly check: CheckRequest;
   readonly tree: CheckedTree;
   readonly inputs: LoadedInputs;
@@ -284,7 +284,7 @@ const mechanismRuns = async (request: {
     ),
   });
 
-const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readonly Finding[] =>
+export const findingsOf = (request: { readonly runs: readonly MechanismRun[] }): readonly Finding[] =>
   request.runs.flatMap((run) => run.hits.map((hit) => ({ ...hit, mechanism: run.mechanism })));
 
 const remediedFindingsOf = (request: {
