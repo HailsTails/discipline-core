@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type ClauseAddress, clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
-import { checkAddressOf, checkAt, checksOf } from "./check-address.ts";
+import { checkAddressOf, checkAt, checkOfSymptomAt, checksOf } from "./check-address.ts";
 import type { Check, Engine, Principle, Recipe, RecordKind, Symptom, SymptomCatalogue } from "./symptom-catalogue.ts";
 
 const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
@@ -113,6 +113,27 @@ describe("checkAt", () => {
     { name: "an address without a check name", address: "loop-keyword" },
   ])("finds nothing at $name", ({ address }) => {
     expect(checkAt({ catalogue: CATALOGUE, address })).toEqual({ found: "none" });
+  });
+});
+
+describe("checkOfSymptomAt", () => {
+  type SiteRow = { readonly name: string; readonly clause: ClauseAddress; readonly symptom: Symptom; readonly check: Check };
+
+  it.each<SiteRow>([
+    { name: "a clause that sees one symptom", clause: LOOPS_CLAUSE, symptom: LOOP_KEYWORD, check: LOOP_KEYWORD_LOOPS },
+    { name: "a clause that sees the symptom by one of its forms", clause: TEST_BODY_CLAUSE, symptom: REBINDING, check: REBINDING_TEST_BODY },
+    { name: "a clause that sees the symptom by another of its forms", clause: TEST_BODY_CLAUSE, symptom: LOOP_KEYWORD, check: LOOP_KEYWORD_TEST_BODY },
+  ])("finds the check that sees the symptom on $name at the engine's mechanism", ({ clause, symptom, check }) => {
+    expect(checkOfSymptomAt({ catalogue: CATALOGUE, clause, symptom, mechanism: WALKER.mechanism })).toEqual({ found: "check", check });
+  });
+
+  it.each<{ readonly name: string; readonly clause: ClauseAddress; readonly symptom: Symptom; readonly mechanism: Engine["mechanism"] }>([
+    { name: "a mechanism no engine of the clause's checks runs on", clause: LOOPS_CLAUSE, symptom: LOOP_KEYWORD, mechanism: mechanismIdSchema.parse("eslint") },
+    { name: "a judgement clause, which sees a symptom but has no check", clause: LAYERING_CLAUSE, symptom: REBINDING, mechanism: WALKER.mechanism },
+    { name: "a symptom the clause's checks do not see", clause: LOOPS_CLAUSE, symptom: REBINDING, mechanism: WALKER.mechanism },
+    { name: "a team rule set's clause of the same id as one of Hone's", clause: clauseAddressSchema.parse("team/CD-15#loops"), symptom: LOOP_KEYWORD, mechanism: WALKER.mechanism },
+  ])("finds nothing at $name", ({ clause, symptom, mechanism }) => {
+    expect(checkOfSymptomAt({ catalogue: CATALOGUE, clause, symptom, mechanism })).toEqual({ found: "none" });
   });
 });
 

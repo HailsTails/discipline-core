@@ -10,7 +10,7 @@ const FILE_A = repoPathSchema.parse("src/a.ts");
 
 const STATED_DEBT: PlacedRecord = {
   place: { file: repoPathSchema.parse("hone-records/debt/claimed-type.json"), index: 0 },
-  record: { kind: "debt", symptom: CLAIMED_TYPE, file: FILE_A, holding: { held: "stated" } },
+  record: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "whole-symptom" }, file: FILE_A, holding: { held: "stated" } },
 };
 
 const CARRIED_LOCATION: PlacedRecord = {
@@ -18,6 +18,7 @@ const CARRIED_LOCATION: PlacedRecord = {
   record: {
     kind: "authorised-location",
     symptom: CLAIMED_TYPE,
+    reach: { reaches: "whole-symptom" },
     file: FILE_A,
     holding: { held: "carried", entry: { reason: "Kept." }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
   },

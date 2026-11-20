@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Case, Principle, Recipe, RecordKind, Rule, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Case, Check, Principle, Recipe, RecordKind, Rule, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { RecordsAtBase } from "./hone-record.ts";
+import type { RecordsAtBase, SymptomReach } from "./hone-record.ts";
 import { owedBy, recordOf } from "./record-resolution.ts";
 
 const THE_TYPE_CHECKER_PROVES_IT: Principle = { name: "the-type-checker-proves-it", title: "The type checker proves it" };
@@ -85,6 +86,12 @@ const DOUBLE_WITH_A_BODY: Symptom = {
   correctUses: [],
 };
 
+const CAST_CHECK: Check = { name: "cast-expressions", symptom: CLAIMED_TYPE, clause: clauseAddressSchema.parse("CD-2#cast-expressions"), engines: [], forms: [] };
+
+const TEST_BODY_CHECK: Check = { name: "test-body", symptom: BRANCH_IN_A_TEST, clause: clauseAddressSchema.parse("CD-27#test-body-logic"), engines: [], forms: ["branching-with-if"] };
+
+const WHOLE_SYMPTOM: SymptomReach = { reaches: "whole-symptom" };
+
 const CATALOGUE: SymptomCatalogue = {
   principles: [THE_TYPE_CHECKER_PROVES_IT, TESTS_ARE_OURS],
   rules: [DECLARED_NOT_ASSERTED, STRAIGHT_THROUGH_TESTS, WRITTEN_OUT_ANSWERS],
@@ -95,7 +102,7 @@ const CATALOGUE: SymptomCatalogue = {
   engines: [],
   symptoms: [CLAIMED_TYPE, TEXT_PAST_ITS_READER, BRANCH_IN_A_TEST, DOUBLE_WITH_A_BODY],
   clauses: [],
-  checks: [],
+  checks: [CAST_CHECK, TEST_BODY_CHECK],
   namedBans: [{ outsideDependency: "lodash" }],
 };
 
@@ -176,7 +183,7 @@ describe("recordOf, debt", () => {
   it("reads the plan's debt record, which states the symptom and the site and nothing more", () => {
     expect(
       recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts" } }),
-    ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, file: "src/orders/charge-order.test.ts", holding: { held: "stated" } } });
+    ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, reach: WHOLE_SYMPTOM, file: "src/orders/charge-order.test.ts", holding: { held: "stated" } } });
   });
 
   it("keeps a debt record's optional note", () => {
@@ -190,7 +197,7 @@ describe("recordOf, debt", () => {
       }),
     ).toEqual({
       outcome: "ok",
-      value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, file: "src/orders/charge-order.test.ts", note: "paid with the orders rewrite", holding: { held: "stated" } },
+      value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, reach: WHOLE_SYMPTOM, file: "src/orders/charge-order.test.ts", note: "paid with the orders rewrite", holding: { held: "stated" } },
     });
   });
 
@@ -202,7 +209,7 @@ describe("recordOf, debt", () => {
   ])("accepts debt on $symptom.name, since every symptom accepts debt", ({ symptom, file }) => {
     expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file, filedUnder: { kind: "debt" }, entry: { symptom: symptom.name, file: "src/held.ts" } })).toEqual({
       outcome: "ok",
-      value: { kind: "debt", symptom, file: "src/held.ts", holding: { held: "stated" } },
+      value: { kind: "debt", symptom, reach: WHOLE_SYMPTOM, file: "src/held.ts", holding: { held: "stated" } },
     });
   });
 
@@ -236,6 +243,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
       },
@@ -256,6 +264,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: BRANCH_IN_A_TEST,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: {
           held: "stated",
@@ -274,6 +283,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: {
           held: "stated",
@@ -292,6 +302,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: {
           held: "stated",
@@ -313,6 +324,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: { held: "stated", owing: { matches: "not-the-catalogue", note }, whyChain: WHY_CHAIN },
       },
@@ -339,6 +351,7 @@ describe("recordOf, authorised locations", () => {
       value: {
         kind: "authorised-location",
         symptom: TEXT_PAST_ITS_READER,
+        reach: WHOLE_SYMPTOM,
         file: "src/orders/charge-order.test.ts",
         holding: {
           held: "stated",
@@ -359,6 +372,148 @@ describe("recordOf, authorised locations", () => {
         entry: { ...STATED_AUTHORISED_LOCATION, whyChain: { ...WHY_CHAIN, readback: "It is needed here." } },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "form-refused", issues: expect.arrayContaining([expect.objectContaining({ path: ["whyChain", "readback"] })]) }] });
+  });
+});
+
+describe("recordOf, a record naming one check of its symptom", () => {
+  const DEBT_ON_CLAIMED_TYPE_FILE = repoPathSchema.parse("hone-records/debt/claimed-type.json");
+
+  it("reads debt on <symptom>#<check> as reaching that check, filed in its symptom's file", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEBT_ON_CLAIMED_TYPE_FILE,
+        filedUnder: { kind: "debt" },
+        entry: { symptom: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: { kind: "debt", symptom: CLAIMED_TYPE, reach: { reaches: "one-check", check: CAST_CHECK }, file: "src/adapters/stripe-webhook.ts", holding: { held: "stated" } },
+    });
+  });
+
+  it("reads an authorised location on <symptom>#<check> as reaching that check, filed in its symptom's file", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: AUTHORISED_FILE,
+        filedUnder: { kind: "authorised-locations" },
+        entry: { ...STATED_AUTHORISED_LOCATION, symptom: "claimed-type#cast-expressions" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        reach: { reaches: "one-check", check: CAST_CHECK },
+        file: "src/adapters/stripe-webhook.ts",
+        holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
+      },
+    });
+  });
+
+  it("reads a carried authorised location on <symptom>#<check> as reaching that check", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: AUTHORISED_FILE,
+        filedUnder: { kind: "authorised-locations" },
+        entry: { ...CARRIED_AUTHORISED_LOCATION, symptom: "claimed-type#cast-expressions" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        reach: { reaches: "one-check", check: CAST_CHECK },
+        file: "src/adapters/stripe-webhook.ts",
+        holding: { held: "carried", entry: CARRIED_ENTRY, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
+      },
+    });
+  });
+
+  it.each([
+    { name: "a check the catalogue does not hold", symptom: "claimed-type#non-null-assertions", check: "non-null-assertions" },
+    { name: "another symptom's check", symptom: "claimed-type#test-body", check: "test-body" },
+  ])("refuses debt naming $name for its symptom", ({ symptom, check }) => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEBT_ON_CLAIMED_TYPE_FILE,
+        filedUnder: { kind: "debt" },
+        entry: { symptom, file: "src/adapters/stripe-webhook.ts" },
+      }),
+    ).toEqual({ outcome: "failed", error: [{ kind: "unknown-check", symptom: "claimed-type", check }] });
+  });
+
+  it("accepts an authorised location naming a check its symptom does not have, reaching that unknown check and no other", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: AUTHORISED_FILE,
+        filedUnder: { kind: "authorised-locations" },
+        entry: { ...STATED_AUTHORISED_LOCATION, symptom: "claimed-type#non-null-assertions" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        reach: { reaches: "unknown-check", check: "non-null-assertions" },
+        file: "src/adapters/stripe-webhook.ts",
+        holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
+      },
+    });
+  });
+
+  it("accepts a carried authorised location naming another symptom's check, reaching that unknown check and no other", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: AUTHORISED_FILE,
+        filedUnder: { kind: "authorised-locations" },
+        entry: { ...CARRIED_AUTHORISED_LOCATION, symptom: "claimed-type#test-body" },
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        kind: "authorised-location",
+        symptom: CLAIMED_TYPE,
+        reach: { reaches: "unknown-check", check: "test-body" },
+        file: "src/adapters/stripe-webhook.ts",
+        holding: { held: "carried", entry: CARRIED_ENTRY, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
+      },
+    });
+  });
+
+  it("refuses debt naming a check filed in another symptom's file, naming its symptom's file", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: DEBT_FILE,
+        filedUnder: { kind: "debt" },
+        entry: { symptom: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
+      }),
+    ).toEqual({ outcome: "failed", error: [{ kind: "misplaced", belongsIn: "hone-records/debt/claimed-type.json" }] });
+  });
+
+  it("refuses debt naming a check of a symptom the catalogue does not hold by its symptom alone", () => {
+    expect(
+      recordOf({
+        catalogue: CATALOGUE,
+        base: UNMEASURED,
+        file: repoPathSchema.parse("hone-records/debt/unheard-of.json"),
+        filedUnder: { kind: "debt" },
+        entry: { symptom: "unheard-of#cast-expressions", file: "src/held.ts" },
+      }),
+    ).toEqual({ outcome: "failed", error: [{ kind: "unknown-symptom", symptom: "unheard-of" }] });
   });
 });
 
@@ -401,6 +556,7 @@ describe("recordOf, carried records", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: { held: "carried", entry: CARRIED_ENTRY, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
       },
@@ -421,6 +577,7 @@ describe("recordOf, carried records", () => {
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/adapters/stripe-webhook.ts",
         holding: { held: "carried", entry: CARRIED_ENTRY, lacks: ["case", "owes", "whyChain"], standing: "established" },
       },
@@ -466,7 +623,7 @@ describe("recordOf, carried records", () => {
       }),
     ).toEqual({
       outcome: "ok",
-      value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, file: "src/orders/charge-order.test.ts", holding: { held: "carried", entry, lacks: [], standing: "unjudged" } },
+      value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, reach: WHOLE_SYMPTOM, file: "src/orders/charge-order.test.ts", holding: { held: "carried", entry, lacks: [], standing: "unjudged" } },
     });
   });
 });
@@ -785,7 +942,7 @@ describe("recordOf, a named ban refuses no debt and no authorised location", () 
         filedUnder: { kind: "debt" },
         entry: { symptom: "claimed-type", file: "src/collections/lodash-grouping.ts" },
       }),
-    ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: CLAIMED_TYPE, file: "src/collections/lodash-grouping.ts", holding: { held: "stated" } } });
+    ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/collections/lodash-grouping.ts", holding: { held: "stated" } } });
   });
 
   it("accepts an authorised location at a site that uses a named ban", () => {
@@ -802,6 +959,7 @@ describe("recordOf, a named ban refuses no debt and no authorised location", () 
       value: {
         kind: "authorised-location",
         symptom: CLAIMED_TYPE,
+        reach: WHOLE_SYMPTOM,
         file: "src/collections/lodash-grouping.ts",
         holding: { held: "stated", owing: { matches: "the-catalogue", case: GIVES_A_VALUE_ITS_TYPE, owes: { kind: "rule", rule: DECLARED_NOT_ASSERTED } }, whyChain: WHY_CHAIN },
       },

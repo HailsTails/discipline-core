@@ -106,8 +106,9 @@ const made = recordsRepositoryIn({
       {
         folder: "hone-records/authorised-locations",
         name: "claimed-type.json",
-        records: [{ symptom: "claimed-type", file: "src/adapters/stripe-webhook.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
+        records: [{ symptom: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
       },
+      { folder: "hone-records/debt", name: "claimed-type.json", records: [{ symptom: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts" }] },
       { folder: "hone-records/debt", name: "text-past-its-reader.json", records: [{ symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts" }] },
       {
         folder: "hone-records/deviations",
@@ -200,6 +201,8 @@ const BOUNDARIES = repoPathSchema.parse("hone-records/boundaries.json");
 
 const DEBT = repoPathSchema.parse("hone-records/debt/text-past-its-reader.json");
 
+const DEBT_CLAIMED = repoPathSchema.parse("hone-records/debt/claimed-type.json");
+
 const DEPENDENCIES = repoPathSchema.parse("hone-records/dependencies.json");
 
 const DEVIATIONS = repoPathSchema.parse("hone-records/deviations/stub-with-vifn.json");
@@ -212,11 +215,20 @@ describe("Hone's records over a real hone-records folder with a git base, built 
       outcome: "ok",
       value: {
         records: [
-          { place: { file: AUTHORISED_CLAIMED, index: 0 }, record: { kind: "authorised-location", symptom: { name: "claimed-type" }, holding: { held: "stated", owing: { matches: "the-catalogue" } } } },
+          {
+            place: { file: AUTHORISED_CLAIMED, index: 0 },
+            record: {
+              kind: "authorised-location",
+              symptom: { name: "claimed-type" },
+              reach: { reaches: "one-check", check: { name: "unlisted-cast-site" } },
+              holding: { held: "stated", owing: { matches: "the-catalogue" } },
+            },
+          },
           { place: { file: AUTHORISED_IMPORTS, index: 0 }, record: { kind: "authorised-location", file: "src/adapters/ids.ts", holding: { held: "carried", standing: "established" } } },
           { place: { file: BOUNDARIES, index: 0 }, record: { kind: "boundary-record", outsideParty: { kind: "runtime", facility: "clock" } } },
           { place: { file: BOUNDARIES, index: 1 }, record: { kind: "boundary-record", outsideParty: { kind: "scheme-module", specifier: "node:fs" } } },
-          { place: { file: DEBT, index: 0 }, record: { kind: "debt", symptom: { name: "text-past-its-reader" } } },
+          { place: { file: DEBT_CLAIMED, index: 0 }, record: { kind: "debt", symptom: { name: "claimed-type" }, reach: { reaches: "one-check", check: { name: "unlisted-cast-site" } } } },
+          { place: { file: DEBT, index: 0 }, record: { kind: "debt", symptom: { name: "text-past-its-reader" }, reach: { reaches: "whole-symptom" } } },
           { place: { file: DEPENDENCIES, index: 0 }, record: { kind: "dependency-record", dependency: "zod" } },
           { place: { file: DEVIATIONS, index: 0 }, record: { kind: "deviation", recipe: { name: "stub-with-vifn" } } },
         ],
@@ -227,7 +239,7 @@ describe("Hone's records over a real hone-records folder with a git base, built 
     });
   });
 
-  it("answers each finding at an example's site by that record alone, leaves the rest, and lists nothing stale", () => {
+  it("answers each finding at an example's site by that record alone, leaves the rest, lists nothing stale, and lists the debt the authorised location holds as paid", () => {
     const reading = readHoneRecords({ source, catalogue, baseRevision: "HEAD" });
     assert(reading.outcome === "ok", "the records read");
     expect(answerFindings({ catalogue, records: reading.value.records, findings: FINDINGS, touched: NOTHING_TOUCHED, runs: [] })).toMatchObject({
@@ -242,7 +254,7 @@ describe("Hone's records over a real hone-records folder with a git base, built 
       ],
       stale: [],
       forfeited: [],
-      doublyHeld: [],
+      paid: [{ debt: { place: { file: DEBT_CLAIMED, index: 0 } }, answeredBy: [{ place: { file: AUTHORISED_CLAIMED, index: 0 } }] }],
       unrecorded: [],
     });
   });

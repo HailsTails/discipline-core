@@ -5,6 +5,7 @@ import type { Result } from "../values/result.ts";
 import { carriedStandingOf } from "./carried-standing.ts";
 import type {
   AuthorisedLocation,
+  AuthorisedReach,
   BoundaryRecord,
   Debt,
   DependencyRecord,
@@ -15,6 +16,7 @@ import type {
   RecordRefusal,
   RecordsAtBase,
   RuntimeFacility,
+  SymptomReach,
 } from "./hone-record.ts";
 import { banStandingOf, dependencyOf } from "./outside-dependency.ts";
 import { type NamedFolderKind, namedRecordsFileOf, type SingleFileKind } from "./records-layout.ts";
@@ -25,11 +27,16 @@ import {
   debtWireSchema,
   dependencyRecordWireSchema,
   deviationWireSchema,
+  type RecordedReach,
   statedAuthorisedLocationWireSchema,
   statedBoundaryRecordWireSchema,
 } from "./records-wire.ts";
 
 type Resolution<Value> = Result<Value, readonly RecordRefusal[]>;
+
+type RecordedSymptom = { readonly symptom: Symptom; readonly reach: AuthorisedReach };
+
+type DebtSymptom = { readonly symptom: Symptom; readonly reach: SymptomReach };
 
 export type Resolving = {
   readonly catalogue: SymptomCatalogue;
@@ -114,10 +121,48 @@ const outsidePartyOf = (request: { readonly text: string }): Resolution<OutsideP
   return resolved({ kind: "package", specifier: request.text, dependency: dependencyOf({ specifier: request.text }) });
 };
 
-const symptomFiledAt = (request: Resolving & { readonly kind: NamedFolderKind; readonly symptom: string }): Resolution<Symptom> => {
-  const symptom = symptomNamed({ catalogue: request.catalogue, name: request.symptom });
-  const placed = placedIn({ file: request.file, kind: request.kind, name: request.symptom });
-  return symptom.outcome === "failed" || placed.outcome === "failed" ? { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(placed)] } : symptom;
+const checkReachOf = (request: { readonly catalogue: SymptomCatalogue; readonly symptom: Symptom; readonly check: string }): AuthorisedReach => {
+  const check = request.catalogue.checks.find((candidate) => candidate.symptom.name === request.symptom.name && candidate.name === request.check);
+  return check === undefined ? { reaches: "unknown-check", check: request.check } : { reaches: "one-check", check };
+};
+
+const reachOf = (request: { readonly catalogue: SymptomCatalogue; readonly symptom: Symptom; readonly recorded: RecordedReach }): AuthorisedReach => {
+  const { recorded } = request;
+  switch (recorded.reaches) {
+    case "whole-symptom":
+      return { reaches: "whole-symptom" };
+    case "one-check":
+      return checkReachOf({ catalogue: request.catalogue, symptom: request.symptom, check: recorded.check });
+  }
+};
+
+const debtReachOf = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach }): Resolution<SymptomReach> => {
+  const { reach } = request;
+  switch (reach.reaches) {
+    case "whole-symptom":
+    case "one-check":
+      return resolved(reach);
+    case "unknown-check":
+      return refusedWith({ kind: "unknown-check", symptom: request.symptom.name, check: reach.check });
+  }
+};
+
+const symptomFiledAt = (request: Resolving & { readonly kind: NamedFolderKind; readonly recorded: RecordedReach }): Resolution<RecordedSymptom> => {
+  const symptom = symptomNamed({ catalogue: request.catalogue, name: request.recorded.symptom });
+  const placed = placedIn({ file: request.file, kind: request.kind, name: request.recorded.symptom });
+  if (symptom.outcome === "failed" || placed.outcome === "failed") {
+    return { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(placed)] };
+  }
+  return resolved({ symptom: symptom.value, reach: reachOf({ catalogue: request.catalogue, symptom: symptom.value, recorded: request.recorded }) });
+};
+
+const debtSymptomFiledAt = (request: Resolving & { readonly recorded: RecordedReach }): Resolution<DebtSymptom> => {
+  const filed = symptomFiledAt({ ...request, kind: "debt" });
+  if (filed.outcome === "failed") {
+    return filed;
+  }
+  const reach = debtReachOf(filed.value);
+  return reach.outcome === "failed" ? reach : resolved({ symptom: filed.value.symptom, reach: reach.value });
 };
 
 const debtHoldingOf = (request: Resolving & { readonly carried: z.core.util.JSONType | undefined }): Resolution<Debt["holding"]> => {
@@ -133,13 +178,13 @@ const debtOf = (request: Resolving): Resolution<Debt> => {
   if (form.outcome === "failed") {
     return form;
   }
-  const { symptom: name, file, note, carried } = form.value;
-  const symptom = symptomFiledAt({ ...request, kind: "debt", symptom: name });
+  const { symptom: recorded, file, note, carried } = form.value;
+  const symptom = debtSymptomFiledAt({ ...request, recorded });
   const holding = debtHoldingOf({ ...request, carried });
   if (symptom.outcome === "failed" || holding.outcome === "failed") {
     return { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(holding)] };
   }
-  return resolved({ kind: "debt", symptom: symptom.value, file, ...(note === undefined ? {} : { note }), holding: holding.value });
+  return resolved({ kind: "debt", ...symptom.value, file, ...(note === undefined ? {} : { note }), holding: holding.value });
 };
 
 const statedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedLocation> => {
@@ -147,13 +192,13 @@ const statedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedLo
   if (form.outcome === "failed") {
     return form;
   }
-  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", symptom: form.value.symptom });
+  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.symptom });
   if (symptom.outcome === "failed") {
     return symptom;
   }
   return resolved({
     kind: "authorised-location",
-    symptom: symptom.value,
+    ...symptom.value,
     file: form.value.file,
     holding: { held: "stated", owing: owedBy({ catalogue: request.catalogue, case: form.value.case, owes: form.value.owes }), whyChain: form.value.whyChain },
   });
@@ -164,14 +209,14 @@ const carriedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedL
   if (form.outcome === "failed") {
     return form;
   }
-  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", symptom: form.value.symptom });
+  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.symptom });
   const standing = carriedStandingOf(request);
   if (symptom.outcome === "failed" || standing.outcome === "failed") {
     return { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(standing)] };
   }
   return resolved({
     kind: "authorised-location",
-    symptom: symptom.value,
+    ...symptom.value,
     file: form.value.file,
     holding: { held: "carried", entry: form.value.carried, lacks: ["case", "owes", "whyChain"], standing: standing.value },
   });
