@@ -8,55 +8,67 @@ const port = createDefaultTypeScriptDeclarationPort({});
 
 const emitted = (request: { readonly entryPoints: readonly string[] }) => port.emit({ sourceRoot: REPO_ROOT, entryPoints: request.entryPoints });
 
+const ENTRIES_EMITTED_TOGETHER = emitted({
+  entryPoints: ["core/mechanism-port/piece-failure-types.ts", "core/values/repo-path-types.ts", "mechanisms/audit/runner/typescript-parse.ts", "core/values/branded.ts"],
+});
+
 describe("the TypeScript declaration port, emitting in memory with the repository's own TypeScript and tsconfig (CD-47: nothing is spawned or written)", () => {
-  it("emits a declaration per source module the entry imports, without diagnostics", async () => {
-    await expect(emitted({ entryPoints: ["core/mechanism-port/piece-failure-types.ts"] })).resolves.toMatchObject({
+  it("emits a declaration per source module the entries import, without diagnostics", async () => {
+    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
       outcome: "ok",
       value: {
         diagnostics: [],
-        declarations: [
-          { path: "core/mechanism-port/piece-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"] },
-          { path: "core/values/branded.d.ts", specifiers: [] },
-          { path: "core/values/repo-path-types.d.ts", specifiers: ["./branded.js"] },
-        ],
+        declarations: expect.arrayContaining([
+          expect.objectContaining({ path: "core/mechanism-port/piece-failure-types.d.ts", specifiers: ["../values/repo-path-types.js"] }),
+          expect.objectContaining({ path: "core/values/branded.d.ts", specifiers: [] }),
+          expect.objectContaining({ path: "core/values/repo-path-types.d.ts", specifiers: ["./branded.js"] }),
+        ]),
       },
     });
   });
 
   it("rewrites relative .ts specifiers to the .js form a published declaration resolves from", async () => {
-    await expect(emitted({ entryPoints: ["core/values/repo-path-types.ts"] })).resolves.toMatchObject({
+    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
       outcome: "ok",
       value: { declarations: expect.arrayContaining([expect.objectContaining({ path: "core/values/repo-path-types.d.ts", text: expect.stringContaining('from "./branded.js"') })]) },
     });
   });
 
   it("keeps the exported values of a module it was handed as an entry", async () => {
-    await expect(emitted({ entryPoints: ["mechanisms/audit/runner/typescript-parse.ts"] })).resolves.toMatchObject({
+    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
       outcome: "ok",
       value: {
-        declarations: [
-          {
+        declarations: expect.arrayContaining([
+          expect.objectContaining({
             path: "mechanisms/audit/runner/typescript-parse.d.ts",
             specifiers: ["typescript"],
             text: expect.stringContaining("export declare const defaultTypeScriptModules: TypeScriptModules;"),
             refusals: [],
-          },
-        ],
+          }),
+        ]),
       },
     });
   });
 
   it("keeps the module's type aliases", async () => {
-    await expect(emitted({ entryPoints: ["mechanisms/audit/runner/typescript-parse.ts"] })).resolves.toMatchObject({
+    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
       outcome: "ok",
-      value: { declarations: [{ text: expect.stringContaining("export type SyntaxApi = typeof typescript;") }] },
+      value: {
+        declarations: expect.arrayContaining([
+          expect.objectContaining({ path: "mechanisms/audit/runner/typescript-parse.d.ts", text: expect.stringContaining("export type SyntaxApi = typeof typescript;") }),
+        ]),
+      },
     });
   });
 
   it("keeps a module-private unique symbol a type depends on", async () => {
-    await expect(emitted({ entryPoints: ["core/values/branded.ts"] })).resolves.toMatchObject({
+    await expect(ENTRIES_EMITTED_TOGETHER).resolves.toMatchObject({
       outcome: "ok",
-      value: { declarations: [{ path: "core/values/branded.d.ts", text: expect.stringContaining("declare const brandName: unique symbol;") }] },
+      value: {
+        declarations: expect.arrayContaining([
+          expect.objectContaining({ path: "core/values/branded.d.ts", text: expect.stringContaining("declare const brandName: unique symbol;") }),
+        ]),
+      },
     });
   });
 

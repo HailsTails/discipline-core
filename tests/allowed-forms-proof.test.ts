@@ -24,24 +24,23 @@ const SECTIONS = [
 describe("typeErrorsOf", () => {
   it("reports reading an indexed element that may be missing, as noUncheckedIndexedAccess types it", () => {
     expect(
-      typeErrorsOf({ syntaxApi: SYNTAX_API, repoRoot: REPO_ROOT, source: "declare const rows: readonly { readonly id: string }[];\nexpect(rows[0].id).toBe(\"a\");\n" }),
-    ).toEqual(["Object is possibly 'undefined'."]);
-  });
-
-  it("accepts the element once assert.isDefined has narrowed it", () => {
-    expect(
       typeErrorsOf({
         syntaxApi: SYNTAX_API,
         repoRoot: REPO_ROOT,
-        source: "declare const rows: readonly { readonly id: string }[];\nconst [first] = rows;\nassert.isDefined(first);\nexpect(first.id).toBe(\"a\");\n",
+        blocks: [
+          { name: "indexed", source: "declare const rows: readonly { readonly id: string }[];\nexpect(rows[0].id).toBe(\"a\");\n" },
+          {
+            name: "narrowed",
+            source: "declare const rows: readonly { readonly id: string }[];\nconst [first] = rows;\nassert.isDefined(first);\nexpect(first.id).toBe(\"a\");\n",
+          },
+          { name: "optional", source: "const options: { readonly limit?: number } = { limit: undefined };\nexpect(options).toEqual({});\n" },
+        ],
       }),
-    ).toEqual([]);
-  });
-
-  it("reports an optional property given undefined, as exactOptionalPropertyTypes types it", () => {
-    expect(
-      typeErrorsOf({ syntaxApi: SYNTAX_API, repoRoot: REPO_ROOT, source: "const options: { readonly limit?: number } = { limit: undefined };\nexpect(options).toEqual({});\n" }),
-    ).toHaveLength(1);
+    ).toEqual([
+      { name: "indexed", errors: ["Object is possibly 'undefined'."] },
+      { name: "narrowed", errors: [] },
+      { name: "optional", errors: [expect.any(String)] },
+    ]);
   });
 });
 

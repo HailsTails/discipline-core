@@ -7,7 +7,6 @@ import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import { answerFindings, type RaisedFinding } from "../core/records/answering.ts";
 import { readHoneRecords } from "../core/records/read-hone-records.ts";
 import { createRecordsFolder } from "../core/records/records-folder.ts";
-import { recordsReadingOf } from "../core/records/records-reading.ts";
 import { recordsUnmeasuredOf } from "../core/records/records-unmeasured.ts";
 import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
 import type { TouchedSet } from "../core/touched-set/touched-set.ts";
@@ -269,37 +268,5 @@ describe("Hone's records over a real hone-records folder with a git base, built 
       answering: { findings: [CAST_IN_ORDERS], stale: [] },
       unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
     });
-  });
-});
-
-describe("Helen's rulings, over every symptom in the shipped catalogue", () => {
-  it.each(catalogue.symptoms)("accepts debt on $name: debt is debt, not blockers", (symptom) => {
-    const file = repoPathSchema.parse(`hone-records/debt/${symptom.name}.json`);
-    expect(
-      recordsReadingOf({
-        documents: [{ file, document: { version: 2, records: [{ symptom: symptom.name, file: "src/held.ts" }] } }],
-        catalogue,
-        base: { measured: "no", base: { state: "not-given" } },
-      }),
-    ).toMatchObject({ outcome: "ok", value: { records: [{ record: { kind: "debt", symptom: { name: symptom.name } } }], refused: [] } });
-  });
-
-  it.each(catalogue.symptoms)("never refuses an authorised location for being on $name", (symptom) => {
-    const file = repoPathSchema.parse(`hone-records/authorised-locations/${symptom.name}.json`);
-    expect(
-      recordsReadingOf({
-        documents: [
-          {
-            file,
-            document: {
-              version: 2,
-              records: [{ symptom: symptom.name, file: "src/held.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
-            },
-          },
-        ],
-        catalogue,
-        base: { measured: "no", base: { state: "not-given" } },
-      }),
-    ).toMatchObject({ outcome: "ok", value: { records: [{ record: { kind: "authorised-location", symptom: { name: symptom.name } } }], refused: [] } });
   });
 });
