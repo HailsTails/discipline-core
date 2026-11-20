@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
-import { loadRunner, runCheck } from "../../../core/check/run-check.ts";
+import { runCheck } from "../../../core/check/run-check.ts";
+import { loadRunner } from "../../../core/mechanism-port/load-runner.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { LoadedRunner, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
