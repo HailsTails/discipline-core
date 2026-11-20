@@ -58,7 +58,6 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
             records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
           },
         ],
-       
       },
     });
   });
@@ -76,7 +75,12 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           },
         ],
       }),
-    ).toMatchObject({ outcome: "ok", value: { documents: [{ records: [{ symptom: "loop-keyword#loops", file: "src/a.ts" }] }] } });
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts" }] }],
+      },
+    });
   });
 
   it("writes one debt for a check that answered the carve-out twice", () => {
@@ -92,7 +96,18 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           },
         ],
       }),
-    ).toMatchObject({ outcome: "ok", value: { documents: [{ records: [{ symptom: "loop-keyword#loops" }] }] } });
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [
+          {
+            file: "hone-records/debt/loop-keyword.json",
+            version: 2,
+            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
+          },
+        ],
+      },
+    });
   });
 
   it("writes a debt for each distinct check the carve-out answered, in the file of that check's symptom", () => {
@@ -108,12 +123,20 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           },
         ],
       }),
-    ).toMatchObject({
+    ).toEqual({
       outcome: "ok",
       value: {
         documents: [
-          { file: "hone-records/debt/loop-keyword.json", records: [{ symptom: "loop-keyword#loops" }] },
-          { file: "hone-records/debt/rebinding.json", records: [{ symptom: "rebinding#test-body" }] },
+          {
+            file: "hone-records/debt/loop-keyword.json",
+            version: 2,
+            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy" }],
+          },
+          {
+            file: "hone-records/debt/rebinding.json",
+            version: 2,
+            records: [{ symptom: "rebinding#test-body", file: "src/a.ts", note: "legacy" }],
+          },
         ],
       },
     });
@@ -150,7 +173,6 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             ],
           },
         ],
-       
       },
     });
   });
@@ -168,13 +190,19 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
           },
         ],
       }),
-    ).toMatchObject({
+    ).toEqual({
       outcome: "ok",
       value: {
         documents: [
           {
+            file: "hone-records/debt/loop-keyword.json",
+            version: 2,
             records: [
-              { carried: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", provenance: PROVENANCE } },
+              {
+                symptom: "loop-keyword#loops",
+                file: "src/a.ts",
+                carried: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", provenance: PROVENANCE },
+              },
             ],
           },
         ],
@@ -210,7 +238,6 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }],
           },
         ],
-       
       },
     });
   });
@@ -229,7 +256,18 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
           },
         ],
       }),
-    ).toMatchObject({ outcome: "ok", value: { documents: [{ records: [{ symptom: "loop-keyword#loops", carried: entry }] }] } });
+    ).toEqual({
+      outcome: "ok",
+      value: {
+        documents: [
+          {
+            file: "hone-records/authorised-locations/loop-keyword.json",
+            version: 2,
+            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: entry }],
+          },
+        ],
+      },
+    });
   });
 });
 
@@ -302,6 +340,24 @@ describe("mappedRecords refusing what carries over to nothing", () => {
   });
 });
 
+describe("mappedRecords refusing a symptom name that cannot name a records file", () => {
+  it("refuses an authorised location at a check whose symptom name is not a records name, naming it", () => {
+    const check: Check = { ...LOOP_KEYWORD_LOOPS, symptom: { ...LOOP_KEYWORD_LOOPS.symptom, name: "Bad Name" } };
+    expect(
+      mappedRecords({
+        catalogues: [{ ruleSet: "hone", catalogue: { ...SETTINGS_CATALOGUE, checks: [check] } }],
+        inputs: [
+          {
+            kind: "authorised-location",
+            record: { kind: "authorised-location", clause: LOOPS_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "ported" },
+            entry: { kind: "authorised-location", clause: "CD-15#loops", file: "src/a.ts", reason: "ported" },
+          },
+        ],
+      }),
+    ).toEqual({ outcome: "failed", error: [{ kind: "records-name-refused", name: "Bad Name" }] });
+  });
+});
+
 describe("mappedRecords ordering", () => {
   it("sorts the documents by file and keeps the records of a file in the order they came", () => {
     expect(
@@ -328,18 +384,19 @@ describe("mappedRecords ordering", () => {
           },
         ],
       }),
-    ).toMatchObject({
+    ).toEqual({
       outcome: "ok",
       value: {
         documents: [
           {
             file: "hone-records/debt/loop-keyword.json",
+            version: 2,
             records: [
               { symptom: "loop-keyword#loops", file: "src/b.ts" },
               { symptom: "loop-keyword#loops", file: "src/a.ts" },
             ],
           },
-          { file: "hone-records/debt/rebinding.json", records: [{ symptom: "rebinding#test-body", file: "src/b.ts" }] },
+          { file: "hone-records/debt/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/b.ts" }] },
         ],
       },
     });

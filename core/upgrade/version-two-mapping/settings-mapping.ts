@@ -4,7 +4,7 @@ import { DEFAULT_CONVENTIONS } from "../../settings/conventions.ts";
 import type { ListedAddress } from "../../settings/listed-address.ts";
 import {
   type CheckState,
-  type EslintConfigLookupChoice,
+  eslintConfigLookupOf,
   type GivenCheckSettings,
   type ListedCheck,
   RENAMED_SETTINGS,
@@ -13,7 +13,6 @@ import {
 import { checkAddressOf } from "../../symptom-catalogue/check-address.ts";
 import type { Check } from "../../symptom-catalogue/symptom-catalogue.ts";
 import { type ClauseAddress, clauseAddressText, sameClauseAddress } from "../../values/clause-address.ts";
-import type { EslintConfigLookup } from "../../values/eslint-config-lookup.ts";
 import type { Result } from "../../values/result.ts";
 import type { ClauseChoice, ConsumerSelectionFile } from "../../consumer-selection/selection-file.ts";
 import { checksOfClause } from "./clause-checks.ts";
@@ -94,9 +93,6 @@ const givenSettingsOf = (request: {
       ({ address }) => ({ address, values: renamedValuesOf({ values }) }),
     ),
   );
-
-const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
-  request.declared === undefined ? { lookup: "detected" } : { lookup: "declared", value: request.declared };
 
 const rootsRefusalsOf = (request: { readonly selection: ConsumerSelectionFile }): readonly UpgradeRefusal[] =>
   request.selection.eslintConfigRoots.length === 0 ? [] : [{ kind: "eslint-config-roots", roots: request.selection.eslintConfigRoots }];

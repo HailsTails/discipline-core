@@ -12,10 +12,7 @@ describe("checksOfClause", () => {
   });
 
   it("finds each check of a clause that has two", () => {
-    expect(checksOfClause({ catalogues: CATALOGUES, clause: TEST_BODY_CLAUSE })).toMatchObject([
-      { name: "test-body", symptom: { name: "loop-keyword" } },
-      { name: "test-body", symptom: { name: "rebinding" } },
-    ]);
+    expect(checksOfClause({ catalogues: CATALOGUES, clause: TEST_BODY_CLAUSE })).toEqual([SETTINGS_CATALOGUE.checks[1], SETTINGS_CATALOGUE.checks[2]]);
   });
 
   it("finds nothing for a clause that has no check", () => {
