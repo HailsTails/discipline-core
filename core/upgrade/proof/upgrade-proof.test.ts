@@ -18,7 +18,7 @@ import type { CheckReport } from "../../verdict/check-report.ts";
 import type { CarveOutOracle, FileCarveOutRecord } from "../carve-out-oracle/carve-out-oracle.ts";
 import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { type ProofRuns, upgradeProof, type UpgradeProofRequest } from "./upgrade-proof.ts";
-import type { ProjectionTextOf, VersionOneReading } from "./upgrade-plan.ts";
+import type { ProjectionFilesOf, VersionOneReading } from "./upgrade-plan.ts";
 
 const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
 
@@ -176,8 +176,7 @@ const requestOver = (request: { readonly doubles: Doubles }): UpgradeProofReques
   },
   catalogues: CATALOGUES,
   repoRoot: REPO,
-  versionTwoProjection: repoPathSchema.parse("hone.eslint.mjs"),
-  projectionTextOf: vi.fn<ProjectionTextOf>().mockReturnValue("projection text"),
+  projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: [{ file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" }] }),
 });
 
 const sequenceOf = (request: { readonly doubles: Doubles }) =>

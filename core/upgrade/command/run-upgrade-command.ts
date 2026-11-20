@@ -14,29 +14,22 @@ import { type RepositoryLocated, repositoryLocatedOf, stagesOverRepository, type
 import { versionTwoRunOver } from "../../run/version-two-run.ts";
 import { assessmentInEffect } from "../../values/assessment.ts";
 import { moduleExtensionOf } from "../../values/install-layout.ts";
-import type { RepoPath } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
 import { createAnsweringOracle } from "../carve-out-oracle/answering-oracle.ts";
 import { createVersionOneEnginePass } from "../engine-pass/version-one-engine-pass.ts";
-import type { ProjectionTextOf } from "../proof/upgrade-plan.ts";
 import { type UpgradeProofRequest, upgradeProof } from "../proof/upgrade-proof.ts";
+import { plannedProjectionOf } from "./planned-projection.ts";
 import { proofRunsOf } from "./proof-runs.ts";
 import { shippedCataloguesOf } from "./shipped-catalogues.ts";
 import { type UpgradeFailureOutcome, upgradeFailureOutcomeOf } from "./upgrade-refusal-text.ts";
 import { ALREADY_ON_VERSION_TWO, upgradeSuccessOutcomeOf } from "./upgrade-success-text.ts";
 import { type VersionOneRead, versionOneReadOf } from "./version-one-reading.ts";
 
-export type ProjectionSupply = {
-  readonly versionTwoProjection: RepoPath;
-  readonly projectionTextOf: ProjectionTextOf;
-};
-
 export type UpgradePorts = VersionTwoRepositoryPorts & {
   readonly fileCreation: FileCreationPort;
   readonly fileRemoval: FileRemovalPort;
   readonly directoryRemoval: DirectoryRemovalPort;
   readonly entryKind: EntryKindPort;
-  readonly projection: ProjectionSupply;
 };
 
 type Located = RepositoryLocated & { readonly arguments: UpgradeArguments };
@@ -146,8 +139,7 @@ const proofRequestOf = (request: {
     versionOneFiles: prepared.read.versionOneFiles,
     catalogues: prepared.catalogues,
     repoRoot: located.repoRoot,
-    versionTwoProjection: ports.projection.versionTwoProjection,
-    projectionTextOf: ports.projection.projectionTextOf,
+    projectionFilesOf: plannedProjectionOf({ command, repoRoot: located.repoRoot, installRoot: located.installRoot }),
   };
 };
 

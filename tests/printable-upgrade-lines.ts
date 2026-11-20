@@ -54,6 +54,8 @@ const SAMPLES: readonly Sample[] = [
     },
     fills: { roots: "packages/a, packages/b", check: "loop-keyword#loops", mechanism: "eslint", engines: "eslint or oxlint", name: "Not A Name" },
   },
+  { failure: { kind: "plan-refused", refusal: { kind: "projection-failed", detail: "the detail" } }, fills: {} },
+  { failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } }, fills: { count: "0" } },
   { failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] } }, fills: { records: "loop-keyword#loops in src/b.ts" } },
   { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: CONFIG } } }, fills: {} },
   { failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "several-projection-imports", file: CONFIG, count: 2 } } }, fills: { count: "2" } },

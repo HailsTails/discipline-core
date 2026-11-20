@@ -568,6 +568,8 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `the file carve-out for <clause> in <file> answers only a suppression. Remove it, or fix the file it names, then run the upgrade again.` |
 | `upgrade` | `<clause> carries a clause-wide carve-out, which version 2 has no record for. Replace it with file carve-outs first.` |
 | `upgrade` | `<name> is not a name version 2 can file records under.` |
+| `upgrade` | `version 2's projection could not be made (<detail>). Fix what it names, then run the upgrade again.` |
+| `upgrade` | `version 2 projected <count> files, and the team config can import exactly one. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the version 2 records would reach beyond the version 1 entries: <records>.` |
 | `upgrade` | `<config file> holds no static default import of the version 1 projection. Make its import of it a static relative default import.` |
 | `upgrade` | `<config file> imports the version 1 projection <count> times. Import it once.` |

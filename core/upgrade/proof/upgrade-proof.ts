@@ -9,7 +9,7 @@ import type { CarveOutOracle, OracleFailure } from "../carve-out-oracle/carve-ou
 import { type ProofDifference, proofDifferencesOf } from "../proof-comparison/proof-differences.ts";
 import { type PlannedFile, type ProofWriteRefusal, type ProofWritePorts, type ProofWrites, rolledBackProofWrites, type Unrestored, writeProofFiles } from "../proof-writes/proof-writes.ts";
 import { type OutsideRoot, type Removed, type RemovalFailure, type RecordsRoot, recordsOutsideRoot, removedVersionOneFiles, type VersionOneRemoval } from "../proof-writes/version-one-removal.ts";
-import { type PlanRefusal, type PlannedRepoFile, type ProjectionTextOf, type UpgradePlan, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
+import { type PlanRefusal, type PlannedRepoFile, type ProjectionFilesOf, type UpgradePlan, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
 
 export type ProofRunFailure = { readonly kind: "run-failed"; readonly detail: string };
 
@@ -34,8 +34,7 @@ export type UpgradeProofRequest = {
   readonly versionOneFiles: VersionOneFiles;
   readonly catalogues: readonly RuleSetCatalogue[];
   readonly repoRoot: AbsolutePath;
-  readonly versionTwoProjection: RepoPath;
-  readonly projectionTextOf: ProjectionTextOf;
+  readonly projectionFilesOf: ProjectionFilesOf;
 };
 
 export type ProofCarriedOver = {
@@ -158,12 +157,11 @@ export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result
   if (answered.outcome === "failed") {
     return { outcome: "failed", error: { kind: "oracle-failed", failure: answered.error } };
   }
-  const plan = upgradePlanOf({
+  const plan = await upgradePlanOf({
     reading: request.reading,
     answered: answered.value,
     catalogues: request.catalogues,
-    versionTwoProjection: request.versionTwoProjection,
-    projectionTextOf: request.projectionTextOf,
+    projectionFilesOf: request.projectionFilesOf,
   });
   if (plan.outcome === "failed") {
     return { outcome: "failed", error: { kind: "plan-refused", refusal: plan.error } };

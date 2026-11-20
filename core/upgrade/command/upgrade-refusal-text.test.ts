@@ -42,6 +42,16 @@ const ROWS: readonly Row[] = [
     },
   },
   {
+    name: "version 2's projection cannot be made",
+    failure: { kind: "plan-refused", refusal: { kind: "projection-failed", detail: "eslint missing" } },
+    outcome: { code: 1, text: "upgrade refused:\nversion 2's projection could not be made (eslint missing). Fix what it names, then run the upgrade again.\nNothing was changed.\n" },
+  },
+  {
+    name: "version 2 projects no single file for the team config",
+    failure: { kind: "plan-refused", refusal: { kind: "projection-not-single", files: [] } },
+    outcome: { code: 1, text: `upgrade refused:\nversion 2 projected 0 files, and the team config can import exactly one. ${FAULT}\nNothing was changed.\n` },
+  },
+  {
     name: "the team config's import is not static",
     failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: repoPathSchema.parse("eslint.config.mjs") } } },
     outcome: {

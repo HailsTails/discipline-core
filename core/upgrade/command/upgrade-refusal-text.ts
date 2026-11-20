@@ -79,6 +79,10 @@ const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly strin
   switch (refusal.kind) {
     case "carve-out-unanswered":
       return [`the carve-out for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
+    case "projection-failed":
+      return [`version 2's projection could not be made (${refusal.detail}). Fix what it names, then run the upgrade again.`];
+    case "projection-not-single":
+      return [`version 2 projected ${refusal.files.length} files, and the team config can import exactly one. ${FAULT_IN_HONE}`];
     case "mapping-refused":
       return refusal.refusals.map((each) => mappingLineOf({ refusal: each }));
     case "reach-beyond-entries":

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { commandOver, memoryRepositoryOf, recordedProcessWith } from "../../../tests/command-harness.ts";
 import type { CommandRequest } from "../../check/run-check-command.ts";
 import type { GitPort } from "../../platform-ports/git-port.ts";
-import { repoPathSchema } from "../../values/repo-path.ts";
 import { alreadyUpgradedCommand, type UpgradePorts, upgradeCommandOf } from "./run-upgrade-command.ts";
 
 const PORTS: UpgradePorts = {
@@ -14,7 +13,6 @@ const PORTS: UpgradePorts = {
   fileRemoval: { remove: vi.fn() },
   directoryRemoval: { removeEmpty: vi.fn() },
   entryKind: { kindOf: vi.fn() },
-  projection: { versionTwoProjection: repoPathSchema.parse("hone.unwritten.mjs"), projectionTextOf: vi.fn() },
 };
 
 const gitFailing = (): GitPort => ({

@@ -3,7 +3,6 @@ import { createDefaultDirectoryRemovalPort } from "../platform-ports/directory-r
 import { createDefaultFileCreationPort } from "../platform-ports/file-creation-port.ts";
 import { createDefaultDirectoryPort, createDefaultEntryKindPort } from "../platform-ports/file-system-port.ts";
 import { alreadyUpgradedCommand, upgradeCommandOf } from "../upgrade/command/run-upgrade-command.ts";
-import { unwrittenProjectionSupply } from "../upgrade/command/unwritten-projection-supply.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
@@ -92,7 +91,6 @@ const upgradePorts = {
   fileRemoval: createDefaultFileRemovalPort({}),
   directoryRemoval: createDefaultDirectoryRemovalPort({}),
   entryKind: createDefaultEntryKindPort({}),
-  projection: unwrittenProjectionSupply,
 };
 
 export const TOOL_SUBCOMMANDS: Subcommands = {

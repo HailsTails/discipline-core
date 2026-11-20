@@ -391,3 +391,22 @@ Nothing must be migrated. Selections, exception records and findings still use t
 2. **Run the command it names,** then `npm run --silent hone:project` when any clause is `eslint`, and commit what they change.
 3. **Runners written outside Hone** may return `measured`, a list of `{ clause, file }` pairs, beside what they return now; [the mechanism guide](docs/adding-a-discipline-or-mechanism.md) says what a pair means. A runner that returns none has measured nothing, and its records on files that still exist stay for a person, as before.
 4. **Audit pieces written outside Hone** must answer `skipped` from `prepareFile` for a file they do not judge. Any other answer now says the piece's clauses were measured on that file, so `prune-debt` may remove a record on it; [the audit piece guide](docs/extending.md#an-audit-piece) says so.
+
+## 20. Moving from version 1 to version 2
+
+Version 2 keeps its settings in `hone.config.json`, its records in the `hone-records` folder and its native configuration in `hone.<engine>.mjs`, where version 1 kept them in `disciplines.json`, the exception records and `disciplines.<mechanism>.mjs`. `hone upgrade` moves a repository from one to the other in one run, and refuses, changing nothing, when it cannot show that version 2 reports what version 1 reported.
+
+1. **Commit or stash everything first.** The working tree is the only rollback: a refusal after files were written puts them back, and names any it could not put back so you can restore them from version control.
+2. **Make the version 1 run pass its own load.** Run `hone check` as you do today. The upgrade starts from a repository version 1 can read.
+3. **Run it:**
+
+   ```bash
+   node_modules/.bin/hone upgrade --repo .
+   ```
+
+   It asks version 1 which findings each file carve-out answers, plans the version 2 files, runs version 1, writes the version 2 files, runs version 2 and compares the two runs, and only when they agree removes the version 1 files. It prints `upgraded to version 2`, then `wrote <file>` for each file it wrote, `rewrote <file>` for your ESLint config, which now imports the version 2 projection, and `removed <path>` for each version 1 file.
+4. **Read a refusal as an instruction.** It prints `upgrade refused:`, what to do, and `Nothing was changed.`, and exits `1`. A file carve-out that answers no finding, a team config that does not import the version 1 projection with a static relative default import, a file at a path version 2 writes to, and a clause with no version 2 check each name the file or clause to fix. A refusal that says it is a fault in Hone names where to report it, with the output.
+5. **Exit `3` is not a failure to roll back.** Version 2 is in place but a version 1 file could not be removed. The output names it: delete it by hand.
+6. **Add the new files and check.** Run `git add .`, then `hone check` against the branch's base as you do today, and commit the version 2 files together with the removal of the version 1 files. A second `hone upgrade` prints `already on version 2; nothing to upgrade` and exits `0`.
+
+The upgrade carries one repository-root ESLint config. It refuses `eslintConfigRoots`, several version 1 projections, and a clause-wide carve-out, which version 2 has no record for; replace a clause-wide carve-out with file carve-outs first.
