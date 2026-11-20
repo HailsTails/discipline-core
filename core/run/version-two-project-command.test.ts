@@ -58,9 +58,15 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
-const fileTextHolding = (request: { readonly current: string | undefined }): FileTextPort => ({
-  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue(request.current === undefined ? "absent" : "present"),
-  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.current ?? "" }),
+const fileTextAbsent = (): FileTextPort => ({
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
+  read: vi.fn<FileTextPort["read"]>(),
+  write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
+});
+
+const fileTextHolding = (request: { readonly current: string }): FileTextPort => ({
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
+  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.current }),
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
@@ -79,9 +85,9 @@ const commandWith = (request: { readonly process: ProcessPort; readonly moduleUr
   moduleUrl: request.moduleUrl,
 });
 
-const ranWith = async (request: { readonly arguments: readonly string[]; readonly stagesOver: StagesOver; readonly moduleUrl: string; readonly fileText?: FileTextPort }) => {
+const ranWith = async (request: { readonly arguments: readonly string[]; readonly stagesOver: StagesOver; readonly moduleUrl: string; readonly fileText: FileTextPort }) => {
   const processPort = processWith({ arguments: request.arguments });
-  const fileText = request.fileText ?? fileTextHolding({ current: undefined });
+  const { fileText } = request;
   await versionTwoProjectCommandOf({
     gitTree: { pathsAt: vi.fn<GitTreePort["pathsAt"]>() },
     directory: { list: vi.fn<DirectoryPort["list"]>(), create: vi.fn<DirectoryPort["create"]>() },
@@ -96,7 +102,7 @@ const stagesOverProjecting = (request: { readonly projected: Awaited<ReturnType<
 
 describe("versionTwoProjectCommandOf", () => {
   it("writes each file the engines project into the repository, prints it as written, and exits 0", async () => {
-    const fileText = fileTextHolding({ current: undefined });
+    const fileText = fileTextAbsent();
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText, stagesOver: stagesOverProjecting({ projected: { outcome: "ok", value: [FILE] } }) });
     expect({ ran, written: vi.mocked(fileText.write).mock.calls }).toEqual({
       ran: { writes: [[{ text: "hone.eslint.mjs written\n" }]], exits: [[{ code: 0 }]] },
@@ -115,7 +121,7 @@ describe("versionTwoProjectCommandOf", () => {
 
   it("prints the file-unwritable line and exits 2 when a file cannot be written", async () => {
     const fileText: FileTextPort = {
-      ...fileTextHolding({ current: undefined }),
+      ...fileTextAbsent(),
       write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "failed", error: { kind: "unwritable", path: "/repo/hone.eslint.mjs", detail: "ENOSPC" } }),
     };
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText, stagesOver: stagesOverProjecting({ projected: { outcome: "ok", value: [FILE] } }) });
@@ -123,19 +129,19 @@ describe("versionTwoProjectCommandOf", () => {
   });
 
   it("prints nothing and exits 0 when no engine has a file to project", async () => {
-    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverProjecting({ projected: { outcome: "ok", value: [] } }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver: stagesOverProjecting({ projected: { outcome: "ok", value: [] } }) });
     expect(ran).toEqual({ writes: [[{ text: "" }]], exits: [[{ code: 0 }]] });
   });
 
   it("builds the stages over the repository and the install the command runs from, with no base revision", async () => {
     const stagesOver = stagesOverProjecting({ projected: { outcome: "ok", value: [] } });
-    await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver });
+    await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver });
     expect(stagesOver).toHaveBeenCalledWith(expect.objectContaining({ locations: { repoRoot: "/repo", installRoot: "/install", moduleExtension: ".ts", baseRevision: undefined } }));
   });
 
   it("prints the not-ready-yet line and exits 2 when the engine's config roots are not ready", async () => {
     const notReady: RunLoadFailure = { kind: "not-ready-yet", what: { thing: "eslint-config-roots" } };
-    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverProjecting({ projected: { outcome: "failed", error: notReady } }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver: stagesOverProjecting({ projected: { outcome: "failed", error: notReady } }) });
     expect(ran).toEqual({
       writes: [[{ text: "load failure: not-ready-yet eslint-config-roots: this release does not run eslintConfigRoots on version 2 files yet; remove it from hone.config.json to run on the repository root\n" }]],
       exits: [[{ code: 2 }]],
@@ -144,20 +150,20 @@ describe("versionTwoProjectCommandOf", () => {
 
   it("prints the failure of the engine's runner and exits 2", async () => {
     const failed: RunLoadFailure = { kind: "engine-failed", engine: { named: "engine", engine: ESLINT_ENGINE }, failure: { kind: "tool-failed", detail: "disk full" } };
-    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], stagesOver: stagesOverProjecting({ projected: { outcome: "failed", error: failed } }) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver: stagesOverProjecting({ projected: { outcome: "failed", error: failed } }) });
     expect(ran).toEqual({ writes: [[{ text: "load failure: engine-failed eslint tool-failed disk full\n" }]], exits: [[{ code: 2 }]] });
   });
 
   it("prints the install-root-unresolvable line as it is, and exits 2, building no stages, when the command was not started from a file", async () => {
     const stagesOver = stagesOverProjecting({ projected: { outcome: "ok", value: [] } });
-    const ran = await ranWith({ moduleUrl: "https://example.com/tool-command.js", arguments: ["--repo", "/repo"], stagesOver });
+    const ran = await ranWith({ moduleUrl: "https://example.com/tool-command.js", arguments: ["--repo", "/repo"], fileText: fileTextAbsent(), stagesOver });
     expect(ran).toEqual({ writes: [[{ text: "load failure: install-root-unresolvable https://example.com/tool-command.js the text is not a file: URL\n" }]], exits: [[{ code: 2 }]] });
     expect(stagesOver).not.toHaveBeenCalled();
   });
 
   it("prints an arguments-invalid line, exits 2 and builds no stages when the arguments are not readable", async () => {
     const stagesOver = stagesOverProjecting({ projected: { outcome: "ok", value: [] } });
-    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo"], stagesOver });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo"], fileText: fileTextAbsent(), stagesOver });
     expect(ran).toEqual({ writes: [[{ text: "load failure: arguments-invalid --repo needs a value, as in --repo <dir>\n" }]], exits: [[{ code: 2 }]] });
     expect(stagesOver).not.toHaveBeenCalled();
   });

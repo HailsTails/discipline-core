@@ -12,9 +12,15 @@ const FILE: ProjectedFile = { file: repoPathSchema.parse("hone.eslint.mjs"), tex
 
 const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/work" });
 
-const fileTextHolding = (request: { readonly current: string | undefined }): FileTextPort => ({
-  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue(request.current === undefined ? "absent" : "present"),
-  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.current ?? "" }),
+const fileTextAbsent = (): FileTextPort => ({
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
+  read: vi.fn<FileTextPort["read"]>(),
+  write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
+});
+
+const fileTextHolding = (request: { readonly current: string }): FileTextPort => ({
+  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
+  read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: request.current }),
   write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "ok", value: undefined }),
 });
 
@@ -23,7 +29,7 @@ const writtenOver = (request: { readonly fileText: FileTextPort; readonly files:
 
 describe("projectedFilesWrittenOf", () => {
   it("writes a file the repository does not hold, and reports it written", () => {
-    const fileText = fileTextHolding({ current: undefined });
+    const fileText = fileTextAbsent();
     expect({ outcome: writtenOver({ fileText, files: [FILE] }), writes: vi.mocked(fileText.write).mock.calls }).toEqual({
       outcome: { outcome: "ok", value: [{ path: "hone.eslint.mjs", effect: "written" }] },
       writes: [[{ path: "/repo/hone.eslint.mjs", text: "export default [];\n" }]],
@@ -52,7 +58,7 @@ describe("projectedFilesWrittenOf", () => {
   });
 
   it("writes nothing and reports nothing when there are no files", () => {
-    const fileText = fileTextHolding({ current: undefined });
+    const fileText = fileTextAbsent();
     expect({ outcome: writtenOver({ fileText, files: [] }), writes: vi.mocked(fileText.write).mock.calls }).toEqual({ outcome: { outcome: "ok", value: [] }, writes: [] });
   });
 
@@ -66,7 +72,7 @@ describe("projectedFilesWrittenOf", () => {
 
   it("fails as a file unwritable when the file cannot be written", () => {
     const fileText: FileTextPort = {
-      ...fileTextHolding({ current: undefined }),
+      ...fileTextAbsent(),
       write: vi.fn<FileTextPort["write"]>().mockReturnValue({ outcome: "failed", error: { kind: "unwritable", path: "/repo/hone.eslint.mjs", detail: "ENOSPC" } }),
     };
     expect(writtenOver({ fileText, files: [FILE] })).toEqual({ outcome: "failed", error: { kind: "file-unwritable", path: "/repo/hone.eslint.mjs", detail: "ENOSPC" } });
