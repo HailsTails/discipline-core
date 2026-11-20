@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ExceptionRecord } from "../exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import type { Finding } from "../governance/governance.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";

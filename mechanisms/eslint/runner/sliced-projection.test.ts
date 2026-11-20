@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import { createPathPort } from "../../../core/platform-ports/path-port.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";

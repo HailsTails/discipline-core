@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { CaseVerdict, ProjectionWrite } from "../../../core/mechanism-port/runner-result-schema.ts";

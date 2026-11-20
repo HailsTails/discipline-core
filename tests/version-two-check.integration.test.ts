@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { TOOL_SUBCOMMANDS } from "../core/check/run-tool-command.ts";
-import type { ExceptionRepositoryOf } from "../core/exception-records/exception-records.ts";
+import type { ExceptionRepositoryOf } from "../core/upgrade/version-one-records/exception-records.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import { createDefaultGitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";

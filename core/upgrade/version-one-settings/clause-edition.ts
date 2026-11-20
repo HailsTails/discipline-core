@@ -1,9 +1,9 @@
-import { RESERVED_EDITION_SETTING } from "../rule-set-reader/rule-set-reader.ts";
-import type { CheckEditions } from "../values/check-editions.ts";
-import { type ClauseAddress, clauseAddressText } from "../values/clause-address.ts";
-import type { ClauseEditions, Edition } from "../values/edition.ts";
-import type { ReadonlyJsonValue } from "../values/json-value.ts";
-import type { Result } from "../values/result.ts";
+import { RESERVED_EDITION_SETTING } from "../../rule-set-reader/rule-set-reader.ts";
+import type { CheckEditions } from "../../values/check-editions.ts";
+import { type ClauseAddress, clauseAddressText } from "../../values/clause-address.ts";
+import type { ClauseEditions, Edition } from "../../values/edition.ts";
+import type { ReadonlyJsonValue } from "../../values/json-value.ts";
+import type { Result } from "../../values/result.ts";
 
 const UNPINNED_EDITIONS: Readonly<Record<CheckEditions, (editions: ClauseEditions) => Edition>> = {
   pinned: (editions) => editions.default,

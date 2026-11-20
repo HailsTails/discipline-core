@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { repoPathSchema } from "../values/repo-path.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { repoPathSchema } from "../../values/repo-path.ts";
 import { debtPairKey, distinctDebtPairs, entryPairKey } from "./debt-pair.ts";
 
 const LOOPS = clauseAddressSchema.parse("CD-15#loops");

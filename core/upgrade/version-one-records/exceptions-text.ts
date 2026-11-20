@@ -1,4 +1,4 @@
-import type { Result } from "../values/result.ts";
+import type { Result } from "../../values/result.ts";
 import type { ExceptionEntry } from "./exception-record.ts";
 import type { StructuralExceptionEntry } from "./exception-records.ts";
 

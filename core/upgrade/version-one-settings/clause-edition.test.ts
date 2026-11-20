@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { clauseAddressSchema } from "../values/clause-address.ts";
-import { clauseEditionsSchema } from "../values/edition.ts";
-import type { CheckEditions } from "../values/check-editions.ts";
+import { clauseAddressSchema } from "../../values/clause-address.ts";
+import { clauseEditionsSchema } from "../../values/edition.ts";
+import type { CheckEditions } from "../../values/check-editions.ts";
 import { settledClauseEdition } from "./clause-edition.ts";
 
 const ADDRESS = clauseAddressSchema.parse("CD-27#test-body-logic");

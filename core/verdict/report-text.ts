@@ -1,4 +1,4 @@
-import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
+import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { PRUNE_DEBT_SUBCOMMAND } from "../command-line/subcommand-names.ts";

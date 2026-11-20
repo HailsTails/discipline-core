@@ -18,7 +18,7 @@ const versionTwoSources = import.meta.glob(["./core/settings/**/*.ts", "./core/r
 });
 
 const reachingNothingInTheVersionOneReaders = ({ importingFolder }: { readonly importingFolder: string }) => [
-  relativeImportReaching({ importingFolder, reach: /^(?!core\/(?:consumer-selection|exception-records)\/)/ }),
+  relativeImportReaching({ importingFolder, reach: /^(?!core\/(?:consumer-selection|exception-records|upgrade)\/)/ }),
   packageOrComputedImport,
 ];
 
@@ -29,13 +29,10 @@ describe("what version 2 takes from the version 1 readers, over what this reposi
 
   it("finds core/settings, core/run, core/command-line and core/conformance taking from core/consumer-selection and core/exception-records only what is listed here, so the list can only shrink", () => {
     expect(importsOutsideFromOwnFolder({ sources: versionTwoSources, allowedFrom: reachingNothingInTheVersionOneReaders })).toEqual([
-      { file: "./core/command-line/command-outcome.ts", specifier: "../exception-records/debt-pair.ts", form: "type-only" },
-      { file: "./core/command-line/command-outcome.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
-      { file: "./core/command-line/command-outcome.ts", specifier: "../exception-records/inherited-debt.ts", form: "type-only" },
-      { file: "./core/run/mechanism-dispatch.test.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
-      { file: "./core/run/mechanism-dispatch.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
-      { file: "./core/run/version-chosen-command.test.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
-      { file: "./core/run/version-two-check-command.test.ts", specifier: "../exception-records/exception-records.ts", form: "type-only" },
+      { file: "./core/run/mechanism-dispatch.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
+      { file: "./core/run/mechanism-dispatch.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
+      { file: "./core/run/version-chosen-command.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
+      { file: "./core/run/version-two-check-command.test.ts", specifier: "../upgrade/version-one-records/exception-records.ts", form: "type-only" },
     ]);
   });
 });

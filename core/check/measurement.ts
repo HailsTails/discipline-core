@@ -8,7 +8,7 @@ import {
   recordImportOf,
   type StructuralExceptionEntry,
   UNMEASURED_EXCEPTION_BASELINE,
-} from "../exception-records/exception-records.ts";
+} from "../upgrade/version-one-records/exception-records.ts";
 import type { GitFailure, GitPort } from "../platform-ports/git-port.ts";
 import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";

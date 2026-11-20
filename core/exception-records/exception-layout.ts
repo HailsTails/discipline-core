@@ -10,7 +10,7 @@ import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.t
 import { clauseAddressSchema, TOOL_RULE_SET } from "../values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { RecordPlace } from "./exception-record.ts";
+import type { RecordPlace } from "../upgrade/version-one-records/exception-record.ts";
 import {
   type ExceptionRepository,
   type ExceptionRepositoryOf,
@@ -20,9 +20,9 @@ import {
   type PlacedEntry,
   type RecordsSplit,
   type StructuralExceptionEntry,
-} from "./exception-records.ts";
-import { type DebtPair, debtPairKey, entryPairKey } from "./debt-pair.ts";
-import { exceptionsTextWith, exceptionsTextWithout, type WritableEntry } from "./exceptions-text.ts";
+} from "../upgrade/version-one-records/exception-records.ts";
+import { type DebtPair, debtPairKey, entryPairKey } from "../upgrade/version-one-records/debt-pair.ts";
+import { exceptionsTextWith, exceptionsTextWithout, type WritableEntry } from "../upgrade/version-one-records/exceptions-text.ts";
 
 export type ExceptionLayoutPorts = {
   readonly fileText: FileTextPort;

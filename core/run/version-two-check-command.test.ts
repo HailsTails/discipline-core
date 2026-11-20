@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CAST_EXPRESSIONS, ESLINT, REPORT_CATALOGUE } from "../../tests/report-catalogue.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
-import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
+import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { DirectoryPort } from "../platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";

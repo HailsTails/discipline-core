@@ -1,24 +1,23 @@
 import { type ArgumentProblem, argumentsInvalid } from "../core/command-line/argument-problem.ts";
 import { helpText, SYNOPSIS } from "../core/check/command-help.ts";
 import { FORFEITURE_OPTION, type HelpTopic, LEAVE_OPTION, REPO_OPTION, SUBCOMMANDS } from "../core/command-line/command-line.ts";
+import { projectCommandOutcome, versionCommandOutcome } from "../core/command-line/command-outcome.ts";
 import {
-  projectCommandOutcome,
   pruneDebtCommandOutcome,
   recordDebtCommandOutcome,
   splitRecordsCommandOutcome,
-  versionCommandOutcome,
-} from "../core/command-line/command-outcome.ts";
+} from "../core/upgrade/version-one-records/record-command-outcomes.ts";
 import { installedVersionOf } from "../core/check/installed-version.ts";
 import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import { loadFailureText } from "../core/command-line/load-failure-text.ts";
-import type { ExceptionRecord } from "../core/exception-records/exception-record.ts";
-import type { InheritedDebtOutcome } from "../core/exception-records/inherited-debt.ts";
+import type { ExceptionRecord } from "../core/upgrade/version-one-records/exception-record.ts";
+import type { InheritedDebtOutcome } from "../core/upgrade/version-one-records/inherited-debt.ts";
 import type {
   ExistingAuthorisationProvenance,
   InheritedDebtProvenance,
   InvalidRecord,
   RecordsSplit,
-} from "../core/exception-records/exception-records.ts";
+} from "../core/upgrade/version-one-records/exception-records.ts";
 import type { AttributedNativeException, Finding } from "../core/governance/governance.ts";
 import type { RunnerFailure } from "../core/mechanism-port/runner-failure.ts";
 import type { ProjectionWrite } from "../core/mechanism-port/runner-result-schema.ts";

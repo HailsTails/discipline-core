@@ -1,4 +1,4 @@
-import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import {
   type ClauseAddress,
   clauseAddressText,

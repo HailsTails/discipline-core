@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type RecordsDisk, recordsDisk } from "../../tests/records-disk.ts";
 import { createExceptionRepository, placementOf } from "./exception-layout.ts";
-import type { ExceptionRepository } from "./exception-records.ts";
+import type { ExceptionRepository } from "../upgrade/version-one-records/exception-records.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 
