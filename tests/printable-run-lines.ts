@@ -2,6 +2,7 @@ import type { AttributedNativeException } from "../core/governance/governance.ts
 import type { InlineReach, ScriptOptionCause } from "../core/mechanism-port/runner-result-schema.ts";
 import type {
   AuthorisedLocation,
+  AuthorisedReach,
   BoundaryRecord,
   CatalogueNote,
   Debt,
@@ -12,6 +13,7 @@ import type {
   RecordNote,
   RecordPlace,
   RecordRefusal,
+  SymptomReach,
 } from "../core/records/hone-record.ts";
 import type { RecordsUnmeasured } from "../core/records/records-unmeasured.ts";
 import { recordReferenceText, recordSubjectText } from "../core/report/record-lines.ts";
@@ -135,40 +137,44 @@ const FILES_BOUNDARY: BoundaryRecord = {
 
 const DEPENDENCY: DependencyRecord = { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "Not enough." };
 
-const CAST_DEBT: Debt = { ...STATED_DEBT, reach: { reaches: "one-check", check: CAST_CHECK } };
+const CAST_REACH: SymptomReach = { reaches: "one-check", check: CAST_CHECK };
 
-const CAST_LOCATION: AuthorisedLocation = { ...MATCHED_LOCATION, reach: { reaches: "one-check", check: CAST_CHECK } };
-
-const UNKNOWN_CHECK_LOCATION: AuthorisedLocation = { ...MATCHED_LOCATION, reach: { reaches: "unknown-check", check: "cast-old" } };
+const UNKNOWN_CHECK_REACH: AuthorisedReach = { reaches: "unknown-check", check: "cast-old" };
 
 const CAST_FILLS: Fills = { check: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" };
 
 const UNKNOWN_CHECK_FILLS: Fills = { ...WEBHOOK_FILLS, "check name": "cast-old", given: '"cast-old"' };
 
-const UNKNOWN_CASE_FILLS: Fills ={ ...WEBHOOK_FILLS, case: '"parses a webhook"', owes: '"declared-not-asserted"' };
+const UNKNOWN_CASE_WORDS: Fills = { case: '"parses a webhook"', owes: '"declared-not-asserted"' };
 
-const UNOWED_FILLS: Fills = { ...WEBHOOK_FILLS, "case name": "gives-a-value-its-type", owes: '"written-out-answers"' };
+const UNOWED_WORDS: Fills = { "case name": "gives-a-value-its-type", owes: '"written-out-answers"' };
 
 type RecordSamples = { readonly [Kind in HoneRecord["kind"]]: readonly Filled<Extract<HoneRecord, { readonly kind: Kind }>>[] };
 
 const NOTED_LOCATIONS: { readonly [Kind in CatalogueNote["kind"]]: Filled<AuthorisedLocation> } = {
-  "unknown-check": { entry: UNKNOWN_CHECK_LOCATION, fills: UNKNOWN_CHECK_FILLS },
-  "unknown-case": { entry: UNKNOWN_CASE_LOCATION, fills: UNKNOWN_CASE_FILLS },
-  "owes-not-owed": { entry: UNOWED_LOCATION, fills: UNOWED_FILLS },
+  "unknown-check": { entry: { ...MATCHED_LOCATION, reach: UNKNOWN_CHECK_REACH }, fills: UNKNOWN_CHECK_FILLS },
+  "unknown-case": { entry: UNKNOWN_CASE_LOCATION, fills: { ...WEBHOOK_FILLS, ...UNKNOWN_CASE_WORDS } },
+  "owes-not-owed": { entry: UNOWED_LOCATION, fills: { ...WEBHOOK_FILLS, ...UNOWED_WORDS } },
 };
 
 const RECORD_SAMPLES: RecordSamples = {
   debt: [
     { entry: STATED_DEBT, fills: WEBHOOK_FILLS },
     { entry: CARRIED_DEBT, fills: WEBHOOK_FILLS },
-    { entry: CAST_DEBT, fills: CAST_FILLS },
+    { entry: { ...STATED_DEBT, reach: CAST_REACH }, fills: CAST_FILLS },
+    { entry: { ...CARRIED_DEBT, reach: CAST_REACH }, fills: CAST_FILLS },
   ],
   "authorised-location": [
     { entry: MATCHED_LOCATION, fills: WEBHOOK_FILLS },
     { entry: CARRIED_LOCATION, fills: WEBHOOK_FILLS },
-    { entry: CAST_LOCATION, fills: CAST_FILLS },
-    { entry: { ...CARRIED_LOCATION, reach: { reaches: "unknown-check", check: "cast-old" } }, fills: UNKNOWN_CHECK_FILLS },
+    { entry: { ...MATCHED_LOCATION, reach: CAST_REACH }, fills: CAST_FILLS },
+    { entry: { ...CARRIED_LOCATION, reach: CAST_REACH }, fills: CAST_FILLS },
+    { entry: { ...CARRIED_LOCATION, reach: UNKNOWN_CHECK_REACH }, fills: UNKNOWN_CHECK_FILLS },
     ...Object.values(NOTED_LOCATIONS),
+    { entry: { ...UNKNOWN_CASE_LOCATION, reach: CAST_REACH }, fills: { ...CAST_FILLS, ...UNKNOWN_CASE_WORDS } },
+    { entry: { ...UNOWED_LOCATION, reach: CAST_REACH }, fills: { ...CAST_FILLS, ...UNOWED_WORDS } },
+    { entry: { ...UNKNOWN_CASE_LOCATION, reach: UNKNOWN_CHECK_REACH }, fills: { ...UNKNOWN_CHECK_FILLS, ...UNKNOWN_CASE_WORDS } },
+    { entry: { ...UNOWED_LOCATION, reach: UNKNOWN_CHECK_REACH }, fills: { ...UNKNOWN_CHECK_FILLS, ...UNOWED_WORDS } },
   ],
   deviation: [{ entry: DEVIATION, fills: { recipe: "world-values-through-a-port", file: "src/adapters/stripe-webhook.ts" } }],
   "boundary-record": [

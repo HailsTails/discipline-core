@@ -485,7 +485,7 @@ A line of `findings`, `answered` or `unrecorded` leads with either a check or a 
 
 A `<records file>` is one field: it is printed bare when its path holds no space, double quote or line break, and as a JSON string in double quotes when it does. A records file whose name is not a catalogue name, such as `hone-records/debt/my notes.json`, is still read, and its records are refused as `misplaced`, so its path can lead a `refused` line.
 
-A record's ` carried` and its ` note: ` words come after its `<file>` or `<module>`, which may hold a space, so they are for a person. A tool reads the same facts from the `carried` and `recordNotes` sections, which lead with the record's records file and index.
+A record's ` carried` and its ` note: ` words come after its `<file>` or `<module>`, which may hold a space, so they are for a person. A tool reads the same facts from the `carried` and `recordNotes` sections, which lead with the record's records file and index. A tool tells debt refused for a check its symptom does not have from an authorised location kept with a note for it by the section and the third field: the refusal is under `refused` with `unknown-check` as its third field, and the note is under `recordNotes` with `unknown-check:`, ending in a colon.
 
 These are not stable: the words after the `:` that ends an `unmeasured` or `projectionProblems` line's leading fields, the `symptoms` lines, the `notes` lines, the words of a ` note: ` on a record and of a `recordNotes` line after its kind, the words of a refusal after its kind's values, the words after a record's site in `stale`, `forfeited` and `paid`, and a finding's `<fix>`.
 
@@ -514,7 +514,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 
 ## The version 2 report
 
-`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; a next-step, informational or guidance section never does, so paid debt, a note, an answered finding, a carried record or a symptom never fails a run. `failures-only` prints the failing, next-step and guidance sections and leaves out the informational ones, so a hook that prints failures only still shows paid debt and the command that removes it.
+`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; a next-step, informational or guidance section never does, so paid debt, a note, an answered finding, a carried record or a symptom never fails a run. `failures-only` prints the failing, next-step and guidance sections and leaves out the informational ones, so a hook that prints failures only still shows paid debt and the command that removes it. A passing run can therefore print a `paid` section under `failures-only`, so a hook tells pass from fail by the exit code, not by whether anything was printed.
 
 | Section | Role | What it lists |
 | --- | --- | --- |
@@ -553,7 +553,7 @@ The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-onl
 
 ## Version 2 report lines
 
-A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and so does paid debt, for each record that answers in its place. A stale record prints as its `<subject>`; stale debt then ends with the command that removes it, and forfeited debt with what to do before removing it. A native exception prints one line for each check of its clause that runs on its engine.
+A finding names what its symptom may indicate after the snippet, and ends with ` fix: <fix> (<fix page>#<section>)` when its check names what to write instead. A finding of a clause the catalogue gives no check prints its clause address and mechanism in place of `<check> <engine>`, and names no indication. An answered finding repeats ` answered by <reference>` once for each record that answers it, and so does paid debt, for each record that answers in its place. Debt is paid when every finding it held in this run was answered in its place. Pruning paid debt removes the record whole, so a later finding of another check at that file is a new finding. A stale record prints as its `<subject>`; stale debt then ends with the command that removes it, and forfeited debt with what to do before removing it. A native exception prints one line for each check of its clause that runs on its engine.
 
 | Section | Line |
 | --- | --- |
@@ -622,20 +622,26 @@ In `symptoms`, `<answers>` is one sentence for each correct use the symptom has,
 
 ## Version 2 record subjects and references
 
-A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` after it, wherever it is named, and the note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom.
+A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` for each of them, wherever it is named, and each note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom.
 
 | Part | Text |
 | --- | --- |
 | `subject` | `<symptom> debt <file>` |
 | `subject` | `<symptom> debt <file> carried` |
 | `subject` | `<check> debt <file>` |
+| `subject` | `<check> debt <file> carried` |
 | `subject` | `<symptom> authorised-location <file>` |
 | `subject` | `<symptom> authorised-location <file> carried` |
-| `subject` | `<check> authorised-location <file>` |
-| `subject` | `<symptom>#<check name> authorised-location <file> note: the catalogue has no check <given> of <symptom>` |
-| `subject` | `<symptom>#<check name> authorised-location <file> carried note: the catalogue has no check <given> of <symptom>` |
 | `subject` | `<symptom> authorised-location <file> note: the catalogue has no case <case>, owing <owes>` |
 | `subject` | `<symptom> authorised-location <file> note: <case name> does not owe <owes>` |
+| `subject` | `<check> authorised-location <file>` |
+| `subject` | `<check> authorised-location <file> carried` |
+| `subject` | `<check> authorised-location <file> note: the catalogue has no case <case>, owing <owes>` |
+| `subject` | `<check> authorised-location <file> note: <case name> does not owe <owes>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> note: the catalogue has no check <given> of <symptom>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> carried note: the catalogue has no check <given> of <symptom>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> note: the catalogue has no check <given> of <symptom> note: the catalogue has no case <case>, owing <owes>` |
+| `subject` | `<symptom>#<check name> authorised-location <file> note: the catalogue has no check <given> of <symptom> note: <case name> does not owe <owes>` |
 | `subject` | `<recipe> deviation <file>` |
 | `subject` | `<outside party> boundary-record <module>` |
 | `subject` | `<outside party> boundary-record <module> carried` |
@@ -648,7 +654,11 @@ A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by 
 | `reference` | `authorised-location carried note: the catalogue has no check <given> of <symptom>` |
 | `reference` | `authorised-location note: the catalogue has no case <case>, owing <owes>` |
 | `reference` | `authorised-location note: <case name> does not owe <owes>` |
+| `reference` | `authorised-location note: the catalogue has no check <given> of <symptom> note: the catalogue has no case <case>, owing <owes>` |
+| `reference` | `authorised-location note: the catalogue has no check <given> of <symptom> note: <case name> does not owe <owes>` |
 | `reference` | `deviation <recipe>` |
 | `reference` | `boundary-record <outside party>` |
 | `reference` | `boundary-record <outside party> carried` |
 | `reference` | `dependency-record <dependency>` |
+
+A subject is its head, then ` carried` when the record is carried, then one ` note: ` for each catalogue note, the unknown check's first. A debt's or authorised location's head is `<symptom>`, `<check>` or `<symptom>#<check name>` by its reach, then its kind and `<file>`. A reference is the record's kind and, for a deviation, boundary record or dependency record, its recipe, outside party or dependency, followed by the same ` carried` and ` note: ` runs. Only a stated authorised location has a case or owes note, so a carried one prints at most the unknown check's note. The tables list every form this composition gives.

@@ -5,8 +5,8 @@ import { type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/sy
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import type { Debt, HoneRecord, PlacedRecord } from "./hone-record.ts";
-import { coversDebt, holdsAt, type PartyReport, type Site } from "./record-reach.ts";
+import type { HoneRecord, PlacedRecord } from "./hone-record.ts";
+import { holdsAt, type PartyReport, type Site } from "./record-reach.ts";
 
 export type RaisedFinding = { readonly finding: Finding; readonly party: PartyReport };
 
@@ -58,15 +58,25 @@ const answersInDebtsPlace = (request: { readonly records: readonly PlacedRecord[
 const answerersOf = (request: { readonly holders: readonly PlacedRecord[] }): readonly PlacedRecord[] =>
   answersInDebtsPlace({ records: request.holders }).length === 0 ? request.holders : request.holders.filter((placed) => placed.record.kind !== "debt");
 
-const answeredInPlaceOf = (request: { readonly debt: Debt; readonly inForce: readonly PlacedRecord[] }): readonly PlacedRecord[] =>
-  answersInDebtsPlace({ records: request.inForce }).filter((placed) => coversDebt({ record: placed.record, debt: request.debt }) === "holds");
+const answeredInPlaceOf = (request: {
+  readonly debt: PlacedRecord;
+  readonly inForce: readonly PlacedRecord[];
+  readonly holdings: readonly (readonly PlacedRecord[])[];
+}): readonly PlacedRecord[] => {
+  const answering = new Set(request.holdings.filter((holders) => holders.includes(request.debt)).flatMap((holders) => answerersOf({ holders })));
+  return request.inForce.filter((placed) => answering.has(placed));
+};
 
-const paidDebts = (request: { readonly inForce: readonly PlacedRecord[]; readonly holding: ReadonlySet<PlacedRecord> }): readonly PaidDebt[] =>
+const paidDebts = (request: {
+  readonly inForce: readonly PlacedRecord[];
+  readonly holdings: readonly (readonly PlacedRecord[])[];
+  readonly credited: ReadonlySet<PlacedRecord>;
+}): readonly PaidDebt[] =>
   request.inForce.flatMap((debt) => {
-    if (debt.record.kind !== "debt" || !request.holding.has(debt)) {
+    if (debt.record.kind !== "debt" || request.credited.has(debt)) {
       return [];
     }
-    const answeredBy = answeredInPlaceOf({ debt: debt.record, inForce: request.inForce });
+    const answeredBy = answeredInPlaceOf({ ...request, debt });
     return answeredBy.length === 0 ? [] : [{ debt, answeredBy }];
   });
 
@@ -150,8 +160,8 @@ export const answerFindings = (request: AnsweringRequest): Answering => {
   const held = request.findings.map((raised) => ({ finding: raised.finding, holders: holdersAt({ records: inForce, sites: findingSitesOf({ raised, catalogue }), catalogue }) }));
   const judged = held.map((entry) => ({ finding: entry.finding, by: answerersOf({ holders: entry.holders }) }));
   const natives = nativeHoldings({ runs: request.runs, inForce, catalogue });
-  const paid = paidDebts({ inForce, holding: new Set([...held.flatMap((entry) => entry.holders), ...natives.flatMap((native) => native.holders)]) });
   const credited = new Set([...judged.flatMap((entry) => entry.by), ...natives.flatMap((native) => answerersOf({ holders: native.holders }))]);
+  const paid = paidDebts({ inForce, holdings: [...held.map((entry) => entry.holders), ...natives.map((native) => native.holders)], credited });
   return {
     findings: judged.flatMap((entry) => (entry.by.length === 0 ? [entry.finding] : [])),
     answered: judged.filter((entry) => entry.by.length > 0),
