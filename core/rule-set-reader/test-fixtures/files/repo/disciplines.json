@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "ruleSets": { "team": "team-rules" },
+  "clauses": { "team/TM-1#no-tmp-files": "audit" },
+  "exclude": ["vendor"]
+}
