@@ -1,3 +1,4 @@
+import { failureDetailOf } from "../../platform-ports/failure-detail.ts";
 import type { RunReport } from "../../report/run-report.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../values/absolute-path.ts";
@@ -54,8 +55,7 @@ export type ProofRefusal =
   | { readonly kind: "write-refused"; readonly refusal: ProofWriteRefusal }
   | { readonly kind: "version-two-run-failed"; readonly failure: ProofRunFailure; readonly unrestored: readonly Unrestored[] }
   | { readonly kind: "differences"; readonly differences: readonly ProofDifference[]; readonly unrestored: readonly Unrestored[] }
-  | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure } & AfterWriting)
-  | ({ readonly kind: "removal-threw"; readonly detail: string } & AfterWriting);
+  | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure } & AfterWriting);
 
 type Placed = {
   readonly files: readonly PlannedFile[];
@@ -121,8 +121,6 @@ type Written = {
   readonly writes: ProofWrites;
 };
 
-const thrownDetailOf = (request: { readonly thrown: unknown }): string => (request.thrown instanceof Error ? request.thrown.message : String(request.thrown));
-
 const rolledBackWith = (request: UpgradeProofRequest & Written): readonly Unrestored[] => rolledBackProofWrites({ ports: request.ports, writes: request.writes });
 
 const comparedAfterWriting = async (request: UpgradeProofRequest & Written): Promise<Result<null, ProofRefusal>> => {
@@ -142,21 +140,17 @@ const comparedOrRolledBack = async (request: UpgradeProofRequest & Written): Pro
   } catch (thrown: unknown) {
     return {
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: thrownDetailOf({ thrown }) }, unrestored: rolledBackWith(request) },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: failureDetailOf({ thrown }) }, unrestored: rolledBackWith(request) },
     };
   }
 };
 
 const removedAfterComparing = (request: UpgradeProofRequest & Written): Result<ProofCarriedOver, ProofRefusal> => {
   const carried: AfterWriting = { written: request.plan.files.map(({ file }) => file), replaced: request.plan.replacement?.file };
-  try {
-    const removed = removedVersionOneFiles({ ports: request.ports, removal: request.placed.removal });
-    return removed.outcome === "failed"
-      ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, ...carried } }
-      : { outcome: "ok", value: { ...carried, removed: removed.value } };
-  } catch (thrown: unknown) {
-    return { outcome: "failed", error: { kind: "removal-threw", detail: thrownDetailOf({ thrown }), ...carried } };
-  }
+  const removed = removedVersionOneFiles({ ports: request.ports, removal: request.placed.removal });
+  return removed.outcome === "failed"
+    ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, ...carried } }
+    : { outcome: "ok", value: { ...carried, removed: removed.value } };
 };
 
 export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result<ProofCarriedOver, ProofRefusal>> => {

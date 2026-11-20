@@ -1,4 +1,5 @@
 import type { DirectoryRemovalPort } from "../../platform-ports/directory-removal-port.ts";
+import { failureDetailOf } from "../../platform-ports/failure-detail.ts";
 import type { FileRemovalPort } from "../../platform-ports/file-removal-port.ts";
 import type { DirectoryPort } from "../../platform-ports/file-system-port.ts";
 import type { PathPort } from "../../platform-ports/path-port.ts";
@@ -99,6 +100,15 @@ const stepsOf = (request: { readonly ports: VersionOneRemovalPorts; readonly rem
   ...fileStepsOf({ paths: [request.removal.settings] }),
 ];
 
+const attemptedStep = (request: { readonly ports: VersionOneRemovalPorts; readonly step: RemovalStep; readonly removed: Removed }): Result<Removed, RemovalFailure> => {
+  const { ports, step, removed } = request;
+  try {
+    return step.kind === "file" ? removedFile({ ports, path: step.path, removed }) : removedFolderIfEmpty({ ports, path: step.path, removed });
+  } catch (thrown: unknown) {
+    return { outcome: "failed", error: { kind: "unremovable", path: step.path, detail: failureDetailOf({ thrown }), removed } };
+  }
+};
+
 const removedFrom = (request: {
   readonly ports: VersionOneRemovalPorts;
   readonly steps: readonly RemovalStep[];
@@ -108,10 +118,7 @@ const removedFrom = (request: {
   if (step === undefined) {
     return { outcome: "ok", value: request.removed };
   }
-  const stepOutcome =
-    step.kind === "file"
-      ? removedFile({ ports: request.ports, path: step.path, removed: request.removed })
-      : removedFolderIfEmpty({ ports: request.ports, path: step.path, removed: request.removed });
+  const stepOutcome = attemptedStep({ ports: request.ports, step, removed: request.removed });
   return stepOutcome.outcome === "failed" ? stepOutcome : removedFrom({ ports: request.ports, steps: rest, removed: stepOutcome.value });
 };
 

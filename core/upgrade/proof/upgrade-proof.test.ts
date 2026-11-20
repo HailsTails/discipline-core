@@ -422,14 +422,19 @@ describe("upgradeProof", () => {
     });
   });
 
-  it("reports what it wrote, and leaves it, when removing a version 1 file throws", async () => {
+  it("reports what it wrote and what it had removed, and leaves the version 2 files, when removing a version 1 file throws", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.ports.fileRemoval.remove.mockThrow(new Error("the removal threw"));
+    doubles.ports.fileRemoval.remove.mockReturnValueOnce(ok).mockThrowOnce(new Error("the removal threw"));
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
       error: {
-        kind: "removal-threw",
-        detail: "the removal threw",
+        kind: "removal-failed",
+        failure: {
+          kind: "unremovable",
+          path: "/repo/disciplines.eslint.mjs",
+          detail: "the removal threw",
+          removed: { files: ["/repo/discipline-exceptions/cd-15.json"], folders: ["/repo/discipline-exceptions"] },
+        },
         written: ["hone.config.json", "hone-records/debt/loop-keyword.json", "hone.eslint.mjs"],
         replaced: "eslint.config.mjs",
       },
