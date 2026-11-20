@@ -755,8 +755,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `refused` | `<records file> records[<index>] duplicate of <records file> records[<earlier index>]` |
 | `unmeasured` | `forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
 | `unmeasured` | `forfeiture-unmeasured base-git-failed <revision>: git could not list the files changed since that revision and said <git message>; Hone needs that revision and the history back to where this branch left it, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
-| `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
-| `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read hone-records at that revision and said <git message>; Hone needs hone-records as it was at that revision` |
+| `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
+| `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read hone-records at that revision and said <git message>; Hone needs hone-records as it was at that revision, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
 | `unmeasured` | `engine-not-run <engine> missing: hone.<engine>.mjs is not written; run <project command> and commit every file it writes` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved` |
@@ -770,6 +770,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `projectionProblems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
 | `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
 | `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |
+| `assessment` | `carried standing elsewhere: 1 carried record not checked against the base in this run` |
+| `assessment` | `carried standing elsewhere: <count> carried records not checked against the base in this run` |
 | `notes` | `<convention> is declared; no check reads it yet` |
 | `recordNotes` | `<records file> records[<index>] unknown-check: the catalogue has no check <given> of <symptom>` |
 | `recordNotes` | `<records file> records[<index>] unknown-case: the catalogue has no case <case>, owing <owes>` |
@@ -781,6 +783,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. <answers>. Read <symptom page>#<symptom>` |
 
 In `symptoms`, `<answers>` is one sentence for each correct use the symptom has, then one for known debt, which every symptom takes: the situation, capitalised, then `: `, the record kind that expresses it, and where it sits when the catalogue says.
+
+A run that leaves forfeiture to another run, with `"forfeiture": "elsewhere"` in `hone.config.json` or `--forfeiture elsewhere`, leaves every judgement that needs a base to the run that has one. Debt is not checked for forfeiture, and a record carried over from version 1 is not checked against the base: when no `--base-revision` was given, the run prints one `carried standing elsewhere` line in `assessment` with how many carried records it left, and neither `forfeiture-unmeasured` nor `import-unmeasured` is printed. With a base revision, a carried record is judged in the run whatever the setting says. A run that assesses forfeiture in this run, the default, prints `import-unmeasured` and fails when it holds a carried record and no base revision was given. A check is never made against the commit when no base is given.
 
 ## Version 2 record subjects and references
 

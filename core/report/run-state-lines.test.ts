@@ -44,12 +44,12 @@ describe("unmeasuredLine", () => {
     {
       name: "carried records with no base revision given",
       unmeasured: { kind: "import-unmeasured", base: { state: "not-given" } },
-      line: "import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main",
+      line: 'import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch\'s base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere',
     },
     {
       name: "carried records when git could not read the base",
       unmeasured: { kind: "import-unmeasured", base: GIT_FAILED },
-      line: 'import-unmeasured base-git-failed "origin/main": git could not read hone-records at that revision and said "fatal: bad revision"; Hone needs hone-records as it was at that revision',
+      line: 'import-unmeasured base-git-failed "origin/main": git could not read hone-records at that revision and said "fatal: bad revision"; Hone needs hone-records as it was at that revision, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere',
     },
     {
       name: "an engine whose projection is not written",
@@ -109,6 +109,13 @@ describe("assessmentLine", () => {
     { debts: 3, line: "forfeiture elsewhere: 3 debt records not checked for forfeiture in this run" },
   ])("counts $debts debt records left to another run", ({ debts, line }) => {
     expect(assessmentLine({ partial: { concern: "forfeiture", assessedBy: "elsewhere", debts } })).toBe(line);
+  });
+
+  it.each([
+    { carried: 1, line: "carried standing elsewhere: 1 carried record not checked against the base in this run" },
+    { carried: 4, line: "carried standing elsewhere: 4 carried records not checked against the base in this run" },
+  ])("counts $carried carried records left to a run that has a base", ({ carried, line }) => {
+    expect(assessmentLine({ partial: { concern: "carried-standing", assessedBy: "elsewhere", carried } })).toBe(line);
   });
 });
 

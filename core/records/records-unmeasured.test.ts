@@ -68,4 +68,10 @@ describe("recordsUnmeasuredOf", () => {
   it("lists nothing when forfeiture is measured elsewhere and the base was measured", () => {
     expect(recordsUnmeasuredOf({ records: [STATED_DEBT, CARRIED_LOCATION], base: { measured: "yes" }, touched: { measured: "elsewhere" } })).toEqual([]);
   });
+
+  it("lists nothing for a carried record when forfeiture is left to another run, though the base was not measured", () => {
+    expect(
+      recordsUnmeasuredOf({ records: [STATED_DEBT, CARRIED_LOCATION], base: { measured: "no", base: { state: "not-given" } }, touched: { measured: "elsewhere" } }),
+    ).toEqual([]);
+  });
 });

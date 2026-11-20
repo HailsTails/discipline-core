@@ -461,6 +461,8 @@ const SECTION_SAMPLES: SectionSamples = {
   assessment: [
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 1 }, fills: {} },
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 3 }, fills: { count: "3" } },
+    { entry: { concern: "carried-standing", assessedBy: "elsewhere", carried: 1 }, fills: {} },
+    { entry: { concern: "carried-standing", assessedBy: "elsewhere", carried: 3 }, fills: { count: "3" } },
   ],
   notes: Object.values(CONVENTION_NOTES),
   recordNotes: Object.values(RECORD_NOTES),

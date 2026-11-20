@@ -1,4 +1,4 @@
-import type { TouchedSet } from "../touched-set/touched-set.ts";
+import { baseJudgementOf, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
 import type { BaseMeasurement, PlacedRecord } from "./hone-record.ts";
 import { carriedListingOf } from "./records-reading.ts";
@@ -10,8 +10,14 @@ const forfeitureUnmeasured = (request: { readonly records: readonly PlacedRecord
     ? [{ kind: "forfeiture-unmeasured", base: request.touched.base }]
     : [];
 
-const importUnmeasured = (request: { readonly records: readonly PlacedRecord[]; readonly base: BaseMeasurement }): readonly RecordsUnmeasured[] =>
-  request.base.measured === "no" && carriedListingOf({ records: request.records }).length > 0 ? [{ kind: "import-unmeasured", base: request.base.base }] : [];
+const importUnmeasured = (request: {
+  readonly records: readonly PlacedRecord[];
+  readonly base: BaseMeasurement;
+  readonly touched: TouchedSet;
+}): readonly RecordsUnmeasured[] =>
+  request.base.measured === "no" && baseJudgementOf(request) === "in-this-run" && carriedListingOf({ records: request.records }).length > 0
+    ? [{ kind: "import-unmeasured", base: request.base.base }]
+    : [];
 
 export const recordsUnmeasuredOf = (request: {
   readonly records: readonly PlacedRecord[];
