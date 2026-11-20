@@ -1,4 +1,5 @@
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
+import { createDefaultTypeStrippingPort } from "../platform-ports/type-stripping-port.ts";
 import { parseInvocation } from "./command-arguments.ts";
 import { helpText } from "./command-help.ts";
 import type { Subcommand } from "./command-line.ts";
@@ -10,6 +11,9 @@ import { runProjectCommand } from "./run-project-command.ts";
 import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "./run-split-records-command.ts";
+import { typeStrippingGuarded } from "./type-stripping-guard.ts";
+
+const TYPE_STRIPPING = createDefaultTypeStrippingPort({});
 
 export type CommandHandler = (request: CommandRequest) => Promise<void>;
 
@@ -60,4 +64,10 @@ export const TOOL_SUBCOMMANDS: Subcommands = {
   "split-records": runSplitRecordsCommand,
 };
 
-export const runToolCommand: CommandHandler = toolCommandOf({ subcommands: TOOL_SUBCOMMANDS });
+const TYPE_STRIPPING_GUARDED_SUBCOMMANDS: Subcommands = {
+  ...TOOL_SUBCOMMANDS,
+  check: typeStrippingGuarded({ handler: TOOL_SUBCOMMANDS.check, typeStripping: TYPE_STRIPPING }),
+  project: typeStrippingGuarded({ handler: TOOL_SUBCOMMANDS.project, typeStripping: TYPE_STRIPPING }),
+};
+
+export const runToolCommand: CommandHandler = toolCommandOf({ subcommands: TYPE_STRIPPING_GUARDED_SUBCOMMANDS });

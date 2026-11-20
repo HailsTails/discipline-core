@@ -10,9 +10,12 @@ import {
   packagedConsumerManifest,
   packagedScriptsOf,
   type ProofAction,
+  type ProofToolchain,
   type StepExpectation,
   toolchainPinsOf,
 } from "./install-proof-plan.ts";
+
+const ESLINT_PACKAGE = "eslint";
 
 declare global {
   interface ImportMeta {
@@ -125,6 +128,16 @@ describe("toolchainPinsOf, over this package's own package.json read as a build-
     });
   });
 
+  it.each<readonly [ProofToolchain, string]>([
+    ["eslint-9-floor-current-typescript", "9.28.0"],
+    ["eslint-10-floor-current-typescript", "10.0.0"],
+  ])("pins ESLint at its floor and every other peer at the development version for a %s consumer, ESLint at %s", (toolchain, eslint) => {
+    expect(toolchainPinsOf({ developmentManifest: packageFiles["../package.json"], toolchain })).toEqual({
+      outcome: "ok",
+      value: { typescript: "6.0.3", eslint, "@typescript-eslint/parser": "8.71.2", "@typescript-eslint/eslint-plugin": "8.71.2" },
+    });
+  });
+
   it("fails on a manifest that is not JSON", () => {
     expect(toolchainPinsOf({ developmentManifest: "{", toolchain: "typescript-floor" }).outcome).toBe("failed");
   });
@@ -179,6 +192,28 @@ const ESLINT_ACTIONS: readonly ProofAction[] = [
   {
     kind: "check",
     expectation: { exitCode: 1, output: "findings (1)\nCD-14#class-syntax eslint src/kept.ts:1:7 export class Kept {} symptom: authored-class-or-this, may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted\nreadFirst (3)\nauthored-class-or-this: Authored class or this. May indicate: keeps state or settings across calls → No hidden effects; reuses behaviour from another unit or type → One reason per module; gives a value its type (declares it, or needs it narrower) → Declared, not asserted. The breach usually sits in the unit. Recipe: Closure factory. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#authored-class-or-this\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#class-syntax: read node_modules/@hailstails/hone/rules/CD-14/README.md#spirit\nverdict: fail\n" },
+  },
+];
+
+const TYPED_PROJECTION =
+  `import type { Linter } from "${ESLINT_PACKAGE}";\nimport piece0 from "@hailstails/hone/mechanisms/eslint/CD-10/cd10/cd10.eslint-plugin.js";\n\nconst projection: Linter.Config[] = [\n  {\n    name: "hone-core/piece/hone-cd10",\n    files: ["**/*.{ts,tsx,mts,cts}"],\n    plugins: { "hone-cd10": piece0 },\n    rules: { "hone-cd10/throw-only-error": "error" },\n  },\n];\n\nexport default projection;\n`;
+
+const TYPED_ESLINT_ACTIONS: readonly ProofAction[] = [
+  { kind: "project", expectation: { exitCode: 0, output: "disciplines.eslint.mts written\n" } },
+  { kind: "read", path: "disciplines.eslint.mts", text: TYPED_PROJECTION },
+  { kind: "typecheck", project: "typing/tsconfig.json", expectation: { exitCode: 0, output: "" } },
+  { kind: "commit", message: "project" },
+  { kind: "check", expectation: { exitCode: 1, output: "findings (1)\nCD-10#throw-only-error eslint src/kept.ts:2:2 throw \"boom\"; symptom: thrown-non-error, may indicate: no-leak-across-a-boundary\nuncovered (1)\nCD-10#throws-in-tests\nreadFirst (3)\nthrown-non-error: Thrown non-error. May indicate: sends data out of the program → No leak across a boundary. The breach usually sits at the throw site. Recipe: Failure mapping at the adapter. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#thrown-non-error\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-10#throw-only-error: read node_modules/@hailstails/hone/rules/CD-10/README.md#spirit\nverdict: fail\n" } },
+];
+
+const TYPED_ESLINT_WITHOUT_STRIPPING_ACTIONS: readonly ProofAction[] = [
+  {
+    kind: "project",
+    expectation: {
+      exitCode: 2,
+      output:
+        "load failure: projection-needs-type-stripping eslintProjection chooses typescript, and this Node.js runs with type stripping turned off, so it cannot load the projection: run Hone without --no-experimental-strip-types, or set eslintProjection to javascript and run project again\n",
+    },
   },
 ];
 
@@ -255,12 +290,15 @@ const WORKSPACE_ACTIONS: readonly ProofAction[] = [
 ];
 
 describe("the proof cases", () => {
-  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set and its own piece proof on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
+  it("install the packed package into an audit-only consumer, an ESLint consumer on each line's floor, one missing eslint, a consumer choosing the TypeScript projection on each line's floor whose strict typed config spreads it and the plugin, the same consumer refused with type stripping off, a team consumer type-checking the public entries on the TypeScript floor and running its own rule set and its own piece proof on the current version, and a pnpm workspace whose package lints through its own wrapper with its slice, projecting with the package's own import", () => {
     expect(PROOF_CASES).toEqual([
       { consumer: "audit", fixture: "audit", toolchain: "typescript-floor", typeStripping: "disabled", actions: AUDIT_ACTIONS },
       { consumer: "eslint-10", fixture: "eslint", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
       { consumer: "eslint-9", fixture: "eslint", toolchain: "eslint-9-floor", typeStripping: "disabled", actions: ESLINT_ACTIONS },
       { consumer: "eslint-missing", fixture: "eslint", toolchain: "typescript-floor", typeStripping: "disabled", actions: ESLINT_MISSING_ACTIONS },
+      { consumer: "eslint-typed-10", fixture: "eslint-typed", toolchain: "eslint-10-floor-current-typescript", typeStripping: "enabled", actions: TYPED_ESLINT_ACTIONS },
+      { consumer: "eslint-typed-9", fixture: "eslint-typed", toolchain: "eslint-9-floor-current-typescript", typeStripping: "enabled", actions: TYPED_ESLINT_ACTIONS },
+      { consumer: "eslint-typed-unstripped", fixture: "eslint-typed", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: TYPED_ESLINT_WITHOUT_STRIPPING_ACTIONS },
       { consumer: "team-floor", fixture: "team", toolchain: "typescript-floor", typeStripping: "disabled", actions: [WRONG_FIELDS_REJECTED] },
       { consumer: "team", fixture: "team", toolchain: "current", typeStripping: "enabled", actions: TEAM_ACTIONS },
       { consumer: "workspace", fixture: "workspace", toolchain: "eslint-10-floor", typeStripping: "disabled", actions: WORKSPACE_ACTIONS },

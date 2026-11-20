@@ -1,4 +1,5 @@
 import type { DebtPair } from "../exception-records/debt-pair.ts";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { RecordsSplit } from "../exception-records/exception-records.ts";
 import { type InheritedDebtOutcome, RECORD_DEBT_SUBCOMMAND } from "../exception-records/inherited-debt.ts";
 import type { ProjectionWrite } from "../mechanism-port/runner-result-schema.ts";
@@ -24,6 +25,7 @@ export type CheckRun = {
   readonly output: ReportOutput;
   readonly projectCommand: string;
   readonly pruneCommand: string;
+  readonly eslintProjection: EslintProjection;
 };
 
 const LOAD_FAILURE_CODE = 2;

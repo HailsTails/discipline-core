@@ -5,6 +5,7 @@ import type { FileRemovalPort } from "../../../core/platform-ports/file-removal-
 import type { FileTextPort } from "../../../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
+import type { EslintProjection } from "../../../core/values/eslint-projection.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import {
   type ClauseAddress,
@@ -17,6 +18,8 @@ import type { CoreInstall } from "./core-install.ts";
 import { enabledRuleEntry, reservedNamespace } from "./eslint-instance.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
 import type { ProjectionStates } from "./projection-states.ts";
+
+const ESLINT_PACKAGE = "eslint";
 
 export type ProjectedClause = {
   readonly address: ClauseAddress;
@@ -58,7 +61,14 @@ type FileRecordGroup = {
   readonly files: readonly RepoPath[];
 };
 
-export const PROJECTION_PATH: RepoPath = repoPathSchema.parse("disciplines.eslint.mjs");
+const PROJECTION_PATHS: Readonly<Record<EslintProjection, RepoPath>> = {
+  javascript: repoPathSchema.parse("disciplines.eslint.mjs"),
+  typescript: repoPathSchema.parse("disciplines.eslint.mts"),
+};
+
+export const projectionPathOf = (request: { readonly form: EslintProjection }): RepoPath => PROJECTION_PATHS[request.form];
+
+const CONFIG_TYPE_IMPORT = `import type { Linter } from "${ESLINT_PACKAGE}";`;
 
 const SOURCE_FILES = "**/*.{ts,tsx,mts,cts}";
 
@@ -270,14 +280,21 @@ const configBlocks = (request: {
   ),
 ];
 
+type ProjectionParts = { readonly imports: readonly string[]; readonly blocks: readonly string[] };
+
+const FORM_TEXTS: Readonly<Record<EslintProjection, (parts: ProjectionParts) => string>> = {
+  javascript: ({ imports, blocks }) => `${imports.join("\n")}\n\nexport default [\n${blocks.join("\n")}\n];\n`,
+  typescript: ({ imports, blocks }) =>
+    `${[CONFIG_TYPE_IMPORT, ...imports].join("\n")}\n\nconst projection: Linter.Config[] = [\n${blocks.join("\n")}\n];\n\nexport default projection;\n`,
+};
+
 export const projectionText = (request: {
   readonly selectedPieces: readonly ProjectedPiece[];
   readonly records: readonly ExceptionRecord[];
+  readonly form: EslintProjection;
 }): string => {
   const pieces = sortedPieces({ pieces: request.selectedPieces });
-  const imports = importLines({ pieces });
-  const blocks = configBlocks({ pieces, records: request.records });
-  return `${imports.join("\n")}\n\nexport default [\n${blocks.join("\n")}\n];\n`;
+  return FORM_TEXTS[request.form]({ imports: importLines({ pieces }), blocks: configBlocks({ pieces, records: request.records }) });
 };
 
 export const projectionState = (request: {

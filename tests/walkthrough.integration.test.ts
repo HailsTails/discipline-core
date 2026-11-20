@@ -81,7 +81,7 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     symptomCatalogueOf: createSymptomCatalogueRepository,
   });
   return guidedCheckCommandOutcome({
-    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide } },
+    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide } },
   });
 };
 

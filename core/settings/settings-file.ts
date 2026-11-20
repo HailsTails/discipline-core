@@ -4,6 +4,7 @@ import { type ForfeitureAssessment, forfeitureAssessmentSchema } from "../values
 import { type CheckEditions, checkEditionsSchema } from "../values/check-editions.ts";
 import { TOOL_RULE_SET } from "../values/clause-address.ts";
 import { type EslintConfigLookup, eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
+import { type EslintProjection, eslintProjectionSchema } from "../values/eslint-projection.ts";
 import { NOT_ADOPTED, NOT_RUN, type RuleSetName, ruleSetNameSchema } from "../values/identifiers.ts";
 import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
@@ -32,6 +33,7 @@ export type SettingsFile = {
   readonly reportOutput: ReportOutput;
   readonly checkEditions: CheckEditions;
   readonly eslintConfigLookup: EslintConfigLookupChoice;
+  readonly eslintProjection: EslintProjection;
   readonly eslintConfigRoots: readonly RepoPath[];
   readonly conventions: ConventionsReading;
 };
@@ -105,6 +107,7 @@ const settingsFileWireSchema = z.strictObject({
   reportOutput: reportOutputSchema.default("full"),
   checkEditions: checkEditionsSchema.default("pinned"),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
+  eslintProjection: eslintProjectionSchema.default("javascript"),
   eslintConfigRoots: folderListSchema({ refusal: "an eslintConfigRoots entry is a repository folder, not a glob" }),
   conventions: z.unknown().optional(),
   layers: z.unknown().optional(),
@@ -142,6 +145,7 @@ const settingsFileOfWire = (request: { readonly wire: SettingsFileWire; readonly
   reportOutput: request.wire.reportOutput,
   checkEditions: request.wire.checkEditions,
   eslintConfigLookup: eslintConfigLookupOf({ declared: request.wire.eslintConfigLookup }),
+  eslintProjection: request.wire.eslintProjection,
   eslintConfigRoots: request.wire.eslintConfigRoots,
   conventions: request.conventions,
 });

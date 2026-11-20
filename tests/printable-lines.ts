@@ -301,6 +301,8 @@ const UNSLICED_UNRUN: readonly Filled<Unmeasured>[] = [{ entry: UNRUN_PROJECTION
 
 const SLICE = repoPathSchema.parse("packages/web/disciplines.eslint.mjs");
 
+const UNCHOSEN_SLICE = repoPathSchema.parse("packages/web/disciplines.eslint.mts");
+
 const PROJECTION_PROBLEMS: {
   readonly [Scope in ProjectionProblem["scope"]]: Readonly<
     Record<Extract<ProjectionProblem, { readonly scope: Scope }>["state"], ProjectionProblem>
@@ -312,6 +314,7 @@ const PROJECTION_PROBLEMS: {
     missing: { scope: "slice", mechanism: MECHANISM, state: "missing", slice: SLICE },
     "not-applied": { scope: "slice", mechanism: MECHANISM, state: "not-applied", slice: SLICE },
     unconfigured: { scope: "slice", mechanism: MECHANISM, state: "unconfigured", slice: SLICE },
+    "not-chosen": { scope: "slice", mechanism: MECHANISM, state: "not-chosen", slice: UNCHOSEN_SLICE },
   },
 };
 
@@ -720,23 +723,23 @@ const UNREAD_CATALOGUES: readonly Filled<UnreadableGuide>[] = [
 
 const REPORT_LINES: readonly PrintedLine[] = [
   ...EVERY_OUTPUT.flatMap((output) =>
-    reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sampleFills, guide: NO_SYMPTOM_GUIDE }),
+    reportLinesOf({ report: EVERY_ENTRY, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", entryFills: sampleFills, guide: NO_SYMPTOM_GUIDE }),
   ),
   ...reportLinesOf({
     report: { ...EMPTY_REPORT, unmeasured: entriesOf(UNSLICED_UNRUN) },
     output: "full",
-    projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+    projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
     entryFills: unslicedFills,
     guide: NO_SYMPTOM_GUIDE,
   }),
   ...[...NOTED_REPORTS, ...Object.values(VERDICT_REPORTS).flatMap((byPart) => Object.values(byPart))].flatMap((report) =>
-    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, entryFills: sharedFills, guide: NO_SYMPTOM_GUIDE }),
+    reportLinesOf({ report, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", entryFills: sharedFills, guide: NO_SYMPTOM_GUIDE }),
   ),
   ...reportLinesOf({
     report: { ...EMPTY_REPORT, findings: entriesOf(SYMPTOM_FINDINGS) },
     output: "full",
     projectCommand: PROJECT_COMMAND,
-    pruneCommand: PRUNE_COMMAND,
+    pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
     entryFills: symptomFills,
     guide: SYMPTOM_GUIDE,
   }),
@@ -745,7 +748,7 @@ const REPORT_LINES: readonly PrintedLine[] = [
       report: EMPTY_REPORT,
       output: "full",
       projectCommand: PROJECT_COMMAND,
-      pruneCommand: PRUNE_COMMAND,
+      pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
       entryFills: () => sample.fills,
       guide: sample.entry,
     }),
@@ -833,6 +836,7 @@ const LOAD_FAILURES: { readonly [Kind in LoadFailure["kind"]]: Filled<Extract<Lo
   },
   "git-failed": { entry: { kind: "git-failed", detail: "not a git repository" }, fills: { detail: "not a git repository" } },
   "config-root-untracked": { entry: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/gone") }, fills: { "config root": "packages/gone" } },
+  "projection-needs-type-stripping": { entry: { kind: "projection-needs-type-stripping" }, fills: {} },
   "selection-absent": { entry: { kind: "selection-absent", repo: "src" }, fills: { dir: "src" } },
   "unexpected-error": {
     entry: { kind: "unexpected-error", detail: "Cannot read properties of undefined" },

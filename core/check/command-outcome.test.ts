@@ -52,14 +52,14 @@ const CLASS_IN_A: Finding = {
 
 describe("checkCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } } })).toEqual({
       code: 0,
       text: "verdict: pass\n",
     });
   });
 
   it("exits 1 and prints the report when the verdict is fail", () => {
-    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })).toEqual({
+    expect(checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } } })).toEqual({
       code: 1,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\n",
     });
@@ -70,7 +70,7 @@ describe("checkCommandOutcome", () => {
       checkCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND },
+          value: { report: { ...EMPTY_REPORT, unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" },
         },
       }),
     ).toEqual({
@@ -81,7 +81,7 @@ describe("checkCommandOutcome", () => {
 
   it.each(reportOutputSchema.options)("exits 1 for a failing report whatever the %s output prints", (output) => {
     expect(
-      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } } })
+      checkCommandOutcome({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } } })
         .code,
     ).toBe(1);
   });
@@ -89,7 +89,7 @@ describe("checkCommandOutcome", () => {
   it.each(reportOutputSchema.options)("exits 0 for a passing report whatever the %s output prints", (output) => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")] }, output, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } },
       }).code,
     ).toBe(0);
   });
@@ -101,7 +101,7 @@ describe("checkCommandOutcome", () => {
           outcome: "ok",
           value: {
             report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("generated")], findings: [CLASS_IN_A] },
-            output: "failures-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+            output: "failures-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
           },
         },
       }),
@@ -111,7 +111,7 @@ describe("checkCommandOutcome", () => {
   it("exits 1 printing only the verdict for the verdict-only output", () => {
     expect(
       checkCommandOutcome({
-        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
+        result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "verdict-only", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } },
       }),
     ).toEqual({ code: 1, text: "verdict: fail\n" });
   });
@@ -201,7 +201,7 @@ describe("guidedCheckCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
     expect(
       guidedCheckCommandOutcome({
-        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE } },
+        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: NO_SYMPTOM_GUIDE } },
       }),
     ).toEqual({ code: 0, text: "verdict: pass\n" });
   });
@@ -211,7 +211,7 @@ describe("guidedCheckCommandOutcome", () => {
       guidedCheckCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: CLASS_GUIDE },
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: CLASS_GUIDE },
         },
       }),
     ).toEqual({
@@ -225,7 +225,7 @@ describe("guidedCheckCommandOutcome", () => {
       guidedCheckCommandOutcome({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE },
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: UNREAD_GUIDE },
         },
       }),
     ).toEqual({
@@ -237,7 +237,7 @@ describe("guidedCheckCommandOutcome", () => {
   it("exits 0 for a clean report when the catalogue was not read, saying so in readFirst", () => {
     expect(
       guidedCheckCommandOutcome({
-        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: UNREAD_GUIDE } },
+        result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: UNREAD_GUIDE } },
       }),
     ).toEqual({
       code: 0,

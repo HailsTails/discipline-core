@@ -103,7 +103,11 @@ const versionTwoBindings = () => {
 };
 
 const versionOneText = (): string =>
-  projectionText({ selectedPieces: versionOnePiecesOf({ bindings: versionOneBindings(), path, specifierOf }), records: VERSION_ONE_RECORDS });
+  projectionText({
+    selectedPieces: versionOnePiecesOf({ bindings: versionOneBindings(), path, specifierOf }),
+    records: VERSION_ONE_RECORDS,
+    form: "javascript",
+  });
 
 const versionTwoText = (): string => {
   const checks = projectedChecksOf({ checks: catalogue().checks, bindings: versionTwoBindings() });

@@ -1,3 +1,4 @@
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { LoadFailure } from "../check/load-failure.ts";
 import type { RunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseBinding, ClauseEditionReading, ClauseRoot, SelectedClause, SelectionReading } from "../consumer-selection/selection.ts";
@@ -47,6 +48,7 @@ export type SettingsFailure = LoadFailure | CheckChoiceRefusal;
 export type SettingsReading = {
   readonly selection: SelectionReading;
   readonly runSettings: RunSettings;
+  readonly eslintProjection: EslintProjection;
   readonly eslintConfigLookup: EslintConfigLookupChoice;
   readonly conventions: Conventions;
   readonly notes: readonly SettingsNote[];
@@ -192,6 +194,7 @@ const settingsReadingOf = (request: {
     fileExceptionWhyChains: "required",
   },
   runSettings: { reportOutput: request.file.reportOutput, assessment: { forfeiture: request.file.forfeiture } },
+  eslintProjection: request.file.eslintProjection,
   eslintConfigLookup: request.file.eslintConfigLookup,
   conventions: request.file.conventions.conventions,
   notes: request.file.conventions.declared.map((key) => ({ kind: "declared-not-read", key })),

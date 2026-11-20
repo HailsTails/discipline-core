@@ -13,6 +13,7 @@ import {
   nestedConfigurationFoldersOf,
   sliceRecordsOf,
   slicePathOf,
+  unchosenProjectionFilesOf,
   unprojectedFoldersOf,
 } from "./projection-slices.ts";
 
@@ -101,13 +102,37 @@ describe("configRootsOf", () => {
   });
 });
 
+describe("unchosenProjectionFilesOf", () => {
+  it("lists every tracked projection of the form not chosen, leaving out those inside a folder with its own disciplines.json", () => {
+    expect(
+      unchosenProjectionFilesOf({
+        trackedPaths: tracked([
+          "disciplines.eslint.mjs",
+          "disciplines.eslint.mts",
+          "packages/a/disciplines.eslint.mjs",
+          "nested/disciplines.json",
+          "nested/disciplines.eslint.mjs",
+        ]),
+        form: "typescript",
+      }),
+    ).toEqual(["disciplines.eslint.mjs", "packages/a/disciplines.eslint.mjs"]);
+  });
+});
+
 describe("slicePathOf", () => {
   it("keeps the repository root's projection at disciplines.eslint.mjs", () => {
-    expect(slicePathOf({ root: REPOSITORY })).toBe("disciplines.eslint.mjs");
+    expect(slicePathOf({ root: REPOSITORY, form: "javascript" })).toBe("disciplines.eslint.mjs");
   });
 
   it("writes a package's slice beside its eslint.config", () => {
-    expect(slicePathOf({ root: PACKAGE_A })).toBe("packages/a/disciplines.eslint.mjs");
+    expect(slicePathOf({ root: PACKAGE_A, form: "javascript" })).toBe("packages/a/disciplines.eslint.mjs");
+  });
+
+  it("names the TypeScript form's projection and slices disciplines.eslint.mts", () => {
+    expect([slicePathOf({ root: REPOSITORY, form: "typescript" }), slicePathOf({ root: PACKAGE_A, form: "typescript" })]).toEqual([
+      "disciplines.eslint.mts",
+      "packages/a/disciplines.eslint.mts",
+    ]);
   });
 });
 
@@ -243,6 +268,7 @@ describe("orphanedSliceDirectoriesOf", () => {
   it("names each tracked slice outside every config root and outside nested repositories", () => {
     expect(
       orphanedSliceDirectoriesOf({
+        form: "javascript",
         trackedPaths: tracked([
           "disciplines.eslint.mjs",
           "packages/a/disciplines.eslint.mjs",

@@ -121,6 +121,12 @@ describe("loadFailureText", () => {
     );
   });
 
+  it("prints projection-needs-type-stripping with the setting, why it cannot be loaded and both ways out", () => {
+    expect(loadFailureText({ failure: { kind: "projection-needs-type-stripping" } })).toBe(
+      "load failure: projection-needs-type-stripping eslintProjection chooses typescript, and this Node.js runs with type stripping turned off, so it cannot load the projection: run Hone without --no-experimental-strip-types, or set eslintProjection to javascript and run project again\n",
+    );
+  });
+
   it("prints toolchain-shadowed with the package, where it resolved, and what to delete before reinstalling core", () => {
     expect(
       loadFailureText({

@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
@@ -15,6 +16,7 @@ import type { NativeException, ProjectionWrite } from "./runner-result-schema.ts
 
 export type EmbeddedRunRequest = RunRequest & {
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
   readonly records: readonly ExceptionRecord[];
 };
 

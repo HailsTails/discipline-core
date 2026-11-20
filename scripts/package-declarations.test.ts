@@ -5,10 +5,14 @@ import {
   declarationFilesOf,
   declarationReachedBy,
   PUBLIC_TYPE_ENTRIES,
+  pluginDeclarationsOf,
+  pluginExportOf,
   publishedDeclarationsOf,
   reachableDeclarations,
   typedExportOf,
 } from "./package-declarations.ts";
+
+const ESLINT_PACKAGE = "eslint";
 
 const ENTRY = { subpath: "audit", source: "api/audit.ts" };
 
@@ -45,6 +49,31 @@ describe("PUBLIC_TYPE_ENTRIES", () => {
 describe("typedExportOf", () => {
   it("pairs an entry's subpath with the declaration and the module built from its source", () => {
     expect(typedExportOf({ entry: ENTRY })).toEqual({ subpath: "audit", declaration: "api/audit.d.ts", module: "api/audit.js" });
+  });
+});
+
+describe("pluginExportOf", () => {
+  it("exports a built ESLint plugin module at its own path, with the declaration beside it under the types condition", () => {
+    expect(pluginExportOf({ module: "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js" })).toEqual({
+      subpath: "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",
+      declaration: "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.d.ts",
+      module: "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js",
+    });
+  });
+});
+
+describe("pluginDeclarationsOf", () => {
+  it("declares each built ESLint plugin module's default export as ESLint's own plugin type", () => {
+    expect(pluginDeclarationsOf({ modules: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js", "mechanisms/eslint/CD-7/cd7/cd7.eslint-plugin.js"] })).toEqual([
+      {
+        path: "mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.d.ts",
+        text: `import type { ESLint } from "${ESLINT_PACKAGE}";\ndeclare const plugin: ESLint.Plugin;\nexport default plugin;\n`,
+      },
+      {
+        path: "mechanisms/eslint/CD-7/cd7/cd7.eslint-plugin.d.ts",
+        text: `import type { ESLint } from "${ESLINT_PACKAGE}";\ndeclare const plugin: ESLint.Plugin;\nexport default plugin;\n`,
+      },
+    ]);
   });
 });
 

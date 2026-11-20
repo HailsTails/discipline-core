@@ -127,6 +127,7 @@ const ABSTRACT_SYNTAX_ONLY_READING: SelectionReading = {
 
 const selectionRepositoryReading = (reading: SelectionReading): SelectionRepository => ({
   read: vi.fn<SelectionRepository["read"]>().mockReturnValue({ outcome: "ok", value: reading }),
+  eslintProjection: vi.fn<SelectionRepository["eslintProjection"]>().mockReturnValue({ outcome: "ok", value: "javascript" }),
 });
 
 const CARVE_OUT_ON_GONE: StructuralExceptionEntry = {
@@ -533,7 +534,7 @@ describe("runCheck load failures", () => {
       error: { kind: "file-unreadable", path: "/repo/disciplines.json", detail: "EACCES" },
     };
     await expect(
-      runCheck(checkRequest({ selectionRepository: { read: vi.fn<SelectionRepository["read"]>().mockReturnValue(failure) } })),
+      runCheck(checkRequest({ selectionRepository: { read: vi.fn<SelectionRepository["read"]>().mockReturnValue(failure), eslintProjection: vi.fn<SelectionRepository["eslintProjection"]>() } })),
     ).resolves.toEqual(failure);
   });
 
@@ -874,7 +875,7 @@ describe("runCheck with ESLint config roots declared in disciplines.json", () =>
   it("hands an embedded runner each declared folder git tracks, spelled as git spells it", async () => {
     const runner = embeddedRunnerReporting({ report: CURRENT_REPORT });
     await runCheck(declaringCheck({ roots: [repoPathSchema.parse("src")], excluded: [], runner }));
-    expect(runner.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ declaredConfigRoots: ["src"] }));
+    expect(runner.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ declaredConfigRoots: ["src"], eslintProjection: "javascript" }));
   });
 
   it.each([

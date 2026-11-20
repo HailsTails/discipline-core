@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
@@ -25,10 +26,11 @@ const ESLINT_CLAUSE: RunnerClause = {
 
 const ROUTE_FILES = [repoPathSchema.parse("route/[id].ts"), repoPathSchema.parse("route/i.ts")];
 
-const ROUTE_RUN = {
+const ROUTE_RUN: Omit<EmbeddedRunRequest, "records"> = {
   repoRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/route-brackets`),
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   files: ROUTE_FILES,
   trackedPaths: ROUTE_FILES,
   clauses: [ESLINT_CLAUSE],

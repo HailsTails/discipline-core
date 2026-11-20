@@ -334,6 +334,7 @@ Each section's entries take one of these shapes. A finding names its symptom wit
 | `projectionProblems` | `<mechanism> missing <slice>: that slice is not written; run <project command> and commit every disciplines.<mechanism>.mjs it writes` |
 | `projectionProblems` | `<mechanism> not-applied <slice>: the <mechanism> configuration for <folder> leaves records of that slice out of effect; spread the default export of <slice> last in that package's configuration, in place of any other projection it spreads, or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
 | `projectionProblems` | `<mechanism> unconfigured <slice>: <folder> has no <mechanism> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
+| `projectionProblems` | `<mechanism> not-chosen <slice>: eslintProjection chooses javascript, so <folder>/disciplines.<mechanism>.mjs is the projection now; run <project command> and commit every disciplines.<mechanism>.mjs it writes, which removes <slice> where its bytes are what hone project wrote, and import <folder>/disciplines.<mechanism>.mjs in its place` |
 | `assessment` | `forfeiture elsewhere: 1 file carve-out not checked for decay in this run` |
 | `assessment` | `forfeiture elsewhere: <count> file carve-outs not checked for decay in this run` |
 | `readFirst` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. Recipe: <recipe>. <answers>. Read <symptom page>#<symptom>` |
@@ -399,6 +400,7 @@ A run that cannot decide prints one line and exits `2`. It prints the same line 
 | `runner-failed` | `load failure: runner-failed <mechanism> tool-failed <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> plugin-conflict <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> team-config-unloadable <detail>` |
+| `projection-needs-type-stripping` | `load failure: projection-needs-type-stripping eslintProjection chooses typescript, and this Node.js runs with type stripping turned off, so it cannot load the projection: run Hone without --no-experimental-strip-types, or set eslintProjection to javascript and run project again` |
 | `runner-failed` | `load failure: runner-failed <mechanism> runner-invalid-output <detail>` |
 | `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found <version found>, supported <range>: add a supported version to the devDependencies of the repository root` |
 | `runner-failed` | `load failure: runner-failed <mechanism> toolchain-unavailable <package> found not installed, supported <range>: <package> is a required peer of @hailstails/hone, so this install is incomplete; add a supported version to the devDependencies of the repository root and reinstall` |

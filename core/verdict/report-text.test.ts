@@ -85,14 +85,14 @@ const emptyReport: CheckReport = {
 describe("renderReportText entry lines", () => {
   it("renders a finding as clause, mechanism, file:line:column and snippet", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, findings: [finding] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, findings: [finding] } }),
     ).toContain("\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\n");
   });
 
   it("renders the excluded paths first, one per line, before any finding", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated"), repoPathSchema.parse("src/legacy.ts")], findings: [finding] },
       }),
@@ -104,7 +104,7 @@ describe("renderReportText entry lines", () => {
   it("renders an exempted finding followed by the kind of each crediting record", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [carved, carvedEverywhere] }] },
       }),
@@ -115,32 +115,32 @@ describe("renderReportText entry lines", () => {
 
   it("renders an uncovered clause as its address text", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, uncovered: [probeNoTmp] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, uncovered: [probeNoTmp] } }),
     ).toContain("\nprobe/PD-1#no-tmp-files\n");
   });
 
   it("renders a stale authorised location as clause, mechanism, kind and file", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, stale: [located] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, stale: [located] } }),
     ).toContain("\nCD-14#no-class-syntax audit authorised-location src/a.ts\n");
   });
 
   it("renders a stale clause-wide carve-out with * for its file", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, stale: [carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, stale: [carvedEverywhere] } }),
     ).toContain("\nCD-14#no-class-syntax audit clause-wide-carve-out *\n");
   });
 
   it("renders a forfeited file carve-out as clause, mechanism, kind and file", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, forfeited: [carved] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, forfeited: [carved] } }),
     ).toContain("\nCD-14#no-class-syntax audit file-carve-out src/a.ts\n");
   });
 
   it("renders a doubly-held entry as clause, mechanism, doubly-held and file", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -153,7 +153,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded ignore as clause, mechanism, kind and file", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -166,7 +166,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded config override as clause, mechanism, kind and file", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -181,7 +181,7 @@ describe("renderReportText entry lines", () => {
   it("renders an unrecorded suppression entry with its location", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -202,7 +202,7 @@ describe("renderReportText entry lines", () => {
   it("renders a finding whose snippet holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -217,7 +217,7 @@ CD-14#no-class-syntax audit src/a.ts:3:5 class A {\n}\r\nclass B {}
   it("renders an unrecorded inline disable whose text holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -242,7 +242,7 @@ CD-14#no-class-syntax eslint inline-disable src/a.ts:7 /* eslint-disable\nno-cla
   it("renders a command-line option whose script and option hold line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -267,7 +267,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint\r\nfix --rule
   it("renders an invalid record whose detail holds line breaks on one line with each break escaped", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -287,7 +287,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded inline disable with its line and text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -310,7 +310,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded inline disable that names no rule with the cheap fix after its text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -335,7 +335,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded inline rule config with its line and text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -357,7 +357,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   it("renders an unrecorded command-line option as its location, script and option", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -396,7 +396,7 @@ exceptions[4] why-chain-refused why 2\nis empty\r
   ])("renders $option with the reason $cause.kind gives and its way out", ({ option, cause, note }) => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -413,7 +413,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders an invalid record that carries a detail as its index, problem kind and detail", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -431,7 +431,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders a refused why chain as its index, problem kind and detail", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -449,7 +449,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders a clause-not-selected invalid record with the clause's address text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -464,7 +464,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders a file-not-repo-path invalid record with the refused file", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -479,7 +479,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders an invalid record of the split layout with the file that holds it and its index there", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -494,7 +494,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders a duplicate of the split layout with the file and index of the record it duplicates", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -512,7 +512,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("renders a duplicate invalid record with the index it duplicates", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -557,7 +557,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
     ],
   ])("renders the unmeasured entry %o as the line with its reason and next step", (unmeasured, line) => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, unmeasured: [unmeasured] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, unmeasured: [unmeasured] } }),
     ).toContain(`\n${line}\n`);
   });
 
@@ -584,14 +584,33 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
     ],
   ])("renders the projection problem %o as the line with its reason and next step", (problem, line) => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, projectionProblems: [problem] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, projectionProblems: [problem] } }),
+    ).toContain(`\n${line}\n`);
+  });
+
+  it.each<readonly [ProjectionProblem, string]>([
+    [
+      { scope: "projection", mechanism: eslint, state: "out-of-date" },
+      "eslint out-of-date: disciplines.eslint.mts differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mts it writes",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "not-chosen", slice: repoPathSchema.parse("disciplines.eslint.mjs") },
+      "eslint not-chosen disciplines.eslint.mjs: eslintProjection chooses typescript, so disciplines.eslint.mts is the projection now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mts it writes, which removes disciplines.eslint.mjs where its bytes are what hone project wrote, and import disciplines.eslint.mts in its place",
+    ],
+    [
+      { scope: "slice", mechanism: eslint, state: "not-chosen", slice: SLICE },
+      "eslint not-chosen packages/a/disciplines.eslint.mjs: eslintProjection chooses typescript, so packages/a/disciplines.eslint.mts is the projection now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every disciplines.eslint.mts it writes, which removes packages/a/disciplines.eslint.mjs where its bytes are what hone project wrote, and import packages/a/disciplines.eslint.mts in its place",
+    ],
+  ])("names the TypeScript projection in the line for %o when eslintProjection chooses typescript", (problem, line) => {
+    expect(
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "typescript", output: "full", report: { ...emptyReport, projectionProblems: [problem] } }),
     ).toContain(`\n${line}\n`);
   });
 
   it("points a not-included line at the slice lines when the mechanism reports package slices", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -605,7 +624,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("does not point a not-included line at another mechanism's slice lines", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -619,7 +638,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
   it("adds the folders holding their own disciplines.json to a not-included line in the failures-only output, without marking the verdict partial", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "failures-only",
         report: {
           ...emptyReport,
@@ -640,7 +659,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
     expect(
       renderReportText({
         projectCommand: "node core/check/tool-command.ts project --repo \"my repo\"",
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, projectionProblems: [{ scope: "projection", mechanism: eslint, state: "out-of-date" }] },
       }),
@@ -651,7 +670,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
     expect(
       renderReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, stale: [carved], readFirst: [{ kind: "paid-debt", fileCarveOuts: 3, projections: [eslint] }] },
       }),
@@ -664,7 +683,7 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
     expect(
       renderReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, readFirst: [{ kind: "paid-debt", fileCarveOuts: 1, projections: [] }] },
       }),
@@ -677,13 +696,13 @@ CD-14#no-class-syntax eslint command-line-option package.json lint ${option}${no
 describe("renderReportText sections", () => {
   it("heads a section with its field name and its count", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
     ).toMatch(/^stale \(2\)$/m);
   });
 
   it("renders a section's entries in the list's order beneath its header", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, stale: [located, carvedEverywhere] } }),
     ).toContain(
       "stale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\n",
     );
@@ -692,7 +711,7 @@ describe("renderReportText sections", () => {
   it("orders sections as the report's fields are ordered", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -706,13 +725,13 @@ describe("renderReportText sections", () => {
 
   it("leaves out the section of an empty list", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, findings: [finding] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, findings: [finding] } }),
     ).not.toMatch(/^stale \(/m);
   });
 
   it("renders a report with one finding and one stale record exactly, ending with verdict: fail", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, findings: [finding], stale: [located] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, findings: [finding], stale: [located] } }),
     ).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nstale (1)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nverdict: fail\n",
     );
@@ -721,7 +740,7 @@ describe("renderReportText sections", () => {
   it("renders a report whose only entries are exempted exactly, ending with verdict: pass", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [located] }] },
       }),
@@ -735,7 +754,7 @@ describe("renderReportText sections", () => {
 
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [reasoned] }] },
       }),
@@ -743,13 +762,13 @@ describe("renderReportText sections", () => {
   });
 
   it("renders an empty report as exactly the pass verdict line", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: emptyReport })).toBe("verdict: pass\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: emptyReport })).toBe("verdict: pass\n");
   });
 
   it("renders a refused file holding a forged verdict line as one escaped line", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -775,31 +794,31 @@ const mixedReport: CheckReport = {
 
 describe("renderReportText outputs", () => {
   it("renders every section of a failing report for the full output", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: mixedReport })).toBe(
       "excluded (1)\ngenerated\nfindings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nexempted (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {} exempted by file-carve-out\nstale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\nverdict: fail\n",
     );
   });
 
   it("renders the failing sections and the verdict without excluded or exempted for the failures-only output", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "failures-only", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "failures-only", report: mixedReport })).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nstale (2)\nCD-14#no-class-syntax audit authorised-location src/a.ts\nCD-14#no-class-syntax audit clause-wide-carve-out *\nverdict: fail\n",
     );
   });
 
   it("renders one count line per non-empty section, marking the informational ones, and the verdict for the counts output", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "counts", report: mixedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "counts", report: mixedReport })).toBe(
       "excluded (1) informational\nfindings (1)\nexempted (1) informational\nstale (2)\nverdict: fail\n",
     );
   });
 
   it("renders only the verdict line for the verdict-only output", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "verdict-only", report: mixedReport })).toBe("verdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "verdict-only", report: mixedReport })).toBe("verdict: fail\n");
   });
 
   it("renders only the pass verdict for the failures-only output of a report whose only entries are informational", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "failures-only",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated")], exempted: [{ finding, by: [carved] }] },
       }),
@@ -807,11 +826,11 @@ describe("renderReportText outputs", () => {
   });
 
   it.each(reportOutputSchema.options)("ends the %s output of a failing report with the fail verdict", (output) => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
   });
 
   it.each(reportOutputSchema.options)("ends the %s output of a passing report with the pass verdict", (output) => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output, report: { ...emptyReport, exempted: [{ finding, by: [carved] }] } })).toMatch(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output, report: { ...emptyReport, exempted: [{ finding, by: [carved] }] } })).toMatch(
       /(?:^|\n)verdict: pass\n$/,
     );
   });
@@ -826,7 +845,7 @@ describe("renderReportText assessment", () => {
   it("renders forfeiture elsewhere with its count of file carve-outs not checked for decay, last before the verdict", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, exempted: [{ finding, by: [carved] }], assessment: [forfeitureElsewhere({ fileCarveOuts: 37 })] },
       }),
@@ -837,7 +856,7 @@ describe("renderReportText assessment", () => {
 
   it("names one file carve-out in the singular", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 1 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 1 })] } }),
     ).toBe(
       "assessment (1)\nforfeiture elsewhere: 1 file carve-out not checked for decay in this run\nverdict: pass (partial assessment)\n",
     );
@@ -845,7 +864,7 @@ describe("renderReportText assessment", () => {
 
   it("still renders the section when no file carve-out exists, so the choice is never invisible", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 0 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 0 })] } }),
     ).toBe(
       "assessment (1)\nforfeiture elsewhere: 0 file carve-outs not checked for decay in this run\nverdict: pass (partial assessment)\n",
     );
@@ -853,7 +872,7 @@ describe("renderReportText assessment", () => {
 
   it("renders the assessment section and the marked fail verdict for a failing full report", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toBe(
       "findings (1)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nassessment (1)\nforfeiture elsewhere: 2 file carve-outs not checked for decay in this run\nverdict: fail (partial assessment)\n",
     );
@@ -864,7 +883,7 @@ describe("renderReportText assessment outputs", () => {
   it("leaves the informational assessment section out of failures-only but keeps the marked verdict", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "failures-only",
         report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
       }),
@@ -874,7 +893,7 @@ describe("renderReportText assessment outputs", () => {
   it("counts the assessment section as informational and marks the verdict for the counts output", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "counts",
         report: { ...emptyReport, findings: [finding], assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] },
       }),
@@ -883,18 +902,18 @@ describe("renderReportText assessment outputs", () => {
 
   it("marks the verdict for the verdict-only output", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "verdict-only", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "verdict-only", report: { ...emptyReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toBe("verdict: pass (partial assessment)\n");
   });
 
   it.each(reportOutputSchema.options)("never prints a bare verdict for the %s output of a partial assessment", (output) => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output, report: { ...mixedReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output, report: { ...mixedReport, assessment: [forfeitureElsewhere({ fileCarveOuts: 2 })] } }),
     ).toMatch(/(?:^|\n)verdict: fail \(partial assessment\)\n$/);
   });
 
   it.each(reportOutputSchema.options)("prints the bare verdict for the %s output of a full assessment", (output) => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output, report: mixedReport })).toMatch(/(?:^|\n)verdict: fail\n$/);
   });
 });
 
@@ -904,7 +923,7 @@ describe("renderReportText clauses not adopted", () => {
   it("lists the not-adopted clauses after the excluded paths and before the findings", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, excluded: [repoPathSchema.parse("generated")], notAdopted: [namingConvention], findings: [finding] },
       }),
@@ -914,13 +933,13 @@ describe("renderReportText clauses not adopted", () => {
   });
 
   it("passes as a whole assessment when the report lists only not-adopted clauses", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
       "notAdopted (1)\nCD-6#naming-convention\nverdict: pass\n",
     );
   });
 
   it("counts the not-adopted clauses as informational", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "counts", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "counts", report: { ...emptyReport, notAdopted: [namingConvention] } })).toBe(
       "notAdopted (1) informational\nverdict: pass\n",
     );
   });
@@ -928,7 +947,7 @@ describe("renderReportText clauses not adopted", () => {
   it("renders a clause-not-adopted invalid record with the clause's address text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 2 }, problem: { kind: "clause-not-adopted", clause: namingConvention } }] },
       }),
@@ -940,7 +959,7 @@ describe("renderReportText clauses adopted but not run", () => {
   it("lists the not-run clauses after the not-adopted ones, each as adopted and owed to review", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, notAdopted: [namingConvention], notRun: [probeNoTmp], findings: [finding] },
       }),
@@ -950,7 +969,7 @@ describe("renderReportText clauses adopted but not run", () => {
   });
 
   it("passes as a whole assessment when the report lists only not-run clauses", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "counts", report: { ...emptyReport, notRun: [probeNoTmp] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "counts", report: { ...emptyReport, notRun: [probeNoTmp] } })).toBe(
       "notRun (1) informational\nverdict: pass\n",
     );
   });
@@ -958,7 +977,7 @@ describe("renderReportText clauses adopted but not run", () => {
   it("renders a clause-not-run invalid record with the clause's address text", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, invalidRecords: [{ place: { layout: "single-file", file: RECORDS_FILE, index: 1 }, problem: { kind: "clause-not-run", clause: probeNoTmp } }] },
       }),
@@ -1002,13 +1021,13 @@ const unwrittenReport: CheckReport = {
 
 describe("renderReportText readFirst", () => {
   it("prints readFirst last, after the failures, so the report ends on where to read and then the verdict", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: pointedReport })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: pointedReport })).toBe(
       'findings (2)\nCD-14#no-class-syntax audit src/a.ts:3:5 class A {}\nCD-15#loops audit src/a.ts:3:5 const total = 0;\nreadFirst (2)\nCD-14#no-class-syntax: read the "## CD-14#no-class-syntax" section of disciplines.assessment.md, then rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit; disciplines.assessment.md does not assess this clause\nverdict: fail\n',
     );
   });
 
   it("says once, first, that the assessment file is not written and where its guide is, then gives each clause its rule page", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "full", report: unwrittenReport })).toContain(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "full", report: unwrittenReport })).toContain(
       "\nreadFirst (3)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-14#no-class-syntax: read rules/CD-14/README.md#spirit\nCD-15#loops: read rules/CD-15/README.md#spirit\nverdict: fail\n",
     );
   });
@@ -1016,7 +1035,7 @@ describe("renderReportText readFirst", () => {
   it("says once, first, that the assessment file could not be read", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -1047,7 +1066,7 @@ describe("renderReportText readFirst without a rule page", () => {
   ] as const)("says the rule set has no page when the section is $section", ({ section, line }) => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -1067,7 +1086,7 @@ describe("renderReportText readFirst without a rule page", () => {
   ] as const)("points at no Spirit in the $state note when no clause line names one", ({ state, note }) => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: {
           ...emptyReport,
@@ -1084,15 +1103,15 @@ describe("renderReportText readFirst without a rule page", () => {
 
 describe("renderReportText readFirst by output", () => {
   it("keeps readFirst in the failures-only output, after the findings", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "failures-only", report: pointedReport })).toMatch(/^findings \(2\)\n(?:.*\n){2}readFirst \(2\)\n(?:.*\n){2}verdict: fail\n$/);
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "failures-only", report: pointedReport })).toMatch(/^findings \(2\)\n(?:.*\n){2}readFirst \(2\)\n(?:.*\n){2}verdict: fail\n$/);
   });
 
   it("counts readFirst as guidance in the counts output, its note included", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "counts", report: unwrittenReport })).toBe("findings (2)\nreadFirst (3) guidance\nverdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "counts", report: unwrittenReport })).toBe("findings (2)\nreadFirst (3) guidance\nverdict: fail\n");
   });
 
   it("prints only the verdict for the verdict-only output", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "verdict-only", report: pointedReport })).toBe("verdict: fail\n");
   });
 });
 
@@ -1107,7 +1126,7 @@ describe("renderReportText clause editions", () => {
   it("lists each clause's edition after the not-run clauses, with its mechanism and latest edition", () => {
     expect(
       renderReportText({
-        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND,
+        projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         report: { ...emptyReport, notRun: [probeNoTmp], editions: [editionReading] },
       }),
@@ -1117,14 +1136,14 @@ describe("renderReportText clause editions", () => {
   });
 
   it("passes as a whole assessment when the report lists only editions", () => {
-    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "counts", report: { ...emptyReport, editions: [editionReading] } })).toBe(
+    expect(renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "counts", report: { ...emptyReport, editions: [editionReading] } })).toBe(
       "editions (1) informational\nverdict: pass\n",
     );
   });
 
   it("leaves editions out of a failures-only report", () => {
     expect(
-      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, output: "failures-only", report: { ...emptyReport, editions: [editionReading] } }),
+      renderReportText({ projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", output: "failures-only", report: { ...emptyReport, editions: [editionReading] } }),
     ).toBe("verdict: pass\n");
   });
 });
@@ -1227,7 +1246,7 @@ describe("renderGuidedReportText", () => {
     expect(
       renderGuidedReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         guide: clockGuide,
         report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
@@ -1241,7 +1260,7 @@ describe("renderGuidedReportText", () => {
     expect(
       renderGuidedReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         guide: NO_SYMPTOM_GUIDE,
         report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
@@ -1255,7 +1274,7 @@ describe("renderGuidedReportText", () => {
     expect(
       renderGuidedReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         guide: { guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" },
         report: { ...emptyReport, findings: [clockFinding], readFirst: [clockReading] },
@@ -1269,7 +1288,7 @@ describe("renderGuidedReportText", () => {
     expect(
       renderGuidedReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         guide: { guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" },
         report: emptyReport,
@@ -1283,7 +1302,7 @@ describe("renderGuidedReportText", () => {
     expect(
       renderGuidedReportText({
         projectCommand: PROJECT_COMMAND,
-        pruneCommand: PRUNE_COMMAND,
+        pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript",
         output: "full",
         guide: clockGuide,
         report: { ...emptyReport, exempted: [{ finding: clockFinding, by: [carved] }] },

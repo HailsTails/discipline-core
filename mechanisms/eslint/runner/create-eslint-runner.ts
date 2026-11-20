@@ -19,6 +19,7 @@ import type { FileTextPort } from "../../../core/platform-ports/file-text-port.t
 import type { ModuleLoad, ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
+import type { EslintProjection } from "../../../core/values/eslint-projection.ts";
 import { sameClauseAddress } from "../../../core/values/clause-address.ts";
 import type { ModuleExtension } from "../../../core/values/install-layout.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
@@ -54,7 +55,7 @@ import {
 import { type OptionVerdict, type ScriptOptionJudge, scriptOptionJudge } from "./script-option-effect.ts";
 import {
   type CurrentProjection,
-  PROJECTION_PATH,
+  projectionPathOf,
   type ProjectionFiles,
   pluginImportOf,
   projectionState,
@@ -72,6 +73,7 @@ import {
 } from "./projection-slices.ts";
 import {
   packageSliceProblemsOf,
+  unchosenSliceProblemsOf,
   type ProjectionClause,
   type SliceOrigin,
   slicedProjectionWrites,
@@ -133,6 +135,7 @@ type SliceSource = {
   readonly clauses: readonly ProjectionClause[];
   readonly records: readonly ExceptionRecord[];
   readonly origin: SliceOrigin;
+  readonly form: EslintProjection;
 };
 
 type ParsedPlugin = Result<LoadedEslintPlugin, { readonly detail: string }>;
@@ -385,7 +388,7 @@ const unconfiguredSlicesOf = (request: {
     root.placement === "package" &&
     request.run.declaredConfigRoots.includes(root.directory) &&
     request.folderConfiguration({ folder: root.directory }) === "unconfigured"
-      ? [{ slice: slicePathOf({ root }), state: "unconfigured" as const }]
+      ? [{ slice: slicePathOf({ root, form: request.run.eslintProjection }), state: "unconfigured" as const }]
       : [],
   );
 
@@ -1050,6 +1053,7 @@ const lintedReport = (request: {
 
 const unappliedSliceOf = (request: {
   readonly folder: RepoPath;
+  readonly form: EslintProjection;
   readonly state: "not-applied" | "nested-configuration";
   readonly selected: readonly SelectedClause[];
   readonly records: readonly ExceptionRecord[];
@@ -1060,11 +1064,12 @@ const unappliedSliceOf = (request: {
     records: recordsUnderCheck({ records: request.records, checked: request.checked }),
     queried: { ignored: [], checked: request.checked },
   }) === "not-in-effect"
-    ? [{ slice: slicePathOf({ root: { placement: "package", directory: request.folder } }), state: request.state }]
+    ? [{ slice: slicePathOf({ root: { placement: "package", directory: request.folder }, form: request.form }), state: request.state }]
     : [];
 
 const unappliedSlicesOf = (request: {
   readonly roots: readonly ConfigRoot[];
+  readonly form: EslintProjection;
   readonly selected: readonly SelectedClause[];
   readonly records: readonly ExceptionRecord[];
   readonly queried: QueriedFiles;
@@ -1080,6 +1085,7 @@ const unappliedSlicesOf = (request: {
       ? []
       : unappliedSliceOf({
           folder: root.directory,
+          form: request.form,
           state: "not-applied",
           selected: request.selected,
           records: [...clauseWide, ...(fileRecordsByPackage.get(root.directory) ?? [])],
@@ -1090,6 +1096,7 @@ const unappliedSlicesOf = (request: {
 
 const nestedConfigurationSlicesOf = (request: {
   readonly folders: readonly RepoPath[];
+  readonly form: EslintProjection;
   readonly selected: readonly SelectedClause[];
   readonly records: readonly ExceptionRecord[];
   readonly queried: QueriedFiles;
@@ -1099,6 +1106,7 @@ const nestedConfigurationSlicesOf = (request: {
     const prefix = `${folder}/`;
     return unappliedSliceOf({
       folder,
+      form: request.form,
       state: "nested-configuration",
       selected: request.selected,
       records: [...clauseWide, ...fileRecordsOf({ records: request.records }).filter((record) => record.file.startsWith(prefix))],
@@ -1126,12 +1134,14 @@ const queriedReport = (request: {
   if (projectionEffect({ selected: request.selected, records, queried }) === "not-in-effect") {
     const unapplied = unappliedSlicesOf({
       roots: request.attributedRoots,
+      form: request.run.eslintProjection,
       selected: request.selected,
       records: request.run.records,
       queried,
     });
     const nested = nestedConfigurationSlicesOf({
       folders: request.nestedFolders,
+      form: request.run.eslintProjection,
       selected: request.selected,
       records: request.run.records,
       queried,
@@ -1183,6 +1193,7 @@ const projectionStatusOf = (request: {
   readonly current: CurrentProjection;
   readonly source: SliceSource;
   readonly roots: readonly ConfigRoot[];
+  readonly trackedPaths: readonly RepoPath[];
   readonly projectionFiles: ProjectionFiles;
 }): Outcome<ProjectionStatus> => {
   const generated = sliceTextOf({ ...request.source, root: { placement: "repository" } });
@@ -1194,7 +1205,13 @@ const projectionStatusOf = (request: {
     return slices;
   }
   const state = projectionState({ current: request.current, generated: generated.value });
-  return { outcome: "ok", value: { projection: state === "current" ? "current" : "out-of-date", slices: slices.value } };
+  return {
+    outcome: "ok",
+    value: {
+      projection: state === "current" ? "current" : "out-of-date",
+      slices: [...slices.value, ...unchosenSliceProblemsOf({ trackedPaths: request.trackedPaths, form: request.source.form })],
+    },
+  };
 };
 
 const selectedRun = (request: {
@@ -1204,11 +1221,12 @@ const selectedRun = (request: {
   readonly ports: EslintRunnerPorts;
 }): Promise<Outcome<EslintRunReport>> => {
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
-  const states = repository.projectionFiles.currentOf({ files: [PROJECTION_PATH] });
+  const projectionFile = projectionPathOf({ form: request.run.eslintProjection });
+  const states = repository.projectionFiles.currentOf({ files: [projectionFile] });
   if (states.outcome === "failed") {
     return Promise.resolve(states);
   }
-  const current = projectionStateAt({ states: states.value, file: PROJECTION_PATH });
+  const current = projectionStateAt({ states: states.value, file: projectionFile });
   if (current.outcome === "failed") {
     return Promise.resolve(current);
   }
@@ -1230,8 +1248,10 @@ const selectedRun = (request: {
       clauses: projectionClausesOf({ configured: request.selected }),
       records: request.run.records,
       origin: sliceOriginOf({ path: request.ports.path, origin: request.origin }),
+      form: request.run.eslintProjection,
     },
     roots,
+    trackedPaths: request.run.trackedPaths,
     projectionFiles: repository.projectionFiles,
   });
   if (status.outcome === "failed") {
@@ -1326,6 +1346,7 @@ const projectedWrite = (request: {
     clauses: projectionClausesOf({ configured: configured.value }),
     records: request.request.records,
     origin: sliceOriginOf({ path: request.ports.path, origin: origin.value }),
+    form: request.request.eslintProjection,
   };
   return Promise.resolve(
     slicedProjectionWrites({

@@ -1,4 +1,5 @@
 import { type ExceptionRecord, type InvalidRecord, type RecordPlace, recordImportOf } from "../exception-records/exception-records.ts";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { AttributedNativeException, ExemptedFinding } from "../governance/governance.ts";
 import type { InlineReach, ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
 import { PRUNE_DEBT_SUBCOMMAND } from "../exception-records/paid-debt.ts";
@@ -172,9 +173,12 @@ const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasur
 
 export const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
-type NextCommands = { readonly projectCommand: string; readonly pruneCommand: string };
+type NextCommands = { readonly projectCommand: string; readonly pruneCommand: string; readonly eslintProjection: EslintProjection };
 
-const projectionFileOf = (request: { readonly mechanism: MechanismId }): string => `disciplines.${request.mechanism}.mjs`;
+const PROJECTION_EXTENSIONS: Readonly<Record<EslintProjection, string>> = { javascript: "mjs", typescript: "mts" };
+
+const projectionFileOf = (request: { readonly mechanism: MechanismId; readonly eslintProjection: EslintProjection }): string =>
+  `disciplines.${request.mechanism}.${PROJECTION_EXTENSIONS[request.eslintProjection]}`;
 
 const refreshStep = (request: NextCommands & { readonly mechanism: MechanismId }): string =>
   `run ${request.projectCommand} and commit every ${projectionFileOf(request)} it writes`;
@@ -197,14 +201,14 @@ const notIncludedLine = (
   request: ReportRequest & { readonly unmeasured: Extract<MechanismNotRun, { readonly projection: "not-included" }> },
 ): string => {
   const { mechanism, nestedConfigurations } = request.unmeasured;
-  const file = projectionFileOf({ mechanism });
+  const file = projectionFileOf({ mechanism, eslintProjection: request.eslintProjection });
   return `mechanism-not-run ${mechanism} not-included: the ${mechanism} configuration leaves the projection out of effect for a file under check; spread the default export of ${file}, or of a package's own ${file} in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}${sliceNote({ ...request, mechanism })}${nestedNote({ ...request, folders: nestedConfigurations })}`;
 };
 
 const mechanismNotRunLine = (request: ReportRequest & { readonly unmeasured: MechanismNotRun }): string => {
   switch (request.unmeasured.projection) {
     case "missing":
-      return `mechanism-not-run ${request.unmeasured.mechanism} missing: ${projectionFileOf(request.unmeasured)} is not written; ${refreshStep({ ...request, mechanism: request.unmeasured.mechanism })}`;
+      return `mechanism-not-run ${request.unmeasured.mechanism} missing: ${projectionFileOf({ ...request.unmeasured, eslintProjection: request.eslintProjection })} is not written; ${refreshStep({ ...request, mechanism: request.unmeasured.mechanism })}`;
     case "not-included":
       return notIncludedLine({ ...request, unmeasured: request.unmeasured });
   }
@@ -213,6 +217,12 @@ const mechanismNotRunLine = (request: ReportRequest & { readonly unmeasured: Mec
 type SliceProblem = Extract<ProjectionProblem, { readonly scope: "slice" }>;
 
 const folderOf = (request: { readonly slice: RepoPath }): string => request.slice.split("/").slice(0, -1).join("/");
+
+const chosenProjectionBeside = (request: NextCommands & { readonly mechanism: MechanismId; readonly slice: RepoPath }): string => {
+  const folder = folderOf(request);
+  const file = projectionFileOf(request);
+  return folder === "" ? file : `${folder}/${file}`;
+};
 
 const sliceProblemReason = (request: NextCommands & { readonly problem: SliceProblem }): string => {
   const { mechanism, slice } = request.problem;
@@ -226,6 +236,10 @@ const sliceProblemReason = (request: NextCommands & { readonly problem: SlicePro
       return `the ${mechanism} configuration for ${folder} leaves records of that slice out of effect; spread the default export of ${slice} last in that package's configuration, in place of any other projection it spreads, ${GENERATED_CONFIGURATION}`;
     case "unconfigured":
       return `${folder} has no ${mechanism} configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check`;
+    case "not-chosen": {
+      const chosen = chosenProjectionBeside({ ...request, mechanism, slice });
+      return `eslintProjection chooses ${request.eslintProjection}, so ${chosen} is the projection now; ${refreshStep({ ...request, mechanism })}, which removes ${slice} where its bytes are what hone project wrote, and import ${chosen} in its place`;
+    }
   }
 };
 
@@ -233,7 +247,7 @@ const projectionProblemLine = (request: NextCommands & { readonly problem: Proje
   const { problem } = request;
   switch (problem.scope) {
     case "projection":
-      return `${problem.mechanism} ${problem.state}: ${projectionFileOf(problem)} differs from what hone project writes now; ${refreshStep({ ...request, mechanism: problem.mechanism })}`;
+      return `${problem.mechanism} ${problem.state}: ${projectionFileOf({ ...problem, eslintProjection: request.eslintProjection })} differs from what hone project writes now; ${refreshStep({ ...request, mechanism: problem.mechanism })}`;
     case "slice":
       return `${problem.mechanism} ${problem.state} ${problem.slice}: ${sliceProblemReason({ ...request, problem })}`;
   }
@@ -299,7 +313,7 @@ const reprojectionStep = (request: NextCommands & { readonly projections: readon
   request.projections.length === 0
     ? ", and commit the exception records it changes"
     : `, then run ${request.projectCommand} and commit the exception records with every ${request.projections
-        .map((mechanism) => projectionFileOf({ mechanism }))
+        .map((mechanism) => projectionFileOf({ mechanism, eslintProjection: request.eslintProjection }))
         .join(" and every ")} it writes`;
 
 const paidDebtLine = (request: NextCommands & { readonly note: PaidDebtNote }): string =>

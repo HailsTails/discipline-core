@@ -1,6 +1,8 @@
 import type { Result } from "../core/values/result.ts";
 import type { TypedExport } from "./published-manifest.ts";
 
+const ESLINT_PACKAGE = "eslint";
+
 export type PublicTypeEntry = { readonly subpath: string; readonly source: string };
 
 export type EmittedDeclaration = {
@@ -50,7 +52,20 @@ export const typedExportOf = (request: { readonly entry: PublicTypeEntry }): Typ
   module: modulePathOf(request.entry),
 });
 
-export const declarationReachedBy = (request: { readonly from: string; readonly specifier: string }): string | undefined =>
+const PLUGIN_DECLARATION_TEXT = `import type { ESLint } from "${ESLINT_PACKAGE}";\ndeclare const plugin: ESLint.Plugin;\nexport default plugin;\n`;
+
+const pluginDeclarationPathOf = (request: { readonly module: string }): string => request.module.replace(MODULE_EXTENSION, DECLARATION_EXTENSION);
+
+export const pluginExportOf = (request: { readonly module: string }): TypedExport => ({
+  subpath: request.module,
+  declaration: pluginDeclarationPathOf(request),
+  module: request.module,
+});
+
+export const pluginDeclarationsOf = (request: { readonly modules: readonly string[] }): readonly PublishedFile[] =>
+  request.modules.map((module) => ({ path: pluginDeclarationPathOf({ module }), text: PLUGIN_DECLARATION_TEXT }));
+
+export const declarationReachedBy =(request: { readonly from: string; readonly specifier: string }): string | undefined =>
   RELATIVE_SPECIFIER.test(request.specifier)
     ? new URL(request.specifier, `file:///${request.from}`).pathname.slice(1).replace(MODULE_EXTENSION, DECLARATION_EXTENSION)
     : undefined;

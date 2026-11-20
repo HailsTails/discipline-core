@@ -16,6 +16,7 @@ export type PackagePlan = {
   readonly copied: readonly string[];
   readonly pieces: readonly PieceText[];
   readonly exported: readonly string[];
+  readonly typedPlugins: readonly string[];
 };
 
 export const SHIPPED_NODE_RANGE = "^22.18.0 || >=24";
@@ -123,8 +124,18 @@ type MechanismImport = "by-package-name" | "by-path";
 const mechanismImportOf = (request: ParsedPiece): MechanismImport =>
   PACKAGE_IMPORTED_MECHANISMS.has(PIECE_FILE.exec(request.piece.path)?.[1] ?? "") ? "by-package-name" : "by-path";
 
-const exportedModulesOf = (request: { readonly pieces: readonly ParsedPiece[] }): readonly string[] => [
-  ...new Set(request.pieces.filter((piece) => mechanismImportOf(piece) === "by-package-name").flatMap(pieceModuleEntries).map((path) => builtModulePath({ path }))),
+const DISCIPLINES_WITHOUT_PROVEN_PLUGIN_TYPE: ReadonlySet<string> = new Set(["CD-14", "CD-2", "CD-40", "CD-44", "CD-6"]);
+
+const pluginTypeOf = (request: ParsedPiece): "proven" | "unproven" =>
+  DISCIPLINES_WITHOUT_PROVEN_PLUGIN_TYPE.has(PIECE_FILE.exec(request.piece.path)?.[2] ?? "") ? "unproven" : "proven";
+
+const exportedModulesOf = (request: { readonly pieces: readonly ParsedPiece[]; readonly pluginType: "proven" | "unproven" }): readonly string[] => [
+  ...new Set(
+    request.pieces
+      .filter((piece) => mechanismImportOf(piece) === "by-package-name" && pluginTypeOf(piece) === request.pluginType)
+      .flatMap(pieceModuleEntries)
+      .map((path) => builtModulePath({ path })),
+  ),
 ];
 
 type JsonRecord = Readonly<Record<string, unknown>>;
@@ -194,7 +205,8 @@ export const packagePlanOf = (request: {
       command: builtModulePath({ path: COMMAND_SOURCE }),
       copied: copiedPathsIn(request),
       pieces: pieces.value.map(({ piece, document }) => ({ path: piece.path, text: builtPieceText({ document }) })),
-      exported: exportedModulesOf({ pieces: pieces.value }),
+      exported: exportedModulesOf({ pieces: pieces.value, pluginType: "unproven" }),
+      typedPlugins: exportedModulesOf({ pieces: pieces.value, pluginType: "proven" }),
     },
   };
 };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { ClauseBinding, Selection, SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { ClauseRoot } from "../consumer-selection/selection.ts";
 import {
@@ -80,6 +81,7 @@ export type LoadedInputs = {
   readonly mechanisms: readonly LoadedMechanism[];
   readonly excluded: readonly RepoPath[];
   readonly eslintConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
   readonly exceptionBaseline: ExceptionBaseline;
 };
 
@@ -177,6 +179,10 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
   if (reading.outcome === "failed") {
     return reading;
   }
+  const eslintProjection = request.selectionRepository.eslintProjection({});
+  if (eslintProjection.outcome === "failed") {
+    return eslintProjection;
+  }
   const entries = request.exceptionRepository.read();
   if (entries.outcome === "failed") {
     return entries;
@@ -202,6 +208,7 @@ export const loadInputs = async (request: LoadRequest): Promise<Result<LoadedInp
       mechanisms: mechanisms.value,
       excluded: reading.value.excluded,
       eslintConfigRoots: reading.value.eslintConfigRoots,
+      eslintProjection: eslintProjection.value,
       exceptionBaseline,
     },
   };
@@ -297,6 +304,7 @@ const presentTrackedPaths = (request: {
 export type CheckedTree = {
   readonly tracked: readonly RepoPath[];
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
 };
 
 const trackedFolder = (request: { readonly folder: RepoPath; readonly tracked: readonly RepoPath[] }): "tracked" | "untracked" =>
@@ -304,7 +312,7 @@ const trackedFolder = (request: { readonly folder: RepoPath; readonly tracked: r
 
 export const checkedTreeOf = (request: {
   readonly check: TreeRequest;
-  readonly inputs: Pick<LoadedInputs, "excluded" | "eslintConfigRoots">;
+  readonly inputs: Pick<LoadedInputs, "excluded" | "eslintConfigRoots" | "eslintProjection">;
 }): Result<CheckedTree, LoadFailure> => {
   const tracked = presentTrackedPaths({ check: request.check, excluded: request.inputs.excluded });
   if (tracked.outcome === "failed") {
@@ -314,7 +322,7 @@ export const checkedTreeOf = (request: {
     (folder) => trackedFolder({ folder, tracked: tracked.value }) === "untracked",
   );
   return untracked === undefined
-    ? { outcome: "ok", value: { tracked: tracked.value, declaredConfigRoots: request.inputs.eslintConfigRoots } }
+    ? { outcome: "ok", value: { tracked: tracked.value, declaredConfigRoots: request.inputs.eslintConfigRoots, eslintProjection: request.inputs.eslintProjection } }
     : failed({ kind: "config-root-untracked", root: untracked });
 };
 
@@ -334,6 +342,7 @@ const mechanismRunOf = (request: {
   readonly check: CheckRequest;
   readonly tracked: readonly RepoPath[];
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
   readonly records: readonly ExceptionRecord[];
   readonly loaded: LoadedMechanism;
 }): Promise<Result<MechanismRun, LoadFailure>> =>
@@ -342,6 +351,7 @@ const mechanismRunOf = (request: {
     mechanism: request.loaded.mechanism,
     run: runRequestOf(request),
     declaredConfigRoots: request.declaredConfigRoots,
+    eslintProjection: request.eslintProjection,
     records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
   }).then((runnerResult) => runnerFailed({ mechanism: request.loaded.mechanism, runnerResult }));
 

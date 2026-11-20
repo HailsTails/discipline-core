@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "ruleSets": {},
+  "clauses": {
+    "CD-10#throw-only-error": "eslint"
+  },
+  "eslintProjection": "typescript"
+}

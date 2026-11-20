@@ -13,5 +13,5 @@ export const fullReportExitCode = (request: { readonly checked: Result<CheckRepo
     result:
       request.checked.outcome === "failed"
         ? request.checked
-        : { outcome: "ok", value: { report: request.checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND } },
+        : { outcome: "ok", value: { report: request.checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript" } },
   }).code;

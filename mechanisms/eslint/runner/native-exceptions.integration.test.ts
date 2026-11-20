@@ -3,6 +3,7 @@ import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
 import { loadRunner, runCheck } from "../../../core/check/run-check.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
+import type { EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
 import type { LoadedRunner, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { createDefaultFileRemovalPort } from "../../../core/platform-ports/file-removal-port.ts";
 import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
@@ -435,10 +436,11 @@ const SHARED_CASE_FILES: readonly RepoPath[] = [
   repoPathSchema.parse("src/anon.ts"),
 ];
 
-const SHARED_CASES_RUN = {
+const SHARED_CASES_RUN: Omit<EmbeddedRunRequest, "clauses" | "records"> = {
   repoRoot: consumerRepo({ name: "fr3-anchors" }),
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   files: SHARED_CASE_FILES,
   trackedPaths: SHARED_CASE_FILES,
 };
@@ -562,6 +564,7 @@ const monorepoRun = async (request: {
     repoRoot: consumerRepo({ name: request.name }),
     installRoot: INSTALL_ROOT,
     declaredConfigRoots: [],
+    eslintProjection: "javascript",
     files: [repoPathSchema.parse("packages/a/x.ts")],
     trackedPaths: [
       repoPathSchema.parse("packages/a/x.ts"),

@@ -1,4 +1,5 @@
-import { readSelection, type SelectionReading, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
+import { readEslintProjection, readSelection, type SelectionReading, selectionRepositoryHolding } from "../consumer-selection/consumer-selection.ts";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { ExceptionRepository, PlacedEntry } from "../exception-records/exception-records.ts";
 import {
   type InheritedDebtOutcome,
@@ -43,6 +44,7 @@ const pathsInBase = (request: AdoptionRequest): Result<ReadonlySet<RepoPath>, Lo
 
 type DebtRequest = AdoptionRequest & {
   readonly selection: SelectionReading;
+  readonly eslintProjection: EslintProjection;
   readonly existing: readonly PlacedEntry[];
   readonly inBase: ReadonlySet<RepoPath>;
 };
@@ -56,7 +58,7 @@ const debtOutcomesOf = async (request: DebtRequest): Promise<DebtResult> => {
     moduleExtension: moduleExtensionOf({ moduleUrl: request.moduleUrl }),
     baseRevision: request.arguments.baseRevision,
     assessment: ASSESSED_IN_THIS_RUN,
-    selectionRepository: selectionRepositoryHolding({ reading: request.selection }),
+    selectionRepository: selectionRepositoryHolding({ reading: request.selection, eslintProjection: request.eslintProjection }),
   });
   if (reached.outcome === "failed") {
     return reached;
@@ -82,6 +84,10 @@ const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
   if (selection.outcome === "failed") {
     return Promise.resolve(selection);
   }
+  const eslintProjection = readEslintProjection(request);
+  if (eslintProjection.outcome === "failed") {
+    return Promise.resolve(eslintProjection);
+  }
   const existing = request.exceptionRepository.read();
   if (existing.outcome === "failed") {
     return Promise.resolve(existing);
@@ -90,7 +96,7 @@ const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
   if (inBase.outcome === "failed") {
     return Promise.resolve(inBase);
   }
-  return debtOutcomesOf({ ...request, selection: selection.value, existing: existing.value, inBase: inBase.value });
+  return debtOutcomesOf({ ...request, selection: selection.value, eslintProjection: eslintProjection.value, existing: existing.value, inBase: inBase.value });
 };
 
 const recordDebtResult = async (request: CommandRequest & { readonly gitTree: GitTreePort }): Promise<DebtResult> => {

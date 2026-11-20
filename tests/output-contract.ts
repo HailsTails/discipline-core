@@ -1,4 +1,5 @@
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
+import type { EslintProjection } from "../core/values/eslint-projection.ts";
 import type { ReportOutput } from "../core/values/report-output.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 import { renderGuidedReportText } from "../core/verdict/report-text.ts";
@@ -112,6 +113,7 @@ export const reportLinesOf = (request: {
   readonly output: ReportOutput;
   readonly projectCommand: string;
   readonly pruneCommand: string;
+  readonly eslintProjection: EslintProjection;
   readonly entryFills: EntryFills;
   readonly guide: SymptomGuide;
 }): readonly PrintedLine[] => {

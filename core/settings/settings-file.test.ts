@@ -15,6 +15,7 @@ const SMALLEST_FILE: SettingsFile = {
   reportOutput: "full",
   checkEditions: "pinned",
   eslintConfigLookup: { lookup: "detected" },
+  eslintProjection: "javascript",
   eslintConfigRoots: [],
   conventions: { conventions: DEFAULT_CONVENTIONS, declared: [] },
 };
@@ -45,6 +46,7 @@ describe("settingsFileOf", () => {
           reportOutput: "counts",
           checkEditions: "latest",
           eslintConfigLookup: "nearest-to-file",
+          eslintProjection: "typescript",
           eslintConfigRoots: ["web"],
           conventions: {},
           layers: {},
@@ -72,6 +74,7 @@ describe("settingsFileOf", () => {
         reportOutput: "counts",
         checkEditions: "latest",
         eslintConfigLookup: { lookup: "declared", value: "nearest-to-file" },
+        eslintProjection: "typescript",
         eslintConfigRoots: [repoPathSchema.parse("web")],
         conventions: { conventions: DEFAULT_CONVENTIONS, declared: [] },
       },

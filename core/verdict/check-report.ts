@@ -43,7 +43,7 @@ export type ProjectionProblem =
   | {
       readonly scope: "slice";
       readonly mechanism: MechanismId;
-      readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured";
+      readonly state: "out-of-date" | "missing" | "not-applied" | "unconfigured" | "not-chosen";
       readonly slice: RepoPath;
     };
 

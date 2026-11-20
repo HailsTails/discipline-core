@@ -144,6 +144,27 @@ describe("packagePlanOf", () => {
     expect(plan).toMatchObject({ outcome: "ok", value: { exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"] } });
   });
 
+  it("keeps the plugin modules of CD-14, CD-2, CD-40, CD-44 and CD-6 as bare exports and lists every other shipped ESLint plugin module as typed", () => {
+    expect(
+      packagePlanOf({
+        sourcePaths: [...SOURCE_PATHS, "mechanisms/eslint/CD-1/piece.json", "mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.ts"],
+        pieces: [
+          ESLINT_PIECE,
+          {
+            path: "mechanisms/eslint/CD-1/piece.json",
+            text: '{ "version": 1, "discipline": "CD-1", "mechanism": "eslint", "clauses": [ { "clause": "explicit-any", "settings": { "pluginNamespace": "hone", "pluginModule": "cd1/cd1.eslint-plugin.ts", "rule": "no-explicit-any" } } ] }',
+          },
+        ],
+      }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: {
+        exported: ["mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.js"],
+        typedPlugins: ["mechanisms/eslint/CD-1/cd1/cd1.eslint-plugin.js"],
+      },
+    });
+  });
+
   it("rewrites only the module keys of each clause's settings, leaving a rule option or top-level field of that name alone", () => {
     const piece = {
       path: "mechanisms/eslint/CD-14/piece.json",

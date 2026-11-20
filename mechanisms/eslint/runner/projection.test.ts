@@ -16,11 +16,13 @@ import {
   currentProjection,
   type ProjectedPiece,
   pluginImportOf,
-  PROJECTION_PATH,
+  projectionPathOf,
   projectionState,
   projectionText,
   writeProjection,
 } from "./projection.ts";
+
+const ESLINT_PACKAGE = "eslint";
 
 const classSyntax = clauseAddressSchema.parse("CD-14#class-syntax");
 const noTmpFiles = clauseAddressSchema.parse("probe/PD-1#no-tmp-files");
@@ -150,6 +152,21 @@ export default [
 ];
 `;
 
+const typedEnablingOnlyProjection = `import type { Linter } from "${ESLINT_PACKAGE}";
+import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
+
+const projection: Linter.Config[] = [
+  {
+    name: "hone-core/piece/hone",
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "hone": piece0 },
+    rules: { "hone/no-class-authoring": "error" },
+  },
+];
+
+export default projection;
+`;
+
 const enablingWithOptionsProjection = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
 export default [
@@ -237,6 +254,14 @@ const tmpFilesInA: ExceptionRecord = { ...authorisedRoute, file: repoPathSchema.
 
 const carveOutInB: ExceptionRecord = { ...carveOutInA, file: repoPathSchema.parse("src/b.ts") };
 
+const JAVASCRIPT_PROJECTION = projectionPathOf({ form: "javascript" });
+
+describe("projectionPathOf", () => {
+  it("names the JavaScript projection disciplines.eslint.mjs and the TypeScript projection disciplines.eslint.mts", () => {
+    expect([projectionPathOf({ form: "javascript" }), projectionPathOf({ form: "typescript" })]).toEqual(["disciplines.eslint.mjs", "disciplines.eslint.mts"]);
+  });
+});
+
 describe("escapedGlobPath", () => {
   it("backslash-escapes each of \\ * ? [ ] { } ( ) ! + @ so the path matches only itself", () => {
     expect(escapedGlobPath({ path: String.raw`a\b*c?d[e]f{g}h(i)j!k+l@m.ts` })).toBe(
@@ -261,6 +286,7 @@ describe("projectionText", () => {
           authorisedRoute,
           clauseWideClassSyntax,
         ],
+        form: "javascript",
       }),
     ).toBe(fullProjection);
   });
@@ -276,14 +302,19 @@ describe("projectionText", () => {
           clauseWideNoTmp,
           authorisedInB,
         ],
+        form: "javascript",
       }),
     ).toBe(fullProjection);
   });
 
   it("holds only the enabling block when there are no records", () => {
-    expect(projectionText({ selectedPieces: [cd14Piece], records: [] })).toBe(
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [], form: "javascript" })).toBe(
       enablingOnlyProjection,
     );
+  });
+
+  it("states the TypeScript form's type by naming ESLint's own config type, and exports it by name", () => {
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [], form: "typescript" })).toBe(typedEnablingOnlyProjection);
   });
 
   it("enables a rule with options as an error entry followed by those options", () => {
@@ -293,18 +324,19 @@ describe("projectionText", () => {
           { ...cd14Piece, clauses: [{ address: classSyntax, ruleId: "hone/no-class-authoring", options: [{ max: 2 }] }] },
         ],
         records: [],
+        form: "javascript",
       }),
     ).toBe(enablingWithOptionsProjection);
   });
 
   it("emits a file carve-out block whether or not the carve-out is forfeited, since the projection takes no touched set", () => {
-    expect(projectionText({ selectedPieces: [cd14Piece], records: [carveOutInA] })).toBe(
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [carveOutInA], form: "javascript" })).toBe(
       carveOutOnlyProjection,
     );
   });
 
   it("emits the off block of a record carrying whatever mechanism id the runner is registered under", () => {
-    expect(projectionText({ selectedPieces: [cd14Piece], records: [authorisedInBUnderEslint10] })).toBe(
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [authorisedInBUnderEslint10], form: "javascript" })).toBe(
       authorisedInBOnlyProjection,
     );
   });
@@ -314,6 +346,7 @@ describe("projectionText", () => {
       projectionText({
         selectedPieces: [cd14Piece],
         records: [carveOutInA, { ...authorisedInB, file: repoPathSchema.parse("src/B.ts") }],
+        form: "javascript",
       }),
     ).toBe(`import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";
 
@@ -338,18 +371,18 @@ export default [
 
   it("gives a file excepted from several clauses one block turning all their rules off, apart from files excepted from fewer", () => {
     expect(
-      projectionText({ selectedPieces: [cd14Piece, probePiece], records: [carveOutInA, authorisedInB, tmpFilesInA] }),
+      projectionText({ selectedPieces: [cd14Piece, probePiece], records: [carveOutInA, authorisedInB, tmpFilesInA], form: "javascript" }),
     ).toBe(sharedFileProjection);
   });
 
   it("groups the same files whatever order their records arrive in", () => {
     expect(
-      projectionText({ selectedPieces: [probePiece, cd14Piece], records: [tmpFilesInA, authorisedInB, carveOutInA] }),
+      projectionText({ selectedPieces: [probePiece, cd14Piece], records: [tmpFilesInA, authorisedInB, carveOutInA], form: "javascript" }),
     ).toBe(sharedFileProjection);
   });
 
   it("lists a file once when both an authorised location and a carve-out except it from the same clause", () => {
-    expect(projectionText({ selectedPieces: [cd14Piece], records: [authorisedInB, carveOutInB] })).toBe(
+    expect(projectionText({ selectedPieces: [cd14Piece], records: [authorisedInB, carveOutInB], form: "javascript" })).toBe(
       authorisedInBOnlyProjection,
     );
   });
@@ -571,7 +604,7 @@ describe("currentProjection", () => {
       write: vi.fn(),
     };
 
-    expect(currentProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH })).toEqual({
+    expect(currentProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION })).toEqual({
       outcome: "ok",
       value: { presence: "present", text: "export default [\n];\n" },
     });
@@ -588,7 +621,7 @@ describe("writeProjection", () => {
     };
 
     expect({
-      result: writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: "export default [\n];\n" }),
+      result: writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: "export default [\n];\n" }),
       writes: write.mock.calls,
     }).toEqual({
       result: { outcome: "ok", value: { path: "disciplines.eslint.mjs", effect: "unchanged" } },
@@ -604,7 +637,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "written" },
     });
@@ -622,7 +655,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "written" },
     });
@@ -640,7 +673,7 @@ describe("writeProjection", () => {
       write,
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection })).toEqual({
       outcome: "ok",
       value: { path: "disciplines.eslint.mjs", effect: "unchanged" },
     });
@@ -657,7 +690,7 @@ describe("writeProjection", () => {
       write: vi.fn(),
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection })).toEqual({
       outcome: "failed",
       error: { kind: "file-unreadable", file: "disciplines.eslint.mjs", detail: "EACCES" },
     });
@@ -673,7 +706,7 @@ describe("writeProjection", () => {
       }),
     };
 
-    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection })).toEqual({
+    expect(writeProjection({ fileText, path: posixPath, repoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection })).toEqual({
       outcome: "failed",
       error: { kind: "tool-failed", detail: "EROFS" },
     });
@@ -686,7 +719,7 @@ describe("projection file location on Windows", () => {
     const read = vi.fn().mockReturnValue({ outcome: "ok", value: enablingOnlyProjection });
     const fileText: FileTextPort = { read, exists, write: vi.fn() };
 
-    currentProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: PROJECTION_PATH });
+    currentProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: JAVASCRIPT_PROJECTION });
 
     expect({ exists: exists.mock.calls, read: read.mock.calls }).toEqual({
       exists: [[{ path: "C:\\repo\\disciplines.eslint.mjs" }]],
@@ -698,7 +731,7 @@ describe("projection file location on Windows", () => {
     const write = vi.fn().mockReturnValue({ outcome: "ok", value: undefined });
     const fileText: FileTextPort = { read: vi.fn(), exists: vi.fn().mockReturnValue("absent"), write };
 
-    writeProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: PROJECTION_PATH, text: enablingOnlyProjection });
+    writeProjection({ fileText, path: windowsPath, repoRoot: windowsRepoRoot, file: JAVASCRIPT_PROJECTION, text: enablingOnlyProjection });
 
     expect(write.mock.calls).toEqual([[{ path: "C:\\repo\\disciplines.eslint.mjs", text: enablingOnlyProjection }]]);
   });

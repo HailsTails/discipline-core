@@ -33,6 +33,7 @@ const projectionRequestOf = (request: ProjectionInputs): ProjectionRequest => ({
   installRoot: request.project.installRoot,
   trackedPaths: request.tree.tracked,
   declaredConfigRoots: request.tree.declaredConfigRoots,
+  eslintProjection: request.tree.eslintProjection,
   clauses: request.loaded.clauses,
   records: recordsOf({ records: request.records, mechanism: request.loaded.mechanism }),
 });

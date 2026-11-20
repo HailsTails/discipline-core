@@ -5,7 +5,7 @@ import { CHANGELOG_FILE } from "./changelog.ts";
 import type { Bundle, BundlerPort } from "./esbuild-bundler-port.ts";
 import type { CopiedEntry, ScratchFilesPort } from "./install-proof-ports.ts";
 import type { EntryDisposition } from "./install-proof-plan.ts";
-import { type DeclarationPort, declarationFilesOf, PUBLIC_TYPE_ENTRIES, typedExportOf } from "./package-declarations.ts";
+import { type DeclarationPort, declarationFilesOf, PUBLIC_TYPE_ENTRIES, pluginDeclarationsOf, pluginExportOf, typedExportOf } from "./package-declarations.ts";
 import {
   bundledPackageCodeOf,
   deadLinksOf,
@@ -332,7 +332,7 @@ const withManifest = (request: {
     command: request.plan.command,
     files: topLevelNames({ files: request.files }),
     exported: request.plan.exported,
-    typed: PUBLIC_TYPE_ENTRIES.map((entry) => typedExportOf({ entry })),
+    typed: [...PUBLIC_TYPE_ENTRIES.map((entry) => typedExportOf({ entry })), ...request.plan.typedPlugins.map((module) => pluginExportOf({ module }))],
     nodeRange: SHIPPED_NODE_RANGE,
   });
   return manifest.outcome === "failed"
@@ -435,7 +435,7 @@ const packageFilesOf = async (request: { readonly context: BuildContext }): Prom
   if (declarations.outcome === "failed") {
     return declarations;
   }
-  const manifested = withManifest({ plan: plan.value, developmentManifest: developmentManifest.value, files: [...files.value, ...declarations.value] });
+  const manifested = withManifest({ plan: plan.value, developmentManifest: developmentManifest.value, files: [...files.value, ...declarations.value, ...pluginDeclarationsOf({ modules: plan.value.typedPlugins })] });
   return manifested.outcome === "failed" ? manifested : linkedFiles({ files: manifested.value, version: version.value });
 };
 

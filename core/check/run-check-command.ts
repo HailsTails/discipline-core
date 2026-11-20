@@ -1,4 +1,5 @@
-import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import { createSelectionRepository, readEslintProjection, readRunSettings } from "../consumer-selection/consumer-selection.ts";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { ExceptionRepositoryOf } from "../exception-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
@@ -63,12 +64,19 @@ const checkRunOf = (request: {
   readonly output: ReportOutput;
   readonly projectCommand: string;
   readonly pruneCommand: string;
+  readonly eslintProjection: EslintProjection;
 }): Result<CheckRun, LoadFailure> =>
   request.report.outcome === "failed"
     ? request.report
     : {
         outcome: "ok",
-        value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand, pruneCommand: request.pruneCommand },
+        value: {
+          report: request.report.value,
+          output: request.output,
+          projectCommand: request.projectCommand,
+          pruneCommand: request.pruneCommand,
+          eslintProjection: request.eslintProjection,
+        },
       };
 
 const unshownCheckRunAt = async (
@@ -96,6 +104,10 @@ const unshownCheckRunAt = async (
   if (configured.outcome === "failed") {
     return configured;
   }
+  const eslintProjection = readEslintProjection({ fileText: request.fileText, path: request.path, repoRoot: request.repoRoot });
+  if (eslintProjection.outcome === "failed") {
+    return eslintProjection;
+  }
   const assessment = assessmentInEffect({
     requested: { forfeiture: request.arguments.forfeiture },
     configured: configured.value.assessment,
@@ -119,6 +131,7 @@ const unshownCheckRunAt = async (
     output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: configured.value.reportOutput }),
     projectCommand: projectCommand.value,
     pruneCommand: pruneCommand.value,
+    eslintProjection: eslintProjection.value,
   });
 };
 

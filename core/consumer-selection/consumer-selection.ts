@@ -2,6 +2,7 @@ import { type Assessment, assessmentSchema, DEFAULT_ASSESSMENT } from "../values
 import { checkEditionsSchema } from "../values/check-editions.ts";
 import type { ClauseEditions } from "../values/edition.ts";
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
+import { type EslintProjection, eslintProjectionSchema } from "../values/eslint-projection.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import { z } from "zod";
@@ -46,6 +47,7 @@ export type { ClauseBinding, ClauseEditionReading, SelectedClause, Selection, Se
 
 export type SelectionRepository = {
   readonly read: (request: Record<string, never>) => Result<SelectionReading, LoadFailure>;
+  readonly eslintProjection: (request: Record<string, never>) => Result<EslintProjection, LoadFailure>;
 };
 
 export const createSelectionRepository = (options: {
@@ -56,10 +58,15 @@ export const createSelectionRepository = (options: {
   readonly path: PathPort;
 }): SelectionRepository => ({
   read: (_request) => readSelection(options),
+  eslintProjection: (_request) => readEslintProjection({ fileText: options.fileText, path: options.path, repoRoot: options.repoRoot }),
 });
 
-export const selectionRepositoryHolding = (request: { readonly reading: SelectionReading }): SelectionRepository => ({
+export const selectionRepositoryHolding = (request: {
+  readonly reading: SelectionReading;
+  readonly eslintProjection: EslintProjection;
+}): SelectionRepository => ({
   read: (_request) => ({ outcome: "ok", value: request.reading }),
+  eslintProjection: (_request) => ({ outcome: "ok", value: request.eslintProjection }),
 });
 
 export const createDefaultSelectionRepository = (options: {
@@ -154,6 +161,7 @@ const consumerSelectionFileSchema = z.strictObject({
     )
     .default([]),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
+  eslintProjection: eslintProjectionSchema.default("javascript"),
   eslintConfigRoots: z
     .array(
       brandedRepoPathSchema({
@@ -680,6 +688,15 @@ export const readRunSettings = (request: {
     return file;
   }
   return { outcome: "ok", value: { reportOutput: file.value.reportOutput, assessment: file.value.assessment } };
+};
+
+export const readEslintProjection = (request: {
+  readonly fileText: FileTextPort;
+  readonly path: PathPort;
+  readonly repoRoot: AbsolutePath;
+}): Result<EslintProjection, LoadFailure> => {
+  const file = parsedSelectionFile({ fileText: request.fileText, path: selectionFilePath(request) });
+  return file.outcome === "failed" ? file : { outcome: "ok", value: file.value.eslintProjection };
 };
 
 export const readSelection = (request: {

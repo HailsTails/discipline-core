@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import type { SourceCase } from "../rule-set-reader/rule-set-reader.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
@@ -28,6 +29,7 @@ export type RunRequest = {
 export type ProjectionRequest = {
   readonly repoRoot: AbsolutePath;
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
   readonly installRoot: AbsolutePath;
   readonly trackedPaths: readonly RepoPath[];
   readonly clauses: readonly RunnerClause[];

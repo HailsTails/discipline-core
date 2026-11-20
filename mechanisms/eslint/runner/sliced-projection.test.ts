@@ -11,6 +11,7 @@ import type { ProjectionStates } from "./projection-states.ts";
 import type { ConfigRoot } from "./projection-slices.ts";
 import {
   packageSliceProblemsOf,
+  unchosenSliceProblemsOf,
   type ProjectionClause,
   type SliceOrigin,
   slicedProjectionWrites,
@@ -74,9 +75,10 @@ const PACKAGE_PIECE = {
 const PACKAGE_A_SLICE = projectionText({
   selectedPieces: [PACKAGE_PIECE],
   records: [{ ...carveOutInLegacy, file: repoPathSchema.parse("src/legacy.ts") }],
+  form: "javascript",
 });
 
-const EMPTY_PACKAGE_SLICE = projectionText({ selectedPieces: [PACKAGE_PIECE], records: [] });
+const EMPTY_PACKAGE_SLICE = projectionText({ selectedPieces: [PACKAGE_PIECE], records: [], form: "javascript" });
 
 const ABSENT: CurrentProjection = { presence: "absent" };
 
@@ -87,6 +89,14 @@ const REPOSITORY_PROJECTION = repoPathSchema.parse("disciplines.eslint.mjs");
 const PACKAGE_A_SLICE_FILE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
 
 const OLD_SLICE_FILE = repoPathSchema.parse("packages/old/disciplines.eslint.mjs");
+
+const TYPED_REPOSITORY_PROJECTION = repoPathSchema.parse("disciplines.eslint.mts");
+
+const REPOSITORY_JAVASCRIPT_PROJECTION = projectionText({
+  selectedPieces: [{ ...PACKAGE_PIECE, pluginImport: "./mechanisms/eslint/CD-14/cd14.eslint-plugin.ts" }],
+  records: [],
+  form: "javascript",
+});
 
 const projectionFilesHolding = (states: ProjectionStates) => ({
   currentOf: vi.fn<ProjectionFiles["currentOf"]>().mockReturnValue({ outcome: "ok", value: states }),
@@ -100,7 +110,7 @@ describe("sliceTextOf", () => {
       sliceTextOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy, authorisedInRootSource],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         root: PACKAGE_A,
       }),
     ).toEqual({ outcome: "ok", value: PACKAGE_A_SLICE });
@@ -108,12 +118,13 @@ describe("sliceTextOf", () => {
 
   it("gives the repository root every record with root-relative paths and a root-relative import", () => {
     expect(
-      sliceTextOf({ clauses: [CLASS_CLAUSE], records: [carveOutInLegacy, authorisedInRootSource], origin: ORIGIN, root: REPOSITORY }),
+      sliceTextOf({ clauses: [CLASS_CLAUSE], records: [carveOutInLegacy, authorisedInRootSource], origin: ORIGIN, form: "javascript", root: REPOSITORY }),
     ).toEqual({
       outcome: "ok",
       value: projectionText({
         selectedPieces: [{ ...PACKAGE_PIECE, pluginImport: "./mechanisms/eslint/CD-14/cd14.eslint-plugin.ts" }],
         records: [carveOutInLegacy, authorisedInRootSource],
+        form: "javascript",
       }),
     });
   });
@@ -123,7 +134,7 @@ describe("sliceTextOf", () => {
       sliceTextOf({
         clauses: [{ ...CLASS_CLAUSE, pieceRoot: "D:\\pieces\\CD-14" }],
         records: [],
-        origin: WINDOWS_ORIGIN,
+        origin: WINDOWS_ORIGIN, form: "javascript",
         root: PACKAGE_A,
       }),
     ).toMatchObject({ outcome: "failed", error: { kind: "piece-invalid", pieceRoot: "D:\\pieces\\CD-14" } });
@@ -136,7 +147,7 @@ describe("packageSliceProblemsOf", () => {
       packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles: projectionFilesHolding(new Map([[PACKAGE_A_SLICE_FILE, ABSENT]])),
         roots: [REPOSITORY, PACKAGE_A],
       }),
@@ -148,7 +159,7 @@ describe("packageSliceProblemsOf", () => {
       packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles: {
           ...projectionFilesHolding(new Map()),
           currentOf: vi.fn<ProjectionFiles["currentOf"]>().mockReturnValue({
@@ -166,7 +177,7 @@ describe("packageSliceProblemsOf", () => {
       packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles: projectionFilesHolding(new Map([[PACKAGE_A_SLICE_FILE, present(EMPTY_PACKAGE_SLICE)]])),
         roots: [REPOSITORY, PACKAGE_A],
       }),
@@ -176,7 +187,7 @@ describe("packageSliceProblemsOf", () => {
   it("names nothing and asks for no slice when no config root is a package", () => {
     const projectionFiles = projectionFilesHolding(new Map());
     expect(
-      packageSliceProblemsOf({ clauses: [CLASS_CLAUSE], records: [], origin: ORIGIN, projectionFiles, roots: [REPOSITORY] }),
+      packageSliceProblemsOf({ clauses: [CLASS_CLAUSE], records: [], origin: ORIGIN, form: "javascript", projectionFiles, roots: [REPOSITORY] }),
     ).toEqual({ outcome: "ok", value: [] });
     expect(projectionFiles.currentOf).not.toHaveBeenCalled();
   });
@@ -187,7 +198,7 @@ describe("packageSliceProblemsOf", () => {
       packageSliceProblemsOf({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles,
         roots: [REPOSITORY, PACKAGE_A],
       }),
@@ -203,7 +214,7 @@ describe("slicedProjectionWrites over the config roots", () => {
     slicedProjectionWrites({
       clauses: [CLASS_CLAUSE],
       records: [],
-      origin: ORIGIN,
+      origin: ORIGIN, form: "javascript",
       projectionFiles,
       roots: [REPOSITORY, PACKAGE_A],
       trackedPaths: [OLD_SLICE_FILE],
@@ -227,7 +238,7 @@ describe("slicedProjectionWrites over the config roots", () => {
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [carveOutInLegacy],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles,
         roots: [REPOSITORY, PACKAGE_A],
         trackedPaths: [],
@@ -257,7 +268,7 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles,
         roots: [REPOSITORY],
         trackedPaths: [OLD_SLICE_FILE],
@@ -282,7 +293,7 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
       result: slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles,
         roots: [REPOSITORY],
         trackedPaths: [OLD_SLICE_FILE],
@@ -301,13 +312,91 @@ describe("slicedProjectionWrites over tracked slices outside every config root",
   });
 });
 
+describe("slicedProjectionWrites over a tracked projection of the form not chosen", () => {
+  it("writes the chosen form and removes the other form's file when its bytes are exactly what Hone would write in that form", () => {
+    const projectionFiles = {
+      ...projectionFilesHolding(new Map([[REPOSITORY_PROJECTION, present(REPOSITORY_JAVASCRIPT_PROJECTION)]])),
+      writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValue({ outcome: "ok", value: { path: TYPED_REPOSITORY_PROJECTION, effect: "written" } }),
+    };
+
+    expect({
+      result: slicedProjectionWrites({
+        clauses: [CLASS_CLAUSE],
+        records: [],
+        origin: ORIGIN,
+        form: "typescript",
+        projectionFiles,
+        roots: [REPOSITORY],
+        trackedPaths: [REPOSITORY_PROJECTION],
+      }),
+      removed: projectionFiles.removeAt.mock.calls,
+    }).toEqual({
+      result: {
+        outcome: "ok",
+        value: [
+          { path: "disciplines.eslint.mts", effect: "written" },
+          { path: "disciplines.eslint.mjs", effect: "removed" },
+        ],
+      },
+      removed: [[{ file: "disciplines.eslint.mjs" }]],
+    });
+  });
+
+  it("leaves the other form's file in place when its bytes are not what Hone would write in that form", () => {
+    const projectionFiles = {
+      ...projectionFilesHolding(new Map([[REPOSITORY_PROJECTION, present("export default [];\n")]])),
+      writeAt: vi.fn<ProjectionFiles["writeAt"]>().mockReturnValue({ outcome: "ok", value: { path: TYPED_REPOSITORY_PROJECTION, effect: "written" } }),
+    };
+
+    expect({
+      result: slicedProjectionWrites({
+        clauses: [CLASS_CLAUSE],
+        records: [],
+        origin: ORIGIN,
+        form: "typescript",
+        projectionFiles,
+        roots: [REPOSITORY],
+        trackedPaths: [REPOSITORY_PROJECTION],
+      }),
+      removed: projectionFiles.removeAt.mock.calls,
+    }).toEqual({
+      result: {
+        outcome: "ok",
+        value: [
+          { path: "disciplines.eslint.mts", effect: "written" },
+          { path: "disciplines.eslint.mjs", effect: "left-in-place" },
+        ],
+      },
+      removed: [],
+    });
+  });
+});
+
+describe("unchosenSliceProblemsOf", () => {
+  it("names every tracked projection of the form not chosen as not-chosen, at the root and in any folder", () => {
+    expect(
+      unchosenSliceProblemsOf({
+        trackedPaths: [REPOSITORY_PROJECTION, PACKAGE_A_SLICE_FILE, TYPED_REPOSITORY_PROJECTION, repoPathSchema.parse("src/a.ts")],
+        form: "typescript",
+      }),
+    ).toEqual([
+      { slice: "disciplines.eslint.mjs", state: "not-chosen" },
+      { slice: "packages/a/disciplines.eslint.mjs", state: "not-chosen" },
+    ]);
+  });
+
+  it("names nothing when every tracked projection is of the chosen form", () => {
+    expect(unchosenSliceProblemsOf({ trackedPaths: [REPOSITORY_PROJECTION, PACKAGE_A_SLICE_FILE], form: "javascript" })).toEqual([]);
+  });
+});
+
 describe("slicedProjectionWrites when a stale slice cannot be removed", () => {
   it("fails as the projection files fail when a stale slice cannot be removed", () => {
     expect(
       slicedProjectionWrites({
         clauses: [CLASS_CLAUSE],
         records: [],
-        origin: ORIGIN,
+        origin: ORIGIN, form: "javascript",
         projectionFiles: {
           ...projectionFilesHolding(new Map([[OLD_SLICE_FILE, present(EMPTY_PACKAGE_SLICE)]])),
           removeAt: vi.fn<ProjectionFiles["removeAt"]>().mockReturnValue({
@@ -329,7 +418,7 @@ describe("slicedProjectionWrites on Windows paths", () => {
     slicedProjectionWrites({
       clauses: [{ ...CLASS_CLAUSE, pieceRoot: "C:\\repo\\mechanisms\\eslint\\CD-14" }],
       records: [],
-      origin: WINDOWS_ORIGIN,
+      origin: WINDOWS_ORIGIN, form: "javascript",
       projectionFiles,
       roots: [PACKAGE_A],
       trackedPaths: [],

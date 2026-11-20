@@ -5,8 +5,9 @@ import type { ProjectionWrite } from "../../../core/mechanism-port/runner-result
 import type { PathPort } from "../../../core/platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import type { ClauseAddress } from "../../../core/values/clause-address.ts";
+import type { EslintProjection } from "../../../core/values/eslint-projection.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
-import type { RepoPath } from "../../../core/values/repo-path.ts";
+import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
 import type { CoreInstall } from "./core-install.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
@@ -18,7 +19,14 @@ import {
   projectionText,
 } from "./projection.ts";
 import { type ProjectionStates, projectionStateAt } from "./projection-states.ts";
-import { type ConfigRoot, orphanedSliceDirectoriesOf, sliceRecordsOf, slicePathOf } from "./projection-slices.ts";
+import {
+  type ConfigRoot,
+  orphanedSliceDirectoriesOf,
+  otherFormOf,
+  sliceRecordsOf,
+  slicePathOf,
+  unchosenProjectionFilesOf,
+} from "./projection-slices.ts";
 
 export type ProjectionClause = {
   readonly address: ClauseAddress;
@@ -41,6 +49,7 @@ type SliceSource = {
   readonly clauses: readonly ProjectionClause[];
   readonly records: readonly ExceptionRecord[];
   readonly origin: SliceOrigin;
+  readonly form: EslintProjection;
 };
 
 const importingDirectoryOf = (request: { readonly origin: SliceOrigin; readonly root: ConfigRoot }): AbsolutePath =>
@@ -102,7 +111,7 @@ export const sliceTextOf = (request: SliceSource & { readonly root: ConfigRoot }
   }
   return {
     outcome: "ok",
-    value: projectionText({ selectedPieces: pieces.value, records: sliceRecordsOf(request) }),
+    value: projectionText({ selectedPieces: pieces.value, records: sliceRecordsOf(request), form: request.form }),
   };
 };
 
@@ -129,7 +138,7 @@ export const packageSliceProblemsOf = (
   if (packageRoots.length === 0) {
     return { outcome: "ok", value: [] };
   }
-  const states = request.projectionFiles.currentOf({ files: packageRoots.map((root) => slicePathOf({ root })) });
+  const states = request.projectionFiles.currentOf({ files: packageRoots.map((root) => slicePathOf({ root, form: request.form })) });
   if (states.outcome === "failed") {
     return states;
   }
@@ -153,10 +162,17 @@ const rootPlan = (request: SliceSource & { readonly root: ConfigRoot }): Outcome
   return generated.outcome === "failed" ? generated : { outcome: "ok", value: { file: slicePathOf(request), text: generated.value } };
 };
 
-const orphanPlan = (request: SliceSource & { readonly states: ProjectionStates; readonly directory: RepoPath }): Outcome<OrphanPlan> => {
-  const root: ConfigRoot = { placement: "package", directory: request.directory };
-  const file = slicePathOf({ root });
-  const regenerated = sliceTextOf({ ...request, root });
+const rootOfDirectory = (request: { readonly directory: string }): ConfigRoot =>
+  request.directory === "" ? { placement: "repository" } : { placement: "package", directory: repoPathSchema.parse(request.directory) };
+
+const directoryOfFile = (request: { readonly file: RepoPath }): string => request.file.split("/").slice(0, -1).join("/");
+
+type RetiredFile = { readonly root: ConfigRoot; readonly form: EslintProjection };
+
+const retiredPlan = (request: SliceSource & { readonly states: ProjectionStates; readonly retired: RetiredFile }): Outcome<OrphanPlan> => {
+  const { root, form } = request.retired;
+  const file = slicePathOf({ root, form });
+  const regenerated = sliceTextOf({ ...request, root, form });
   if (regenerated.outcome === "failed") {
     return regenerated;
   }
@@ -170,13 +186,17 @@ const orphanPlan = (request: SliceSource & { readonly states: ProjectionStates; 
   };
 };
 
+const retiredFilesOf = (request: PlanRequest): readonly RetiredFile[] => [
+  ...orphanedSliceDirectoriesOf(request).map((directory): RetiredFile => ({ root: { placement: "package", directory }, form: request.form })),
+  ...unchosenProjectionFilesOf(request).map(
+    (file): RetiredFile => ({ root: rootOfDirectory({ directory: directoryOfFile({ file }) }), form: otherFormOf(request) }),
+  ),
+];
+
 const slicePlanOf = (request: PlanRequest): Outcome<SlicePlan> => {
-  const orphanDirectories = orphanedSliceDirectoriesOf(request);
+  const retired = retiredFilesOf(request);
   const states = request.projectionFiles.currentOf({
-    files: [
-      ...request.roots.map((root) => slicePathOf({ root })),
-      ...orphanDirectories.map((directory) => slicePathOf({ root: { placement: "package", directory } })),
-    ],
+    files: [...request.roots.map((root) => slicePathOf({ root, form: request.form })), ...retired.map((file) => slicePathOf(file))],
   });
   if (states.outcome === "failed") {
     return states;
@@ -186,7 +206,7 @@ const slicePlanOf = (request: PlanRequest): Outcome<SlicePlan> => {
     return roots;
   }
   const orphans = gatheredOutcomes({
-    outcomes: orphanDirectories.map((directory) => listedOutcome({ outcome: orphanPlan({ ...request, states: states.value, directory }) })),
+    outcomes: retired.map((file) => listedOutcome({ outcome: retiredPlan({ ...request, states: states.value, retired: file }) })),
   });
   return orphans.outcome === "failed" ? orphans : { outcome: "ok", value: { roots: roots.value, orphans: orphans.value } };
 };
@@ -221,3 +241,8 @@ export const slicedProjectionWrites = (request: PlanRequest): Outcome<readonly P
   const plan = slicePlanOf(request);
   return plan.outcome === "failed" ? plan : appliedPlan({ ...request, plan: plan.value });
 };
+
+export const unchosenSliceProblemsOf = (request: {
+  readonly trackedPaths: readonly RepoPath[];
+  readonly form: EslintProjection;
+}): readonly SliceProblem[] => unchosenProjectionFilesOf(request).map((slice) => ({ slice, state: "not-chosen" }));

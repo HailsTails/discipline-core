@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
-import type { LoadedRunner, RunnerClause, RunRequest } from "../mechanism-port/runner-module-schema.ts";
+import type { LoadedRunner, ProjectionRequest, RunnerClause, RunRequest } from "../mechanism-port/runner-module-schema.ts";
 import { runnerModuleSchema } from "../mechanism-port/runner-module-schema.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
@@ -68,7 +68,7 @@ const runResolving = (returned: unknown): LoadedRunner["run"] =>
   vi.fn<LoadedRunner["run"]>().mockResolvedValue(returned);
 
 const dispatchRun = (request: { readonly runner: LoadedRunner }) =>
-  runMechanism({ runner: request.runner, mechanism: WALKER, run: RUN_REQUEST, declaredConfigRoots: [], records: [CARVE_OUT] });
+  runMechanism({ runner: request.runner, mechanism: WALKER, run: RUN_REQUEST, declaredConfigRoots: [], eslintProjection: "javascript", records: [CARVE_OUT] });
 
 describe("runMechanism with a standalone runner", () => {
   it("returns the runner's hits with no native exceptions, inline disables coverable and no projection", async () => {
@@ -272,7 +272,7 @@ describe("projectMechanism with a standalone runner", () => {
     const runner = standaloneRunner({ run: runResolving({ outcome: "ok", value: { hits: [], nativeExceptions: [] } }) });
     const writes = await projectMechanism({
       runner,
-      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
+      request: { repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, declaredConfigRoots: [], eslintProjection: "javascript", trackedPaths: [], clauses: [CLASS_SYNTAX_CLAUSE], records: [] },
     });
     expect({ writes, runCalls: vi.mocked(runner.run).mock.calls, conformCalls: vi.mocked(runner.conform).mock.calls }).toEqual({
       writes: { outcome: "ok", value: [] },
@@ -302,10 +302,11 @@ const SLICE_WRITES = [
   { path: "packages/hand/disciplines.eslint.mjs", effect: "left-in-place" },
 ];
 
-const PROJECTION_REQUEST = {
+const PROJECTION_REQUEST: ProjectionRequest = {
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   trackedPaths: [],
   clauses: [CLASS_SYNTAX_CLAUSE],
   records: [ESLINT_LOCATION],
@@ -332,6 +333,7 @@ const dispatchEmbeddedRun = (request: { readonly run: EmbeddedCall }) =>
     mechanism: ESLINT,
     run: RUN_REQUEST,
     declaredConfigRoots: [],
+    eslintProjection: "javascript",
     records: [ESLINT_LOCATION],
   });
 
@@ -417,10 +419,11 @@ describe("runMechanism with an embedded runner", () => {
       mechanism: ESLINT,
       run: RUN_REQUEST,
       declaredConfigRoots: [],
+      eslintProjection: "javascript",
       records: [ESLINT_LOCATION],
     });
     expect({ runCalls: run.mock.calls, projectCalls: project.mock.calls }).toEqual({
-      runCalls: [[{ ...RUN_REQUEST, declaredConfigRoots: [], records: [ESLINT_LOCATION] }]],
+      runCalls: [[{ ...RUN_REQUEST, declaredConfigRoots: [], eslintProjection: "javascript", records: [ESLINT_LOCATION] }]],
       projectCalls: [],
     });
   });

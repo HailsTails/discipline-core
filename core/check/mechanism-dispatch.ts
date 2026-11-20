@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EslintProjection } from "../values/eslint-projection.ts";
 import { embeddedRunReportSchema, type SliceProblem, type UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { ExceptionRecord } from "../exception-records/exception-records.ts";
 import {
@@ -46,6 +47,7 @@ export type MechanismRequest = {
   readonly mechanism: MechanismId;
   readonly run: RunRequest;
   readonly declaredConfigRoots: readonly RepoPath[];
+  readonly eslintProjection: EslintProjection;
   readonly records: readonly ExceptionRecord[];
 };
 
@@ -235,7 +237,12 @@ export const runMechanism = (
       const runner = request.runner;
       return Promise.resolve()
         .then(() =>
-          runner.run({ ...request.run, declaredConfigRoots: request.declaredConfigRoots, records: request.records }),
+          runner.run({
+            ...request.run,
+            declaredConfigRoots: request.declaredConfigRoots,
+            eslintProjection: request.eslintProjection,
+            records: request.records,
+          }),
         )
         .then(
           (returned) =>

@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
-import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
+import type { EmbeddedRunRequest } from "../../../core/mechanism-port/embedded-runner-module-schema.ts";
+import type { ProjectionRequest, RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import type { CaseVerdict, ProjectionWrite } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { ModuleLoaderPort } from "../../../core/platform-ports/module-loader-port.ts";
 import {
@@ -407,10 +408,11 @@ const runnerOver = (overrides: Partial<RunnerParts>) => {
 const runRequest = (request: {
   readonly clauses: readonly RunnerClause[];
   readonly records: readonly ExceptionRecord[];
-}) => ({
+}): EmbeddedRunRequest => ({
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   files: FILES,
   trackedPaths: FILES,
   clauses: request.clauses,
@@ -1387,10 +1389,11 @@ describe("conform", () => {
 const projectRequest = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly records: readonly ExceptionRecord[];
-}) => ({
+}): ProjectionRequest => ({
   repoRoot: REPO_ROOT,
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   trackedPaths: request.trackedPaths,
   clauses: [CLASS_CLAUSE],
   records: request.records,
@@ -2063,10 +2066,11 @@ const WINDOWS_PATH = createPathPort({ flavour: "windows", workingDirectory: () =
 
 const PROJECTION_HOLDING_SOURCE_A = projectionHolding({ text: "const a = 1;\n\n  class A {}\n" });
 
-const windowsRun = (request: { readonly pieceRoot: string }) => ({
+const windowsRun = (request: { readonly pieceRoot: string }): EmbeddedRunRequest => ({
   repoRoot: WINDOWS_REPO_ROOT,
   installRoot: WINDOWS_INSTALL_ROOT,
   declaredConfigRoots: [],
+  eslintProjection: "javascript",
   files: FILES,
   trackedPaths: [],
   clauses: [{ ...CLASS_CLAUSE, pieceRoot: request.pieceRoot }],
@@ -2468,7 +2472,7 @@ describe("package projection slices, which roots they cover", () => {
           ]),
         ),
         }),
-      }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] }),
+      }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB], eslintProjection: "javascript" }),
     ).resolves.toMatchObject({
       outcome: "ok",
       value: { slices: [{ slice: "packages/web/disciplines.eslint.mjs", state: "missing" }] },
@@ -2487,7 +2491,7 @@ describe("package projection slices, which roots they cover", () => {
         ),
         folderConfiguration,
       }),
-    }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB] });
+    }).run({ ...CLASS_RUN, declaredConfigRoots: [PACKAGE_WEB], eslintProjection: "javascript" });
     expect(folderConfiguration.mock.calls).toEqual([[{ folder: PACKAGE_WEB }]]);
     expect(report).toMatchObject({
       outcome: "ok",

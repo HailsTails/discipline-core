@@ -96,7 +96,7 @@ const CLASS_GUIDE: SymptomGuide = {
 
 describe("selfCheckOutcomeOf", () => {
   it("passes a clean run, printing the report and the gate line", () => {
-    expect(selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE } } })).toEqual({
+    expect(selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: NO_SYMPTOM_GUIDE } } })).toEqual({
       code: 0,
       text: "verdict: pass\nself-check: pass, the selection, records and projection are sound; findings (0) and unrecorded (0) are reported above and not gated\n",
     });
@@ -104,7 +104,7 @@ describe("selfCheckOutcomeOf", () => {
 
   it("passes a run whose only failures are findings, printing them in full as not gated", () => {
     expect(
-      selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE } } }),
+      selfCheckOutcomeOf({ result: { outcome: "ok", value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: NO_SYMPTOM_GUIDE } } }),
     ).toEqual({
       code: 0,
       text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {}\nverdict: fail\nself-check: pass, the selection, records and projection are sound; findings (1) and unrecorded (0) are reported above and not gated\n",
@@ -123,7 +123,7 @@ describe("selfCheckOutcomeOf", () => {
               uncovered: [clauseAddressSchema.parse("CD-15#loops")],
               unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
             },
-            output: "counts", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE,
+            output: "counts", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: NO_SYMPTOM_GUIDE,
           },
         },
       }),
@@ -138,7 +138,7 @@ describe("selfCheckOutcomeOf", () => {
       selfCheckOutcomeOf({
         result: {
           outcome: "ok",
-          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: CLASS_GUIDE },
+          value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, eslintProjection: "javascript", guide: CLASS_GUIDE },
         },
       }),
     ).toEqual({

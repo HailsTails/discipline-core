@@ -75,6 +75,7 @@ describe("readSettings", () => {
           fileExceptionWhyChains: "required",
         },
         runSettings: { reportOutput: "full", assessment: { forfeiture: "elsewhere" } },
+        eslintProjection: "javascript",
         eslintConfigLookup: { lookup: "detected" },
         conventions: DEFAULT_CONVENTIONS,
         notes: [],

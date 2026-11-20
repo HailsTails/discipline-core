@@ -79,6 +79,7 @@ const EXCEPTION_REPOSITORY_OF = vi.fn<ExceptionRepositoryOf>();
 
 const MODULE_URL = "file:///repo/node_modules/@hailstails/hone/core/check/tool-command.ts";
 
+
 const COMMAND: CommandRequest = {
   process: {
     arguments: ["--repo", "/repo"],
@@ -115,20 +116,20 @@ describe("guidedCheckRunFor", () => {
         command: COMMAND,
         checkRunAt: vi.fn<CheckRunAt>().mockResolvedValue({
           outcome: "ok",
-          value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
+          value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo .", eslintProjection: "javascript" },
         }),
         symptomGuideIn: vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE),
       }),
     ).toEqual({
       outcome: "ok",
-      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo .", guide: GUIDE },
+      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo .", eslintProjection: "javascript", guide: GUIDE },
     });
   });
 
   it("hands the check its ports and the locations it resolved, and the guide the same roots", async () => {
     const checkRunAt = vi.fn<CheckRunAt>().mockResolvedValue({
       outcome: "ok",
-      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
+      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo .", eslintProjection: "javascript" },
     });
     const symptomGuideIn = vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE);
 
@@ -180,7 +181,7 @@ describe("guidedCheckRunFor", () => {
   it("gives the failure to locate the check, running neither the check nor the guide", async () => {
     const checkRunAt = vi.fn<CheckRunAt>().mockResolvedValue({
       outcome: "ok",
-      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo ." },
+      value: { report: EMPTY_REPORT, output: "full", projectCommand: "hone project --repo .", pruneCommand: "hone prune-debt --repo .", eslintProjection: "javascript" },
     });
     const symptomGuideIn = vi.fn<SymptomGuideIn>().mockReturnValue(GUIDE);
 

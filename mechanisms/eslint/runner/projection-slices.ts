@@ -1,9 +1,10 @@
 import type { ExceptionRecord } from "../../../core/exception-records/exception-records.ts";
 import type { UnprojectedFolderReport } from "../../../core/mechanism-port/embedded-run-report-schema.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
+import type { EslintProjection } from "../../../core/values/eslint-projection.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { CONFIG_FILE_NAMES } from "./config-lookup.ts";
-import { PROJECTION_PATH } from "./projection.ts";
+import { projectionPathOf } from "./projection.ts";
 
 export type ConfigRoot =
   | { readonly placement: "repository" }
@@ -65,10 +66,25 @@ export const configRootsOf = (request: RootsRequest): readonly ConfigRoot[] => [
   ...packageDirectories(request).map((directory): ConfigRoot => ({ placement: "package", directory })),
 ];
 
-export const slicePathOf = (request: { readonly root: ConfigRoot }): RepoPath =>
+export const slicePathOf = (request: { readonly root: ConfigRoot; readonly form: EslintProjection }): RepoPath =>
   request.root.placement === "repository"
-    ? PROJECTION_PATH
-    : repoPathSchema.parse(`${request.root.directory}/${PROJECTION_PATH}`);
+    ? projectionPathOf(request)
+    : repoPathSchema.parse(`${request.root.directory}/${projectionPathOf(request)}`);
+
+const OTHER_FORM: Readonly<Record<EslintProjection, EslintProjection>> = { javascript: "typescript", typescript: "javascript" };
+
+export const otherFormOf = (request: { readonly form: EslintProjection }): EslintProjection => OTHER_FORM[request.form];
+
+export const unchosenProjectionFilesOf = (request: {
+  readonly trackedPaths: readonly RepoPath[];
+  readonly form: EslintProjection;
+}): readonly RepoPath[] => {
+  const nested = nestedRepositories(request);
+  const unchosen = projectionPathOf({ form: otherFormOf(request) });
+  return request.trackedPaths
+    .filter((path) => fileNameOf({ path }) === unchosen)
+    .filter((path) => insideNestedRepository({ directory: directoryOf({ path }), nested }) === "own");
+};
 
 const packageRecord = (request: {
   readonly record: ExceptionRecord;
@@ -148,11 +164,12 @@ export const unprojectedFoldersOf = (request: {
 export const orphanedSliceDirectoriesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];
   readonly roots: readonly ConfigRoot[];
+  readonly form: EslintProjection;
 }): readonly RepoPath[] => {
   const nested = nestedRepositories(request);
   const rooted = new Set<string>(request.roots.flatMap((root) => (root.placement === "package" ? [root.directory] : [])));
   return request.trackedPaths
-    .filter((path) => fileNameOf({ path }) === PROJECTION_PATH)
+    .filter((path) => fileNameOf({ path }) === projectionPathOf(request))
     .map((path) => directoryOf({ path }))
     .filter((directory) => directory !== "" && !rooted.has(directory))
     .filter((directory) => insideNestedRepository({ directory, nested }) === "own")

@@ -178,6 +178,9 @@ const otherStatementPublication = (request: StatementRequest): StatementPublicat
   return refused({ reason: `a statement of kind ${statement.kind}` });
 };
 
+const exportAssignmentPublication = (request: { readonly role: PublicationRequest["role"]; readonly statement: Statement }): StatementPublication =>
+  request.role === "entry" ? { kind: "kept", statement: request.statement } : { kind: "dropped" };
+
 const statementPublication = (request: PublicationRequest): StatementPublication => {
   const syntaxApi = request.syntaxApi;
   const statement = request.statement;
@@ -196,7 +199,7 @@ const statementPublication = (request: PublicationRequest): StatementPublication
     return visibilityOf(request) === "exported" && request.role === "internal" ? { kind: "dropped" } : { kind: "kept", statement };
   }
   if (syntaxApi.isExportAssignment(statement)) {
-    return { kind: "dropped" };
+    return exportAssignmentPublication({ role: request.role, statement });
   }
   return otherStatementPublication(request);
 };

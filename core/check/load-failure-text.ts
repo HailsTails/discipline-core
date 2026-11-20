@@ -6,11 +6,15 @@ import type { LoadFailure } from "./load-failure.ts";
 const escapedLineBreaks = (request: { readonly text: string }): string =>
   request.text.replaceAll("\n", "\\n").replaceAll("\r", "\\r");
 
+
 const JUDGEMENT_CLAUSE_LISTED_REPAIR =
   "a judgement clause is enforced by review and is left out of clauses, adopted or not; remove it";
 
 const CONFIG_ROOT_REPAIR =
   "an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in disciplines.json";
+
+const TYPE_STRIPPING_REPAIR =
+  "eslintProjection chooses typescript, and this Node.js runs with type stripping turned off, so it cannot load the projection: run Hone without --no-experimental-strip-types, or set eslintProjection to javascript and run project again";
 
 const SELECTION_ABSENT_REPAIR = "holds no disciplines.json; give the folder that holds it, usually the repository root";
 
@@ -69,6 +73,8 @@ const loadFailureFields = (request: { readonly failure: LoadFailure }): readonly
       return [request.failure.detail];
     case "selection-absent":
       return [request.failure.repo, SELECTION_ABSENT_REPAIR];
+    case "projection-needs-type-stripping":
+      return [TYPE_STRIPPING_REPAIR];
     case "install-root-unresolvable":
       return [request.failure.url, request.failure.detail];
     case "file-unreadable":

@@ -47,8 +47,8 @@ describe("the declarations the public type entries ship, emitted in memory by th
     expect(reach.valueDeclaring).toEqual([]);
   });
 
-  it("declare folderScope, editionReaches and isEdition from the audit entry, the three testing functions from the testing entry, and no named value from the eslint-plugin and rule-set entries", () => {
-    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches", "isEdition"], "eslint-plugin": [], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
+  it("declare folderScope, editionReaches and isEdition from the audit entry, the three testing functions from the testing entry, only the default plugin from the eslint-plugin entry, and no value from the rule-set entry", () => {
+    expect(reach.entryValues).toEqual({ audit: ["folderScope", "editionReaches", "isEdition"], "eslint-plugin": ["export default plugin;"], "rule-set": [], testing: ["clauseConformanceOf", "clauseUnderTestOf", "repoPathOf"] });
   });
 
   it("ship no declaration that mentions zod", () => {
