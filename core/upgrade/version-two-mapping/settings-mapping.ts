@@ -94,16 +94,13 @@ const givenSettingsOf = (request: {
     ),
   );
 
-const rootsRefusalsOf = (request: { readonly selection: ConsumerSelectionFile }): readonly UpgradeRefusal[] =>
-  request.selection.eslintConfigRoots.length === 0 ? [] : [{ kind: "eslint-config-roots", roots: request.selection.eslintConfigRoots }];
-
 const whyChainDropsOf = (request: { readonly selection: ConsumerSelectionFile }): readonly UpgradeDrop[] =>
   request.selection.fileExceptionWhyChains === "optional" ? [{ kind: "file-exception-why-chains", value: "optional" }] : [];
 
 export const mappedSettings = (request: SettingsMappingRequest): Result<MappedSettings, readonly UpgradeRefusal[]> => {
   const { selection } = request;
   const listings = selection.clauses.map(([clause, choice]) => listingOf({ catalogues: request.catalogues, clause, choice }));
-  const refusals = [...rootsRefusalsOf({ selection }), ...listings.flatMap((listing) => listing.refusals)];
+  const refusals = listings.flatMap((listing) => listing.refusals);
   if (refusals.length > 0) {
     return { outcome: "failed", error: refusals };
   }
@@ -119,7 +116,7 @@ export const mappedSettings = (request: SettingsMappingRequest): Result<MappedSe
         reportOutput: selection.reportOutput,
         checkEditions: selection.checkEditions,
         eslintConfigLookup: eslintConfigLookupOf({ declared: selection.eslintConfigLookup }),
-        eslintConfigRoots: [],
+        eslintConfigRoots: selection.eslintConfigRoots,
         conventions: { conventions: DEFAULT_CONVENTIONS, declared: [] },
       },
       drops: whyChainDropsOf({ selection }),

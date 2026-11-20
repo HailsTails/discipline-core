@@ -19,7 +19,7 @@ export type VersionOneRemoval = {
   readonly recordsFiles: readonly AbsolutePath[];
   readonly recordsFolders: readonly AbsolutePath[];
   readonly recordsRoot: RecordsRoot;
-  readonly projection: AbsolutePath | undefined;
+  readonly projections: readonly AbsolutePath[];
   readonly settings: AbsolutePath;
 };
 
@@ -98,7 +98,7 @@ const fileStepsOf = (request: { readonly paths: readonly AbsolutePath[] }): read
 const stepsOf = (request: { readonly ports: VersionOneRemovalPorts; readonly removal: VersionOneRemoval }): readonly RemovalStep[] => [
   ...fileStepsOf({ paths: request.removal.recordsFiles }),
   ...foldersToTryOf(request).map((path): RemovalStep => ({ kind: "folder-if-empty", path })),
-  ...fileStepsOf({ paths: request.removal.projection === undefined ? [] : [request.removal.projection] }),
+  ...fileStepsOf({ paths: request.removal.projections }),
   ...fileStepsOf({ paths: [request.removal.settings] }),
 ];
 
@@ -127,7 +127,7 @@ const removedFrom = (request: {
 export const filesStillPresentOf = (request: { readonly removal: VersionOneRemoval; readonly failure: RemovalFailure }): readonly AbsolutePath[] => {
   const { removal, failure } = request;
   const removedFiles = failure.kind === "unremovable" ? failure.removed.files : [];
-  const files = [...removal.recordsFiles, ...(removal.projection === undefined ? [] : [removal.projection]), removal.settings].filter((file) => !removedFiles.includes(file));
+  const files = [...removal.recordsFiles, ...removal.projections, removal.settings].filter((file) => !removedFiles.includes(file));
   return failure.kind === "unremovable" && !files.includes(failure.path) ? [...files, failure.path] : files;
 };
 

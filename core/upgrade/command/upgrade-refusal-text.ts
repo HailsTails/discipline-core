@@ -9,7 +9,8 @@ import type { ProofWriteFailure, Unrestored } from "../proof-writes/proof-writes
 import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { ConfigImportRefusal } from "../version-two-writer/config-import-rewrite.ts";
 import type { OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
-import type { TeamConfigRefusal } from "./team-config-finder.ts";
+import type { PairingRefusal } from "../proof/projection-replacements.ts";
+import type { TeamConfigRefusal } from "../proof/team-config-finder.ts";
 import type { VersionOneReadFailure } from "./version-one-reading.ts";
 
 export const UPGRADE_ISSUES_URL = `${TOOL_IDENTITY.repository}/issues`;
@@ -50,14 +51,30 @@ const oracleLineOf = (request: { readonly failure: OracleFailure }): string => {
       return `a finding of ${failure.clause} in ${failure.file} names no check of version 2. Report it at ${UPGRADE_ISSUES_URL}.`;
     case "record-doubly-held":
       return `${failure.clause} in ${failure.file} is held by both a file carve-out and an authorised location. Remove one of them first, then run the upgrade again.`;
+    case "projection-not-current":
+      return `the version 1 projection ${failure.file} is ${failure.state}. ${projectionActionOf({ state: failure.state })}`;
   }
 };
+
+const projectionActionOf = (request: { readonly state: Extract<OracleFailure, { readonly kind: "projection-not-current" }>["state"] }): string => {
+  switch (request.state) {
+    case "out-of-date":
+    case "missing":
+      return "Run hone project with your version 1 release, commit what it writes, then run the upgrade again.";
+    case "not-applied":
+    case "not-included":
+    case "unconfigured":
+      return "Run hone check with your version 1 release, fix what it reports, then run the upgrade again.";
+  }
+};
+
+const folderTextOf = (request: { readonly folder: string }): string => (request.folder === "" ? "the repository root" : request.folder);
+
+const specifierOf = (request: { readonly projection: string }): string => `./${request.projection.slice(request.projection.lastIndexOf("/") + 1)}`;
 
 const mappingLineOf = (request: { readonly refusal: UpgradeRefusal }): string => {
   const { refusal } = request;
   switch (refusal.kind) {
-    case "eslint-config-roots":
-      return `eslintConfigRoots (${refusal.roots.join(", ")}) is not carried over, and version 2 does not run it yet. Stay on version 1 until it does, or remove it from disciplines.json and keep one ESLint config at the repository root.`;
     case "clause-without-check":
       return `${refusal.clause} has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.`;
     case "no-engine-on-mechanism":
@@ -77,11 +94,11 @@ const configLineOf = (request: { readonly refusal: ConfigImportRefusal }): strin
   const { refusal } = request;
   switch (refusal.kind) {
     case "no-projection-import":
-      return `${refusal.file} holds no static default import of ${refusal.projection}. Change its import of it to the form import projection from "./${refusal.projection}", then run the upgrade again.`;
+      return `${refusal.file} holds no static default import of ${refusal.projection}. Change its import of it to the form import projection from "${specifierOf({ projection: refusal.projection })}", then run the upgrade again.`;
     case "several-projection-imports":
       return `${refusal.file} imports the version 1 projection ${refusal.count} times. Import it once.`;
     case "projection-named-elsewhere":
-      return `${refusal.file} names the version 1 projection outside its import. Remove the other mention.`;
+      return `${refusal.file} names the version 1 projection outside its import, or imports more than one projection. Remove the other mention, or leave one import in ${refusal.file}, then run the upgrade again.`;
   }
 };
 
@@ -92,15 +109,31 @@ const projectionFailureLineOf = (request: { readonly failure: RunLoadFailure }):
     : `version 2's projection could not be made (${line}). Fix what it names, then run the upgrade again.`;
 };
 
-const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly string[] => {
+const pairingLineOf = (request: { readonly refusal: PairingRefusal }): string => {
+  const { refusal } = request;
+  switch (refusal.kind) {
+    case "version-one-projection-unpaired":
+      return `the version 1 projection ${refusal.projection} has no version 2 projection to take its place, since version 2 runs no lint config in ${folderTextOf({ folder: refusal.folder })}. Remove it and its import in ${refusal.config}, then run the upgrade again.`;
+    case "version-two-projection-unpaired":
+      return `version 2 would project ${refusal.file}, but version 1 has no projection in ${folderTextOf({ folder: refusal.folder })}. With your version 1 release, run hone project and import what it writes in the lint config of ${folderTextOf({ folder: refusal.folder })}, commit, then run the upgrade again.`;
+  }
+};
+
+const planLinesOf =(request: { readonly refusal: PlanRefusal }): readonly string[] => {
   const { refusal } = request;
   switch (refusal.kind) {
     case "carve-out-unanswered":
       return [`the carve-out for ${refusal.clause} in ${refusal.file} was given no answer. ${FAULT_IN_HONE}`];
     case "projection-failed":
       return [projectionFailureLineOf({ failure: refusal.failure })];
-    case "projection-not-single":
-      return [`version 2 projected ${refusal.files.length} files, and the team config can import exactly one. ${FAULT_IN_HONE}`];
+    case "projections-unpaired":
+      return [pairingLineOf({ refusal: refusal.refusal })];
+    case "team-config-refused":
+      return teamConfigLinesOf({ refusal: refusal.refusal });
+    case "slice-left-in-place":
+      return refusal.files.map(
+        (file) => `the version 1 projection ${file} belongs to no config root and is out of date. Delete it or restore its config root, commit, then run the upgrade again.`,
+      );
     case "mapping-refused":
       return refusal.refusals.map((each) => mappingLineOf({ refusal: each }));
     case "reach-beyond-entries":
@@ -139,10 +172,6 @@ const readFailureLinesOf = (request: { readonly failure: VersionOneReadFailure }
       return failure.refusal.kind === "invalid-records"
         ? ["the version 1 records are invalid; fix them first:", ...recordsRefusalLinesOf({ invalid: failure.refusal.invalid })]
         : [`a version 1 record in ${failure.refusal.place.file} is not JSON. Fix it first.`];
-    case "several-version-one-projections":
-      return [`several version 1 projections are present: ${failure.projections.join(", ")}. The upgrade carries one; stay on version 1 until it carries several.`];
-    case "team-config-refused":
-      return teamConfigLinesOf({ refusal: failure.refusal });
   }
 };
 
@@ -150,7 +179,7 @@ const teamConfigLinesOf = (request: { readonly refusal: TeamConfigRefusal }): re
   const { refusal } = request;
   switch (refusal.kind) {
     case "no-file-imports-projection":
-      return [`no file imports ${refusal.projection} with a static default import. Change your ESLint config to import it in the form import projection from "./${refusal.projection}", then run the upgrade again.`];
+      return [`no file imports ${refusal.projection} with a static default import. Change the ESLint config next to it to import it in the form import projection from "${specifierOf({ projection: refusal.projection })}", then run the upgrade again.`];
     case "several-files-import-projection":
       return [`several files import ${refusal.projection}: ${refusal.files.join(", ")}. Leave one importing it.`];
     case "config-candidate-unreadable":
@@ -176,13 +205,19 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
     case "oracle-failed":
       return { code: 1, lines: [oracleLineOf({ failure: failure.failure }), NOTHING_CHANGED] };
     case "plan-refused":
-      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), NOTHING_CHANGED] };
+      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), ...unrestoredLinesOf({ unrestored: failure.unrestored })] };
     case "version-one-run-failed":
-      return { code: 1, lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, NOTHING_CHANGED] };
+      return {
+        code: 1,
+        lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ unrestored: failure.unrestored })],
+      };
     case "unplaceable-path":
-      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, NOTHING_CHANGED] };
+      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ unrestored: failure.unrestored })] };
     case "removal-refused":
-      return { code: 1, lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, NOTHING_CHANGED] };
+      return {
+        code: 1,
+        lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ unrestored: failure.unrestored })],
+      };
     case "write-refused":
       return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ unrestored: failure.refusal.unrestored })] };
     case "version-two-run-failed":
@@ -196,7 +231,7 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
       return {
         code: 3,
         lines: [
-          `version 2 is in place (written: ${failure.written.join(", ")}${failure.replaced === undefined ? "" : `; replaced: ${failure.replaced}`}), but ${removalLineOf({ failure: failure.failure })}.`,
+          `version 2 is in place (written: ${failure.written.join(", ")}${failure.replaced.length === 0 ? "" : `; replaced: ${failure.replaced.join(", ")}`}), but ${removalLineOf({ failure: failure.failure })}.`,
           "Delete these version 1 files by hand, then commit:",
           ...failure.remaining.map((remaining) => `  ${remaining}`),
         ],
@@ -206,7 +241,7 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
 
 export const upgradeFailureOutcomeOf = (request: { readonly failure: UpgradeFailure }): UpgradeFailureOutcome => {
   const { failure } = request;
-  if (failure.kind === "version-one-unreadable" || failure.kind === "records-refused" || failure.kind === "several-version-one-projections" || failure.kind === "team-config-refused") {
+  if (failure.kind === "version-one-unreadable" || failure.kind === "records-refused") {
     return { code: 1, text: `${["upgrade refused:", ...readFailureLinesOf({ failure }), NOTHING_CHANGED].join("\n")}\n` };
   }
   const proof = proofLinesOf({ failure });

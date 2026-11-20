@@ -130,6 +130,33 @@ describe("rewrittenConfigOf refusing what it cannot rewrite safely", () => {
   });
 });
 
+describe("rewrittenConfigOf over a config that imports several version 1 projections of the same file name", () => {
+  const PACKAGE_VERSION_ONE = repoPathSchema.parse("packages/a/disciplines.eslint.mjs");
+
+  const TEXT = 'import root from "./disciplines.eslint.mjs";\nimport slice from "./packages/a/disciplines.eslint.mjs";\nexport default [...slice, ...root];\n';
+
+  it("rewrites the import of one projection when the others are told to be imported besides it", () => {
+    expect(
+      rewrittenConfigOf({
+        file: repoPathSchema.parse("eslint.config.mjs"),
+        text: TEXT,
+        versionOneProjection: VERSION_ONE,
+        versionTwoProjection: VERSION_TWO,
+        otherProjections: [PACKAGE_VERSION_ONE],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: 'import root from "./hone.eslint.mjs";\nimport slice from "./packages/a/disciplines.eslint.mjs";\nexport default [...slice, ...root];\n',
+    });
+  });
+
+  it("refuses the same config when the others are not told, since the file name is then named elsewhere", () => {
+    expect(
+      rewrittenConfigOf({ file: repoPathSchema.parse("eslint.config.mjs"), text: TEXT, versionOneProjection: VERSION_ONE, versionTwoProjection: VERSION_TWO }),
+    ).toEqual({ outcome: "failed", error: { kind: "projection-named-elsewhere", file: "eslint.config.mjs" } });
+  });
+});
+
 describe("projectionImportingOf", () => {
   it.each([
     { name: "a static default import of the projection", text: 'import projection from "./disciplines.eslint.mjs";\n', importing: "imports" },

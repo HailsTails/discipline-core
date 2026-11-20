@@ -1,4 +1,6 @@
-import { type CheckRequest, findingsOf, loadInputs, mechanismRuns, projectionOutcome, treeOf } from "../../check/run-check.ts";
+import { type CheckRequest, findingsOf, loadInputs, mechanismRuns, projectionOutcome, sliceProblemsOf, treeOf } from "../../check/run-check.ts";
+import type { MechanismId } from "../../values/identifiers.ts";
+import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
 import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
 import type { LoadFailure } from "../../command-line/load-failure.ts";
 import type { MechanismRun } from "../../run/mechanism-dispatch.ts";
@@ -11,14 +13,24 @@ const failureOf = (request: { readonly failure: LoadFailure }): Result<EngineFin
   error: { kind: "version-one-run-failed", detail: loadFailureDetail({ failure: request.failure }) },
 });
 
+const projectionFileOf = (request: { readonly mechanism: MechanismId }): RepoPath => repoPathSchema.parse(`disciplines.${request.mechanism}.mjs`);
+
 const projectionFailureOf = (request: { readonly runs: readonly MechanismRun[] }): EnginePassFailure | undefined => {
   const outcomes = request.runs.map((run) => projectionOutcome({ run }));
+  const slice = request.runs.flatMap((run) => sliceProblemsOf({ run }))[0];
   const notRun = outcomes.flatMap((outcome) => outcome.unmeasured).find((unmeasured) => unmeasured.kind === "mechanism-not-run");
-  if (notRun?.kind === "mechanism-not-run") {
-    return { kind: "version-one-run-failed", detail: `${notRun.mechanism} not run: its projection is ${notRun.projection}` };
+  if (notRun?.kind === "mechanism-not-run" && !(notRun.projection === "not-included" && slice !== undefined)) {
+    return { kind: "projection-not-current", file: projectionFileOf({ mechanism: notRun.mechanism }), state: notRun.projection };
   }
-  const problem = outcomes.flatMap((outcome) => outcome.problems)[0];
-  return problem === undefined ? undefined : { kind: "version-one-run-failed", detail: `${problem.mechanism} projection is ${problem.state}` };
+  const problem = [...outcomes.flatMap((outcome) => outcome.problems), ...(slice === undefined ? [] : [slice])][0];
+  if (problem === undefined) {
+    return undefined;
+  }
+  return {
+    kind: "projection-not-current",
+    file: problem.scope === "slice" ? problem.slice : projectionFileOf({ mechanism: problem.mechanism }),
+    state: problem.state,
+  };
 };
 
 export const createVersionOneEnginePass =(request: { readonly check: CheckRequest }): EnginePass => ({

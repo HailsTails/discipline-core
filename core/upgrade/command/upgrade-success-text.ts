@@ -22,7 +22,7 @@ export const upgradeSuccessOutcomeOf = (request: {
     text: [
       "upgraded to version 2",
       ...carried.written.map((file) => `wrote ${file}`),
-      ...(carried.replaced === undefined ? [] : [`rewrote ${carried.replaced}`]),
+      ...carried.replaced.map((file) => `rewrote ${file}`),
       ...removed.map((target) => `removed ${shownOf({ path, repoRoot, target })}`),
     ]
       .map((line) => `${line}\n`)

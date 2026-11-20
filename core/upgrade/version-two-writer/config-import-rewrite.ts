@@ -12,6 +12,7 @@ export type ConfigImportRewriteRequest = {
   readonly text: string;
   readonly versionOneProjection: RepoPath;
   readonly versionTwoProjection: RepoPath;
+  readonly otherProjections?: readonly RepoPath[];
 };
 
 type ProjectionImport = { readonly specifierStart: number; readonly specifier: string };
@@ -60,7 +61,9 @@ export const rewrittenConfigOf = (request: ConfigImportRewriteRequest): Result<s
   if (others.length > 0) {
     return { outcome: "failed", error: { kind: "several-projection-imports", file: request.file, count: found.length } };
   }
-  if (mentionsOf({ text: request.text, name: nameOf({ path: request.versionOneProjection }) }) > 1) {
+  const name = nameOf({ path: request.versionOneProjection });
+  const importedBesides = (request.otherProjections ?? []).filter((other) => nameOf({ path: other }) === name).length;
+  if (mentionsOf({ text: request.text, name }) > 1 + importedBesides) {
     return { outcome: "failed", error: { kind: "projection-named-elsewhere", file: request.file } };
   }
   const specifier = relativeSpecifierOf({ directory: directoryOf({ file: request.file }), target: request.versionTwoProjection });

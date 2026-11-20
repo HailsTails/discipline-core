@@ -158,7 +158,7 @@ describe("the version 1 engine pass over a real ESLint run of a repository that 
     const pass = enginePassOver({ repoRoot: await carvedRepository(), tracked: CARVED_TRACKED });
     await expect(pass.findingsFor({ records: [] })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-one-run-failed", detail: "eslint projection is out-of-date" },
+      error: { kind: "projection-not-current", file: "disciplines.eslint.mjs", state: "out-of-date" },
     });
   });
 
@@ -174,7 +174,7 @@ describe("the version 1 engine pass over a real ESLint run of a repository whose
     const pass = enginePassOver({ repoRoot: unprojectedRepository(), tracked: UNPROJECTED_TRACKED });
     await expect(pass.findingsFor({ records: [CARVE_OUT] })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-one-run-failed", detail: "eslint not run: its projection is missing" },
+      error: { kind: "projection-not-current", file: "disciplines.eslint.mjs", state: "missing" },
     });
   });
 });

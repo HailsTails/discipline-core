@@ -7,8 +7,11 @@ export type FileCarveOutRecord = Extract<ExceptionRecord, { readonly kind: "file
 
 export type CarveOutAnswered = { readonly record: FileCarveOutRecord; readonly answer: CarveOutAnswer };
 
+export type ProjectionNotCurrentState = "out-of-date" | "missing" | "not-applied" | "not-included" | "unconfigured";
+
 export type OracleFailure =
   | { readonly kind: "version-one-run-failed"; readonly detail: string }
+  | { readonly kind: "projection-not-current"; readonly file: RepoPath; readonly state: ProjectionNotCurrentState }
   | { readonly kind: "finding-not-attributable"; readonly clause: string; readonly file: RepoPath; readonly check: string | undefined }
   | { readonly kind: "record-doubly-held"; readonly clause: string; readonly file: RepoPath };
 

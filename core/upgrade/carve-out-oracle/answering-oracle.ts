@@ -8,7 +8,7 @@ import type { CarveOutOracle, OracleFailure } from "./carve-out-oracle.ts";
 
 export type EngineFindings = { readonly findings: readonly Finding[]; readonly runs: readonly GovernedRun[] };
 
-export type EnginePassFailure = Extract<OracleFailure, { readonly kind: "version-one-run-failed" }>;
+export type EnginePassFailure = Extract<OracleFailure, { readonly kind: "version-one-run-failed" | "projection-not-current" }>;
 
 export type EnginePass = {
   readonly findingsFor: (request: { readonly records: readonly ExceptionRecord[] }) => Promise<Result<EngineFindings, EnginePassFailure>>;

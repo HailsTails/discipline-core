@@ -4,7 +4,6 @@ import type { RepoPath } from "../../values/repo-path.ts";
 export type UnansweredCredit = "nothing" | "suppression-only";
 
 export type UpgradeRefusal =
-  | { readonly kind: "eslint-config-roots"; readonly roots: readonly RepoPath[] }
   | { readonly kind: "clause-without-check"; readonly clause: string }
   | { readonly kind: "no-engine-on-mechanism"; readonly check: string; readonly mechanism: MechanismId }
   | {

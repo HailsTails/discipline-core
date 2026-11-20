@@ -1,6 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import type { SelectionRepository } from "../../consumer-selection/consumer-selection.ts";
-import type { FilePresence, FileTextPort } from "../../platform-ports/file-text-port.ts";
+import type { FileTextPort } from "../../platform-ports/file-text-port.ts";
 import { createPathPort } from "../../platform-ports/path-port.ts";
 import type { SelectionReading } from "../../settings/selection.ts";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
@@ -16,10 +16,6 @@ const LOOPS = clauseAddressSchema.parse("CD-15#loops");
 const AUDIT = mechanismIdSchema.parse("audit");
 
 const SELECTION_TEXT = '{ "version": 1, "ruleSets": {}, "clauses": { "CD-15#loops": "eslint" } }';
-
-const NO_TEAM_CONFIG = "export default [];\n";
-
-const IMPORTING_TEAM_CONFIG = 'import disciplines from "./disciplines.eslint.mjs";\nexport default [...disciplines];\n';
 
 const READING: SelectionReading = {
   selection: { selected: [{ address: LOOPS, mechanism: AUDIT, exceptions: "allowed" }], uncovered: [], notAdopted: [], notRun: [], editions: [] },
@@ -45,8 +41,6 @@ const SPLIT_ENTRIES: readonly PlacedEntry[] = [
 
 type Held = {
   readonly entries: readonly PlacedEntry[];
-  readonly teamConfigText: string;
-  readonly projection: FilePresence;
   readonly reading: SelectionReading;
   readonly selectionText: string;
   readonly recordsOnDisk: RecordsOnDisk;
@@ -64,8 +58,6 @@ const SPLIT_ON_DISK: RecordsOnDisk = {
 
 const NOTHING_HELD: Held = {
   entries: [],
-  teamConfigText: NO_TEAM_CONFIG,
-  projection: "absent",
   reading: READING,
   selectionText: SELECTION_TEXT,
   recordsOnDisk: NO_RECORDS_ON_DISK,
@@ -74,34 +66,21 @@ const NOTHING_HELD: Held = {
 const requestOver = (held: Held): VersionOneReadRequest => ({
   repoRoot: absolutePathSchema.parse("/repo"),
   fileText: {
-    read: vi
-      .fn<FileTextPort["read"]>()
-      .mockReturnValueOnce({ outcome: "ok", value: held.selectionText })
-      .mockReturnValue({ outcome: "ok", value: held.teamConfigText }),
-    exists: vi.fn<FileTextPort["exists"]>().mockReturnValue(held.projection),
+    read: vi.fn<FileTextPort["read"]>().mockReturnValue({ outcome: "ok", value: held.selectionText }),
+    exists: vi.fn<FileTextPort["exists"]>(),
     write: vi.fn<FileTextPort["write"]>(),
   },
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }),
   selectionRepository: { read: vi.fn<SelectionRepository["read"]>().mockReturnValue({ outcome: "ok", value: held.reading }) },
   exceptionRepository: { read: vi.fn<ExceptionRepository["read"]>().mockReturnValue({ outcome: "ok", value: held.entries }) },
-  trackedPaths: [repoPathSchema.parse("eslint.config.mjs")],
   recordsOnDisk: held.recordsOnDisk,
 });
 
 describe("versionOneReadOf", () => {
-  it("reads the settings, the records as heads, and the files that hold them, for a repository with no version 1 projection", () => {
+  it("reads the settings, the records as heads, and the files that hold them", () => {
     const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SINGLE_FILE_ENTRIES, recordsOnDisk: SINGLE_FILE_ON_DISK }));
     assert(read.outcome === "ok", "the repository reads");
-    expect({
-      teamConfig: read.value.reading.teamConfig,
-      versionOneProjection: read.value.reading.versionOneProjection,
-      versionOneFiles: read.value.versionOneFiles,
-    }).toEqual({
-      teamConfig: undefined,
-      versionOneProjection: undefined,
-      versionOneFiles: { recordsFiles: ["discipline-exceptions.json"], recordsFolders: [], recordsRoot: { kind: "repository" }, settings: "disciplines.json" },
-    });
-  });
+    expect(read.value.versionOneFiles).toEqual({ recordsFiles: ["discipline-exceptions.json"], recordsFolders: [], recordsRoot: { kind: "repository" }, settings: "disciplines.json" });  });
 
   it("takes the files and folders on disk as the ones to remove, whatever the entries say", () => {
     const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: SPLIT_ENTRIES, recordsOnDisk: SPLIT_ON_DISK }));
@@ -118,28 +97,6 @@ describe("versionOneReadOf", () => {
     const read = versionOneReadOf(requestOver({ ...NOTHING_HELD, entries: [], recordsOnDisk: SINGLE_FILE_ON_DISK }));
     assert(read.outcome === "ok", "the repository reads");
     expect(read.value.versionOneFiles).toEqual({ recordsFiles: ["discipline-exceptions.json"], recordsFolders: [], recordsRoot: { kind: "repository" }, settings: "disciplines.json" });
-  });
-
-  it("names the version 1 projection and finds the team config that imports it when the projection file is present", () => {
-    expect(versionOneReadOf(requestOver({ ...NOTHING_HELD, projection: "present", teamConfigText: IMPORTING_TEAM_CONFIG }))).toMatchObject({
-      outcome: "ok",
-      value: { reading: { teamConfig: { file: "eslint.config.mjs", text: IMPORTING_TEAM_CONFIG }, versionOneProjection: "disciplines.eslint.mjs" } },
-    });
-  });
-
-  it("refuses naming the projection when it is present and no tracked file imports it", () => {
-    expect(versionOneReadOf(requestOver({ ...NOTHING_HELD, projection: "present" }))).toEqual({
-      outcome: "failed",
-      error: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: "disciplines.eslint.mjs" } },
-    });
-  });
-
-  it("refuses when the projections of two mechanisms are both present", () => {
-    const selectionText = '{ "version": 1, "ruleSets": {}, "clauses": { "CD-15#loops": "eslint", "CD-14#class-syntax": "other" } }';
-    expect(versionOneReadOf(requestOver({ ...NOTHING_HELD, selectionText, projection: "present" }))).toEqual({
-      outcome: "failed",
-      error: { kind: "several-version-one-projections", projections: ["disciplines.eslint.mjs", "disciplines.other.mjs"] },
-    });
   });
 
   it("refuses records that do not parse, naming them", () => {

@@ -1,0 +1,85 @@
+import type { RepoPath } from "../../values/repo-path.ts";
+import type { Result } from "../../values/result.ts";
+import { directoryOf } from "../version-two-writer/relative-specifier.ts";
+import { type ConfigImportRefusal, rewrittenConfigOf } from "../version-two-writer/config-import-rewrite.ts";
+import type { PlannedRepoFile } from "./planned-repo-file.ts";
+import type { VersionOneProjection } from "./team-config-finder.ts";
+
+const PATH_SEPARATOR = "/";
+
+export type PairingRefusal =
+  | { readonly kind: "version-one-projection-unpaired"; readonly projection: RepoPath; readonly config: RepoPath; readonly folder: string }
+  | { readonly kind: "version-two-projection-unpaired"; readonly file: RepoPath; readonly folder: string };
+
+export type ReplacementRefusal =
+  | { readonly kind: "projections-unpaired"; readonly refusal: PairingRefusal }
+  | { readonly kind: "config-import-refused"; readonly refusal: ConfigImportRefusal };
+
+type Pair = { readonly version: VersionOneProjection; readonly projected: PlannedRepoFile };
+
+const folderOf = (request: { readonly file: RepoPath }): string => directoryOf({ file: request.file }).join(PATH_SEPARATOR);
+
+const pairOf = (request: { readonly version: VersionOneProjection; readonly projected: readonly PlannedRepoFile[] }): Result<Pair, ReplacementRefusal> => {
+  const folder = folderOf({ file: request.version.projection });
+  const projected = request.projected.find((candidate) => folderOf({ file: candidate.file }) === folder);
+  return projected === undefined
+    ? {
+        outcome: "failed",
+        error: {
+          kind: "projections-unpaired",
+          refusal: { kind: "version-one-projection-unpaired", projection: request.version.projection, config: request.version.teamConfig.file, folder },
+        },
+      }
+    : { outcome: "ok", value: { version: request.version, projected } };
+};
+
+const pairsOf = (request: { readonly projections: readonly VersionOneProjection[]; readonly projected: readonly PlannedRepoFile[] }): Result<readonly Pair[], ReplacementRefusal> => {
+  const pairs = request.projections.map((version) => pairOf({ version, projected: request.projected }));
+  const unpaired = pairs.find((pair) => pair.outcome === "failed");
+  return unpaired ?? { outcome: "ok", value: pairs.flatMap((pair) => (pair.outcome === "ok" ? [pair.value] : [])) };
+};
+
+const unpairedProjectedOf = (request: { readonly pairs: readonly Pair[]; readonly projected: readonly PlannedRepoFile[] }): PlannedRepoFile | undefined =>
+  request.projected.find((candidate) => !request.pairs.some((pair) => pair.projected.file === candidate.file));
+
+const rewrittenWithin = (request: { readonly config: PlannedRepoFile; readonly pairs: readonly Pair[] }): Result<PlannedRepoFile, ReplacementRefusal> => {
+  const [pair, ...rest] = request.pairs;
+  if (pair === undefined) {
+    return { outcome: "ok", value: request.config };
+  }
+  const rewritten = rewrittenConfigOf({
+    file: request.config.file,
+    text: request.config.text,
+    versionOneProjection: pair.version.projection,
+    versionTwoProjection: pair.projected.file,
+    otherProjections: request.pairs.filter((other) => other !== pair).map((other) => other.version.projection),
+  });
+  return rewritten.outcome === "ok"
+    ? rewrittenWithin({ config: { file: request.config.file, text: rewritten.value }, pairs: rest })
+    : { outcome: "failed", error: { kind: "config-import-refused", refusal: rewritten.error } };
+};
+
+const configsOf = (request: { readonly pairs: readonly Pair[] }): readonly PlannedRepoFile[] => {
+  const files = [...new Set(request.pairs.map((pair) => pair.version.teamConfig.file))];
+  return files.flatMap((file) => {
+    const first = request.pairs.find((pair) => pair.version.teamConfig.file === file);
+    return first === undefined ? [] : [first.version.teamConfig];
+  });
+};
+
+export const replacementsOf = (request: {
+  readonly projections: readonly VersionOneProjection[];
+  readonly projected: readonly PlannedRepoFile[];
+}): Result<readonly PlannedRepoFile[], ReplacementRefusal> => {
+  const pairs = pairsOf(request);
+  if (pairs.outcome === "failed") {
+    return pairs;
+  }
+  const alone = unpairedProjectedOf({ pairs: pairs.value, projected: request.projected });
+  if (alone !== undefined) {
+    return { outcome: "failed", error: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: alone.file, folder: folderOf({ file: alone.file }) } } };
+  }
+  const rewritten = configsOf({ pairs: pairs.value }).map((config) => rewrittenWithin({ config, pairs: pairs.value.filter((pair) => pair.version.teamConfig.file === config.file) }));
+  const refused = rewritten.find((each) => each.outcome === "failed");
+  return refused ?? { outcome: "ok", value: rewritten.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };
+};
