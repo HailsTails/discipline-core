@@ -108,15 +108,17 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
     });
   });
 
-  it("writes nothing for a file carve-out, whose debt records depend on which checks the version 1 run credited", () => {
-    expect(
-      readAtBaseWith({
-        entries: {
-          outcome: "ok",
-          value: [{ kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", provenance: { kind: "inherited-debt", source: "old", decision: "keep" } }],
+  it("writes a file carve-out as a debt record at each check of its clause, in the debt file of the check's symptom", () => {
+    const carveOut = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", provenance: { kind: "inherited-debt", source: "old", decision: "keep" } };
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [carveOut] } })).toEqual({
+      outcome: "ok",
+      value: [
+        {
+          file: "hone-records/debt/loop-keyword.json",
+          document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: carveOut }] },
         },
-      }),
-    ).toEqual(NO_DOCUMENTS);
+      ],
+    });
   });
 
   it("writes nothing for a clause-wide carve-out", () => {
@@ -213,6 +215,52 @@ describe("baseStandingRecordsSource and what a carried record stands on", () => 
       outcome: "failed",
       error: [{ kind: "carried-changed-since-base" }],
     });
+  });
+});
+
+describe("baseStandingRecordsSource establishing the carried debt of the base's file carve-outs", () => {
+  const CARVE_OUT = { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", whyChain: ["a", "b", "c", "d", "e"] };
+
+  const DEBT_FILE = repoPathSchema.parse("hone-records/debt/loop-keyword.json");
+
+  const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json");
+
+  const HEAD_DEBT = { symptom: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT };
+
+  const BASE_DEBT: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [HEAD_DEBT] } };
+
+  const standingAtBase = (request: { readonly file: typeof DEBT_FILE; readonly entry: typeof HEAD_DEBT & { readonly note?: string } }) =>
+    carriedStandingOf({ base: { measured: "yes", documents: [BASE_DEBT] }, file: request.file, entry: request.entry });
+
+  const CHANGED = { outcome: "failed", error: [{ kind: "carried-changed-since-base" }] };
+
+  it("writes the base the debt record its own carve-out entry would have been carried as, in the debt file of the symptom", () => {
+    expect(readAtBaseWith({ entries: { outcome: "ok", value: [CARVE_OUT] } })).toEqual({ outcome: "ok", value: [BASE_DEBT] });
+  });
+
+  it("reads a head debt record equal to it as established", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: HEAD_DEBT })).toEqual({ outcome: "ok", value: "established" });
+  });
+
+  it("reads a head debt record with a note the base never held as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, note: "written at head" } })).toEqual(CHANGED);
+  });
+
+  it("reads the same record filed as an authorised location as changed since base, the entry being a carve-out", () => {
+    expect(standingAtBase({ file: AUTHORISED_FILE, entry: HEAD_DEBT })).toEqual(CHANGED);
+  });
+
+  it("reads a head debt record whose carried entry was edited as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, carried: { ...CARVE_OUT, reason: "edited" } } })).toEqual(CHANGED);
+  });
+
+  it("reads a whole-symptom head debt record as changed since base", () => {
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, symptom: "loop-keyword" } })).toEqual(CHANGED);
+  });
+
+  it("leaves a debt file the base already holds as a version 2 document as the base holds it", () => {
+    const held: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [] } };
+    expect(readAtBaseHolding({ entries: { outcome: "ok", value: [CARVE_OUT] }, base: { outcome: "ok", value: [held] } })).toEqual({ outcome: "ok", value: [held] });
   });
 });
 
