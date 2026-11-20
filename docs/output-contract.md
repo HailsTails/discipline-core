@@ -47,7 +47,7 @@ In the tables below, a word in angle brackets, such as `<clause>`, stands for a 
 
 | Value | Printed as | Space |
 | --- | --- | --- |
-| `<clause>` | in the report, a clause address: `CD-15#loops` for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's; in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
+| `<clause>` | in the report, a clause address: `CD-15#loops` (`loop-keyword#loop-statement`) for Hone's own rule set, `<rule set>/<ID>#<clause>` for a team's (`loop-keyword#loop-statement` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0); in a load failure, the address as written in `disciplines.json` | never in the report; may hold a space in a load failure |
 | `<mechanism>` | a mechanism id, such as `audit` or `eslint` | never |
 | `<record kind>`, `<section>`, `<package>` | a word from the lines below, a section name, or an npm package name | never |
 | `<line>`, `<column>` | a 1-based line and a 0-based column | never |
@@ -268,7 +268,7 @@ The verdict line reads `(partial assessment)` whenever the report has an `assess
 
 ## Report lines
 
-Each section's entries take one of these shapes. A finding names its symptom with ` symptom: <symptom>, may indicate: <indicated>` after the snippet when the installed symptom catalogue reads one for its clause, and for `CD-27#test-body-logic` for the form it flagged; a finding the catalogue reads no symptom for prints without it. A finding ends with ` fix: <fix> (<fix page>#<section>)` when its clause's piece names what to write instead of the form it flagged and the page that shows it, as `CD-27#test-body-logic` does; an exempted finding never carries either. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
+Each section's entries take one of these shapes. A finding names its symptom with ` symptom: <symptom>, may indicate: <indicated>` after the snippet when the installed symptom catalogue reads one for its clause, and for `CD-27#test-body-logic`, whose test-body checks such as `branch-in-a-test#test-body` each see one symptom, for the form it flagged; a finding the catalogue reads no symptom for prints without it. A finding ends with ` fix: <fix> (<fix page>#<section>)` when its clause's piece names what to write instead of the form it flagged and the page that shows it, as `CD-27#test-body-logic` does; an exempted finding never carries either. An exempted finding repeats ` exempted by <record kind>` once for each exception that covers it. In `projectionProblems`, a `<slice>` is the `disciplines.eslint.mjs` projection file of one config root, the repository root or a folder in `eslintConfigRoots`; `unconfigured` means that root has no `eslint.config.*`.
 
 | Section | Line |
 | --- | --- |
@@ -495,7 +495,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 
 | Value | Printed as | Space |
 | --- | --- | --- |
-| `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address; in a load failure, the check as `hone.config.json` lists it, led by its rule set and `/` when it has one, or the clause address when the failure is in the rule set's own files | never |
+| `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address; in a load failure, the check as `hone.config.json` lists it, led by its rule set and `/` when it has one, or the clause address when the failure is in the rule set's own files | never in the report; may hold a space in a load failure |
 | `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, or in a load failure when the catalogue names no engine for it, the mechanism id | never |
 | `<symptom>`, `<recipe>`, `<case name>` | a name in the symptom catalogue | never |
 | `<check name>` | the check an authorised location names that its symptom does not have, as the record writes it | never |
@@ -513,9 +513,10 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `<lacks>` | the keys a carried record lacks, separated by `, ` | may hold a space |
 | `<dir>`, `<detail>`, `<url>`, `<version found>`, `<rule set>`, `<other rule set>`, `<config root>`, `<piece folder>`, `<package>`, `<other package>`, `<range>`, `<location>`, `<install folder>` | as in 1.x | as in 1.x |
 | `<settings key>` | `checks` or `checkSettings`, the key that lists a check twice | never |
-| `<check with its rule set>` | the check's address led by its rule set and `/`, such as `hone/claimed-type#cast-expressions` | never |
+| `<check with its rule set>` | the check's address led by its rule set and `/`, such as `hone/claimed-type#cast-expressions`, as `hone.config.json` lists it | may hold a space |
 | `<engines>` | the engines a check runs on, separated by ` or ` | never |
-| `<other check>`, `<other checks>` | further check addresses, separated by a space | never |
+| `<other check>` | a further check address, as `hone.config.json` lists it | may hold a space |
+| `<other checks>` | the further checks of the same rule, built from the catalogue, separated by a space | never |
 | `<state>` | `not-run` or `not-adopted` | never |
 | `<records folder>`, `<other records file>` | a folder or further records file under `hone-records/`, printed as `<records file>` is | never outside a JSON string |
 | `<name>` | a file name no repository path can hold, as a JSON string in double quotes | may hold a space |
@@ -693,7 +694,7 @@ Checks a repository against the checks hone.config.json lists, answers its findi
 
 commands:
   check        check the repository against the checks hone.config.json lists and print the report, ending in its verdict
-  project      write hone.<engine>.mjs for each engine a listed check runs on, printing each file as written or unchanged
+  project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
   upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
@@ -731,7 +732,7 @@ exit codes:
 ```text
 usage: hone project --repo <dir>
 
-write hone.<engine>.mjs for each engine a listed check runs on, printing each file as written or unchanged
+write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
 
 options:
   --repo <dir>
@@ -780,7 +781,7 @@ options:
       print this help
 
 exit codes:
-  0  every paid debt was removed, or none was paid
+  0  every debt the run showed paid, stale or forfeited was removed, or none was shown
   2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
 ```
 
@@ -802,7 +803,7 @@ exit codes:
 
 ## Version 2 load failures
 
-A version 2 run that cannot decide prints one line and exits `2`, as in 1.x. The line starts with `load failure: ` and its kind, and the values follow in the order shown. The text after a `:` that ends the values is not stable. A minor release may add a kind; a tool passes over a kind it does not know.
+A version 2 run that cannot decide prints one line and exits `2`, as in 1.x. The line starts with `load failure: ` and its kind, and the values follow in the order shown. A `<check>` is the address as `hone.config.json` lists it and may hold a space, so a tool reads a load failure by its kind, and by the values only up to the first one that may hold a space. The text after a `:` that ends the values is not stable. A minor release may add a kind; a tool passes over a kind it does not know.
 
 Version 2 renames the 1.x kinds whose names spoke of clauses, disciplines, mechanisms, runners and pieces:
 - `selection-absent` is `config-absent`;
@@ -839,7 +840,7 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `review-only-listed` | `load failure: review-only-listed <check>: a check enforced by review has no engine and is left out of checks; remove it` |
 | `duplicate-check` | `load failure: duplicate-check <settings key> <check> <check with its rule set>` |
 | `engine-not-allowed` | `load failure: engine-not-allowed <check> <engine>: it runs on <engines>; list it with one of those` |
-| `engine-not-allowed` | `load failure: engine-not-allowed <check> <engine>: the rule set does not run that check on that engine, though its catalogue says it does` |
+| `engine-not-allowed` | `load failure: engine-not-allowed <check> <engine>: the rule set does not run that check on that engine, though its catalogue says it does; list the check with an engine its rule set runs it on, or correct the rule set` |
 | `engine-missing` | `load failure: engine-missing <engine>` |
 | `engine-invalid` | `load failure: engine-invalid <engine> <detail>` |
 | `engine-failed` | `load failure: engine-failed <engine> piece-invalid <piece folder> <detail>` |
@@ -861,7 +862,7 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `records-folder-unreadable` | `load failure: records-folder-unreadable <records folder> <detail>` |
 | `records-file-unreadable` | `load failure: records-file-unreadable <records file> <detail>` |
 | `records-file-not-json` | `load failure: records-file-not-json <records file> <detail>` |
-| `not-a-records-file` | `load failure: not-a-records-file <records file>: hone-records holds boundaries.json, dependencies.json, and one .json file for each name in authorised-locations, debt and deviations; move this file out of hone-records` |
+| `not-a-records-file` | `load failure: not-a-records-file <records file>: a records file is boundaries.json or dependencies.json, or a .json file named for its symptom, or for its recipe in deviations, inside the folder authorised-locations, debt or deviations of hone-records; move this file to where its kind belongs, or out of hone-records if it holds no records` |
 | `not-a-records-name` | `load failure: not-a-records-name <records folder> <name>: no repository path can hold that name; rename it` |
 | `records-refused` | `load failure: records-refused <records file> document-refused <document issues>` |
 | `records-refused` | `load failure: records-refused <records file> not-a-records-file` |

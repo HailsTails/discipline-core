@@ -22,9 +22,7 @@ const SUPPORTED_VERSION_REPAIR = "add a supported version to the devDependencies
 
 const EACH_SUPPORTED_VERSION_REPAIR = "add a supported version of each to the devDependencies of the repository root";
 
-const conjoined = (request: { readonly items: readonly string[] }): string => `${request.items.slice(0, -1).join(", ")} and ${request.items.slice(-1).join("")}`;
-
-const RECORDS_FILES = `${SINGLE_FILE_KINDS.map((kind) => `${kind}${RECORDS_FILE_EXTENSION}`).join(", ")}, and one ${RECORDS_FILE_EXTENSION} file for each name in ${conjoined({ items: NAMED_FOLDER_KINDS })}`;
+const RECORDS_FILES = `a records file is ${SINGLE_FILE_KINDS.map((kind) => `${kind}${RECORDS_FILE_EXTENSION}`).join(" or ")}, or a ${RECORDS_FILE_EXTENSION} file named for its symptom, or for its recipe in ${NAMED_FOLDER_KINDS.at(-1)}, inside the folder ${NAMED_FOLDER_KINDS.slice(0, -1).join(", ")} or ${NAMED_FOLDER_KINDS.at(-1)} of ${RECORDS_FOLDER}`;
 
 const engineText = (request: { readonly engine: EngineNaming }): string =>
   request.engine.named === "engine" ? request.engine.engine.name : request.engine.mechanism;
@@ -69,7 +67,7 @@ const runnerFailureFields = (request: { readonly failure: RunnerFailure }): read
 const allowedText = (request: { readonly allowed: AllowedEngines }): string =>
   request.allowed.stated === "by-catalogue"
     ? `it runs on ${request.allowed.engines.join(" or ")}; list it with one of those`
-    : "the rule set does not run that check on that engine, though its catalogue says it does";
+    : "the rule set does not run that check on that engine, though its catalogue says it does; list the check with an engine its rule set runs it on, or correct the rule set";
 
 const settingsListingRepair = (request: { readonly listing: CheckSettingsListing }): string =>
   request.listing === "unlisted" ? "list it under checks or remove its settings" : "run it or remove its settings";
@@ -100,7 +98,63 @@ const catalogueFields = (request: { readonly failure: CatalogueNotRead }): reado
   }
 };
 
-const failureFields = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string }): readonly string[] => {
+type ToolFailure = Extract<
+  RunLoadFailure,
+  {
+    readonly kind:
+      | "arguments-invalid"
+      | "git-failed"
+      | "unexpected-error"
+      | "install-root-unresolvable"
+      | "file-unreadable"
+      | "file-malformed"
+      | "file-unwritable"
+      | "rule-set-invalid"
+      | "unsupported-version"
+      | "reserved-rule-set-name"
+      | "unknown-rule-set"
+      | "rule-set-name-collision"
+      | "config-root-untracked"
+      | "config-absent";
+  }
+>;
+
+type CheckFailure = Extract<
+  RunLoadFailure,
+  {
+    readonly kind:
+      | "unknown-check"
+      | "review-only-listed"
+      | "duplicate-check"
+      | "engine-not-allowed"
+      | "engine-missing"
+      | "engine-invalid"
+      | "engine-failed"
+      | "check-missing"
+      | "checks-run-together"
+      | "check-settings-refused"
+      | "check-settings-differ";
+  }
+>;
+
+type RecordsFailure = Extract<
+  RunLoadFailure,
+  {
+    readonly kind:
+      | "records-folder-unreadable"
+      | "records-file-unreadable"
+      | "records-file-not-json"
+      | "not-a-records-file"
+      | "not-a-records-name"
+      | "records-refused"
+      | "catalogue-not-read"
+      | "upgrade-needed";
+  }
+>;
+
+const CONFIG_ROOT_REPAIR = `an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in ${SETTINGS_FILE_NAME}`;
+
+const toolFields = (request: { readonly failure: ToolFailure }): readonly string[] => {
   const { failure } = request;
   switch (failure.kind) {
     case "arguments-invalid":
@@ -122,12 +176,15 @@ const failureFields = (request: { readonly failure: RunLoadFailure; readonly upg
     case "rule-set-name-collision":
       return [failure.name, failure.other];
     case "config-root-untracked":
-      return [
-        `${failure.root}:`,
-        `an eslintConfigRoots entry is a folder git tracks files under outside every excluded path, spelled exactly as git spells it; fix or remove it in ${SETTINGS_FILE_NAME}`,
-      ];
+      return [`${failure.root}:`, CONFIG_ROOT_REPAIR];
     case "config-absent":
       return [failure.repo, `holds no ${SETTINGS_FILE_NAME}; give the folder that holds it, usually the repository root`];
+  }
+};
+
+const checkFields = (request: { readonly failure: CheckFailure }): readonly string[] => {
+  const { failure } = request;
+  switch (failure.kind) {
     case "unknown-check":
       return [failure.check];
     case "review-only-listed":
@@ -150,13 +207,19 @@ const failureFields = (request: { readonly failure: RunLoadFailure; readonly upg
       return [failure.check, `${failure.listing}:`, `${LISTED_TO_RUN}; ${settingsListingRepair(failure)}`];
     case "check-settings-differ":
       return [failure.check, `${failure.other}:`, `${ONE_RULE_TODAY} take one set of settings; give them the same settings`];
+  }
+};
+
+const recordsFields = (request: { readonly failure: RecordsFailure; readonly upgradeCommand: string }): readonly string[] => {
+  const { failure } = request;
+  switch (failure.kind) {
     case "records-folder-unreadable":
       return [recordsFileText({ file: failure.folder }), failure.detail];
     case "records-file-unreadable":
     case "records-file-not-json":
       return [recordsFileText(failure), failure.detail];
     case "not-a-records-file":
-      return [`${recordsFileText(failure)}:`, `${RECORDS_FOLDER} holds ${RECORDS_FILES}; move this file out of ${RECORDS_FOLDER}`];
+      return [`${recordsFileText(failure)}:`, `${RECORDS_FILES}; move this file to where its kind belongs, or out of ${RECORDS_FOLDER} if it holds no records`];
     case "not-a-records-name":
       return [recordsFileText({ file: failure.folder }), `${quoted({ text: failure.name })}:`, "no repository path can hold that name; rename it"];
     case "records-refused":
@@ -164,10 +227,49 @@ const failureFields = (request: { readonly failure: RunLoadFailure; readonly upg
     case "catalogue-not-read":
       return catalogueFields({ failure });
     case "upgrade-needed":
-      return [
-        `${failure.path}:`,
-        `this is a version 1 file; run ${request.upgradeCommand}, which rewrites every version 1 file as version 2, and commit what it writes`,
-      ];
+      return [`${failure.path}:`, `this is a version 1 file; run ${request.upgradeCommand}, which rewrites every version 1 file as version 2, and commit what it writes`];
+  }
+};
+
+const failureFields = (request: { readonly failure: RunLoadFailure; readonly upgradeCommand: string }): readonly string[] => {
+  const { failure } = request;
+  switch (failure.kind) {
+    case "arguments-invalid":
+    case "git-failed":
+    case "unexpected-error":
+    case "install-root-unresolvable":
+    case "file-unreadable":
+    case "file-malformed":
+    case "file-unwritable":
+    case "rule-set-invalid":
+    case "unsupported-version":
+    case "reserved-rule-set-name":
+    case "unknown-rule-set":
+    case "rule-set-name-collision":
+    case "config-root-untracked":
+    case "config-absent":
+      return toolFields({ failure });
+    case "unknown-check":
+    case "review-only-listed":
+    case "duplicate-check":
+    case "engine-not-allowed":
+    case "engine-missing":
+    case "engine-invalid":
+    case "engine-failed":
+    case "check-missing":
+    case "checks-run-together":
+    case "check-settings-refused":
+    case "check-settings-differ":
+      return checkFields({ failure });
+    case "records-folder-unreadable":
+    case "records-file-unreadable":
+    case "records-file-not-json":
+    case "not-a-records-file":
+    case "not-a-records-name":
+    case "records-refused":
+    case "catalogue-not-read":
+    case "upgrade-needed":
+      return recordsFields({ failure, upgradeCommand: request.upgradeCommand });
   }
 };
 

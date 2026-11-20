@@ -32,6 +32,7 @@ describe("runLoadFailureLine, a failure version 2 renames", () => {
       line: "load failure: config-absent /work/shop holds no hone.config.json; give the folder that holds it, usually the repository root",
     },
     { failure: { kind: "unknown-check", check: "claimed-type#casts" }, line: "load failure: unknown-check claimed-type#casts" },
+    { failure: { kind: "unknown-check", check: "my check#x y" }, line: "load failure: unknown-check my check#x y" },
     {
       failure: { kind: "review-only-listed", check: "names#names" },
       line: "load failure: review-only-listed names#names: a check enforced by review has no engine and is left out of checks; remove it",
@@ -50,7 +51,7 @@ describe("runLoadFailureLine, a failure version 2 renames", () => {
     },
     {
       failure: { kind: "engine-not-allowed", check: "CD-15#loops", engine: "walker", allowed: { stated: "by-rule-set" } },
-      line: "load failure: engine-not-allowed CD-15#loops walker: the rule set does not run that check on that engine, though its catalogue says it does",
+      line: "load failure: engine-not-allowed CD-15#loops walker: the rule set does not run that check on that engine, though its catalogue says it does; list the check with an engine its rule set runs it on, or correct the rule set",
     },
     { failure: { kind: "engine-missing", engine: { named: "engine", engine: ESLINT_ENGINE } }, line: "load failure: engine-missing eslint" },
     {
@@ -129,7 +130,7 @@ describe("runLoadFailureLine, records that could not be read", () => {
     },
     {
       failure: { kind: "not-a-records-file", file: repoPathSchema.parse("hone-records/notes.md") },
-      line: "load failure: not-a-records-file hone-records/notes.md: hone-records holds boundaries.json, dependencies.json, and one .json file for each name in authorised-locations, debt and deviations; move this file out of hone-records",
+      line: "load failure: not-a-records-file hone-records/notes.md: a records file is boundaries.json or dependencies.json, or a .json file named for its symptom, or for its recipe in deviations, inside the folder authorised-locations, debt or deviations of hone-records; move this file to where its kind belongs, or out of hone-records if it holds no records",
     },
     {
       failure: { kind: "not-a-records-name", folder: repoPathSchema.parse("hone-records/debt"), name: "a\\b.json" },

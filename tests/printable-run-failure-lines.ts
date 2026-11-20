@@ -53,7 +53,7 @@ const FAILURE_SAMPLES: FailureSamples = {
   "config-root-untracked": [{ entry: { kind: "config-root-untracked", root: repoPathSchema.parse("packages/gone") }, fills: { "config root": "packages/gone" } }],
   "unexpected-error": [{ entry: { kind: "unexpected-error", detail: "boom" }, fills: { detail: "boom" } }],
   "config-absent": [{ entry: { kind: "config-absent", repo: "/work/shop" }, fills: { dir: "/work/shop" } }],
-  "unknown-check": [{ entry: { kind: "unknown-check", check: "claimed-type#casts" }, fills: { check: "claimed-type#casts" } }],
+  "unknown-check": [{ entry: { kind: "unknown-check", check: "claimed-type#casts" }, fills: { check: "claimed-type#casts" } }, { entry: { kind: "unknown-check", check: "my check#x y" }, fills: { check: "my check#x y" } }],
   "review-only-listed": [{ entry: { kind: "review-only-listed", check: "names#names" }, fills: { check: "names#names" } }],
   "duplicate-check": [
     {

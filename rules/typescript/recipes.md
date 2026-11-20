@@ -207,7 +207,7 @@ The principle decides.
 ### Zod at the producer's adapter
 
 - **Method:** The adapter for whoever produced the data parses it once with a Zod schema. The `z.infer` type is the wire type and stays in the adapter. The adapter maps it to a domain type of ours. A missing required value, environment included, is a failure, never a default.
-- **Chosen because:** "my insistence on not writing complex logic to parse for cd 4 by being explicit on the tool and method"; "Hand rolled is potentially a messy and lossy option?"; "Zod is the wire."
+- **Chosen because:** "my insistence on not writing complex logic to parse"; "Hand rolled is potentially a messy and lossy option?"; "Zod is the wire."
 - **You can tell because:** No schema, `z.infer` type or text past the adapter. Each crossing is parsed once.
 - **Industry name:** parse, don't validate (King).
 
@@ -359,3 +359,23 @@ Proposed, not accepted: the rule, its case [Ships code for others](../cases.md#p
 - **Method:** A published package bundles no dependency. Each one is a pinned `dependencies` entry or a `peerDependencies` declaration.
 - **Chosen because:** "Do we still bundle Zod which means a Zod cve won't show up accurately?"; "Otherwise we ship as a peer dependency declaration only."
 - **Industry name:** Twelve-Factor, Dependencies.
+
+## Built-ins and libraries: decided answers
+
+Whether code of ours may use a built-in or a library directly, as the principles decide it. Short names in the "By" column: Tests ([Tests are ours](../principles.md#tests-are-ours)), One place ([One place decides](../principles.md#one-place-decides)), Effects ([No hidden effects](../principles.md#no-hidden-effects)), Boundary ([External behaviour sits at a boundary](../principles.md#external-behaviour-sits-at-a-boundary)), Leak ([No leak across a boundary](../principles.md#no-leak-across-a-boundary)), Checker ([The type checker proves it](../principles.md#the-type-checker-proves-it)), Language ([Our code reads in the common language](../principles.md#our-code-reads-in-the-common-language)), Outside risk ([Outside risk is carried on purpose](../principles.md#outside-risk-is-carried-on-purpose)).
+
+| Case | Answer | By |
+|---|---|---|
+| `console` | Only through a port passed in | Effects |
+| `Date.now()` in `chargeOrder` | No: it depends on more than its arguments, and dating is another unit's decision | Boundary, One place, Tests |
+| An HTTP client, or our own wrapper of one, imported | No: a port passed in | Boundary |
+| `Intl.NumberFormat` | No: depends on the runtime's locale data | Boundary |
+| `structuredClone`, `Math`, `Map`, `URL` | Direct in business logic; never to compute a test's expectation | Boundary, Tests |
+| `JSON.parse`, `isValidIBAN` | Direct, no wrapper, in the adapter | Leak |
+| `z.infer` as a business-logic type | No: not our own type, and an outside dependency's type in a signature | Leak, Boundary, Language |
+| `addBusinessDays` from a library | No: the decision is not made by a unit of ours | One place |
+| `decimal.js` for integer cents | No: the record cannot say why native was not enough | Outside risk |
+| `neverthrow`, `ts-pattern`, `fp-ts`, `type-fest` | No | Language, Outside risk |
+| lodash | No | named ban |
+
+Quoted reasons: "json and Zod indicate a boundary about external behaviour. Same with clock. Math and map are deterministic logic." "Math and map are deterministic logic. Banned in tests." "Zod is the wire. We can use infer to create a native type we then use on an adapter to create our domain object." "For of mutates by its nature. It doesn't return. It's state holding required or side effect based." "no for of, use functional paradigms and avoid mutation, this solution is rejected" "Lodash is banned. Personal rule."

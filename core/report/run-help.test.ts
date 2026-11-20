@@ -26,7 +26,7 @@ Checks a repository against the checks hone.config.json lists, answers its findi
 
 commands:
   check        check the repository against the checks hone.config.json lists and print the report, ending in its verdict
-  project      write hone.<engine>.mjs for each engine a listed check runs on, printing each file as written or unchanged
+  project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
   upgrade      rewrite version 1 files as version 2: disciplines.json as hone.config.json and the exception records as hone-records, printing each file as written or removed
@@ -79,4 +79,24 @@ exit codes:
   2  a load failure: a version 1 file could not be read or a version 2 file written, or Hone failed unexpectedly
 `);
   });
-});
+
+  it("prints prune-debt's help with its exit code 0 agreeing with its summary", () => {
+    expect(runHelpText({ topic: "prune-debt" })).toBe(`usage: hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
+
+remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
+
+options:
+  --repo <dir>
+      the folder that holds hone.config.json, usually the repository root
+  --base-revision <revision>
+      the revision the change is measured from; without it no debt can be forfeited and no carried record is checked against it
+  --forfeiture <this-run|elsewhere>
+      check debt for forfeiture in this run or leave it to another, over forfeiture in hone.config.json; this-run when neither is set
+  --help, -h
+      print this help
+
+exit codes:
+  0  every debt the run showed paid, stale or forfeited was removed, or none was shown
+  2  a load failure: an input could not be loaded, an engine failed, the records could not be written, or Hone failed unexpectedly
+`);
+  });});

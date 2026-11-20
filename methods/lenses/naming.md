@@ -121,7 +121,7 @@ Produce the counts the review asks for (e.g. shorthand identifiers,
 filler-word identifiers, categorical filenames, categorical folders, untracked or
 forbidden annotations, scoped overrides to narrow/retire). Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`) and naming the expected replacement (the
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)) and naming the expected replacement (the
 domain-meaningful identifier, the re-derived abstraction filename, or the
 tracker-completed annotation). State the rule-page paths you resolved and
 which rule ids you loaded under this lens.

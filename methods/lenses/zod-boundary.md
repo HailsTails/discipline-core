@@ -63,10 +63,10 @@ list; the recurring categories are:
   from. An inline environment read outside that factory bypasses the seam and is
   a finding.
 - **File / DB driver row contracts** — driver row returns are typeless; the
-  driver wrapping factory must parse each row through a schema before handing
+  driver adapter must parse each row through a schema before handing
   typed rows upward. File reads (frontmatter parses, JSON files, raw text
   interpreted as data) are the same shape.
-- **Library wrapping factories that bridge typeless returns** — any library
+- **Library adapters that bridge typeless returns** — any library
   whose published types are the language's top/opaque type, a wide
   string-keyed record, or an over-wide supplied type the code must narrow. The
   wrapping file is both the closed import site for that library *and* the
@@ -108,7 +108,7 @@ claim the cast rule yourself). The four recurring symptom shapes:
   of a per-row/per-item schema parse.
 - **Environment read outside the config factory** — any direct environment
   access outside the file that owns the config schema.
-- **Cast as schema substitute** — a transport/adapter/wrapping-factory input
+- **Cast as schema substitute** — a transport/adapter input
   cast directly to its expected shape. The cast asserts the shape; the
   boundary's job is to *verify* it.
 
@@ -151,7 +151,7 @@ is mandatory and so are the counts it yields: crossings inspected / validated /
 typeless; library returns inspected / validated / accepted-at-face-value;
 internal validation-library imports; seam ambiguities. Every finding is
 `file:line | quoted code | <rule-id> | defect-named`, citing the loaded rule by
-the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`). For any missing-schema finding whose observable
+the discipline id and clause address in its CHECKS.md Clauses table (for example `CD-9#result-failures`, a review clause of [Failures are values](../../rules/rules.md#failures-are-values)). For any missing-schema finding whose observable
 symptom is a cast, name the cast as the symptom and the missing schema as the
 defect (the cast itself belongs to the type-soundness lens). For any seam
 ambiguity, name the upstream architectural cause. State the code-discipline path

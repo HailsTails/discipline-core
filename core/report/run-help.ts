@@ -95,7 +95,7 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
     ],
   },
   project: {
-    summary: `write hone.<engine>.mjs for each engine a listed check runs on, printing each file as written or unchanged`,
+    summary: "write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged",
     options: [REPO_OPTION],
     exits: [
       { code: 0, meaning: "every projection was written or already current" },
@@ -114,7 +114,7 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
     summary: `remove from ${RECORDS_FOLDER} the debt a run shows is paid, stale or forfeited, printing each debt removed`,
     options: [REPO_OPTION, BASE_REVISION_OPTION, FORFEITURE_OPTION],
     exits: [
-      { code: 0, meaning: "every paid debt was removed, or none was paid" },
+      { code: 0, meaning: "every debt the run showed paid, stale or forfeited was removed, or none was shown" },
       { code: 2, meaning: `${LOAD_FAILURE_EXIT}, the records could not be written, or Hone failed unexpectedly` },
     ],
   },

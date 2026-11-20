@@ -47,17 +47,17 @@ type Built<Value> = Result<Value, string>;
 
 type OutputFile = { readonly path: string; readonly text: string };
 
-const SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms", "rules", "methods", "docs"];
+export const SOURCE_FOLDERS: readonly string[] = ["core", "mechanisms", "rules", "methods", "docs"];
 
 const BUNDLED_SOURCE_FOLDERS: readonly string[] = ["api", "core", "mechanisms", "rules"];
 
 const BUNDLED_SOURCE_FILES: readonly string[] = ["package.json", "tsconfig.json", "tsconfig.base.json"];
 
-const LEFT_OUT_FOLDERS: ReadonlySet<string> = new Set(["tests", "test-fixtures", "node_modules"]);
+export const LEFT_OUT_FOLDERS: ReadonlySet<string> = new Set(["tests", "test-fixtures", "node_modules"]);
 
 const LEFT_OUT_FILE_SUFFIX = ".test.ts";
 
-const ROOT_FILES: readonly string[] = ["README.md", "ADOPTING.md", "MIGRATING.md", CHANGELOG_FILE, "LICENSE"];
+export const ROOT_FILES: readonly string[] = ["README.md", "ADOPTING.md", "MIGRATING.md", CHANGELOG_FILE, "LICENSE"];
 
 const MANIFEST = "package.json";
 
