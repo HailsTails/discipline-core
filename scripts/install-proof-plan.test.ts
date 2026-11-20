@@ -32,6 +32,9 @@ const packageFiles = import.meta.glob(["../package.json", "../pnpm-workspace.yam
 
 const FAILING_REPORT = "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nreadFirst (2)\nStart from each rule's Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\nverdict: fail\n";
 
+const FAILING_REPORT_SHOWN =
+  '"findings (1)\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\\nreadFirst (2)\\nStart from each rule\'s Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\\nverdict: fail\\n"';
+
 const FAILING: StepExpectation = { exitCode: 1, output: FAILING_REPORT };
 
 const SILENT: StepExpectation = { exitCode: 0, output: "" };
@@ -55,17 +58,24 @@ describe("judgedStep", () => {
     {
       change: "a finding line",
       output: "findings (1)\nCD-23#export-test-sibling audit src/kept.ts:2:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      shown: '"findings (1)\\nCD-23#export-test-sibling audit src/kept.ts:2:0 missing co-located *.test.ts(x) sibling\\nverdict: fail\\n"',
     },
     {
       change: "a section header",
       output: "findings [1]\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\nverdict: fail\n",
+      shown: '"findings [1]\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\\nverdict: fail\\n"',
     },
-    { change: "an extra section", output: `excluded (1)\nvendor\n${FAILING_REPORT}` },
-    { change: "only the verdict line", output: "verdict: fail\n" },
-  ])("fails when $change differs, even with the verdict kept", ({ output }) => {
+    {
+      change: "an extra section",
+      output: `excluded (1)\nvendor\n${FAILING_REPORT}`,
+      shown:
+        '"excluded (1)\\nvendor\\nfindings (1)\\nCD-23#export-test-sibling audit src/kept.ts:1:0 missing co-located *.test.ts(x) sibling\\nreadFirst (2)\\nStart from each rule\'s Spirit below. disciplines.assessment.md, where this repository records its own causes, forward goal and steps for a clause, is not written yet; node_modules/@hailstails/hone/ADOPTING.md#5a-write-the-assessment says how to write it.\\nCD-23#export-test-sibling: read node_modules/@hailstails/hone/rules/CD-23/README.md#spirit\\nverdict: fail\\n"',
+    },
+    { change: "only the verdict line", output: "verdict: fail\n", shown: '"verdict: fail\\n"' },
+  ])("fails when $change differs, even with the verdict kept", ({ output, shown }) => {
     expect(judgedStep({ label: "audit check", expectation: FAILING, run: { outcome: "exited", exitCode: 1, output } })).toEqual({
       outcome: "failed",
-      error: `FAIL: audit check: expected exit 1 and output ${JSON.stringify(FAILING_REPORT)}, got exit 1 and output ${JSON.stringify(output)}`,
+      error: `FAIL: audit check: expected exit 1 and output ${FAILING_REPORT_SHOWN}, got exit 1 and output ${shown}`,
     });
   });
 
@@ -270,17 +280,7 @@ describe("the proof cases", () => {
         packageManager: "pnpm@10.34.9",
       }),
     ).toBe(
-      `${JSON.stringify(
-        {
-          private: true,
-          type: "commonjs",
-          packageManager: "pnpm@10.34.9",
-          scripts: { "core:check": "core check --repo .", "core:project": "core project --repo ." },
-          devDependencies: { typescript: "4.8.4" },
-        },
-        null,
-        2,
-      )}\n`,
+      '{\n  "private": true,\n  "type": "commonjs",\n  "packageManager": "pnpm@10.34.9",\n  "scripts": {\n    "core:check": "core check --repo .",\n    "core:project": "core project --repo ."\n  },\n  "devDependencies": {\n    "typescript": "4.8.4"\n  }\n}\n',
     );
   });
 });
@@ -289,7 +289,7 @@ describe("the pnpm a consumer installs with", () => {
   it("is the exact pnpm release this package pins", () => {
     expect(packageManagerPinOf({ developmentManifest: packageFiles["../package.json"] })).toEqual({
       outcome: "ok",
-      value: JSON.parse(packageFiles["../package.json"]).packageManager,
+      value: "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
     });
   });
 
