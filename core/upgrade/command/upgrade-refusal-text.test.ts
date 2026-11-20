@@ -51,24 +51,10 @@ const ROWS: readonly Row[] = [
     outcome: { code: 1, text: "upgrade refused:\nversion 2's projection could not be made (load failure: unknown-check names#names). Fix what it names, then run the upgrade again.\nNothing was changed.\n" },
   },
   {
-    name: "version 2 cannot run a repository holding ESLint configs below its root",
-    failure: {
-      kind: "plan-refused",
-      refusal: {
-        kind: "projection-failed",
-        failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "package-configs", paths: ["packages/a/eslint.config.mjs", "packages/b/eslint.config.mjs"] } },
-      },
-    },
-    outcome: {
-      code: 1,
-      text: "upgrade refused:\nversion 2 cannot run this repository yet (load failure: not-ready-yet eslint-config-roots: this release does not run a repository with lint configs below its root on version 2 files yet; found packages/a/eslint.config.mjs, packages/b/eslint.config.mjs; keep one lint config at the repository root, or declare eslintConfigLookup as repository-root in the settings file if that is how your lint runs). Do what it names, or stay on version 1 until version 2 runs it, then run the upgrade again.\nNothing was changed.\n",
-    },
-  },
-  {
     name: "version 2 cannot run a repository holding other version 2 repositories",
     failure: {
       kind: "plan-refused",
-      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "nested-repositories", paths: ["vendor/lib"] } } },
+      refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } },
     },
     outcome: {
       code: 1,

@@ -7,7 +7,7 @@ import type { Result } from "../../../core/values/result.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
 import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
-import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, NotReadyCause, SelectedCheck } from "./checks-run-types.ts";
+import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
 import { checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
@@ -81,14 +81,9 @@ const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly pla
 const lookupOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }): EslintConfigLookup =>
   configLookupDeclaring({ ...lookupRequestOf(request), declared: request.run.declaredConfigLookup });
 
-const notReadyFor = (request: { readonly cause: NotReadyCause; readonly paths: readonly string[] }): Outcome<never> => ({
-  outcome: "failed",
-  error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: request.cause, paths: request.paths } },
-});
-
 const notReadyOver = (request: { readonly run: ChecksRunRequest }): Outcome<never> | undefined => {
   const nested = nestedVersionTwoRepositoriesOf({ trackedPaths: request.run.trackedPaths, files: request.run.files });
-  return nested.length > 0 ? notReadyFor({ cause: "nested-repositories", paths: nested }) : undefined;
+  return nested.length > 0 ? { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: nested } } } : undefined;
 };
 
 const slicesOver = (request: { readonly run: ChecksRunRequest; readonly lookup: EslintConfigLookup }): ChecksSlices =>

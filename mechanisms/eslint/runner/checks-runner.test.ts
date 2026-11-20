@@ -50,7 +50,7 @@ const REQUEST: ChecksRunRequest = {
   declaredConfigLookup: undefined,
 };
 
-const NOT_READY_NESTED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", cause: "nested-repositories", paths: ["vendor/lib"] } } };
+const NOT_READY_NESTED = { outcome: "failed", error: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } };
 
 describe("checksRunnerOver", () => {
   it("is not ready for a repository holding a nested repository with files to check", async () => {
