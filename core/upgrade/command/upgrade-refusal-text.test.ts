@@ -1,3 +1,4 @@
+import { createPathPort } from "../../platform-ports/path-port.ts";
 import { describe, expect, it } from "vitest";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
@@ -119,7 +120,7 @@ const ROWS: readonly Row[] = [
     },
     outcome: {
       code: 1,
-      text: 'upgrade refused:\nno file imports disciplines.eslint.mjs with a static default import. Change the ESLint config next to it to import it in the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nversion 1\'s own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n',
+      text: 'upgrade refused:\nno file imports disciplines.eslint.mjs with a static default import. Change the ESLint config next to it to import it in the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nversion 1\'s own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n',
     },
   },
   {
@@ -187,26 +188,11 @@ const ROWS: readonly Row[] = [
     },
   },
   {
-    name: "several files import the version 1 projection",
-    failure: {
-      kind: "plan-refused",
-      refusal: {
-        kind: "team-config-refused",
-        refusal: { kind: "several-files-import-projection", projection: repoPathSchema.parse("disciplines.eslint.mjs"), files: [repoPathSchema.parse("a.config.mjs"), repoPathSchema.parse("b.config.mjs")] },
-      },
-      removedByVersionOne: [],
-    },
-    outcome: {
-      code: 1,
-      text: "upgrade refused:\nseveral files import disciplines.eslint.mjs: a.config.mjs, b.config.mjs. Leave one importing it.\nNothing was changed.\n",
-    },
-  },
-  {
     name: "version 1's own project fails",
     failure: { kind: "version-one-project-failed", detail: "disk full", removedByVersionOne: [] },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nversion 1's own project failed (disk full). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.\nNothing was changed.\n",
+      text: "upgrade refused:\nversion 1's own project failed (disk full). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.\nversion 1's own project may have changed files before it failed; check version control for what it changed.\n",
     },
   },
   {
@@ -218,7 +204,7 @@ const ROWS: readonly Row[] = [
     },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nversion 1's own project rewrote disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n",
+      text: "upgrade refused:\nversion 1's own project rewrote disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n",
     },
   },
   {
@@ -226,7 +212,7 @@ const ROWS: readonly Row[] = [
     failure: { kind: "unplaceable-path", file: repoPathSchema.parse("old/disciplines.eslint.mjs"), removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] },
     outcome: {
       code: 1,
-      text: `upgrade refused:\nold/disciplines.eslint.mjs cannot be placed in the repository. ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n`,
+      text: `upgrade refused:\nold/disciplines.eslint.mjs cannot be placed in the repository. ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n`,
     },
   },
   {
@@ -239,7 +225,7 @@ const ROWS: readonly Row[] = [
     },
     outcome: {
       code: 1,
-      text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\nThese files could not be put back; put them right by hand:\n  delete /repo/hone.config.json (EBUSY)\n`,
+      text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\nThese files could not be put back; put them right by hand:\n  delete /repo/hone.config.json (EBUSY)\n`,
     },
   },
   {
@@ -296,8 +282,10 @@ const ROWS: readonly Row[] = [
   },
 ];
 
+const PLACEMENT = { repoRoot: absolutePathSchema.parse("/repo"), path: createPathPort({ flavour: "posix", workingDirectory: () => "/repo" }) };
+
 describe("upgradeFailureOutcomeOf", () => {
   it.each(ROWS)("says what to do when $name", ({ failure, outcome }) => {
-    expect(upgradeFailureOutcomeOf({ failure })).toEqual(outcome);
+    expect(upgradeFailureOutcomeOf({ failure, placement: PLACEMENT })).toEqual(outcome);
   });
 });

@@ -8,14 +8,19 @@ const path = (text: string) => repoPathSchema.parse(text);
 
 const importing = (specifier: string): string => `import disciplines from "${specifier}";\nexport default [...disciplines];\n`;
 
+const PACKAGE_CONFIG_OVER_VERSION_ONE =
+  'import root from "../../disciplines.eslint.mjs";\nimport slice from "./disciplines.eslint.mjs";\nexport default [...root, ...slice];\n';
+
+const PACKAGE_CONFIG_OVER_VERSION_TWO = 'import root from "../../hone.eslint.mjs";\nimport slice from "./hone.eslint.mjs";\nexport default [...root, ...slice];\n';
+
 const ROOT_VERSION_ONE: VersionOneProjection = {
   projection: path("disciplines.eslint.mjs"),
-  teamConfig: { file: path("eslint.config.mjs"), text: importing("./disciplines.eslint.mjs") },
+  teamConfigs: [{ file: path("eslint.config.mjs"), text: importing("./disciplines.eslint.mjs") }],
 };
 
 const SLICE_VERSION_ONE: VersionOneProjection = {
   projection: path("packages/a/disciplines.eslint.mjs"),
-  teamConfig: { file: path("packages/a/eslint.config.mjs"), text: importing("./disciplines.eslint.mjs") },
+  teamConfigs: [{ file: path("packages/a/eslint.config.mjs"), text: importing("./disciplines.eslint.mjs") }],
 };
 
 const ROOT_VERSION_TWO: PlannedRepoFile = { file: path("hone.eslint.mjs"), text: "root projection" };
@@ -43,7 +48,7 @@ describe("replacementsOf", () => {
   it("pairs by the folder of the version 1 projection, pointing a config in another folder at it by a relative import", () => {
     const importedFromAbove: VersionOneProjection = {
       projection: path("disciplines.eslint.mjs"),
-      teamConfig: { file: path("packages/a/eslint.config.mjs"), text: importing("../../disciplines.eslint.mjs") },
+      teamConfigs: [{ file: path("packages/a/eslint.config.mjs"), text: importing("../../disciplines.eslint.mjs") }],
     };
     expect(replacementsOf({ projections: [importedFromAbove], projected: [ROOT_VERSION_TWO] })).toEqual({
       outcome: "ok",
@@ -58,7 +63,7 @@ export default [...slice, ...root];
 ` };
     expect(
       replacementsOf({
-        projections: [{ ...ROOT_VERSION_ONE, teamConfig: rootConfig }, { ...SLICE_VERSION_ONE, teamConfig: rootConfig }],
+        projections: [{ ...ROOT_VERSION_ONE, teamConfigs: [rootConfig] }, { ...SLICE_VERSION_ONE, teamConfigs: [rootConfig] }],
         projected: [ROOT_VERSION_TWO, SLICE_VERSION_TWO],
       }),
     ).toEqual({
@@ -67,6 +72,29 @@ export default [...slice, ...root];
 import slice from "./packages/a/hone.eslint.mjs";
 export default [...slice, ...root];
 ` }],
+    });
+  });
+
+  it("rewrites every config that imports a projection, a package config importing both its own and the root projection", () => {
+    const rootConfig = { file: path("eslint.config.mjs"), text: importing("./disciplines.eslint.mjs") };
+    const packageConfig = {
+      file: path("packages/a/eslint.config.mjs"),
+      text: PACKAGE_CONFIG_OVER_VERSION_ONE,
+    };
+    expect(
+      replacementsOf({
+        projections: [
+          { projection: path("disciplines.eslint.mjs"), teamConfigs: [rootConfig, packageConfig] },
+          { projection: path("packages/a/disciplines.eslint.mjs"), teamConfigs: [packageConfig] },
+        ],
+        projected: [ROOT_VERSION_TWO, SLICE_VERSION_TWO],
+      }),
+    ).toEqual({
+      outcome: "ok",
+      value: [
+        { file: "eslint.config.mjs", text: importing("./hone.eslint.mjs") },
+        { file: "packages/a/eslint.config.mjs", text: PACKAGE_CONFIG_OVER_VERSION_TWO },
+      ],
     });
   });
 
@@ -101,7 +129,7 @@ export default [...slice, ...root];
   it("refuses a config that names its projection outside the import", () => {
     const named: VersionOneProjection = {
       ...ROOT_VERSION_ONE,
-      teamConfig: { file: path("eslint.config.mjs"), text: `${importing("./disciplines.eslint.mjs")}// disciplines.eslint.mjs\nconst other = "disciplines.eslint.mjs";\n` },
+      teamConfigs: [{ file: path("eslint.config.mjs"), text: `${importing("./disciplines.eslint.mjs")}// disciplines.eslint.mjs\nconst other = "disciplines.eslint.mjs";\n` }],
     };
     expect(replacementsOf({ projections: [named], projected: [ROOT_VERSION_TWO] })).toEqual({
       outcome: "failed",

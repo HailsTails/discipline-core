@@ -57,7 +57,7 @@ const READING: VersionOneReading = { selection: SELECTION, heads: [CARVE_OUT_HEA
 
 const ROOT_PROJECTION: VersionOneProjection = {
   projection: repoPathSchema.parse("disciplines.eslint.mjs"),
-  teamConfig: { file: repoPathSchema.parse("eslint.config.mjs"), text: ORIGINAL_CONFIG },
+  teamConfigs: [{ file: repoPathSchema.parse("eslint.config.mjs"), text: ORIGINAL_CONFIG }],
 };
 
 const FOUND_PROJECTIONS: VersionOneProjectionsReading = { removed: [], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } };

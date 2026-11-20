@@ -95,15 +95,6 @@ const SAMPLES: readonly Sample[] = [
   { failure: planRefused({ refusal: { kind: "config-import-refused", refusal: { kind: "several-projection-imports", file: CONFIG, count: 2 } } }), fills: { count: "2" } },
   { failure: planRefused({ refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: CONFIG } } }), fills: {} },
   { failure: planRefused({ refusal: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: PROJECTION } } }), fills: {} },
-  {
-    failure: planRefused({
-      refusal: {
-        kind: "team-config-refused",
-        refusal: { kind: "several-files-import-projection", projection: PROJECTION, files: [repoPathSchema.parse("a.config.mjs"), repoPathSchema.parse("b.config.mjs")] },
-      },
-    }),
-    fills: { files: "a.config.mjs, b.config.mjs" },
-  },
   { failure: planRefused({ refusal: { kind: "team-config-refused", refusal: { kind: "config-candidate-unreadable", file: CONFIG, detail: "the detail" } } }), fills: {} },
   {
     failure: {
@@ -111,17 +102,17 @@ const SAMPLES: readonly Sample[] = [
       refusal: { kind: "slice-left-in-place", files: [SLICE] },
       removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
     },
-    fills: { projection: SLICE, "removed path": "old/disciplines.eslint.mjs" },
+    fills: { projection: SLICE, "removed path": "/repo/old/disciplines.eslint.mjs" },
   },
   { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" }, removedByVersionOne: [] }, fills: {} },
   { failure: { kind: "version-one-project-failed", detail: "the detail", removedByVersionOne: [] }, fills: {} },
   { failure: { kind: "version-one-project-rewrote", files: [PROJECTION, SLICE], removedByVersionOne: [] }, fills: { files: "disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs" } },
   {
     failure: { kind: "version-one-project-rewrote", files: [PROJECTION], removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] },
-    fills: { files: "disciplines.eslint.mjs", "removed path": "old/disciplines.eslint.mjs" },
+    fills: { files: "disciplines.eslint.mjs", "removed path": "/repo/old/disciplines.eslint.mjs" },
   },
   { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [] }, fills: {} },
-  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] }, fills: { "removed path": "old/disciplines.eslint.mjs" } },
+  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] }, fills: { "removed path": "/repo/old/disciplines.eslint.mjs" } },
   { failure: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO }, removedByVersionOne: [] }, fills: { root: REPO, path: OLD_FILE } },
   { failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
   { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
@@ -201,7 +192,7 @@ const SUCCESS_TEXT = upgradeSuccessOutcomeOf({
 }).text;
 
 export const UPGRADE_LINES: readonly PrintedLine[] = [
-  ...SAMPLES.flatMap(({ failure, fills }) => linesOf({ text: upgradeFailureOutcomeOf({ failure }).text, fills: { ...BASE_FILLS, ...fills } })),
+  ...SAMPLES.flatMap(({ failure, fills }) => linesOf({ text: upgradeFailureOutcomeOf({ failure, placement: { repoRoot: REPO, path: PATH } }).text, fills: { ...BASE_FILLS, ...fills } })),
   ...SUCCESS_TEXT.trimEnd()
     .split("\n")
     .map((text): PrintedLine => ({ label: "upgrade", text, fills: { path: text.slice(text.indexOf(" ") + 1) } })),

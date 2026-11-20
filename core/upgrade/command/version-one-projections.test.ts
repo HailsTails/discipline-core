@@ -62,7 +62,7 @@ const requestOver = (request: { readonly project: VersionOneProject; readonly fi
 const projecting = (request: { readonly writes: readonly ProjectionWrite[] }) =>
   vi.fn<VersionOneProject>().mockResolvedValue({ outcome: "ok", value: request.writes });
 
-const FOUND = [{ projection: "disciplines.eslint.mjs", teamConfig: { file: "eslint.config.mjs", text: CONFIG_TEXT } }];
+const FOUND = [{ projection: "disciplines.eslint.mjs", teamConfigs: [{ file: "eslint.config.mjs", text: CONFIG_TEXT }] }];
 
 describe("versionOneProjectionsOfRepository", () => {
   it("runs version 1's project over the check with the file text port, and pairs each unchanged projection with the config that imports it", async () => {

@@ -10,6 +10,8 @@ import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { ConfigImportRefusal } from "../version-two-writer/config-import-rewrite.ts";
 import type { OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
 import type { PairingRefusal } from "../proof/projection-replacements.ts";
+import type { PathPort } from "../../platform-ports/path-port.ts";
+import type { AbsolutePath } from "../../values/absolute-path.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
 import type { TeamConfigRefusal } from "../proof/team-config-finder.ts";
 import type { VersionOneReadFailure } from "./version-one-reading.ts";
@@ -23,6 +25,8 @@ export type UpgradeFailureCode = 1 | 2 | 3;
 export type UpgradeFailureOutcome = { readonly code: UpgradeFailureCode; readonly text: string };
 
 const NOTHING_CHANGED = "Nothing was changed.";
+
+const VERSION_ONE_PROJECT_MAY_HAVE_CHANGED = "version 1's own project may have changed files before it failed; check version control for what it changed.";
 
 const FAULT_IN_HONE = `This is a fault in hone, not in your repository. Report it at ${UPGRADE_ISSUES_URL}, with this output.`;
 
@@ -40,12 +44,19 @@ const unrestoredLineOf = (request: { readonly unrestored: Unrestored }): string 
 
 type AfterVersionOne = { readonly removedByVersionOne: readonly RepoPath[] };
 
-const removedByVersionOneLinesOf = (request: AfterVersionOne): readonly string[] =>
+export type RepositoryPlacement = { readonly repoRoot: AbsolutePath; readonly path: Pick<PathPort, "join"> };
+
+type Placed = AfterVersionOne & { readonly placement: RepositoryPlacement };
+
+const removedByVersionOneLinesOf = (request: Placed): readonly string[] =>
   request.removedByVersionOne.length === 0
     ? []
-    : ["version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:", ...request.removedByVersionOne.map((path) => `  ${path}`)];
+    : [
+        "version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:",
+        ...request.removedByVersionOne.map((file) => `  ${request.placement.path.join({ segments: [request.placement.repoRoot, file] })}`),
+      ];
 
-const unrestoredLinesOf = (request: AfterVersionOne & { readonly unrestored: readonly Unrestored[] }): readonly string[] => {
+const unrestoredLinesOf = (request: Placed & { readonly unrestored: readonly Unrestored[] }): readonly string[] => {
   const removed = removedByVersionOneLinesOf(request);
   if (removed.length === 0 && request.unrestored.length === 0) {
     return [NOTHING_CHANGED];
@@ -194,8 +205,6 @@ const teamConfigLinesOf = (request: { readonly refusal: TeamConfigRefusal }): re
   switch (refusal.kind) {
     case "no-file-imports-projection":
       return [`no file imports ${refusal.projection} with a static default import. Change the ESLint config next to it to import it in the form import projection from "${specifierOf({ projection: refusal.projection })}", then run the upgrade again.`];
-    case "several-files-import-projection":
-      return [`several files import ${refusal.projection}: ${refusal.files.join(", ")}. Leave one importing it.`];
     case "config-candidate-unreadable":
       return [`${refusal.file} could not be read (${refusal.detail}). Make it readable, then run the upgrade again.`];
   }
@@ -213,24 +222,24 @@ const differenceLinesOf = (request: { readonly failure: Extract<ProofRefusal, { 
     ...onlyAfter.map((line) => `    only after: ${line}`),
   ]);
 
-const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly code: UpgradeFailureCode; readonly lines: readonly string[] } => {
-  const { failure } = request;
+const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placement: RepositoryPlacement }): { readonly code: UpgradeFailureCode; readonly lines: readonly string[] } => {
+  const { failure, placement } = request;
   switch (failure.kind) {
     case "oracle-failed":
       return { code: 1, lines: [oracleLineOf({ failure: failure.failure }), NOTHING_CHANGED] };
     case "plan-refused":
-      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), ...unrestoredLinesOf({ ...failure, unrestored: [] })] };
+      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })] };
     case "version-one-run-failed":
       return {
         code: 1,
-        lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ ...failure, unrestored: [] })],
+        lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })],
       };
     case "version-one-project-failed":
       return {
         code: 1,
         lines: [
           `version 1's own project failed (${failure.detail}). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.`,
-          ...unrestoredLinesOf({ ...failure, unrestored: [] }),
+          VERSION_ONE_PROJECT_MAY_HAVE_CHANGED,
         ],
       };
     case "version-one-project-rewrote":
@@ -238,24 +247,24 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
         code: 1,
         lines: [
           `version 1's own project rewrote ${failure.files.join(", ")}, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.`,
-          ...removedByVersionOneLinesOf(failure),
+          ...removedByVersionOneLinesOf({ ...failure, placement }),
         ],
       };
     case "unplaceable-path":
-      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, unrestored: [] })] };
+      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })] };
     case "removal-refused":
       return {
         code: 1,
-        lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, unrestored: [] })],
+        lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, placement, unrestored: [] })],
       };
     case "write-refused":
-      return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ ...failure, unrestored: failure.refusal.unrestored })] };
+      return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ ...failure, placement, unrestored: failure.refusal.unrestored })] };
     case "version-two-run-failed":
-      return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf(failure)] };
+      return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, placement })] };
     case "differences":
       return {
         code: 1,
-        lines: ["version 2 does not report what version 1 reported:", ...differenceLinesOf({ failure }), FAULT_IN_HONE, ...unrestoredLinesOf(failure)],
+        lines: ["version 2 does not report what version 1 reported:", ...differenceLinesOf({ failure }), FAULT_IN_HONE, ...unrestoredLinesOf({ ...failure, placement })],
       };
     case "removal-failed":
       return {
@@ -269,11 +278,11 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
   }
 };
 
-export const upgradeFailureOutcomeOf = (request: { readonly failure: UpgradeFailure }): UpgradeFailureOutcome => {
-  const { failure } = request;
+export const upgradeFailureOutcomeOf = (request: { readonly failure: UpgradeFailure; readonly placement: RepositoryPlacement }): UpgradeFailureOutcome => {
+  const { failure, placement } = request;
   if (failure.kind === "version-one-unreadable" || failure.kind === "records-refused") {
     return { code: 1, text: `${["upgrade refused:", ...readFailureLinesOf({ failure }), NOTHING_CHANGED].join("\n")}\n` };
   }
-  const proof = proofLinesOf({ failure });
+  const proof = proofLinesOf({ failure, placement });
   return { code: proof.code, text: `${[proof.code === 3 ? "upgrade incomplete:" : "upgrade refused:", ...proof.lines].join("\n")}\n` };
 };

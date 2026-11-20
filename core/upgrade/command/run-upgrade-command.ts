@@ -114,7 +114,7 @@ const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: C
     exceptionRepository: check.value.exceptionRepository,
   });
   return read.outcome === "failed"
-    ? { outcome: "failed", error: upgradeFailureOutcomeOf({ failure: read.error }) }
+    ? { outcome: "failed", error: upgradeFailureOutcomeOf({ failure: read.error, placement: { repoRoot: located.repoRoot, path: command.path } }) }
     : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value, trackedPaths: tracked.value } };
 };
 
@@ -168,7 +168,7 @@ const provedOutcomeOf = async (request: {
 }): Promise<Stopped> => {
   const carried = await upgradeProof(proofRequestOf(request));
   return carried.outcome === "failed"
-    ? upgradeFailureOutcomeOf({ failure: carried.error })
+    ? upgradeFailureOutcomeOf({ failure: carried.error, placement: { repoRoot: request.located.repoRoot, path: request.command.path } })
     : upgradeSuccessOutcomeOf({ carried: carried.value, repoRoot: request.located.repoRoot, path: request.command.path });
 };
 

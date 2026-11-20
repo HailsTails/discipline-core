@@ -12,7 +12,7 @@ const SLICE_WRITE: ProjectionWrite = { path: path("packages/a/disciplines.eslint
 
 const REMOVED_WRITE: ProjectionWrite = { path: path("gone/disciplines.eslint.mjs"), effect: "removed" };
 
-const FOUND: readonly VersionOneProjection[] = [{ projection: path("disciplines.eslint.mjs"), teamConfig: { file: path("eslint.config.mjs"), text: "config" } }];
+const FOUND: readonly VersionOneProjection[] = [{ projection: path("disciplines.eslint.mjs"), teamConfigs: [{ file: path("eslint.config.mjs"), text: "config" }] }];
 
 const sourcesOver = (request: { readonly writes: readonly ProjectionWrite[] }): VersionOneProjectionSources => ({
   project: vi.fn<VersionOneProjectionSources["project"]>().mockResolvedValue({ outcome: "ok", value: request.writes }),

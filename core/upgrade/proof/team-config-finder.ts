@@ -7,11 +7,10 @@ import type { Result } from "../../values/result.ts";
 import { projectionImportingOf } from "../version-two-writer/config-import-rewrite.ts";
 import type { PlannedRepoFile } from "./planned-repo-file.ts";
 
-export type VersionOneProjection = { readonly projection: RepoPath; readonly teamConfig: PlannedRepoFile };
+export type VersionOneProjection = { readonly projection: RepoPath; readonly teamConfigs: readonly PlannedRepoFile[] };
 
 export type TeamConfigRefusal =
   | { readonly kind: "no-file-imports-projection"; readonly projection: RepoPath }
-  | { readonly kind: "several-files-import-projection"; readonly projection: RepoPath; readonly files: readonly RepoPath[] }
   | { readonly kind: "config-candidate-unreadable"; readonly file: RepoPath; readonly detail: string };
 
 export type TeamConfigsRequest = {
@@ -44,14 +43,10 @@ const importersOf = (request: { readonly candidates: readonly PlannedRepoFile[];
 
 const teamConfigFor = (request: { readonly candidates: readonly PlannedRepoFile[]; readonly projection: RepoPath }): Result<VersionOneProjection, TeamConfigRefusal> => {
   const { projection } = request;
-  const importing = importersOf(request);
-  const [only, ...others] = importing;
-  if (only === undefined) {
-    return { outcome: "failed", error: { kind: "no-file-imports-projection", projection } };
-  }
-  return others.length === 0
-    ? { outcome: "ok", value: { projection, teamConfig: only } }
-    : { outcome: "failed", error: { kind: "several-files-import-projection", projection, files: importing.map(({ file }) => file) } };
+  const teamConfigs = importersOf(request);
+  return teamConfigs.length === 0
+    ? { outcome: "failed", error: { kind: "no-file-imports-projection", projection } }
+    : { outcome: "ok", value: { projection, teamConfigs } };
 };
 
 export const teamConfigsOf = (request: TeamConfigsRequest): Result<readonly VersionOneProjection[], TeamConfigRefusal> => {

@@ -36,7 +36,7 @@ describe("teamConfigsOf", () => {
       trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("src/a.ts"), repoPathSchema.parse("disciplines.eslint.mjs"), repoPathSchema.parse("README.md")],
       fileText: { read },
     });
-    expect(teamConfigsOf(request)).toEqual({ outcome: "ok", value: [{ projection: "disciplines.eslint.mjs", teamConfig: { file: "eslint.config.mjs", text: IMPORTING } }] });
+    expect(teamConfigsOf(request)).toEqual({ outcome: "ok", value: [{ projection: "disciplines.eslint.mjs", teamConfigs: [{ file: "eslint.config.mjs", text: IMPORTING }] }] });
     expect(read.mock.calls).toEqual([[{ path: "/repo/eslint.config.mjs" }], [{ path: "/repo/src/a.ts" }]]);
   });
 
@@ -53,8 +53,8 @@ describe("teamConfigsOf", () => {
     expect(teamConfigsOf(request)).toEqual({
       outcome: "ok",
       value: [
-        { projection: "disciplines.eslint.mjs", teamConfig: { file: "eslint.config.mjs", text: IMPORTING } },
-        { projection: "packages/a/disciplines.eslint.mjs", teamConfig: { file: "packages/a/eslint.config.mjs", text: IMPORTING } },
+        { projection: "disciplines.eslint.mjs", teamConfigs: [{ file: "eslint.config.mjs", text: IMPORTING }] },
+        { projection: "packages/a/disciplines.eslint.mjs", teamConfigs: [{ file: "packages/a/eslint.config.mjs", text: IMPORTING }] },
       ],
     });
     expect(read.mock.calls).toEqual([[{ path: "/repo/eslint.config.mjs" }], [{ path: "/repo/packages/a/eslint.config.mjs" }]]);
@@ -66,7 +66,7 @@ describe("teamConfigsOf", () => {
       trackedPaths: [repoPathSchema.parse("config/eslint.config.mjs")],
       fileText: fileTextHolding({ text: nested }),
     });
-    expect(teamConfigsOf(request)).toEqual({ outcome: "ok", value: [{ projection: "disciplines.eslint.mjs", teamConfig: { file: "config/eslint.config.mjs", text: nested } }] });
+    expect(teamConfigsOf(request)).toEqual({ outcome: "ok", value: [{ projection: "disciplines.eslint.mjs", teamConfigs: [{ file: "config/eslint.config.mjs", text: nested }] }] });
   });
 
   it("refuses naming the projection when no tracked script imports it", () => {
@@ -91,14 +91,22 @@ describe("teamConfigsOf", () => {
     expect(teamConfigsOf(request)).toEqual({ outcome: "failed", error: { kind: "no-file-imports-projection", projection: "packages/a/disciplines.eslint.mjs" } });
   });
 
-  it("refuses naming every script that imports it when there are several", () => {
+  it("gives every script that imports it, in the order git lists them", () => {
     const request = requestOver({
       trackedPaths: [repoPathSchema.parse("eslint.config.mjs"), repoPathSchema.parse("lint.config.js")],
       fileText: fileTextHolding({ text: IMPORTING }),
     });
     expect(teamConfigsOf(request)).toEqual({
-      outcome: "failed",
-      error: { kind: "several-files-import-projection", projection: "disciplines.eslint.mjs", files: ["eslint.config.mjs", "lint.config.js"] },
+      outcome: "ok",
+      value: [
+        {
+          projection: "disciplines.eslint.mjs",
+          teamConfigs: [
+            { file: "eslint.config.mjs", text: IMPORTING },
+            { file: "lint.config.js", text: IMPORTING },
+          ],
+        },
+      ],
     });
   });
 

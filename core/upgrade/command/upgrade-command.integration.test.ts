@@ -219,6 +219,9 @@ const PACKAGE_CONFIG = 'import projection from "./disciplines.eslint.mjs";\n\nex
 const ROOT_CONFIG_IMPORTING_PACKAGE_SLICE =
   'import projection from "./disciplines.eslint.mjs";\nimport packageProjection from "./packages/a/disciplines.eslint.mjs";\n\nexport default [{ files: ["**/*.{ts,tsx,mts,cts}"] }, ...packageProjection, ...projection];\n';
 
+const PACKAGE_CONFIG_IMPORTING_ROOT_AND_OWN_SLICE =
+  'import root from "../../disciplines.eslint.mjs";\nimport projection from "./disciplines.eslint.mjs";\n\nexport default [{ files: ["**/*.{ts,tsx,mts,cts}"] }, ...root, ...projection];\n';
+
 const UNPROJECTING_PACKAGE_CONFIG = 'export default [{ files: ["**/*.{ts,tsx,mts,cts}"] }];\n';
 
 const ROOT_CARVE_OUT = '{ "version": 1, "exceptions": [{ "kind": "file-carve-out", "clause": "CD-14#class-syntax", "file": "kept.ts", "reason": "legacy class" }] }\n';
@@ -293,6 +296,45 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         "packages/a/hone.eslint.mjs",
         "packages/a/kept.ts",
       ],
+    });
+  });
+
+  it("rewrites every config that imports a projection, a package config importing the root projection beside its own", async () => {
+    const modules = checkModulesOn({ line });
+    const repo = await packageRepository({
+      line,
+      files: { "disciplines.json": PACKAGE_SELECTION, "discipline-exceptions.json": PACKAGE_CARVE_OUT, "eslint.config.mjs": TEAM_CONFIG },
+      packageFiles: { "kept.ts": KEPT_CLASS, "eslint.config.mjs": PACKAGE_CONFIG_IMPORTING_ROOT_AND_OWN_SLICE },
+    });
+    const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules });
+    trackEverything({ repo });
+    const checked = await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "elsewhere"], modules });
+    const packageConfig = fileText.read({ path: `${repo}/packages/a/eslint.config.mjs` });
+    expect({ upgraded, checked, packageConfig }).toEqual({
+      upgraded: {
+        writes: [
+          [
+            {
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nrewrote eslint.config.mjs\nrewrote packages/a/eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 0 }]],
+      },
+      checked: {
+        writes: [
+          [
+            {
+              text: "answered (1)\nauthored-class-or-this#class-keyword eslint packages/a/kept.ts:1:7 export class Kept {} answered by debt\nassessment (1)\nforfeiture elsewhere: 1 debt record not checked for forfeiture in this run\nverdict: pass (partial assessment)\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 0 }]],
+      },
+      packageConfig: {
+        outcome: "ok",
+        value: 'import root from "../../hone.eslint.mjs";\nimport projection from "./hone.eslint.mjs";\n\nexport default [{ files: ["**/*.{ts,tsx,mts,cts}"] }, ...root, ...projection];\n',
+      },
     });
   });
 
