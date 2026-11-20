@@ -95,6 +95,40 @@ export const importsOutside = (request: {
       .map((moduleImport) => ({ file, ...moduleImport })),
   );
 
+const namingOf = (request: { readonly location: string; readonly importingFolder: string; readonly files: readonly string[] }): "names-a-file" | "names-none" =>
+  request.files.some((file) => request.location === `${request.importingFolder}/${file}`) ? "names-a-file" : "names-none";
+
+export const relativeImportNotNaming = (request: {
+  readonly importingFolder: string;
+  readonly files: readonly string[];
+}): ImportAllowance => {
+  const importingPath = createPathPort({
+    flavour: "posix",
+    workingDirectory: () => `${INSTALL_ROOT}/${request.importingFolder}`,
+  });
+  return ({ moduleImport }) => {
+    if (!RELATIVE_SPECIFIER.test(moduleImport.specifier)) {
+      return "allowed";
+    }
+    const location = importingPath.relative({ from: INSTALL_ROOT, to: moduleImport.specifier });
+    return location.relation === "within-root" && namingOf({ location: location.path, ...request }) === "names-a-file" ? "outside" : "allowed";
+  };
+};
+
+const fileNameOfSource = (request: { readonly source: string }): string => request.source.split("/").at(-1) ?? "";
+
+export const sourcesNamed = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => request.files.includes(fileNameOfSource({ source }))));
+
+export const sourcesNotNamed = (request: {
+  readonly sources: Readonly<Record<string, string>>;
+  readonly files: readonly string[];
+}): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(request.sources).filter(([source]) => !request.files.includes(fileNameOfSource({ source }))));
+
 export const filesNotMatching = (request: {
   readonly sources: Readonly<Record<string, string>>;
   readonly pattern: RegExp;
