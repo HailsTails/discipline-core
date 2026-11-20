@@ -66,10 +66,11 @@ export type SymptomReading =
   | { readonly reading: "sees-no-symptom" }
   | { readonly reading: "not-in-catalogue" };
 
-const pointedNameOf = (point: Pointed): string => (point.kind === "rule" ? point.rule.name : point.principle.name);
+const pointedNameOf = (request: { readonly point: Pointed }): string =>
+  request.point.kind === "rule" ? request.point.rule.name : request.point.principle.name;
 
 export const indicatedNamesOf = (request: { readonly symptom: Symptom }): readonly string[] => [
-  ...new Set(request.symptom.mayIndicate.flatMap((indication) => indication.points.map(pointedNameOf))),
+  ...new Set(request.symptom.mayIndicate.flatMap((indication) => indication.points.map((point) => pointedNameOf({ point })))),
 ];
 
 const NOT_IN_CATALOGUE: SymptomReading = { reading: "not-in-catalogue" };

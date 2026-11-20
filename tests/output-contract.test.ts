@@ -77,7 +77,8 @@ const LOOPS_GUIDE: SymptomGuide = {
     clauses: [{ clause: clauseAddressSchema.parse("CD-15#loops"), sight: { kind: "one-symptom", symptom: LOOP_STATEMENT } }],
   },
 };
-const positionFills: EntryFills =({ section, position }) => ({ section, position: String(position) });
+
+const positionFills: EntryFills = ({ section, position }) => ({ section, position: String(position) });
 
 describe("documentedLinesIn", () => {
   it("reads each table row whose two cells are both code as a label and a template", () => {
@@ -171,7 +172,7 @@ describe("reportLinesOf", () => {
       { label: "heading", text: "readFirst (1)", fills: { section: "readFirst", count: "1" } },
       {
         label: "readFirst",
-        text: "loop-statement: Loop statement. May indicate: builds a value → Doer or orchestrator. The breach usually sits in the unit that builds the value. Known debt is answered by debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-statement",
+        text: "loop-statement: Loop statement. May indicate: builds a value → Doer or orchestrator. The breach usually sits in the unit that builds the value. Known debt: debt (today: file-carve-out). Read rules/typescript/symptoms.md#loop-statement",
         fills: { section: "readFirst", position: "0" },
       },
       { label: "verdict", text: "verdict: fail", fills: {} },

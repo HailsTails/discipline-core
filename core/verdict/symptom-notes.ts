@@ -10,27 +10,28 @@ import {
   symptomReadingOf,
 } from "../symptom-catalogue/symptom-catalogue.ts";
 
-export type SymptomGuide =
-  | { readonly guide: "none" }
-  | { readonly guide: "catalogue"; readonly catalogue: SymptomCatalogue; readonly page: string };
+export type CatalogueGuide = { readonly guide: "catalogue"; readonly catalogue: SymptomCatalogue; readonly page: string };
+
+export type UnreadableGuide = { readonly guide: "unreadable"; readonly failure: string };
+
+export type SymptomGuide = { readonly guide: "none" } | CatalogueGuide | UnreadableGuide;
 
 export const NO_SYMPTOM_GUIDE: SymptomGuide = { guide: "none" };
 
-type CatalogueGuide = Extract<SymptomGuide, { readonly guide: "catalogue" }>;
+const NOT_IN_CATALOGUE: SymptomReading = { reading: "not-in-catalogue" };
 
 export const symptomReadingIn = (request: { readonly guide: SymptomGuide; readonly finding: Finding }): SymptomReading =>
-  request.guide.guide === "none"
-    ? { reading: "not-in-catalogue" }
-    : symptomReadingOf({ catalogue: request.guide.catalogue, finding: request.finding });
+  request.guide.guide === "catalogue" ? symptomReadingOf({ catalogue: request.guide.catalogue, finding: request.finding }) : NOT_IN_CATALOGUE;
 
 const lowerFirst = (request: { readonly text: string }): string => `${request.text.charAt(0).toLowerCase()}${request.text.slice(1)}`;
 
 const upperFirst = (request: { readonly text: string }): string => `${request.text.charAt(0).toUpperCase()}${request.text.slice(1)}`;
 
-const pointedTitleOf = (point: Pointed): string => (point.kind === "rule" ? point.rule.title : point.principle.title);
+const pointedTitleOf = (request: { readonly point: Pointed }): string =>
+  request.point.kind === "rule" ? request.point.rule.title : request.point.principle.title;
 
-const indicationText = (indication: Indication): string =>
-  `${lowerFirst({ text: indication.case })} → ${indication.points.map(pointedTitleOf).join(", ")}`;
+const indicationText = (request: { readonly indication: Indication }): string =>
+  `${lowerFirst({ text: request.indication.case })} → ${request.indication.points.map((point) => pointedTitleOf({ point })).join(", ")}`;
 
 const recipeSentence = (request: { readonly symptom: Symptom }): string => {
   const titles = request.symptom.recipes.map((recipe) => recipe.title);
@@ -40,36 +41,46 @@ const recipeSentence = (request: { readonly symptom: Symptom }): string => {
   return ` ${titles.length === 1 ? "Recipe" : "Recipes"}: ${titles.join("; ")}.`;
 };
 
-const formatText = (kind: RecordKind): string => (kind.todaysFormat === "none-yet" ? "no record format yet" : `today: ${kind.todaysFormat}`);
+const formatText = (request: { readonly kind: RecordKind }): string =>
+  request.kind.todaysFormat === "none-yet" ? "no record format yet" : `today: ${request.kind.todaysFormat}`;
 
-const answerText = (request: { readonly use: CorrectUse; readonly index: number }): string => {
+const useSentence = (request: { readonly use: CorrectUse }): string => {
   const { use } = request;
-  const lead = request.index === 0 ? `${upperFirst({ text: use.situation })} is answered by` : `${use.situation} by`;
   const place = use.at === undefined ? "" : ` ${use.at}`;
-  return `${lead} ${use.kind.phrase}${place} (${formatText(use.kind)})`;
+  return `${upperFirst({ text: use.situation })}: ${use.kind.phrase}${place} (${formatText({ kind: use.kind })}).`;
 };
 
-const answersText = (request: { readonly catalogue: SymptomCatalogue; readonly symptom: Symptom }): string => {
-  const uses: readonly CorrectUse[] = [...request.symptom.correctUses, { situation: "known debt", kind: request.catalogue.alwaysRecordable.debt }];
-  return uses.map((use, index) => answerText({ use, index })).join("; ");
+const recordSentences = (request: { readonly catalogue: SymptomCatalogue; readonly symptom: Symptom }): string => {
+  const knownDebt: CorrectUse = { situation: "known debt", kind: request.catalogue.alwaysRecordable.debt };
+  return [...request.symptom.correctUses, knownDebt].map((use) => useSentence({ use })).join(" ");
 };
 
-const noteLineOf = (request: CatalogueGuide & { readonly symptom: Symptom }): string => {
+export const symptomNoteLineOf = (request: CatalogueGuide & { readonly symptom: Symptom }): string => {
   const { symptom } = request;
-  const indications = symptom.mayIndicate.map(indicationText).join("; ");
-  return `${symptom.name}: ${symptom.title}. May indicate: ${indications}. The breach usually sits ${symptom.breachUsuallySits}.${recipeSentence(request)} ${answersText(request)}. Read ${request.page}#${symptom.name}`;
+  const indications = symptom.mayIndicate.map((indication) => indicationText({ indication })).join("; ");
+  return `${symptom.name}: ${symptom.title}. May indicate: ${indications}. The breach usually sits ${symptom.breachUsuallySits}.${recipeSentence(request)} ${recordSentences(request)} Read ${request.page}#${symptom.name}`;
 };
 
-const namedSymptomsOf = (request: { readonly guide: SymptomGuide; readonly findings: readonly Finding[] }): readonly Symptom[] => [
+const namedSymptomsOf = (request: { readonly guide: CatalogueGuide; readonly findings: readonly Finding[] }): readonly Symptom[] => [
   ...new Map(
     request.findings.flatMap((finding) => {
-      const reading = symptomReadingIn({ guide: request.guide, finding });
+      const reading = symptomReadingOf({ catalogue: request.guide.catalogue, finding });
       return reading.reading === "named" ? [[reading.symptom.name, reading.symptom] as const] : [];
     }),
   ).values(),
 ];
 
+const unreadableLine = (request: { readonly guide: UnreadableGuide }): string =>
+  `symptom catalogue not read, so no finding names its symptom: ${request.guide.failure}`;
+
 export const symptomNoteLinesOf = (request: { readonly guide: SymptomGuide; readonly findings: readonly Finding[] }): readonly string[] => {
   const { guide } = request;
-  return guide.guide === "none" ? [] : namedSymptomsOf(request).map((symptom) => noteLineOf({ ...guide, symptom }));
+  switch (guide.guide) {
+    case "none":
+      return [];
+    case "unreadable":
+      return [unreadableLine({ guide })];
+    case "catalogue":
+      return namedSymptomsOf({ guide, findings: request.findings }).map((symptom) => symptomNoteLineOf({ ...guide, symptom }));
+  }
 };

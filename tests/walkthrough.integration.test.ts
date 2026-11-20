@@ -1,9 +1,9 @@
 import { assert, describe, expect, it, vi } from "vitest";
 import { withSingleFileRecords, withSingleFileRecordsOf } from "./records-disk.ts";
-import { namedCheckCommandOutcome } from "../core/check/command-outcome.ts";
+import { guidedCheckCommandOutcome } from "../core/check/command-outcome.ts";
 import { runCheck } from "../core/check/run-check.ts";
-import { runNamedCheckCommand } from "../core/check/run-named-check-command.ts";
-import { symptomGuideFor } from "../core/check/symptom-guide.ts";
+import { runGuidedCheckCommand } from "../core/check/run-guided-check-command.ts";
+import { symptomGuideIn } from "../core/check/symptom-guide.ts";
 import { createSymptomCatalogueRepository } from "../core/symptom-catalogue/read-symptom-catalogue.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
@@ -73,16 +73,15 @@ const checkedText = async (request: { readonly repo: AbsolutePath; readonly trac
     git: trackingGit({ tracked: request.tracked }),
   }));
   assert(checked.outcome === "ok", `${request.repo} loads`);
-  const guide = symptomGuideFor({
-    process: { arguments: ["--repo", request.repo] },
+  const guide = symptomGuideIn({
     path,
     fileText: createDefaultFileTextPort({}),
-    moduleUrl: ENTRY_URL,
+    repoRoot: request.repo,
+    installRoot: INSTALL_ROOT,
     symptomCatalogueOf: createSymptomCatalogueRepository,
   });
-  assert(guide.outcome === "ok", `${request.repo} reads the symptom catalogue`);
-  return namedCheckCommandOutcome({
-    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: guide.value } },
+  return guidedCheckCommandOutcome({
+    result: { outcome: "ok", value: { report: checked.value, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide } },
   });
 };
 
@@ -93,7 +92,7 @@ const commandOutput = async (request: { readonly repo: AbsolutePath; readonly tr
     writeError: vi.fn<ProcessPort["writeError"]>(),
     exitWith: vi.fn<ProcessPort["exitWith"]>(),
   };
-  await runNamedCheckCommand(
+  await runGuidedCheckCommand(
     withSingleFileRecordsOf({
       process: processPort,
       path,

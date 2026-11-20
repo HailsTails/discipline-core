@@ -3,6 +3,7 @@ import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { PathPort } from "../core/platform-ports/path-port.ts";
 import { type DisciplineFile, readDisciplineFile } from "../core/rule-set-reader/rule-set-reader.ts";
 import type { SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
+import { type CatalogueGuide, symptomNoteLineOf } from "../core/verdict/symptom-notes.ts";
 import type { AbsolutePath } from "../core/values/absolute-path.ts";
 import { clauseAddressText } from "../core/values/clause-address.ts";
 import { disciplineIdSchema } from "../core/values/identifiers.ts";
@@ -50,3 +51,8 @@ export const formSectionsOf = (request: { readonly catalogue: SymptomCatalogue; 
 
 export const symptomNamesOf = (request: { readonly catalogue: SymptomCatalogue }): readonly string[] =>
   request.catalogue.symptoms.map((symptom) => symptom.name);
+
+export const correctUseNotesOf = (request: { readonly guide: CatalogueGuide }): readonly string[] =>
+  request.guide.catalogue.symptoms
+    .filter((symptom) => symptom.correctUses.length > 0)
+    .map((symptom) => symptomNoteLineOf({ ...request.guide, symptom }));

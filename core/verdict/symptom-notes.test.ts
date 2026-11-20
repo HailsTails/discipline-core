@@ -4,7 +4,7 @@ import type { Principle, Recipe, RecordKind, Rule, Symptom, SymptomCatalogue } f
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { NO_SYMPTOM_GUIDE, type SymptomGuide, symptomNoteLinesOf, symptomReadingIn } from "./symptom-notes.ts";
+import { type CatalogueGuide, NO_SYMPTOM_GUIDE, type SymptomGuide, symptomNoteLinesOf, symptomReadingIn } from "./symptom-notes.ts";
 
 const NO_HIDDEN_EFFECTS: Principle = { name: "no-hidden-effects", title: "No hidden effects" };
 
@@ -124,7 +124,12 @@ const CATALOGUE: SymptomCatalogue = {
   ],
 };
 
-const GUIDE: SymptomGuide = { guide: "catalogue", catalogue: CATALOGUE, page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md" };
+const GUIDE: CatalogueGuide = { guide: "catalogue", catalogue: CATALOGUE, page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md" };
+
+const UNREADABLE_GUIDE: SymptomGuide = {
+  guide: "unreadable",
+  failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end",
+};
 
 const CLOCK_FINDING: Finding = {
   clause: clauseAddressSchema.parse("CD-17#clock-sources"),
@@ -177,13 +182,13 @@ const METHOD_FINDING: Finding = {
 };
 
 const CLOCK_NOTE =
-  "date-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use is answered by a boundary record on the clock adapter (today: authorised-location); known debt by debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly";
+  "date-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly";
 
 const BRANCH_NOTE =
-  "branch-in-a-test: Branch in a test. May indicate: checks a value that may be one of several outcomes → Straight-through tests, No hidden effects. The breach usually sits in the unit's output type, where optional or loose shapes force the test to branch. Recipes: Assert to narrow; it.each over typed rows. Known debt is answered by debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#branch-in-a-test";
+  "branch-in-a-test: Branch in a test. May indicate: checks a value that may be one of several outcomes → Straight-through tests, No hidden effects. The breach usually sits in the unit's output type, where optional or loose shapes force the test to branch. Recipes: Assert to narrow; it.each over typed rows. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#branch-in-a-test";
 
 const DOUBLE_NOTE =
-  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Handed what it uses. The breach usually sits in a port too wide. A fake, where a stub cannot do the test is answered by a deviation from Stub with vi.fn (no record format yet); a spy on a port the unit owns by a boundary record (today: authorised-location); known debt by debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#double-with-a-body";
+  "double-with-a-body: Double with a body. May indicate: uses what a collaborator gives back → Handed what it uses. The breach usually sits in a port too wide. A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). A spy on a port the unit owns: a boundary record (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#double-with-a-body";
 
 describe("symptomNoteLinesOf", () => {
   it("writes one note for a symptom, with its cases and rules, where its breach sits, its recipe, its correct use, and known debt", () => {
@@ -208,6 +213,18 @@ describe("symptomNoteLinesOf", () => {
   it("writes no note when there is no catalogue", () => {
     expect(symptomNoteLinesOf({ guide: NO_SYMPTOM_GUIDE, findings: [CLOCK_FINDING] })).toEqual([]);
   });
+
+  it("says plainly that the catalogue was not read, and why, in place of any note", () => {
+    expect(symptomNoteLinesOf({ guide: UNREADABLE_GUIDE, findings: [CLOCK_FINDING] })).toEqual([
+      "symptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end",
+    ]);
+  });
+
+  it("says the catalogue was not read even when there are no findings", () => {
+    expect(symptomNoteLinesOf({ guide: UNREADABLE_GUIDE, findings: [] })).toEqual([
+      "symptom catalogue not read, so no finding names its symptom: file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end",
+    ]);
+  });
 });
 
 describe("symptomReadingIn", () => {
@@ -217,5 +234,9 @@ describe("symptomReadingIn", () => {
 
   it("finds no finding in the catalogue when there is no catalogue", () => {
     expect(symptomReadingIn({ guide: NO_SYMPTOM_GUIDE, finding: CLOCK_FINDING })).toEqual({ reading: "not-in-catalogue" });
+  });
+
+  it("finds no finding in the catalogue when the catalogue was not read", () => {
+    expect(symptomReadingIn({ guide: UNREADABLE_GUIDE, finding: CLOCK_FINDING })).toEqual({ reading: "not-in-catalogue" });
   });
 });

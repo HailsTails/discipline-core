@@ -3,23 +3,20 @@ import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import type { RecordKind, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { SymptomCatalogueRepository } from "../symptom-catalogue/symptom-catalogue-repository.ts";
-import { symptomGuideFor } from "./symptom-guide.ts";
+import { absolutePathSchema } from "../values/absolute-path.ts";
+import { type SymptomCatalogueOf, symptomGuideIn } from "./symptom-guide.ts";
 
 const POSIX = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
-const ENTRY_URL = "file:///repo/node_modules/@hailstails/hone/core/check/tool-command.ts";
+const REPO_ROOT = absolutePathSchema.parse("/repo");
 
-const presentFiles = (): FileTextPort => ({
-  read: vi.fn<FileTextPort["read"]>(),
-  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
-  write: vi.fn<FileTextPort["write"]>(),
-});
+const INSTALL_ROOT = absolutePathSchema.parse("/repo/node_modules/@hailstails/hone");
 
-const absentFiles = (): FileTextPort => ({
+const FILE_TEXT: FileTextPort = {
   read: vi.fn<FileTextPort["read"]>(),
-  exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("absent"),
+  exists: vi.fn<FileTextPort["exists"]>(),
   write: vi.fn<FileTextPort["write"]>(),
-});
+};
 
 const DEBT: RecordKind = { name: "debt", title: "Debt", phrase: "debt", todaysFormat: "file-carve-out" };
 
@@ -40,82 +37,66 @@ const CATALOGUE: SymptomCatalogue = {
   clauses: [],
 };
 
-const readingCatalogue = (): SymptomCatalogueRepository => ({
-  read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({ outcome: "ok", value: { held: "catalogue", catalogue: CATALOGUE } }),
-});
-
-const holdingNoCatalogue = (): SymptomCatalogueRepository => ({
-  read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({ outcome: "ok", value: { held: "none" } }),
-});
-
-const failingCatalogue = (): SymptomCatalogueRepository => ({
-  read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({
-    outcome: "failed",
-    error: { kind: "file-malformed", path: "/repo/node_modules/@hailstails/hone/rules/typescript/symptoms.json", detail: "Unexpected end" },
-  }),
-});
-
-describe("symptomGuideFor", () => {
+describe("symptomGuideIn", () => {
   it("reads the installed catalogue and points at its page as the repository shows it", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({ outcome: "ok", value: { held: "catalogue", catalogue: CATALOGUE } }),
+    };
+
     expect(
-      symptomGuideFor({
-        process: { arguments: ["--repo", "/repo"] },
+      symptomGuideIn({
         path: POSIX,
-        fileText: presentFiles(),
-        moduleUrl: ENTRY_URL,
-        symptomCatalogueOf: vi.fn().mockReturnValue(readingCatalogue()),
+        fileText: FILE_TEXT,
+        repoRoot: REPO_ROOT,
+        installRoot: INSTALL_ROOT,
+        symptomCatalogueOf: vi.fn<SymptomCatalogueOf>().mockReturnValue(repository),
       }),
-    ).toEqual({
-      outcome: "ok",
-      value: { guide: "catalogue", catalogue: CATALOGUE, page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md" },
-    });
+    ).toEqual({ guide: "catalogue", catalogue: CATALOGUE, page: "node_modules/@hailstails/hone/rules/typescript/symptoms.md" });
+  });
+
+  it("asks for the catalogue under the install root, through the ports it is given", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({ outcome: "ok", value: { held: "none" } }),
+    };
+    const symptomCatalogueOf = vi.fn<SymptomCatalogueOf>().mockReturnValue(repository);
+
+    symptomGuideIn({ path: POSIX, fileText: FILE_TEXT, repoRoot: REPO_ROOT, installRoot: INSTALL_ROOT, symptomCatalogueOf });
+
+    expect(symptomCatalogueOf).toHaveBeenCalledExactlyOnceWith({ fileText: FILE_TEXT, path: POSIX, ruleSetRoot: "/repo/node_modules/@hailstails/hone" });
   });
 
   it("gives no guide when the install holds no catalogue", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({ outcome: "ok", value: { held: "none" } }),
+    };
+
     expect(
-      symptomGuideFor({
-        process: { arguments: ["--repo", "/repo"] },
+      symptomGuideIn({
         path: POSIX,
-        fileText: presentFiles(),
-        moduleUrl: ENTRY_URL,
-        symptomCatalogueOf: vi.fn().mockReturnValue(holdingNoCatalogue()),
+        fileText: FILE_TEXT,
+        repoRoot: REPO_ROOT,
+        installRoot: INSTALL_ROOT,
+        symptomCatalogueOf: vi.fn<SymptomCatalogueOf>().mockReturnValue(repository),
       }),
-    ).toEqual({ outcome: "ok", value: { guide: "none" } });
+    ).toEqual({ guide: "none" });
   });
 
-  it("reads the catalogue from the install root", () => {
-    const fileText = presentFiles();
-    const symptomCatalogueOf = vi.fn().mockReturnValue(readingCatalogue());
-
-    symptomGuideFor({ process: { arguments: ["--repo", "/repo"] }, path: POSIX, fileText, moduleUrl: ENTRY_URL, symptomCatalogueOf });
-
-    expect(symptomCatalogueOf).toHaveBeenCalledExactlyOnceWith({ fileText, path: POSIX, ruleSetRoot: "/repo/node_modules/@hailstails/hone" });
-  });
-
-  it("fails as the check does when the repository holds no selection", () => {
-    expect(
-      symptomGuideFor({
-        process: { arguments: ["--repo", "/repo"] },
-        path: POSIX,
-        fileText: absentFiles(),
-        moduleUrl: ENTRY_URL,
-        symptomCatalogueOf: vi.fn().mockReturnValue(readingCatalogue()),
+  it("gives a guide that says why the catalogue was not read, naming it as the repository shows it", () => {
+    const repository: SymptomCatalogueRepository = {
+      read: vi.fn<SymptomCatalogueRepository["read"]>().mockReturnValue({
+        outcome: "failed",
+        error: { kind: "file-malformed", path: "/repo/node_modules/@hailstails/hone/rules/typescript/symptoms.json", detail: "Unexpected end" },
       }),
-    ).toEqual({ outcome: "failed", error: { kind: "selection-absent", repo: "/repo" } });
-  });
+    };
 
-  it("fails naming the catalogue as the repository shows it when the catalogue cannot be read", () => {
     expect(
-      symptomGuideFor({
-        process: { arguments: ["--repo", "/repo"] },
+      symptomGuideIn({
         path: POSIX,
-        fileText: presentFiles(),
-        moduleUrl: ENTRY_URL,
-        symptomCatalogueOf: vi.fn().mockReturnValue(failingCatalogue()),
+        fileText: FILE_TEXT,
+        repoRoot: REPO_ROOT,
+        installRoot: INSTALL_ROOT,
+        symptomCatalogueOf: vi.fn<SymptomCatalogueOf>().mockReturnValue(repository),
       }),
-    ).toEqual({
-      outcome: "failed",
-      error: { kind: "file-malformed", path: "node_modules/@hailstails/hone/rules/typescript/symptoms.json", detail: "Unexpected end" },
-    });
+    ).toEqual({ guide: "unreadable", failure: "file-malformed node_modules/@hailstails/hone/rules/typescript/symptoms.json Unexpected end" });
   });
 });

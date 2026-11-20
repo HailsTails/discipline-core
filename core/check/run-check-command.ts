@@ -11,17 +11,15 @@ import { moduleExtensionOf } from "../values/install-layout.ts";
 import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
-import { argumentsInvalid } from "./argument-problem.ts";
-import { type CheckArguments, parseCheckArguments } from "./command-arguments.ts";
+import { type CheckLocations, checkLocationsFor } from "./check-locations.ts";
+import type { CheckArguments } from "./command-arguments.ts";
 import { type CheckRun, type CommandOutcome, checkCommandOutcome } from "./command-outcome.ts";
-import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
 import { type PackageLink, packageLinkOf, UNLINKED } from "./package-link.ts";
 import { projectCommandOf, pruneCommandOf } from "./tool-invocations.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "./shown-path.ts";
 
-const SELECTION_FILE_NAME = "disciplines.json";
 
 export type CommandRequest = {
   readonly process: ProcessPort;
@@ -31,21 +29,6 @@ export type CommandRequest = {
   readonly git: GitPort;
   readonly exceptionRepositoryOf: ExceptionRepositoryOf;
   readonly moduleUrl: string;
-};
-
-export const repoRootOf = (request: {
-  readonly path: PathPort;
-  readonly fileText: FileTextPort;
-  readonly repo: string;
-}): Result<AbsolutePath, LoadFailure> => {
-  const resolved = request.path.resolve({ path: request.repo });
-  if (resolved.outcome === "failed") {
-    return argumentsInvalid({ problem: { kind: "repo-unresolvable", given: request.repo } });
-  }
-  const selection = request.path.join({ segments: [resolved.value, SELECTION_FILE_NAME] });
-  return request.fileText.exists({ path: selection }) === "absent"
-    ? { outcome: "failed", error: { kind: "selection-absent", repo: request.repo } }
-    : resolved;
 };
 
 type ShownPathsRequest = {
@@ -89,8 +72,8 @@ const checkRunOf = (request: {
         value: { report: request.report.value, output: request.output, projectCommand: request.projectCommand, pruneCommand: request.pruneCommand },
       };
 
-const checkRunIn = async (
-  request: CommandRequest & {
+const checkRunWithin = async (
+  request: Omit<CommandRequest, "process"> & {
     readonly arguments: CheckArguments;
     readonly repoRoot: AbsolutePath;
     readonly installRoot: AbsolutePath;
@@ -140,26 +123,29 @@ const checkRunIn = async (
   });
 };
 
-export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
-  const parsed = parseCheckArguments({ arguments: request.process.arguments });
-  if (parsed.outcome === "failed") {
-    return parsed;
-  }
-  const repoRoot = repoRootOf({ path: request.path, fileText: request.fileText, repo: parsed.value.repo });
-  if (repoRoot.outcome === "failed") {
-    return repoRoot;
-  }
-  const installRoot = installRootOf({ path: request.path, moduleUrl: request.moduleUrl });
+export type CheckRunIn = (
+  request: Omit<CommandRequest, "process"> & { readonly locations: CheckLocations },
+) => Promise<Result<CheckRun, LoadFailure>>;
+
+export const checkRunIn: CheckRunIn = async (request) => {
+  const { repoRoot, installRoot } = request.locations;
   return withShownPaths({
     path: request.path,
     fileText: request.fileText,
-    repoRoot: repoRoot.value,
-    installRoot,
-    run:
-      installRoot.outcome === "failed"
-        ? installRoot
-        : await checkRunIn({ ...request, arguments: parsed.value, repoRoot: repoRoot.value, installRoot: installRoot.value }),
+    repoRoot,
+    installRoot: { outcome: "ok", value: installRoot },
+    run: await checkRunWithin({ ...request, ...request.locations }),
   });
+};
+
+export const checkRunFor = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
+  const locations = checkLocationsFor({
+    arguments: request.process.arguments,
+    path: request.path,
+    fileText: request.fileText,
+    moduleUrl: request.moduleUrl,
+  });
+  return locations.outcome === "failed" ? locations : checkRunIn({ ...request, locations: locations.value });
 };
 
 export const runCheckCommand = (request: CommandRequest): Promise<void> =>

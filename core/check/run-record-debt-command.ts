@@ -18,7 +18,8 @@ import { parseRecordDebtArguments, type RecordDebtArguments } from "./command-ar
 import { recordDebtCommandOutcome } from "./command-outcome.ts";
 import { installRootOf } from "./install-root.ts";
 import type { LoadFailure } from "./load-failure.ts";
-import { type CommandRequest, printOutcome, repoRootOf, withShownPaths } from "./run-check-command.ts";
+import { repoRootOf } from "./check-locations.ts";
+import { type CommandRequest, printOutcome, withShownPaths } from "./run-check-command.ts";
 import { runReachedCheck } from "./run-check.ts";
 
 type AdoptionRequest = CommandRequest & {

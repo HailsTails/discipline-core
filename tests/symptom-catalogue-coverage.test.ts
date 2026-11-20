@@ -4,7 +4,7 @@ import type { PathPort } from "../core/platform-ports/path-port.ts";
 import type { RecordKind, Symptom, SymptomCatalogue } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../core/values/clause-address.ts";
-import { catalogueCoverageOf, formSectionsOf, symptomNamesOf } from "./symptom-catalogue-coverage.ts";
+import { catalogueCoverageOf, correctUseNotesOf, formSectionsOf, symptomNamesOf } from "./symptom-catalogue-coverage.ts";
 
 const RULE_SET_ROOT = absolutePathSchema.parse("/install");
 
@@ -155,6 +155,28 @@ describe("symptomNamesOf", () => {
     expect(symptomNamesOf({ catalogue: { ...NOTHING_CATALOGUED, symptoms: [symptomNamed("rebinding"), symptomNamed("loop-keyword")] } })).toEqual([
       "rebinding",
       "loop-keyword",
+    ]);
+  });
+});
+
+const LOOP_KEYWORD: Symptom = {
+  name: "loop-keyword",
+  title: "Loop keyword",
+  seen: "A for or while statement.",
+  mayIndicate: [{ case: "Builds a value", points: [{ kind: "principle", principle: { name: "one-place-decides", title: "One place decides" } }] }],
+  breachUsuallySits: "in the unit",
+  recipes: [],
+  correctUses: [{ situation: "draining a stream", kind: AUTHORISED_LOCATION, at: "in its source's adapter" }],
+};
+
+describe("correctUseNotesOf", () => {
+  it("renders the note of each symptom that has a correct use, in catalogue order, and none for a symptom without one", () => {
+    expect(
+      correctUseNotesOf({
+        guide: { guide: "catalogue", catalogue: { ...NOTHING_CATALOGUED, symptoms: [symptomNamed("rebinding"), LOOP_KEYWORD] }, page: "symptoms.md" },
+      }),
+    ).toEqual([
+      "loop-keyword: Loop keyword. May indicate: builds a value → One place decides. The breach usually sits in the unit. Draining a stream: an authorised location in its source's adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read symptoms.md#loop-keyword",
     ]);
   });
 });

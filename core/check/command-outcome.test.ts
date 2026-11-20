@@ -10,7 +10,7 @@ import type { Principle, RecordKind, Rule, Symptom } from "../symptom-catalogue/
 import {
   checkCommandOutcome,
   inheritedDebtLine,
-  namedCheckCommandOutcome,
+  guidedCheckCommandOutcome,
   projectCommandOutcome,
   pruneDebtCommandOutcome,
   splitRecordsCommandOutcome,
@@ -180,10 +180,11 @@ const CLASS_GUIDE: SymptomGuide = {
     clauses: [{ clause: clauseAddressSchema.parse("CD-14#class-syntax"), sight: { kind: "one-symptom", symptom: CLASS_DECLARED } }],
   },
 };
-describe("namedCheckCommandOutcome", () => {
+
+describe("guidedCheckCommandOutcome", () => {
   it("exits 0 and prints the report when the verdict is pass", () => {
     expect(
-      namedCheckCommandOutcome({
+      guidedCheckCommandOutcome({
         result: { outcome: "ok", value: { report: EMPTY_REPORT, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: NO_SYMPTOM_GUIDE } },
       }),
     ).toEqual({ code: 0, text: "verdict: pass\n" });
@@ -191,7 +192,7 @@ describe("namedCheckCommandOutcome", () => {
 
   it("exits 1 and names each finding's symptom from the guide, with the symptom's note in readFirst", () => {
     expect(
-      namedCheckCommandOutcome({
+      guidedCheckCommandOutcome({
         result: {
           outcome: "ok",
           value: { report: { ...EMPTY_REPORT, findings: [CLASS_IN_A] }, output: "full", projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND, guide: CLASS_GUIDE },
@@ -199,13 +200,13 @@ describe("namedCheckCommandOutcome", () => {
       }),
     ).toEqual({
       code: 1,
-      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: holds state → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt is answered by debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
+      text: "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0 class A {} symptom: class-declared, may indicate: doer-or-orchestrator\nreadFirst (1)\nclass-declared: Class declared. May indicate: holds state → Doer or orchestrator. The breach usually sits in the unit that holds state. Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#class-declared\nverdict: fail\n",
     });
   });
 
   it("exits 2 and prints the load failure line when an input could not be loaded", () => {
     expect(
-      namedCheckCommandOutcome({
+      guidedCheckCommandOutcome({
         result: { outcome: "failed", error: { kind: "file-malformed", path: "/repo/rules/typescript/symptoms.json", detail: "Unexpected end" } },
       }),
     ).toEqual({ code: 2, text: "load failure: file-malformed /repo/rules/typescript/symptoms.json Unexpected end\n" });

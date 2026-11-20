@@ -29,7 +29,7 @@ describe("PRINTABLE_LINES", () => {
     },
     {
       label: "readFirst",
-      text: "date-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use is answered by a boundary record on the clock adapter (today: authorised-location); known debt by debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly",
+      text: "date-used-directly: Date used directly. May indicate: needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out). Read node_modules/@hailstails/hone/rules/typescript/symptoms.md#date-used-directly",
     },
   ])("includes the $label line $text", (line) => {
     expect(PRINTABLE_LINES).toContainEqual(expect.objectContaining(line));

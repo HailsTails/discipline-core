@@ -70,7 +70,7 @@ Write the expected value out. A method call in the act step is flagged too, so m
 Each finding ends with `fix:` and the page and section for what it flagged, such as `(node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#an-optional-chain-after-an-index)`.
 
 ## Allowed forms in a test
-Each section shows a flagged form first, then the forms to write instead, or the rule the finding points at. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
+Each section shows a flagged form first, then the forms to write instead. Every form to write instead passes every audit and ESLint clause Hone ships, at each edition its check declares, and compiles under the compiler options CD-3 requires. A test reads this page and holds every block on it to that. `assert`, `expect`, `it` and `vi` come from `vitest`, and a `declare const` line stands for the unit under test.
 
 ### Branching with if
 ```ts

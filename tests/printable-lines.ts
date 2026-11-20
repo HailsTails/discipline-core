@@ -42,9 +42,8 @@ import type {
   Unmeasured,
 } from "../core/verdict/check-report.ts";
 import { SECTION_NAMES, type SectionName, sectionRoleOf } from "../core/verdict/section-roles.ts";
-import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../core/verdict/symptom-notes.ts";
+import { NO_SYMPTOM_GUIDE, type SymptomGuide, type UnreadableGuide } from "../core/verdict/symptom-notes.ts";
 import type { Principle, Recipe, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
-
 import type { Verdict } from "../core/verdict/verdict.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, reportLinesOf } from "./output-contract.ts";
@@ -574,6 +573,7 @@ const SYMPTOM_GUIDE: SymptomGuide = {
     ],
   },
 };
+
 const SYMPTOM_FINDINGS: readonly Filled<Finding>[] = [
   {
     entry: {
@@ -649,7 +649,7 @@ const SYMPTOM_NOTE_FILLS: readonly Fills[] = [
     indications: "needs the current time → Ports declared inside, Written-out answers; does one job → Doer or orchestrator",
     breach: "in the unit that should be passed the time, often a doer doing two jobs",
     recipe: "World values through a port",
-    answers: "Correct use is answered by a boundary record on the clock adapter (today: authorised-location); known debt by debt (today: file-carve-out)",
+    answers: "Correct use: a boundary record on the clock adapter (today: authorised-location). Known debt: debt (today: file-carve-out)",
     "symptom page": SYMPTOM_PAGE,
   },
   {
@@ -658,7 +658,7 @@ const SYMPTOM_NOTE_FILLS: readonly Fills[] = [
     indications: "checks a value that may be one of several outcomes → Straight-through tests, No hidden effects",
     breach: "in the unit's output type, where optional or loose shapes force the test to branch",
     recipes: "Assert to narrow; it.each over typed rows",
-    answers: "Known debt is answered by debt (today: file-carve-out)",
+    answers: "Known debt: debt (today: file-carve-out)",
     "symptom page": SYMPTOM_PAGE,
   },
   {
@@ -666,7 +666,7 @@ const SYMPTOM_NOTE_FILLS: readonly Fills[] = [
     title: "Double with a body",
     indications: "uses what a collaborator gives back → Handed what it uses",
     breach: "in a port too wide",
-    answers: "A fake, where a stub cannot do the test is answered by a deviation from Stub with vi.fn (no record format yet); known debt by debt (today: file-carve-out)",
+    answers: "A fake, where a stub cannot do the test: a deviation from Stub with vi.fn (no record format yet). Known debt: debt (today: file-carve-out)",
     "symptom page": SYMPTOM_PAGE,
   },
 ];
@@ -677,6 +677,14 @@ const SYMPTOM_FILLS: Partial<Record<SectionName, readonly Fills[]>> = {
 };
 
 const symptomFills: EntryFills = ({ section, position }) => ({ ...SYMPTOM_FILLS[section]?.[position] });
+
+const SYMPTOM_CATALOGUE = "node_modules/@hailstails/hone/rules/typescript/symptoms.json";
+
+const UNREAD_CATALOGUES: readonly Filled<UnreadableGuide>[] = [
+  { entry: { guide: "unreadable", failure: `file-unreadable ${SYMPTOM_CATALOGUE} EACCES` }, fills: { path: SYMPTOM_CATALOGUE, detail: "EACCES" } },
+  { entry: { guide: "unreadable", failure: `file-malformed ${SYMPTOM_CATALOGUE} Unexpected end` }, fills: { path: SYMPTOM_CATALOGUE, detail: "Unexpected end" } },
+  { entry: { guide: "unreadable", failure: `unsupported-version ${SYMPTOM_CATALOGUE} 2` }, fills: { path: SYMPTOM_CATALOGUE, "version found": "2" } },
+];
 
 const REPORT_LINES: readonly PrintedLine[] = [
   ...EVERY_OUTPUT.flatMap((output) =>
@@ -700,6 +708,16 @@ const REPORT_LINES: readonly PrintedLine[] = [
     entryFills: symptomFills,
     guide: SYMPTOM_GUIDE,
   }),
+  ...UNREAD_CATALOGUES.flatMap((sample) =>
+    reportLinesOf({
+      report: EMPTY_REPORT,
+      output: "full",
+      projectCommand: PROJECT_COMMAND,
+      pruneCommand: PRUNE_COMMAND,
+      entryFills: () => sample.fills,
+      guide: sample.entry,
+    }),
+  ),
 ];
 
 const PEER = { packageName: "eslint", peer: "required", supported: "^9.0.0 || ^10.0.0", found: "8.57.0" } as const;

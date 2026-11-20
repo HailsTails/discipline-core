@@ -1,7 +1,7 @@
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { ReportOutput } from "../core/values/report-output.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
-import { renderNamedReportText } from "../core/verdict/report-text.ts";
+import { renderGuidedReportText } from "../core/verdict/report-text.ts";
 import { SECTION_NAMES, type SectionName } from "../core/verdict/section-roles.ts";
 import type { SymptomGuide } from "../core/verdict/symptom-notes.ts";
 
@@ -115,7 +115,7 @@ export const reportLinesOf = (request: {
   readonly entryFills: EntryFills;
   readonly guide: SymptomGuide;
 }): readonly PrintedLine[] => {
-  const lines = renderNamedReportText(request).split("\n").slice(0, -1);
+  const lines = renderGuidedReportText(request).split("\n").slice(0, -1);
   const entries = lines.slice(0, -1).reduce<Attribution>(attributed(request), { section: undefined, position: 0, lines: [] });
   return [...entries.lines, { label: VERDICT_LABEL, text: lines.at(-1) ?? "", fills: {} }];
 };

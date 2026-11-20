@@ -22,7 +22,7 @@ import type {
 import { SECTION_NAMES, type SectionName } from "./section-roles.ts";
 import { printedSectionLines, type ReportSection } from "./section-selection.ts";
 import { verdictOf } from "./verdict.ts";
-import { escapedLineBreaks, locatedFindingLine, namedFindingLine } from "./finding-line.ts";
+import { escapedLineBreaks, locatedFindingLine, symptomFindingLine } from "./finding-line.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide, symptomNoteLinesOf, symptomReadingIn } from "./symptom-notes.ts";
 
 const importNote = (request: { readonly record: ExceptionRecord }): string => {
@@ -331,7 +331,7 @@ const SECTION_LINES: Readonly<Record<SectionName, ReportLines>> = {
     ),
   findings: (request) =>
     request.report.findings.map((finding) =>
-      namedFindingLine({ finding, reading: symptomReadingIn({ guide: request.guide, finding }) }),
+      symptomFindingLine({ finding, reading: symptomReadingIn({ guide: request.guide, finding }) }),
     ),
   exempted: (request) => request.report.exempted.map((exempted) => exemptedLine({ exempted })),
   uncovered: (request) => request.report.uncovered.map((address) => clauseAddressText({ address })),
@@ -367,7 +367,7 @@ const verdictLine = (request: { readonly report: CheckReport }): string =>
     ? `verdict: ${verdictOf(request)}`
     : `verdict: ${verdictOf(request)} (partial assessment)`;
 
-export const renderNamedReportText = (request: GuidedReport & { readonly output: ReportOutput }): string => {
+export const renderGuidedReportText = (request: GuidedReport & { readonly output: ReportOutput }): string => {
   const sectionLines = reportSections(request)
     .filter((section) => section.lines.length > 0)
     .flatMap((section) => printedSectionLines({ output: request.output, section }));
@@ -376,4 +376,4 @@ export const renderNamedReportText = (request: GuidedReport & { readonly output:
 
 export const renderReportText = (
   request: NextCommands & { readonly report: CheckReport; readonly output: ReportOutput },
-): string => renderNamedReportText({ ...request, guide: NO_SYMPTOM_GUIDE });
+): string => renderGuidedReportText({ ...request, guide: NO_SYMPTOM_GUIDE });

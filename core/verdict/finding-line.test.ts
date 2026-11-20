@@ -4,7 +4,7 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Principle, Recipe, Rule, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
-import { escapedLineBreaks, findingLine, locatedFindingLine, namedFindingLine } from "./finding-line.ts";
+import { escapedLineBreaks, locatedFindingLine, symptomFindingLine } from "./finding-line.ts";
 
 const FINDING: Finding = {
   clause: clauseAddressSchema.parse("CD-14#class-syntax"),
@@ -15,6 +15,8 @@ const FINDING: Finding = {
 };
 
 const REMEDIED: Finding = { ...FINDING, remedy: { fix: "write a factory", page: "node_modules/@hailstails/hone/rules/CD-14/CHECKS.md", section: "a-class" } };
+
+const LINE_BROKEN_FIX: Finding = { ...FINDING, remedy: { fix: "write\na factory", page: "rules/CD-14/CHECKS.md", section: "a-class" } };
 
 describe("escapedLineBreaks", () => {
   it("writes each line feed and carriage return as its escape", () => {
@@ -32,19 +34,19 @@ describe("locatedFindingLine", () => {
   });
 });
 
-describe("findingLine", () => {
+describe("symptomFindingLine for a finding with no symptom", () => {
   it("renders a finding with no fix as its located line", () => {
-    expect(findingLine({ finding: FINDING })).toBe("CD-14#class-syntax audit src/a.ts:3:5 class A {}");
+    expect(symptomFindingLine({ finding: FINDING, reading: { reading: "not-in-catalogue" } })).toBe("CD-14#class-syntax audit src/a.ts:3:5 class A {}");
   });
 
   it("renders the fix, then the page and section it is given, after the snippet", () => {
-    expect(findingLine({ finding: REMEDIED })).toBe(
+    expect(symptomFindingLine({ finding: REMEDIED, reading: { reading: "not-in-catalogue" } })).toBe(
       "CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write a factory (node_modules/@hailstails/hone/rules/CD-14/CHECKS.md#a-class)",
     );
   });
 
   it("escapes a line break in the fix so the finding stays on one line", () => {
-    expect(findingLine({ finding: { ...FINDING, remedy: { fix: "write\na factory", page: "rules/CD-14/CHECKS.md", section: "a-class" } } })).toBe(
+    expect(symptomFindingLine({ finding: LINE_BROKEN_FIX, reading: { reading: "not-in-catalogue" } })).toBe(
       String.raw`CD-14#class-syntax audit src/a.ts:3:5 class A {} fix: write\na factory (rules/CD-14/CHECKS.md#a-class)`,
     );
   });
@@ -131,27 +133,27 @@ const TEST_LOGIC_FINDING: Finding = {
   },
 };
 
-describe("namedFindingLine", () => {
+describe("symptomFindingLine", () => {
   it("names the symptom and every rule and principle it may indicate after the snippet", () => {
-    expect(namedFindingLine({ finding: CLOCK_FINDING, reading: { reading: "named", symptom: DATE_USED_DIRECTLY } })).toBe(
+    expect(symptomFindingLine({ finding: CLOCK_FINDING, reading: { reading: "named", symptom: DATE_USED_DIRECTLY } })).toBe(
       "CD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now(); symptom: date-used-directly, may indicate: ports-declared-inside, written-out-answers, doer-or-orchestrator",
     );
   });
 
   it("names the symptom before the fix", () => {
-    expect(namedFindingLine({ finding: TEST_LOGIC_FINDING, reading: { reading: "named", symptom: BRANCH_IN_A_TEST } })).toBe(
+    expect(symptomFindingLine({ finding: TEST_LOGIC_FINDING, reading: { reading: "named", symptom: BRANCH_IN_A_TEST } })).toBe(
       "CD-27#test-body-logic audit src/orders/charge-order.test.ts:22:2 if (result.ok) { symptom: branch-in-a-test, may indicate: straight-through-tests, kinds-are-named, failures-are-values fix: write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it (node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#branching-with-if)",
     );
   });
 
-  it("prints a finding whose clause the catalogue does not hold exactly as findingLine does", () => {
-    expect(namedFindingLine({ finding: TEST_LOGIC_FINDING, reading: { reading: "not-in-catalogue" } })).toBe(
+  it("prints a finding whose clause the catalogue does not hold exactly as a finding with no symptom", () => {
+    expect(symptomFindingLine({ finding: TEST_LOGIC_FINDING, reading: { reading: "not-in-catalogue" } })).toBe(
       "CD-27#test-body-logic audit src/orders/charge-order.test.ts:22:2 if (result.ok) { fix: write one test per case, or one it.each table; to narrow a value that may be missing, assert.isDefined it (node_modules/@hailstails/hone/rules/CD-27/CHECKS.md#branching-with-if)",
     );
   });
 
-  it("prints a finding whose clause sees no symptom exactly as findingLine does", () => {
-    expect(namedFindingLine({ finding: CLOCK_FINDING, reading: { reading: "sees-no-symptom" } })).toBe(
+  it("prints a finding whose clause sees no symptom exactly as a finding with no symptom", () => {
+    expect(symptomFindingLine({ finding: CLOCK_FINDING, reading: { reading: "sees-no-symptom" } })).toBe(
       "CD-17#clock-sources audit src/orders/charge-order.ts:14:0 const chargedAt = clock.now();",
     );
   });
