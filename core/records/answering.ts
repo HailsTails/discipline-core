@@ -1,7 +1,7 @@
 import type { AttributedNativeException, Finding, GovernedRun } from "../governance/governance.ts";
 import type { NativeException } from "../mechanism-port/runner-result-schema.ts";
-import { checkOfSymptomAt, checksOf } from "../symptom-catalogue/check-address.ts";
-import { type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/symptom-catalogue.ts";
+import { checkNamedAt, checkOfSymptomAt, checksOf } from "../symptom-catalogue/check-address.ts";
+import { type Check, type SymptomCatalogue, symptomReadingOf } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
@@ -92,7 +92,7 @@ const forfeitedRecords = (request: { readonly records: readonly PlacedRecord[]; 
   }
 };
 
-const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
+const symptomSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
   const { finding, party } = request.raised;
   const reading = symptomReadingOf({ catalogue: request.catalogue, finding });
   if (reading.reading !== "named") {
@@ -100,6 +100,19 @@ const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly cata
   }
   const check = checkOfSymptomAt({ catalogue: request.catalogue, clause: finding.clause, symptom: reading.symptom, mechanism: finding.mechanism });
   return [{ symptom: reading.symptom, check, file: finding.file, party }];
+};
+
+const findingSitesOf = (request: { readonly raised: RaisedFinding; readonly catalogue: SymptomCatalogue }): readonly Site[] => {
+  const { finding, party } = request.raised;
+  const named = checkNamedAt({ catalogue: request.catalogue, clause: finding.clause, address: finding.check });
+  switch (named.named) {
+    case "unnamed":
+      return symptomSitesOf(request);
+    case "check":
+      return [{ symptom: named.check.symptom, check: { found: "check", check: named.check }, file: finding.file, party }];
+    case "not-of-the-clause":
+      return [];
+  }
 };
 
 const fileOfNative = (request: { readonly exception: NativeException }): readonly RepoPath[] => {
@@ -115,6 +128,19 @@ const fileOfNative = (request: { readonly exception: NativeException }): readonl
   }
 };
 
+const checksReachedBy = (request: { readonly exception: NativeException; readonly catalogue: SymptomCatalogue }): readonly Check[] => {
+  const { exception, catalogue } = request;
+  const named = checkNamedAt({ catalogue, clause: exception.clause, address: exception.check });
+  switch (named.named) {
+    case "unnamed":
+      return checksOf({ catalogue, clause: exception.clause });
+    case "check":
+      return [named.check];
+    case "not-of-the-clause":
+      return [];
+  }
+};
+
 const nativeSitesOf = (request: {
   readonly exception: NativeException;
   readonly run: GovernedRun;
@@ -123,9 +149,7 @@ const nativeSitesOf = (request: {
   if (!request.run.coverableKinds.includes(request.exception.kind)) {
     return [];
   }
-  const checks = checksOf({ catalogue: request.catalogue, clause: request.exception.clause }).filter((check) =>
-    check.engines.some((engine) => engine.mechanism === request.run.mechanism),
-  );
+  const checks = checksReachedBy(request).filter((check) => check.engines.some((engine) => engine.mechanism === request.run.mechanism));
   return fileOfNative(request).flatMap((file) => checks.map((check) => ({ symptom: check.symptom, check: { found: "check", check }, file, party: NOT_REPORTED })));
 };
 

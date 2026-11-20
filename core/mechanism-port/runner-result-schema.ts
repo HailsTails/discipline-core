@@ -9,6 +9,8 @@ import type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
 export type { Hit, MeasuredPair } from "./runner-result-types.ts";
 
+export const reportedCheckSchema = z.string().min(1);
+
 export const nativeExceptionKindSchema = z.enum([
   "ignore",
   "config-override",
@@ -26,7 +28,7 @@ export type ScriptOptionCause =
   | { readonly kind: "wrapped"; readonly command: string; readonly wrapper: string }
   | { readonly kind: "unreadable"; readonly command: string };
 
-export type NativeException =
+type NativeExceptionVariant =
   | { readonly kind: "ignore"; readonly clause: ClauseAddress; readonly file: RepoPath }
   | { readonly kind: "config-override"; readonly clause: ClauseAddress; readonly file: RepoPath }
   | {
@@ -59,6 +61,8 @@ export type NativeException =
       readonly cause: ScriptOptionCause;
     };
 
+export type NativeException = NativeExceptionVariant & { readonly check?: string };
+
 export type InlineDisable = Extract<NativeException, { readonly kind: "inline-disable" }>;
 
 export type ProjectionState = "current" | "out-of-date" | "missing" | "not-included";
@@ -83,6 +87,7 @@ export const hitSchema = z
     snippet: snippetSchema,
     remedy: remedySchema.optional(),
     importSpecifier: z.string().min(1).optional(),
+    check: reportedCheckSchema.optional(),
   })
   .readonly();
 
