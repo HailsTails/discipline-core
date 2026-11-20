@@ -42,20 +42,14 @@ const pairsOf = (request: { readonly projections: readonly VersionOneProjection[
 const unpairedProjectedOf = (request: { readonly pairs: readonly Pair[]; readonly projected: readonly PlannedRepoFile[] }): PlannedRepoFile | undefined =>
   request.projected.find((candidate) => !request.pairs.some((pair) => pair.projected.file === candidate.file));
 
-const rewrittenWithin = (request: { readonly config: PlannedRepoFile; readonly pairs: readonly Pair[] }): Result<PlannedRepoFile, ReplacementRefusal> => {
-  const [pair, ...rest] = request.pairs;
-  if (pair === undefined) {
-    return { outcome: "ok", value: request.config };
-  }
+const rewrittenConfigIn = (request: { readonly config: PlannedRepoFile; readonly pairs: readonly Pair[] }): Result<PlannedRepoFile, ReplacementRefusal> => {
   const rewritten = rewrittenConfigOf({
     file: request.config.file,
     text: request.config.text,
-    versionOneProjection: pair.version.projection,
-    versionTwoProjection: pair.projected.file,
-    otherProjections: request.pairs.filter((other) => other !== pair).map((other) => other.version.projection),
+    pairs: request.pairs.map((pair) => ({ versionOneProjection: pair.version.projection, versionTwoProjection: pair.projected.file })),
   });
   return rewritten.outcome === "ok"
-    ? rewrittenWithin({ config: { file: request.config.file, text: rewritten.value }, pairs: rest })
+    ? { outcome: "ok", value: { file: request.config.file, text: rewritten.value } }
     : { outcome: "failed", error: { kind: "config-import-refused", refusal: rewritten.error } };
 };
 
@@ -79,7 +73,7 @@ export const replacementsOf = (request: {
   if (alone !== undefined) {
     return { outcome: "failed", error: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: alone.file, folder: folderOf({ file: alone.file }) } } };
   }
-  const rewritten = configsOf({ pairs: pairs.value }).map((config) => rewrittenWithin({ config, pairs: pairs.value.filter((pair) => pair.version.teamConfig.file === config.file) }));
+  const rewritten = configsOf({ pairs: pairs.value }).map((config) => rewrittenConfigIn({ config, pairs: pairs.value.filter((pair) => pair.version.teamConfig.file === config.file) }));
   const refused = rewritten.find((each) => each.outcome === "failed");
   return refused ?? { outcome: "ok", value: rewritten.flatMap((each) => (each.outcome === "ok" ? [each.value] : [])) };
 };

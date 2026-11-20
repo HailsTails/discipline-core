@@ -13,7 +13,7 @@ import type { PlannedRepoFile } from "./planned-repo-file.ts";
 import { replacementsOf } from "./projection-replacements.ts";
 import type { VersionOneProjection } from "./team-config-finder.ts";
 import { type PlanRefusal, type ProjectionFilesOf, type UpgradePlan, upgradePlanOf, type VersionOneReading } from "./upgrade-plan.ts";
-import type { ChangedByVersionOne, ProjectionsRefusal, VersionOneProjectionsOf } from "./version-one-projections-reading.ts";
+import type { ProjectionsRefusal, VersionOneProjectionsOf, VersionOneProjectionsReading } from "./version-one-projections-reading.ts";
 
 export type ProofRunFailure = { readonly kind: "run-failed"; readonly detail: string };
 
@@ -51,17 +51,19 @@ export type ProofCarriedOver = {
 
 export type AfterWriting = { readonly written: readonly RepoPath[]; readonly replaced: readonly RepoPath[] };
 
-type Restorable = { readonly unrestored: readonly Unrestored[] };
+type AfterVersionOneProject = { readonly removedByVersionOne: readonly RepoPath[] };
 
 export type ProofRefusal =
   | { readonly kind: "oracle-failed"; readonly failure: OracleFailure }
-  | ({ readonly kind: "plan-refused"; readonly refusal: PlanRefusal } & Restorable)
-  | ({ readonly kind: "version-one-run-failed"; readonly failure: ProofRunFailure } & Restorable)
-  | ({ readonly kind: "unplaceable-path"; readonly file: RepoPath } & Restorable)
-  | ({ readonly kind: "removal-refused"; readonly failure: OutsideRoot } & Restorable)
-  | { readonly kind: "write-refused"; readonly refusal: ProofWriteRefusal }
-  | { readonly kind: "version-two-run-failed"; readonly failure: ProofRunFailure; readonly unrestored: readonly Unrestored[] }
-  | { readonly kind: "differences"; readonly differences: readonly ProofDifference[]; readonly unrestored: readonly Unrestored[] }
+  | ({ readonly kind: "plan-refused"; readonly refusal: PlanRefusal } & AfterVersionOneProject)
+  | ({ readonly kind: "version-one-run-failed"; readonly failure: ProofRunFailure } & AfterVersionOneProject)
+  | ({ readonly kind: "version-one-project-failed"; readonly detail: string } & AfterVersionOneProject)
+  | ({ readonly kind: "version-one-project-rewrote"; readonly files: readonly RepoPath[] } & AfterVersionOneProject)
+  | ({ readonly kind: "unplaceable-path"; readonly file: RepoPath } & AfterVersionOneProject)
+  | ({ readonly kind: "removal-refused"; readonly failure: OutsideRoot } & AfterVersionOneProject)
+  | ({ readonly kind: "write-refused"; readonly refusal: ProofWriteRefusal } & AfterVersionOneProject)
+  | ({ readonly kind: "version-two-run-failed"; readonly failure: ProofRunFailure; readonly unrestored: readonly Unrestored[] } & AfterVersionOneProject)
+  | ({ readonly kind: "differences"; readonly differences: readonly ProofDifference[]; readonly unrestored: readonly Unrestored[] } & AfterVersionOneProject)
   | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure; readonly remaining: readonly AbsolutePath[] } & AfterWriting);
 
 type Placed = {
@@ -71,9 +73,7 @@ type Placed = {
   readonly removal: VersionOneRemoval;
 };
 
-type PlacedChange = { readonly kind: ChangedByVersionOne["kind"]; readonly path: AbsolutePath };
-
-const unplaceable = (request: { readonly file: RepoPath }): ProofRefusal => ({ kind: "unplaceable-path", file: request.file, unrestored: [] });
+const unplaceable = (request: { readonly file: RepoPath }): ProofRefusal => ({ kind: "unplaceable-path", file: request.file, removedByVersionOne: [] });
 
 const absoluteOf = (request: { readonly ports: ProofWritePorts; readonly repoRoot: AbsolutePath; readonly file: RepoPath }): Result<AbsolutePath, ProofRefusal> => {
   const parsed = absolutePathSchema.safeParse(request.ports.path.join({ segments: [request.repoRoot, request.file] }));
@@ -137,36 +137,23 @@ const placedOf = (request: ToPlace): Result<Placed, ProofRefusal> => {
   };
 };
 
-const changeDetailOf = (request: { readonly kind: ChangedByVersionOne["kind"] }): string =>
-  request.kind === "removed" ? "version 1's own project removed it" : "version 1's own project rewrote it";
-
-const placedChangesOf = (request: {
+const removedPlacedOf = (request: {
   readonly ports: ProofWritePorts;
   readonly repoRoot: AbsolutePath;
-  readonly changed: readonly ChangedByVersionOne[];
-}): Result<readonly PlacedChange[], ProofRefusal> =>
-  allOf({
-    results: request.changed.map(({ kind, path }): Result<PlacedChange, ProofRefusal> => {
-      const placed = absoluteOf({ ports: request.ports, repoRoot: request.repoRoot, file: path });
-      return placed.outcome === "ok" ? { outcome: "ok", value: { kind, path: placed.value } } : placed;
-    }),
-  });
-
-const unrestoredByVersionOne = (request: { readonly changes: readonly PlacedChange[] }): readonly Unrestored[] =>
-  request.changes.map(({ kind, path }) => ({ written: "file-replaced", path, detail: changeDetailOf({ kind }) }));
-
-const removedByVersionOne = (request: { readonly changes: readonly PlacedChange[] }): readonly AbsolutePath[] =>
-  request.changes.flatMap(({ kind, path }) => (kind === "removed" ? [path] : []));
+  readonly removed: readonly RepoPath[];
+}): Result<readonly AbsolutePath[], ProofRefusal> =>
+  allOf({ results: request.removed.map((file) => absoluteOf({ ports: request.ports, repoRoot: request.repoRoot, file })) });
 
 const projectionsRefusalOf = (request: { readonly refusal: ProjectionsRefusal }): ProofRefusal => {
   const { refusal } = request;
   switch (refusal.kind) {
     case "project-failed":
-      return { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: refusal.detail }, unrestored: [] };
+      return { kind: "version-one-project-failed", detail: refusal.detail, removedByVersionOne: [] };
+    case "project-rewrote":
+      return { kind: "version-one-project-rewrote", files: refusal.files, removedByVersionOne: [] };
     case "team-config-refused":
-      return { kind: "plan-refused", refusal, unrestored: [] };
     case "slice-left-in-place":
-      return { kind: "plan-refused", refusal, unrestored: [] };
+      return { kind: "plan-refused", refusal, removedByVersionOne: [] };
   }
 };
 
@@ -175,22 +162,19 @@ type Written = {
   readonly before: CheckReport;
   readonly placed: Placed;
   readonly writes: ProofWrites;
-  readonly changes: readonly PlacedChange[];
+  readonly removed: readonly AbsolutePath[];
 };
 
-const rolledBackWith = (request: UpgradeProofRequest & Written): readonly Unrestored[] => [
-  ...unrestoredByVersionOne({ changes: request.changes }),
-  ...rolledBackProofWrites({ ports: request.ports, writes: request.writes }),
-];
+const rolledBackWith = (request: UpgradeProofRequest & Written): readonly Unrestored[] => rolledBackProofWrites({ ports: request.ports, writes: request.writes });
 
 const comparedAfterWriting = async (request: UpgradeProofRequest & Written): Promise<Result<null, ProofRefusal>> => {
   const after = await request.runs.versionTwo();
   if (after.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "version-two-run-failed", failure: after.error, unrestored: rolledBackWith(request) } };
+    return { outcome: "failed", error: { kind: "version-two-run-failed", failure: after.error, unrestored: rolledBackWith(request), removedByVersionOne: [] } };
   }
   const differences = proofDifferencesOf({ before: request.before, after: after.value, catalogues: request.catalogues });
   return differences.length > 0
-    ? { outcome: "failed", error: { kind: "differences", differences, unrestored: rolledBackWith(request) } }
+    ? { outcome: "failed", error: { kind: "differences", differences, unrestored: rolledBackWith(request), removedByVersionOne: [] } }
     : { outcome: "ok", value: null };
 };
 
@@ -200,7 +184,7 @@ const comparedOrRolledBack = async (request: UpgradeProofRequest & Written): Pro
   } catch (thrown: unknown) {
     return {
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: failureDetailOf({ thrown }) }, unrestored: rolledBackWith(request) },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: failureDetailOf({ thrown }) }, unrestored: rolledBackWith(request), removedByVersionOne: [] },
     };
   }
 };
@@ -210,13 +194,13 @@ const removedAfterComparing = (request: UpgradeProofRequest & Written): Result<P
   const removed = removedVersionOneFiles({ ports: request.ports, removal: request.placed.removal });
   return removed.outcome === "failed"
     ? { outcome: "failed", error: { kind: "removal-failed", failure: removed.error, remaining: filesStillPresentOf({ removal: request.placed.removal, failure: removed.error }), ...carried } }
-    : { outcome: "ok", value: { ...carried, removed: { ...removed.value, files: [...removedByVersionOne({ changes: request.changes }), ...removed.value.files] } } };
+    : { outcome: "ok", value: { ...carried, removed: { ...removed.value, files: [...request.removed, ...removed.value.files] } } };
 };
 
 const writtenAndCompared = async (request: UpgradeProofRequest & Omit<Written, "writes">): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
   const writes = writeProofFiles({ ports: request.ports, files: request.placed.files, replacements: request.placed.replacements });
   if (writes.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "write-refused", refusal: { ...writes.error, unrestored: [...unrestoredByVersionOne({ changes: request.changes }), ...writes.error.unrestored] } } };
+    return { outcome: "failed", error: { kind: "write-refused", refusal: writes.error, removedByVersionOne: [] } };
   }
   const written: UpgradeProofRequest & Written = { ...request, writes: writes.value };
   const compared = await comparedOrRolledBack(written);
@@ -224,11 +208,11 @@ const writtenAndCompared = async (request: UpgradeProofRequest & Omit<Written, "
 };
 
 const afterProjecting = async (
-  request: UpgradeProofRequest & { readonly plan: UpgradePlan; readonly before: CheckReport; readonly projections: readonly VersionOneProjection[]; readonly changes: readonly PlacedChange[] },
+  request: UpgradeProofRequest & { readonly plan: UpgradePlan; readonly before: CheckReport; readonly projections: readonly VersionOneProjection[]; readonly removed: readonly AbsolutePath[] },
 ): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
   const replacements = replacementsOf({ projections: request.projections, projected: request.plan.projected });
   if (replacements.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "plan-refused", refusal: replacements.error, unrestored: [] } };
+    return { outcome: "failed", error: { kind: "plan-refused", refusal: replacements.error, removedByVersionOne: [] } };
   }
   const placed = placedOf({ ...request, replacements: replacements.value });
   if (placed.outcome === "failed") {
@@ -236,47 +220,42 @@ const afterProjecting = async (
   }
   const outside = recordsOutsideRoot({ ports: request.ports, removal: placed.value.removal });
   if (outside !== undefined) {
-    return { outcome: "failed", error: { kind: "removal-refused", failure: outside, unrestored: [] } };
+    return { outcome: "failed", error: { kind: "removal-refused", failure: outside, removedByVersionOne: [] } };
   }
   return writtenAndCompared({ ...request, placed: placed.value });
 };
 
-const withVersionOneChanges = <Value>(request: {
+const withRemovedByVersionOne = <Value>(request: {
   readonly result: Result<Value, ProofRefusal>;
-  readonly changes: readonly PlacedChange[];
+  readonly removed: readonly RepoPath[];
 }): Result<Value, ProofRefusal> => {
   if (request.result.outcome === "ok") {
     return request.result;
   }
   const { error } = request.result;
-  const unrestored = unrestoredByVersionOne({ changes: request.changes });
-  switch (error.kind) {
-    case "plan-refused":
-    case "version-one-run-failed":
-    case "unplaceable-path":
-    case "removal-refused":
-      return { outcome: "failed", error: { ...error, unrestored: [...unrestored, ...error.unrestored] } };
-    case "oracle-failed":
-    case "write-refused":
-    case "version-two-run-failed":
-    case "differences":
-    case "removal-failed":
-      return request.result;
-  }
+  return error.kind === "oracle-failed" || error.kind === "removal-failed" ? request.result : { outcome: "failed", error: { ...error, removedByVersionOne: request.removed } };
 };
 
 const projectedOver = async (
   request: UpgradeProofRequest & { readonly plan: UpgradePlan; readonly before: CheckReport },
 ): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
   const reading = await request.versionOneProjectionsOf();
-  const changes = placedChangesOf({ ports: request.ports, repoRoot: request.repoRoot, changed: reading.changed });
-  if (changes.outcome === "failed") {
-    return changes;
+  const carried = await afterReading({ ...request, projectionsReading: reading });
+  return withRemovedByVersionOne({ result: carried, removed: reading.removed });
+};
+
+const afterReading = async (
+  request: UpgradeProofRequest & { readonly plan: UpgradePlan; readonly before: CheckReport; readonly projectionsReading: VersionOneProjectionsReading },
+): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
+  const reading = request.projectionsReading;
+  const removed = removedPlacedOf({ ports: request.ports, repoRoot: request.repoRoot, removed: reading.removed });
+  if (removed.outcome === "failed") {
+    return removed;
   }
   if (reading.outcome.outcome === "failed") {
-    return withVersionOneChanges({ result: { outcome: "failed", error: projectionsRefusalOf({ refusal: reading.outcome.error }) }, changes: changes.value });
+    return { outcome: "failed", error: projectionsRefusalOf({ refusal: reading.outcome.error }) };
   }
-  return withVersionOneChanges({ result: await afterProjecting({ ...request, projections: reading.outcome.value, changes: changes.value }), changes: changes.value });
+  return afterProjecting({ ...request, projections: reading.outcome.value, removed: removed.value });
 };
 
 export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result<ProofCarriedOver, ProofRefusal>> => {
@@ -291,11 +270,11 @@ export const upgradeProof = async (request: UpgradeProofRequest): Promise<Result
     projectionFilesOf: request.projectionFilesOf,
   });
   if (plan.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "plan-refused", refusal: plan.error, unrestored: [] } };
+    return { outcome: "failed", error: { kind: "plan-refused", refusal: plan.error, removedByVersionOne: [] } };
   }
   const before = await request.runs.versionOne();
   if (before.outcome === "failed") {
-    return { outcome: "failed", error: { kind: "version-one-run-failed", failure: before.error, unrestored: [] } };
+    return { outcome: "failed", error: { kind: "version-one-run-failed", failure: before.error, removedByVersionOne: [] } };
   }
   return projectedOver({ ...request, plan: plan.value, before: before.value });
 };

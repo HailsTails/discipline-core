@@ -39,7 +39,7 @@ const readCandidate = (request: TeamConfigsRequest & { readonly file: RepoPath }
 const importersOf = (request: { readonly candidates: readonly PlannedRepoFile[]; readonly projection: RepoPath }): readonly PlannedRepoFile[] =>
   request.candidates.filter(
     (candidate) =>
-      projectionImportingOf({ file: candidate.file, text: candidate.text, versionOneProjection: request.projection, versionTwoProjection: request.projection }) === "imports",
+      projectionImportingOf({ file: candidate.file, text: candidate.text, versionOneProjection: request.projection }) === "imports",
   );
 
 const teamConfigFor = (request: { readonly candidates: readonly PlannedRepoFile[]; readonly projection: RepoPath }): Result<VersionOneProjection, TeamConfigRefusal> => {

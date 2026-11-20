@@ -539,7 +539,7 @@ An `arguments-invalid` line says what was wrong with the command as typed. Its w
 
 On success it prints `upgraded to version 2`, then a `wrote` line for each file it wrote, a `rewrote` line for each team config it rewrote, and a `removed` line for each version 1 file and folder it removed, and exits `0`. The version 1 files it removes are `disciplines.json`, every version 1 projection, and every `.json` file and folder it finds in `discipline-exceptions.json` or the `discipline-exceptions` folder, whether or not it holds a record. The `wrote`, `rewrote` and `removed` lines print a path inside `--repo` relative to it; the lines of a refusal print the paths as the files are, absolute.
 
-A refusal prints `upgrade refused:`, then one or more lines saying what to do, then either `Nothing was changed.` or the files that could not be put back, and exits `1`. A refusal before anything is written never changes the repository. A refusal after files were written puts them back. A file that could not be put back is named with what to do: a file or folder the upgrade created is deleted by hand, and a file it replaced is restored from version control. A refusal that names a fault in Hone prints where to report it. The upgrade asks version 1 which projections it writes by running version 1's own `project` once, after version 1's run has reported every projection current, so a current projection that no config root owns any more is removed, as version 1's own `project` removes it. A refusal that comes after that names each file it removed, as a file to restore from version control, and does not print `Nothing was changed.`; a success lists it among the version 1 files removed.
+A refusal prints `upgrade refused:`, then one or more lines saying what to do, then either `Nothing was changed.` or the files that could not be put back, and exits `1`. A refusal before anything is written never changes the repository. A refusal after files were written puts them back. A file that could not be put back is named with what to do: a file or folder the upgrade created is deleted by hand, and a file it replaced is restored from version control. A refusal that names a fault in Hone prints where to report it. The upgrade asks version 1 which projections it writes by running version 1's own `project` once, after version 1's run has reported every projection current, so a current projection that no config root owns any more is removed, as version 1's own `project` removes it. Version 1's own `project` is expected to change nothing but that removal: if it rewrites a projection, the upgrade refuses and names the file, since the run it measured was made before. A refusal that comes after that removal lists each file removed under `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:`, apart from the files the upgrade itself could not put back, and does not print `Nothing was changed.`; a success lists it among the version 1 files removed.
 
 When version 2 is in place but a version 1 file could not be removed, it prints `upgrade incomplete:`, the files it wrote, the file it could not remove, and every version 1 file still present, which it asks you to delete by hand, then commit, and exits `3`. Nothing is rolled back; the version 2 files stay. While `disciplines.json` is still beside `hone.config.json`, every `hone` command stops with `settings-in-both-versions`.
 
@@ -556,6 +556,8 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `version 1's own run could not be made (<detail>). Run hone check and fix its load failure first.` |
 | `upgrade` | `version 1's run failed (<detail>). Run hone check and fix its load failure first.` |
+| `upgrade` | `version 1's own project failed (<detail>). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.` |
+| `upgrade` | `version 1's own project rewrote <files>, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.` |
 | `upgrade` | `version 1's files could not be read (<detail>). Run hone check and fix its load failure first.` |
 | `upgrade` | `a finding of <clause> in <file> names no check of version 2. Report it at <issues page>.` |
 | `upgrade` | `<clause> in <file> is held by both a file carve-out and an authorised location. Remove one of them first, then run the upgrade again.` |
@@ -577,7 +579,7 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `the version 2 records would reach beyond the version 1 entries: <records>.` |
 | `upgrade` | `<config file> holds no static default import of <projection>. Change its import of it to the form import projection from "<specifier>", then run the upgrade again.` |
 | `upgrade` | `<config file> imports the version 1 projection <count> times. Import it once.` |
-| `upgrade` | `<config file> names the version 1 projection outside its import, or imports more than one projection. Remove the other mention, or leave one import in <config file>, then run the upgrade again.` |
+| `upgrade` | `<config file> names a version 1 projection outside the imports the upgrade rewrites, or imports one version 1 did not write. Remove the other mention or import, then run the upgrade again.` |
 | `upgrade` | `<file> cannot be placed in the repository. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `the version 1 records file <path> is outside <root>. This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` |
 | `upgrade` | `<path> already exists. Move it aside, then run the upgrade again.` |
@@ -589,6 +591,8 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `  <section>:` |
 | `upgrade` | `    only before: <before>` |
 | `upgrade` | `    only after: <after>` |
+| `upgrade` | `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:` |
+| `upgrade` | `  <removed path>` |
 | `upgrade` | `These files could not be put back; put them right by hand:` |
 | `upgrade` | `  delete <unrestored path> (<unrestored detail>)` |
 | `upgrade` | `  delete the empty folder <unrestored path> (<unrestored detail>)` |

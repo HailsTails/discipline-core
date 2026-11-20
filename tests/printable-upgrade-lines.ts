@@ -44,7 +44,7 @@ const BASE_FILLS: Fills = {
   specifier: "./disciplines.eslint.mjs",
 };
 
-const planRefused = (request: { readonly refusal: PlanRefusal }): UpgradeFailure => ({ kind: "plan-refused", refusal: request.refusal, unrestored: [] });
+const planRefused = (request: { readonly refusal: PlanRefusal }): UpgradeFailure => ({ kind: "plan-refused", refusal: request.refusal, removedByVersionOne: [] });
 
 const SAMPLES: readonly Sample[] = [
   { failure: { kind: "oracle-failed", failure: { kind: "version-one-run-failed", detail: "the detail" } }, fills: {} },
@@ -109,34 +109,42 @@ const SAMPLES: readonly Sample[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "slice-left-in-place", files: [SLICE] },
-      unrestored: [{ written: "file-replaced", path: absolutePathSchema.parse("/repo/old/disciplines.eslint.mjs"), detail: "version 1's own project removed it" }],
+      removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
     },
-    fills: { projection: SLICE, "unrestored path": "/repo/old/disciplines.eslint.mjs", "unrestored detail": "version 1's own project removed it" },
+    fills: { projection: SLICE, "removed path": "old/disciplines.eslint.mjs" },
   },
-  { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [] }, fills: {} },
-  { failure: { kind: "unplaceable-path", file: FILE, unrestored: [] }, fills: {} },
-  { failure: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO }, unrestored: [] }, fills: { root: REPO, path: OLD_FILE } },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] } }, fills: {} },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
-  { failure: { kind: "write-refused", refusal: { failure: { kind: "directory-uncreatable", path: SETTINGS, detail: "the detail" }, unrestored: [] } }, fills: {} },
+  { failure: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "the detail" }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "version-one-project-failed", detail: "the detail", removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "version-one-project-rewrote", files: [PROJECTION, SLICE], removedByVersionOne: [] }, fills: { files: "disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs" } },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-created", path: OLD_FILE, detail: "EBUSY" }] } },
+    failure: { kind: "version-one-project-rewrote", files: [PROJECTION], removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] },
+    fills: { files: "disciplines.eslint.mjs", "removed path": "old/disciplines.eslint.mjs" },
+  },
+  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "unplaceable-path", file: FILE, removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] }, fills: { "removed path": "old/disciplines.eslint.mjs" } },
+  { failure: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: OLD_FILE, root: REPO }, removedByVersionOne: [] }, fills: { root: REPO, path: OLD_FILE } },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "replaced-file-unreadable", path: SETTINGS, detail: "the detail" }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  { failure: { kind: "write-refused", refusal: { failure: { kind: "directory-uncreatable", path: SETTINGS, detail: "the detail" }, unrestored: [] }, removedByVersionOne: [] }, fills: {} },
+  {
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-created", path: OLD_FILE, detail: "EBUSY" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EBUSY" },
   },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "directory-created", path: OLD_FILE, detail: "EACCES" }] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "directory-created", path: OLD_FILE, detail: "EACCES" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EACCES" },
   },
   {
-    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-replaced", path: OLD_FILE, detail: "EPERM" }] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "unwritable", path: SETTINGS, detail: "the detail" }, unrestored: [{ written: "file-replaced", path: OLD_FILE, detail: "EPERM" }] }, removedByVersionOne: [] },
     fills: { "unrestored path": OLD_FILE, "unrestored detail": "EPERM" },
   },
-  { failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [] }, fills: {} },
+  { failure: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the detail" }, unrestored: [], removedByVersionOne: [] }, fills: {} },
   {
     failure: {
       kind: "differences",
       differences: [{ section: "findings", onlyBefore: ["CD-15#loops src/a.ts 3:1"], onlyAfter: ["CD-15#loops src/a.ts 4:1"] }],
       unrestored: [],
+      removedByVersionOne: [],
     },
     fills: { section: "findings", before: "CD-15#loops src/a.ts 3:1", after: "CD-15#loops src/a.ts 4:1" },
   },

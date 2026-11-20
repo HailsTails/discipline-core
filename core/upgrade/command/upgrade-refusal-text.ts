@@ -10,6 +10,7 @@ import type { UpgradeRefusal } from "../version-two-mapping/upgrade-refusal.ts";
 import type { ConfigImportRefusal } from "../version-two-writer/config-import-rewrite.ts";
 import type { OracleFailure } from "../carve-out-oracle/carve-out-oracle.ts";
 import type { PairingRefusal } from "../proof/projection-replacements.ts";
+import type { RepoPath } from "../../values/repo-path.ts";
 import type { TeamConfigRefusal } from "../proof/team-config-finder.ts";
 import type { VersionOneReadFailure } from "./version-one-reading.ts";
 
@@ -37,10 +38,23 @@ const unrestoredLineOf = (request: { readonly unrestored: Unrestored }): string 
   }
 };
 
-const unrestoredLinesOf = (request: { readonly unrestored: readonly Unrestored[] }): readonly string[] =>
-  request.unrestored.length === 0
-    ? [NOTHING_CHANGED]
-    : ["These files could not be put back; put them right by hand:", ...request.unrestored.map((unrestored) => unrestoredLineOf({ unrestored }))];
+type AfterVersionOne = { readonly removedByVersionOne: readonly RepoPath[] };
+
+const removedByVersionOneLinesOf = (request: AfterVersionOne): readonly string[] =>
+  request.removedByVersionOne.length === 0
+    ? []
+    : ["version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:", ...request.removedByVersionOne.map((path) => `  ${path}`)];
+
+const unrestoredLinesOf = (request: AfterVersionOne & { readonly unrestored: readonly Unrestored[] }): readonly string[] => {
+  const removed = removedByVersionOneLinesOf(request);
+  if (removed.length === 0 && request.unrestored.length === 0) {
+    return [NOTHING_CHANGED];
+  }
+  return [
+    ...removed,
+    ...(request.unrestored.length === 0 ? [] : ["These files could not be put back; put them right by hand:", ...request.unrestored.map((unrestored) => unrestoredLineOf({ unrestored }))]),
+  ];
+};
 
 const oracleLineOf = (request: { readonly failure: OracleFailure }): string => {
   const { failure } = request;
@@ -98,7 +112,7 @@ const configLineOf = (request: { readonly refusal: ConfigImportRefusal }): strin
     case "several-projection-imports":
       return `${refusal.file} imports the version 1 projection ${refusal.count} times. Import it once.`;
     case "projection-named-elsewhere":
-      return `${refusal.file} names the version 1 projection outside its import, or imports more than one projection. Remove the other mention, or leave one import in ${refusal.file}, then run the upgrade again.`;
+      return `${refusal.file} names a version 1 projection outside the imports the upgrade rewrites, or imports one version 1 did not write. Remove the other mention or import, then run the upgrade again.`;
   }
 };
 
@@ -119,7 +133,7 @@ const pairingLineOf = (request: { readonly refusal: PairingRefusal }): string =>
   }
 };
 
-const planLinesOf =(request: { readonly refusal: PlanRefusal }): readonly string[] => {
+const planLinesOf = (request: { readonly refusal: PlanRefusal }): readonly string[] => {
   const { refusal } = request;
   switch (refusal.kind) {
     case "carve-out-unanswered":
@@ -205,27 +219,43 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal }): { readonly c
     case "oracle-failed":
       return { code: 1, lines: [oracleLineOf({ failure: failure.failure }), NOTHING_CHANGED] };
     case "plan-refused":
-      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), ...unrestoredLinesOf({ unrestored: failure.unrestored })] };
+      return { code: 1, lines: [...planLinesOf({ refusal: failure.refusal }), ...unrestoredLinesOf({ ...failure, unrestored: [] })] };
     case "version-one-run-failed":
       return {
         code: 1,
-        lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ unrestored: failure.unrestored })],
+        lines: [`version 1's run failed (${failure.failure.detail}). Run hone check and fix its load failure first.`, ...unrestoredLinesOf({ ...failure, unrestored: [] })],
+      };
+    case "version-one-project-failed":
+      return {
+        code: 1,
+        lines: [
+          `version 1's own project failed (${failure.detail}). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.`,
+          ...unrestoredLinesOf({ ...failure, unrestored: [] }),
+        ],
+      };
+    case "version-one-project-rewrote":
+      return {
+        code: 1,
+        lines: [
+          `version 1's own project rewrote ${failure.files.join(", ")}, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.`,
+          ...removedByVersionOneLinesOf(failure),
+        ],
       };
     case "unplaceable-path":
-      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ unrestored: failure.unrestored })] };
+      return { code: 1, lines: [`${failure.file} cannot be placed in the repository. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, unrestored: [] })] };
     case "removal-refused":
       return {
         code: 1,
-        lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ unrestored: failure.unrestored })],
+        lines: [`the version 1 records file ${failure.failure.path} is outside ${failure.failure.root}. ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, unrestored: [] })],
       };
     case "write-refused":
-      return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ unrestored: failure.refusal.unrestored })] };
+      return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ ...failure, unrestored: failure.refusal.unrestored })] };
     case "version-two-run-failed":
-      return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ unrestored: failure.unrestored })] };
+      return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf(failure)] };
     case "differences":
       return {
         code: 1,
-        lines: ["version 2 does not report what version 1 reported:", ...differenceLinesOf({ failure }), FAULT_IN_HONE, ...unrestoredLinesOf({ unrestored: failure.unrestored })],
+        lines: ["version 2 does not report what version 1 reported:", ...differenceLinesOf({ failure }), FAULT_IN_HONE, ...unrestoredLinesOf(failure)],
       };
     case "removal-failed":
       return {

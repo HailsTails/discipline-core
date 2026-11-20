@@ -39,7 +39,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "mapping-refused", refusals: [{ kind: "record-answers-nothing", clause: "CD-15#loops", file: repoPathSchema.parse("src/a.ts"), credited: "nothing" }] },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -48,7 +48,7 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "version 2's projection cannot be made",
-    failure: { kind: "plan-refused", refusal: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } }, unrestored: [] },
+    failure: { kind: "plan-refused", refusal: { kind: "projection-failed", failure: { kind: "unknown-check", check: "names#names" } }, removedByVersionOne: [] },
     outcome: { code: 1, text: "upgrade refused:\nversion 2's projection could not be made (load failure: unknown-check names#names). Fix what it names, then run the upgrade again.\nNothing was changed.\n" },
   },
   {
@@ -56,7 +56,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "projection-failed", failure: { kind: "not-ready-yet", what: { thing: "eslint-config-roots", paths: ["vendor/lib"] } } },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -71,7 +71,7 @@ const ROWS: readonly Row[] = [
         kind: "projections-unpaired",
         refusal: { kind: "version-one-projection-unpaired", projection: repoPathSchema.parse("packages/a/disciplines.eslint.mjs"), config: repoPathSchema.parse("packages/a/eslint.config.mjs"), folder: "packages/a" },
       },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -83,7 +83,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: repoPathSchema.parse("packages/a/hone.eslint.mjs"), folder: "packages/a" } },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -95,7 +95,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: repoPathSchema.parse("hone.eslint.mjs"), folder: "" } },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -104,7 +104,7 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "a version 1 slice belongs to no config root and is out of date",
-    failure: { kind: "plan-refused", refusal: { kind: "slice-left-in-place", files: [repoPathSchema.parse("old/disciplines.eslint.mjs"), repoPathSchema.parse("older/disciplines.eslint.mjs")] }, unrestored: [] },
+    failure: { kind: "plan-refused", refusal: { kind: "slice-left-in-place", files: [repoPathSchema.parse("old/disciplines.eslint.mjs"), repoPathSchema.parse("older/disciplines.eslint.mjs")] }, removedByVersionOne: [] },
     outcome: {
       code: 1,
       text: "upgrade refused:\nthe version 1 projection old/disciplines.eslint.mjs belongs to no config root and is out of date. Delete it or restore its config root, commit, then run the upgrade again.\nthe version 1 projection older/disciplines.eslint.mjs belongs to no config root and is out of date. Delete it or restore its config root, commit, then run the upgrade again.\nNothing was changed.\n",
@@ -115,11 +115,11 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: repoPathSchema.parse("disciplines.eslint.mjs") } },
-      unrestored: [{ written: "file-replaced", path: absolutePathSchema.parse("/repo/old/disciplines.eslint.mjs"), detail: "version 1's own project removed it" }],
+      removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
     },
     outcome: {
       code: 1,
-      text: 'upgrade refused:\nno file imports disciplines.eslint.mjs with a static default import. Change the ESLint config next to it to import it in the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nThese files could not be put back; put them right by hand:\n  restore /repo/old/disciplines.eslint.mjs from version control (version 1\'s own project removed it)\n',
+      text: 'upgrade refused:\nno file imports disciplines.eslint.mjs with a static default import. Change the ESLint config next to it to import it in the form import projection from "./disciplines.eslint.mjs", then run the upgrade again.\nversion 1\'s own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n',
     },
   },
   {
@@ -151,7 +151,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "config-import-refused", refusal: { kind: "no-projection-import", file: repoPathSchema.parse("packages/a/eslint.config.mjs"), projection: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") } },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -160,15 +160,15 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "a config names the version 1 projection outside its import",
-    failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: repoPathSchema.parse("eslint.config.mjs") } }, unrestored: [] },
+    failure: { kind: "plan-refused", refusal: { kind: "config-import-refused", refusal: { kind: "projection-named-elsewhere", file: repoPathSchema.parse("eslint.config.mjs") } }, removedByVersionOne: [] },
     outcome: {
       code: 1,
-      text: "upgrade refused:\neslint.config.mjs names the version 1 projection outside its import, or imports more than one projection. Remove the other mention, or leave one import in eslint.config.mjs, then run the upgrade again.\nNothing was changed.\n",
+      text: "upgrade refused:\neslint.config.mjs names a version 1 projection outside the imports the upgrade rewrites, or imports one version 1 did not write. Remove the other mention or import, then run the upgrade again.\nNothing was changed.\n",
     },
   },
   {
     name: "the written records would reach beyond the entries",
-    failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] }, unrestored: [] },
+    failure: { kind: "plan-refused", refusal: { kind: "reach-beyond-entries", records: [{ symptom: "loop-keyword#loops", file: "src/b.ts" }] }, removedByVersionOne: [] },
     outcome: {
       code: 1,
       text: `upgrade refused:\nthe version 2 records would reach beyond the version 1 entries: loop-keyword#loops in src/b.ts.\n${FAULT}\nNothing was changed.\n`,
@@ -179,7 +179,7 @@ const ROWS: readonly Row[] = [
     failure: {
       kind: "plan-refused",
       refusal: { kind: "team-config-refused", refusal: { kind: "no-file-imports-projection", projection: repoPathSchema.parse("packages/a/disciplines.eslint.mjs") } },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -194,7 +194,7 @@ const ROWS: readonly Row[] = [
         kind: "team-config-refused",
         refusal: { kind: "several-files-import-projection", projection: repoPathSchema.parse("disciplines.eslint.mjs"), files: [repoPathSchema.parse("a.config.mjs"), repoPathSchema.parse("b.config.mjs")] },
       },
-      unrestored: [],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -202,8 +202,49 @@ const ROWS: readonly Row[] = [
     },
   },
   {
+    name: "version 1's own project fails",
+    failure: { kind: "version-one-project-failed", detail: "disk full", removedByVersionOne: [] },
+    outcome: {
+      code: 1,
+      text: "upgrade refused:\nversion 1's own project failed (disk full). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.\nNothing was changed.\n",
+    },
+  },
+  {
+    name: "version 1's own project rewrote projections and removed a slice",
+    failure: {
+      kind: "version-one-project-rewrote",
+      files: [repoPathSchema.parse("disciplines.eslint.mjs"), repoPathSchema.parse("packages/a/disciplines.eslint.mjs")],
+      removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
+    },
+    outcome: {
+      code: 1,
+      text: "upgrade refused:\nversion 1's own project rewrote disciplines.eslint.mjs, packages/a/disciplines.eslint.mjs, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n",
+    },
+  },
+  {
+    name: "a slice version 1 removed cannot be placed in the repository",
+    failure: { kind: "unplaceable-path", file: repoPathSchema.parse("old/disciplines.eslint.mjs"), removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")] },
+    outcome: {
+      code: 1,
+      text: `upgrade refused:\nold/disciplines.eslint.mjs cannot be placed in the repository. ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\n`,
+    },
+  },
+  {
+    name: "a file the upgrade wrote cannot be put back after version 1's project removed a slice",
+    failure: {
+      kind: "version-two-run-failed",
+      failure: { kind: "run-failed", detail: "config unreadable" },
+      unrestored: [{ written: "file-created", path: SETTINGS, detail: "EBUSY" }],
+      removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
+    },
+    outcome: {
+      code: 1,
+      text: `upgrade refused:\nversion 2's run failed (config unreadable). ${FAULT}\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  old/disciplines.eslint.mjs\nThese files could not be put back; put them right by hand:\n  delete /repo/hone.config.json (EBUSY)\n`,
+    },
+  },
+  {
     name: "a version 2 file already exists",
-    failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] } },
+    failure: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS }, unrestored: [] }, removedByVersionOne: [] },
     outcome: { code: 1, text: "upgrade refused:\n/repo/hone.config.json already exists. Move it aside, then run the upgrade again.\nNothing was changed.\n" },
   },
   {
@@ -216,6 +257,7 @@ const ROWS: readonly Row[] = [
         { written: "directory-created", path: RECORDS_FOLDER, detail: "EACCES" },
         { written: "file-replaced", path: OLD_FILE, detail: "EPERM" },
       ],
+      removedByVersionOne: [],
     },
     outcome: {
       code: 1,
@@ -224,7 +266,7 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "the two runs differ",
-    failure: { kind: "differences", differences: [{ section: "findings", onlyBefore: [], onlyAfter: ["CD-15#loops src/a.ts 3:1"] }], unrestored: [] },
+    failure: { kind: "differences", differences: [{ section: "findings", onlyBefore: [], onlyAfter: ["CD-15#loops src/a.ts 3:1"] }], unrestored: [], removedByVersionOne: [] },
     outcome: {
       code: 1,
       text: `upgrade refused:\nversion 2 does not report what version 1 reported:\n  findings:\n    only after: CD-15#loops src/a.ts 3:1\n${FAULT}\nNothing was changed.\n`,
@@ -246,7 +288,7 @@ const ROWS: readonly Row[] = [
   },
   {
     name: "a project clause has no version 2 check",
-    failure: { kind: "plan-refused", refusal: { kind: "mapping-refused", refusals: [{ kind: "clause-without-check", clause: "acme/CD-1#thing" }] }, unrestored: [] },
+    failure: { kind: "plan-refused", refusal: { kind: "mapping-refused", refusals: [{ kind: "clause-without-check", clause: "acme/CD-1#thing" }] }, removedByVersionOne: [] },
     outcome: {
       code: 1,
       text: "upgrade refused:\nacme/CD-1#thing has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.\nNothing was changed.\n",

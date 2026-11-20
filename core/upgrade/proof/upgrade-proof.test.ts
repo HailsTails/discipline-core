@@ -7,7 +7,7 @@ import type { DirectoryRemovalPort } from "../../platform-ports/directory-remova
 import type { FileCreationPort } from "../../platform-ports/file-creation-port.ts";
 import type { FileRemovalPort } from "../../platform-ports/file-removal-port.ts";
 import type { DirectoryPort, EntryKindPort, FileTextPort } from "../../platform-ports/file-system-port.ts";
-import { createPathPort } from "../../platform-ports/path-port.ts";
+import { createPathPort, type PathPort } from "../../platform-ports/path-port.ts";
 import type { RunReport } from "../../report/run-report.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
 import { absolutePathSchema } from "../../values/absolute-path.ts";
@@ -20,7 +20,7 @@ import type { HeadRecord } from "../version-one-head/head-records.ts";
 import { type ProofRuns, upgradeProof, type UpgradeProofRequest } from "./upgrade-proof.ts";
 import type { ProjectionFilesOf, VersionOneReading } from "./upgrade-plan.ts";
 import type { VersionOneProjection } from "./team-config-finder.ts";
-import type { ChangedByVersionOne, VersionOneProjectionsOf, VersionOneProjectionsReading } from "./version-one-projections-reading.ts";
+import type { VersionOneProjectionsOf, VersionOneProjectionsReading } from "./version-one-projections-reading.ts";
 
 const CATALOGUES: readonly RuleSetCatalogue[] = [{ ruleSet: TOOL_RULE_SET, catalogue: SETTINGS_CATALOGUE }];
 
@@ -60,9 +60,9 @@ const ROOT_PROJECTION: VersionOneProjection = {
   teamConfig: { file: repoPathSchema.parse("eslint.config.mjs"), text: ORIGINAL_CONFIG },
 };
 
-const FOUND_PROJECTIONS: VersionOneProjectionsReading = { changed: [], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } };
+const FOUND_PROJECTIONS: VersionOneProjectionsReading = { removed: [], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } };
 
-const REMOVED_ORPHAN: ChangedByVersionOne = { kind: "removed", path: repoPathSchema.parse("old/disciplines.eslint.mjs") };
+const ORPHAN = repoPathSchema.parse("old/disciplines.eslint.mjs");
 
 const EMPTY_BEFORE: CheckReport = {
   excluded: [],
@@ -228,7 +228,6 @@ const RUNNING_VERSION_ONE = [{ port: "versionOne", arguments: [] }];
 
 const NO_IMPORTER = { kind: "no-file-imports-projection", projection: repoPathSchema.parse("disciplines.eslint.mjs") } as const;
 
-const RESTORE_ORPHAN = { written: "file-replaced", path: "/repo/old/disciplines.eslint.mjs", detail: "version 1's own project removed it" } as const;
 
 const READING_PROJECTIONS = [{ port: "projections", arguments: [] }];
 
@@ -316,7 +315,7 @@ describe("upgradeProof", () => {
       error: {
         kind: "plan-refused",
         refusal: { kind: "mapping-refused", refusals: [{ kind: "record-answers-nothing", clause: "CD-15#loops", file: "src/a.ts", credited: "nothing" }] },
-        unrestored: [],
+        removedByVersionOne: [],
       },
     });
     expect(sequenceOf({ doubles })).toEqual(ASKING_THE_ORACLE);
@@ -327,7 +326,7 @@ describe("upgradeProof", () => {
     doubles.runs.versionOne.mockResolvedValue({ outcome: "failed", error: { kind: "run-failed", detail: "no selection" } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "no selection" }, unrestored: [] },
+      error: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "no selection" }, removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE]);
   });
@@ -336,7 +335,7 @@ describe("upgradeProof", () => {
     const doubles = doublesOver({ kindOf: kindsOfExistingFirstFile() });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS_PATH }, unrestored: [] } },
+      error: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS_PATH }, unrestored: [] }, removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, { port: "kindOf", arguments: [{ path: SETTINGS_PATH }] }]);
   });
@@ -346,7 +345,7 @@ describe("upgradeProof", () => {
     doubles.runs.versionTwo.mockResolvedValue({ outcome: "failed", error: { kind: "run-failed", detail: "config unreadable" } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "config unreadable" }, unrestored: [] },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "config unreadable" }, unrestored: [], removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
   });
@@ -363,6 +362,7 @@ describe("upgradeProof", () => {
           { section: "verdict", onlyBefore: ["pass"], onlyAfter: ["fail"] },
         ],
         unrestored: [],
+        removedByVersionOne: [],
       },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
@@ -418,7 +418,7 @@ describe("upgradeProof", () => {
     const request = requestOver({ doubles });
     await expect(upgradeProof({ ...request, versionOneFiles: { ...request.versionOneFiles, recordsFiles: [repoPathSchema.parse("tools/x.json")] } })).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: "/repo/tools/x.json", root: "/repo/discipline-exceptions" }, unrestored: [] },
+      error: { kind: "removal-refused", failure: { kind: "records-file-outside-root", path: "/repo/tools/x.json", root: "/repo/discipline-exceptions" }, removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS]);
   });
@@ -428,7 +428,7 @@ describe("upgradeProof", () => {
     doubles.runs.versionTwo.mockRejectedValue(new Error("the runner threw"));
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [] },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [], removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
   });
@@ -439,53 +439,74 @@ describe("upgradeProof", () => {
     doubles.ports.fileRemoval.remove.mockReturnValueOnce(ok).mockReturnValueOnce({ outcome: "failed", error: { kind: "unremovable", path: DEBT_PATH, detail: "EBUSY" } }).mockReturnValue(ok);
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [{ written: "file-created", path: DEBT_PATH, detail: "EBUSY" }] },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "the runner threw" }, unrestored: [{ written: "file-created", path: DEBT_PATH, detail: "EBUSY" }], removedByVersionOne: [] },
     });
   });
 
   it("refuses without listing anything to restore when the team config is refused and version 1 changed nothing", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [], outcome: { outcome: "failed", error: { kind: "team-config-refused", refusal: NO_IMPORTER } } });
+    doubles.projections.mockResolvedValue({ removed: [], outcome: { outcome: "failed", error: { kind: "team-config-refused", refusal: NO_IMPORTER } } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "plan-refused", refusal: { kind: "team-config-refused", refusal: NO_IMPORTER }, unrestored: [] },
+      error: { kind: "plan-refused", refusal: { kind: "team-config-refused", refusal: NO_IMPORTER }, removedByVersionOne: [] },
     });
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS]);
   });
 
   it("names the slice version 1 removed to restore when the team config is refused after it", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [REMOVED_ORPHAN], outcome: { outcome: "failed", error: { kind: "team-config-refused", refusal: NO_IMPORTER } } });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "failed", error: { kind: "team-config-refused", refusal: NO_IMPORTER } } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "plan-refused", refusal: { kind: "team-config-refused", refusal: NO_IMPORTER }, unrestored: [RESTORE_ORPHAN] },
+      error: { kind: "plan-refused", refusal: { kind: "team-config-refused", refusal: NO_IMPORTER }, removedByVersionOne: ["old/disciplines.eslint.mjs"] },
     });
   });
 
   it("names the slice version 1 left in place when it refuses, and the one it removed to restore", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
     doubles.projections.mockResolvedValue({
-      changed: [REMOVED_ORPHAN],
+      removed: [ORPHAN],
       outcome: { outcome: "failed", error: { kind: "slice-left-in-place", files: [repoPathSchema.parse("stale/disciplines.eslint.mjs")] } },
     });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "plan-refused", refusal: { kind: "slice-left-in-place", files: ["stale/disciplines.eslint.mjs"] }, unrestored: [RESTORE_ORPHAN] },
+      error: { kind: "plan-refused", refusal: { kind: "slice-left-in-place", files: ["stale/disciplines.eslint.mjs"] }, removedByVersionOne: ["old/disciplines.eslint.mjs"] },
     });
   });
 
-  it("refuses as a failed version 1 run when version 1's project fails", async () => {
+  it("refuses naming what failed when version 1's project fails", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [], outcome: { outcome: "failed", error: { kind: "project-failed", detail: "disk full" } } });
+    doubles.projections.mockResolvedValue({ removed: [], outcome: { outcome: "failed", error: { kind: "project-failed", detail: "disk full" } } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-one-run-failed", failure: { kind: "run-failed", detail: "disk full" }, unrestored: [] },
+      error: { kind: "version-one-project-failed", detail: "disk full", removedByVersionOne: [] },
+    });
+  });
+
+  it("refuses naming each file version 1's project rewrote, and the slice it removed, without writing anything", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "failed", error: { kind: "project-rewrote", files: [repoPathSchema.parse("disciplines.eslint.mjs")] } } });
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "version-one-project-rewrote", files: ["disciplines.eslint.mjs"], removedByVersionOne: ["old/disciplines.eslint.mjs"] },
+    });
+    expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS]);
+  });
+
+  it("names the slice version 1 removed when that slice cannot be placed in the repository", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
+    const request = requestOver({ doubles });
+    const unplaceable = { ...request, ports: { ...request.ports, path: { ...request.ports.path, join: vi.fn<PathPort["join"]>().mockReturnValue("not-absolute") } } };
+    await expect(upgradeProof(unplaceable)).resolves.toEqual({
+      outcome: "failed",
+      error: { kind: "unplaceable-path", file: "old/disciplines.eslint.mjs", removedByVersionOne: ["old/disciplines.eslint.mjs"] },
     });
   });
 
   it("refuses a version 2 projection no version 1 projection stands behind, naming the slice version 1 removed to restore", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [REMOVED_ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
     const request = {
       ...requestOver({ doubles }),
       projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({
@@ -501,33 +522,33 @@ describe("upgradeProof", () => {
       error: {
         kind: "plan-refused",
         refusal: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: "packages/a/hone.eslint.mjs", folder: "packages/a" } },
-        unrestored: [RESTORE_ORPHAN],
+        removedByVersionOne: ["old/disciplines.eslint.mjs"],
       },
     });
   });
 
   it("names the slice version 1 removed to restore when a file it would write already exists", async () => {
     const doubles = doublesOver({ kindOf: kindsOfExistingFirstFile() });
-    doubles.projections.mockResolvedValue({ changed: [REMOVED_ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS_PATH }, unrestored: [RESTORE_ORPHAN] } },
+      error: { kind: "write-refused", refusal: { failure: { kind: "path-already-exists", path: SETTINGS_PATH }, unrestored: [] }, removedByVersionOne: ["old/disciplines.eslint.mjs"] },
     });
   });
 
   it("names the slice version 1 removed to restore, with what it rolled back, when the version 2 run fails", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [REMOVED_ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
     doubles.runs.versionTwo.mockResolvedValue({ outcome: "failed", error: { kind: "run-failed", detail: "config unreadable" } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
-      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "config unreadable" }, unrestored: [RESTORE_ORPHAN] },
+      error: { kind: "version-two-run-failed", failure: { kind: "run-failed", detail: "config unreadable" }, unrestored: [], removedByVersionOne: ["old/disciplines.eslint.mjs"] },
     });
   });
 
   it("lists the slice version 1 removed among the version 1 files removed, first", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
-    doubles.projections.mockResolvedValue({ changed: [REMOVED_ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
+    doubles.projections.mockResolvedValue({ removed: [ORPHAN], outcome: { outcome: "ok", value: [ROOT_PROJECTION] } });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "ok",
       value: {
