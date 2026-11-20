@@ -130,7 +130,7 @@ const ruleSetFaultOf = (request: { readonly ruleSets: readonly DeclaredRuleSet[]
   return collisions[0];
 };
 
-const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
+export const eslintConfigLookupOf = (request: { readonly declared: EslintConfigLookup | undefined }): EslintConfigLookupChoice =>
   request.declared === undefined ? { lookup: "detected" } : { lookup: "declared", value: request.declared };
 
 const settingsFileOfWire = (request: { readonly wire: SettingsFileWire; readonly conventions: ConventionsReading }): SettingsFile => ({
