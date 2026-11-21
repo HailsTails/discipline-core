@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { singleFileRepositoriesOver } from "../../tests/records-disk.ts";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { ABSENT_FILE, type FakeFile, type JsonValue, presentFile, presentJsonFile } from "../../tests/fake-file.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
-import type { PathPort } from "../platform-ports/path-port.ts";
+import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
@@ -14,21 +14,6 @@ import { reportOutputSchema } from "../values/report-output.ts";
 import { type CommandRequest, runCheckCommand } from "./run-check-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
-
-type FakeFile = {
-  readonly read: ReturnType<FileTextPort["read"]>;
-  readonly presence: ReturnType<FileTextPort["exists"]>;
-};
-
-const presentFile = (request: { readonly text: string }): FakeFile => ({
-  read: { outcome: "ok", value: request.text },
-  presence: "present",
-});
-
-const ABSENT_FILE: FakeFile = {
-  read: { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } },
-  presence: "absent",
-};
 
 const CLASS_SYNTAX_DEFINITION = {
   kind: "mechanical",
@@ -42,28 +27,46 @@ const CLASS_SYNTAX_DEFINITION = {
   },
 };
 
+const CLASS_SYNTAX_CLAUSES = { "CD-14#class-syntax": "audit" };
+
+const PLAIN_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES };
+
+const COUNTS_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, reportOutput: "counts" };
+
+const VERDICT_ONLY_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, reportOutput: "verdict-only" };
+
+const NOT_AN_OUTPUT_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, reportOutput: "summary" };
+
+const CONFIGURED_OUTPUTS = [
+  { output: "full", settings: { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, reportOutput: "full" } },
+  { output: "failures-only", settings: { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, reportOutput: "failures-only" } },
+  { output: "counts", settings: COUNTS_SETTINGS },
+  { output: "verdict-only", settings: VERDICT_ONLY_SETTINGS },
+];
+
+const FORFEITURE_ELSEWHERE_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, assessment: { forfeiture: "elsewhere" } };
+
+const FORFEITURE_THIS_RUN_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, assessment: { forfeiture: "this-run" } };
+
+const FORFEITURE_REPORTED_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, assessment: { forfeiture: "reported" } };
+
+const HONE_EVIDENCE_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, assessment: { eslint: { evidence: "hone" } } };
+
+const WAIVED_NOT_RUN_SETTINGS = { version: 1, ruleSets: {}, clauses: CLASS_SYNTAX_CLAUSES, assessment: { waivedClauses: "not-run" } };
+
 const NOTHING_SELECTED: Readonly<Record<string, FakeFile>> = {
   "/install/package.json": ABSENT_FILE,
-  "/repo/disciplines.json": presentFile({ text: JSON.stringify({ version: 1, ruleSets: {}, clauses: {} }) }),
+  "/repo/disciplines.json": presentJsonFile({ document: { version: 1, ruleSets: {}, clauses: {} } }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
 };
 
-const classSyntaxSelectedWith = (settings: Readonly<Record<string, unknown>>): Readonly<Record<string, FakeFile>> => ({
-  "/repo/disciplines.json": presentFile({
-    text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, ...settings }),
-  }),
+const classSyntaxSelectedWith = (request: { readonly settings: JsonValue }): Readonly<Record<string, FakeFile>> => ({
+  "/repo/disciplines.json": presentJsonFile({ document: request.settings }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
   "/install/package.json": ABSENT_FILE,
-  "/install/rules/CD-14/discipline.json": presentFile({
-    text: JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] }),
-  }),
-  "/install/mechanisms/audit/CD-14/piece.json": presentFile({
-    text: JSON.stringify({
-      version: 1,
-      discipline: "CD-14",
-      mechanism: "audit",
-      clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }],
-    }),
+  "/install/rules/CD-14/discipline.json": presentJsonFile({ document: { version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] } }),
+  "/install/mechanisms/audit/CD-14/piece.json": presentJsonFile({
+    document: { version: 1, discipline: "CD-14", mechanism: "audit", clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }] },
   }),
   "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
@@ -71,7 +74,7 @@ const classSyntaxSelectedWith = (settings: Readonly<Record<string, unknown>>): R
   "/install/rules/CD-14/README.md": presentFile({ text: "# CD-14\n" }),
 });
 
-const CLASS_SYNTAX_SELECTED = classSyntaxSelectedWith({});
+const CLASS_SYNTAX_SELECTED = classSyntaxSelectedWith({ settings: PLAIN_SETTINGS });
 
 const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort => ({
   read: ({ path }) => files[path].read,
@@ -79,34 +82,12 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
   write: vi.fn<FileTextPort["write"]>(),
 });
 
-const JOINED_PATHS: Readonly<Record<string, string>> = {
-  '["/repo","disciplines.json"]': "/repo/disciplines.json",
-  '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
-  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
-  '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
-  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
-  '["/install","package.json"]': "/install/package.json",
-  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
-  '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
-  '["/repo","src/a.ts"]': "/repo/src/a.ts",
-  '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
-  '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
-  '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
-  '["/install","mechanisms","audit","runner","runner.ts"]': "/install/mechanisms/audit/runner/runner.ts",
-};
+const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
-const FILE_CARVE_OUT_ON_A = JSON.stringify({
+const FILE_CARVE_OUT_ON_A = {
   version: 1,
-  exceptions: [
-    {
-      kind: "file-carve-out",
-      clause: "CD-14#class-syntax",
-      file: "src/a.ts",
-      reason: "legacy class awaiting paydown",
-      whyChain: CAUSAL_WHY_CHAIN,
-    },
-  ],
-});
+  exceptions: [{ kind: "file-carve-out", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "legacy class awaiting paydown" }],
+};
 
 const FILE_PATHS: Readonly<Record<string, string>> = {
   [ENTRY_URL]: "/install/core/check/tool-command.ts",
@@ -119,12 +100,9 @@ const DIRECTORIES: Readonly<Record<string, string>> = {
 };
 
 const TABLE_PATH: PathPort = {
-  join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
+  ...POSIX_PATH,
   relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
-  joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
-  repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
-  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(path) }),
   fromFileUrl: ({ url }) => ({ outcome: "ok", value: absolutePathSchema.parse(FILE_PATHS[url]) }),
 };
 
@@ -238,7 +216,7 @@ describe("runCheckCommand", () => {
         process: processWith({ arguments: ["--repo", "/repo", "--base-revision", "main"] }),
         fileText: fileTextOver({
           ...CLASS_SYNTAX_SELECTED,
-          "/repo/discipline-exceptions.json": presentFile({ text: FILE_CARVE_OUT_ON_A }),
+          "/repo/discipline-exceptions.json": presentJsonFile({ document: FILE_CARVE_OUT_ON_A }),
         }),
         git,
       }),
@@ -250,13 +228,13 @@ describe("runCheckCommand", () => {
 
 const checkedWith = async (request: {
   readonly arguments: readonly string[];
-  readonly settings: Readonly<Record<string, unknown>>;
+  readonly settings: JsonValue;
 }) => {
   const processPort = processWith({ arguments: request.arguments });
   await runCheckCommand(
     commandRequest({
       process: processPort,
-      fileText: fileTextOver(classSyntaxSelectedWith(request.settings)),
+      fileText: fileTextOver(classSyntaxSelectedWith({ settings: request.settings })),
       modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
       git: gitTracking([repoPathSchema.parse("src/a.ts")]),
     }),
@@ -268,14 +246,14 @@ const FAILING_FULL_REPORT = "findings (1)\nCD-14#class-syntax audit src/a.ts:3:0
 
 describe("runCheckCommand report output", () => {
   it("prints the full report when neither --report-output nor disciplines.json sets an output", async () => {
-    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: {} })).toEqual({
+    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: PLAIN_SETTINGS })).toEqual({
       writes: [[{ text: FAILING_FULL_REPORT }]],
       exits: [[{ code: 1 }]],
     });
   });
 
   it("prints the output disciplines.json sets when --report-output is not given", async () => {
-    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: { reportOutput: "counts" } })).toEqual({
+    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: COUNTS_SETTINGS })).toEqual({
       writes: [[{ text: "findings (1)\nreadFirst (2) guidance\nverdict: fail\n" }]],
       exits: [[{ code: 1 }]],
     });
@@ -285,21 +263,19 @@ describe("runCheckCommand report output", () => {
     expect(
       await checkedWith({
         arguments: ["--repo", "/repo", "--report-output", "full"],
-        settings: { reportOutput: "verdict-only" },
+        settings: VERDICT_ONLY_SETTINGS,
       }),
     ).toEqual({ writes: [[{ text: FAILING_FULL_REPORT }]], exits: [[{ code: 1 }]] });
   });
 
   it.each(reportOutputSchema.options)("exits 1 for a failing run requested as %s", async (output) => {
-    expect((await checkedWith({ arguments: ["--repo", "/repo", "--report-output", output], settings: {} })).exits).toEqual(
+    expect((await checkedWith({ arguments: ["--repo", "/repo", "--report-output", output], settings: PLAIN_SETTINGS })).exits).toEqual(
       [[{ code: 1 }]],
     );
   });
 
-  it.each(reportOutputSchema.options)("exits 1 for a failing run configured as %s", async (reportOutput) => {
-    expect((await checkedWith({ arguments: ["--repo", "/repo"], settings: { reportOutput } })).exits).toEqual([
-      [{ code: 1 }],
-    ]);
+  it.each(CONFIGURED_OUTPUTS)("exits 1 for a failing run configured as $output", async ({ settings }) => {
+    expect((await checkedWith({ arguments: ["--repo", "/repo"], settings })).exits).toEqual([[{ code: 1 }]]);
   });
 
   it.each(reportOutputSchema.options)("exits 0 printing the pass verdict for a clean run requested as %s", async (output) => {
@@ -311,14 +287,14 @@ describe("runCheckCommand report output", () => {
   });
 
   it("exits 2 with the arguments-invalid line naming --report-output when its value is not an output", async () => {
-    expect(await checkedWith({ arguments: ["--repo", "/repo", "--report-output", "summary"], settings: {} })).toEqual({
+    expect(await checkedWith({ arguments: ["--repo", "/repo", "--report-output", "summary"], settings: PLAIN_SETTINGS })).toEqual({
       writes: [[{ text: expect.stringMatching(/^load failure: arguments-invalid .*--report-output/) }]],
       exits: [[{ code: 2 }]],
     });
   });
 
   it("exits 2 with the file-malformed line when disciplines.json sets an output that is not one", async () => {
-    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: { reportOutput: "summary" } })).toEqual({
+    expect(await checkedWith({ arguments: ["--repo", "/repo"], settings: NOT_AN_OUTPUT_SETTINGS })).toEqual({
       writes: [[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*reportOutput/) }]],
       exits: [[{ code: 2 }]],
     });
@@ -326,7 +302,7 @@ describe("runCheckCommand report output", () => {
 
   it("exits 2 with the file-malformed line for an invalid disciplines.json output even when --report-output is given", async () => {
     expect(
-      await checkedWith({ arguments: ["--repo", "/repo", "--report-output", "full"], settings: { reportOutput: "summary" } }),
+      await checkedWith({ arguments: ["--repo", "/repo", "--report-output", "full"], settings: NOT_AN_OUTPUT_SETTINGS }),
     ).toEqual({
       writes: [[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json /) }]],
       exits: [[{ code: 2 }]],
@@ -399,7 +375,7 @@ describe("runCheckCommand given a folder that holds no disciplines.json", () => 
 
 const carvedRunWith = async (request: {
   readonly arguments: readonly string[];
-  readonly settings: Readonly<Record<string, unknown>>;
+  readonly settings: JsonValue;
 }) => {
   const processPort = processWith({ arguments: request.arguments });
   const git = gitTracking([repoPathSchema.parse("src/a.ts")]);
@@ -408,8 +384,8 @@ const carvedRunWith = async (request: {
     commandRequest({
       process: processPort,
       fileText: fileTextOver({
-        ...classSyntaxSelectedWith(request.settings),
-        "/repo/discipline-exceptions.json": presentFile({ text: FILE_CARVE_OUT_ON_A }),
+        ...classSyntaxSelectedWith({ settings: request.settings }),
+        "/repo/discipline-exceptions.json": presentJsonFile({ document: FILE_CARVE_OUT_ON_A }),
       }),
       modules: modulesLoading({ runner: standaloneRunner({ runReturns: { outcome: "ok", value: { hits: [HIT_IN_A], nativeExceptions: [] } } }) }),
       git,
@@ -427,7 +403,7 @@ const ELSEWHERE_FULL_REPORT =
 describe("runCheckCommand forfeiture assessment", () => {
   it("assesses forfeiture in this run when neither --forfeiture nor disciplines.json sets it", async () => {
     expect(
-      await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: {} }),
+      await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: PLAIN_SETTINGS }),
     ).toEqual({
       writes: [[{ text: FORFEITED_FULL_REPORT }]],
       exits: [[{ code: 1 }]],
@@ -437,12 +413,12 @@ describe("runCheckCommand forfeiture assessment", () => {
 
   it("leaves forfeiture to another run when disciplines.json sets it elsewhere, and says so", async () => {
     expect(
-      await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { forfeiture: "elsewhere" } } }),
+      await carvedRunWith({ arguments: ["--repo", "/repo"], settings: FORFEITURE_ELSEWHERE_SETTINGS }),
     ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
   });
 
   it("leaves forfeiture to another run when --forfeiture elsewhere is given", async () => {
-    expect(await carvedRunWith({ arguments: ["--repo", "/repo", "--forfeiture", "elsewhere"], settings: {} })).toEqual({
+    expect(await carvedRunWith({ arguments: ["--repo", "/repo", "--forfeiture", "elsewhere"], settings: PLAIN_SETTINGS })).toEqual({
       writes: [[{ text: ELSEWHERE_FULL_REPORT }]],
       exits: [[{ code: 0 }]],
       changedSince: [],
@@ -453,7 +429,7 @@ describe("runCheckCommand forfeiture assessment", () => {
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--forfeiture", "this-run", "--base-revision", "main"],
-        settings: { assessment: { forfeiture: "elsewhere" } },
+        settings: FORFEITURE_ELSEWHERE_SETTINGS,
       }),
     ).toMatchObject({ exits: [[{ code: 1 }]], changedSince: [[{ repoRoot: "/repo", baseRevision: "main" }]] });
   });
@@ -462,12 +438,12 @@ describe("runCheckCommand forfeiture assessment", () => {
 
 describe("runCheckCommand forfeiture assessment defaults and outputs", () => {
   it("prints a report byte-identical to today's when disciplines.json sets forfeiture to this-run", async () => {
-    const defaulted = await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: {} });
+    const defaulted = await carvedRunWith({ arguments: ["--repo", "/repo", "--base-revision", "main"], settings: PLAIN_SETTINGS });
 
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--base-revision", "main"],
-        settings: { assessment: { forfeiture: "this-run" } },
+        settings: FORFEITURE_THIS_RUN_SETTINGS,
       }),
     ).toEqual(defaulted);
   });
@@ -475,7 +451,7 @@ describe("runCheckCommand forfeiture assessment defaults and outputs", () => {
   it.each(["counts", "failures-only", "verdict-only"])("marks the verdict as partial for the %s output", async (output) => {
     const run = await carvedRunWith({
       arguments: ["--repo", "/repo", "--forfeiture", "elsewhere", "--report-output", output],
-      settings: {},
+      settings: PLAIN_SETTINGS,
     });
 
     expect(run.writes).toEqual([[{ text: expect.stringMatching(/(?:^|\n)verdict: pass \(partial assessment\)\n$/) }]]);
@@ -488,7 +464,7 @@ describe("runCheckCommand forfeiture elsewhere with a base revision", () => {
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--forfeiture", "elsewhere", "--base-revision", "main"],
-        settings: {},
+        settings: PLAIN_SETTINGS,
       }),
     ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
   });
@@ -497,7 +473,7 @@ describe("runCheckCommand forfeiture elsewhere with a base revision", () => {
     expect(
       await carvedRunWith({
         arguments: ["--repo", "/repo", "--base-revision", "main"],
-        settings: { assessment: { forfeiture: "elsewhere" } },
+        settings: FORFEITURE_ELSEWHERE_SETTINGS,
       }),
     ).toEqual({ writes: [[{ text: ELSEWHERE_FULL_REPORT }]], exits: [[{ code: 0 }]], changedSince: [] });
   });
@@ -506,25 +482,25 @@ describe("runCheckCommand forfeiture elsewhere with a base revision", () => {
 describe("runCheckCommand assessment configuration", () => {
   it("exits 2 with the file-malformed line naming eslint, which this release does not assess", async () => {
     expect(
-      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { eslint: { evidence: "hone" } } } })).writes,
+      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: HONE_EVIDENCE_SETTINGS })).writes,
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*not available in this version: "eslint"/) }]]);
   });
 
   it("exits 2 with the file-malformed line naming the removed waivedClauses and the clause states that replace it", async () => {
     expect(
-      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { waivedClauses: "not-run" } } })).writes,
+      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: WAIVED_NOT_RUN_SETTINGS })).writes,
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*removed: "waivedClauses"; in clauses, mark a clause "not-run"/) }]]);
   });
 
   it("exits 2 with the arguments-invalid line naming the removed --waived-clauses and the clause values that replace it", async () => {
-    expect((await carvedRunWith({ arguments: ["--repo", "/repo", "--waived-clauses", "not-run"], settings: {} })).writes).toEqual([
+    expect((await carvedRunWith({ arguments: ["--repo", "/repo", "--waived-clauses", "not-run"], settings: PLAIN_SETTINGS })).writes).toEqual([
       [{ text: expect.stringMatching(/^load failure: arguments-invalid removed: "--waived-clauses"; in clauses, mark a clause "not-run"/) }],
     ]);
   });
 
   it("exits 2 with the file-malformed line when disciplines.json sets a forfeiture that is not one", async () => {
     expect(
-      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: { assessment: { forfeiture: "reported" } } })).writes,
+      (await carvedRunWith({ arguments: ["--repo", "/repo"], settings: FORFEITURE_REPORTED_SETTINGS })).writes,
     ).toEqual([[{ text: expect.stringMatching(/^load failure: file-malformed \/repo\/disciplines\.json .*forfeiture/) }]]);
   });
 });

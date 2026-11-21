@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { singleFileRepositoriesOver } from "../../tests/records-disk.ts";
+import { ABSENT_FILE, type FakeFile, presentFile, presentJsonFile } from "../../tests/fake-file.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { LoadedRunner } from "../mechanism-port/runner-module-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
-import type { PathPort } from "../platform-ports/path-port.ts";
+import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
@@ -15,21 +16,6 @@ import { runProjectCommand } from "./run-project-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 const NOT_A_FILE_URL = "https://example.invalid/core/check/tool-command.ts";
-
-type FakeFile = {
-  readonly read: ReturnType<FileTextPort["read"]>;
-  readonly presence: ReturnType<FileTextPort["exists"]>;
-};
-
-const presentFile = (request: { readonly text: string }): FakeFile => ({
-  read: { outcome: "ok", value: request.text },
-  presence: "present",
-});
-
-const ABSENT_FILE: FakeFile = {
-  read: { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } },
-  presence: "absent",
-};
 
 const CLASS_SYNTAX_DEFINITION = {
   kind: "mechanical",
@@ -44,26 +30,17 @@ const CLASS_SYNTAX_DEFINITION = {
 };
 
 const NOTHING_SELECTED: Readonly<Record<string, FakeFile>> = {
-  "/repo/disciplines.json": presentFile({ text: JSON.stringify({ version: 1, ruleSets: {}, clauses: {} }) }),
+  "/repo/disciplines.json": presentJsonFile({ document: { version: 1, ruleSets: {}, clauses: {} } }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
   "/install/package.json": ABSENT_FILE,
 };
 
 const CLASS_SYNTAX_SELECTED: Readonly<Record<string, FakeFile>> = {
-  "/repo/disciplines.json": presentFile({
-    text: JSON.stringify({ version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" } }),
-  }),
+  "/repo/disciplines.json": presentJsonFile({ document: { version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" } } }),
   "/repo/discipline-exceptions.json": ABSENT_FILE,
-  "/install/rules/CD-14/discipline.json": presentFile({
-    text: JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] }),
-  }),
-  "/install/mechanisms/audit/CD-14/piece.json": presentFile({
-    text: JSON.stringify({
-      version: 1,
-      discipline: "CD-14",
-      mechanism: "audit",
-      clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }],
-    }),
+  "/install/rules/CD-14/discipline.json": presentJsonFile({ document: { version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] } }),
+  "/install/mechanisms/audit/CD-14/piece.json": presentJsonFile({
+    document: { version: 1, discipline: "CD-14", mechanism: "audit", clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }] },
   }),
   "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
@@ -75,18 +52,7 @@ const fileTextOver = (files: Readonly<Record<string, FakeFile>>): FileTextPort =
   write: vi.fn<FileTextPort["write"]>(),
 });
 
-const JOINED_PATHS: Readonly<Record<string, string>> = {
-  '["/repo","disciplines.json"]': "/repo/disciplines.json",
-  '["/install","package.json"]': "/install/package.json",
-  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
-  '["/repo","discipline-exceptions.json"]': "/repo/discipline-exceptions.json",
-  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
-  '["/repo","src/a.ts"]': "/repo/src/a.ts",
-  '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
-  '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
-  '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
-  '["/install","mechanisms","audit","runner","runner.ts"]': "/install/mechanisms/audit/runner/runner.ts",
-};
+const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
 const DIRECTORIES: Readonly<Record<string, string>> = {
   "/install/core/check/tool-command.ts": "/install/core/check",
@@ -108,12 +74,9 @@ const FILE_URLS: Readonly<Record<string, FileUrlResult>> = {
 };
 
 const TABLE_PATH: PathPort = {
-  join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
+  ...POSIX_PATH,
   relative: vi.fn<PathPort["relative"]>().mockReturnValue({ relation: "different-root" }),
-  joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
-  repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
-  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(path) }),
   fromFileUrl: ({ url }) => requiredEntry({ table: FILE_URLS, key: url }),
 };
 
