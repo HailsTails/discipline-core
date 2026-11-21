@@ -226,13 +226,29 @@ const differenceLinesOf = (request: { readonly failure: Extract<ProofRefusal, { 
     ...onlyAfter.map((line) => `    only after: ${line}`),
   ]);
 
+const blockOfDirectives = (request: {
+  readonly directives: readonly MisnamedRuleId[];
+  readonly header: string;
+  readonly lineOf: (directive: MisnamedRuleId) => string;
+  readonly action: string;
+}): readonly string[] => (request.directives.length === 0 ? [] : [request.header, ...request.directives.map(request.lineOf), request.action]);
+
 const directiveLinesOf = (request: { readonly directives: readonly MisnamedRuleId[] }): readonly string[] => [
-  "these inline directives name a hone rule that version 2 has no check under:",
-  ...request.directives.map(({ file, line, ruleId }) => `  ${file}:${line} ${ruleId}`),
-  "Fix each one to name a check of version 2, or remove it, then run the upgrade again.",
+  ...blockOfDirectives({
+    directives: request.directives.filter(({ kind }) => kind === "version-1-id"),
+    header: "these inline directives name a version 1 rule id, and version 2 runs that check under a different id:",
+    lineOf: ({ file, line, ruleId, replacedBy }) => `  ${file}:${line} ${ruleId}: write ${replacedBy.join(", ")}`,
+    action: "Write the version 2 id in each one, then run the upgrade again.",
+  }),
+  ...blockOfDirectives({
+    directives: request.directives.filter(({ kind }) => kind === "names-no-check"),
+    header: "these inline directives name a hone rule id that version 2 has no check under:",
+    lineOf: ({ file, line, ruleId }) => `  ${file}:${line} ${ruleId}`,
+    action: "Fix each one to name a check of version 2, or remove it, then run the upgrade again.",
+  }),
 ];
 
-const uncoveredLineOf =(request: { readonly clauses: readonly ClauseAddress[] }): string =>
+const uncoveredLineOf = (request: { readonly clauses: readonly ClauseAddress[] }): string =>
   `version 1 already reports ${request.clauses.map((address) => clauseAddressText({ address })).join(", ")} as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.`;
 
 const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placement: RepositoryPlacement }): { readonly code: UpgradeFailureCode; readonly lines: readonly string[] } => {

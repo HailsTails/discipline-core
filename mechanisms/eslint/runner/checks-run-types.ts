@@ -36,7 +36,10 @@ export type MisnamedRuleId = {
   readonly file: RepoPath;
   readonly line: number;
   readonly text: string;
+  readonly replacedBy: readonly string[];
 };
+
+export type VersionOneRuleId = { readonly ruleId: string; readonly replacedBy: readonly string[] };
 
 export type ChecksProjectionState = "current" | "out-of-date" | "missing" | "not-included";
 

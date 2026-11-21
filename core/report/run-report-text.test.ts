@@ -89,7 +89,16 @@ const EVERY_SECTION: RunReport = {
   stale: [NOTED_LOCATION],
   forfeited: [DEBT],
   unrecorded: [{ kind: "ignore", clause: CAST_EXPRESSIONS, file: WEBHOOK_FILE, mechanism: ESLINT }],
-  misnamed: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: WEBHOOK_FILE, line: 3, text: "// eslint-disable-next-line hone/no-class-authoring" }],
+  misnamed: [
+    {
+      kind: "version-1-id",
+      ruleId: "hone/no-class-authoring",
+      file: WEBHOOK_FILE,
+      line: 3,
+      text: "// eslint-disable-next-line hone/no-class-authoring",
+      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+    },
+  ],
   paid: [{ debt: DEBT, answeredBy: [NOTED_LOCATION] }],
   refused: [{ place: { file: AUTHORISED_FILE, index: 1 }, refusals: [{ kind: "carried-changed-since-base" }] }],
   unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }],

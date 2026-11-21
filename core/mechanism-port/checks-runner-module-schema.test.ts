@@ -19,7 +19,16 @@ const REPORT = {
   measured: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
   projection: "current",
   slices: [{ slice: "packages/web/hone.eslint.mjs", state: "out-of-date" }],
-  misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "src/a.ts", line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" }],
+  misnamedRuleIds: [
+    {
+      kind: "version-1-id",
+      ruleId: "hone/no-class-authoring",
+      file: "src/a.ts",
+      line: 2,
+      text: "// eslint-disable-next-line hone/no-class-authoring",
+      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+    },
+  ],
 };
 
 describe("the checks runner's ties to its module schema", () => {

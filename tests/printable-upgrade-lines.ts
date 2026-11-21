@@ -150,11 +150,22 @@ const SAMPLES: readonly Sample[] = [
   {
     failure: {
       kind: "directives-name-no-check",
-      directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: FILE, line: 3, text: "the text" }],
+      directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: FILE, line: 3, text: "the text", replacedBy: [] }],
       unrestored: [],
       removedByVersionOne: [],
     },
     fills: { line: "3", "rule id": "hone/no-such-check" },
+  },
+  {
+    failure: {
+      kind: "directives-name-no-check",
+      directives: [
+        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: FILE, line: 3, text: "the text", replacedBy: ["hone/authored-class-or-this/class-keyword"] },
+      ],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    fills: { line: "3", "rule id": "hone/no-class-authoring", "version 2 rule ids": "hone/authored-class-or-this/class-keyword" },
   },
   {
     failure: {

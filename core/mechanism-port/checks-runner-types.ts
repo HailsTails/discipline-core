@@ -37,6 +37,7 @@ export type MisnamedRuleId = {
   readonly file: RepoPath;
   readonly line: number;
   readonly text: string;
+  readonly replacedBy: readonly string[];
 };
 
 export type ChecksSliceProblem = { readonly slice: RepoPath; readonly state: "missing" | "out-of-date" | "unconfigured" };

@@ -276,32 +276,54 @@ Nothing was changed.
     },
   },
   {
-    name: "inline directives name a rule version 2 has no check under, after version 1's own project removed a file",
+    name: "inline directives of both kinds, after version 1's own project removed a file",
     failure: {
       kind: "directives-name-no-check",
       directives: [
-        { kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text" },
-        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: repoPathSchema.parse("src/b.ts"), line: 7, text: "the text" },
+        { kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: [] },
+        {
+          kind: "version-1-id",
+          ruleId: "hone/no-class-authoring",
+          file: repoPathSchema.parse("src/b.ts"),
+          line: 7,
+          text: "the text",
+          replacedBy: ["hone/authored-class-or-this/class-keyword"],
+        },
       ],
       unrestored: [],
       removedByVersionOne: [repoPathSchema.parse("old/disciplines.eslint.mjs")],
     },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nthese inline directives name a hone rule that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\n  src/b.ts:7 hone/no-class-authoring\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n",
+      text: "upgrade refused:\nthese inline directives name a version 1 rule id, and version 2 runs that check under a different id:\n  src/b.ts:7 hone/no-class-authoring: write hone/authored-class-or-this/class-keyword\nWrite the version 2 id in each one, then run the upgrade again.\nthese inline directives name a hone rule id that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n",
     },
   },
   {
-    name: "inline directives name a rule version 2 has no check under, with nothing changed",
+    name: "an inline directive naming a hone rule id that version 2 has no check under, with nothing changed",
     failure: {
       kind: "directives-name-no-check",
-      directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text" }],
+      directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: [] }],
       unrestored: [],
       removedByVersionOne: [],
     },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nthese inline directives name a hone rule that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nNothing was changed.\n",
+      text: "upgrade refused:\nthese inline directives name a hone rule id that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nNothing was changed.\n",
+    },
+  },
+  {
+    name: "an inline directive naming a version 1 rule id that version 2 runs as several checks, with nothing changed",
+    failure: {
+      kind: "directives-name-no-check",
+      directives: [
+        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: ["hone/a/first", "hone/a/second"] },
+      ],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    outcome: {
+      code: 1,
+      text: "upgrade refused:\nthese inline directives name a version 1 rule id, and version 2 runs that check under a different id:\n  src/a.ts:3 hone/no-class-authoring: write hone/a/first, hone/a/second\nWrite the version 2 id in each one, then run the upgrade again.\nNothing was changed.\n",
     },
   },
   {

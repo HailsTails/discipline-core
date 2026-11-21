@@ -21,6 +21,7 @@ export const misnamedRuleIdSchema = z
     file: repoPathSchema,
     line: z.number().int().min(1),
     text: z.string(),
+    replacedBy: z.array(z.string().min(1)).readonly(),
   })
   .readonly();
 

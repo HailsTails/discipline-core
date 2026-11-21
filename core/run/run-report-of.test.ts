@@ -198,7 +198,14 @@ describe("runReportOf, the selection and the settings", () => {
   });
 
   it("reports each misnamed rule id the runs found", () => {
-    const misnamed: MisnamedRuleId = { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: FILE_A, line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" };
+    const misnamed: MisnamedRuleId = {
+      kind: "version-1-id",
+      ruleId: "hone/no-class-authoring",
+      file: FILE_A,
+      line: 2,
+      text: "// eslint-disable-next-line hone/no-class-authoring",
+      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+    };
     expect(runReportOf({ ...REQUEST, runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), misnamedRuleIds: [misnamed] }] })).toMatchObject({ misnamed: [misnamed] });
   });
 });

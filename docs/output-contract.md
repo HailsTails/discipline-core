@@ -595,7 +595,10 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `  <section>:` |
 | `upgrade` | `    only before: <before>` |
 | `upgrade` | `    only after: <after>` |
-| `upgrade` | `these inline directives name a hone rule that version 2 has no check under:` |
+| `upgrade` | `these inline directives name a version 1 rule id, and version 2 runs that check under a different id:` |
+| `upgrade` | `  <file>:<line> <rule id>: write <version 2 rule ids>` |
+| `upgrade` | `Write the version 2 id in each one, then run the upgrade again.` |
+| `upgrade` | `these inline directives name a hone rule id that version 2 has no check under:` |
 | `upgrade` | `  <file>:<line> <rule id>` |
 | `upgrade` | `Fix each one to name a check of version 2, or remove it, then run the upgrade again.` |
 | `upgrade` | `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:` |

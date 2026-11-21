@@ -387,13 +387,13 @@ describe("upgradeProof", () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
     doubles.runs.versionTwo.mockResolvedValue({
       outcome: "ok",
-      value: { ...EMPTY_AFTER, findings: [LOOP_FINDING], misnamed: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text" }] },
+      value: { ...EMPTY_AFTER, findings: [LOOP_FINDING], misnamed: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: [] }] },
     });
     await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
       outcome: "failed",
       error: {
         kind: "directives-name-no-check",
-        directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: "src/a.ts", line: 3, text: "the text" }],
+        directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: "src/a.ts", line: 3, text: "the text", replacedBy: [] }],
         unrestored: [],
         removedByVersionOne: [],
       },
