@@ -136,6 +136,18 @@ describe("publishedDeclarationText, for an entry declaration", () => {
     ).toEqual({ text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\nexport default plugin;\n", refusals: [] });
   });
 
+  it("drops an export equals naming a private value of the entry", () => {
+    expect(
+      publishedDeclarationText({ syntaxApi, path: "api/eslint-plugin.d.ts", role: "entry", text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\nexport = plugin;\n" }),
+    ).toEqual({ text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\n", refusals: [] });
+  });
+
+  it("drops a default export naming a private value of an internal file", () => {
+    expect(
+      publishedDeclarationText({ syntaxApi, path: "core/plugin.d.ts", role: "internal", text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\nexport default plugin;\n" }),
+    ).toEqual({ text: "export type Plugin = 1;\ndeclare const plugin: Plugin;\n", refusals: [] });
+  });
+
   it("drops a default export naming no private value of the entry", () => {
     expect(
       publishedDeclarationText({ syntaxApi, path: "api/eslint-plugin.d.ts", role: "entry", text: "export type Plugin = 1;\nexport default other;\n" }),
