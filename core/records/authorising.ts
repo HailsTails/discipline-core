@@ -15,7 +15,7 @@ export type AuthoriseRequest = {
   readonly owes: string;
   readonly whys: readonly Why[];
   readonly rootCause: string;
-  readonly rootCheck: string;
+  readonly rootEvidence: string;
   readonly readback: string;
   readonly owner: string;
 };
@@ -34,8 +34,8 @@ type Judging = {
 const UNMEASURED_BASE: RecordsAtBase = { measured: "no", base: { state: "not-given" } };
 
 const entryOf = (request: { readonly request: AuthoriseRequest }): RecordAddition["entry"] => {
-  const { symptom, file, case: caseName, owes, whys, rootCause, rootCheck, readback, owner } = request.request;
-  return { symptom, file, case: caseName, owes, whyChain: { whys, rootCause, rootCheck, readback, owner } };
+  const { symptom, file, case: caseName, owes, whys, rootCause, rootEvidence, readback, owner } = request.request;
+  return { symptom, file, case: caseName, owes, whyChain: { whys, rootCause, rootEvidence, readback, owner } };
 };
 
 const refusedOutcome = (request: { readonly refusals: readonly RecordRefusal[] }): Authorising => {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../tests/version-one-causal-why-chain.ts";
 import type { SelectionRepository } from "../consumer-selection/consumer-selection.ts";
 import type { SelectionReading } from "../settings/selection.ts";
 import type { ExceptionRepository, PlacedEntry, StructuralExceptionEntry } from "../upgrade/version-one-records/exception-records.ts";
@@ -135,7 +136,7 @@ const CARVE_OUT_ON_GONE: StructuralExceptionEntry = {
   clause: "CD-14#class-syntax",
   file: "src/gone.ts",
   reason: "legacy class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const FIXTURE_SOURCE = "fictional unit fixture core/check/run-check.test.ts; not historical authorisation";
@@ -999,8 +1000,8 @@ describe("runCheck handing each unit its input and reporting its answer", () => 
           }),
           exceptionRepository: exceptionRepositoryHolding({
             working: [
-              firstInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-14#abstract-syntax", whyChain: CAUSAL_WHY_CHAIN }),
-              secondInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-15#no-for-of", whyChain: CAUSAL_WHY_CHAIN }),
+              firstInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-14#abstract-syntax", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN }),
+              secondInSingleFile({ ...REASON_ONLY_FACTORY, clause: "CD-15#no-for-of", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN }),
             ],
           }),
         }),
@@ -1049,7 +1050,7 @@ const CLAUSE_WIDE_CLASS_SYNTAX: StructuralExceptionEntry = {
   kind: "clause-wide-carve-out",
   clause: "CD-14#class-syntax",
   reason: "the team's config turns class-syntax off where it migrates",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const STALE_CARVE_OUT_ON_A = {
@@ -1058,7 +1059,7 @@ const STALE_CARVE_OUT_ON_A = {
   mechanism: "audit",
   file: "src/a.ts",
   reason: "legacy class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 describe("runReachedCheck handing on debt on a file still on disk from what its runner measured", () => {
@@ -1159,7 +1160,7 @@ const AUTHORISED_ON_A: StructuralExceptionEntry = {
   clause: "CD-14#class-syntax",
   file: "src/a.ts",
   reason: "the one class the library's extension point requires",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const AUTHORISED_ON_A_RECORD = {
@@ -1168,7 +1169,7 @@ const AUTHORISED_ON_A_RECORD = {
   mechanism: "audit",
   file: "src/a.ts",
   reason: "the one class the library's extension point requires",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const runnerHittingAndMeasuringA = modulesLoading({

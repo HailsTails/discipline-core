@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
@@ -38,7 +38,7 @@ const carveOutInA: ExceptionRecord = {
   mechanism: eslint,
   file: repoPathSchema.parse("src/a.ts"),
   reason: "Inherited class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const authorisedRoute: ExceptionRecord = {
@@ -55,7 +55,7 @@ const clauseWideNoTmp: ExceptionRecord = {
   clause: noTmpFiles,
   mechanism: eslint,
   reason: "Probe clause carved out while the probe is retired",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const clauseWideClassSyntax: ExceptionRecord = {
@@ -63,7 +63,7 @@ const clauseWideClassSyntax: ExceptionRecord = {
   clause: classSyntax,
   mechanism: eslint,
   reason: "Class syntax carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const authorisedInBUnderEslint10: ExceptionRecord = { ...authorisedInB, mechanism: eslint10 };

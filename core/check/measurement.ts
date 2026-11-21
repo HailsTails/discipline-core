@@ -15,7 +15,7 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import { whyChainFormOf } from "../values/why-chain.ts";
+import { whyChainFormOf } from "../upgrade/version-one-records/version-one-why-chain.ts";
 import type { PartialAssessment, Unmeasured } from "../verdict/check-report.ts";
 
 export type ChangeSetReach = {

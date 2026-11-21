@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../tests/version-one-causal-why-chain.ts";
 import type { ExceptionRecord } from "../upgrade/version-one-records/exception-records.ts";
 import type { Finding } from "../governance/governance.ts";
 import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
@@ -52,7 +52,7 @@ const carved: ExceptionRecord = {
   mechanism: audit,
   file: fileA,
   reason: "the parser adapter is unpaid debt",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const carvedEverywhere: ExceptionRecord = {
@@ -60,7 +60,7 @@ const carvedEverywhere: ExceptionRecord = {
   clause: noClass,
   mechanism: audit,
   reason: "the whole clause is unpaid debt",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const emptyReport: CheckReport = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
-import { causalProblemsOf, type Why, type WhyChain, whyChainFormOf, whyChainSchema } from "./why-chain.ts";
+import { causalProblemsOf, type Why, type WhyChain, whyChainSchema } from "./why-chain.ts";
 
 const OBJECTION_LIST: WhyChain = {
   whys: [
@@ -31,7 +31,7 @@ const OBJECTION_LIST: WhyChain = {
     },
   ],
   rootCause: "Acceptance derives navigation targets from a real built artifact, so its Node reader and YAML parser need one confined adapter.",
-  rootCheck: "__tests__/admin-cms-browser/built-targets.ts:12 still reads config.yml today.",
+  rootEvidence: "__tests__/admin-cms-browser/built-targets.ts:12 still reads config.yml today.",
   readback: "The adapter is confined, therefore built-targets.ts imports the Node file reader and YAML parser.",
   owner: "Helen",
 };
@@ -236,7 +236,7 @@ const PRONOUN_LINKS: WhyChain = {
     },
   ],
   rootCause: "The charter gives the lead the final call on module shape.",
-  rootCheck: "docs/charter.md:12 still grants the call today.",
+  rootEvidence: "docs/charter.md:12 still grants the call today.",
   readback: "The lead holds the final call, therefore the lint gate flags the factory file.",
   owner: "Helen",
 };
@@ -270,7 +270,7 @@ const CONTRACTION_LINKS: WhyChain = {
     },
   ],
   rootCause: "The charter gives the lead the final call on module shape.",
-  rootCheck: "docs/charter.md:12 still grants the call today.",
+  rootEvidence: "docs/charter.md:12 still grants the call today.",
   readback: "The charter gives the lead the call, therefore the lint gate flags the factory file.",
   owner: "Helen",
 };
@@ -326,7 +326,7 @@ const RESTATED_REASON: WhyChain = {
     },
   ],
   rootCause: "The pattern only matches lowercase slug letters.",
-  rootCheck: "tools/audit/name-matcher.ts:14 still holds the lowercase pattern today.",
+  rootEvidence: "tools/audit/name-matcher.ts:14 still holds the lowercase pattern today.",
   readback: "The pattern matches only lowercase slugs, therefore the audit refuses tracker ids in carve-out names.",
   owner: "Helen",
 };
@@ -409,10 +409,10 @@ describe("whyChainSchema links through a plural and its singular", () => {
 
 describe("whyChainSchema refuses a root that is not checked against today", () => {
   it.each([
-    ["no root check", (({ rootCheck: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
-    ["a root check with nothing to check", { ...CAUSAL_WHY_CHAIN, rootCheck: "the monorepo move is still incomplete today" }],
+    ["no root check", (({ rootEvidence: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
+    ["a root check with nothing to check", { ...CAUSAL_WHY_CHAIN, rootEvidence: "the monorepo move is still incomplete today" }],
   ])("refuses %s", (_label, chain) => {
-    expect(whyChainSchema.safeParse(chain)).toMatchObject(refusedAt(at("rootCheck")));
+    expect(whyChainSchema.safeParse(chain)).toMatchObject(refusedAt(at("rootEvidence")));
   });
 });
 
@@ -447,17 +447,5 @@ describe("whyChainSchema keeps the five-why floor", () => {
     ["no owner", (({ owner: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN)],
   ])("refuses %s", (_label, chain) => {
     expect(whyChainSchema.safeParse(chain).success).toBe(false);
-  });
-});
-
-describe("whyChainFormOf tells a causal chain from one written to the legacy contract", () => {
-  it.each([
-    { label: "a chain with a readback and a root check", form: "causal", chain: CAUSAL_WHY_CHAIN },
-    { label: "a chain with only a root check", form: "causal", chain: (({ readback: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
-    { label: "a chain with only a readback", form: "causal", chain: (({ rootCheck: _, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
-    { label: "a chain with neither", form: "legacy", chain: (({ rootCheck: _, readback: __, ...rest }) => rest)(CAUSAL_WHY_CHAIN) },
-    { label: "a value that is not a chain", form: "causal", chain: "five whys" },
-  ])("reads $label as $form", ({ form, chain }) => {
-    expect(whyChainFormOf({ chain })).toBe(form);
   });
 });

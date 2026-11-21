@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { causalProblemsOf, legacyWhyChainSchema, whyChainFormOf, whyChainSchema } from "../core/values/why-chain.ts";
+import { legacyWhyChainSchema, whyChainFormOf } from "../core/upgrade/version-one-records/version-one-why-chain.ts";
+import { causalProblemsOf, whyChainSchema } from "../core/values/why-chain.ts";
 import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "./causal-why-chain.ts";
 
 describe("CAUSAL_WHY_CHAIN is a chain the causal contract accepts", () => {
-  it("reads as causal", () => {
-    expect(whyChainFormOf({ chain: CAUSAL_WHY_CHAIN })).toBe("causal");
-  });
-
   it("passes the schema unchanged", () => {
     expect(whyChainSchema.safeParse(CAUSAL_WHY_CHAIN)).toEqual({ success: true, data: CAUSAL_WHY_CHAIN });
   });

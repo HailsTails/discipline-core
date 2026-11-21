@@ -208,7 +208,7 @@ const AUTHORISE = {
   owes: "declared-not-asserted",
   whys: CAUSAL_WHY_CHAIN.whys,
   rootCause: CAUSAL_WHY_CHAIN.rootCause,
-  rootCheck: CAUSAL_WHY_CHAIN.rootCheck,
+  rootEvidence: CAUSAL_WHY_CHAIN.rootEvidence,
   readback: CAUSAL_WHY_CHAIN.readback,
   owner: CAUSAL_WHY_CHAIN.owner,
 };

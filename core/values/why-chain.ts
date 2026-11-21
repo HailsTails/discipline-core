@@ -9,25 +9,13 @@ export type Why = {
 
 type FiveWhys = readonly [Why, Why, Why, Why, Why];
 
-export type LegacyWhyChain = {
-  readonly whys: FiveWhys;
-  readonly rootCause: string;
-  readonly owner: string;
-  readonly rootCheck?: never;
-  readonly readback?: never;
-};
-
 export type WhyChain = {
   readonly whys: FiveWhys;
   readonly rootCause: string;
-  readonly rootCheck: string;
+  readonly rootEvidence: string;
   readonly readback: string;
   readonly owner: string;
 };
-
-export type RecordedWhyChain = WhyChain | LegacyWhyChain;
-
-export type WhyChainForm = "causal" | "legacy";
 
 const RESTATEMENT_PHRASES = [
   String.raw`(?:the\s+)?(?:gate|check|ci|build|lint|test)s?\s+(?:was|were|is|are)\s+(?:failing|red|broken)`,
@@ -79,14 +67,14 @@ const evidenceReading = (request: { readonly evidence: string }): "checkable" | 
     ? "checkable"
     : "unlocated";
 
-const substantiveTextSchema = (request: { readonly refusal: string }) =>
+export const substantiveTextSchema = (request: { readonly refusal: string }) =>
   z
     .string({ error: request.refusal })
     .refine((answer) => answerSubstance({ answer }) === "substantive", {
       error: request.refusal,
     });
 
-const checkableTextSchema = (request: { readonly missing: string; readonly unlocated: string }) =>
+export const checkableTextSchema = (request: { readonly missing: string; readonly unlocated: string }) =>
   substantiveTextSchema({ refusal: request.missing }).refine((evidence) => evidenceReading({ evidence }) === "checkable", {
     error: request.unlocated,
   });
@@ -98,12 +86,12 @@ const EVIDENCE_UNLOCATED =
   "carries no checkable `evidence`: cite a path, a line, a record or PR number, a measurement or a link";
 const ROOT_CAUSE_REQUIRED =
   "`whyChain.rootCause` is required: the fifth why names the cause, not another symptom";
-const ROOT_CHECK_REQUIRED =
-  "`whyChain.rootCheck` is required beside `readback` in a causal chain: name what was run or read today that shows the root still holds, with a path, record, measurement or link";
-const ROOT_CHECK_UNLOCATED =
-  "`whyChain.rootCheck` cites nothing checkable: name the path, record, measurement or link you checked today";
+const ROOT_EVIDENCE_REQUIRED =
+  "`whyChain.rootEvidence` is required beside `readback` in a causal chain: name what was run or read today that shows the root still holds, with a path, record, measurement or link";
+const ROOT_EVIDENCE_UNLOCATED =
+  "`whyChain.rootEvidence` cites nothing checkable: name the path, record, measurement or link you checked today";
 const READBACK_REQUIRED =
-  "`whyChain.readback` is required beside `rootCheck` in a causal chain: read from the root back to the symptom with \"therefore\"";
+  "`whyChain.readback` is required beside `rootEvidence` in a causal chain: read from the root back to the symptom with \"therefore\"";
 const OWNER_REQUIRED =
   "`whyChain.owner` is required: a record dir, a capture id, or the holder of the reserved authority";
 
@@ -113,7 +101,7 @@ const whyQuestionSchema = z
     error: WHY_QUESTION_MISSING,
   });
 
-const legacyWhySchema = z.object(
+export const legacyWhySchema = z.object(
   {
     why: whyQuestionSchema,
     because: substantiveTextSchema({ refusal: BECAUSE_MISSING }),
@@ -122,7 +110,7 @@ const legacyWhySchema = z.object(
   { error: "is not a JSON object" },
 );
 
-const causalWhySchema = z.object(
+export const causalWhySchema = z.object(
   {
     why: whyQuestionSchema,
     because: substantiveTextSchema({ refusal: BECAUSE_MISSING }),
@@ -131,12 +119,12 @@ const causalWhySchema = z.object(
   { error: "is not a JSON object" },
 );
 
-const fiveWhysSchema = (request: { readonly why: z.ZodType<Why> }) =>
+export const fiveWhysSchema = (request: { readonly why: z.ZodType<Why> }) =>
   z.tuple([request.why, request.why, request.why, request.why, request.why], {
     error: "`whyChain.whys` must hold exactly 5 whys",
   });
 
-const rootCauseSchema = z
+export const rootCauseSchema = z
   .string({ error: ROOT_CAUSE_REQUIRED })
   .refine((answer) => answerSubstance({ answer }) === "substantive", {
     error: ROOT_CAUSE_REQUIRED,
@@ -146,20 +134,11 @@ const rootCauseSchema = z
     error: "`whyChain.rootCause` restates the exception rather than naming its cause",
   });
 
-const ownerSchema = z
+export const ownerSchema = z
   .string({ error: OWNER_REQUIRED })
   .refine((owner) => owner.trim().length >= MINIMUM_OWNER_CHARACTERS, {
     error: OWNER_REQUIRED,
   });
-
-export const legacyWhyChainSchema: z.ZodType<LegacyWhyChain> = z.object(
-  {
-    whys: fiveWhysSchema({ why: legacyWhySchema }),
-    rootCause: rootCauseSchema,
-    owner: ownerSchema,
-  },
-  { error: "`whyChain` is not a JSON object" },
-);
 
 export type CausalProblem = {
   readonly path: readonly (string | number)[];
@@ -239,7 +218,7 @@ const readbackProblems = (request: {
   ].map((message) => ({ path: ["readback"], message }));
 };
 
-export const causalProblemsOf = (request: { readonly chain: WhyChain }): readonly CausalProblem[] => {
+export const causalProblemsOf = (request: { readonly chain: Pick<WhyChain, "whys" | "rootCause" | "readback"> }): readonly CausalProblem[] => {
   const { whys, rootCause, readback } = request.chain;
   const symptom = stemsOf({ text: whys[0].why });
   const answers = whys.map((step) => stemsOf({ text: step.because }));
@@ -255,28 +234,24 @@ export const causalProblemsOf = (request: { readonly chain: WhyChain }): readonl
   ];
 };
 
+const WHY_CHAIN_NOT_AN_OBJECT = "`whyChain` is not a JSON object";
+
+const unknownFieldRefusal = (key: string): string =>
+  key === "rootCheck" ? "`whyChain.rootCheck` is `whyChain.rootEvidence` in version 2" : `\`whyChain.${key}\` is not a field of a why chain`;
+
 export const whyChainSchema: z.ZodType<WhyChain> = z
-  .object(
+  .strictObject(
     {
       whys: fiveWhysSchema({ why: causalWhySchema }),
       rootCause: rootCauseSchema,
-      rootCheck: checkableTextSchema({ missing: ROOT_CHECK_REQUIRED, unlocated: ROOT_CHECK_UNLOCATED }),
+      rootEvidence: checkableTextSchema({ missing: ROOT_EVIDENCE_REQUIRED, unlocated: ROOT_EVIDENCE_UNLOCATED }),
       readback: substantiveTextSchema({ refusal: READBACK_REQUIRED }),
       owner: ownerSchema,
     },
-    { error: "`whyChain` is not a JSON object" },
+    { error: (issue) => (issue.code === "unrecognized_keys" ? issue.keys.map(unknownFieldRefusal).join("; ") : WHY_CHAIN_NOT_AN_OBJECT) },
   )
   .superRefine((chain, context) => {
     causalProblemsOf({ chain }).forEach((problem) => {
       context.addIssue({ code: "custom", path: [...problem.path], message: problem.message });
     });
   });
-
-export const whyChainFormOf = (request: { readonly chain: unknown }): WhyChainForm =>
-  typeof request.chain === "object" &&
-  request.chain !== null &&
-  !Array.isArray(request.chain) &&
-  !("rootCheck" in request.chain) &&
-  !("readback" in request.chain)
-    ? "legacy"
-    : "causal";

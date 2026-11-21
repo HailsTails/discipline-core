@@ -16,7 +16,7 @@ const REQUEST: AuthoriseRequest = {
   owes: "declared-not-asserted",
   whys: CAUSAL_WHY_CHAIN.whys,
   rootCause: CAUSAL_WHY_CHAIN.rootCause,
-  rootCheck: CAUSAL_WHY_CHAIN.rootCheck,
+  rootEvidence: CAUSAL_WHY_CHAIN.rootEvidence,
   readback: CAUSAL_WHY_CHAIN.readback,
   owner: CAUSAL_WHY_CHAIN.owner,
 };
@@ -51,7 +51,7 @@ describe("the authorised location a person's arguments write", () => {
                     whyChain: {
                       whys: CAUSAL_WHY_CHAIN.whys,
                       rootCause: CAUSAL_WHY_CHAIN.rootCause,
-                      rootCheck: CAUSAL_WHY_CHAIN.rootCheck,
+                      rootEvidence: CAUSAL_WHY_CHAIN.rootEvidence,
                       readback: CAUSAL_WHY_CHAIN.readback,
                       owner: CAUSAL_WHY_CHAIN.owner,
                     },

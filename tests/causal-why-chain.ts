@@ -1,4 +1,5 @@
-import type { LegacyWhyChain, WhyChain } from "../core/values/why-chain.ts";
+import type { LegacyWhyChain } from "../core/upgrade/version-one-records/version-one-why-chain.ts";
+import type { WhyChain } from "../core/values/why-chain.ts";
 
 export const CAUSAL_WHY_CHAIN: WhyChain = {
   whys: [
@@ -29,7 +30,7 @@ export const CAUSAL_WHY_CHAIN: WhyChain = {
     },
   ],
   rootCause: "Older tools still carry patterns written before the monorepo move gave them shared value types.",
-  rootCheck: "`git grep -n slugPattern tools/` today still returns tools/audit/name-matcher.ts:14 and no import from packages/values.",
+  rootEvidence: "`git grep -n slugPattern tools/` today still returns tools/audit/name-matcher.ts:14 and no import from packages/values.",
   readback:
     "Older tools still carry pre-monorepo patterns, therefore the audit never adopted the shared slug type, therefore its matcher copied the branch-name validator's lowercase rule, therefore the audit refuses tracker ids in carve-out names.",
   owner: "capture 01a0b421",

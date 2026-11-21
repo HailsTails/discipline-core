@@ -52,7 +52,37 @@ describe("the version 2 records forms", () => {
     });
   });
 
-  it.each([{ symptom: "claimed-type#" }, { symptom: "#cast-expressions" }, { symptom: "claimed-type#cast-expressions#again" }, { symptom: "claimed-type#Cast" }])(
+  it("refuses a stated authorised location whose whyChain gives rootCheck, the version 1 name, asking for rootEvidence", () => {
+    expect(
+      statedAuthorisedLocationWireSchema.safeParse({
+        symptom: "claimed-type",
+        file: "src/a.ts",
+        case: "gives-a-value-its-type",
+        owes: "declared-not-asserted",
+        whyChain: {
+          whys: CAUSAL_WHY_CHAIN.whys,
+          rootCause: CAUSAL_WHY_CHAIN.rootCause,
+          rootCheck: CAUSAL_WHY_CHAIN.rootEvidence,
+          readback: CAUSAL_WHY_CHAIN.readback,
+          owner: CAUSAL_WHY_CHAIN.owner,
+        },
+      }),
+    ).toMatchObject({
+      success: false,
+      error: {
+        issues: [
+          {
+            path: ["whyChain", "rootEvidence"],
+            message:
+              "`whyChain.rootEvidence` is required beside `readback` in a causal chain: name what was run or read today that shows the root still holds, with a path, record, measurement or link",
+          },
+          { path: ["whyChain"], message: "`whyChain.rootCheck` is `whyChain.rootEvidence` in version 2" },
+        ],
+      },
+    });
+  });
+
+  it.each([{ symptom: "claimed-type#" },{ symptom: "#cast-expressions" }, { symptom: "claimed-type#cast-expressions#again" }, { symptom: "claimed-type#Cast" }])(
     "refuses $symptom as the symptom a record reaches",
     ({ symptom }) => {
       expect(carriedAuthorisedLocationWireSchema.safeParse({ symptom, file: "src/a.ts", carried: { kind: "authorised-location" } })).toMatchObject({

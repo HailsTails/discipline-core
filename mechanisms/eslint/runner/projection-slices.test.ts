@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
@@ -32,7 +32,7 @@ const carveOutIn = (file: string): ExceptionRecord => ({
   mechanism: eslint,
   file: repoPathSchema.parse(file),
   reason: "Inherited class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 });
 
 const clauseWide: ExceptionRecord = {
@@ -40,7 +40,7 @@ const clauseWide: ExceptionRecord = {
   clause: classSyntax,
   mechanism: eslint,
   reason: "Class syntax carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 describe("configRootsOf", () => {

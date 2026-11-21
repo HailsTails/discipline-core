@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import { LOOPS_CLAUSE, SETTINGS_CATALOGUE, TEST_BODY_CLAUSE } from "../../../tests/settings-catalogue.ts";
 import type { Finding } from "../../governance/governance.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
@@ -213,7 +213,7 @@ describe("recordAnswersOf crediting an authorised location with the findings it 
 describe("recordAnswersOf over every record of the file", () => {
   it("answers each file carve-out and authorised location, in the order the records were given, and leaves a clause-wide carve-out out", () => {
     const second: ExceptionRecord = { ...CARVE_OUT, file: repoPathSchema.parse("src/b.ts") };
-    const clauseWide: ExceptionRecord = { kind: "clause-wide-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, reason: "generated", whyChain: CAUSAL_WHY_CHAIN };
+    const clauseWide: ExceptionRecord = { kind: "clause-wide-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, reason: "generated", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN };
     expect(
       recordAnswersOf({
         records: [AUTHORISED, CARVE_OUT, clauseWide, second],

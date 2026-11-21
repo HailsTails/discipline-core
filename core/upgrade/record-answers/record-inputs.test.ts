@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import { LOOPS_CLAUSE, SETTINGS_CATALOGUE } from "../../../tests/settings-catalogue.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
@@ -27,7 +27,7 @@ const CLAUSE_WIDE: Extract<ExceptionRecord, { readonly kind: "clause-wide-carve-
   clause: LOOPS_CLAUSE,
   mechanism: AUDIT,
   reason: "generated",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const CARVE_OUT_HEAD: HeadRecord = { kind: "file-carve-out", record: CARVE_OUT, entry: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop" } };

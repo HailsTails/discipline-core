@@ -19,7 +19,7 @@ import { DEFAULT_ASSESSMENT } from "../../../core/values/assessment.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { disciplineIdSchema, mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import { overlaidFileText } from "../../../tests/overlaid-file-text.ts";
 import { runner as walkerRunner } from "../../audit/runner/runner.ts";
 import { createEslintRunner } from "./create-eslint-runner.ts";
@@ -609,7 +609,7 @@ const PACKAGE_LEGACY_CARVE_OUT: ExceptionRecord = {
   mechanism: mechanismIdSchema.parse("eslint"),
   file: repoPathSchema.parse("packages/a/legacy.ts"),
   reason: "Inherited class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const PACKAGE_CONFIG_REPO = { name: "monorepo-package-config", records: [PACKAGE_LEGACY_CARVE_OUT] };

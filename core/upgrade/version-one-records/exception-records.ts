@@ -15,12 +15,6 @@ import type { MechanismId } from "../../values/identifiers.ts";
 import { type RepoPath, repoPathSchema } from "../../values/repo-path.ts";
 import type { Result } from "../../values/result.ts";
 import { TOOL_IDENTITY } from "../../values/tool-identity.ts";
-import {
-  legacyWhyChainSchema,
-  type RecordedWhyChain,
-  whyChainFormOf,
-  whyChainSchema,
-} from "../../values/why-chain.ts";
 import type { DebtPair } from "./debt-pair.ts";
 import type {
   AuthorisedLocationEntry,
@@ -29,6 +23,12 @@ import type {
   InvalidRecord,
   RecordPlace,
 } from "./exception-record.ts";
+import {
+  legacyWhyChainSchema,
+  type RecordedWhyChain,
+  versionOneWhyChainSchema,
+  whyChainFormOf,
+} from "./version-one-why-chain.ts";
 
 export type {
   AuthorisationEvidence,
@@ -364,7 +364,7 @@ const chainRefused = (request: { readonly detail: string }): Result<never, Entry
 });
 
 const causalChainOf = (request: { readonly whyChain: unknown; readonly preface: readonly string[] }): Result<RecordedWhyChain, EntryProblem> => {
-  const parsed = whyChainSchema.safeParse(request.whyChain);
+  const parsed = versionOneWhyChainSchema.safeParse(request.whyChain);
   return parsed.success
     ? { outcome: "ok", value: parsed.data }
     : chainRefused({ detail: [...request.preface, z.prettifyError(parsed.error)].join("\n") });
