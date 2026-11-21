@@ -111,6 +111,14 @@ describe("runReportOf, findings and records", () => {
     });
   });
 
+  it("does not call a record stale when the engine measuring its check was not in effect, since nothing was measured", () => {
+    const debt = debtAt({ file: FILE_A, index: 0 });
+    expect(runReportOf({ ...REQUEST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [], projection: "not-included" })] })).toMatchObject({
+      stale: [],
+      unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "not-included", nestedConfigurations: [] }],
+    });
+  });
+
   it("reports debt on a file the change touched as forfeited, and the finding it held as unanswered", () => {
     const debt = debtAt({ file: FILE_A, index: 0 });
     expect(
