@@ -17,6 +17,12 @@ describe("memoryRepositoryOf", () => {
     ]);
   });
 
+  it("holds a file outside the repository at the absolute path it is given", () => {
+    const withOutsideFile = memoryRepositoryOf({ files: {}, outsideFiles: { "/install/package.json": "{}" } });
+
+    expect(withOutsideFile.fileText.read({ path: "/install/package.json" })).toEqual({ outcome: "ok", value: "{}" });
+  });
+
   it("writes a file where it can then be read, and removes it again", () => {
     repository.fileText.write({ path: "/repo/new.json", text: "[]" });
     expect(repository.textOf({ file: "new.json" })).toBe("[]");

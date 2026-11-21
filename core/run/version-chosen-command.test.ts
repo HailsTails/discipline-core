@@ -6,7 +6,7 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { CommandRequest } from "../command-line/command-request.ts";
-import { notReadyCommandOf, type VersionedHandler, versionChosenCommandOf } from "./version-chosen-command.ts";
+import { notReadyCommandOf, settingsRequiringCommandOf, type VersionedHandler, versionChosenCommandOf } from "./version-chosen-command.ts";
 
 type Presences = { readonly versionOne: FilePresence; readonly versionTwo: FilePresence };
 
@@ -53,7 +53,7 @@ describe("versionChosenCommandOf", () => {
   it.each([
     { repo: "versionOne", present: VERSION_ONE_ONLY, ran: { versionOne: 1, versionTwo: 0 } },
     { repo: "versionTwo", present: VERSION_TWO_ONLY, ran: { versionOne: 0, versionTwo: 1 } },
-    { repo: "neither", present: NEITHER, ran: { versionOne: 1, versionTwo: 0 } },
+    { repo: "neither", present: NEITHER, ran: { versionOne: 0, versionTwo: 1 } },
   ])("runs the handler for the settings file the repository holds, given $repo", async ({ present, ran }) => {
     const chosen = handlers();
     const command = commandOver({ process: processWith({ arguments: ["--repo", "/repo"] }), present });
@@ -95,6 +95,36 @@ describe("versionChosenCommandOf", () => {
       writes: [[{ text: "load failure: settings-in-both-versions /repo: it holds both disciplines.json and hone.config.json; keep the one this repository runs on and remove the other\n" }]],
       exits: [[{ code: 2 }]],
     });
+  });
+});
+
+describe("settingsRequiringCommandOf", () => {
+  it("prints the config-absent line and exits 2, running neither handler, when the repository holds neither settings file", async () => {
+    const chosen = handlers();
+    const processPort = processWith({ arguments: ["--repo", "/repo"] });
+
+    await settingsRequiringCommandOf(chosen)(commandOver({ process: processPort, present: NEITHER }));
+
+    expect({
+      ran: [vi.mocked(chosen.versionOne).mock.calls.length, vi.mocked(chosen.versionTwo).mock.calls.length],
+      writes: vi.mocked(processPort.writeOut).mock.calls,
+      exits: vi.mocked(processPort.exitWith).mock.calls,
+    }).toEqual({
+      ran: [0, 0],
+      writes: [[{ text: "load failure: config-absent /repo holds no hone.config.json; give the folder that holds it, usually the repository root\n" }]],
+      exits: [[{ code: 2 }]],
+    });
+  });
+
+  it.each([
+    { repo: "versionOne", present: VERSION_ONE_ONLY, ran: [1, 0] },
+    { repo: "versionTwo", present: VERSION_TWO_ONLY, ran: [0, 1] },
+  ])("runs the handler for the settings file the repository holds, given $repo", async ({ present, ran }) => {
+    const chosen = handlers();
+
+    await settingsRequiringCommandOf(chosen)(commandOver({ process: processWith({ arguments: ["--repo", "/repo"] }), present }));
+
+    expect([vi.mocked(chosen.versionOne).mock.calls.length, vi.mocked(chosen.versionTwo).mock.calls.length]).toEqual(ran);
   });
 });
 

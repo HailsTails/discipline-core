@@ -6,7 +6,7 @@ import { alreadyUpgradedCommand, upgradeCommandOf } from "../upgrade/command/run
 import { createRecordsFolder } from "../records/records-folder.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
-import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
+import { notReadyCommandOf, settingsRequiringCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
 import { versionTwoCheckCommandOf, versionTwoCheckedOf } from "../run/version-two-check-command.ts";
 import { versionTwoProjectCommandOf } from "../run/version-two-project-command.ts";
 import { versionTwoNeededCommandOf } from "../run/version-two-needed-command.ts";
@@ -100,9 +100,9 @@ export const TOOL_SUBCOMMANDS: Subcommands = {
   project: versionChosenCommandOf({ versionOne: runProjectCommand, versionTwo: versionTwoProject }),
   "record-debt": versionChosenCommandOf({ versionOne: recordDebtCommandOf({ gitTree }), versionTwo: versionTwoRecordDebtCommandOf(versionTwoRecordPorts) }),
   "prune-debt": versionChosenCommandOf({ versionOne: runPruneDebtCommand, versionTwo: versionTwoPruneDebtCommandOf(versionTwoRecordPorts) }),
-  authorise: versionChosenCommandOf({ versionOne: versionTwoNeededCommandOf, versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
-  "split-records": versionChosenCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
-  upgrade: versionChosenCommandOf({ versionOne: upgradeCommandOf(upgradePorts), versionTwo: alreadyUpgradedCommand }),
+  authorise: settingsRequiringCommandOf({ versionOne: versionTwoNeededCommandOf, versionTwo: versionTwoAuthoriseCommandOf(versionTwoRecordPorts) }),
+  "split-records": settingsRequiringCommandOf({ versionOne: runSplitRecordsCommand, versionTwo: notReadyCommandOf({ command: "split-records" }) }),
+  upgrade: settingsRequiringCommandOf({ versionOne: upgradeCommandOf(upgradePorts), versionTwo: alreadyUpgradedCommand }),
 };
 
 export const runToolCommand: CommandHandler = toolCommandOf({ subcommands: TOOL_SUBCOMMANDS });

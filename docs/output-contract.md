@@ -1060,7 +1060,7 @@ The commands that write and remove records in `hone-records` print one line for 
 A version 2 run that cannot decide prints one line and exits `2`, as in 1.x. The line starts with `load failure: ` and its kind, and the values follow in the order shown. A `<check>` is the address as `hone.config.json` lists it and may hold a space, so a tool reads a load failure by its kind, and by the values only up to the first one that may hold a space. The text after a `:` that ends the values is not stable. A minor release may add a kind; a tool passes over a kind it does not know.
 
 Version 2 renames the 1.x kinds whose names spoke of clauses, disciplines, mechanisms, runners and pieces:
-- `selection-absent` is `config-absent`;
+- `selection-absent` is `config-absent`, and a `--repo` folder that holds neither `disciplines.json` nor `hone.config.json` prints `config-absent` from every command: only a folder holding `disciplines.json` runs on version 1;
 - `unknown-discipline` and `unknown-clause` are `unknown-check`;
 - `duplicate-clause` is `duplicate-check`;
 - `judgement-clause-selected` and `judgement-clause-listed` are `review-only-listed`;
