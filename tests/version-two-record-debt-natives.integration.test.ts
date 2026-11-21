@@ -130,7 +130,7 @@ const projectCommandIn = (request: { readonly repo: string }): string => {
   return command.value;
 };
 
-const NOT_ADOPTED = "notAdopted (3)\nauthored-class-or-this#static-members-only\nclaimed-type#cast-to-any\nclaimed-type#non-null-assertions\n";
+const NOT_ADOPTED = "not-adopted (3)\nauthored-class-or-this#static-members-only\nclaimed-type#cast-to-any\nclaimed-type#non-null-assertions\n";
 
 const CLASS_SYMPTOM =
   "authored-class-or-this: Authored class or this. May indicate: keeps state or settings across calls → No hidden effects; reuses behaviour from another unit or type → One reason per module; gives a value its type (declares it, or needs it narrower) → Declared, not asserted. The breach usually sits in the unit. Recipe: Closure factory. Known debt: debt. Read ../../rules/typescript/symptoms.md#authored-class-or-this\n";
@@ -312,7 +312,7 @@ const excludingRepository = (): string => {
 const EXCLUDED_CHECK_TEXT = `excluded (2)
 src/ignored.ts
 src/vendor-a.ts
-notAdopted (3)
+not-adopted (3)
 authored-class-or-this#static-members-only
 claimed-type#cast-to-any
 claimed-type#non-null-assertions

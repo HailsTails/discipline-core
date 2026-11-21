@@ -75,8 +75,8 @@ const REQUEST: RunReportRequest = {
 
 const EMPTY_REPORT: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -88,10 +88,10 @@ const EMPTY_REPORT: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
@@ -148,7 +148,7 @@ describe("runReportOf, findings and records", () => {
     ).toEqual({
       ...EMPTY_REPORT,
       unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }],
-      projectionProblems: [{ scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: missingSlice.slice }],
+      "projection-problems": [{ scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: missingSlice.slice }],
     });
   });
 
@@ -157,7 +157,7 @@ describe("runReportOf, findings and records", () => {
     expect(runReportOf({ ...REQUEST, selection: SELECTS_CAST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [], projection: "out-of-date" })] })).toEqual({
       ...EMPTY_REPORT,
       unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }],
-      projectionProblems: [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
+      "projection-problems": [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
     });
   });
 
@@ -256,7 +256,7 @@ describe("runReportOf, what the run could not measure", () => {
 
   it("lists a projection that differs from what project writes now as a projection problem", () => {
     expect(runReportOf({ ...REQUEST, runs: [eslintRunOf({ hits: [], projection: "out-of-date" })] })).toMatchObject({
-      projectionProblems: [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
+      "projection-problems": [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
     });
   });
 
@@ -331,11 +331,11 @@ describe("runReportOf, the selection and the settings", () => {
     ).toEqual({
       ...EMPTY_REPORT,
       excluded: ["dist"],
-      notAdopted: [CAST_CHECK],
-      notRun: [TEST_BODY_CHECK],
+      "not-adopted": [CAST_CHECK],
+      "not-run": [TEST_BODY_CHECK],
       editions: [{ check: CAST_CHECK, engine: ESLINT_ENGINE, edition: "1", latest: "2" }],
       uncovered: [CLOCK_CHECK],
-      notes: [{ kind: "declared-not-read", key: "layers" }],
+      "settings-notes": [{ kind: "declared-not-read", key: "layers" }],
     });
   });
 

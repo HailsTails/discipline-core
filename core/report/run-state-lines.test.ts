@@ -17,7 +17,7 @@ const LEGACY = repoPathSchema.parse("packages/legacy");
 const NOT_INCLUDED_TEXT =
   "engine-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of hone.eslint.mjs, or of a package's own hone.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes";
 
-const SLICES_NOTE = "; the eslint lines under projectionProblems name the package slices involved";
+const SLICES_NOTE = "; the eslint lines under projection-problems name the package slices involved";
 
 const NESTED_NOTE = `; packages/legacy hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run ${PROJECT_COMMAND}, which writes its slice`;
 
@@ -62,7 +62,7 @@ describe("unmeasuredLine", () => {
     expect(unmeasuredLine({ projectCommand: PROJECT_COMMAND, unmeasured, problems: [] })).toBe(line);
   });
 
-  it("points at the engine's slice problems when projectionProblems names any", () => {
+  it("points at the engine's slice problems when projection-problems names any", () => {
     expect(unmeasuredLine({ projectCommand: PROJECT_COMMAND, unmeasured: NESTED_NOT_INCLUDED, problems: [ESLINT_SLICE_PROBLEM] })).toBe(`${NOT_INCLUDED_TEXT}${SLICES_NOTE}${NESTED_NOTE}`);
   });
 

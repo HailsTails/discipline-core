@@ -24,8 +24,8 @@ const BEFORE: CheckReport = {
 
 const AFTER: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -37,10 +37,10 @@ const AFTER: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };

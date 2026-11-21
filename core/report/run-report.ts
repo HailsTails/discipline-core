@@ -29,8 +29,8 @@ export type AssessmentLeftElsewhere = ForfeitureElsewhere | CarriedStandingElsew
 
 export type RunReport = {
   readonly excluded: readonly RepoPath[];
-  readonly notAdopted: readonly Check[];
-  readonly notRun: readonly Check[];
+  readonly "not-adopted": readonly Check[];
+  readonly "not-run": readonly Check[];
   readonly editions: readonly CheckEdition[];
   readonly findings: readonly Finding[];
   readonly answered: readonly AnsweredFinding[];
@@ -42,10 +42,10 @@ export type RunReport = {
   readonly paid: readonly PaidDebt[];
   readonly refused: readonly RefusedRecord[];
   readonly unmeasured: readonly RunUnmeasured[];
-  readonly projectionProblems: readonly RunProjectionProblem[];
+  readonly "projection-problems": readonly RunProjectionProblem[];
   readonly assessment: readonly AssessmentLeftElsewhere[];
-  readonly notes: readonly SettingsNote[];
-  readonly recordNotes: readonly RecordNote[];
+  readonly "settings-notes": readonly SettingsNote[];
+  readonly "record-notes": readonly RecordNote[];
   readonly carried: readonly CarriedListing[];
   readonly symptoms: readonly Symptom[];
 };

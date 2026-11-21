@@ -438,15 +438,15 @@ const RECORD_NOTES: { readonly [Kind in CatalogueNote["kind"]]: Filled<RecordNot
   },
 };
 
-const CONVENTION_NOTES: Readonly<Record<ConventionKey, Filled<RunReport["notes"][number]>>> = {
+const CONVENTION_NOTES: Readonly<Record<ConventionKey, Filled<RunReport["settings-notes"][number]>>> = {
   generated: { entry: { kind: "declared-not-read", key: "generated" }, fills: { convention: "conventions.generated" } },
   layers: { entry: { kind: "declared-not-read", key: "layers" }, fills: { convention: "layers" } },
 };
 
 const SECTION_SAMPLES: SectionSamples = {
   excluded: [{ entry: repoPathSchema.parse("dist"), fills: { path: "dist" } }],
-  notAdopted: [{ entry: CAST_CHECK, fills: CAST_SITE_FILLS }],
-  notRun: [{ entry: TEST_BODY_CHECK, fills: { check: "branch-in-a-test#test-body" } }],
+  "not-adopted": [{ entry: CAST_CHECK, fills: CAST_SITE_FILLS }],
+  "not-run": [{ entry: TEST_BODY_CHECK, fills: { check: "branch-in-a-test#test-body" } }],
   editions: [{ entry: { check: CLOCK_CHECK, engine: WALKER, edition: editionSchema.parse("1"), latest: editionSchema.parse("2") }, fills: { ...CLOCK_FILLS, edition: "1", latest: "2" } }],
   findings: [
     { entry: { clause: CLOCK_SOURCES, mechanism: AUDIT, file: ORDER_FILE, anchor: { line: 14, column: 0 }, snippet: "const chargedAt = clock.now();" }, fills: CLOCK_FILLS },
@@ -487,15 +487,15 @@ const SECTION_SAMPLES: SectionSamples = {
   paid: [{ entry: { debt: DEBT_PLACED, answeredBy: [LOCATION_PLACED] }, fills: { subject: DEBT_SUBJECT, reference: UNOWED_REFERENCE } }],
   refused: [...Object.values(REFUSALS), SPACED_RECORDS_FILE],
   unmeasured: [...RECORDS_UNMEASURED, ...Object.values(ENGINES_NOT_RUN).flat()],
-  projectionProblems: [{ entry: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }, fills: { engine: "eslint" } }, ...Object.values(SLICE_PROBLEMS), DECLARATION_SLICE_PROBLEM],
+  "projection-problems": [{ entry: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }, fills: { engine: "eslint" } }, ...Object.values(SLICE_PROBLEMS), DECLARATION_SLICE_PROBLEM],
   assessment: [
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 1 }, fills: {} },
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 3 }, fills: { count: "3" } },
     { entry: { concern: "carried-standing", assessedBy: "elsewhere", carried: 1 }, fills: {} },
     { entry: { concern: "carried-standing", assessedBy: "elsewhere", carried: 3 }, fills: { count: "3" } },
   ],
-  notes: Object.values(CONVENTION_NOTES),
-  recordNotes: Object.values(RECORD_NOTES),
+  "settings-notes": Object.values(CONVENTION_NOTES),
+  "record-notes": Object.values(RECORD_NOTES),
   carried: [
     {
       entry: { place: { file: AUTHORISED_FILE, index: 6 }, lacks: ["case", "owes", "whyChain"], standing: "unjudged" },
@@ -543,8 +543,8 @@ const entriesOf = <Entry>(samples: readonly Filled<Entry>[]): readonly Entry[] =
 
 const EMPTY_REPORT: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -556,18 +556,18 @@ const EMPTY_REPORT: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
 
 const EVERY_ENTRY: RunReport = {
   excluded: entriesOf(SECTION_SAMPLES.excluded),
-  notAdopted: entriesOf(SECTION_SAMPLES.notAdopted),
-  notRun: entriesOf(SECTION_SAMPLES.notRun),
+  "not-adopted": entriesOf(SECTION_SAMPLES["not-adopted"]),
+  "not-run": entriesOf(SECTION_SAMPLES["not-run"]),
   editions: entriesOf(SECTION_SAMPLES.editions),
   findings: entriesOf(SECTION_SAMPLES.findings),
   answered: entriesOf(SECTION_SAMPLES.answered),
@@ -579,10 +579,10 @@ const EVERY_ENTRY: RunReport = {
   paid: entriesOf(SECTION_SAMPLES.paid),
   refused: entriesOf(SECTION_SAMPLES.refused),
   unmeasured: entriesOf(SECTION_SAMPLES.unmeasured),
-  projectionProblems: entriesOf(SECTION_SAMPLES.projectionProblems),
+  "projection-problems": entriesOf(SECTION_SAMPLES["projection-problems"]),
   assessment: entriesOf(SECTION_SAMPLES.assessment),
-  notes: entriesOf(SECTION_SAMPLES.notes),
-  recordNotes: entriesOf(SECTION_SAMPLES.recordNotes),
+  "settings-notes": entriesOf(SECTION_SAMPLES["settings-notes"]),
+  "record-notes": entriesOf(SECTION_SAMPLES["record-notes"]),
   carried: entriesOf(SECTION_SAMPLES.carried),
   symptoms: entriesOf(SECTION_SAMPLES.symptoms),
 };

@@ -97,8 +97,8 @@ const CLASS_GUIDE: SymptomGuide = {
 
 const EMPTY_RUN_REPORT: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -110,10 +110,10 @@ const EMPTY_RUN_REPORT: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
@@ -122,7 +122,7 @@ const IGNORED_IN_A = { kind: "ignore", clause: clauseAddressSchema.parse("CD-14#
 
 describe("VERSION_TWO_GATED_SECTIONS", () => {
   it("names every failing section of a version 2 run except the findings and the unrecorded native exceptions, which are reported and not gated", () => {
-    expect(VERSION_TWO_GATED_SECTIONS).toEqual(["uncovered", "stale", "forfeited", "misnamed", "refused", "unmeasured", "projectionProblems"]);
+    expect(VERSION_TWO_GATED_SECTIONS).toEqual(["uncovered", "stale", "forfeited", "misnamed", "refused", "unmeasured", "projection-problems"]);
   });
 });
 

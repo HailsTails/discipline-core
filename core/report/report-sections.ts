@@ -8,8 +8,8 @@ export type RunVerdict = "pass" | "fail";
 
 const RUN_SECTION_ROLES: Readonly<Record<RunSectionName, RunSectionRole>> = {
   excluded: "informational",
-  notAdopted: "informational",
-  notRun: "informational",
+  "not-adopted": "informational",
+  "not-run": "informational",
   editions: "informational",
   findings: "failing",
   answered: "informational",
@@ -21,18 +21,18 @@ const RUN_SECTION_ROLES: Readonly<Record<RunSectionName, RunSectionRole>> = {
   paid: "next-step",
   refused: "failing",
   unmeasured: "failing",
-  projectionProblems: "failing",
+  "projection-problems": "failing",
   assessment: "informational",
-  notes: "informational",
-  recordNotes: "informational",
+  "settings-notes": "informational",
+  "record-notes": "informational",
   carried: "informational",
   symptoms: "guidance",
 };
 
 export const RUN_SECTION_NAMES: readonly RunSectionName[] = [
   "excluded",
-  "notAdopted",
-  "notRun",
+  "not-adopted",
+  "not-run",
   "editions",
   "findings",
   "answered",
@@ -44,10 +44,10 @@ export const RUN_SECTION_NAMES: readonly RunSectionName[] = [
   "paid",
   "refused",
   "unmeasured",
-  "projectionProblems",
+  "projection-problems",
   "assessment",
-  "notes",
-  "recordNotes",
+  "settings-notes",
+  "record-notes",
   "carried",
   "symptoms",
 ];

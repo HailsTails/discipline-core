@@ -117,8 +117,8 @@ Create `<repo>/hone.config.json`. List every check you adopt with the engine tha
 - A symptom may span engines; list each of its checks on an engine that has it, or mark it. `authored-class-or-this#class-keyword` runs on `walker` or `eslint` but `authored-class-or-this#static-members-only` only on `eslint`, so adopting that symptom means adopting the ESLint engine for at least that check; see [README.md](README.md#adopting-the-eslint-mechanism). If ESLint cannot work in this repository, list such a check as `"not-run"`, as below.
 - A check's value in `checks` is one of three:
   - an engine id, such as `walker`: the check runs and its findings fail the run;
-  - `"not-run"`: the check is adopted, but its engine is not run; the report lists it under `notRun` as `<check> adopted, engine not run: enforced by review`;
-  - `"not-adopted"`: the check is not adopted; the report lists it under `notAdopted`.
+  - `"not-run"`: the check is adopted, but its engine is not run; the report lists it under `not-run` as `<check> adopted, engine not run: enforced by review`;
+  - `"not-adopted"`: the check is not adopted; the report lists it under `not-adopted`.
 - A `"not-run"` or `"not-adopted"` check is never run and never projected, not even as `"off"`, and its engine is not loaded unless another check uses it, so a repository that lists every ESLint check this way needs no ESLint installed. Both leave the run a whole assessment.
 - When a check cannot simply run clean, [the spirit of the rules](rules/SPIRIT.md#not-adopted-not-run-carved-out-escaped) names three declared states. Choose one deliberately, with reasons:
   - Not adopted: the rule does not apply to this codebase; a tech lead declares that, in the open. Set the check to `"not-adopted"`.
@@ -360,8 +360,8 @@ A finding of a clause the symptom catalogue gives no check, such as one from a r
 | Section | Meaning and what to do |
 | --- | --- |
 | `excluded` | the `exclude` entries from `hone.config.json` that were left out of the run; informational, check it is what you meant |
-| `notAdopted` | the checks `hone.config.json` lists as `"not-adopted"`; informational, they were neither run nor projected |
-| `notRun` | the checks `hone.config.json` lists as `"not-run"`, each as `<check> adopted, engine not run: enforced by review`; informational, they were neither run nor projected, and the rule is still owed through review |
+| `not-adopted` | the checks `hone.config.json` lists as `"not-adopted"`; informational, they were neither run nor projected |
+| `not-run` | the checks `hone.config.json` lists as `"not-run"`, each as `<check> adopted, engine not run: enforced by review`; informational, they were neither run nor projected, and the rule is still owed through review |
 | `editions` | each check with more than one edition, with the edition that ran and the latest; informational, see `checkEditions` in [step 4](#4-write-honeconfigjson) |
 | `findings` | violations: fix the code, or answer them with a record (step 7) |
 | `answered` | findings a record answers, each with the record that answers it; informational |
@@ -373,10 +373,10 @@ A finding of a clause the symptom catalogue gives no check, such as one from a r
 | `paid` | debt that another record answers in place of, for a finding this run raised, with the exact `hone prune-debt` command that removes it; informational next step, it never fails the run |
 | `refused` | a record that cannot be read or applied, with the reason: correct or delete it |
 | `unmeasured` | something could not be measured; each line says what, why and what Hone needs, for example `forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
-| `projectionProblems` | a projection or package slice that differs from what `hone project` writes now, is not written, is not in effect, or has no configuration to load it, each with what to do, for example `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every file it writes` |
+| `projection-problems` | a projection or package slice that differs from what `hone project` writes now, is not written, is not in effect, or has no configuration to load it, each with what to do, for example `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop and commit every file it writes` |
 | `assessment` | a concern this run left to another run, for example `forfeiture elsewhere: 37 debt records not checked for forfeiture in this run`; informational, and the verdict line then reads `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)` |
-| `notes` | what `hone.config.json` declares that no check reads yet; informational |
-| `recordNotes` | a note on a record, such as a case or an `owes` the catalogue does not list, by its records file and index; informational |
+| `settings-notes` | what `hone.config.json` declares that no check reads yet; informational |
+| `record-notes` | a note on a record, such as a case or an `owes` the catalogue does not list, by its records file and index; informational |
 | `carried` | records `hone upgrade` carried from version 1, with what each lacks and whether the base held them; informational, see [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) |
 | `symptoms` | printed last, one note for each symptom the findings name: what it may indicate, where the breach usually sits, the recipes that answer it, its correct uses and where to record each, and the page that explains it; guidance, it never fails the run |
 
@@ -511,7 +511,7 @@ Before, `npm run --silent hone:check` prints, and exits `1`:
 ```text
 excluded (1)
 generated
-notRun (1)
+not-run (1)
 claimed-type#non-null-assertions adopted, engine not run: enforced by review
 findings (5)
 date-used-directly#clock-sources walker src/basket.ts:7:0 private openedAt = Date.now(); may indicate: ports-declared-inside, written-out-answers, doer-or-orchestrator
@@ -545,7 +545,7 @@ After, the same command prints, and exits `0`:
 ```text
 excluded (1)
 generated
-notRun (1)
+not-run (1)
 claimed-type#non-null-assertions adopted, engine not run: enforced by review
 answered (1)
 date-used-directly#clock-sources walker src/clock.ts:3:0 export const createSystemClock = (): Clock => ({ now: () => Date.now() }); answered by boundary-record runtime:clock

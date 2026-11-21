@@ -638,9 +638,9 @@ A line of `findings`, `answered` or `unrecorded` leads with either a check or a 
 
 A `<records file>` is one field: it is printed bare when its path holds no space, double quote or line break, and as a JSON string in double quotes when it does. A records file whose name is not a catalogue name, such as `hone-records/debt/my notes.json`, is still read, and its records are refused as `misplaced`, so its path can lead a `refused` line.
 
-A record's ` carried` and its ` note: ` words come after its `<file>` or `<module>`, which may hold a space, so they are for a person. A tool reads the same facts from the `carried` and `recordNotes` sections, which lead with the record's records file and index. A tool tells debt refused for a check its symptom does not have from an authorised location kept with a note for it by the section and the third field: the refusal is under `refused` with `unknown-check` as its third field, and the note is under `recordNotes` with `unknown-check:`, ending in a colon.
+A record's ` carried` and its ` note: ` words come after its `<file>` or `<module>`, which may hold a space, so they are for a person. A tool reads the same facts from the `carried` and `record-notes` sections, which lead with the record's records file and index. A tool tells debt refused for a check its symptom does not have from an authorised location kept with a note for it by the section and the third field: the refusal is under `refused` with `unknown-check` as its third field, and the note is under `record-notes` with `unknown-check:`, ending in a colon.
 
-These are not stable: the words after the `:` that ends an `unmeasured` or `projectionProblems` line's leading fields, the `symptoms` lines, the `notes` lines, the words of a ` note: ` on a record and of a `recordNotes` line after its kind, the words of a refusal after its kind's values, the words after a record's site in `stale`, `forfeited` and `paid`, and a finding's `<fix>`.
+These are not stable: the words after the `:` that ends an `unmeasured` or `projection-problems` line's leading fields, the `symptoms` lines, the `settings-notes` lines, the words of a ` note: ` on a record and of a `record-notes` line after its kind, the words of a refusal after its kind's values, the words after a record's site in `stale`, `forfeited` and `paid`, and a finding's `<fix>`.
 
 As in 1.x, a minor release may add a section, a line form or a value, and a tool passes over a section heading or line it does not know. Removing or renaming a section or a line form, or changing a stable part, is a major release.
 
@@ -651,6 +651,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `<check>` | a check address, `<symptom>#<check>`, such as `date-used-directly#clock-sources`; for a finding or native exception of a clause the symptom catalogue gives no check, such as a team rule set's, the clause address; in a load failure, the check as `hone.config.json` lists it, led by its rule set and `/` when it has one, or the clause address when the failure is in the rule set's own files | never in the report; may hold a space in a load failure |
 | `<engine>` | the engine that ran the check, such as `walker` or `eslint`; beside a clause address, or in a load failure when the catalogue names no engine for it, the mechanism id | never |
 | `<symptom>`, `<recipe>`, `<case name>` | a name in the symptom catalogue | never |
+| `<section>` | in a finding, the section of its fix page, as in 1.x; in an upgrade refusal, a compared section of the two reports, always written in version 2's style: `excluded`, `findings`, `answered`, `unrecorded`, `misnamed`, `paid`, `stale`, `forfeited`, `doubly-held`, `invalid-records`, `uncovered`, `not-adopted`, `not-run`, `editions`, `unmeasured`, `projection-problems`, `assessment` or `verdict` | never |
 | `<check name>` | the check an authorised location names that its symptom does not have, as the record writes it | never |
 | `<outside party>`, `<dependency>` | a boundary record's outside party, such as `runtime:clock`, `node:fs` or `uuid/v4`, and a dependency record's package name | never |
 | `<records file>` | a records file under `hone-records/`, bare, or as a JSON string in double quotes when its path holds a space, a double quote or a line break | never outside a JSON string |
@@ -659,7 +660,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `<standing>` | `established`, a carried record unchanged against the base revision, or `unjudged`, one this run could not compare | never |
 | `<convention>` | a key of `hone.config.json` that no check reads yet: `conventions.generated` or `layers` | never |
 | `<path>`, `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x; in the report `<path>` is one that `exclude` leaves out, and in a load failure it is the file that failed | may hold a space |
-| `<snippet>`, `<fix>`, `<section>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
+| `<snippet>`, `<fix>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
 | `<prune command>` | the command that removes paid, stale and forfeited debt, printed as `<project command>` is | may hold a space |
 | `<case>`, `<owes>`, `<given>`, `<reason>`, `<revision>`, `<git message>` | text as written in a record, the command or git, as a JSON string in double quotes | may hold a space |
 | `<issues>` | each problem the record's form has, as its key's path (`record` for the record itself) then `: ` and what is wrong, separated by `; ` | may hold a space |
@@ -683,8 +684,8 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | Section | Role | What it lists |
 | --- | --- | --- |
 | `excluded` | informational | paths that `exclude` in `hone.config.json` leaves out |
-| `notAdopted` | informational | checks marked `not-adopted` |
-| `notRun` | informational | checks marked `not-run` |
+| `not-adopted` | informational | checks marked `not-adopted` |
+| `not-run` | informational | checks marked `not-run` |
 | `editions` | informational | the edition each check ran, for checks with more than one edition |
 | `findings` | failing | each place a check sees its symptom, unanswered |
 | `answered` | informational | findings a record answers, with the records that answer them |
@@ -696,10 +697,10 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `paid` | next-step | debt another record answers in place of, for a finding this run raised, with the records that answer and the command that removes the debt |
 | `refused` | failing | records that cannot be read or applied |
 | `unmeasured` | failing | what this run could not measure |
-| `projectionProblems` | failing | ESLint projections that are out of date |
+| `projection-problems` | failing | ESLint projections that are out of date |
 | `assessment` | informational | concerns this run left to another run |
-| `notes` | informational | what `hone.config.json` declares that no check reads yet |
-| `recordNotes` | informational | every note on a record, by its records file and index, whether or not the record answers a finding |
+| `settings-notes` | informational | what `hone.config.json` declares that no check reads yet |
+| `record-notes` | informational | every note on a record, by its records file and index, whether or not the record answers a finding |
 | `carried` | informational | records carried from version 1 word for word, with what each lacks |
 | `symptoms` | guidance | one note for each symptom the findings name |
 
@@ -723,8 +724,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | Section | Line |
 | --- | --- |
 | `excluded` | `<path>` |
-| `notAdopted` | `<check>` |
-| `notRun` | `<check> adopted, engine not run: enforced by review` |
+| `not-adopted` | `<check>` |
+| `not-run` | `<check> adopted, engine not run: enforced by review` |
 | `editions` | `<check> <engine> edition <edition> of <latest>` |
 | `findings` | `<check> <engine> <file>:<line>:<column> <snippet> may indicate: <indicated>` |
 | `findings` | `<check> <engine> <file>:<line>:<column> <snippet> may indicate: <indicated> fix: <fix> (<fix page>#<section>)` |
@@ -770,23 +771,23 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read hone-records at that revision and said <git message>; Hone needs hone-records as it was at that revision` |
 | `unmeasured` | `engine-not-run <engine> missing: hone.<engine>.mjs is not written; run <project command> and commit every file it writes` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
-| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projection-problems name the package slices involved` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
-| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
-| `unmeasured` | `engine-not-run <engine> measured-nothing: the <engine> engine measured no file in this run, so the records its checks answer were not judged, neither kept as answering nor removed as stale; the <engine> lines under projectionProblems name what to fix` |
+| `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projection-problems name the package slices involved; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
+| `unmeasured` | `engine-not-run <engine> measured-nothing: the <engine> engine measured no file in this run, so the records its checks answer were not judged, neither kept as answering nor removed as stale; the <engine> lines under projection-problems name what to fix` |
 | `unmeasured` | `engine-not-run <engine> measured-nothing: the <engine> engine measured no file in this run, so the records its checks answer were not judged, neither kept as answering nor removed as stale; check that the <engine> configuration lints the files under check` |
-| `projectionProblems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every file it writes` |
-| `projectionProblems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every file it writes` |
-| `projectionProblems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every file it writes` |
-| `projectionProblems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
+| `projection-problems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every file it writes` |
+| `projection-problems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every file it writes` |
+| `projection-problems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every file it writes` |
+| `projection-problems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
 | `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
 | `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |
 | `assessment` | `carried standing elsewhere: 1 carried record not checked against the base in this run` |
 | `assessment` | `carried standing elsewhere: <count> carried records not checked against the base in this run` |
-| `notes` | `<convention> is declared; no check reads it yet` |
-| `recordNotes` | `<records file> records[<index>] unknown-check: the catalogue has no check <given> of <symptom>` |
-| `recordNotes` | `<records file> records[<index>] unknown-case: the catalogue has no case <case>, owing <owes>` |
-| `recordNotes` | `<records file> records[<index>] owes-not-owed: <case name> does not owe <owes>` |
+| `settings-notes` | `<convention> is declared; no check reads it yet` |
+| `record-notes` | `<records file> records[<index>] unknown-check: the catalogue has no check <given> of <symptom>` |
+| `record-notes` | `<records file> records[<index>] unknown-case: the catalogue has no case <case>, owing <owes>` |
+| `record-notes` | `<records file> records[<index>] owes-not-owed: <case name> does not owe <owes>` |
 | `carried` | `<records file> records[<index>] <standing> lacks <lacks>` |
 | `carried` | `<records file> records[<index>] <standing>` |
 | `symptoms` | `<symptom>: <title>. May indicate: <indications>. The breach usually sits <breach>. Recipe: <recipe title>. <answers>. Read <symptom page>#<symptom>` |
@@ -799,7 +800,7 @@ A run that leaves forfeiture to another run, with `"forfeiture": "elsewhere"` in
 
 ## Version 2 record subjects and references
 
-A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` for each of them, wherever it is named, and each note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom. A record is listed under `stale` when nothing credits it and any one of three things holds: every check it reaches that a run selected was measured, where the record reaches it, by an engine of that check; or its place, the file or module it names, is no longer in the repository; or the settings exclude its place, which leaves the place out of what any engine checks. The line says which holds: a measured record prints `nothing it holds is found` on debt and nothing on any other record, a record whose place is gone prints `its file is no longer in the repository`, and an excluded place prints `its file is excluded by the settings, so nothing there was checked`, which wins over the place being gone, as when a folder the settings exclude holds a file that no longer exists; a `hone prune-debt` line carries the same reason after `stale`. A record that reaches a selected check its engine did not measure at a place that is in the repository and not excluded is not stale, and `hone prune-debt` leaves it; when an engine with selected checks measured no file at all, an `engine-not-run` line says so.
+A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` for each of them, wherever it is named, and each note is listed again under `record-notes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom. A record is listed under `stale` when nothing credits it and any one of three things holds: every check it reaches that a run selected was measured, where the record reaches it, by an engine of that check; or its place, the file or module it names, is no longer in the repository; or the settings exclude its place, which leaves the place out of what any engine checks. The line says which holds: a measured record prints `nothing it holds is found` on debt and nothing on any other record, a record whose place is gone prints `its file is no longer in the repository`, and an excluded place prints `its file is excluded by the settings, so nothing there was checked`, which wins over the place being gone, as when a folder the settings exclude holds a file that no longer exists; a `hone prune-debt` line carries the same reason after `stale`. A record that reaches a selected check its engine did not measure at a place that is in the repository and not excluded is not stale, and `hone prune-debt` leaves it; when an engine with selected checks measured no file at all, an `engine-not-run` line says so.
 
 | Part | Text |
 | --- | --- |

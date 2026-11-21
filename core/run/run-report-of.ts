@@ -72,8 +72,8 @@ export const runReportOf = (request: RunReportRequest): RunReport => {
   const { catalogue, selection, records, runs } = request;
   return {
     excluded: request.excluded,
-    notAdopted: checksOfClauses({ catalogue, clauses: selection.notAdopted }),
-    notRun: checksOfClauses({ catalogue, clauses: selection.notRun }),
+    "not-adopted": checksOfClauses({ catalogue, clauses: selection.notAdopted }),
+    "not-run": checksOfClauses({ catalogue, clauses: selection.notRun }),
     editions: editionsOf({ catalogue, readings: selection.editions }),
     findings: answering.findings,
     answered: answering.answered,
@@ -85,10 +85,10 @@ export const runReportOf = (request: RunReportRequest): RunReport => {
     paid: answering.paid,
     refused: records.refused,
     unmeasured: [...recordsUnmeasuredOf({ records: records.records, base: records.base, touched: request.touched }), ...engineUnmeasuredOf({ catalogue, runs, selected: selection.selected, tracked: request.tracked })],
-    projectionProblems: engineProblemsOf({ catalogue, runs }),
+    "projection-problems": engineProblemsOf({ catalogue, runs }),
     assessment: assessmentOf(request),
-    notes: request.notes,
-    recordNotes: records.notes,
+    "settings-notes": request.notes,
+    "record-notes": records.notes,
     carried: carriedListingOf({ records: records.records }),
     symptoms: symptomsOf({ catalogue, findings: answering.findings }),
   };

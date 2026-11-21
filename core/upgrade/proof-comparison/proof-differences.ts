@@ -29,7 +29,7 @@ export const proofDifferencesOf = (request: {
   const reported = beforeSectionsOf({ report: request.before });
   const before: SectionKeys = {
     ...reported,
-    notAdopted: uniqueKeys({ keys: [...reported.notAdopted, ...request.marked.map(({ clause }) => clauseAddressText({ address: clause }))] }),
+    "not-adopted": uniqueKeys({ keys: [...reported["not-adopted"], ...request.marked.map(({ clause }) => clauseAddressText({ address: clause }))] }),
   };
   const after = afterSectionsOf({ report: request.after, catalogues: request.catalogues });
   return PROOF_SECTIONS.flatMap((section) => differenceIn({ section, before, after }));

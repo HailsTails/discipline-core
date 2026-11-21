@@ -21,8 +21,8 @@ type SectionLines = (request: RunReportRequest) => readonly string[];
 
 const SECTION_LINES: Readonly<Record<RunSectionName, SectionLines>> = {
   excluded: (request) => request.report.excluded,
-  notAdopted: (request) => request.report.notAdopted.map((check) => checkLine({ check })),
-  notRun: (request) => request.report.notRun.map((check) => notRunLine({ check })),
+  "not-adopted": (request) => request.report["not-adopted"].map((check) => checkLine({ check })),
+  "not-run": (request) => request.report["not-run"].map((check) => notRunLine({ check })),
   editions: (request) => request.report.editions.map((reading) => editionLine({ reading })),
   findings: (request) => request.report.findings.map((finding) => findingLine({ catalogue: request.catalogue, finding })),
   answered: (request) => request.report.answered.map((answered) => answeredLine({ catalogue: request.catalogue, answered })),
@@ -34,11 +34,11 @@ const SECTION_LINES: Readonly<Record<RunSectionName, SectionLines>> = {
   paid: (request) => request.report.paid.map((paid) => paidLine({ paid, pruneCommand: request.pruneCommand })),
   refused: (request) => request.report.refused.flatMap((refused) => refusedLines({ refused })),
   unmeasured: (request) =>
-    request.report.unmeasured.map((unmeasured) => unmeasuredLine({ projectCommand: request.projectCommand, unmeasured, problems: request.report.projectionProblems })),
-  projectionProblems: (request) => request.report.projectionProblems.map((problem) => projectionProblemLine({ projectCommand: request.projectCommand, problem })),
+    request.report.unmeasured.map((unmeasured) => unmeasuredLine({ projectCommand: request.projectCommand, unmeasured, problems: request.report["projection-problems"] })),
+  "projection-problems": (request) => request.report["projection-problems"].map((problem) => projectionProblemLine({ projectCommand: request.projectCommand, problem })),
   assessment: (request) => request.report.assessment.map((partial) => assessmentLine({ partial })),
-  notes: (request) => request.report.notes.map((note) => settingsNoteLine({ note })),
-  recordNotes: (request) => request.report.recordNotes.map((recordNote) => recordNoteLine({ recordNote })),
+  "settings-notes": (request) => request.report["settings-notes"].map((note) => settingsNoteLine({ note })),
+  "record-notes": (request) => request.report["record-notes"].map((recordNote) => recordNoteLine({ recordNote })),
   carried: (request) => request.report.carried.map((listing) => carriedLine({ listing })),
   symptoms: (request) => request.report.symptoms.map((symptom) => symptomLine({ catalogue: request.catalogue, symptom, page: request.symptomPage })),
 };
