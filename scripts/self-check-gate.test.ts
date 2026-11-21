@@ -13,7 +13,8 @@ import { repoPathSchema } from "../core/values/repo-path.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
 import { NO_SYMPTOM_GUIDE, type SymptomGuide } from "../core/verdict/symptom-notes.ts";
 import type { Case, Principle, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
-import { runSelfCheck, selfCheckOutcomeOf } from "./self-check-gate.ts";
+import type { RunReport } from "../core/report/run-report.ts";
+import { runSelfCheck, selfCheckOutcomeOf, VERSION_TWO_GATED_SECTIONS, versionTwoSelfCheckOutcomeOf } from "./self-check-gate.ts";
 
 const PROJECT_COMMAND = "node core/check/tool-command.ts project --repo .";
 
@@ -93,6 +94,85 @@ const CLASS_GUIDE: SymptomGuide = {
     namedBans: [],
   },
 };
+
+const EMPTY_RUN_REPORT: RunReport = {
+  excluded: [],
+  notAdopted: [],
+  notRun: [],
+  editions: [],
+  findings: [],
+  answered: [],
+  uncovered: [],
+  stale: [],
+  forfeited: [],
+  unrecorded: [],
+  misnamed: [],
+  paid: [],
+  refused: [],
+  unmeasured: [],
+  projectionProblems: [],
+  assessment: [],
+  notes: [],
+  recordNotes: [],
+  carried: [],
+  symptoms: [],
+};
+
+const IGNORED_IN_A = { kind: "ignore", clause: clauseAddressSchema.parse("CD-14#class-syntax"), file: repoPathSchema.parse("src/a.ts"), mechanism: mechanismIdSchema.parse("eslint") } as const;
+
+describe("VERSION_TWO_GATED_SECTIONS", () => {
+  it("names every failing section of a version 2 run except the findings and the unrecorded native exceptions, which are reported and not gated", () => {
+    expect(VERSION_TWO_GATED_SECTIONS).toEqual(["uncovered", "stale", "forfeited", "misnamed", "refused", "unmeasured", "projectionProblems"]);
+  });
+});
+
+describe("versionTwoSelfCheckOutcomeOf", () => {
+  it("passes a clean run, printing the report and the gate line", () => {
+    expect(versionTwoSelfCheckOutcomeOf({ checked: { kind: "ran", outcome: { code: 0, text: "verdict: pass\n" }, report: EMPTY_RUN_REPORT } })).toEqual({
+      code: 0,
+      text: "verdict: pass\nself-check: pass, the selection, records and projection are sound; findings (0) and unrecorded (0) are reported above and not gated\n",
+    });
+  });
+
+  it("passes a run whose only failures are findings and unrecorded native exceptions, counting both as not gated", () => {
+    expect(
+      versionTwoSelfCheckOutcomeOf({
+        checked: { kind: "ran", outcome: { code: 1, text: "verdict: fail\n" }, report: { ...EMPTY_RUN_REPORT, findings: [CLASS_IN_A], unrecorded: [IGNORED_IN_A, IGNORED_IN_A] } },
+      }),
+    ).toEqual({
+      code: 0,
+      text: "verdict: fail\nself-check: pass, the selection, records and projection are sound; findings (1) and unrecorded (2) are reported above and not gated\n",
+    });
+  });
+
+  it("fails naming each gated section that holds an entry, in the order the report lists them", () => {
+    expect(
+      versionTwoSelfCheckOutcomeOf({
+        checked: {
+          kind: "ran",
+          outcome: { code: 1, text: "verdict: fail\n" },
+          report: {
+            ...EMPTY_RUN_REPORT,
+            findings: [CLASS_IN_A],
+            misnamed: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "// eslint-disable-line hone/no-such-check" }],
+            refused: [{ place: { file: repoPathSchema.parse("hone-records/debt/loop-keyword.json"), index: 1 }, refusals: [{ kind: "carried-changed-since-base" }] }],
+            unmeasured: [{ kind: "import-unmeasured", base: { state: "not-given" } }],
+          },
+        },
+      }),
+    ).toEqual({
+      code: 1,
+      text: "verdict: fail\nself-check: fail, gated sections hold entries: misnamed (1), refused (1), unmeasured (1)\n",
+    });
+  });
+
+  it("hands on a version 2 check that could not run as it is, with its own exit code", () => {
+    expect(versionTwoSelfCheckOutcomeOf({ checked: { kind: "not-run", outcome: { code: 2, text: "load failure: arguments-invalid --repo is required\n" } } })).toEqual({
+      code: 2,
+      text: "load failure: arguments-invalid --repo is required\n",
+    });
+  });
+});
 
 describe("selfCheckOutcomeOf", () => {
   it("passes a clean run, printing the report and the gate line", () => {

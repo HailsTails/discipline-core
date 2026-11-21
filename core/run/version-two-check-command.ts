@@ -6,6 +6,7 @@ import { printOutcome } from "../command-line/print-outcome.ts";
 import { shownPathOf } from "../command-line/shown-path.ts";
 import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
 import type { CommandRequest } from "../check/run-check-command.ts";
+import type { RunReport } from "../report/run-report.ts";
 import { renderRunReportText } from "../report/run-report-text.ts";
 import { runVerdictOf } from "../report/report-sections.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
@@ -74,22 +75,33 @@ const runOutcomeOf = (request: { readonly command: CommandRequest; readonly loca
   };
 };
 
-const outcomeOf = async (request: { readonly ports: VersionTwoRepositoryPorts; readonly command: CommandRequest }): Promise<CommandOutcome> => {
-  const located = locatedOf(request);
-  if (located.outcome === "failed") {
-    return loadFailureOutcome({ failure: located.error });
-  }
-  const run = await versionTwoRunOver({
-    stages: stagesOverRepository({ ...request, located: located.value, baseRevision: located.value.arguments.baseRevision }),
-    arguments: { forfeiture: located.value.arguments.forfeiture, reportOutput: located.value.arguments.reportOutput, measuring: "when-debt-held" },
-  });
-  return run.outcome === "failed"
-    ? runLoadFailureOutcomeOf({ failure: run.error, upgradeCommand: upgradeCommandFor({ path: request.command.path, moduleUrl: request.command.moduleUrl, repoRoot: located.value.repoRoot }) })
-    : runOutcomeOf({ command: request.command, located: located.value, run: run.value });
-};
+export type VersionTwoChecked =
+  | { readonly kind: "ran"; readonly outcome: CommandOutcome; readonly report: RunReport }
+  | { readonly kind: "not-run"; readonly outcome: CommandOutcome };
+
+const notRunWith = (request: { readonly outcome: CommandOutcome }): VersionTwoChecked => ({ kind: "not-run", outcome: request.outcome });
+
+export const versionTwoCheckedOf =
+  (ports: VersionTwoRepositoryPorts) =>
+  async (command: CommandRequest): Promise<VersionTwoChecked> => {
+    const located = locatedOf({ command });
+    if (located.outcome === "failed") {
+      return notRunWith({ outcome: loadFailureOutcome({ failure: located.error }) });
+    }
+    const run = await versionTwoRunOver({
+      stages: stagesOverRepository({ ports, command, located: located.value, baseRevision: located.value.arguments.baseRevision }),
+      arguments: { forfeiture: located.value.arguments.forfeiture, reportOutput: located.value.arguments.reportOutput, measuring: "when-debt-held" },
+    });
+    return run.outcome === "failed"
+      ? notRunWith({
+          outcome: runLoadFailureOutcomeOf({ failure: run.error, upgradeCommand: upgradeCommandFor({ path: command.path, moduleUrl: command.moduleUrl, repoRoot: located.value.repoRoot }) }),
+        })
+      : { kind: "ran", outcome: runOutcomeOf({ command, located: located.value, run: run.value }), report: run.value.report };
+  };
 
 export const versionTwoCheckCommandOf =
   (ports: VersionTwoRepositoryPorts) =>
   async (command: CommandRequest): Promise<void> => {
-    printOutcome({ process: command.process, outcome: await outcomeOf({ ports, command }) });
+    const checked = await versionTwoCheckedOf(ports)(command);
+    printOutcome({ process: command.process, outcome: checked.outcome });
   };

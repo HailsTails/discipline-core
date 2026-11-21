@@ -7,7 +7,7 @@ import { createRecordsFolder } from "../records/records-folder.ts";
 import { createDefaultFileRemovalPort } from "../platform-ports/file-removal-port.ts";
 import { createDefaultGitTreePort } from "../platform-ports/git-port.ts";
 import { notReadyCommandOf, versionChosenCommandOf } from "../run/version-chosen-command.ts";
-import { versionTwoCheckCommandOf } from "../run/version-two-check-command.ts";
+import { versionTwoCheckCommandOf, versionTwoCheckedOf } from "../run/version-two-check-command.ts";
 import { versionTwoProjectCommandOf } from "../run/version-two-project-command.ts";
 import { versionTwoNeededCommandOf } from "../run/version-two-needed-command.ts";
 import { versionTwoAuthoriseCommandOf, versionTwoPruneDebtCommandOf, versionTwoRecordDebtCommandOf } from "../run/version-two-record-commands.ts";
@@ -78,6 +78,8 @@ const versionTwoPorts = {
     exceptionRepositoryOf: createDefaultExceptionRepositoryOf({}),
   }),
 };
+
+export const installedVersionTwoCheckedOf = versionTwoCheckedOf(versionTwoPorts);
 
 const versionTwoCheck = versionTwoCheckCommandOf(versionTwoPorts);
 

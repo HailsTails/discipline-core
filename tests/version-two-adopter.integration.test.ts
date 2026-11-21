@@ -234,9 +234,11 @@ const adopterRepositoryWithGeneratedFolder = (): string => {
   return repo;
 };
 
-const PROJECTION_WRITTEN: Printed = { text: "hone.eslint.mjs written\n", code: 0 };
+const PROJECTION_WRITTEN: Printed = { text: "hone.eslint.mjs written\nhone.eslint.d.mts written\n", code: 0 };
 
-const PROJECTION_UNCHANGED: Printed = { text: "hone.eslint.mjs unchanged\n", code: 0 };
+const PROJECTION_REWRITTEN: Printed = { text: "hone.eslint.mjs written\nhone.eslint.d.mts unchanged\n", code: 0 };
+
+const PROJECTION_UNCHANGED: Printed = { text: "hone.eslint.mjs unchanged\nhone.eslint.d.mts unchanged\n", code: 0 };
 
 const forfeitedLine = (request: { readonly repo: string; readonly check: string; readonly file: string }): string =>
   `forfeited (1)\n${request.check} debt ${request.file}; this change touched its file, so it no longer answers: fix what it held, then run ${pruneCommandAtHeadIn({ repo: request.repo })} to remove it\n`;
@@ -273,7 +275,7 @@ describe("a version 2 adopter's repository, from the first project to a clean ch
           text: "claimed-type#cast-to-any recorded src/cast.ts\nauthored-class-or-this#class-keyword recorded src/kept.ts\n",
           code: 0,
         },
-        projectedWithDebt: PROJECTION_WRITTEN,
+        projectedWithDebt: PROJECTION_REWRITTEN,
         answeredByDebt: { text: `${NOT_ADOPTED}answered (2)\n${CLASS_ANSWERED_BY_DEBT}${CAST_ANSWERED_BY_DEBT}verdict: pass\n`, code: 0 },
         authorised: { text: "claimed-type authorised src/cast.ts\n", code: 0 },
         answeredByLocation: {
@@ -286,7 +288,7 @@ describe("a version 2 adopter's repository, from the first project to a clean ch
           code: 1,
         },
         prunedForfeited: { text: "authored-class-or-this#class-keyword removed src/kept.ts: forfeited\n", code: 0 },
-        projectedWithoutDebt: PROJECTION_WRITTEN,
+        projectedWithoutDebt: PROJECTION_REWRITTEN,
         clean: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_LOCATION}verdict: pass\n`, code: 0 },
       });
     },
@@ -329,10 +331,10 @@ describe("a version 2 adopter's repository judged against a base revision, run a
 });
 
 const outOfDateProjection = (request: { readonly repo: string }): string =>
-  `projectionProblems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every hone.eslint.mjs it writes\n`;
+  `projectionProblems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every file it writes\n`;
 
 const missingProjection = (request: { readonly repo: string }): string =>
-  `unmeasured (1)\nengine-not-run eslint missing: hone.eslint.mjs is not written; run ${projectCommandIn({ repo: request.repo })} and commit every hone.eslint.mjs it writes\n`;
+  `unmeasured (1)\nengine-not-run eslint missing: hone.eslint.mjs is not written; run ${projectCommandIn({ repo: request.repo })} and commit every file it writes\n`;
 
 describe("the settings a version 2 adopter edits, run as the real tool command", () => {
   it(
