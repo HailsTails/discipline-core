@@ -206,7 +206,7 @@ Stop and ask the human if anything outside the old trial uses the copied tools o
 An install from before the [why-chain contract](docs/why-chain-contract.md) holds chains with `whys`, `rootCause` and `owner` only. Hone still accepts such a chain while `--base-revision` holds its entry unchanged, but the first run without a base revision reports `legacy-chain-unmeasured` and fails. Do these steps in order:
 
 1. **Give every check a base revision, before you refresh Hone.** Add `--base-revision` to the check command in `package.json` scripts, CI and the pre-push hook: `origin/main` locally, the pull request's base commit in CI. On a push to the main branch, the base is the commit before the push. Make sure CI fetches enough history to reach the base: `actions/checkout` defaults to one commit, so set `fetch-depth: 0` or fetch the base explicitly. A rin consumer whose `constitution.engine` is `"hone"`, or `"discipline-core"` before the rename, sets `constitution.baseRevision` in `harness.config.json`. Rin's stage gate and `disciplines` sensor pass it on.
-2. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Every chain that is unchanged since the base passes. If the run lists `legacy-chain-unmeasured`, step 1 is missing somewhere. Any `why-chain-refused` entry is a legacy chain that is new or edited since the base.
+2. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 says, and run the check. Every chain that is unchanged since the base passes. If the run lists `legacy-chain-unmeasured`, step 1 is missing somewhere. Any `why-chain-refused` entry is a legacy chain that is new or edited since the base.
 3. **Rewrite each chain when you next touch its entry.** An edited entry with a legacy chain is refused until the chain follows the contract. Write the chain from the symptom down: ask why the exception exists, then ask why that answer is true, four more times. Add the `rootCheck` you ran today and the `readback`.
 4. **Queue a rewrite of the rest.** Nothing ends the grace period: a legacy chain whose entry is never touched stays accepted. To make every chain causal, rewrite the remaining ones as tracked work. Rewriting a chain is an edit, so each rewritten chain must pass the contract in that change.
 
@@ -298,7 +298,7 @@ For each clause the setting skipped:
 
 Earlier releases wrote one `disciplines.eslint.mjs` at the repository root, and every package config spread it. A package linted from its own folder resolves `files` against that folder, so the root projection's carve-outs never matched there. Hone now writes a slice per config root; see [README.md](README.md#package-slices).
 
-1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Under the nearest-to-file lookup, each folder with a tracked `eslint.config.*` is a config root, and the check fails with `eslint missing <package>/disciplines.eslint.mjs` for each until its slice is written.
+1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 says, and run the check. Under the nearest-to-file lookup, each folder with a tracked `eslint.config.*` is a config root, and the check fails with `eslint missing <package>/disciplines.eslint.mjs` for each until its slice is written.
 2. **Project and commit.** Run `npm run --silent hone:project` and commit every `disciplines.eslint.mjs` it writes, the root one and each package's.
 3. **Spread each package's own slice.** In each package config, import `./disciplines.eslint.mjs` from that package's folder and spread it last, in place of the root projection. A package still spreading the root projection is reported `eslint not-applied <package>/disciplines.eslint.mjs` once a recorded file there is under check.
 4. **List generated configs.** A package whose `eslint.config.*` a tool generates and git ignores gets no slice until its folder is listed under `eslintConfigRoots` in `disciplines.json`. Each listed folder must be one git tracks files under, outside every `exclude` path, or the check stops with `config-root-untracked`.
@@ -309,7 +309,7 @@ Earlier releases wrote one `disciplines.eslint.mjs` at the repository root, and 
 
 Earlier releases reported an `eslint-disable` comment naming a selected rule as an `inline-disable` no record could cover, and did not report TypeScript directives at all. Inline exceptions are now debt on the clause they escape, in their file, held by the file records you already write.
 
-1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. Each `@ts-expect-error`, `@ts-ignore` and `@ts-nocheck` in a `.ts` or `.tsx` file is listed under `unrecorded` as `CD-2#cast-expressions audit inline-disable <file>:<line> <comment>` (`claimed-type#unlisted-cast-site`), test files included, and each `eslint-disable` as before.
+1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 says, and run the check. Each `@ts-expect-error`, `@ts-ignore` and `@ts-nocheck` in a `.ts` or `.tsx` file is listed under `unrecorded` as `CD-2#cast-expressions audit inline-disable <file>:<line> <comment>` (`claimed-type#unlisted-cast-site`), test files included, and each `eslint-disable` as before.
 2. **Remove what you can.** A directive or disable that hides nothing is cheaper to delete than to record.
 3. **Record the rest per clause and file.** Add a `file-carve-out` for debt, or an `authorised-location` where the clause truly does not apply to that file, on the clause the line names and that file. `hone record-debt` writes the debt records ([ADOPTING.md](ADOPTING.md#7a-record-the-debt-you-inherit) step 7a). One record holds every inline exception of that clause in the file. A `clause-wide-carve-out` does not hold them, and a tracked reference on the comment (`untracked-escape#directive-pointers`) does not stand in for the record. Editing a carved file forfeits the carve-out, and each inline exception it held is listed again.
 4. **Name the rule in a bare disable.** An `eslint-disable` naming no rule escapes every selected ESLint clause and needs a record for each. Its lines end `names no rule and escapes every selected clause: naming the rule is the cheap fix`.
@@ -356,7 +356,7 @@ From then on, `hone record-debt` adds each record to its discipline's file, and 
 
 Earlier releases never listed an `eslint` file record as `stale`. The off-switch `hone project` writes for a record counted as a `config-override` that the record held, so a record kept its rule off after its file stopped breaking the clause, and a new violation there went unreported. A forfeited `eslint` record's off-switch was also listed under `unrecorded` as a `config-override`. The check no longer counts the projection's own off-switches as native exceptions, and the new `hone prune-debt` removes the records of files that no longer exist.
 
-1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check against the branch's base. If none of your `eslint` debt is paid, nothing changes.
+1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 says, and run the check against the branch's base. If none of your `eslint` debt is paid, nothing changes.
 2. **If some is, the run fails.** Each paid record is listed under `stale` as `<clause> eslint file-carve-out <file>`.
 3. **Delete each of those records by hand** when its file still exists, or let `hone prune-debt` remove it once you have also done [section 19](#19-pruning-paid-debt-on-files-that-still-exist), then run `npm run --silent hone:project`, which prints `disciplines.eslint.mjs written`. A stale `authorised-location` or `clause-wide-carve-out` is left for a person in the same way.
 4. **Run `hone prune-debt` for records whose file is gone.** When a stale or forfeited record names a file that no longer exists, or, after section 19, one whose clause was measured clean on its file, the report ends with one `readFirst` line naming the command to run, such as:
@@ -387,7 +387,7 @@ Nothing must be migrated. Selections, exception records and findings still use t
 
 `hone prune-debt` used to remove a `file-carve-out` only when its file no longer existed. Each mechanism now reports which clause it measured on which file, and the command also removes a stale or forfeited `file-carve-out` whose clause its mechanism measured on its file, when no finding or native exception still holds it. A finding an `authorised-location` in force exempts no longer holds it, since that finding is answered; a finding only debt exempts, and any native exception on the pair, recorded or not, still do. A file the mechanism skipped, a file outside the checked set and a run that did not happen are not measured, so their records stay.
 
-1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) step 10 says, and run the check. A record whose debt is paid on a file that still exists now brings the `prune-debt` line to the end of `readFirst`.
+1. **Refresh Hone** as [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 says, and run the check. A record whose debt is paid on a file that still exists now brings the `prune-debt` line to the end of `readFirst`.
 2. **Run the command it names,** then `npm run --silent hone:project` when any clause is `eslint`, and commit what they change.
 3. **Runners written outside Hone** may return `measured`, a list of `{ clause, file }` pairs, beside what they return now; [the mechanism guide](docs/adding-a-discipline-or-mechanism.md) says what a pair means. A runner that returns none has measured nothing, and its records on files that still exist stay for a person, as before.
 4. **Audit pieces written outside Hone** must answer `skipped` from `prepareFile` for a file they do not judge. Any other answer now says the piece's clauses were measured on that file, so `prune-debt` may remove a record on it; [the audit piece guide](docs/extending.md#an-audit-piece) says so.
@@ -396,17 +396,76 @@ Nothing must be migrated. Selections, exception records and findings still use t
 
 Version 2 keeps its settings in `hone.config.json`, its records in the `hone-records` folder and its native configuration in `hone.<engine>.mjs`, where version 1 kept them in `disciplines.json`, the exception records and `disciplines.<mechanism>.mjs`. `hone upgrade` moves a repository from one to the other in one run, and refuses, changing nothing, when it cannot show that version 2 reports what version 1 reported.
 
-1. **Commit or stash everything first.** The working tree is the only rollback: a refusal after files were written puts them back, and names any it could not put back so you can restore them from version control.
-2. **Make the version 1 run pass its own load.** Run `hone check` as you do today. The upgrade starts from a repository version 1 can read.
-3. **Run it:**
+1. **Install version 2 on a branch, with a clean working tree,** the way [ADOPTING.md](ADOPTING.md#10-update-and-remove) section 10 installs a release, and stop there: run neither `hone:project` nor the check before the upgrade. The working tree is the only rollback: a refusal after files were written puts them back, and names any it could not put back, so you can restore them from version control.
+2. **Run it:**
 
    ```bash
    node_modules/.bin/hone upgrade --repo .
    ```
 
-   It asks version 1 which findings each file carve-out answers, plans the version 2 files, runs version 1, writes the version 2 files, runs version 2 and compares the two runs, and only when they agree removes the version 1 files. It prints `upgraded to version 2`, then `wrote <file>` for each file it wrote, `rewrote <file>` for your ESLint config, which now imports the version 2 projection, and `removed <path>` for each version 1 file.
-4. **Read a refusal as an instruction.** It prints `upgrade refused:`, what to do, and `Nothing was changed.`, and exits `1`. A file carve-out that answers no finding, a team config that does not import the version 1 projection in the form `import projection from "./disciplines.eslint.mjs"`, a file at a path version 2 writes to, and a clause with no version 2 check each name the file or clause to fix. A refusal that says it is a fault in Hone names where to report it, with the output. If a refusal came after files were written and one could not be put back, the output lists it: delete a file or folder the upgrade created, and restore a file it replaced from version control.
-5. **Exit `3` means version 2 is in place and some version 1 files could not be removed.** The output lists every version 1 file still present: delete them by hand, then commit. While `disciplines.json` is still beside `hone.config.json`, every `hone` command stops with `settings-in-both-versions`.
-6. **Add the new files and check.** Run `git add .`, then `hone check` against the branch's base as you do today, and commit the version 2 files together with the removal of the version 1 files. A second `hone upgrade` prints `already on version 2; nothing to upgrade` and exits `0`.
+   It runs version 1 over your repository, plans the version 2 files, writes them, runs version 2 and compares the two runs. Only when they agree does it remove the version 1 files. If they do not, it changes nothing. A refusal prints `Nothing was changed.` except the two that [What the upgrade prints](#what-the-upgrade-prints) lists, which come from version 1's own `project`.
+3. **Commit** the version 2 files together with the removal of the version 1 files: `git add .`, then your commit.
+4. **Run the check with a base revision, locally as well as in CI,** for example `npm run --silent hone:check -- --base-revision origin/main`. While any carried record exists, every run needs `--base-revision`: without one the run prints `import-unmeasured no-base-revision` and fails, and, while any debt exists and `forfeiture` is not `elsewhere`, also prints `forfeiture-unmeasured no-base-revision`. That includes a bare local check or a hook that passes no base. A second `hone upgrade` prints `already on version 2; nothing to upgrade` and exits `0`.
 
-What the upgrade does not carry, and refuses: `eslintConfigRoots`, which version 2 does not run yet; several version 1 projections, since it carries one; a clause-wide carve-out, which version 2 has no record for, so replace it with file carve-outs first; and the clauses of a version 1 team rule set. Version 2 reads a team rule set's own symptom catalogue, but a version 1 team rule set has none, so version 2 has no check to run its clauses: remove them from `disciplines.json` to upgrade without them, or stay on version 1. The upgrade rewrites the one ESLint config that imports the version 1 projection, and only an import in the form `import projection from "./disciplines.eslint.mjs"`; rewrite any other form of that import to it first.
+### What the upgrade prints
+
+On success it exits `0` and prints these lines, in this order:
+
+- `upgraded to version 2`.
+- `marked <check> not-adopted: its discipline was not selected in version 1`, once for each check the upgrade wrote as `not-adopted` in `hone.config.json`. Version 2 lists every check of a symptom that one of your checks sees; a check of a discipline you never selected in version 1 would otherwise be reported `uncovered`. It is not run, as in version 1.
+- `wrote <file>`: `hone.config.json`, each records file under `hone-records/`, and each `hone.eslint.mjs`.
+- `rewrote <file>`: each ESLint config of yours that imported a version 1 projection, now importing the version 2 one.
+- `removed <path>`: each version 1 file and folder, which are `disciplines.json`, the `disciplines.eslint.mjs` files, and every file and folder of `discipline-exceptions.json` or `discipline-exceptions/`.
+
+The paths are relative to `--repo`.
+
+A refusal exits `1` and prints `upgrade refused:` and one or more lines saying what to do. Every refusal but the two below ends with `Nothing was changed.`. If a refusal came after files were written and one could not be put back, it lists that file instead: delete a file or folder the upgrade created, and restore a file it replaced from version control.
+
+Exit `3` prints `upgrade incomplete:`. Version 2 is in place, and some version 1 files could not be removed. The output lists every version 1 file still present: delete them by hand, then commit. While `disciplines.json` is still beside `hone.config.json`, every `hone` command stops with `settings-in-both-versions`.
+
+### Refusals you may meet
+
+Each line below is the tool's own, with `<...>` standing for what it names. Do what the line says, then run the upgrade again.
+
+- `version 1's own run could not be made (<detail>). Run hone check and fix its load failure first.` The same action follows `version 1's run failed (<detail>).` and `version 1's files could not be read (<detail>).`
+- `version 1 already reports <clauses> as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.`
+- `the file carve-out for <clause> in <file> answers no finding. Remove it, or fix the file it names, then run the upgrade again.` An `answers only a suppression` line says the same.
+- `<clause> carries a clause-wide carve-out, which version 2 has no record for. Replace it with file carve-outs first.`
+- `<clause> in <file> is held by both a file carve-out and an authorised location. Remove one of them first, then run the upgrade again.`
+- `<clause> has no version 2 check to run it, and version 2 does not carry the clauses of a version 1 team rule set. Remove it from disciplines.json to upgrade without it, or stay on version 1.`
+- `<path> already exists. Move it aside, then run the upgrade again.`
+- `the version 1 records are invalid; fix them first:` or `a version 1 record in <records file> is not JSON. Fix it first.`
+- `version 1's own project failed (<detail>). Run hone project with your version 1 release, fix what it reports, then run the upgrade again.`, then `version 1's own project may have changed files before it failed; check version control for what it changed.` The tree may have changed, and this refusal does not say `Nothing was changed.`
+- `version 1's own project rewrote <files>, which the upgrade had already measured. Commit what it wrote, then run the upgrade again.` Version 1's own `project` has changed those files, which stay changed: commit them, then run the upgrade again.
+- `version 2 does not report what version 1 reported:`, then what differs, then `This is a fault in hone, not in your repository. Report it at <issues page>, with this output.` Nothing was changed; send the output.
+
+### Your records, and what the check judges
+
+A file carve-out that version 1 held with a `provenance`, as `hone record-debt` writes, or with a `whyChain`, and every authorised location move to `hone-records` word for word, under a `carried` key. These are the carried records. A location is filed at the check or checks that the findings it answers sit at, so one for a clause bound to the audit mechanism lands under the symptom those findings belong to, such as `hone-records/authorised-locations/claimed-type.json`, not under its clause. A file carve-out with neither moves as a debt record with the `reason` as its `note`.
+
+The check lists the carried records under `carried`, one line each, `<records file> records[<index>] <standing>`, followed by `lacks` and the keys it lacks when the record lacks any. A carried authorised location lacks `case`, `owes` and `whyChain`, which version 1 did not hold, and its line says so. With a base revision, it judges each one: it is `established` when the base revision held that record unchanged, whether as a version 1 entry or as a version 2 record, so a base from before the upgrade works. A carried record changed since the base is refused as `carried-changed-since-base`, so leave carried records as they are. Without a base revision the standing is `unjudged` and the run fails with `import-unmeasured no-base-revision`: while carried records exist, every run needs `--base-revision`, local runs and hooks included. Version 2 names each finding by its check, such as `authored-class-or-this#class-keyword`, where version 1 named it by its clause, such as `CD-14#class-syntax`.
+
+### Update what names the old files
+
+Anything of yours that names a file version 1 kept needs the version 2 name: scripts, CI path filters, pre-push and other hooks, `CODEOWNERS`, and editor or lint-staged settings. The upgrade rewrites only your ESLint config's import.
+
+| Version 1 | Version 2 |
+| --- | --- |
+| `disciplines.json` | `hone.config.json` |
+| `discipline-exceptions.json`, `discipline-exceptions/` | `hone-records/` |
+| `disciplines.eslint.mjs` | `hone.eslint.mjs` |
+
+### ESLint slices and declared roots
+
+A repository with package slices, one `disciplines.eslint.mjs` in each package folder that has its own ESLint config, gets one `hone.eslint.mjs` in each of the same folders. Every config that imported a version 1 projection now imports the one in its own folder, and a config that imported several has each import renamed. `eslintConfigRoots` and `eslintConfigLookup` move into `hone.config.json` as they are.
+
+After version 1's run, the upgrade runs version 1's own `project` once, to learn which slices exist. A slice that no config root owns any more is removed by it. A refusal after that lists it under `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:`, since the upgrade did not write it.
+
+The refusals an ESLint repository meets:
+
+- `<config file> holds no static default import of <projection>. Change its import of it to the form import projection from "<specifier>", then run the upgrade again.` The same action follows `no file imports <projection> with a static default import.`
+- `<config file> names a version 1 projection outside the imports the upgrade rewrites, or imports one version 1 did not write. Remove the other mention or import, then run the upgrade again.`
+- `the version 1 projection <projection> is <state>. Run hone project with your version 1 release, commit what it writes, then run the upgrade again.` For some states it says `Run hone check with your version 1 release, fix what it reports` in place of that.
+- `the version 1 projection <projection> belongs to no config root and is out of date. Delete it or restore its config root, commit, then run the upgrade again.`
+- `version 2 would project <file>, but version 1 has no projection in <folder>. With your version 1 release, run hone project and import what it writes in the lint config of <folder>, commit, then run the upgrade again.`
+- `the version 1 projection <projection> has no version 2 projection to take its place, since version 2 runs no lint config in <folder>. Remove it and its import in <config file>, then run the upgrade again.`
