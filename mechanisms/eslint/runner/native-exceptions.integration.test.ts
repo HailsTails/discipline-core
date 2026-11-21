@@ -1,7 +1,7 @@
 import { afterAll, assert, describe, expect, it, vi } from "vitest";
 import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-ports.ts";
 import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
-import { restoredFixtureRepositoriesOver } from "../../../tests/restored-fixture-repository.ts";
+import { NO_TEXT_FILES, restoredFixtureRepositoriesOver, type TextFiles } from "../../../tests/restored-fixture-repository.ts";
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { runCheck } from "../../../core/check/run-check.ts";
 import { loadRunner } from "../../../core/mechanism-port/load-runner.ts";
@@ -74,8 +74,10 @@ afterAll(() => {
   repositories.removeAll();
 });
 
-const consumerRepo = (request: { readonly name: string }): AbsolutePath =>
-  restoredFixtures.restoredFrom({ fixtureRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/${request.name}`) });
+const consumerRepoWithText = (request: { readonly name: string; readonly textFiles: TextFiles }): AbsolutePath =>
+  restoredFixtures.restoredFrom({ fixtureRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/${request.name}`), textFiles: request.textFiles });
+
+const consumerRepo = (request: { readonly name: string }): AbsolutePath => consumerRepoWithText({ name: request.name, textFiles: NO_TEXT_FILES });
 
 const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.tracked }),
@@ -84,9 +86,9 @@ const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPor
   textInBase: vi.fn<GitPort["textInBase"]>(),
 });
 
-const checkOf = (request: { readonly name: string; readonly tracked: readonly RepoPath[]; readonly line: EslintLine }) =>
+const checkOver = (request: { readonly repoRoot: AbsolutePath; readonly tracked: readonly RepoPath[]; readonly line: EslintLine }) =>
   runCheck(withSingleFileRecords({
-    repoRoot: consumerRepo({ name: request.name }),
+    repoRoot: request.repoRoot,
     installRoot: INSTALL_ROOT,
     moduleExtension: ".ts",
     baseRevision: undefined,
@@ -96,6 +98,9 @@ const checkOf = (request: { readonly name: string; readonly tracked: readonly Re
     path,
     git: gitTracking({ tracked: request.tracked }),
   }));
+
+const checkOf = (request: { readonly name: string; readonly tracked: readonly RepoPath[]; readonly line: EslintLine }) =>
+  checkOver({ repoRoot: consumerRepo({ name: request.name }), tracked: request.tracked, line: request.line });
 
 const classFinding = (request: { readonly file: string; readonly line: number }) => ({
   clause: CLASS_SYNTAX,
@@ -301,9 +306,19 @@ const INLINE_FORM_FILES: readonly RepoPath[] = [
   repoPathSchema.parse("i/global.ts"),
 ];
 
+const INLINE_FORM_TEXTS: TextFiles = {
+  "i/disable-file-named.ts": "/* eslint-disable hone/no-class-authoring */\nexport class Kept {}\n",
+  "i/disable-line.ts": "export const plain = 1;\nexport class Kept {} // eslint-disable-line hone/no-class-authoring\n",
+  "i/disable-next-line.ts": "// eslint-disable-next-line hone/no-class-authoring\nexport class Kept {}\n",
+  "i/rule-config.ts": '/* eslint hone/no-class-authoring: "off" */\nexport class Kept {}\n',
+};
+
+const inlineFormsCheckOf = (request: { readonly line: EslintLine }) =>
+  checkOver({ repoRoot: consumerRepoWithText({ name: "inline-forms", textFiles: INLINE_FORM_TEXTS }), tracked: INLINE_FORM_FILES, line: request.line });
+
 describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint runner's governance rule on real %s, over a consumer repository", (line) => {
   it("reports each disable and rule-config form naming the selected rule and none of the rest", async () => {
-    await expect(checkOf({ name: "inline-forms", tracked: INLINE_FORM_FILES, line })).resolves.toMatchObject({
+    await expect(inlineFormsCheckOf({ line })).resolves.toMatchObject({
       outcome: "ok",
       value: {
         unrecorded: [
@@ -353,7 +368,7 @@ describe.each(ESLINT_LINES)("inline configuration comments read by the ESLint ru
   });
 
   it("still finds the class in every file whatever its inline comment says", async () => {
-    await expect(checkOf({ name: "inline-forms", tracked: INLINE_FORM_FILES, line })).resolves.toMatchObject({
+    await expect(inlineFormsCheckOf({ line })).resolves.toMatchObject({
       outcome: "ok",
       value: {
         findings: [

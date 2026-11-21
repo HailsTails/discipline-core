@@ -1,7 +1,7 @@
 import { afterAll, assert, describe, expect, it, vi } from "vitest";
 import { createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { withSingleFileRecords, } from "./records-disk.ts";
-import { restoredFixtureRepositoriesOver } from "./restored-fixture-repository.ts";
+import { NO_TEXT_FILES, restoredFixtureRepositoriesOver } from "./restored-fixture-repository.ts";
 import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -70,6 +70,7 @@ afterAll(() => {
 
 const CASCADE_REPO = restoredFixtureRepositoriesOver({ repositories, scratch, fileText: createDefaultFileTextPort({}), path }).restoredFrom({
   fixtureRoot: resolvedPath({ path: `${import.meta.dirname}/test-fixtures/cd1-cascade` }),
+  textFiles: NO_TEXT_FILES,
 });
 
 const LEGACY_FILE = repoPathSchema.parse("src/legacy.ts");
