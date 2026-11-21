@@ -10,7 +10,7 @@ describe("DEFAULT_CONVENTIONS", () => {
 
 describe("conventionsOf", () => {
   it("gives the defaults, and names no key as declared, when the file declares none", () => {
-    expect(conventionsOf({ document: { conventions: {}, layers: {} } })).toEqual({
+    expect(conventionsOf({ document: { layers: {} } })).toEqual({
       outcome: "ok",
       value: { conventions: DEFAULT_CONVENTIONS, declared: [] },
     });
@@ -20,7 +20,7 @@ describe("conventionsOf", () => {
     expect(
       conventionsOf({
         document: {
-          conventions: { generated: [{ files: ["src/graphql/generated/**", "src/api/*.gen.ts"], outsideParty: "@graphql-codegen/cli" }] },
+          generated: [{ files: ["src/graphql/generated/**", "src/api/*.gen.ts"], outsideParty: "@graphql-codegen/cli" }],
           layers: { domain: ["src/domain"], application: ["src/application"], adapters: ["src/adapters", "web/adapters"] },
         },
       }),
@@ -41,7 +41,7 @@ describe("conventionsOf", () => {
   });
 
   it("keeps layers inner to outer and only those declared", () => {
-    expect(conventionsOf({ document: { conventions: {}, layers: { adapters: ["src/adapters"], domain: ["src/domain"] } } })).toMatchObject({
+    expect(conventionsOf({ document: { layers: { adapters: ["src/adapters"], domain: ["src/domain"] } } })).toMatchObject({
       outcome: "ok",
       value: {
         conventions: {
@@ -60,68 +60,58 @@ describe("conventionsOf", () => {
   it.each<RefusalRow>([
     {
       name: "a generated entry with no outside party",
-      document: { conventions: { generated: [{ files: ["src/generated/**"], outsideParty: "" }] }, layers: {} },
-      refusal: "✖ Too small: expected string to have >=1 characters\n  → at conventions.generated[0].outsideParty",
+      document: { generated: [{ files: ["src/generated/**"], outsideParty: "" }], layers: {} },
+      refusal: "✖ Too small: expected string to have >=1 characters\n  → at generated[0].outsideParty",
     },
     {
       name: "a generated entry that names files anywhere",
-      document: { conventions: { generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }] }, layers: {} },
-      refusal: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]",
+      document: { generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }], layers: {} },
+      refusal: "✖ a generated entry names files under a named folder\n  → at generated[0].files[0]",
     },
     {
       name: "a generated entry that names files under any folder",
-      document: { conventions: { generated: [{ files: ["*/**"], outsideParty: "@graphql-codegen/cli" }] }, layers: {} },
-      refusal: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]",
+      document: { generated: [{ files: ["*/**"], outsideParty: "@graphql-codegen/cli" }], layers: {} },
+      refusal: "✖ a generated entry names files under a named folder\n  → at generated[0].files[0]",
     },
     {
       name: "a generated entry that names files at the repository root",
-      document: { conventions: { generated: [{ files: ["*.ts"], outsideParty: "@graphql-codegen/cli" }] }, layers: {} },
-      refusal: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]",
+      document: { generated: [{ files: ["*.ts"], outsideParty: "@graphql-codegen/cli" }], layers: {} },
+      refusal: "✖ a generated entry names files under a named folder\n  → at generated[0].files[0]",
     },
     {
       name: "a generated entry that names every file",
-      document: { conventions: { generated: [{ files: ["*"], outsideParty: "@graphql-codegen/cli" }] }, layers: {} },
-      refusal: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]",
+      document: { generated: [{ files: ["*"], outsideParty: "@graphql-codegen/cli" }], layers: {} },
+      refusal: "✖ a generated entry names files under a named folder\n  → at generated[0].files[0]",
     },
     {
       name: "a layer folder that is a glob",
-      document: { conventions: {}, layers: { domain: ["src/*/domain"] } },
+      document: { layers: { domain: ["src/*/domain"] } },
       refusal: "✖ a layer lists folders git tracks, not globs\n  → at layers.domain[0]",
     },
     {
       name: "a layer folder inside another layer's folder",
-      document: { conventions: {}, layers: { domain: ["src"], adapters: ["src/adapters"] } },
+      document: { layers: { domain: ["src"], adapters: ["src/adapters"] } },
       refusal: "✖ src/adapters is inside src; no layer folder sits inside another\n  → at layers",
     },
     {
       name: "one folder in two layers",
-      document: { conventions: {}, layers: { domain: ["src/core"], adapters: ["src/core"] } },
+      document: { layers: { domain: ["src/core"], adapters: ["src/core"] } },
       refusal: "✖ src/core is listed more than once; a folder belongs to one layer, once\n  → at layers",
     },
     {
       name: "one folder twice in one layer",
-      document: { conventions: {}, layers: { domain: ["src/domain", "src/domain"] } },
+      document: { layers: { domain: ["src/domain", "src/domain"] } },
       refusal: "✖ src/domain is listed more than once; a folder belongs to one layer, once\n  → at layers",
     },
     {
       name: "a layer the model does not name",
-      document: { conventions: {}, layers: { infrastructure: ["src/infrastructure"] } },
+      document: { layers: { infrastructure: ["src/infrastructure"] } },
       refusal: "✖ Unrecognized key: \"infrastructure\"\n  → at layers",
     },
     {
-      name: "a casing convention, which version 2 does not hold yet",
-      document: { conventions: { casing: [{ files: ["**"], fileNames: ["kebab-case"] }] }, layers: {} },
-      refusal: "✖ Unrecognized key: \"casing\"\n  → at conventions",
-    },
-    {
-      name: "a test file convention, which version 2 does not hold yet",
-      document: { conventions: { testFiles: { unit: [".test.ts"], integration: [] } }, layers: {} },
-      refusal: "✖ Unrecognized key: \"testFiles\"\n  → at conventions",
-    },
-    {
-      name: "tracked pointer forms, which version 2 does not hold yet",
-      document: { conventions: { trackedPointers: [{ form: "issue-number" }] }, layers: {} },
-      refusal: "✖ Unrecognized key: \"trackedPointers\"\n  → at conventions",
+      name: "a conventions key, which is not a category in version 2",
+      document: { conventions: { generated: [] }, layers: {} },
+      refusal: "✖ Unrecognized key: \"conventions\"",
     },
   ])("refuses $name", ({ document, refusal }) => {
     expect(conventionsOf({ document })).toEqual({ outcome: "failed", error: refusal });
@@ -145,7 +135,7 @@ describe("conventionsWireOf", () => {
         },
       }),
     ).toEqual({
-      conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] },
+      generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }],
       layers: { domain: ["src/domain"] },
     });
   });

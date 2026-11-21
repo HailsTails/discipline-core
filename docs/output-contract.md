@@ -658,7 +658,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `<belongs in>` | the records file a record belongs in, named for its kind and symptom or recipe | never |
 | `<index>`, `<earlier index>` | a record's place in its records file's `records`, counting from 0; `<earlier index>` is the place of the record a duplicate repeats | never |
 | `<standing>` | `established`, a carried record unchanged against the base revision, or `unjudged`, one this run could not compare | never |
-| `<convention>` | a key of `hone.config.json` that no check reads yet: `conventions.generated` or `layers` | never |
+| `<convention>` | a key of `hone.config.json` that no check reads yet: `generated` or `layers` | never |
 | `<path>`, `<file>`, `<module>`, `<slice>`, `<folder>`, `<folders>`, `<fix page>`, `<symptom page>` | a path, printed as in 1.x; in the report `<path>` is one that `exclude` leaves out, and in a load failure it is the file that failed | may hold a space |
 | `<snippet>`, `<fix>`, `<indicated>`, `<title>`, `<indications>`, `<breach>`, `<recipe title>`, `<recipe titles>`, `<answers>`, `<comment>`, `<script>`, `<option>`, `<command>`, `<invocation>`, `<wrapper>`, `<suppressions file>`, `<package file>`, `<project command>`, `<count>`, `<edition>`, `<latest>`, `<line>`, `<column>` | as in 1.x | as in 1.x |
 | `<prune command>` | the command that removes paid, stale and forfeited debt, printed as `<project command>` is | may hold a space |

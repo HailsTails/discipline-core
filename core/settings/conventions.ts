@@ -26,9 +26,7 @@ const generatedGlobsSchema = z
   .array(z.string().refine((glob) => UNDER_A_NAMED_FOLDER.test(glob), { error: "a generated entry names files under a named folder" }))
   .min(1);
 
-const conventionsWireSchema = z.strictObject({
-  generated: z.array(z.strictObject({ files: generatedGlobsSchema, outsideParty: z.string().min(1) })).optional(),
-});
+const generatedWireSchema = z.array(z.strictObject({ files: generatedGlobsSchema, outsideParty: z.string().min(1) })).optional();
 
 const layerFolderSchema = brandedRepoPathSchema({
   text: repoPathTextSchema.refine((folder) => !folder.includes("*"), { error: "a layer lists folders git tracks, not globs" }),
@@ -57,7 +55,7 @@ const layersWireSchema = z
     });
   });
 
-const conventionsDocumentSchema = z.strictObject({ conventions: conventionsWireSchema, layers: layersWireSchema });
+const conventionsDocumentSchema = z.strictObject({ generated: generatedWireSchema, layers: layersWireSchema });
 
 type ConventionsDocument = z.infer<typeof conventionsDocumentSchema>;
 
@@ -68,7 +66,7 @@ const layersOf = (request: { readonly layers: ConventionsDocument["layers"] }): 
   });
 
 const conventionsReadingOf = (request: { readonly document: ConventionsDocument }): ConventionsReading => {
-  const generated = request.document.conventions.generated;
+  const generated = request.document.generated;
   const layers = layersOf({ layers: request.document.layers });
   const presence: Readonly<Record<ConventionKey, "declared" | "absent">> = {
     generated: generated === undefined ? "absent" : "declared",
@@ -85,14 +83,14 @@ const conventionsReadingOf = (request: { readonly document: ConventionsDocument 
 };
 
 export type ConventionsWire = {
-  readonly conventions?: { readonly generated: readonly GeneratedFiles[] };
+  readonly generated?: readonly GeneratedFiles[];
   readonly layers?: Readonly<Partial<Record<LayerName, readonly string[]>>>;
 };
 
 export const conventionsWireOf = (request: { readonly reading: ConventionsReading }): ConventionsWire => {
   const { conventions, declared } = request.reading;
   return {
-    ...(declared.includes("generated") ? { conventions: { generated: conventions.generated } } : {}),
+    ...(declared.includes("generated") ? { generated: conventions.generated } : {}),
     ...(declared.includes("layers")
       ? { layers: Object.fromEntries(conventions.layers.map(({ layer, folders }): readonly [LayerName, readonly string[]] => [layer, folders])) }
       : {}),

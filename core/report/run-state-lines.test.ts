@@ -121,7 +121,7 @@ describe("assessmentLine", () => {
 
 describe("settingsNoteLine", () => {
   it.each<{ readonly key: ConventionKey; readonly line: string }>([
-    { key: "generated", line: "conventions.generated is declared; no check reads it yet" },
+    { key: "generated", line: "generated is declared; no check reads it yet" },
     { key: "layers", line: "layers is declared; no check reads it yet" },
   ])("says $key is declared and read by no check yet", ({ key, line }) => {
     expect(settingsNoteLine({ note: { kind: "declared-not-read", key } })).toBe(line);

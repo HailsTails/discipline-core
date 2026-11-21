@@ -66,7 +66,7 @@ export const createSettingsRepository = (options: { readonly sources: SettingsSo
 });
 
 const NOTE_KEY_TEXTS: Readonly<Record<ConventionKey, string>> = {
-  generated: "conventions.generated",
+  generated: "generated",
   layers: "layers",
 };
 
