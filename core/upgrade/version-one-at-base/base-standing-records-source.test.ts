@@ -23,7 +23,7 @@ const TEST_BODY_ENTRY = { kind: "authorised-location", clause: "CD-27#test-body-
 
 const LOOPS_DOCUMENT: RecordsDocument = {
   file: LOOP_KEYWORD_AUTHORISED,
-  document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY }] },
+  document: { version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY }] },
 };
 
 const NO_DOCUMENTS = { outcome: "ok", value: [] } as const;
@@ -61,11 +61,11 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
       value: [
         {
           file: LOOP_KEYWORD_AUTHORISED,
-          document: { version: 2, records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
+          document: { version: 2, records: [{ answers: "loop-keyword#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
         },
         {
           file: REBINDING_AUTHORISED,
-          document: { version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
+          document: { version: 2, records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: TEST_BODY_ENTRY }] },
         },
       ],
     });
@@ -84,7 +84,7 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
       value: [
         {
           file: LOOP_KEYWORD_AUTHORISED,
-          document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } }] },
+          document: { version: 2, records: [{ answers: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } }] },
         },
       ],
     });
@@ -99,8 +99,8 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
           document: {
             version: 2,
             records: [
-              { symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY },
-              { symptom: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } },
+              { answers: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY },
+              { answers: "loop-keyword#loops", file: "src/b.ts", carried: { ...LOOPS_ENTRY, file: "src/b.ts" } },
             ],
           },
         },
@@ -115,7 +115,7 @@ describe("baseStandingRecordsSource writing the records the base's version 1 ent
       value: [
         {
           file: "hone-records/debt/loop-keyword.json",
-          document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: carveOut }] },
+          document: { version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts", carried: carveOut }] },
         },
       ],
     });
@@ -186,32 +186,32 @@ describe("baseStandingRecordsSource and what a carried record stands on", () => 
     carriedStandingOf({ base: { measured: "yes", documents: [LOOPS_DOCUMENT] }, file: LOOP_KEYWORD_AUTHORISED, entry: request.entry });
 
   it("establishes the record the upgrade wrote from the entry, on its check and its file", () => {
-    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({ outcome: "ok", value: "established" });
+    expect(stands({ entry: { answers: "loop-keyword#loops", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({ outcome: "ok", value: "established" });
   });
 
   it("refuses the same entry carried on another check", () => {
-    expect(stands({ entry: { symptom: "rebinding#test-body", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({
+    expect(stands({ entry: { answers: "rebinding#test-body", file: "src/a.ts", carried: LOOPS_ENTRY } })).toEqual({
       outcome: "failed",
       error: [{ kind: "carried-changed-since-base" }],
     });
   });
 
   it("refuses the same entry carried at another file", () => {
-    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/other.ts", carried: LOOPS_ENTRY } })).toEqual({
+    expect(stands({ entry: { answers: "loop-keyword#loops", file: "src/other.ts", carried: LOOPS_ENTRY } })).toEqual({
       outcome: "failed",
       error: [{ kind: "carried-changed-since-base" }],
     });
   });
 
   it("refuses a debt record with a note the base never held, even on the entry's check and file", () => {
-    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", note: "a new reason", carried: LOOPS_ENTRY } })).toEqual({
+    expect(stands({ entry: { answers: "loop-keyword#loops", file: "src/a.ts", note: "a new reason", carried: LOOPS_ENTRY } })).toEqual({
       outcome: "failed",
       error: [{ kind: "carried-changed-since-base" }],
     });
   });
 
   it("refuses the entry edited since the base", () => {
-    expect(stands({ entry: { symptom: "loop-keyword#loops", file: "src/a.ts", carried: { ...LOOPS_ENTRY, reason: "edited" } } })).toEqual({
+    expect(stands({ entry: { answers: "loop-keyword#loops", file: "src/a.ts", carried: { ...LOOPS_ENTRY, reason: "edited" } } })).toEqual({
       outcome: "failed",
       error: [{ kind: "carried-changed-since-base" }],
     });
@@ -225,7 +225,7 @@ describe("baseStandingRecordsSource establishing the carried debt of the base's 
 
   const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json");
 
-  const HEAD_DEBT = { symptom: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT };
+  const HEAD_DEBT = { answers: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT };
 
   const BASE_DEBT: RecordsDocument = { file: DEBT_FILE, document: { version: 2, records: [HEAD_DEBT] } };
 
@@ -255,7 +255,7 @@ describe("baseStandingRecordsSource establishing the carried debt of the base's 
   });
 
   it("reads a whole-symptom head debt record as changed since base", () => {
-    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, symptom: "loop-keyword" } })).toEqual(CHANGED);
+    expect(standingAtBase({ file: DEBT_FILE, entry: { ...HEAD_DEBT, answers: "loop-keyword" } })).toEqual(CHANGED);
   });
 
   it("leaves a debt file the base already holds as a version 2 document as the base holds it", () => {

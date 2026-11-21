@@ -100,7 +100,7 @@ export const commandOver = (request: { readonly process: ProcessPort; readonly f
 export const authoriseArgumentsFor = (request: { readonly repo: string; readonly rootCause: string }): readonly string[] => [
   "--repo",
   request.repo,
-  "--symptom",
+  "--answers",
   "claimed-type",
   "--file",
   "src/a.ts",

@@ -11,9 +11,9 @@ import {
 
 describe("the version 2 records forms", () => {
   it("reads a records document of version 2", () => {
-    expect(recordsDocumentSchema.safeParse({ version: 2, records: [{ symptom: "claimed-type" }] })).toMatchObject({
+    expect(recordsDocumentSchema.safeParse({ version: 2, records: [{ answers: "claimed-type" }] })).toMatchObject({
       success: true,
-      data: { version: 2, records: [{ symptom: "claimed-type" }] },
+      data: { version: 2, records: [{ answers: "claimed-type" }] },
     });
   });
 
@@ -25,37 +25,80 @@ describe("the version 2 records forms", () => {
   });
 
   it("refuses a record with a key its kind does not state, such as a kind key the folder already gives", () => {
-    expect(debtWireSchema.safeParse({ kind: "debt", symptom: "claimed-type", file: "src/a.ts" })).toMatchObject({
+    expect(debtWireSchema.safeParse({ kind: "debt", answers: "claimed-type", file: "src/a.ts" })).toMatchObject({
       success: false,
       error: { issues: [expect.objectContaining({ code: "unrecognized_keys", keys: ["kind"] })] },
     });
   });
 
+  it("refuses a debt record that names its address symptom, pointing at answers", () => {
+    expect(debtWireSchema.safeParse({ symptom: "claimed-type#cast-expressions", file: "src/a.ts" })).toMatchObject({
+      success: false,
+      error: {
+        issues: expect.arrayContaining([
+          expect.objectContaining({ code: "unrecognized_keys", keys: ["symptom"], message: '`symptom` is `answers` in version 2' }),
+        ]),
+      },
+    });
+  });
+
+  it("refuses a stated authorised location that names its address symptom, pointing at answers", () => {
+    expect(
+      statedAuthorisedLocationWireSchema.safeParse({
+        symptom: "claimed-type#cast-expressions",
+        file: "src/a.ts",
+        case: "gives-a-value-its-type",
+        owes: "declared-not-asserted",
+        whyChain: CAUSAL_WHY_CHAIN,
+      }),
+    ).toMatchObject({
+      success: false,
+      error: {
+        issues: expect.arrayContaining([
+          expect.objectContaining({ code: "unrecognized_keys", keys: ["symptom"], message: '`symptom` is `answers` in version 2' }),
+        ]),
+      },
+    });
+  });
+
+  it("refuses a carried authorised location that names its address symptom, pointing at answers", () => {
+    expect(
+      carriedAuthorisedLocationWireSchema.safeParse({ symptom: "claimed-type#cast-expressions", file: "src/a.ts", carried: { kind: "authorised-location" } }),
+    ).toMatchObject({
+      success: false,
+      error: {
+        issues: expect.arrayContaining([
+          expect.objectContaining({ code: "unrecognized_keys", keys: ["symptom"], message: '`symptom` is `answers` in version 2' }),
+        ]),
+      },
+    });
+  });
+
   it("refuses a site that is not a repository path", () => {
-    expect(debtWireSchema.safeParse({ symptom: "claimed-type", file: "../outside.ts" })).toMatchObject({
+    expect(debtWireSchema.safeParse({ answers: "claimed-type", file: "../outside.ts" })).toMatchObject({
       success: false,
       error: { issues: [expect.objectContaining({ path: ["file"] })] },
     });
   });
 
   it("reads a symptom alone as a record reaching the whole symptom", () => {
-    expect(debtWireSchema.safeParse({ symptom: "claimed-type", file: "src/a.ts" })).toMatchObject({
+    expect(debtWireSchema.safeParse({ answers: "claimed-type", file: "src/a.ts" })).toMatchObject({
       success: true,
-      data: { symptom: { reaches: "whole-symptom", symptom: "claimed-type" } },
+      data: { answers: { reaches: "whole-symptom", symptom: "claimed-type" } },
     });
   });
 
   it("reads a symptom and one of its checks, written <symptom>#<check>, as a record reaching that check", () => {
-    expect(statedAuthorisedLocationWireSchema.safeParse({ symptom: "claimed-type#cast-expressions", file: "src/a.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: CAUSAL_WHY_CHAIN })).toMatchObject({
+    expect(statedAuthorisedLocationWireSchema.safeParse({ answers: "claimed-type#cast-expressions", file: "src/a.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: CAUSAL_WHY_CHAIN })).toMatchObject({
       success: true,
-      data: { symptom: { reaches: "one-check", symptom: "claimed-type", check: "cast-expressions" } },
+      data: { answers: { reaches: "one-check", symptom: "claimed-type", check: "cast-expressions" } },
     });
   });
 
   it("refuses a stated authorised location whose whyChain gives rootCheck, the version 1 name, asking for rootEvidence", () => {
     expect(
       statedAuthorisedLocationWireSchema.safeParse({
-        symptom: "claimed-type",
+        answers: "claimed-type",
         file: "src/a.ts",
         case: "gives-a-value-its-type",
         owes: "declared-not-asserted",
@@ -82,12 +125,12 @@ describe("the version 2 records forms", () => {
     });
   });
 
-  it.each([{ symptom: "claimed-type#" },{ symptom: "#cast-expressions" }, { symptom: "claimed-type#cast-expressions#again" }, { symptom: "claimed-type#Cast" }])(
-    "refuses $symptom as the symptom a record reaches",
-    ({ symptom }) => {
-      expect(carriedAuthorisedLocationWireSchema.safeParse({ symptom, file: "src/a.ts", carried: { kind: "authorised-location" } })).toMatchObject({
+  it.each([{ answers: "claimed-type#" }, { answers: "#cast-expressions" }, { answers: "claimed-type#cast-expressions#again" }, { answers: "claimed-type#Cast" }])(
+    "refuses $answers as the address a record answers",
+    ({ answers }) => {
+      expect(carriedAuthorisedLocationWireSchema.safeParse({ answers, file: "src/a.ts", carried: { kind: "authorised-location" } })).toMatchObject({
         success: false,
-        error: { issues: [expect.objectContaining({ path: ["symptom"] })] },
+        error: { issues: [expect.objectContaining({ path: ["answers"] })] },
       });
     },
   );
@@ -131,8 +174,8 @@ describe("the version 2 records forms", () => {
   });
 
   it.each([
-    { entry: { symptom: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location" } }, form: true },
-    { entry: { symptom: "claimed-type", file: "src/a.ts" }, form: false },
+    { entry: { answers: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location" } }, form: true },
+    { entry: { answers: "claimed-type", file: "src/a.ts" }, form: false },
     { entry: "claimed-type", form: false },
   ])("tells a carried record by its carried key: $entry", ({ entry, form }) => {
     expect(carriedFormSchema.safeParse(entry).success).toBe(form);

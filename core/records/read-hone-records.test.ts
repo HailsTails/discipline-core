@@ -27,7 +27,7 @@ const CATALOGUE: SymptomCatalogue = {
 
 const FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
 
-const CARRIED = { symptom: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location", clause: "CD-2#cast-expressions", file: "src/a.ts", reason: "Kept." } };
+const CARRIED = { answers: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location", clause: "CD-2#cast-expressions", file: "src/a.ts", reason: "Kept." } };
 
 const DOCUMENTS: readonly RecordsDocument[] = [{ file: FILE, document: { version: 2, records: [CARRIED] } }];
 

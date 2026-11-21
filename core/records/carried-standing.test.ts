@@ -4,7 +4,7 @@ import { carriedStandingOf } from "./carried-standing.ts";
 
 const FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
 
-const ENTRY = { symptom: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location", clause: "CD-2#cast-expressions", file: "src/a.ts", reason: "Kept." } };
+const ENTRY = { answers: "claimed-type", file: "src/a.ts", carried: { kind: "authorised-location", clause: "CD-2#cast-expressions", file: "src/a.ts", reason: "Kept." } };
 
 describe("carriedStandingOf", () => {
   it("leaves a carried record unjudged when the base revision is not measured", () => {
@@ -14,7 +14,7 @@ describe("carriedStandingOf", () => {
   it("establishes a carried record the same file at the base revision holds word for word, whatever its keys' order", () => {
     expect(
       carriedStandingOf({
-        base: { measured: "yes", documents: [{ file: FILE, document: { version: 2, records: [{ carried: ENTRY.carried, file: "src/a.ts", symptom: "claimed-type" }] } }] },
+        base: { measured: "yes", documents: [{ file: FILE, document: { version: 2, records: [{ carried: ENTRY.carried, file: "src/a.ts", answers: "claimed-type" }] } }] },
         file: FILE,
         entry: ENTRY,
       }),

@@ -32,7 +32,7 @@ const OK = { outcome: "ok", value: undefined } as const;
 
 const DEBT_DOCUMENT: RecordsDocument = {
   file: DEBT_FILE,
-  document: { version: 2, records: [{ symptom: "date-used-directly#clock-sources", file: ORDER_FILE }] },
+  document: { version: 2, records: [{ answers: "date-used-directly#clock-sources", file: ORDER_FILE }] },
 };
 
 const sourceOf = (request: { readonly documents: readonly RecordsDocument[] }): RecordsSource => ({
@@ -56,7 +56,7 @@ const UNMEASURED: TouchedSet = { measured: "no", base: { state: "git-failed", re
 const COMMAND = { catalogue: REPORT_CATALOGUE };
 const WEBHOOK_DEBT_DOCUMENT: RecordsDocument = {
   file: repoPathSchema.parse("hone-records/debt/claimed-type.json"),
-  document: { version: 2, records: [{ symptom: "claimed-type#cast-expressions", file: TOUCHED_FILE }] },
+  document: { version: 2, records: [{ answers: "claimed-type#cast-expressions", file: TOUCHED_FILE }] },
 };
 
 const answeredFor = (request: { readonly documents: readonly RecordsDocument[]; readonly touched: TouchedSet; readonly finding: Finding }) => {
@@ -79,7 +79,7 @@ describe("hone record-debt over a run's unanswered findings", () => {
     const recorded = recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })(request);
     expect(recorded).toEqual({ outcome: "ok", value: [{ address: "date-used-directly#clock-sources", file: ORDER_FILE, effect: "recorded" }] });
     expect(apply).toHaveBeenCalledWith({
-      edit: { write: [{ file: DEBT_FILE, document: { version: 2, records: [{ symptom: "date-used-directly#clock-sources", file: ORDER_FILE }] } }], remove: [] },
+      edit: { write: [{ file: DEBT_FILE, document: { version: 2, records: [{ answers: "date-used-directly#clock-sources", file: ORDER_FILE }] } }], remove: [] },
     });
   });
 
@@ -202,7 +202,7 @@ describe("hone prune-debt over a run's paid, stale and forfeited debt", () => {
 });
 
 const AUTHORISE = {
-  symptom: "claimed-type",
+  answers: "claimed-type",
   file: TOUCHED_FILE,
   case: "gives-a-value-its-type",
   owes: "declared-not-asserted",

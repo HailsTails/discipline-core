@@ -71,7 +71,7 @@ const WHY_CHAIN = {
 };
 
 const CARRIED_IDS = {
-  symptom: "outside-import-past-a-boundary",
+  answers: "outside-import-past-a-boundary",
   file: "src/adapters/ids.ts",
   carried: {
     kind: "authorised-location",
@@ -83,7 +83,7 @@ const CARRIED_IDS = {
 };
 
 const CARRIED_CLOCK_SOURCE = {
-  symptom: "outside-import-past-a-boundary",
+  answers: "outside-import-past-a-boundary",
   file: "src/adapters/clock-source.ts",
   carried: {
     kind: "authorised-location",
@@ -105,10 +105,10 @@ const made = recordsRepositoryIn({
       {
         folder: "hone-records/authorised-locations",
         name: "claimed-type.json",
-        records: [{ symptom: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
+        records: [{ answers: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts", case: "gives-a-value-its-type", owes: "declared-not-asserted", whyChain: WHY_CHAIN }],
       },
-      { folder: "hone-records/debt", name: "claimed-type.json", records: [{ symptom: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts" }] },
-      { folder: "hone-records/debt", name: "text-past-its-reader.json", records: [{ symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts" }] },
+      { folder: "hone-records/debt", name: "claimed-type.json", records: [{ answers: "claimed-type#unlisted-cast-site", file: "src/adapters/stripe-webhook.ts" }] },
+      { folder: "hone-records/debt", name: "text-past-its-reader.json", records: [{ answers: "text-past-its-reader", file: "src/orders/charge-order.test.ts" }] },
       {
         folder: "hone-records/deviations",
         name: "stub-with-vifn.json",

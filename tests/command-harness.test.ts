@@ -48,7 +48,7 @@ describe("authoriseArgumentsFor", () => {
   const given = authoriseArgumentsFor({ repo: "/repo", rootCause: "a cause" });
 
   it("gives the repository, then the symptom, file, case and principle the form is for", () => {
-    expect(given).toEqual(expect.arrayContaining(["--repo", "/repo", "--symptom", "claimed-type", "--file", "src/a.ts", "--case", "gives-a-value-its-type", "--owes", "declared-not-asserted"]));
+    expect(given).toEqual(expect.arrayContaining(["--repo", "/repo", "--answers", "claimed-type", "--file", "src/a.ts", "--case", "gives-a-value-its-type", "--owes", "declared-not-asserted"]));
   });
 
   it("gives the root cause it was given", () => {

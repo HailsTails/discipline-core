@@ -3,11 +3,11 @@ import type { Result } from "../values/result.ts";
 import type { Why } from "../values/why-chain.ts";
 import type { AuthoriseRequest } from "./authorising.ts";
 
-export type AuthoriseOptionName = "repo" | "symptom" | "file" | "case" | "owes" | "why" | "because" | "evidence" | "rootCause" | "rootEvidence" | "readback" | "owner";
+export type AuthoriseOptionName = "repo" | "answers" | "file" | "case" | "owes" | "why" | "because" | "evidence" | "rootCause" | "rootEvidence" | "readback" | "owner";
 
 export const AUTHORISE_OPTIONS: Readonly<Record<AuthoriseOptionName, string>> = {
   repo: "--repo",
-  symptom: "--symptom",
+  answers: "--answers",
   file: "--file",
   case: "--case",
   owes: "--owes",
@@ -72,17 +72,17 @@ const fileOf = (request: Reading): Read<RepoPath> => {
     : invalid({ detail: `takes one file inside the repository, written relative to it, for ${AUTHORISE_OPTIONS.file}, not ${JSON.stringify(given.value)}` });
 };
 
-type Site = Pick<AuthoriseRequest, "symptom" | "case" | "owes" | "owner">;
+type Site = Pick<AuthoriseRequest, "answers" | "case" | "owes" | "owner">;
 
 type Root = Pick<AuthoriseRequest, "rootCause" | "rootEvidence" | "readback">;
 
 const siteOf = (request: Reading): Read<Site> => {
-  const symptom = onceOf({ ...request, option: "symptom" });
+  const answers = onceOf({ ...request, option: "answers" });
   const caseName = onceOf({ ...request, option: "case" });
   const owes = onceOf({ ...request, option: "owes" });
   const owner = onceOf({ ...request, option: "owner" });
-  if (symptom.outcome === "failed") {
-    return symptom;
+  if (answers.outcome === "failed") {
+    return answers;
   }
   if (caseName.outcome === "failed") {
     return caseName;
@@ -90,7 +90,7 @@ const siteOf = (request: Reading): Read<Site> => {
   if (owes.outcome === "failed") {
     return owes;
   }
-  return owner.outcome === "failed" ? owner : { outcome: "ok", value: { symptom: symptom.value, case: caseName.value, owes: owes.value, owner: owner.value } };
+  return owner.outcome === "failed" ? owner : { outcome: "ok", value: { answers: answers.value, case: caseName.value, owes: owes.value, owner: owner.value } };
 };
 
 const rootOf = (request: Reading): Read<Root> => {

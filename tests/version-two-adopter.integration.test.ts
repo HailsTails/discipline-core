@@ -83,7 +83,7 @@ const TOUCHED_CAST_SOURCE = "export const parsed = JSON.parse(raw) as any;\n";
 const CLEAN_SOURCE = "export const clean = 1;\n";
 
 const AUTHORISE_OPTIONS = [
-  "--symptom",
+  "--answers",
   "claimed-type",
   "--file",
   "src/cast.ts",

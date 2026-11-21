@@ -22,7 +22,7 @@ const PLACED: PlacedEntry = { place: { layout: "single-file", file: repoPathSche
 
 const AUTHORISED_DOCUMENT: RecordsDocument = {
   file: repoPathSchema.parse("hone-records/authorised-locations/loop-keyword.json"),
-  document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: ENTRY }] },
+  document: { version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts", carried: ENTRY }] },
 };
 
 const git = (): GitPort => ({

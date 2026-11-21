@@ -54,7 +54,7 @@ const PLANNED_SETTINGS_WITH_PACKAGE_ROOT =
 
 const PLANNED_DEBT = {
   file: "hone-records/debt/loop-keyword.json",
-  text: '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "loop-keyword#loops",\n      "file": "src/a.ts",\n      "note": "legacy loop"\n    }\n  ]\n}\n',
+  text: '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "loop-keyword#loops",\n      "file": "src/a.ts",\n      "note": "legacy loop"\n    }\n  ]\n}\n',
 };
 
 const PLANNED_SETTINGS_MARKING_TEST_BODY = { file: "hone.config.json", text: '{\n  "version": 2,\n  "ruleSets": {},\n  "checks": {\n    "loop-keyword#loops": "walker",\n    "loop-keyword#test-body": "not-adopted",\n    "rebinding#test-body": "not-adopted"\n  }\n}\n' };
@@ -128,7 +128,7 @@ describe("upgradePlanOf", () => {
     await upgradePlanOf(requestOver({ projectionFilesOf }));
     expect(projectionFilesOf).toHaveBeenCalledExactlyOnceWith({
       settings: LOOPS_SETTINGS,
-      documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }] }],
+      documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }] }],
     });
   });
 

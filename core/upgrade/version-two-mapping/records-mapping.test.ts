@@ -59,7 +59,7 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           {
             file: "hone-records/debt/loop-keyword.json",
             version: 2,
-            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
+            records: [{ answers: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
           },
         ],
       },
@@ -82,7 +82,7 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts" }] }],
+        documents: [{ file: "hone-records/debt/loop-keyword.json", version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts" }] }],
       },
     });
   });
@@ -107,7 +107,7 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           {
             file: "hone-records/debt/loop-keyword.json",
             version: 2,
-            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
+            records: [{ answers: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" }],
           },
         ],
       },
@@ -134,12 +134,12 @@ describe("mappedRecords carrying a file carve-out as stated debt", () => {
           {
             file: "hone-records/debt/loop-keyword.json",
             version: 2,
-            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy" }],
+            records: [{ answers: "loop-keyword#loops", file: "src/a.ts", note: "legacy" }],
           },
           {
             file: "hone-records/debt/rebinding.json",
             version: 2,
-            records: [{ symptom: "rebinding#test-body", file: "src/a.ts", note: "legacy" }],
+            records: [{ answers: "rebinding#test-body", file: "src/a.ts", note: "legacy" }],
           },
         ],
       },
@@ -170,7 +170,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             version: 2,
             records: [
               {
-                symptom: "loop-keyword#loops",
+                answers: "loop-keyword#loops",
                 file: "src/a.ts",
                 carried: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", reason: "legacy loop", whyChain: WHY_CHAIN },
               },
@@ -203,7 +203,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
             version: 2,
             records: [
               {
-                symptom: "loop-keyword#loops",
+                answers: "loop-keyword#loops",
                 file: "src/a.ts",
                 carried: { kind: "file-carve-out", clause: "CD-15#loops", file: "src/a.ts", provenance: PROVENANCE },
               },
@@ -235,12 +235,12 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
           {
             file: "hone-records/authorised-locations/loop-keyword.json",
             version: 2,
-            records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: entry }],
+            records: [{ answers: "loop-keyword#test-body", file: "src/a.ts", carried: entry }],
           },
           {
             file: "hone-records/authorised-locations/rebinding.json",
             version: 2,
-            records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }],
+            records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: entry }],
           },
         ],
       },
@@ -268,7 +268,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
           {
             file: "hone-records/authorised-locations/rebinding.json",
             version: 2,
-            records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }],
+            records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: entry }],
           },
         ],
       },
@@ -292,7 +292,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
     ).toEqual({
       outcome: "ok",
       value: {
-        documents: [{ file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }] }],
+        documents: [{ file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: entry }] }],
       },
     });
   });
@@ -315,8 +315,8 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
       outcome: "ok",
       value: {
         documents: [
-          { file: "hone-records/authorised-locations/loop-keyword.json", version: 2, records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: entry }] },
-          { file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: entry }] },
+          { file: "hone-records/authorised-locations/loop-keyword.json", version: 2, records: [{ answers: "loop-keyword#test-body", file: "src/a.ts", carried: entry }] },
+          { file: "hone-records/authorised-locations/rebinding.json", version: 2, records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: entry }] },
         ],
       },
     });
@@ -344,7 +344,7 @@ describe("mappedRecords carrying what version 2 has no field for", () => {
           {
             file: "hone-records/authorised-locations/loop-keyword.json",
             version: 2,
-            records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: entry }],
+            records: [{ answers: "loop-keyword#loops", file: "src/a.ts", carried: entry }],
           },
         ],
       },
@@ -475,11 +475,11 @@ describe("mappedRecords ordering", () => {
             file: "hone-records/debt/loop-keyword.json",
             version: 2,
             records: [
-              { symptom: "loop-keyword#loops", file: "src/b.ts" },
-              { symptom: "loop-keyword#loops", file: "src/a.ts" },
+              { answers: "loop-keyword#loops", file: "src/b.ts" },
+              { answers: "loop-keyword#loops", file: "src/a.ts" },
             ],
           },
-          { file: "hone-records/debt/rebinding.json", version: 2, records: [{ symptom: "rebinding#test-body", file: "src/b.ts" }] },
+          { file: "hone-records/debt/rebinding.json", version: 2, records: [{ answers: "rebinding#test-body", file: "src/b.ts" }] },
         ],
       },
     });

@@ -10,7 +10,7 @@ const WEBHOOK_FILE = repoPathSchema.parse("src/adapters/stripe-webhook.ts");
 const RECORDS_FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
 
 const REQUEST: AuthoriseRequest = {
-  symptom: "claimed-type",
+  answers: "claimed-type",
   file: WEBHOOK_FILE,
   case: "gives-a-value-its-type",
   owes: "declared-not-asserted",
@@ -44,7 +44,7 @@ describe("the authorised location a person's arguments write", () => {
                 version: 2,
                 records: [
                   {
-                    symptom: "claimed-type",
+                    answers: "claimed-type",
                     file: WEBHOOK_FILE,
                     case: "gives-a-value-its-type",
                     owes: "declared-not-asserted",
@@ -67,10 +67,10 @@ describe("the authorised location a person's arguments write", () => {
   });
 
   it("files a record that names one check under its symptom, and keeps the check in the record", () => {
-    const authorisedCheck = authorised({ request: { ...REQUEST, symptom: "claimed-type#cast-expressions" }, documents: NO_DOCUMENTS });
+    const authorisedCheck = authorised({ request: { ...REQUEST, answers: "claimed-type#cast-expressions" }, documents: NO_DOCUMENTS });
     expect(authorisedCheck).toMatchObject({
       outcome: "ok",
-      value: { judged: "accepted", edit: { write: [{ file: RECORDS_FILE, document: { records: [{ symptom: "claimed-type#cast-expressions" }] } }] } },
+      value: { judged: "accepted", edit: { write: [{ file: RECORDS_FILE, document: { records: [{ answers: "claimed-type#cast-expressions" }] } }] } },
     });
   });
 
@@ -117,14 +117,14 @@ describe("the authorised location a person's arguments write", () => {
   });
 
   it("refuses a symptom the catalogue does not name", () => {
-    expect(authorised({ request: { ...REQUEST, symptom: "no-such-symptom" }, documents: NO_DOCUMENTS })).toEqual({
+    expect(authorised({ request: { ...REQUEST, answers: "no-such-symptom" }, documents: NO_DOCUMENTS })).toEqual({
       outcome: "ok",
       value: { judged: "refused", refusals: [{ kind: "unknown-symptom", symptom: "no-such-symptom" }] },
     });
   });
 
   it("refuses a symptom whose name cannot name a records file", () => {
-    expect(authorised({ request: { ...REQUEST, symptom: "Not A Name" }, documents: NO_DOCUMENTS })).toEqual({
+    expect(authorised({ request: { ...REQUEST, answers: "Not A Name" }, documents: NO_DOCUMENTS })).toEqual({
       outcome: "ok",
       value: { judged: "refused", refusals: [{ kind: "not-a-records-name", name: "Not A Name" }] },
     });

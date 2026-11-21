@@ -79,10 +79,10 @@ const holdingOf = (request: { readonly record: RecordOf<"file-carve-out"> }): "c
   request.record.whyChain !== undefined || request.record.provenance !== undefined ? "carried" : "stated";
 
 const debtRecordOf = (request: { readonly record: RecordOf<"file-carve-out">; readonly check: Check; readonly entry: CarriedEntry }): WrittenRecord => {
-  const symptom = checkAddressOf({ check: request.check });
+  const answers = checkAddressOf({ check: request.check });
   return holdingOf({ record: request.record }) === "carried"
-    ? { symptom, file: request.record.file, carried: request.entry }
-    : { symptom, file: request.record.file, ...noteOf({ reason: request.record.reason }) };
+    ? { answers, file: request.record.file, carried: request.entry }
+    : { answers, file: request.record.file, ...noteOf({ reason: request.record.reason }) };
 };
 
 const carveOutOutcome = (request: { readonly input: Extract<RecordInput, { readonly kind: "file-carve-out" }> }): InputOutcome => {
@@ -116,7 +116,7 @@ const authorisedLocationOutcome = (request: {
       placedAt({
         kind: "authorised-locations",
         check,
-        record: { symptom: checkAddressOf({ check }), file: record.file, carried: entry },
+        record: { answers: checkAddressOf({ check }), file: record.file, carried: entry },
       }),
     ),
   });

@@ -28,14 +28,14 @@ const documentsAtBase = (request: { readonly entries: readonly VersionOneEntry[]
 describe("carriedDebtDocumentsAtBaseOf writing the debt the base's file carve-outs would have been carried as", () => {
   it("writes the debt at the one check of the clause, in that symptom's debt file, carrying the entry word for word", () => {
     expect(documentsAtBase({ entries: [CARVE_OUT] })).toEqual([
-      { file: LOOP_KEYWORD_DEBT, document: { version: 2, records: [{ symptom: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT }] } },
+      { file: LOOP_KEYWORD_DEBT, document: { version: 2, records: [{ answers: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT }] } },
     ]);
   });
 
   it("writes the debt at each check of a two-check clause, in the debt file of each check's symptom", () => {
     expect(documentsAtBase({ entries: [TEST_BODY_CARVE_OUT] })).toEqual([
-      { file: LOOP_KEYWORD_DEBT, document: { version: 2, records: [{ symptom: "loop-keyword#test-body", file: "src/a.ts", carried: TEST_BODY_CARVE_OUT }] } },
-      { file: REBINDING_DEBT, document: { version: 2, records: [{ symptom: "rebinding#test-body", file: "src/a.ts", carried: TEST_BODY_CARVE_OUT }] } },
+      { file: LOOP_KEYWORD_DEBT, document: { version: 2, records: [{ answers: "loop-keyword#test-body", file: "src/a.ts", carried: TEST_BODY_CARVE_OUT }] } },
+      { file: REBINDING_DEBT, document: { version: 2, records: [{ answers: "rebinding#test-body", file: "src/a.ts", carried: TEST_BODY_CARVE_OUT }] } },
     ]);
   });
 
@@ -47,8 +47,8 @@ describe("carriedDebtDocumentsAtBaseOf writing the debt the base's file carve-ou
         document: {
           version: 2,
           records: [
-            { symptom: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT },
-            { symptom: "loop-keyword#loops", file: "src/b.ts", carried: other },
+            { answers: "loop-keyword#loops", file: "src/a.ts", carried: CARVE_OUT },
+            { answers: "loop-keyword#loops", file: "src/b.ts", carried: other },
           ],
         },
       },

@@ -24,7 +24,7 @@ const AUTHORISED_INPUT: RecordInput = {
   answer: { reach: "whole-clause" },
 };
 
-const DEBT: WrittenRecord = { symptom: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" };
+const DEBT: WrittenRecord = { answers: "loop-keyword#loops", file: "src/a.ts", note: "legacy loop" };
 
 const BOTH_INPUTS: readonly RecordInput[] = [CARVE_OUT_INPUT, AUTHORISED_INPUT];
 
@@ -35,14 +35,14 @@ describe("reachBeyondEntriesOf", () => {
   it("finds no record beyond the entries when each sits at a check of one entry's clause and file", () => {
     expect(
       reachBeyond({
-        written: [DEBT, { symptom: "rebinding#test-body", file: "src/a.ts", carried: { kind: "authorised-location" } }],
+        written: [DEBT, { answers: "rebinding#test-body", file: "src/a.ts", carried: { kind: "authorised-location" } }],
         inputs: BOTH_INPUTS,
       }),
     ).toEqual([]);
   });
 
   it("names a whole-symptom record, which reaches every check of the symptom", () => {
-    expect(reachBeyond({ written: [{ symptom: "loop-keyword", file: "src/a.ts", note: "x" }], inputs: BOTH_INPUTS })).toEqual([{ symptom: "loop-keyword", file: "src/a.ts" }]);
+    expect(reachBeyond({ written: [{ answers: "loop-keyword", file: "src/a.ts", note: "x" }], inputs: BOTH_INPUTS })).toEqual([{ symptom: "loop-keyword", file: "src/a.ts" }]);
   });
 
   it("names a record at a file no entry holds", () => {
@@ -50,13 +50,13 @@ describe("reachBeyondEntriesOf", () => {
   });
 
   it("names a record at a check of a clause no entry holds at that file", () => {
-    expect(reachBeyond({ written: [{ symptom: "rebinding#test-body", file: "src/a.ts", note: "x" }], inputs: [CARVE_OUT_INPUT] })).toEqual([
+    expect(reachBeyond({ written: [{ answers: "rebinding#test-body", file: "src/a.ts", note: "x" }], inputs: [CARVE_OUT_INPUT] })).toEqual([
       { symptom: "rebinding#test-body", file: "src/a.ts" },
     ]);
   });
 
   it("names a record at a check the catalogue does not hold", () => {
-    expect(reachBeyond({ written: [{ symptom: "loop-keyword#unknown", file: "src/a.ts", note: "x" }], inputs: BOTH_INPUTS })).toEqual([{ symptom: "loop-keyword#unknown", file: "src/a.ts" }]);
+    expect(reachBeyond({ written: [{ answers: "loop-keyword#unknown", file: "src/a.ts", note: "x" }], inputs: BOTH_INPUTS })).toEqual([{ symptom: "loop-keyword#unknown", file: "src/a.ts" }]);
   });
 
   it("names every record when no entry was held", () => {

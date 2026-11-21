@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CATALOGUE_NAME, catalogueNameSchema } from "../symptom-catalogue/symptom-catalogue-wire.ts";
+import { CHECK_ADDRESS_SEPARATOR } from "../values/check-address-text.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import { whyChainSchema } from "../values/why-chain.ts";
 
@@ -23,20 +24,18 @@ const FILE_SCHEME = "file:";
 
 const SCHEME_MODULE = String.raw`(?!runtime:|npm:|${FILE_SCHEME}|${DRIVE_LETTER})[a-z][a-z0-9+.-]*:\S+`;
 
-export const CHECK_MARK = "#";
-
 const textSchema = z.string().trim().min(1);
 
 export type RecordedReach = { readonly reaches: "whole-symptom"; readonly symptom: string } | { readonly reaches: "one-check"; readonly symptom: string; readonly check: string };
 
 const recordedReachOf = (text: string): RecordedReach => {
-  const mark = text.indexOf(CHECK_MARK);
+  const mark = text.indexOf(CHECK_ADDRESS_SEPARATOR);
   return mark === -1 ? { reaches: "whole-symptom", symptom: text } : { reaches: "one-check", symptom: text.slice(0, mark), check: text.slice(mark + 1) };
 };
 
 export const recordedReachSchema = z
   .string()
-  .regex(new RegExp(`^${CATALOGUE_NAME}(?:${CHECK_MARK}${CATALOGUE_NAME})?$`), { error: "is not a symptom's name, or a symptom's name and one of its checks written <symptom>#<check>" })
+  .regex(new RegExp(`^${CATALOGUE_NAME}(?:${CHECK_ADDRESS_SEPARATOR}${CATALOGUE_NAME})?$`), { error: "is not a symptom's name, or a symptom's name and one of its checks written <symptom>#<check>" })
   .transform(recordedReachOf);
 
 export const packageNameSchema = z.string().regex(new RegExp(`^${PACKAGE_NAME}$`), { error: "is not the name of one direct outside dependency" });
@@ -53,17 +52,29 @@ export const recordsDocumentSchema = z.strictObject({ version: z.literal(RECORDS
 
 export const carriedFormSchema = z.looseObject({ carried: z.json() });
 
-export const debtWireSchema = z.strictObject({ symptom: recordedReachSchema, file: repoPathSchema, note: textSchema.optional(), carried: carriedEntrySchema.optional() });
+const addressFieldRetirement = (issue: z.core.$ZodRawIssue): string | undefined =>
+  issue.code === "unrecognized_keys" && issue.keys.includes("symptom") ? "`symptom` is `answers` in version 2" : undefined;
 
-export const statedAuthorisedLocationWireSchema = z.strictObject({
-  symptom: recordedReachSchema,
-  file: repoPathSchema,
-  case: textSchema,
-  owes: textSchema,
-  whyChain: whyChainSchema,
-});
+export const debtWireSchema = z.strictObject(
+  { answers: recordedReachSchema, file: repoPathSchema, note: textSchema.optional(), carried: carriedEntrySchema.optional() },
+  { error: addressFieldRetirement },
+);
 
-export const carriedAuthorisedLocationWireSchema = z.strictObject({ symptom: recordedReachSchema, file: repoPathSchema, carried: carriedEntrySchema });
+export const statedAuthorisedLocationWireSchema = z.strictObject(
+  {
+    answers: recordedReachSchema,
+    file: repoPathSchema,
+    case: textSchema,
+    owes: textSchema,
+    whyChain: whyChainSchema,
+  },
+  { error: addressFieldRetirement },
+);
+
+export const carriedAuthorisedLocationWireSchema = z.strictObject(
+  { answers: recordedReachSchema, file: repoPathSchema, carried: carriedEntrySchema },
+  { error: addressFieldRetirement },
+);
 
 export const statedBoundaryRecordWireSchema = z.strictObject({
   module: repoPathSchema,
