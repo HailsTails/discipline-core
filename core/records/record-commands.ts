@@ -100,7 +100,7 @@ const outcomesOf = (request: { readonly ports: RecordDebtPorts; readonly run: Re
   return {
     outcome: "ok",
     value: debtOutcomesOf({
-      sites: inSiteOrder({ sites: [...debtSitesOf({ catalogue, findings: request.run.findings }), ...natives.recordable] }),
+      sites: inSiteOrder({ sites: [...natives.recordable, ...debtSitesOf({ catalogue, findings: request.run.findings })] }),
       unrecordable: [...unrecordableSitesOf({ catalogue, findings: request.run.findings }), ...natives.unrecordable],
       records: held.value.records,
       leave: request.run.leave,

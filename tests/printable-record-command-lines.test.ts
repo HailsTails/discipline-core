@@ -28,12 +28,17 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       {
         label: "record-debt",
+        text: `${ADDRESS} touched ${FILE}: this change created or changed the file, so this run would forfeit debt on it; fix what the comment hides, then remove the comment`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
         text: `CD-99#nowhere unrecordable ${FILE}: the catalogue gives this finding no symptom or check to record debt against; fix the finding`,
         fills: { address: ADDRESS, file: FILE, clause: "CD-99#nowhere" },
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the lint run, which no record can hold; remove the ignore from the ESLint configuration, or list the file in exclude in hone.config.json`,
+        text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration`,
         fills: { address: ADDRESS, file: FILE },
       },
       {
@@ -43,7 +48,7 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} unrecordable ${FILE}: an entry in the suppressions file hides the finding where no record can hold it; fix the code and remove the entry`,
+        text: `${ADDRESS} unrecordable ${FILE}: an entry in the suppressions file hides a finding from the team's lint run, which no record can hold; Hone's run still finds it and records it as debt, so remove the entry from the suppressions file`,
         fills: { address: ADDRESS, file: FILE },
       },
       {
@@ -53,7 +58,22 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} unrecordable ${FILE}: no record of this engine holds this override; fix the code, or remove the override`,
+        text: `${ADDRESS} unrecordable ${FILE}: eslint is not the first command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as "eslint --rule x:off ."`,
+        fills: { address: ADDRESS, file: FILE, command: "eslint", invocation: '"eslint --rule x:off ."' },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: "env" comes before eslint and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before eslint`,
+        fills: { address: ADDRESS, file: FILE, command: "eslint", wrapper: '"env"' },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: a quote in the script has no partner, so Hone cannot read what the script passes to eslint or tell what that does to the files under check; pair every quote in the script`,
+        fills: { address: ADDRESS, file: FILE, command: "eslint" },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: an override in the ESLint configuration turns the check down for this file, which no record can hold; where debt holds the check the projection already turns it off, so remove the override or narrow it to the files that need it`,
         fills: { address: ADDRESS, file: FILE },
       },
       {
@@ -61,6 +81,7 @@ describe("every line the version 2 record commands can print, as the contract is
         text: `${ADDRESS} unrecordable ${FILE}: no record of this engine holds this comment; fix the code, or remove the comment`,
         fills: { address: ADDRESS, file: FILE },
       },
+      { label: "record-debt", text: "run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop to put the recorded debt into effect", fills: { "project command": "node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js project --repo /work/shop" } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: paid`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale, its file is no longer in the repository`, fills: { address: "date-used-directly", file: FILE } },

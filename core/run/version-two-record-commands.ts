@@ -10,7 +10,8 @@ import { authoriseOf, pruneDebtOf, type RecordCommandFailure, recordDebtOf } fro
 import type { RecordsSource } from "../records/records-source.ts";
 import type { RecordsStore } from "../records/records-store.ts";
 import { createRecordsStore } from "../records/records-store.ts";
-import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "../report/record-command-lines.ts";
+import { projectCommandOf } from "../command-line/tool-invocations.ts";
+import { authorisingLines, debtOutcomeLine, projectNextLine, prunedDebtLine } from "../report/record-command-lines.ts";
 import { type RunLoadFailure, runLoadFailureOf } from "../report/run-load-failure.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { Result } from "../values/result.ts";
@@ -86,7 +87,17 @@ const recordDebtOutcome: OutcomeOf = async (request) => {
     touched: run.value.touched,
     leave: parsed.value.leave,
   });
-  return recorded.outcome === "failed" ? recordFailureOutcome({ context: context.value, failure: recorded.error }) : linesOutcome({ lines: recorded.value.map((outcome) => debtOutcomeLine({ outcome })) });
+  if (recorded.outcome === "failed") {
+    return recordFailureOutcome({ context: context.value, failure: recorded.error });
+  }
+  const outcomeLines = recorded.value.map((outcome) => debtOutcomeLine({ outcome }));
+  if (!recorded.value.some((outcome) => outcome.effect === "recorded")) {
+    return linesOutcome({ lines: outcomeLines });
+  }
+  const projectCommand = projectCommandOf({ path: request.command.path, moduleUrl: request.command.moduleUrl, repoRoot: context.value.located.repoRoot });
+  return projectCommand.outcome === "failed"
+    ? loadFailureOutcome({ failure: projectCommand.error })
+    : linesOutcome({ lines: [...outcomeLines, projectNextLine({ projectCommand: projectCommand.value })] });
 };
 
 const pruneDebtOutcome: OutcomeOf = async (request) => {

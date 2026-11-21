@@ -39,23 +39,35 @@ const OPTION: AttributedNativeException = {
 const UNRUN_MECHANISM_EXCEPTION: AttributedNativeException = { ...INLINE_DISABLE, mechanism: AUDIT };
 
 describe("nativeDebtSitesOf", () => {
-  it("names the check and file of each exception a run's records can hold, once each, in file order", () => {
-    expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [CONFIG_OVERRIDE, INLINE_DISABLE, INLINE_DISABLE], runs: [ESLINT_RUN] })).toEqual({
-      recordable: [
-        { address: "claimed-type#cast-expressions", file: FILE },
-        { address: "claimed-type#cast-expressions", file: OTHER_FILE },
-      ],
+  it("names the check and file of each exception a run's records can hold, once each, as a debt that comes from a native exception", () => {
+    expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [INLINE_DISABLE, INLINE_DISABLE], runs: [ESLINT_RUN] })).toEqual({
+      recordable: [{ address: "claimed-type#cast-expressions", file: FILE, origin: "native-exception" }],
       unrecordable: [],
     });
+  });
+
+  it("never takes a config override for the source of a debt, though the run's records could hold it, since debt holds what is owed and an override on a clean file owes nothing", () => {
+    expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [CONFIG_OVERRIDE], runs: [ESLINT_RUN] })).toEqual({
+      recordable: [],
+      unrecordable: [{ address: "CD-2#cast-expressions", file: OTHER_FILE, because: { kind: "config-override" } }],
+    });
+  });
+
+  it("keeps the cause of a script option, since the advice depends on it", () => {
+    const wrapped: AttributedNativeException = { ...OPTION, cause: { kind: "wrapped", command: "eslint", wrapper: "env" } };
+    expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [OPTION, wrapped], runs: [ESLINT_RUN] }).unrecordable).toEqual([
+      { address: "CD-2#cast-expressions", file: "package.json", because: { kind: "command-line-option", cause: { kind: "weakens-run" } } },
+      { address: "CD-2#cast-expressions", file: "package.json", because: { kind: "command-line-option", cause: { kind: "wrapped", command: "eslint", wrapper: "env" } } },
+    ]);
   });
 
   it("names, by its kind, each exception no record can hold, with the check it names or else its clause", () => {
     expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [OPTION, NAMED_IGNORE, IGNORE], runs: [ESLINT_RUN] })).toEqual({
       recordable: [],
       unrecordable: [
-        { address: "CD-2#cast-expressions", file: "package.json", because: "command-line-option" },
-        { address: "CD-2#cast-expressions", file: FILE, because: "ignore" },
-        { address: "claimed-type#cast-expressions", file: OTHER_FILE, because: "ignore" },
+        { address: "CD-2#cast-expressions", file: "package.json", because: { kind: "command-line-option", cause: { kind: "weakens-run" } } },
+        { address: "CD-2#cast-expressions", file: FILE, because: { kind: "ignore" } },
+        { address: "claimed-type#cast-expressions", file: OTHER_FILE, because: { kind: "ignore" } },
       ],
     });
   });
@@ -63,14 +75,14 @@ describe("nativeDebtSitesOf", () => {
   it("names an exception of a kind the run's records do not hold by its kind, whichever kind it is", () => {
     expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [INLINE_DISABLE], runs: [{ ...ESLINT_RUN, coverableKinds: [] }] })).toEqual({
       recordable: [],
-      unrecordable: [{ address: "CD-2#cast-expressions", file: FILE, because: "inline-disable" }],
+      unrecordable: [{ address: "CD-2#cast-expressions", file: FILE, because: { kind: "inline-disable" } }],
     });
   });
 
   it("names an exception of a mechanism that did not run by its kind", () => {
     expect(nativeDebtSitesOf({ catalogue: REPORT_CATALOGUE, unrecorded: [UNRUN_MECHANISM_EXCEPTION], runs: [ESLINT_RUN] })).toEqual({
       recordable: [],
-      unrecordable: [{ address: "CD-2#cast-expressions", file: FILE, because: "inline-disable" }],
+      unrecordable: [{ address: "CD-2#cast-expressions", file: FILE, because: { kind: "inline-disable" } }],
     });
   });
 

@@ -4,9 +4,10 @@ import type { AnsweredFinding } from "../records/answering.ts";
 import { checkAddressOf } from "../symptom-catalogue/check-address.ts";
 import { type Check, indicatedNamesOf, type SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import { type CheckSite, checkSiteText, findingSiteOf, nativeSitesOf } from "./check-site.ts";
-import { onOneLine, quoted } from "./printed-text.ts";
+import { onOneLine } from "./printed-text.ts";
 import { referencesText } from "./record-lines.ts";
 import type { CheckEdition } from "./run-report.ts";
+import { scriptOptionAdviceOf } from "./script-option-advice.ts";
 
 type CatalogueRequest = { readonly catalogue: SymptomCatalogue };
 
@@ -41,19 +42,9 @@ const INLINE_REACH_NOTE: Readonly<Record<InlineReach, string>> = {
   "every-selected-clause": " names no rule and escapes every selected check: naming the rule is the cheap fix",
 };
 
-const UNJUDGED_OPTION = "so Hone cannot tell what the option does to the files under check";
-
 const scriptOptionNote = (request: { readonly cause: ScriptOptionCause }): string => {
-  switch (request.cause.kind) {
-    case "weakens-run":
-      return " weakens the script's whole run, so no record can cover it: remove it from the script";
-    case "after-another-command":
-      return `: ${request.cause.command} is not the first command of its script, ${UNJUDGED_OPTION}; give ${request.cause.command} a script of its own, such as ${quoted({ text: request.cause.invocation })}`;
-    case "wrapped":
-      return `: ${quoted({ text: request.cause.wrapper })} comes before ${request.cause.command} and is neither a package runner nor a NAME=value setting, ${UNJUDGED_OPTION}; put only package runners and NAME=value settings before ${request.cause.command}`;
-    case "unreadable":
-      return `: a quote in the script has no partner, so Hone cannot read what the script passes to ${request.cause.command} or tell what that does to the files under check; pair every quote in the script`;
-  }
+  const { problem, fix } = scriptOptionAdviceOf(request);
+  return request.cause.kind === "weakens-run" ? ` ${problem}: ${fix}` : `: ${problem}; ${fix}`;
 };
 
 const inlineDetail = (request: { readonly exception: { readonly file: string; readonly line: number; readonly text: string } }): string =>
