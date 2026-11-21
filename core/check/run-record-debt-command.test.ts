@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { type RecordsDisk, recordsDisk, singleFileRepositoriesOver } from "../../tests/records-disk.ts";
 import { exceptionRepositoryOf } from "../exception-records/exception-layout.ts";
-import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { ABSENT_FILE, type FakeFile, presentFile, presentJsonFile } from "../../tests/fake-file.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { EmbeddedRunReport, UnprojectedFolderReport } from "../mechanism-port/embedded-run-report-schema.ts";
 import type { EmbeddedRunner } from "../mechanism-port/embedded-runner-module-schema.ts";
@@ -10,7 +10,7 @@ import { hitSchema } from "../mechanism-port/runner-result-schema.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
 import type { GitPort, GitTreePort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
-import type { PathPort, RelativeLocation } from "../platform-ports/path-port.ts";
+import { createPathPort, type PathPort, type RelativeLocation } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
@@ -21,20 +21,6 @@ const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
 const EXCEPTIONS_PATH = "/repo/discipline-exceptions.json";
 
-type FakeFile = {
-  readonly read: ReturnType<FileTextPort["read"]>;
-  readonly presence: ReturnType<FileTextPort["exists"]>;
-};
-
-const presentFile = (request: { readonly text: string }): FakeFile => ({
-  read: { outcome: "ok", value: request.text },
-  presence: "present",
-});
-
-const ABSENT_FILE: FakeFile = {
-  read: { outcome: "failed", error: { kind: "unreadable", path: "", detail: "ENOENT" } },
-  presence: "absent",
-};
 
 const CLASS_SYNTAX_DEFINITION = {
   kind: "mechanical",
@@ -52,26 +38,14 @@ const repositoryFiles = (request: {
   readonly fileExceptionWhyChains: "required" | "optional";
   readonly exceptions: FakeFile;
 }): Readonly<Record<string, FakeFile>> => ({
-  "/repo/disciplines.json": presentFile({
-    text: JSON.stringify({
-      version: 1,
-      ruleSets: {},
-      clauses: { "CD-14#class-syntax": "audit" },
-      fileExceptionWhyChains: request.fileExceptionWhyChains,
-    }),
+  "/repo/disciplines.json": presentJsonFile({
+    document: { version: 1, ruleSets: {}, clauses: { "CD-14#class-syntax": "audit" }, fileExceptionWhyChains: request.fileExceptionWhyChains },
   }),
   [EXCEPTIONS_PATH]: request.exceptions,
   "/install/package.json": ABSENT_FILE,
-  "/install/rules/CD-14/discipline.json": presentFile({
-    text: JSON.stringify({ version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] }),
-  }),
-  "/install/mechanisms/audit/CD-14/piece.json": presentFile({
-    text: JSON.stringify({
-      version: 1,
-      discipline: "CD-14",
-      mechanism: "audit",
-      clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }],
-    }),
+  "/install/rules/CD-14/discipline.json": presentJsonFile({ document: { version: 1, id: "CD-14", clauses: [CLASS_SYNTAX_DEFINITION] } }),
+  "/install/mechanisms/audit/CD-14/piece.json": presentJsonFile({
+    document: { version: 1, discipline: "CD-14", mechanism: "audit", clauses: [{ clause: "class-syntax", settings: { module: "class-syntax.ts" } }] },
   }),
   "/install/mechanisms/audit/runner/runner.ts": presentFile({ text: "export const runner = {};\n" }),
   "/repo/src/a.ts": presentFile({ text: "class A {}\n" }),
@@ -92,21 +66,7 @@ const fileTextOver = (request: {
 
 const WRITTEN: ReturnType<FileTextPort["write"]> = { outcome: "ok", value: undefined };
 
-const JOINED_PATHS: Readonly<Record<string, string>> = {
-  '["/repo","disciplines.json"]': "/repo/disciplines.json",
-  '["/repo","discipline-exceptions.json"]': EXCEPTIONS_PATH,
-  '["/repo","discipline-exceptions"]': "/repo/discipline-exceptions",
-  '["/repo","disciplines.assessment.md"]': "/repo/disciplines.assessment.md",
-  '["/install","ADOPTING.md"]': "/install/ADOPTING.md",
-  '["/install","package.json"]': "/install/package.json",
-  '["/repo","node_modules","@hailstails/hone"]': "/repo/node_modules/@hailstails/hone",
-  '["/install","rules","CD-14","README.md"]': "/install/rules/CD-14/README.md",
-  '["/repo","src/a.ts"]': "/repo/src/a.ts",
-  '["/install","rules","CD-14","discipline.json"]': "/install/rules/CD-14/discipline.json",
-  '["/install","mechanisms","audit","CD-14","piece.json"]': "/install/mechanisms/audit/CD-14/piece.json",
-  '["/install","mechanisms","audit","CD-14"]': "/install/mechanisms/audit/CD-14",
-  '["/install","mechanisms","audit","runner","runner.ts"]': "/install/mechanisms/audit/runner/runner.ts",
-};
+const POSIX_PATH = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 
 const DIRECTORIES: Readonly<Record<string, string>> = {
   "/install/core/check/tool-command.ts": "/install/core/check",
@@ -123,12 +83,9 @@ const RELATIVE_TO_REPO: Readonly<Record<string, RelativeLocation>> = {
 };
 
 const TABLE_PATH: PathPort = {
-  join: ({ segments }) => requiredEntry({ table: JOINED_PATHS, key: JSON.stringify(segments) }),
+  ...POSIX_PATH,
   relative: ({ to }) => requiredEntry({ table: RELATIVE_TO_REPO, key: to }),
-  joinRepository: vi.fn<PathPort["joinRepository"]>(),
   directoryOf: ({ path }) => requiredEntry({ table: DIRECTORIES, key: path }),
-  repositoryDirectoryOf: vi.fn<PathPort["repositoryDirectoryOf"]>(),
-  resolve: ({ path }) => ({ outcome: "ok", value: absolutePathSchema.parse(path) }),
   fromFileUrl: () => ({ outcome: "ok", value: absolutePathSchema.parse("/install/core/check/tool-command.ts") }),
 };
 
@@ -243,10 +200,7 @@ const EMPTY_EXCEPTIONS = `{
 }
 `;
 
-const FORFEITED_CARVE_OUT = JSON.stringify({
-  version: 1,
-  exceptions: [{ kind: "file-carve-out", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "legacy class", whyChain: CAUSAL_WHY_CHAIN }],
-});
+const FORFEITED_CARVE_OUT = { version: 1, exceptions: [{ kind: "file-carve-out", clause: "CD-14#class-syntax", file: "src/a.ts", reason: "legacy class" }] };
 
 describe("recordDebtCommandOf", () => {
   it("writes a reason-only file carve-out for each broken clause and file into a new exceptions file, and prints the pair", async () => {
@@ -292,7 +246,7 @@ describe("recordDebtCommandOf writing nothing for a pair", () => {
   });
 
   it("adds nothing for a pair whose record the check forfeits, so the forfeiture stands", async () => {
-    const files = repositoryFiles({ fileExceptionWhyChains: "optional", exceptions: presentFile({ text: FORFEITED_CARVE_OUT }) });
+    const files = repositoryFiles({ fileExceptionWhyChains: "optional", exceptions: presentJsonFile({ document: FORFEITED_CARVE_OUT }) });
 
     expect(await recordedDebt({ ...adoptionRun(), fileText: fileTextOver({ files, writes: WRITTEN }), git: gitChanging([SOURCE_A]) })).toEqual({
       writes: [[{ text: "CD-14#class-syntax already-recorded src/a.ts: discipline-exceptions.json already holds a record on this clause and file; the check says why it does not hold\n" }]],
