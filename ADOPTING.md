@@ -200,10 +200,10 @@ export default [
 
 To confirm it, run the repository's own `eslint` on one TypeScript file with a type annotation, for example `node_modules/.bin/eslint src/index.ts` with a file of your own; it must report findings or nothing, never `Parsing error`.
 
-In a monorepo where ESLint resolves each file from its nearest config, `hone:project` also writes a `disciplines.eslint.mjs` slice beside each package's tracked `eslint.config.*`, holding only that package's exceptions with paths relative to the package. Where one ESLint 9 run applies the root config to every file, package configs are never loaded and get no slice. A package config keeps its slice even in a folder the root config ignores, since a lint run from that package loads its own config without the root's ignores. A folder holding its own `disciplines.json` gets no slice: its ESLint configuration is not managed from this repository, and nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)); when that leaves a carve-out recorded there out of effect, the check names the folder on its `mechanism-not-run eslint not-included` line. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
+In a monorepo where ESLint resolves each file from its nearest config, `hone:project` also writes a `hone.eslint.mjs` slice, with its `hone.eslint.d.mts` declaration of the type, beside each package's tracked `eslint.config.*`, holding only that package's records with paths relative to the package. Where one ESLint 9 run applies the root config to every file, package configs are never loaded and get no slice. A package config keeps its slice even in a folder the root config ignores, since a lint run from that package loads its own config without the root's ignores. A folder holding its own `hone.config.json` is a nested Hone configuration, which is not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)): when the run would check a file under it, `check` and `project` stop with `load failure: not-ready-yet eslint-config-roots: this release does not run a repository that holds other version 2 repositories yet; …` before anything is checked or written, and the line says to move the folder out and run it on its own with `--repo`, and a folder with no such file gets no slice. The root config spreads the root projection last, and each package config spreads its own slice last, never the root one:
 
 ```js
-import projection from "./disciplines.eslint.mjs";
+import projection from "./hone.eslint.mjs";
 
 export default [
   { files: ["**/*.{ts,tsx,mts,cts}"] },
@@ -211,21 +211,21 @@ export default [
 ];
 ```
 
-A package whose `eslint.config.*` is generated and not tracked needs its folder listed so Hone writes its slice, and the slice spread where the tool takes extra configuration. Each listed folder must be one git tracks files under, spelled exactly as git spells it, or the check stops with `config-root-untracked`. sku 16.6.1 is such a tool: its `packages/sku/src/utils/configureApp.ts` writes `eslint.config.mjs` into the project on every sku command and adds it to `.gitignore`, and that config applies the `dangerouslySetESLintConfig` function that `packages/sku/src/types/types.ts` declares as taking and returning `Linter.Config[]`. For sku, list the package in `disciplines.json` and spread the slice in `sku.config.ts`:
+A package whose `eslint.config.*` is generated and not tracked needs its folder listed so Hone writes its slice, and the slice spread where the tool takes extra configuration. Each listed folder must be one git tracks files under, spelled exactly as git spells it, or the check stops with `config-root-untracked`. sku 16.6.1 is such a tool: its `packages/sku/src/utils/configureApp.ts` writes `eslint.config.mjs` into the project on every sku command and adds it to `.gitignore`, and that config applies the `dangerouslySetESLintConfig` function that `packages/sku/src/types/types.ts` declares as taking and returning `Linter.Config[]`. For sku, list the package in `hone.config.json` and spread the slice in `sku.config.ts`:
 
 ```json
 { "eslintConfigRoots": ["packages/web"] }
 ```
 
 ```ts
-import projection from "./disciplines.eslint.mjs";
+import projection from "./hone.eslint.mjs";
 
 export default {
   dangerouslySetESLintConfig: (skuEslintConfig) => [...skuEslintConfig, ...projection],
 };
 ```
 
-The check names a slice that is missing, out of date, or not applied to that package's files, and names a listed folder whose `eslint.config.*` is not on disk as `unconfigured`: until the tool has written it, nothing loads the slice, so run the tool's configure step (for sku, any sku command or `sku configure`) before the check. A package that spreads nothing at all shows its files under `unrecorded` as `config-override` while it has no file exception of its own; once a file under check there has one, the package is also reported `not-applied`. Hone sees which slice a package config spreads only through its effect: a package config that spreads the root projection by mistake is reported `not-applied` once a file under check in that package has a file exception the root projection cannot carry. Until then the check says nothing, because for a package with no file exceptions of its own the root projection and the slice switch on the same rules, and clause-wide carve-outs reach the package either way. To confirm the spread before adding an exception, run ESLint from the package folder on a file the check flags and see the same finding. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `disciplines.json`:
+The check names a slice that is missing or out of date, and names a listed folder whose `eslint.config.*` is not on disk as `unconfigured`: until the tool has written it, nothing loads the slice, so run the tool's configure step (for sku, any sku command or `sku configure`) before the check. A package that spreads nothing at all has its checks out of effect at once, and the check reports `engine-not-run eslint not-included` rather than trust what it could not have measured. A package that spreads the root projection instead of its slice is reported the same way only once a record answers a file in it; until then both projections give it the same rules, so the check says nothing, and silence is not proof the spread is right. To confirm the spread before recording debt, run ESLint from the package folder on a file the check flags and see the same finding. [README.md](README.md#package-slices) has the details. Hone detects which config the team's ESLint run applies from the installed `eslint` version and the lint scripts; see [README.md](README.md#runtime). Detection is wrong when a task runner (turbo, nx, `pnpm -r`) starts ESLint 9 inside each package, because each package then uses its own config, and when ESLint 9 gets the lookup flag outside the scripts. In those repositories set the lookup in `hone.config.json`:
 
 ```json
 { "eslintConfigLookup": "nearest-to-file" }
