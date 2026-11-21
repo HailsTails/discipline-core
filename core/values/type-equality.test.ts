@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Branded } from "./branded.ts";
-import type { DeepReadonly, Equal } from "./type-equality.ts";
+import type { DeepReadonly, DeepReadonlyKeepingTuples, Equal } from "./type-equality.ts";
 
 describe("Equal", () => {
   it("is true for two identical object types", () => {
@@ -14,6 +14,14 @@ describe("Equal", () => {
   it("is false for a readonly array against a mutable one", () => {
     const readonlyArray: Equal<readonly string[], string[]> = false;
     expect(readonlyArray).toBe(false);
+  });
+});
+
+describe("Equal over DeepReadonlyKeepingTuples of a parsed shape, against a declared non-empty tuple", () => {
+  it("is true when the declared type keeps a non-empty tuple that DeepReadonly would widen to an array", () => {
+    const keptTuple: Equal<DeepReadonlyKeepingTuples<{ ids: [string, ...string[]] }>, { readonly ids: readonly [string, ...string[]] }> = true;
+    const widenedTuple: Equal<DeepReadonly<{ ids: [string, ...string[]] }>, { readonly ids: readonly [string, ...string[]] }> = false;
+    expect([keptTuple, widenedTuple]).toEqual([true, false]);
   });
 });
 

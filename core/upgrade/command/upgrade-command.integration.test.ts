@@ -163,7 +163,7 @@ describe("hone upgrade over a real repository, through the real ports", () => {
         writes: [
           [
             {
-              text: "upgrade refused:\nthese inline directives name a version 1 rule id, and version 2 runs that check under a different id:\n  src/kept.ts:1 hone/no-class-authoring: write hone/authored-class-or-this/class-keyword\nWrite the version 2 id in each one, then run the upgrade again.\nNothing was changed.\n",
+              text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/kept.ts:1 hone/no-class-authoring: write hone/authored-class-or-this/class-keyword\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nNothing was changed.\n",
             },
           ],
         ],

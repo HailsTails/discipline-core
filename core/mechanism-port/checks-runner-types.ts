@@ -29,16 +29,26 @@ export type ChecksRunRequest = {
   readonly declaredConfigLookup: EslintConfigLookup | undefined;
 };
 
-export type MisnamedRuleIdKind = "version-1-id" | "names-no-check";
+export type NonEmptyRuleIds = readonly [string, ...string[]];
 
-export type MisnamedRuleId = {
-  readonly kind: MisnamedRuleIdKind;
-  readonly ruleId: string;
-  readonly file: RepoPath;
-  readonly line: number;
-  readonly text: string;
-  readonly replacedBy: readonly string[];
-};
+export type MisnamedRuleId =
+  | {
+      readonly kind: "names-no-check";
+      readonly ruleId: string;
+      readonly file: RepoPath;
+      readonly line: number;
+      readonly text: string;
+    }
+  | {
+      readonly kind: "version-1-id";
+      readonly ruleId: string;
+      readonly file: RepoPath;
+      readonly line: number;
+      readonly text: string;
+      readonly replacedBy: NonEmptyRuleIds;
+    };
+
+export type MisnamedRuleIdKind = MisnamedRuleId["kind"];
 
 export type ChecksSliceProblem = { readonly slice: RepoPath; readonly state: "missing" | "out-of-date" | "unconfigured" };
 

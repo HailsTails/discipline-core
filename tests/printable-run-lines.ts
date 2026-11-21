@@ -310,10 +310,33 @@ const MISNAMED_RULE_IDS: readonly Filled<MisnamedRuleId>[] = [
       text: "// eslint-disable-next-line hone/no-class-authoring",
       replacedBy: ["hone/authored-class-or-this/class-keyword"],
     },
-    fills: { ...WEBHOOK_FILLS, line: "3", "rule id": "hone/no-class-authoring", comment: "// eslint-disable-next-line hone/no-class-authoring" },
+    fills: {
+      ...WEBHOOK_FILLS,
+      line: "3",
+      "rule id": "hone/no-class-authoring",
+      "version 2 rule id": "hone/authored-class-or-this/class-keyword",
+      comment: "// eslint-disable-next-line hone/no-class-authoring",
+    },
   },
   {
-    entry: { kind: "names-no-check", ruleId: "hone/claimed-type/no-such-check", file: WEBHOOK_FILE, line: 6, text: "/* eslint-disable hone/claimed-type/no-such-check */", replacedBy: [] },
+    entry: {
+      kind: "version-1-id",
+      ruleId: "hone/no-class-authoring",
+      file: WEBHOOK_FILE,
+      line: 4,
+      text: "// eslint-disable-next-line hone/no-class-authoring",
+      replacedBy: ["hone/a/first", "hone/a/second"],
+    },
+    fills: {
+      ...WEBHOOK_FILLS,
+      line: "4",
+      "rule id": "hone/no-class-authoring",
+      "version 2 rule ids": "hone/a/first, hone/a/second",
+      comment: "// eslint-disable-next-line hone/no-class-authoring",
+    },
+  },
+  {
+    entry: { kind: "names-no-check", ruleId: "hone/claimed-type/no-such-check", file: WEBHOOK_FILE, line: 6, text: "/* eslint-disable hone/claimed-type/no-such-check */" },
     fills: { ...WEBHOOK_FILLS, line: "6", "rule id": "hone/claimed-type/no-such-check", comment: "/* eslint-disable hone/claimed-type/no-such-check */" },
   },
 ];

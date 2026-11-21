@@ -123,7 +123,7 @@ const LINES = {
   stale: `claimed-type authorised-location src/adapters/stripe-webhook.ts ${NOTE}`,
   forfeited: `claimed-type debt src/adapters/stripe-webhook.ts; this change touched its file, so it no longer answers: fix what it held, then run ${PRUNE_COMMAND} to remove it`,
   unrecorded: "claimed-type#cast-expressions eslint ignore src/adapters/stripe-webhook.ts",
-  misnamed: "src/adapters/stripe-webhook.ts:3 version-1-id hone/no-class-authoring // eslint-disable-next-line hone/no-class-authoring",
+  misnamed: "src/adapters/stripe-webhook.ts:3 version-1-id hone/no-class-authoring write hone/authored-class-or-this/class-keyword // eslint-disable-next-line hone/no-class-authoring",
   paid: `claimed-type debt src/adapters/stripe-webhook.ts answered by authorised-location ${NOTE}; run ${PRUNE_COMMAND} to remove the paid debt`,
   refused: "hone-records/authorised-locations/claimed-type.json records[1] carried-changed-since-base",
   unmeasured:

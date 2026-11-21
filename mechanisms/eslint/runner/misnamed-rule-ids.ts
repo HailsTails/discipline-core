@@ -1,12 +1,13 @@
 import type { RepoPath } from "../../../core/values/repo-path.ts";
 import { commentValueOf } from "./checks-comment-value.ts";
+import type { NonEmptyRuleIds } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { MisnamedRuleId, VersionOneRuleId } from "./checks-run-types.ts";
 import type { LintedMessage } from "./eslint-instance.ts";
 import { MISNAMED_DISABLE_RULE_ID, namedRuleIdsOf, OWN_RULE_ID_PREFIX } from "./misnamed-disable-rule.ts";
 
-type Misnaming = Pick<MisnamedRuleId, "kind" | "replacedBy"> | "named-right";
+type Misnaming = { readonly kind: "names-no-check" } | { readonly kind: "version-1-id"; readonly replacedBy: NonEmptyRuleIds } | "named-right";
 
-const NAMES_NO_CHECK: Misnaming = { kind: "names-no-check", replacedBy: [] };
+const NAMES_NO_CHECK: Misnaming = { kind: "names-no-check" };
 
 const misnamingOf = (request: {
   readonly ruleId: string;
@@ -16,8 +17,8 @@ const misnamingOf = (request: {
   if (!request.ruleId.startsWith(OWN_RULE_ID_PREFIX) || request.checkRuleIds.includes(request.ruleId)) {
     return "named-right";
   }
-  const versionOne = request.versionOneRuleIds.find((candidate) => candidate.ruleId === request.ruleId);
-  return versionOne === undefined || versionOne.replacedBy.length === 0 ? NAMES_NO_CHECK : { kind: "version-1-id", replacedBy: versionOne.replacedBy };
+  const [first, ...rest] = request.versionOneRuleIds.find((candidate) => candidate.ruleId === request.ruleId)?.replacedBy ?? [];
+  return first === undefined ? NAMES_NO_CHECK : { kind: "version-1-id", replacedBy: [first, ...rest] };
 };
 
 export const misnamedRuleIdsIn = (request: {

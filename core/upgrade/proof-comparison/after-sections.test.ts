@@ -88,7 +88,7 @@ describe("afterSectionsOf", () => {
           excluded: [repoPathSchema.parse("generated")],
           findings: [{ ...NAMED_LOOP_FINDING, check: "rebinding#test-body" }],
           answered: [{ finding: NAMED_LOOP_FINDING, by: [DEBT] }],
-          misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable", replacedBy: [] }],
+          misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable" }],
           paid: [{ debt: DEBT, answeredBy: [DEBT] }],
           stale: [DEBT],
           forfeited: [DEBT],

@@ -1,4 +1,4 @@
-import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
+import type { ChecksSliceProblem, MisnamedRuleId } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { Hit, MeasuredPair, NativeException } from "../../../core/mechanism-port/runner-result-schema.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
@@ -30,14 +30,7 @@ export type SelectedCheck = {
   readonly options: RuleOptions;
 };
 
-export type MisnamedRuleId = {
-  readonly kind: "version-1-id" | "names-no-check";
-  readonly ruleId: string;
-  readonly file: RepoPath;
-  readonly line: number;
-  readonly text: string;
-  readonly replacedBy: readonly string[];
-};
+export type { MisnamedRuleId };
 
 export type VersionOneRuleId = { readonly ruleId: string; readonly replacedBy: readonly string[] };
 

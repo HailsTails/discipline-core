@@ -232,7 +232,7 @@ describe("proofDifferencesOf", () => {
   });
 
   it("names a rule id version 2 reads as naming no check, with the verdict that follows", () => {
-    expect(differencesBetween({ after: { misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable", replacedBy: [] }] } })).toEqual([
+    expect(differencesBetween({ after: { misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable" }] } })).toEqual([
       { section: "misnamed", onlyBefore: [], onlyAfter: ["names-no-check hone/loop-keyword/none src/a.ts 4"] },
       { section: "verdict", onlyBefore: ["pass"], onlyAfter: ["fail"] },
     ]);

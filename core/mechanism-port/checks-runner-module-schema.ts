@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { DeepReadonly, Equal } from "../values/type-equality.ts";
+import type { DeepReadonly, DeepReadonlyKeepingTuples, Equal } from "../values/type-equality.ts";
 import type { ChecksRunReport, ChecksSliceProblem, LoadedChecksRunner, MisnamedRuleId, NotReadyYetFailure, ProjectedFile } from "./checks-runner-types.ts";
 import { nativeExceptionSchema } from "./embedded-run-report-schema.ts";
 import { runnerCallSchema } from "./runner-module-schema.ts";
@@ -14,16 +14,17 @@ export const checksRunnerModuleSchema = z.object({
   project: runnerCallSchema,
 });
 
-export const misnamedRuleIdSchema = z
-  .object({
-    kind: z.enum(["version-1-id", "names-no-check"]),
-    ruleId: z.string().min(1),
-    file: repoPathSchema,
-    line: z.number().int().min(1),
-    text: z.string(),
-    replacedBy: z.array(z.string().min(1)).readonly(),
-  })
-  .readonly();
+const misnamedDirectiveShape = {
+  ruleId: z.string().min(1),
+  file: repoPathSchema,
+  line: z.number().int().min(1),
+  text: z.string(),
+};
+
+export const misnamedRuleIdSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("names-no-check"), ...misnamedDirectiveShape }).readonly(),
+  z.strictObject({ kind: z.literal("version-1-id"), ...misnamedDirectiveShape, replacedBy: z.tuple([z.string().min(1)], z.string().min(1)).readonly() }).readonly(),
+]);
 
 export const checksSliceProblemSchema = z
   .object({
@@ -71,10 +72,10 @@ export const isProjectedFileSchemaEqual: Equal<DeepReadonly<z.output<typeof proj
 
 export const isChecksModuleKeySetEqual: Equal<keyof LoadedChecksRunner, keyof z.output<typeof checksRunnerModuleSchema>> = true;
 
-export const isChecksRunReportSchemaEqual: Equal<DeepReadonly<z.output<typeof checksRunReportSchema>>, ChecksRunReport> = true;
+export const isChecksRunReportSchemaEqual: Equal<DeepReadonlyKeepingTuples<z.output<typeof checksRunReportSchema>>, ChecksRunReport> = true;
 
 export const isChecksSliceProblemSchemaEqual: Equal<DeepReadonly<z.output<typeof checksSliceProblemSchema>>, ChecksSliceProblem> = true;
 
-export const isMisnamedRuleIdSchemaEqual: Equal<DeepReadonly<z.output<typeof misnamedRuleIdSchema>>, MisnamedRuleId> = true;
+export const isMisnamedRuleIdSchemaEqual: Equal<DeepReadonlyKeepingTuples<z.output<typeof misnamedRuleIdSchema>>, MisnamedRuleId> = true;
 
 export const isNotReadyYetFailureSchemaEqual: Equal<DeepReadonly<z.output<typeof notReadyYetFailureSchema>>, NotReadyYetFailure> = true;

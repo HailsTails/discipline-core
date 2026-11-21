@@ -40,19 +40,19 @@ describe("misnamedRuleIdsIn", () => {
 
   it("names a version 1 id whose check version 2 does not run on ESLint as naming no check", () => {
     expect(misnamedIn({ messages: [commentOn({ line: 3, message: "// eslint-disable-next-line hone/no-implicit-any" })] })).toEqual([
-      { kind: "names-no-check", ruleId: "hone/no-implicit-any", file: "src/kept.ts", line: 3, text: "// eslint-disable-next-line hone/no-implicit-any", replacedBy: [] },
+      { kind: "names-no-check", ruleId: "hone/no-implicit-any", file: "src/kept.ts", line: 3, text: "// eslint-disable-next-line hone/no-implicit-any" },
     ]);
   });
 
   it("names an id of the tool's namespace that no version 1 piece and no check holds as naming no check", () => {
     expect(misnamedIn({ messages: [commentOn({ line: 2, message: "/* eslint-disable hone/untyped-value/no-such */" })] })).toEqual([
-      { kind: "names-no-check", ruleId: "hone/untyped-value/no-such", file: "src/kept.ts", line: 2, text: "/* eslint-disable hone/untyped-value/no-such */", replacedBy: [] },
+      { kind: "names-no-check", ruleId: "hone/untyped-value/no-such", file: "src/kept.ts", line: 2, text: "/* eslint-disable hone/untyped-value/no-such */" },
     ]);
   });
 
   it("leaves out a check's own id and an id outside the tool's namespace, naming only the misnamed id of a list", () => {
     expect(misnamedIn({ messages: [commentOn({ line: 1, message: "/* eslint-disable hone/untyped-value/explicit-any, no-console, hone/gone */" })] })).toEqual([
-      { kind: "names-no-check", ruleId: "hone/gone", file: "src/kept.ts", line: 1, text: "/* eslint-disable hone/untyped-value/explicit-any, no-console, hone/gone */", replacedBy: [] },
+      { kind: "names-no-check", ruleId: "hone/gone", file: "src/kept.ts", line: 1, text: "/* eslint-disable hone/untyped-value/explicit-any, no-console, hone/gone */" },
     ]);
   });
 
