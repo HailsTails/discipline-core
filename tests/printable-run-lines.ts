@@ -439,7 +439,7 @@ const RECORD_NOTES: { readonly [Kind in CatalogueNote["kind"]]: Filled<RecordNot
 };
 
 const CONVENTION_NOTES: Readonly<Record<ConventionKey, Filled<RunReport["settings-notes"][number]>>> = {
-  generated: { entry: { kind: "declared-not-read", key: "generated" }, fills: { convention: "conventions.generated" } },
+  generated: { entry: { kind: "declared-not-read", key: "generated" }, fills: { convention: "generated" } },
   layers: { entry: { kind: "declared-not-read", key: "layers" }, fills: { convention: "layers" } },
 };
 

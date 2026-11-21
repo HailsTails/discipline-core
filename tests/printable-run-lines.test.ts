@@ -18,7 +18,7 @@ describe("RUN_PRINTABLE_LINES", () => {
     { label: "findings", text: "acme/AC-1#no-moment eslint src/orders/charge-order.ts:3:6 moment()" },
     { label: "refused", text: 'hone-records/debt/claimed-type.json records[1] unknown-symptom "claimed type"' },
     { label: "carried", text: "hone-records/authorised-locations/claimed-type.json records[6] unjudged lacks case, owes, whyChain" },
-    { label: "settings-notes", text: "conventions.generated is declared; no check reads it yet" },
+    { label: "settings-notes", text: "generated is declared; no check reads it yet" },
   ])("includes the $label line $text", (line) => {
     expect(RUN_PRINTABLE_LINES).toContainEqual(expect.objectContaining(line));
   });

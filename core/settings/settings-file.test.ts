@@ -46,7 +46,7 @@ describe("settingsFileOf", () => {
           checkEditions: "latest",
           eslintConfigLookup: "nearest-to-file",
           eslintConfigRoots: ["web"],
-          conventions: {},
+          generated: [],
           layers: {},
         },
       }),
@@ -73,8 +73,17 @@ describe("settingsFileOf", () => {
         checkEditions: "latest",
         eslintConfigLookup: { lookup: "declared", value: "nearest-to-file" },
         eslintConfigRoots: [repoPathSchema.parse("web")],
-        conventions: { conventions: DEFAULT_CONVENTIONS, declared: [] },
+        conventions: { conventions: DEFAULT_CONVENTIONS, declared: ["generated"] },
       },
+    });
+  });
+
+  it("reads a top-level generated key into the conventions it declares", () => {
+    expect(
+      settingsFileOf({ document: { ...SMALLEST_DOCUMENT, generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] } }),
+    ).toMatchObject({
+      outcome: "ok",
+      value: { conventions: { conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] }, declared: ["generated"] } },
     });
   });
 
@@ -163,8 +172,13 @@ describe("settingsFileOf", () => {
     },
     {
       name: "a generated entry that names files anywhere, through the conventions reading",
-      document: { ...SMALLEST_DOCUMENT, conventions: { generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }] } },
-      fault: { kind: "malformed", detail: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]" },
+      document: { ...SMALLEST_DOCUMENT, generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }] },
+      fault: { kind: "malformed", detail: "✖ a generated entry names files under a named folder\n  → at generated[0].files[0]" },
+    },
+    {
+      name: "version 1's conventions key, whose generated is a top-level key in version 2",
+      document: { ...SMALLEST_DOCUMENT, conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] } },
+      fault: { kind: "malformed", detail: "✖ renamed: \"conventions\" is gone in version 2; its \"generated\" is a top-level key\n  → at conventions" },
     },
     {
       name: "a rule set named as Hone's own",
@@ -258,7 +272,7 @@ describe("settingsWireOf", () => {
       reportOutput: "counts",
       checkEditions: "latest",
       eslintConfigLookup: "nearest-to-file",
-      conventions: { generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }] },
+      generated: [{ files: ["generated/*.ts"], outsideParty: "codegen" }],
       layers: { domain: ["src/domain"] },
     });
   });

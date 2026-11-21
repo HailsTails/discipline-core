@@ -118,11 +118,12 @@ const settingsFileWireSchema = z.strictObject({
   checkEditions: checkEditionsSchema.default(DEFAULT_CHECK_EDITIONS),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   eslintConfigRoots: folderListSchema({ refusal: "an eslintConfigRoots entry is a repository folder, not a glob" }),
-  conventions: z.unknown().optional(),
+  generated: z.unknown().optional(),
   layers: z.unknown().optional(),
   clauses: retiredKeySchema({ refusal: 'renamed: "clauses" is "checks" in version 2, addressed <symptom>#<check>' }),
   clauseSettings: retiredKeySchema({ refusal: 'renamed: "clauseSettings" is "checkSettings" in version 2, addressed <symptom>#<check>' }),
   assessment: retiredKeySchema({ refusal: 'renamed: "assessment" is "forfeiture" in version 2, at the top level' }),
+  conventions: retiredKeySchema({ refusal: 'renamed: "conventions" is gone in version 2; its "generated" is a top-level key' }),
   fileExceptionWhyChains: retiredKeySchema({ refusal: 'removed: "fileExceptionWhyChains"; every record shows its why-chain in version 2' }),
 });
 
@@ -238,7 +239,7 @@ export const settingsFileOf = (request: { readonly document: unknown }): Result<
   if (!parsed.success) {
     return { outcome: "failed", error: { kind: "malformed", detail: z.prettifyError(parsed.error) } };
   }
-  const conventions = conventionsOf({ document: { conventions: parsed.data.conventions ?? {}, layers: parsed.data.layers ?? {} } });
+  const conventions = conventionsOf({ document: { generated: parsed.data.generated, layers: parsed.data.layers ?? {} } });
   if (conventions.outcome === "failed") {
     return { outcome: "failed", error: { kind: "malformed", detail: conventions.error } };
   }

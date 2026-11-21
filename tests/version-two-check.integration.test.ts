@@ -35,7 +35,6 @@ const CONFIG = `{
   "ruleSets": {},
   "checks": { "authored-class-or-this#class-keyword": "eslint" },
   "checkSettings": {},
-  "conventions": {},
   "layers": {}
 }
 `;

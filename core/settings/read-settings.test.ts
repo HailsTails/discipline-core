@@ -92,7 +92,7 @@ describe("readSettings", () => {
     expect(
       readSettings({
         sources: sourcesHolding({
-          document: { ...DOCUMENT, conventions: { generated: [{ files: ["src/generated/**"], outsideParty: "@graphql-codegen/cli" }] }, layers: { domain: ["src/domain"] } },
+          document: { ...DOCUMENT, generated: [{ files: ["src/generated/**"], outsideParty: "@graphql-codegen/cli" }], layers: { domain: ["src/domain"] } },
           piece: { outcome: "ok", value: LOOPS_PIECE },
         }),
       }),
@@ -150,7 +150,7 @@ describe("readSettings", () => {
 
 describe("settingsNoteText", () => {
   it.each<{ readonly key: "generated" | "layers"; readonly text: string }>([
-    { key: "generated", text: "conventions.generated is declared; no check reads it yet" },
+    { key: "generated", text: "generated is declared; no check reads it yet" },
     { key: "layers", text: "layers is declared; no check reads it yet" },
   ])("writes $text", ({ key, text }) => {
     expect(settingsNoteText({ note: { kind: "declared-not-read", key } })).toBe(text);
