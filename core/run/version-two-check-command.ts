@@ -9,6 +9,7 @@ import type { CommandRequest } from "../command-line/command-request.ts";
 import type { RunReport } from "../report/run-report.ts";
 import { renderRunReportText } from "../report/run-report-text.ts";
 import { runVerdictOf } from "../report/report-sections.ts";
+import { type VersionTwoReportOutput, versionTwoReportOutputSchema } from "../values/report-output.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
@@ -20,11 +21,11 @@ const SYMPTOM_PAGE_SEGMENTS: readonly string[] = ["rules", "typescript", "sympto
 type Commands = { readonly project: string; readonly prune: string };
 
 type Located = RepositoryLocated & {
-  readonly arguments: CheckArguments;
+  readonly arguments: CheckArguments<VersionTwoReportOutput>;
   readonly commands: Commands;
 };
 
-const commandsOf = (request: { readonly command: CommandRequest; readonly arguments: CheckArguments; readonly repoRoot: AbsolutePath }): Result<Commands, LoadFailure> => {
+const commandsOf = (request: { readonly command: CommandRequest; readonly arguments: CheckArguments<VersionTwoReportOutput>; readonly repoRoot: AbsolutePath }): Result<Commands, LoadFailure> => {
   const { path, moduleUrl } = request.command;
   const invocation = { path, moduleUrl, repoRoot: request.repoRoot };
   const project = projectCommandOf(invocation);
@@ -37,7 +38,7 @@ const commandsOf = (request: { readonly command: CommandRequest; readonly argume
 
 const locatedOf = (request: { readonly command: CommandRequest }): Result<Located, LoadFailure> => {
   const { command } = request;
-  const parsed = parseCheckArguments({ arguments: command.process.arguments });
+  const parsed = parseCheckArguments({ arguments: command.process.arguments, reportOutputs: versionTwoReportOutputSchema.options });
   if (parsed.outcome === "failed") {
     return parsed;
   }

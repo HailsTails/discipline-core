@@ -30,7 +30,7 @@ const SETTINGS: SettingsReading = {
     eslintConfigRoots: [],
     fileExceptionWhyChains: "required",
   },
-  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: "this-run" } },
+  runSettings: { reportOutput: "actionable", assessment: { forfeiture: "this-run" } },
   eslintConfigLookup: { lookup: "detected" },
   conventions: DEFAULT_CONVENTIONS,
   notes: [],
@@ -198,6 +198,16 @@ verdict: fail
     const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
     const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo"], stagesOver });
     expect(ran).toEqual({ writes: [[{ text: ARGUMENTS_INVALID_LINE }]], exits: [[{ code: 2 }]] });
+    expect(stagesOver).not.toHaveBeenCalled();
+  });
+
+  it("refuses --report-output failures-only, which version 2 calls actionable, building no stages", async () => {
+    const stagesOver = stagesOverGiving({ stages: stagesGiving({}) });
+    const ran = await ranWith({ moduleUrl: ENTRY_URL, arguments: ["--repo", "/repo", "--report-output", "failures-only"], stagesOver });
+    expect(ran).toEqual({
+      writes: [[{ text: 'load failure: arguments-invalid --report-output takes full, actionable, counts or verdict-only, not "failures-only"\n' }]],
+      exits: [[{ code: 2 }]],
+    });
     expect(stagesOver).not.toHaveBeenCalled();
   });
 });

@@ -21,7 +21,7 @@ const SETTINGS: SettingsReading = {
     eslintConfigRoots: [],
     fileExceptionWhyChains: "required",
   },
-  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: "this-run" } },
+  runSettings: { reportOutput: "actionable", assessment: { forfeiture: "this-run" } },
   eslintConfigLookup: { lookup: "detected" },
   conventions: DEFAULT_CONVENTIONS,
   notes: [],

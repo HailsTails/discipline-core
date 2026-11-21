@@ -25,7 +25,7 @@ import type { ConventionKey } from "../core/settings/conventions.ts";
 import type { BaseRevisionAvailability } from "../core/values/base-revision-availability.ts";
 import { editionSchema } from "../core/values/edition.ts";
 import { repoPathSchema } from "../core/values/repo-path.ts";
-import { type ReportOutput, reportOutputSchema } from "../core/values/report-output.ts";
+import { type VersionTwoReportOutput, versionTwoReportOutputSchema } from "../core/values/report-output.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, sectionedLinesOf } from "./output-contract.ts";
 import {
@@ -589,7 +589,7 @@ const EVERY_ENTRY: RunReport = {
 
 const sampleFills: EntryFills<RunSectionName> = ({ section, position }) => ({ ...SHARED_FILLS, ...SECTION_SAMPLES[section][position]?.fills });
 
-const linesOfReport = (request: { readonly report: RunReport; readonly output: ReportOutput }): readonly PrintedLine[] =>
+const linesOfReport = (request: { readonly report: RunReport; readonly output: VersionTwoReportOutput }): readonly PrintedLine[] =>
   sectionedLinesOf({
     text: renderRunReportText({ report: request.report, output: request.output, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND }),
     sections: RUN_SECTION_NAMES,
@@ -607,7 +607,7 @@ const VERDICT_REPORTS: readonly RunReport[] = [
 ];
 
 export const RUN_PRINTABLE_LINES: readonly PrintedLine[] = [
-  ...reportOutputSchema.options.flatMap((output) => linesOfReport({ report: EVERY_ENTRY, output })),
+  ...versionTwoReportOutputSchema.options.flatMap((output) => linesOfReport({ report: EVERY_ENTRY, output })),
   ...linesOfReport({ report: UNSLICED_REPORT, output: "full" }),
   ...VERDICT_REPORTS.flatMap((report) => linesOfReport({ report, output: "verdict-only" })),
   ...RECORD_PART_LINES,

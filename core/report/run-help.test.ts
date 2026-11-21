@@ -7,7 +7,7 @@ describe("the version 2 commands", () => {
   });
 
   it("print a synopsis of every command's usage", () => {
-    expect(RUN_SYNOPSIS).toBe(`hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+    expect(RUN_SYNOPSIS).toBe(`hone check --repo <dir> [--base-revision <revision>] [--report-output <full|actionable|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
@@ -42,7 +42,7 @@ run hone <command> --help for a command's options and exit codes
   });
 
   it("prints a command's options and exit codes in version 2's words", () => {
-    expect(runHelpText({ topic: "check" })).toBe(`usage: hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+    expect(runHelpText({ topic: "check" })).toBe(`usage: hone check --repo <dir> [--base-revision <revision>] [--report-output <full|actionable|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 
 check the repository against the checks hone.config.json lists and print the report, ending in its verdict
 
@@ -51,7 +51,7 @@ options:
       the folder that holds hone.config.json, usually the repository root
   --base-revision <revision>
       the revision the change is measured from; without it no debt can be forfeited and no carried record is checked against it
-  --report-output <full|failures-only|counts|verdict-only>
+  --report-output <full|actionable|counts|verdict-only>
       how much of the report to print, over reportOutput in hone.config.json; full when neither is set
   --forfeiture <this-run|elsewhere>
       check debt for forfeiture in this run or leave it to another, over forfeiture in hone.config.json; this-run when neither is set

@@ -113,6 +113,12 @@ describe("mappedSettings carrying the settings that keep their name", () => {
     );
   });
 
+  it("writes version 1's failures-only report output as actionable", () => {
+    expect(mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, reportOutput: "failures-only" } })).toEqual(
+      okWith({ settings: { reportOutput: "actionable" } }),
+    );
+  });
+
   it("moves the assessment's forfeiture to the top level, the adopter's own value", () => {
     expect(mappedSettings({ ...BASE_REQUEST, selection: { ...BASE_SELECTION, assessment: { forfeiture: "elsewhere" } } })).toEqual(
       okWith({ settings: { forfeiture: "elsewhere" } }),

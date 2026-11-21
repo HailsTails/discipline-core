@@ -12,7 +12,7 @@ import {
 import { eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { fileExceptionWhyChainsSchema } from "../values/file-exception-why-chains.ts";
 import { type MechanismId, mechanismIdSchema, NOT_ADOPTED, NOT_RUN, ruleSetNameSchema } from "../values/identifiers.ts";
-import { reportOutputSchema } from "../values/report-output.ts";
+import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
@@ -180,7 +180,7 @@ export const selectionFileOf = (request: {
   return refusal === undefined ? { outcome: "ok", value: parsed.data } : { outcome: "failed", error: refusal };
 };
 
-export const runSettingsOf = (request: { readonly file: ConsumerSelectionFile }): RunSettings => ({
+export const runSettingsOf = (request: { readonly file: ConsumerSelectionFile }): RunSettings<ReportOutput> => ({
   reportOutput: request.file.reportOutput,
   assessment: request.file.assessment,
 });

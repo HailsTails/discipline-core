@@ -1,3 +1,4 @@
+import { reportOutputOfVersionOne } from "../../values/report-output.ts";
 import type { ClauseSettingValues } from "../../mechanism-port/runner-module-types.ts";
 import { type RuleSetCatalogue, sameRuleSet, uncoveredOf } from "../../settings/check-choices.ts";
 import { DEFAULT_CONVENTIONS } from "../../settings/conventions.ts";
@@ -158,7 +159,7 @@ export const mappedSettings = (request: SettingsMappingRequest): Result<MappedSe
         checks: [...listings, ...marked].flatMap((listing) => listing.listed),
         checkSettings: givenSettingsOf({ selection, listings }),
         forfeiture: selection.assessment.forfeiture,
-        reportOutput: selection.reportOutput,
+        reportOutput: reportOutputOfVersionOne({ output: selection.reportOutput }),
         checkEditions: selection.checkEditions,
         eslintConfigLookup: eslintConfigLookupOf({ declared: selection.eslintConfigLookup }),
         eslintConfigRoots: selection.eslintConfigRoots,

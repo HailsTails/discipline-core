@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { versionTwoReportOutputSchema, reportOutputSchema } from "../values/report-output.ts";
 import { argumentProblemText } from "./argument-problem.ts";
 import {
   parseCheckArguments,
@@ -55,10 +56,25 @@ describe("parseCheckArguments", () => {
     { given: ["--", "--repo", "/work/repo"], expected: { repo: "/work/repo" } },
     { given: ["--repo", "/work/repo", "--"], expected: { repo: "/work/repo" } },
   ])("reads $given", ({ given, expected }) => {
-    expect(parseCheckArguments({ arguments: given })).toEqual({
+    expect(parseCheckArguments({ arguments: given, reportOutputs: reportOutputSchema.options })).toEqual({
       outcome: "ok",
       value: { baseRevision: undefined, reportOutput: undefined, forfeiture: undefined, ...expected },
     });
+  });
+});
+
+describe("parseCheckArguments over the version 2 report outputs", () => {
+  it("reads actionable as the output to print", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--report-output", "actionable"], reportOutputs: versionTwoReportOutputSchema.options })).toEqual({
+      outcome: "ok",
+      value: { repo: "/work/repo", baseRevision: undefined, reportOutput: "actionable", forfeiture: undefined },
+    });
+  });
+
+  it("refuses failures-only, which version 2 does not know", () => {
+    expect(parseCheckArguments({ arguments: ["--repo", "/work/repo", "--report-output", "failures-only"], reportOutputs: versionTwoReportOutputSchema.options })).toEqual(
+      invalid({ detail: '--report-output takes full, actionable, counts or verdict-only, not "failures-only"' }),
+    );
   });
 });
 
@@ -85,14 +101,14 @@ describe("parseCheckArguments refusing what it cannot read", () => {
       problem: { kind: "choice-invalid", option: FORFEITURE_OPTION, choices: ["this-run", "elsewhere"], given: "reported" },
     },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
-    expect(parseCheckArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
+    expect(parseCheckArguments({ arguments: given, reportOutputs: reportOutputSchema.options })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
   });
 
   it.each([
     { given: ["--repo", "/work/repo", "--waived-clauses", "not-run"] },
     { given: ["--waived-clauses", "run", "--repo", "/work/repo"] },
   ])("names the removed --waived-clauses and what replaces it, given $given", ({ given }) => {
-    expect(parseCheckArguments({ arguments: given })).toEqual(
+    expect(parseCheckArguments({ arguments: given, reportOutputs: reportOutputSchema.options })).toEqual(
       invalid({
         detail:
           'removed: "--waived-clauses"; in clauses, mark a clause "not-run" when its mechanism does not run, or "not-adopted" when its rule does not apply; see MIGRATING.md section 12',
