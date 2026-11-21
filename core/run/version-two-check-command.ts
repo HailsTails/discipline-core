@@ -5,7 +5,7 @@ import { packageLinkOf } from "../command-line/package-link.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import { shownPathOf } from "../command-line/shown-path.ts";
 import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
 import type { RunReport } from "../report/run-report.ts";
 import { renderRunReportText } from "../report/run-report-text.ts";
 import { runVerdictOf } from "../report/report-sections.ts";

@@ -1,10 +1,7 @@
 import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
-import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
-import type { GitPort } from "../platform-ports/git-port.ts";
-import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import type { PathPort } from "../platform-ports/path-port.ts";
-import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { assessmentInEffect } from "../values/assessment.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
@@ -20,16 +17,6 @@ import { printOutcome } from "../command-line/print-outcome.ts";
 import { projectCommandOf, pruneCommandOf } from "../command-line/tool-invocations.ts";
 import { runCheck } from "./run-check.ts";
 import { shownFailureOf } from "../command-line/shown-path.ts";
-
-export type CommandRequest = {
-  readonly process: ProcessPort;
-  readonly path: PathPort;
-  readonly fileText: FileTextPort;
-  readonly modules: ModuleLoaderPort;
-  readonly git: GitPort;
-  readonly exceptionRepositoryOf: ExceptionRepositoryOf;
-  readonly moduleUrl: string;
-};
 
 type ShownPathsRequest = {
   readonly path: PathPort;
@@ -65,7 +52,7 @@ const checkRunOf = (request: {
       };
 
 const unshownCheckRunAt = async (
-  request: Omit<CommandRequest, "process"> & {
+  request: Omit<VersionOneCommandRequest, "process"> & {
     readonly arguments: CheckArguments;
     readonly repoRoot: AbsolutePath;
     readonly installRoot: AbsolutePath;
@@ -116,7 +103,7 @@ const unshownCheckRunAt = async (
 };
 
 export type CheckRunAt = (
-  request: Omit<CommandRequest, "process"> & { readonly locations: CheckLocations },
+  request: Omit<VersionOneCommandRequest, "process"> & { readonly locations: CheckLocations },
 ) => Promise<Result<CheckRun, LoadFailure>>;
 
 export const checkRunAt: CheckRunAt = async (request) => {
@@ -128,7 +115,7 @@ export const checkRunAt: CheckRunAt = async (request) => {
     : run;
 };
 
-export const checkRunFromCommand = async (request: CommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
+export const checkRunFromCommand = async (request: VersionOneCommandRequest): Promise<Result<CheckRun, LoadFailure>> => {
   const locations = checkLocationsFor({
     arguments: request.process.arguments,
     path: request.path,
@@ -138,7 +125,7 @@ export const checkRunFromCommand = async (request: CommandRequest): Promise<Resu
   return locations.outcome === "failed" ? locations : checkRunAt({ ...request, locations: locations.value });
 };
 
-export const runCheckCommand = (request: CommandRequest): Promise<void> =>
+export const runCheckCommand = (request: VersionOneCommandRequest): Promise<void> =>
   checkRunFromCommand(request).then((checked) =>
     printOutcome({ process: request.process, outcome: checkCommandOutcome({ result: checked }) }),
   );

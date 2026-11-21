@@ -1,5 +1,5 @@
 import type { CheckRequest } from "../../check/run-check.ts";
-import type { CommandRequest } from "../../check/run-check-command.ts";
+import type { VersionOneCommandRequest } from "../version-one-records/version-one-command-request.ts";
 import type { FileTextPort } from "../../platform-ports/file-text-port.ts";
 import type { RecordsSourceOf } from "../../records/records-folder.ts";
 import { foundTreeExceptionsOf } from "./found-tree-exceptions.ts";
@@ -18,8 +18,8 @@ export const foundTreeCheckReachOf = (request: {
 
 export const foundTreeRunReachOf = (request: {
   readonly recordsSourceOf: RecordsSourceOf;
-  readonly command: Pick<CommandRequest, "git" | "path" | "exceptionRepositoryOf"> & { readonly fileText: Pick<FileTextPort, "read" | "exists"> };
-}): { readonly baseRevision: string; readonly git: CommandRequest["git"]; readonly recordsSourceOf: RecordsSourceOf } => ({
+  readonly command: Pick<VersionOneCommandRequest, "git" | "path" | "exceptionRepositoryOf"> & { readonly fileText: Pick<FileTextPort, "read" | "exists"> };
+}): { readonly baseRevision: string; readonly git: VersionOneCommandRequest["git"]; readonly recordsSourceOf: RecordsSourceOf } => ({
   baseRevision: FOUND_TREE_REVISION,
   git: foundTreeGitOf({ git: request.command.git, fileText: request.command.fileText, path: request.command.path }),
   recordsSourceOf: foundTreeRecordsSourceOf({ recordsSourceOf: request.recordsSourceOf, exceptionsOf: request.command.exceptionRepositoryOf }),

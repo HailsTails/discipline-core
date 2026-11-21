@@ -4,11 +4,12 @@ import { checkLocationsFor } from "./check-locations.ts";
 import { type GuidedCheckRun, guidedCheckCommandOutcome } from "./check-command-outcome.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import { type CheckRunAt, type CommandRequest, checkRunAt } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import { type CheckRunAt, checkRunAt } from "./run-check-command.ts";
 import { type SymptomGuideIn, symptomGuideIn } from "./symptom-guide.ts";
 
 export type GuidedCheckRequest = {
-  readonly command: CommandRequest;
+  readonly command: VersionOneCommandRequest;
   readonly checkRunAt: CheckRunAt;
   readonly symptomGuideIn: SymptomGuideIn;
 };
@@ -27,14 +28,14 @@ export const guidedCheckRunFor = async (request: GuidedCheckRequest): Promise<Re
   return { outcome: "ok", value: { ...run.value, guide } };
 };
 
-export const installedGuidedCheckRunFor = (request: { readonly command: CommandRequest }): Promise<Result<GuidedCheckRun, LoadFailure>> =>
+export const installedGuidedCheckRunFor = (request: { readonly command: VersionOneCommandRequest }): Promise<Result<GuidedCheckRun, LoadFailure>> =>
   guidedCheckRunFor({
     command: request.command,
     checkRunAt,
     symptomGuideIn: (locations) => symptomGuideIn({ ...locations, symptomCatalogueOf: createSymptomCatalogueRepository }),
   });
 
-export const runGuidedCheckCommand = (command: CommandRequest): Promise<void> =>
+export const runGuidedCheckCommand = (command: VersionOneCommandRequest): Promise<void> =>
   installedGuidedCheckRunFor({ command }).then((checked) =>
     printOutcome({ process: command.process, outcome: guidedCheckCommandOutcome({ result: checked }) }),
   );

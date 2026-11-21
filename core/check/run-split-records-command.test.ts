@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { type RecordsDisk, recordsDisk } from "../../tests/records-disk.ts";
 import { exceptionRepositoryOf } from "../exception-records/exception-layout.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { runSplitRecordsCommand } from "./run-split-records-command.ts";
 
 const SELECTION_TEXT = '{ "version": 1, "disciplines": [] }';
@@ -59,7 +59,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandOver = (request: { readonly disk: RecordsDisk; readonly process: ProcessPort }): CommandRequest => ({
+const commandOver = (request: { readonly disk: RecordsDisk; readonly process: ProcessPort }): VersionOneCommandRequest => ({
   process: request.process,
   path: request.disk.ports.path,
   fileText: request.disk.ports.fileText,

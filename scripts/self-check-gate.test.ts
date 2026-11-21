@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExceptionRepositoryOf } from "../core/upgrade/version-one-records/exception-records.ts";
-import type { CommandRequest } from "../core/check/run-check-command.ts";
+import type { VersionOneCommandRequest } from "../core/upgrade/version-one-records/version-one-command-request.ts";
 import type { Finding } from "../core/governance/governance.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
@@ -242,7 +242,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const requestOver = (request: { readonly process: ProcessPort }): CommandRequest => ({
+const requestOver = (request: { readonly process: ProcessPort }): VersionOneCommandRequest => ({
   process: request.process,
   path: {
     join: vi.fn<PathPort["join"]>(),

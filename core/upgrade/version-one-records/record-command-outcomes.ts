@@ -4,7 +4,7 @@ import type { LoadFailure } from "../../command-line/load-failure.ts";
 import { RECORD_DEBT_SUBCOMMAND } from "../../command-line/subcommand-names.ts";
 import { clauseAddressText } from "../../values/clause-address.ts";
 import type { Result } from "../../values/result.ts";
-import { NESTED_CONFIGURATION_ISSUE } from "../../verdict/report-text.ts";
+import { NESTED_CONFIGURATION_ISSUE } from "../../values/nested-configuration-issue.ts";
 import type { DebtPair } from "./debt-pair.ts";
 import type { RecordsSplit } from "./exception-records.ts";
 import type { InheritedDebtOutcome } from "./inherited-debt.ts";

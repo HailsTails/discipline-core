@@ -1,7 +1,7 @@
 import { parseAuthoriseArguments, parsePruneDebtArguments, parseRecordDebtArguments } from "../command-line/command-arguments.ts";
 import { type CommandOutcome, loadFailureOutcome } from "../command-line/command-outcome.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import type { FileRemovalPort } from "../platform-ports/file-system-port.ts";
 import { authoriseRequestOf } from "../records/authorise-options.ts";

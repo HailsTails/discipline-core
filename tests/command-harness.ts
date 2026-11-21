@@ -1,4 +1,4 @@
-import type { CommandRequest } from "../core/check/run-check-command.ts";
+import type { VersionOneCommandRequest } from "../core/upgrade/version-one-records/version-one-command-request.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import type { DirectoryEntry, DirectoryPort, FileRemovalPort } from "../core/platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -84,7 +84,7 @@ const notUsed = (): never => {
   throw new Error("this port is not used by the command under test");
 };
 
-export const commandOver = (request: { readonly process: ProcessPort; readonly fileText: FileTextPort }): CommandRequest => ({
+export const commandOver = (request: { readonly process: ProcessPort; readonly fileText: FileTextPort }): VersionOneCommandRequest => ({
   process: request.process,
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: request.fileText,

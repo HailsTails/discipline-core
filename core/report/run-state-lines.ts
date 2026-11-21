@@ -5,13 +5,11 @@ import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import type { Engine } from "../symptom-catalogue/symptom-catalogue.ts";
 import { projectionOutputsOf } from "../values/projection-outputs.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import { TOOL_IDENTITY } from "../values/tool-identity.ts";
+import { NESTED_CONFIGURATION_ISSUE } from "../values/nested-configuration-issue.ts";
 import { counted, quoted } from "./printed-text.ts";
 import type { AssessmentLeftElsewhere, EngineNotRun, RunProjectionProblem, RunUnmeasured } from "./run-report.ts";
 
 export type ProjectCommand = { readonly projectCommand: string };
-
-const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
 const PASS_A_BASE = "pass --base-revision with the branch's base, such as origin/main";
 

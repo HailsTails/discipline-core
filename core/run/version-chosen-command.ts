@@ -1,5 +1,5 @@
 import type { Subcommand } from "../command-line/command-line.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
 import { repoArgumentOf } from "./repo-argument.ts";
@@ -7,10 +7,10 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
 import { runPathOf } from "./run-path.ts";
 
-export type VersionedHandler = (command: CommandRequest) => Promise<void>;
+export type VersionedHandler<Request extends CommandRequest = CommandRequest> = (command: Request) => Promise<void>;
 
-export type VersionChoice = {
-  readonly versionOne: VersionedHandler;
+export type VersionChoice<Request extends CommandRequest> = {
+  readonly versionOne: VersionedHandler<Request>;
   readonly versionTwo: VersionedHandler;
 };
 
@@ -26,7 +26,7 @@ export const printFailure = (request: {
 };
 
 export const versionChosenCommandOf =
-  (request: VersionChoice): VersionedHandler =>
+  <Request extends CommandRequest>(request: VersionChoice<Request>): VersionedHandler<Request> =>
   (command) => {
     const repo = repoArgumentOf({ arguments: command.process.arguments });
     const resolved = repo === undefined ? undefined : command.path.resolve({ path: repo });

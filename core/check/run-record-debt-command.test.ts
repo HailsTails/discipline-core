@@ -15,7 +15,7 @@ import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { absolutePathSchema } from "../values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
@@ -165,7 +165,7 @@ const adoptionRun = (): Run => ({
 
 const recordedDebt = async (request: Run) => {
   const processPort = processWith({ arguments: request.arguments });
-  const command: CommandRequest = {
+  const command: VersionOneCommandRequest = {
     process: processPort,
     path: TABLE_PATH,
     fileText: request.fileText,

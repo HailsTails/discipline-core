@@ -6,9 +6,10 @@ import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import { type CommandRequest, withShownPaths } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import { withShownPaths } from "./run-check-command.ts";
 
-const recordsSplit = (request: CommandRequest): Result<RecordsSplit, LoadFailure> => {
+const recordsSplit = (request: VersionOneCommandRequest): Result<RecordsSplit, LoadFailure> => {
   const parsed = parseSplitRecordsArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
     return parsed;
@@ -26,7 +27,7 @@ const recordsSplit = (request: CommandRequest): Result<RecordsSplit, LoadFailure
   });
 };
 
-export const runSplitRecordsCommand = (request: CommandRequest): Promise<void> => {
+export const runSplitRecordsCommand = (request: VersionOneCommandRequest): Promise<void> => {
   printOutcome({ process: request.process, outcome: splitRecordsCommandOutcome({ result: recordsSplit(request) }) });
   return Promise.resolve();
 };

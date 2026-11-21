@@ -12,7 +12,8 @@ import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import { type CommandRequest, withShownPaths } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import { withShownPaths } from "./run-check-command.ts";
 import { type ReachedCheck, runReachedCheck } from "./run-check.ts";
 
 type PruneResult = Result<readonly DebtPair[], LoadFailure>;
@@ -47,7 +48,7 @@ export const paidDebtRemoved = async (
 };
 
 const pruneDebtPortsOver = (
-  request: CommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: AbsolutePath },
+  request: VersionOneCommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: AbsolutePath },
 ): PruneDebtPorts => {
   const moduleExtension = moduleExtensionOf({ moduleUrl: request.moduleUrl });
   return {
@@ -65,7 +66,7 @@ const pruneDebtPortsOver = (
   };
 };
 
-const pruneDebtResult = async (request: CommandRequest): Promise<PruneResult> => {
+const pruneDebtResult = async (request: VersionOneCommandRequest): Promise<PruneResult> => {
   const parsed = parsePruneDebtArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
     return parsed;
@@ -85,5 +86,5 @@ const pruneDebtResult = async (request: CommandRequest): Promise<PruneResult> =>
   return withShownPaths({ path: request.path, fileText: request.fileText, repoRoot: repoRoot.value, installRoot, run });
 };
 
-export const runPruneDebtCommand = (request: CommandRequest): Promise<void> =>
+export const runPruneDebtCommand = (request: VersionOneCommandRequest): Promise<void> =>
   pruneDebtResult(request).then((pruned) => printOutcome({ process: request.process, outcome: pruneDebtCommandOutcome({ result: pruned }) }));

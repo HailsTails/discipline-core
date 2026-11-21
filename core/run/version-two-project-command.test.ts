@@ -81,7 +81,6 @@ const commandWith = (request: { readonly process: ProcessPort; readonly moduleUr
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
   },
-  exceptionRepositoryOf: vi.fn<Command["exceptionRepositoryOf"]>(),
   moduleUrl: request.moduleUrl,
 });
 

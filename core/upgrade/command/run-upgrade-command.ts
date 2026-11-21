@@ -1,4 +1,5 @@
-import type { CommandRequest } from "../../check/run-check-command.ts";
+import type { CommandRequest } from "../../command-line/command-request.ts";
+import type { VersionOneCommandRequest } from "../version-one-records/version-one-command-request.ts";
 import { type CheckRequest, runCheck } from "../../check/run-check.ts";
 import { runProject } from "../../check/run-project.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
@@ -48,7 +49,7 @@ type Prepared = {
 
 type Stopped = CommandOutcome | UpgradeFailureOutcome;
 
-const locatedOf = (request: { readonly command: CommandRequest }): Result<Located, LoadFailure> => {
+const locatedOf = (request: { readonly command: VersionOneCommandRequest }): Result<Located, LoadFailure> => {
   const parsed = parseUpgradeArguments({ arguments: request.command.process.arguments });
   if (parsed.outcome === "failed") {
     return parsed;
@@ -62,7 +63,7 @@ const stoppedByLoad = (request: { readonly failure: LoadFailure }): Result<never
   error: loadFailureOutcome({ failure: request.failure }),
 });
 
-const checkRequestOf = (request: { readonly command: CommandRequest; readonly located: Located }): Result<CheckRequest, LoadFailure> => {
+const checkRequestOf = (request: { readonly command: VersionOneCommandRequest; readonly located: Located }): Result<CheckRequest, LoadFailure> => {
   const { command, located } = request;
   const { repoRoot, installRoot } = located;
   const moduleExtension = moduleExtensionOf({ moduleUrl: command.moduleUrl });
@@ -88,7 +89,7 @@ const checkRequestOf = (request: { readonly command: CommandRequest; readonly lo
   };
 };
 
-const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: CommandRequest; readonly located: Located }): Result<Prepared, Stopped> => {
+const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: VersionOneCommandRequest; readonly located: Located }): Result<Prepared, Stopped> => {
   const { ports, command, located } = request;
   const check = checkRequestOf(request);
   if (check.outcome === "failed") {
@@ -119,7 +120,7 @@ const preparedOf = (request: { readonly ports: UpgradePorts; readonly command: C
     : { outcome: "ok", value: { check: check.value, read: read.value, catalogues: catalogues.value, trackedPaths: tracked.value } };
 };
 
-const foundTreeStagesOf = (request: { readonly ports: UpgradePorts; readonly command: CommandRequest; readonly located: Located }) => {
+const foundTreeStagesOf = (request: { readonly ports: UpgradePorts; readonly command: VersionOneCommandRequest; readonly located: Located }) => {
   const { ports, command, located } = request;
   const found = foundTreeRunReachOf({ recordsSourceOf: ports.recordsSourceOf, command });
   return stagesOverRepository({
@@ -132,7 +133,7 @@ const foundTreeStagesOf = (request: { readonly ports: UpgradePorts; readonly com
 
 const proofRequestOf = (request: {
   readonly ports: UpgradePorts;
-  readonly command: CommandRequest;
+  readonly command: VersionOneCommandRequest;
   readonly located: Located;
   readonly prepared: Prepared;
 }): UpgradeProofRequest => {
@@ -174,7 +175,7 @@ const proofRequestOf = (request: {
 
 const provedOutcomeOf = async (request: {
   readonly ports: UpgradePorts;
-  readonly command: CommandRequest;
+  readonly command: VersionOneCommandRequest;
   readonly located: Located;
   readonly prepared: Prepared;
 }): Promise<Stopped> => {
@@ -184,7 +185,7 @@ const provedOutcomeOf = async (request: {
     : upgradeSuccessOutcomeOf({ carried: carried.value, repoRoot: request.located.repoRoot, path: request.command.path });
 };
 
-const upgradeOutcomeOf = async (request: { readonly ports: UpgradePorts; readonly command: CommandRequest }): Promise<Stopped> => {
+const upgradeOutcomeOf = async (request: { readonly ports: UpgradePorts; readonly command: VersionOneCommandRequest }): Promise<Stopped> => {
   const located = locatedOf(request);
   if (located.outcome === "failed") {
     return loadFailureOutcome({ failure: located.error });
@@ -195,7 +196,7 @@ const upgradeOutcomeOf = async (request: { readonly ports: UpgradePorts; readonl
 
 export const upgradeCommandOf =
   (ports: UpgradePorts) =>
-  async (command: CommandRequest): Promise<void> => {
+  async (command: VersionOneCommandRequest): Promise<void> => {
     printOutcome({ process: command.process, outcome: await upgradeOutcomeOf({ ports, command }) });
   };
 

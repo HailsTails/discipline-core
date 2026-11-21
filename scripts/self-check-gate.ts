@@ -3,11 +3,10 @@ import type { CommandOutcome } from "../core/command-line/command-outcome.ts";
 import type { LoadFailure } from "../core/command-line/load-failure.ts";
 import { installedVersionTwoCheckedOf, TOOL_SUBCOMMANDS, toolCommandOf } from "../core/check/run-tool-command.ts";
 import type { CommandHandler } from "../core/check/run-tool-command.ts";
-import type { CommandRequest } from "../core/check/run-check-command.ts";
 import { printOutcome } from "../core/command-line/print-outcome.ts";
 import { installedGuidedCheckRunFor } from "../core/check/run-guided-check-command.ts";
 import { RUN_SECTION_NAMES, type RunSectionName, runSectionRoleOf } from "../core/report/report-sections.ts";
-import { versionChosenCommandOf } from "../core/run/version-chosen-command.ts";
+import { type VersionedHandler, versionChosenCommandOf } from "../core/run/version-chosen-command.ts";
 import type { VersionTwoChecked } from "../core/run/version-two-check-command.ts";
 import type { Result } from "../core/values/result.ts";
 import type { CheckReport } from "../core/verdict/check-report.ts";
@@ -66,12 +65,12 @@ export const versionTwoSelfCheckOutcomeOf = (request: { readonly checked: Versio
   };
 };
 
-const runGatedCheckCommand: CommandHandler = (command: CommandRequest) =>
+const runGatedCheckCommand: CommandHandler = (command) =>
   installedGuidedCheckRunFor({ command }).then((ranCheck) =>
     printOutcome({ process: command.process, outcome: selfCheckOutcomeOf({ result: ranCheck }) }),
   );
 
-const runGatedVersionTwoCheckCommand: CommandHandler = (command: CommandRequest) =>
+const runGatedVersionTwoCheckCommand: VersionedHandler = (command) =>
   installedVersionTwoCheckedOf(command).then((checked) =>
     printOutcome({ process: command.process, outcome: versionTwoSelfCheckOutcomeOf({ checked }) }),
   );
