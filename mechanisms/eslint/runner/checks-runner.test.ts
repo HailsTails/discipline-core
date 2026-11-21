@@ -95,7 +95,7 @@ const SYMPTOM_CATALOGUE = symptomCatalogueOf({ document: SYMPTOMS });
 
 assert(SYMPTOM_CATALOGUE.outcome === "ok", "the shipped symptom catalogue reads");
 
-const CLASS_PROJECTED = { symptom: "authored-class-or-this", check: "class-keyword", ruleId: "hone/authored-class-or-this/class-keyword", options: [] };
+const CLASS_PROJECTED = { symptom: "authored-class-or-this", check: "class-keyword", ruleId: "hone/authored-class-or-this#class-keyword", options: [] };
 
 const CURRENT_PROJECTION_TEXT = checksProjectionText({ pluginImport: "../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: [] });
 

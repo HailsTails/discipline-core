@@ -96,7 +96,7 @@ const EVERY_SECTION: RunReport = {
       file: WEBHOOK_FILE,
       line: 3,
       text: "// eslint-disable-next-line hone/no-class-authoring",
-      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+      replacedBy: ["hone/authored-class-or-this#class-keyword"],
     },
   ],
   paid: [{ debt: DEBT, answeredBy: [NOTED_LOCATION] }],
@@ -123,7 +123,7 @@ const LINES = {
   stale: `claimed-type authorised-location src/adapters/stripe-webhook.ts ${NOTE}`,
   forfeited: `claimed-type debt src/adapters/stripe-webhook.ts; this change touched its file, so it no longer answers: fix what it held, then run ${PRUNE_COMMAND} to remove it`,
   unrecorded: "claimed-type#cast-expressions eslint ignore src/adapters/stripe-webhook.ts",
-  misnamed: "src/adapters/stripe-webhook.ts:3 version-1-id hone/no-class-authoring write hone/authored-class-or-this/class-keyword // eslint-disable-next-line hone/no-class-authoring",
+  misnamed: "src/adapters/stripe-webhook.ts:3 version-1-id hone/no-class-authoring write hone/authored-class-or-this#class-keyword // eslint-disable-next-line hone/no-class-authoring",
   paid: `claimed-type debt src/adapters/stripe-webhook.ts answered by authorised-location ${NOTE}; run ${PRUNE_COMMAND} to remove the paid debt`,
   refused: "hone-records/authorised-locations/claimed-type.json records[1] carried-changed-since-base",
   unmeasured:

@@ -44,7 +44,7 @@ const PROJECTION_IMPORT = `import hone from "./${CHECKS_PROJECTION_PATH}";\nexpo
 
 const PROJECTION = checksProjectionText({
   pluginImport: "../../api/eslint-plugin.ts",
-  checks: [{ symptom: "authored-class-or-this", check: "class-keyword", ruleId: "hone/authored-class-or-this/class-keyword", options: [] }],
+  checks: [{ symptom: "authored-class-or-this", check: "class-keyword", ruleId: "hone/authored-class-or-this#class-keyword", options: [] }],
   answered: [],
 });
 

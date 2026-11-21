@@ -10,7 +10,7 @@ import type { LinesReader } from "./source-lines.ts";
 
 const CLAUSE = clauseAddressSchema.parse("CD-1#explicit-any");
 
-const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value/explicit-any", clause: CLAUSE, options: [] };
+const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value#explicit-any", clause: CLAUSE, options: [] };
 
 const POSIX = createPathPort({ flavour: "posix", workingDirectory: () => "/repo" });
 

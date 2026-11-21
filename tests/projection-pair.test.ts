@@ -73,6 +73,6 @@ describe("inCheckRuleIds", () => {
         bindings: [SKIPPED_TESTS, NON_NULL_ASSERTIONS],
         rules: { "hone-cd27/skipped-tests": [2], "hone-cd2/no-restricted-syntax": [0], "other/rule": [1] },
       }),
-    ).toEqual({ "hone/test-switched-off/skipped-tests": [2], "hone/claimed-type/non-null-assertions": [0], "other/rule": [1] });
+    ).toEqual({ "hone/test-switched-off#skipped-tests": [2], "hone/claimed-type#non-null-assertions": [0], "other/rule": [1] });
   });
 });

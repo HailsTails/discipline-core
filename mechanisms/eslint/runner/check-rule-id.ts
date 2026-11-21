@@ -1,3 +1,4 @@
+import { type AddressedCheck, checkAddressTextOf } from "../../../core/values/check-address-text.ts";
 import type { ClauseAddress } from "../../../core/values/clause-address.ts";
 import { TOOL_IDENTITY } from "../../../core/values/tool-identity.ts";
 
@@ -10,17 +11,15 @@ export type RuledCheck = {
 
 export type CheckOfRuleId<Checked> = { readonly found: "check"; readonly check: Checked } | { readonly found: "none" };
 
-type NamedCheck = { readonly name: string; readonly symptom: { readonly name: string } };
-
 export const CHECKS_PLUGIN_NAMESPACE = TOOL_IDENTITY.ownRuleSet;
 
 const ESLINT_MECHANISM = "eslint";
 
 const RULE_ID_PREFIX = `${CHECKS_PLUGIN_NAMESPACE}/`;
 
-export const checkRuleNameOf = (request: { readonly check: NamedCheck }): string => `${request.check.symptom.name}/${request.check.name}`;
+export const checkRuleNameOf = (request: { readonly check: AddressedCheck }): string => checkAddressTextOf(request);
 
-export const checkRuleIdOf = (request: { readonly check: NamedCheck }): string => `${RULE_ID_PREFIX}${checkRuleNameOf(request)}`;
+export const checkRuleIdOf = (request: { readonly check: AddressedCheck }): string => `${RULE_ID_PREFIX}${checkRuleNameOf(request)}`;
 
 export const runsOnEslint = (request: { readonly check: Pick<RuledCheck, "engines"> }): "eslint" | "elsewhere" =>
   request.check.engines.some((engine) => engine.mechanism === ESLINT_MECHANISM) ? "eslint" : "elsewhere";

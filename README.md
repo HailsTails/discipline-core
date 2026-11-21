@@ -315,7 +315,7 @@ Each release's changes are listed in [CHANGELOG.md](CHANGELOG.md), which the pac
 
 ## Known limits
 
-The ESLint engine registers one plugin under the namespace `hone`, so a check's rule id reads `hone/<symptom>/<check>`, such as `hone/authored-class-or-this/class-keyword`. The namespace `hone-core` is reserved for Hone's own machinery, never a check's rule: it names the governance rule `hone-core/inline-config`, which reports inline configuration comments. The projection's own blocks are named `hone/checks` and `hone/answered/<reaches>`. No piece may use it.
+The ESLint engine registers one plugin under the namespace `hone`, so a check's rule id is `hone/` followed by the check's address, `hone/<symptom>#<check>`, such as `hone/authored-class-or-this#class-keyword`: the address `hone.config.json` and the records write, character for character. A rule id that splits the address with a slash names no check, and an inline disable that writes one is listed under `misnamed`. The namespace `hone-core` is reserved for Hone's own machinery, never a check's rule: it names the governance rule `hone-core/inline-config`, which reports inline configuration comments. The projection's own blocks are named `hone/checks` and `hone/answered/<reaches>`. No piece may use it.
 
 Hone's tests cover each supported platform's ordinary paths and drives, and a committed ESLint projection checked out with either LF or CRLF line endings. The cases below are not covered by tests. Some may already work, but none is supported until a consumer needs it and a test is added:
 
