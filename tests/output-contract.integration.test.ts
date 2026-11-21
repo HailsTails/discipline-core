@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { helpBlocksIn, printedHelpBlockOf, printedHelpBlocksOf } from "./printed-help.ts";
 import { contractGaps, contractPartsOf, contractTextAt, documentedLinesIn, documentedRolesIn } from "./output-contract.ts";
 import { PRINTABLE_LINES, PRINTED_BLOCKS, PRINTED_SECTION_ROLES } from "./printable-lines.ts";
 import { RECORD_COMMAND_LINES } from "./printable-record-command-lines.ts";
@@ -46,5 +47,31 @@ describe("the version 2 part of docs/output-contract.md, read against every line
 
   it.each(RUN_PRINTED_BLOCKS)("shows the version 2 synopsis and each help exactly as printed: %s", (block) => {
     expect(CONTRACT_PARTS.versionTwo).toContain(block);
+  });
+});
+
+const VERSION_TWO_REPOSITORY = { "hone.config.json": "{}" };
+
+const VERSION_TWO_HELP_CASES = [
+  { topic: "the tool", given: ["--help"] },
+  { topic: "check", given: ["check", "--repo", "/repo", "--help"] },
+  { topic: "project", given: ["project", "--repo", "/repo", "--help"] },
+  { topic: "record-debt", given: ["record-debt", "--repo", "/repo", "--help"] },
+  { topic: "prune-debt", given: ["prune-debt", "--repo", "/repo", "--help"] },
+  { topic: "authorise", given: ["authorise", "--repo", "/repo", "--help"] },
+  { topic: "upgrade", given: ["upgrade", "--repo", "/repo", "--help"] },
+] as const;
+
+describe("the help docs/output-contract.md shows for version 2, read against what hone prints for a version 2 repository", () => {
+  it.each(VERSION_TWO_HELP_CASES)("shows the help of $topic exactly as the command prints it", async ({ given }) => {
+    expect(CONTRACT_PARTS.versionTwo).toContain(await printedHelpBlockOf({ given, files: VERSION_TWO_REPOSITORY }));
+  });
+
+  it("shows no help block the command does not print, so a stale or extra block fails", async () => {
+    expect(helpBlocksIn({ text: CONTRACT_PARTS.versionTwo })).toEqual(await printedHelpBlocksOf({ cases: VERSION_TWO_HELP_CASES, files: VERSION_TWO_REPOSITORY }));
+  });
+
+  it("shows, in the 1.x part, the split-records help the command prints for a version 2 repository", async () => {
+    expect(CONTRACT_PARTS.versionOne).toContain(await printedHelpBlockOf({ given: ["split-records", "--repo", "/repo", "--help"], files: VERSION_TWO_REPOSITORY }));
   });
 });

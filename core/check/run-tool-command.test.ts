@@ -7,6 +7,7 @@ import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
+import { runHelpText } from "../report/run-help.ts";
 import { helpText } from "./command-help.ts";
 import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { type CommandHandler, type Subcommands, TOOL_SUBCOMMANDS, toolCommandOf } from "./run-tool-command.ts";
@@ -164,21 +165,59 @@ describe("toolCommandOf refusing an invocation it cannot read", () => {
   });
 });
 
+const helpRequest = (request: { readonly process: ProcessPort; readonly files: Readonly<Record<string, string>> }): VersionOneCommandRequest => ({
+  ...commandRequest({ process: request.process }),
+  path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
+  fileText: memoryRepositoryOf({ files: request.files }).fileText,
+});
+
+const VERSION_ONE_FILES = { "disciplines.json": "{}" };
+
+const VERSION_TWO_FILES = { "hone.config.json": "{}" };
+
 describe("toolCommandOf printing help", () => {
   it.each([
     { given: ["--help"], topic: "tool" },
     { given: ["check", "--repo", "/repo", "--help"], topic: "check" },
     { given: ["project", "-h"], topic: "project" },
-  ] as const)("prints the $topic help and exits 0, running nothing, given $given", async ({ given, topic }) => {
+    { given: ["upgrade", "--help"], topic: "upgrade" },
+  ] as const)("prints version 2's $topic help for a version 2 repository, and for no repository, and exits 0, running nothing, given $given", async ({ given, topic }) => {
     const subcommands = subcommandsSpied();
     const processPort = processWith({ arguments: given });
 
-    await toolCommandOf({ subcommands })(commandRequest({ process: processPort }));
+    await toolCommandOf({ subcommands })(helpRequest({ process: processPort, files: VERSION_TWO_FILES }));
 
     expect({ output: outputOf({ process: processPort }), ran: callsOf({ subcommands }) }).toEqual({
-      output: { writes: [[{ text: helpText({ topic }) }]], exits: [[{ code: 0 }]] },
+      output: { writes: [[{ text: runHelpText({ topic }) }]], exits: [[{ code: 0 }]] },
       ran: ranNothing,
     });
+  });
+
+  it.each([
+    { given: ["check", "--repo", "/repo", "--help"], topic: "check" },
+    { given: ["record-debt", "--repo", "/repo", "-h"], topic: "record-debt" },
+  ] as const)("prints version 1's $topic help for a repository holding disciplines.json, given $given", async ({ given, topic }) => {
+    const processPort = processWith({ arguments: given });
+
+    await toolCommandOf({ subcommands: subcommandsSpied() })(helpRequest({ process: processPort, files: VERSION_ONE_FILES }));
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: helpText({ topic }) }]], exits: [[{ code: 0 }]] });
+  });
+
+  it("prints version 2's help for a repository holding neither settings file", async () => {
+    const processPort = processWith({ arguments: ["check", "--repo", "/repo", "--help"] });
+
+    await toolCommandOf({ subcommands: subcommandsSpied() })(helpRequest({ process: processPort, files: {} }));
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: runHelpText({ topic: "check" }) }]], exits: [[{ code: 0 }]] });
+  });
+
+  it("prints version 1's split-records help, the only help split-records has, for a version 2 repository", async () => {
+    const processPort = processWith({ arguments: ["split-records", "--repo", "/repo", "--help"] });
+
+    await toolCommandOf({ subcommands: subcommandsSpied() })(helpRequest({ process: processPort, files: VERSION_TWO_FILES }));
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: helpText({ topic: "split-records" }) }]], exits: [[{ code: 0 }]] });
   });
 });
 
