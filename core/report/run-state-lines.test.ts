@@ -49,7 +49,7 @@ describe("unmeasuredLine", () => {
     {
       name: "carried records when git could not read the base",
       unmeasured: { kind: "import-unmeasured", base: GIT_FAILED },
-      line: 'import-unmeasured base-git-failed "origin/main": git could not read hone-records at that revision and said "fatal: bad revision"; Hone needs hone-records as it was at that revision, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere',
+      line: 'import-unmeasured base-git-failed "origin/main": git could not read hone-records at that revision and said "fatal: bad revision"; Hone needs hone-records as it was at that revision',
     },
     {
       name: "an engine whose projection is not written",

@@ -71,7 +71,6 @@ const REQUEST: RunReportRequest = {
   touched: MEASURED_NOTHING_TOUCHED,
   runs: [],
   tracked: [FILE_A, FILE_B],
-  assessment: { forfeiture: "this-run" },
 };
 
 const EMPTY_REPORT: RunReport = {
@@ -265,7 +264,6 @@ describe("runReportOf, what the run could not measure", () => {
     expect(
       runReportOf({
         ...REQUEST,
-        assessment: { forfeiture: "elsewhere" },
         touched: { measured: "elsewhere" },
         records: { ...NO_RECORDS, records: [debtAt({ file: FILE_A, index: 0 }), debtAt({ file: FILE_B, index: 1 })] },
       }),
@@ -276,13 +274,12 @@ describe("runReportOf, what the run could not measure", () => {
     expect(
       runReportOf({
         ...REQUEST,
-        assessment: { forfeiture: "elsewhere" },
         touched: { measured: "elsewhere" },
         records: { ...NO_RECORDS, base: { measured: "no", base: { state: "not-given" } }, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
       }),
     ).toEqual({
       ...EMPTY_REPORT,
-      stale: [carriedLocationAt({ file: FILE_A, index: 0 })],
+      stale: [{ placed: carriedLocationAt({ file: FILE_A, index: 0 }), reason: "credited-nothing" }],
       assessment: [
         { concern: "forfeiture", assessedBy: "elsewhere", debts: 0 },
         { concern: "carried-standing", assessedBy: "elsewhere", carried: 1 },
@@ -291,11 +288,24 @@ describe("runReportOf, what the run could not measure", () => {
     });
   });
 
+  it("lists import-unmeasured and leaves nothing to another run when forfeiture is left elsewhere but the base was given and cannot be read", () => {
+    const gitFailed = { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad object" } as const;
+    expect(
+      runReportOf({
+        ...REQUEST,
+        touched: { measured: "elsewhere" },
+        records: { ...NO_RECORDS, base: { measured: "no", base: gitFailed }, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
+      }),
+    ).toMatchObject({
+      unmeasured: [{ kind: "import-unmeasured", base: gitFailed }],
+      assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", debts: 0 }],
+    });
+  });
+
   it("counts no carried records left to another run when forfeiture is left elsewhere but the base was measured", () => {
     expect(
       runReportOf({
         ...REQUEST,
-        assessment: { forfeiture: "elsewhere" },
         touched: { measured: "elsewhere" },
         records: { ...NO_RECORDS, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
       }).assessment,

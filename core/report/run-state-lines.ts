@@ -32,7 +32,7 @@ const BASE_NEEDS: Readonly<Record<RecordsUnmeasured["kind"], BaseNeeds>> = {
     unchecked: "carried records cannot be checked against it",
     nextStep: `${PASS_A_BASE}, or ${LEAVE_FORFEITURE_ELSEWHERE}`,
     gitAttempt: `read ${RECORDS_FOLDER} at that revision`,
-    needs: `Hone needs ${RECORDS_FOLDER} as it was at that revision, or ${LEAVE_FORFEITURE_ELSEWHERE}`,
+    needs: `Hone needs ${RECORDS_FOLDER} as it was at that revision`,
   },
 };
 

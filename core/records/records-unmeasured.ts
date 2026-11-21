@@ -10,14 +10,36 @@ const forfeitureUnmeasured = (request: { readonly records: readonly PlacedRecord
     ? [{ kind: "forfeiture-unmeasured", base: request.touched.base }]
     : [];
 
+export type CarriedJudgement =
+  | { readonly judgement: "nothing-carried" }
+  | { readonly judgement: "judged" }
+  | { readonly judgement: "unmeasured"; readonly base: BaseRevisionAvailability }
+  | { readonly judgement: "left-elsewhere"; readonly carried: number };
+
+export const carriedJudgementOf = (request: {
+  readonly records: readonly PlacedRecord[];
+  readonly base: BaseMeasurement;
+  readonly touched: TouchedSet;
+}): CarriedJudgement => {
+  const carried = carriedListingOf({ records: request.records }).length;
+  if (carried === 0) {
+    return { judgement: "nothing-carried" };
+  }
+  if (request.base.measured === "yes") {
+    return { judgement: "judged" };
+  }
+  const leftToAnotherRun = request.base.base.state === "not-given" && baseJudgementOf(request) === "left-to-another-run";
+  return leftToAnotherRun ? { judgement: "left-elsewhere", carried } : { judgement: "unmeasured", base: request.base.base };
+};
+
 const importUnmeasured = (request: {
   readonly records: readonly PlacedRecord[];
   readonly base: BaseMeasurement;
   readonly touched: TouchedSet;
-}): readonly RecordsUnmeasured[] =>
-  request.base.measured === "no" && baseJudgementOf(request) === "in-this-run" && carriedListingOf({ records: request.records }).length > 0
-    ? [{ kind: "import-unmeasured", base: request.base.base }]
-    : [];
+}): readonly RecordsUnmeasured[] => {
+  const judgement = carriedJudgementOf(request);
+  return judgement.judgement === "unmeasured" ? [{ kind: "import-unmeasured", base: judgement.base }] : [];
+};
 
 export const recordsUnmeasuredOf = (request: {
   readonly records: readonly PlacedRecord[];
