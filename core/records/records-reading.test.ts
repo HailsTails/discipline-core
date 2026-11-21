@@ -39,7 +39,7 @@ const UNMEASURED: RecordsAtBase = { measured: "no", base: { state: "not-given" }
 
 const DEBT_FILE = repoPathSchema.parse("hone-records/debt/claimed-type.json");
 
-const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundary-records.json");
 
 const ADAPTER = repoPathSchema.parse("src/adapters/ids.ts");
 

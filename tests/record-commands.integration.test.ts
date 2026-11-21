@@ -37,7 +37,7 @@ const { catalogue } = holding.value;
 const made = recordsRepositoryIn({
   ports: { scratch, files: fileText, commands: createDefaultCommandRunPort({}), path },
   repository: {
-    base: [{ folder: "hone-records", name: "dependencies.json", records: [{ dependency: "zod", nativeWay: "hand-written parsing at each adapter", whyNotEnough: "Each adapter would repeat its own checks." }] }],
+    base: [{ folder: "hone-records", name: "dependency-records.json", records: [{ dependency: "zod", nativeWay: "hand-written parsing at each adapter", whyNotEnough: "Each adapter would repeat its own checks." }] }],
     working: [],
   },
 });

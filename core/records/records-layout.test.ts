@@ -7,8 +7,8 @@ describe("recordsFileStandingOf", () => {
     { file: "hone-records/debt/text-past-its-reader.json", standing: { standing: "named", kind: "debt", name: "text-past-its-reader" } },
     { file: "hone-records/authorised-locations/claimed-type.json", standing: { standing: "named", kind: "authorised-locations", name: "claimed-type" } },
     { file: "hone-records/deviations/stub-with-vifn.json", standing: { standing: "named", kind: "deviations", name: "stub-with-vifn" } },
-    { file: "hone-records/boundaries.json", standing: { standing: "single", kind: "boundaries" } },
-    { file: "hone-records/dependencies.json", standing: { standing: "single", kind: "dependencies" } },
+    { file: "hone-records/boundary-records.json", standing: { standing: "single", kind: "boundary-records" } },
+    { file: "hone-records/dependency-records.json", standing: { standing: "single", kind: "dependency-records" } },
   ])("reads $file as a records file of its folder", ({ file, standing }) => {
     expect(recordsFileStandingOf({ file: repoPathSchema.parse(file) })).toEqual(standing);
   });

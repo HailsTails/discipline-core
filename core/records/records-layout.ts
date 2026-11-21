@@ -9,11 +9,11 @@ export const RECORDS_FILE_EXTENSION = ".json";
 
 export type NamedFolderKind = Extract<RecordsFolderKind, "authorised-locations" | "debt" | "deviations">;
 
-export type SingleFileKind = Extract<RecordsFolderKind, "boundaries" | "dependencies">;
+export type SingleFileKind = Extract<RecordsFolderKind, "boundary-records" | "dependency-records">;
 
 export const NAMED_FOLDER_KINDS: readonly NamedFolderKind[] = ["authorised-locations", "debt", "deviations"];
 
-export const SINGLE_FILE_KINDS: readonly SingleFileKind[] = ["boundaries", "dependencies"];
+export const SINGLE_FILE_KINDS: readonly SingleFileKind[] = ["boundary-records", "dependency-records"];
 
 export type RecordsFileStanding =
   | { readonly standing: "named"; readonly kind: NamedFolderKind; readonly name: string }

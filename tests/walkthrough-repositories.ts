@@ -31,7 +31,7 @@ export const BEFORE_TRACKED: readonly RepoPath[] = [
 
 export const AFTER_TRACKED: readonly RepoPath[] = [
   repoPathSchema.parse("generated/schema.ts"),
-  repoPathSchema.parse("hone-records/boundaries.json"),
+  repoPathSchema.parse("hone-records/boundary-records.json"),
   repoPathSchema.parse("hone.config.json"),
   repoPathSchema.parse("src/basket.test.ts"),
   repoPathSchema.parse("src/basket.ts"),
@@ -79,7 +79,7 @@ export const GUIDE = workedExampleOf({ text: ADOPTING_GUIDE_TEXT });
 
 export const SETTINGS_FILE = { language: "json", body: fixtureText({ file: `${BEFORE}/hone.config.json` }).trimEnd() };
 
-export const RECORDS_FILE = { language: "json", body: fixtureText({ file: `${AFTER}/hone-records/boundaries.json` }).trimEnd() };
+export const RECORDS_FILE = { language: "json", body: fixtureText({ file: `${AFTER}/hone-records/boundary-records.json` }).trimEnd() };
 
 export const SETTINGS_TEXT_BEFORE = fixtureText({ file: `${BEFORE}/hone.config.json` });
 

@@ -219,8 +219,8 @@ hone-records/
     claimed-type.json
   deviations/
     adapter-per-outside-party.json
-  boundaries.json
-  dependencies.json
+  boundary-records.json
+  dependency-records.json
 ```
 
 A file in the wrong folder or under a name that is not a catalogue name is still read, and its records are refused as `misplaced` or `not-a-records-name`, naming where each belongs. Each record answers the findings it reaches, and names what it reaches by the symptom's name, or by `<symptom>#<check>` to reach one check of it.
@@ -237,8 +237,8 @@ A file in the wrong folder or under a name that is not a catalogue name is still
 - **Debt** is in `hone-records/debt/<symptom>.json`: `symptom`, `file` and an optional `note`, a note to future developers on what the debt signals, which nothing reads. It says a finding in one file is owed. It needs no case and no why-chain; forfeiture is what holds it: it is forfeited once its file is touched.
 - **An authorised location** is in `hone-records/authorised-locations/<symptom>.json`: `symptom`, `file`, `case` and `owes`, naming the case the file is and the principle it owes, and a `whyChain`. It says the symptom is correct in that file. [`hone authorise`](#commands) writes one from the arguments it is given.
 - **A deviation** is in `hone-records/deviations/<recipe>.json`: `recipe`, `file`, `recipeReason`, `reasonFails`, `evidence` and `ruleHolds`. It says why a file does not follow a recipe the catalogue gives.
-- **A boundary record** is in `hone-records/boundaries.json`: `module`, `outsideParty` (a runtime facility such as `runtime:clock`, or an outside module's specifier), the `ports` the module declares and an optional `conformist`. It says the module is where an outside party is met.
-- **A dependency record** is in `hone-records/dependencies.json`: `dependency`, `nativeWay`, `whyNotEnough` and an optional `peerRisk`. It says why a package is used where the platform's own way exists.
+- **A boundary record** is in `hone-records/boundary-records.json`: `module`, `outsideParty` (a runtime facility such as `runtime:clock`, or an outside module's specifier), the `ports` the module declares and an optional `conformist`. It says the module is where an outside party is met.
+- **A dependency record** is in `hone-records/dependency-records.json`: `dependency`, `nativeWay`, `whyNotEnough` and an optional `peerRisk`. It says why a package is used where the platform's own way exists.
 
 An `authorised-location` follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootCheck`, `readback` and `owner`. The contract lists what Hone refuses and what review still judges:
 

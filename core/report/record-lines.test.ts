@@ -11,7 +11,7 @@ const DEBT_FILE = repoPathSchema.parse("hone-records/debt/claimed-type.json");
 
 const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
 
-const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundary-records.json");
 
 const CLOCK_ADAPTER = repoPathSchema.parse("src/adapters/system-clock.ts");
 
@@ -264,6 +264,6 @@ describe("carriedLine", () => {
   });
 
   it("names a carried record that lacks nothing by its standing alone", () => {
-    expect(carriedLine({ listing: { place: { file: BOUNDARIES_FILE, index: 0 }, lacks: [], standing: "established" } })).toBe("hone-records/boundaries.json records[0] established");
+    expect(carriedLine({ listing: { place: { file: BOUNDARIES_FILE, index: 0 }, lacks: [], standing: "established" } })).toBe("hone-records/boundary-records.json records[0] established");
   });
 });

@@ -9,7 +9,7 @@ const ROOT = "/tmp/hone-records-1";
 
 const REPOSITORY: RecordsRepository = {
   base: [{ folder: "hone-records/debt", name: "claimed-type.json", records: [{ symptom: "claimed-type", file: "src/a.ts" }] }],
-  working: [{ folder: "hone-records", name: "dependencies.json", records: [{ dependency: "zod", nativeWay: "parsing", whyNotEnough: "Repeated." }] }],
+  working: [{ folder: "hone-records", name: "dependency-records.json", records: [{ dependency: "zod", nativeWay: "parsing", whyNotEnough: "Repeated." }] }],
 };
 
 const portsOf = (request: {
@@ -26,7 +26,7 @@ const portsOf = (request: {
       .mockReturnValueOnce("/tmp/hone-records-1/hone-records/debt")
       .mockReturnValueOnce("/tmp/hone-records-1/hone-records/debt/claimed-type.json")
       .mockReturnValueOnce("/tmp/hone-records-1/hone-records")
-      .mockReturnValueOnce("/tmp/hone-records-1/hone-records/dependencies.json"),
+      .mockReturnValueOnce("/tmp/hone-records-1/hone-records/dependency-records.json"),
   },
 });
 
@@ -61,7 +61,7 @@ describe("recordsRepositoryIn", () => {
         [{ path: "/tmp/hone-records-1/hone-records/debt/claimed-type.json", text: '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' }],
         [
           {
-            path: "/tmp/hone-records-1/hone-records/dependencies.json",
+            path: "/tmp/hone-records-1/hone-records/dependency-records.json",
             text: '{\n  "version": 2,\n  "records": [\n    {\n      "dependency": "zod",\n      "nativeWay": "parsing",\n      "whyNotEnough": "Repeated."\n    }\n  ]\n}\n',
           },
         ],

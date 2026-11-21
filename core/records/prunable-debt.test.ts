@@ -29,7 +29,7 @@ const AUTHORISED_LOCATION_PLACED: PlacedRecord = {
 };
 
 const DEPENDENCY_PLACED: PlacedRecord = {
-  place: { file: repoPathSchema.parse("hone-records/dependencies.json"), index: 0 },
+  place: { file: repoPathSchema.parse("hone-records/dependency-records.json"), index: 0 },
   record: { kind: "dependency-record", dependency: "zod", nativeWay: "hand-written parsing", whyNotEnough: "it repeats at each adapter" },
 };
 

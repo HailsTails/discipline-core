@@ -388,7 +388,7 @@ Before recording anything, take the chain in [the spirit of the rules](rules/SPI
 
 - **Debt** is known debt in one file: `hone-records/debt/<symptom>.json` with the `symptom`, or `<symptom>#<check>` to reach one check of it, and the `file`. It is forfeited, and fails the run, as soon as that file changes since `--base-revision`. An `eslint-disable` comment or a `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` directive in a file is held only by a record on its check and file: until one holds it, such a comment is `unrecorded` and fails the run. Step 7a writes that debt for the findings and for such comments.
 - **An authorised location** says the symptom is correct in that file, for example the single adapter that reads the real clock when the catalogue lists that case: `hone-records/authorised-locations/<symptom>.json`. `hone authorise` writes one from the arguments it is given, with the why-chain the person supplies.
-- **A boundary record** says a module is where an outside party is met, such as the clock adapter, in `hone-records/boundaries.json`:
+- **A boundary record** says a module is where an outside party is met, such as the clock adapter, in `hone-records/boundary-records.json`:
 
   ```json
   {
@@ -399,7 +399,7 @@ Before recording anything, take the chain in [the spirit of the rules](rules/SPI
   }
   ```
 
-- **A deviation** says why a file does not follow a recipe the catalogue gives, in `hone-records/deviations/<recipe>.json`. **A dependency record** says why a package is used where the platform's own way exists, in `hone-records/dependencies.json`.
+- **A deviation** says why a file does not follow a recipe the catalogue gives, in `hone-records/deviations/<recipe>.json`. **A dependency record** says why a package is used where the platform's own way exists, in `hone-records/dependency-records.json`.
 
 Which kind answers a finding is in the `symptoms` section of the report: each symptom's note lists the situations that are correct uses of it and the record kind that expresses each. [README.md](README.md#hone-records) gives every kind's fields. A record that answers nothing is `stale` and fails the run, except a dependency record, which no check reads yet and so is never stale, so record only what a finding needs: debt while the check still finds it, a location or boundary where the symptom is correct. If the check is not a true measure of the rule here, or cannot work here, list it as `"not-run"` instead; if the rule does not apply, list it as `"not-adopted"` (step 4).
 
@@ -529,7 +529,7 @@ verdict: fail
 
 The reports name the pages from an installed package, `node_modules/@hailstails/hone/rules/typescript/symptoms.md`; a run from the source repository names them from there.
 
-The fix replaces the `Basket` class with functions over a readonly `Basket` value, sums with `reduce`, takes the time from an injected `Clock`, types the input instead of casting it, moves `src/utils/format.ts` to `src/format.ts` with a `src/format.test.ts` sibling, and records `src/clock.ts`, the one adapter that reads `Date.now()`, as a boundary record in `hone-records/boundaries.json`:
+The fix replaces the `Basket` class with functions over a readonly `Basket` value, sums with `reduce`, takes the time from an injected `Clock`, types the input instead of casting it, moves `src/utils/format.ts` to `src/format.ts` with a `src/format.test.ts` sibling, and records `src/clock.ts`, the one adapter that reads `Date.now()`, as a boundary record in `hone-records/boundary-records.json`:
 
 ```json
 {

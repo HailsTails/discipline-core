@@ -48,19 +48,19 @@ describe("createRecordsFolder, read", () => {
       .mockReturnValueOnce({ outcome: "ok", value: DEBT_TEXT });
     const list = vi
       .fn<DirectoryPort["list"]>()
-      .mockReturnValueOnce({ outcome: "ok", value: [{ name: "debt", kind: "directory" }, { name: "boundaries.json", kind: "file" }] })
+      .mockReturnValueOnce({ outcome: "ok", value: [{ name: "debt", kind: "directory" }, { name: "boundary-records.json", kind: "file" }] })
       .mockReturnValueOnce({ outcome: "ok", value: [{ name: "claimed-type.json", kind: "file" }] });
     const folder = createRecordsFolder({ ...portsWith({ exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"), read, list, ...UNUSED_BASE }), repoRoot: REPO });
     expect({ read: folder.read(), listed: list.mock.calls, readFrom: read.mock.calls }).toEqual({
       read: {
         outcome: "ok",
         value: [
-          { file: "hone-records/boundaries.json", document: { version: 2, records: [] } },
+          { file: "hone-records/boundary-records.json", document: { version: 2, records: [] } },
           { file: "hone-records/debt/claimed-type.json", document: { version: 2, records: [{ symptom: "claimed-type", file: "src/a.ts" }] } },
         ],
       },
       listed: [[{ path: "/repo/hone-records" }], [{ path: "/repo/hone-records/debt" }]],
-      readFrom: [[{ path: "/repo/hone-records/boundaries.json" }], [{ path: "/repo/hone-records/debt/claimed-type.json" }]],
+      readFrom: [[{ path: "/repo/hone-records/boundary-records.json" }], [{ path: "/repo/hone-records/debt/claimed-type.json" }]],
     });
   });
 
@@ -123,13 +123,13 @@ describe("createRecordsFolder, read", () => {
     const folder = createRecordsFolder({
       ...portsWith({
         exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
-        read: vi.fn<FileTextPort["read"]>().mockReturnValueOnce({ outcome: "failed", error: { kind: "unreadable", path: "/repo/hone-records/dependencies.json", detail: "EACCES" } }),
-        list: vi.fn<DirectoryPort["list"]>().mockReturnValueOnce({ outcome: "ok", value: [{ name: "dependencies.json", kind: "file" }] }),
+        read: vi.fn<FileTextPort["read"]>().mockReturnValueOnce({ outcome: "failed", error: { kind: "unreadable", path: "/repo/hone-records/dependency-records.json", detail: "EACCES" } }),
+        list: vi.fn<DirectoryPort["list"]>().mockReturnValueOnce({ outcome: "ok", value: [{ name: "dependency-records.json", kind: "file" }] }),
         ...UNUSED_BASE,
       }),
       repoRoot: REPO,
     });
-    expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "records-file-unreadable", file: "hone-records/dependencies.json", detail: "EACCES" } });
+    expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "records-file-unreadable", file: "hone-records/dependency-records.json", detail: "EACCES" } });
   });
 
   it("fails naming a records file that is not JSON", () => {
@@ -137,12 +137,12 @@ describe("createRecordsFolder, read", () => {
       ...portsWith({
         exists: vi.fn<FileTextPort["exists"]>().mockReturnValue("present"),
         read: vi.fn<FileTextPort["read"]>().mockReturnValueOnce({ outcome: "ok", value: "{ version: 2" }),
-        list: vi.fn<DirectoryPort["list"]>().mockReturnValueOnce({ outcome: "ok", value: [{ name: "dependencies.json", kind: "file" }] }),
+        list: vi.fn<DirectoryPort["list"]>().mockReturnValueOnce({ outcome: "ok", value: [{ name: "dependency-records.json", kind: "file" }] }),
         ...UNUSED_BASE,
       }),
       repoRoot: REPO,
     });
-    expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "records-file-not-json", file: "hone-records/dependencies.json", detail: expect.any(String) } });
+    expect(folder.read()).toEqual({ outcome: "failed", error: { kind: "records-file-not-json", file: "hone-records/dependency-records.json", detail: expect.any(String) } });
   });
 });
 
@@ -182,14 +182,14 @@ describe("createRecordsFolder, readAt", () => {
         exists: vi.fn<FileTextPort["exists"]>(),
         read: vi.fn<FileTextPort["read"]>(),
         list: vi.fn<DirectoryPort["list"]>(),
-        pathsAt: vi.fn<GitTreePort["pathsAt"]>().mockReturnValue({ outcome: "ok", value: [repoPathSchema.parse("hone-records/dependencies.json")] }),
+        pathsAt: vi.fn<GitTreePort["pathsAt"]>().mockReturnValue({ outcome: "ok", value: [repoPathSchema.parse("hone-records/dependency-records.json")] }),
         textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue({ outcome: "ok", value: { presence: "present-in-base", text: "[" } }),
       }),
       repoRoot: REPO,
     });
     expect(folder.readAt({ revision: "origin/main" })).toEqual({
       outcome: "failed",
-      error: { kind: "records-file-not-json", file: "hone-records/dependencies.json", detail: expect.any(String) },
+      error: { kind: "records-file-not-json", file: "hone-records/dependency-records.json", detail: expect.any(String) },
     });
   });
 });

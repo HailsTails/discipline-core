@@ -85,7 +85,7 @@ export type DependencyRecord = {
 
 export type HoneRecord = Debt | AuthorisedLocation | Deviation | BoundaryRecord | DependencyRecord;
 
-export type RecordsFolderKind = "authorised-locations" | "debt" | "deviations" | "boundaries" | "dependencies";
+export type RecordsFolderKind = "authorised-locations" | "debt" | "deviations" | "boundary-records" | "dependency-records";
 
 export type RecordPlace = { readonly file: RepoPath; readonly index: number };
 

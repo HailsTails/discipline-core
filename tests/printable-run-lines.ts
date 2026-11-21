@@ -72,9 +72,9 @@ const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/
 
 const DEVIATIONS_FILE = repoPathSchema.parse("hone-records/deviations/world-values-through-a-port.json");
 
-const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundary-records.json");
 
-const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependencies.json");
+const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependency-records.json");
 
 const SLICE = repoPathSchema.parse("packages/web/hone.eslint.mjs");
 
@@ -252,11 +252,11 @@ const REFUSALS: { readonly [Kind in RecordRefusal["kind"]]: RefusedSample<Kind> 
   },
   "named-ban": {
     entry: { place: { file: DEPENDENCIES_FILE, index: 0 }, refusals: [{ kind: "named-ban", dependency: "lodash" }] },
-    fills: { "records file": "hone-records/dependencies.json", index: "0", dependency: "lodash" },
+    fills: { "records file": "hone-records/dependency-records.json", index: "0", dependency: "lodash" },
   },
   "unknown-runtime-facility": {
     entry: { place: { file: BOUNDARIES_FILE, index: 3 }, refusals: [{ kind: "unknown-runtime-facility", outsideParty: "runtime:env" }] },
-    fills: { "records file": "hone-records/boundaries.json", index: "3", "outside party": "runtime:env" },
+    fills: { "records file": "hone-records/boundary-records.json", index: "3", "outside party": "runtime:env" },
   },
   misplaced: {
     entry: { place: { file: DEBT_FILE, index: 2 }, refusals: [{ kind: "misplaced", belongsIn: repoPathSchema.parse("hone-records/debt/date-used-directly.json") }] },
