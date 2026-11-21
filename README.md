@@ -176,11 +176,7 @@ import hone from "./hone.eslint.mjs";
 export default [{ files: ["**/*.{ts,tsx,mts,cts}"] }, ...hone];
 ```
 
-A package with no `eslint.config.*` of its own is linted by the nearest config above it, so its records stay in that config's slice. A file is governed by the deepest config root that contains it. A folder holding its own `hone.config.json` gets no slice, and nor does anything under it: its ESLint configuration is not managed from this repository, and nested Hone configurations are not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)). Governing the folder from this repository works today: remove its `hone.config.json`, keep its records here, and `hone project` writes its slice. With package slices also reported, the line points at them:
-
-```text
-engine-not-run eslint not-included: the eslint configuration leaves the projection out of effect for a file under check; spread the default export of hone.eslint.mjs, or of a package's own hone.eslint.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the eslint lines under projectionProblems name the package slices involved
-```
+A package with no `eslint.config.*` of its own is linted by the nearest config above it, so its records stay in that config's slice. A file is governed by the deepest config root that contains it. A folder holding its own `hone.config.json` is a nested Hone configuration, which is not supported yet ([#72](https://github.com/HailsTails/hone/issues/72)): when the run would check a file under it, `check` and `project` stop before anything is checked or written, as `load failure: not-ready-yet eslint-config-roots` naming the folder. A folder holding one and no file the run would check gets no slice, and nor does anything under it. Governing the folder from this repository works today: remove its `hone.config.json`, keep its records here, and `hone project` writes its slice.
 
 A config root keeps its slice even where a config above it ignores its folder: a lint run from that folder loads its own config and never reads the ignores above it, so `hone project` writes the same slices from the same inputs every time. A repository with only a root config gets exactly the projection it had before.
 
