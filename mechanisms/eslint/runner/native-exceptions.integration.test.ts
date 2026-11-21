@@ -1,5 +1,8 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { afterAll, assert, describe, expect, it, vi } from "vitest";
+import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-ports.ts";
 import { withSingleFileRecords, } from "../../../tests/records-disk.ts";
+import { restoredFixtureRepositoriesOver } from "../../../tests/restored-fixture-repository.ts";
+import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { runCheck } from "../../../core/check/run-check.ts";
 import { loadRunner } from "../../../core/mechanism-port/load-runner.ts";
 import { checkConformance } from "../../../core/conformance/conformance.ts";
@@ -61,8 +64,18 @@ const modules = createDefaultModuleLoaderPort({});
 
 const path = createDefaultPathPort({});
 
+const scratch = createDefaultScratchFilesPort({});
+
+const repositories = scratchRepositoriesUnder({ parent: `${INSTALL_ROOT}/artefacts`, fileText, scratch });
+
+const restoredFixtures = restoredFixtureRepositoriesOver({ repositories, scratch, fileText, path });
+
+afterAll(() => {
+  repositories.removeAll();
+});
+
 const consumerRepo = (request: { readonly name: string }): AbsolutePath =>
-  absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/${request.name}`);
+  restoredFixtures.restoredFrom({ fixtureRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/${request.name}`) });
 
 const gitTracking = (request: { readonly tracked: readonly RepoPath[] }): GitPort => ({
   trackedPaths: vi.fn<GitPort["trackedPaths"]>().mockReturnValue({ outcome: "ok", value: request.tracked }),

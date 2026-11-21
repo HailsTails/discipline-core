@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
+import { createDefaultFileTextPort } from "../../../core/platform-ports/file-text-port.ts";
+import { createDefaultPathPort } from "../../../core/platform-ports/path-port.ts";
+import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-ports.ts";
+import { restoredFixtureRepositoriesOver } from "../../../tests/restored-fixture-repository.ts";
+import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
 import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
@@ -23,10 +28,22 @@ const ESLINT_CLAUSE: RunnerClause = {
   settings: { pluginNamespace: "hone", pluginModule: "cd14/cd14.eslint-plugin.ts", rule: "no-class-authoring" },
 };
 
-const ROUTE_FILES = [repoPathSchema.parse("route/[id].ts"), repoPathSchema.parse("route/i.ts")];
+const fileText = createDefaultFileTextPort({});
+
+const scratch = createDefaultScratchFilesPort({});
+
+const repositories = scratchRepositoriesUnder({ parent: `${INSTALL_ROOT}/artefacts`, fileText, scratch });
+
+const restoredFixtures = restoredFixtureRepositoriesOver({ repositories, scratch, fileText, path: createDefaultPathPort({}) });
+
+afterAll(() => {
+  repositories.removeAll();
+});
+
+const ROUTE_FILES =[repoPathSchema.parse("route/[id].ts"), repoPathSchema.parse("route/i.ts")];
 
 const ROUTE_RUN = {
-  repoRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/route-brackets`),
+  repoRoot: restoredFixtures.restoredFrom({ fixtureRoot: absolutePathSchema.parse(`${import.meta.dirname}/test-fixtures/route-brackets`) }),
   installRoot: INSTALL_ROOT,
   declaredConfigRoots: [],
   files: ROUTE_FILES,
