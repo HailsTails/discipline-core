@@ -219,6 +219,15 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     });
   });
 
+  it("reports the projection out of date, and lints nothing, when it differs from what project would write and the team's config leaves the check's rule out of a checked file", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_THAT_DIFFERS), ruleState: RULE_ABSENT, governance }).run(SELECTING_THE_CLASS_CHECK);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date", slices: [] } },
+      linted: [],
+    });
+  });
+
   it("reports the projection not included, and lints nothing, when the team's config leaves the check's rule out of a checked file", async () => {
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: RULE_ABSENT, governance }).run(SELECTING_THE_CLASS_CHECK);
@@ -269,6 +278,19 @@ describe("checksRunnerOver, over a repository holding a package eslint.config.*"
     expect(await runOverSlices({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS })).toEqual({
       outcome: "ok",
       value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "out-of-date" }] },
+    });
+  });
+
+  it("names the package's file out of date, not the projection not included, and lints nothing, when only the package's file differs and the team's config leaves the rule out of a checked file", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS }),
+      ruleState: RULE_ABSENT,
+      governance,
+    }).run(WITH_A_PACKAGE_CONFIG);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "out-of-date" }] } },
+      linted: [],
     });
   });
 
