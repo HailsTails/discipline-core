@@ -3,7 +3,8 @@ import type { AttributedNativeException, Finding } from "../../governance/govern
 import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
 import { repoPathSchema } from "../../values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { LEGACY_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { ExceptionRecord } from "./exception-record.ts";
 import { UNMEASURED_EXCEPTION_BASELINE } from "./exception-records.ts";
 import { paidDebtOf, type PaidDebtRequest } from "./paid-debt.ts";
@@ -69,7 +70,7 @@ describe("paidDebtOf choosing stale records", () => {
         ...GONE,
         stale: [
           { kind: "authorised-location", clause: LOOPS, mechanism: AUDIT, file: BASKET, reason: "the one loop over the clock" },
-          { kind: "clause-wide-carve-out", clause: CASTS, mechanism: ESLINT, reason: "casts carved out during migration", whyChain: CAUSAL_WHY_CHAIN },
+          { kind: "clause-wide-carve-out", clause: CASTS, mechanism: ESLINT, reason: "casts carved out during migration", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN },
         ],
       }),
     ).toEqual([]);
@@ -233,7 +234,7 @@ const LOOPS_CLAUSE_WIDE: ExceptionRecord = {
   clause: LOOPS,
   mechanism: ESLINT,
   reason: "loops carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 describe("paidDebtOf naming debt whose every finding an authorised location answers", () => {
@@ -326,7 +327,7 @@ describe("paidDebtOf naming answered debt only when the answer's standing was es
 
   it("names a forfeited file carve-out whose finding a causal-chain authorised location exempts, which no base revision judges", () => {
     expect(
-      paidDebtOf(forfeitedBasketAnsweredBy({ answer: { ...AUTHORISED_BASKET_LOOP, whyChain: CAUSAL_WHY_CHAIN }, baseline: UNMEASURED_EXCEPTION_BASELINE })),
+      paidDebtOf(forfeitedBasketAnsweredBy({ answer: { ...AUTHORISED_BASKET_LOOP, whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN }, baseline: UNMEASURED_EXCEPTION_BASELINE })),
     ).toEqual([{ clause: LOOPS, file: BASKET }]);
   });
 });

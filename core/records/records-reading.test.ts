@@ -54,7 +54,7 @@ const WHY_CHAIN = {
     { why: "Why do strict schemas let the vendor version without drift?", because: "Clients that send unknown fields fail fast, so every client upgrades on purpose.", evidence: "https://example.com/upgrades." },
   ],
   rootCause: "Clients that send unknown fields fail fast, so every client upgrades on purpose.",
-  rootCheck: "On 2026-11-20, https://example.com/upgrades still says unknown fields fail fast.",
+  rootEvidence: "On 2026-11-20, https://example.com/upgrades still says unknown fields fail fast.",
   readback: "Clients that send unknown fields fail fast, therefore the vendor keeps strict schemas, therefore held.ts holds this symptom.",
   owner: "owner decision on example/app#1",
 };

@@ -415,7 +415,7 @@ An authorised location needs its `case`, its `owes` and a `whyChain` shaped like
     { "why": "...", "because": "...", "evidence": "..." }
   ],
   "rootCause": "...",
-  "rootCheck": "...",
+  "rootEvidence": "...",
   "readback": "...",
   "owner": "..."
 }

@@ -5,7 +5,7 @@ import { absolutePathSchema } from "../../../core/values/absolute-path.ts";
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { CurrentProjection, ProjectionFiles } from "./projection.ts";
 import { projectionText } from "./projection-text.ts";
 import type { ProjectionStates } from "./projection-states.ts";
@@ -51,7 +51,7 @@ const carveOutInLegacy: ExceptionRecord = {
   mechanism: eslint,
   file: repoPathSchema.parse("packages/a/src/legacy.ts"),
   reason: "Inherited class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const authorisedInRootSource: ExceptionRecord = {

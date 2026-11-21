@@ -29,7 +29,7 @@ export type OptionName =
   | "--because"
   | "--evidence"
   | "--root-cause"
-  | "--root-check"
+  | "--root-evidence"
   | "--readback"
   | "--owner";
 
@@ -132,7 +132,7 @@ export const AUTHORISE_COMMAND_OPTIONS: readonly CommandOption[] = [
   repeatedRequired({ name: "--because", value: "<answer>", summary: "the answer to the why in the same place" }),
   repeatedRequired({ name: "--evidence", value: "<evidence>", summary: "what shows the answer, for the why in the same place" }),
   onceRequired({ name: "--root-cause", value: "<text>", summary: "the cause the fifth why names" }),
-  onceRequired({ name: "--root-check", value: "<text>", summary: "what was checked to confirm the cause, and when" }),
+  onceRequired({ name: "--root-evidence", value: "<text>", summary: "the evidence that the cause still holds: what was run or read today, and what it showed" }),
   onceRequired({ name: "--readback", value: "<text>", summary: "the chain read back from the cause to the file" }),
   onceRequired({ name: "--owner", value: "<owner>", summary: "who decides whether this stays" }),
 ];

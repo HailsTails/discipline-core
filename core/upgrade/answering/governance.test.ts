@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { Finding } from "../../governance/governance.ts";
 import type { NativeException } from "../../mechanism-port/runner-result-schema.ts";
 import type { TouchedSet } from "../../touched-set/touched-set.ts";
@@ -50,7 +50,7 @@ const carvedNoClassInA: ExceptionRecord = {
   mechanism: audit,
   file: fileA,
   reason: "the parser adapter is unpaid debt",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const carvedNoClassEverywhere: ExceptionRecord = {
@@ -58,7 +58,7 @@ const carvedNoClassEverywhere: ExceptionRecord = {
   clause: noClass,
   mechanism: audit,
   reason: "the whole clause is unpaid debt",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const locatedNoForOfInA: ExceptionRecord = {
@@ -76,7 +76,7 @@ const carvedProbeNoClassInA: ExceptionRecord = {
   mechanism: audit,
   file: fileA,
   reason: "the probe rule set's debt",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const scriptRuleOff = {

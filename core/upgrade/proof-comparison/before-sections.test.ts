@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import { LOOPS_CLAUSE } from "../../../tests/settings-catalogue.ts";
 import type { AttributedNativeException, Finding } from "../../governance/governance.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
@@ -35,7 +35,7 @@ const LOOP_FINDING: Finding = { clause: LOOPS_CLAUSE, file: SRC_A, anchor: { lin
 
 const CARVE_OUT: ExceptionRecord = { kind: "file-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, file: SRC_A, reason: "legacy loop" };
 
-const CLAUSE_WIDE: ExceptionRecord = { kind: "clause-wide-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, reason: "generated", whyChain: CAUSAL_WHY_CHAIN };
+const CLAUSE_WIDE: ExceptionRecord = { kind: "clause-wide-carve-out", clause: LOOPS_CLAUSE, mechanism: AUDIT, reason: "generated", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN };
 
 const COMMAND_LINE_OPTION: AttributedNativeException = {
   kind: "command-line-option",

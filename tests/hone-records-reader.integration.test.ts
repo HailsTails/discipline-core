@@ -64,7 +64,7 @@ const WHY_CHAIN = {
     },
   ],
   rootCause: "JSON has no canonical serialisation, so the octets on the wire are the only shared form a signature can cover.",
-  rootCheck: "On 2026-11-20, RFC 8259 still leaves member order and whitespace to the producer.",
+  rootEvidence: "On 2026-11-20, RFC 8259 still leaves member order and whitespace to the producer.",
   readback:
     "JSON has no canonical serialisation, therefore Stripe signs the raw octets, therefore the SDK hands an untyped payload, therefore stripe-webhook.ts casts the parsed event to Stripe.Event.",
   owner: "owner decision on example/payments#12",

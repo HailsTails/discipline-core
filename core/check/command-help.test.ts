@@ -151,7 +151,7 @@ describe("helpText", () => {
 describe("SYNOPSIS", () => {
   it("lists each command's usage, then the tool's own flags", () => {
     expect(SYNOPSIS).toBe(
-      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>\nhone split-records --repo <dir>\nhone upgrade --repo <dir>\nhone --help\nhone --version\n",
+      "hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]\nhone project --repo <dir>\nhone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...\nhone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]\nhone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>\nhone split-records --repo <dir>\nhone upgrade --repo <dir>\nhone --help\nhone --version\n",
     );
   });
 });

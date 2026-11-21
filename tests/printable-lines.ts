@@ -44,7 +44,7 @@ import { SECTION_NAMES, type SectionName, sectionRoleOf } from "../core/verdict/
 import { NO_SYMPTOM_GUIDE, type SymptomGuide, type UnreadableGuide } from "../core/verdict/symptom-notes.ts";
 import type { Case, Principle, Recipe, RecordKind, Rule, Symptom } from "../core/symptom-catalogue/symptom-catalogue.ts";
 import type { Verdict } from "../core/verdict/verdict.ts";
-import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "./version-one-causal-why-chain.ts";
 import { type DocumentedRole, type EntryFills, type Fills, type PrintedLine, reportLinesOf } from "./output-contract.ts";
 import { UPGRADE_LINES } from "./printable-upgrade-lines.ts";
 
@@ -100,8 +100,8 @@ const REMEDIED_FINDING: Filled<Finding> = {
 
 const RECORDS: EveryKind<ExceptionRecord> = {
   "authorised-location": { kind: "authorised-location", clause: LOOPS, mechanism: MECHANISM, file: FILE, reason: "the adapter" },
-  "file-carve-out": { kind: "file-carve-out", clause: LOOPS, mechanism: MECHANISM, file: FILE, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
-  "clause-wide-carve-out": { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: MECHANISM, reason: "debt", whyChain: CAUSAL_WHY_CHAIN },
+  "file-carve-out": { kind: "file-carve-out", clause: LOOPS, mechanism: MECHANISM, file: FILE, reason: "debt", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN },
+  "clause-wide-carve-out": { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: MECHANISM, reason: "debt", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN },
 };
 
 const IMPORTED_RECORDS: Readonly<Record<(ExistingAuthorisationProvenance | InheritedDebtProvenance)["kind"], Filled<ExceptionRecord>>> = {

@@ -32,7 +32,7 @@ hone check --repo <dir> [--base-revision <revision>] [--report-output <full|acti
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
-hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-check <text> --readback <text> --owner <owner>
+hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
 hone upgrade --repo <dir>
 hone --help
 hone --version
@@ -240,7 +240,7 @@ A file in the wrong folder or under a name that is not a catalogue name is still
 - **A boundary record** is in `hone-records/boundary-records.json`: `module`, `outsideParty` (a runtime facility such as `runtime:clock`, or an outside module's specifier), the `ports` the module declares and an optional `conformist`. It says the module is where an outside party is met.
 - **A dependency record** is in `hone-records/dependency-records.json`: `dependency`, `nativeWay`, `whyNotEnough` and an optional `peerRisk`. It says why a package is used where the platform's own way exists.
 
-An `authorised-location` follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootCheck`, `readback` and `owner`. The contract lists what Hone refuses and what review still judges:
+An `authorised-location` follows the [why-chain contract](docs/why-chain-contract.md): exactly five `{ "why", "because", "evidence" }` steps chained cause to cause, then `rootCause`, `rootEvidence`, `readback` and `owner`. The contract lists what Hone refuses and what review still judges:
 
 ```json
 "whyChain": {
@@ -252,7 +252,7 @@ An `authorised-location` follows the [why-chain contract](docs/why-chain-contrac
     { "why": "...", "because": "...", "evidence": "..." }
   ],
   "rootCause": "...",
-  "rootCheck": "...",
+  "rootEvidence": "...",
   "readback": "...",
   "owner": "..."
 }

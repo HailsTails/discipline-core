@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { Selection } from "../../settings/selection.ts";
 import { clauseAddressSchema } from "../../values/clause-address.ts";
 import { mechanismIdSchema } from "../../values/identifiers.ts";
@@ -103,12 +103,12 @@ describe("headRecordsOf", () => {
   });
 
   it("pairs a clause-wide carve-out with no entry, since version 2 holds none of it", () => {
-    expect(headRecords({ entries: [{ place: AT_0, entry: { kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "generated", whyChain: CAUSAL_WHY_CHAIN } }] })).toEqual({
+    expect(headRecords({ entries: [{ place: AT_0, entry: { kind: "clause-wide-carve-out", clause: "CD-15#loops", reason: "generated", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN } }] })).toEqual({
       outcome: "ok",
       value: [
         {
           kind: "clause-wide-carve-out",
-          record: { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: AUDIT, reason: "generated", whyChain: CAUSAL_WHY_CHAIN },
+          record: { kind: "clause-wide-carve-out", clause: LOOPS, mechanism: AUDIT, reason: "generated", whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN },
         },
       ],
     });

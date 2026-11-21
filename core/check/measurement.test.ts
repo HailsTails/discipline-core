@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAUSAL_WHY_CHAIN, LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { LEGACY_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../tests/version-one-causal-why-chain.ts";
 import type {
   ExceptionBaseline,
   ExceptionRecord,
@@ -38,7 +39,7 @@ const FILE_CARVE_OUT: ExceptionRecord = {
   mechanism: AUDIT,
   file: LEGACY_FILE,
   reason: "legacy class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const REASON_ONLY_CARVE_OUT: ExceptionRecord = {
@@ -55,7 +56,7 @@ const AUTHORISED_LOCATION: ExceptionRecord = {
   mechanism: AUDIT,
   file: repoPathSchema.parse("src/factory.ts"),
   reason: "the wrapping factory for the library",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const REASON_ONLY_LOCATION: ExceptionRecord = {
@@ -89,7 +90,7 @@ const CLAUSE_WIDE_CARVE_OUT: ExceptionRecord = {
   clause: CLASS_SYNTAX,
   mechanism: AUDIT,
   reason: "class syntax carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const CARVE_OUT_ENTRY: StructuralExceptionEntry = {
@@ -97,7 +98,7 @@ const CARVE_OUT_ENTRY: StructuralExceptionEntry = {
   clause: "CD-14#class-syntax",
   file: "src/legacy.ts",
   reason: "legacy class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const REASON_ONLY_LOCATION_ENTRY: StructuralExceptionEntry = {

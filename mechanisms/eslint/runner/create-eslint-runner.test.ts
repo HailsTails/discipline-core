@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/exception-records.ts";
 import type { RunnerFailure } from "../../../core/mechanism-port/runner-failure.ts";
 import type { RunnerClause } from "../../../core/mechanism-port/runner-module-schema.ts";
@@ -112,7 +112,7 @@ const FACTORY_CARVE_OUT: ExceptionRecord = {
   mechanism: ESLINT,
   file: FACTORY,
   reason: "Inherited class awaiting paydown",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const GONE_LOCATION: ExceptionRecord = {
@@ -129,7 +129,7 @@ const CLAUSE_WIDE: ExceptionRecord = {
   clause: CLASS_SYNTAX,
   mechanism: ESLINT,
   reason: "Class syntax carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 const ENABLING_PROJECTION = `import piece0 from "./node_modules/@hailstails/hone/mechanisms/eslint/CD-14/cd14/cd14.eslint-plugin.ts";

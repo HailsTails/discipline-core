@@ -3,7 +3,7 @@ import type { Result } from "../values/result.ts";
 import type { Why } from "../values/why-chain.ts";
 import type { AuthoriseRequest } from "./authorising.ts";
 
-export type AuthoriseOptionName = "repo" | "symptom" | "file" | "case" | "owes" | "why" | "because" | "evidence" | "rootCause" | "rootCheck" | "readback" | "owner";
+export type AuthoriseOptionName = "repo" | "symptom" | "file" | "case" | "owes" | "why" | "because" | "evidence" | "rootCause" | "rootEvidence" | "readback" | "owner";
 
 export const AUTHORISE_OPTIONS: Readonly<Record<AuthoriseOptionName, string>> = {
   repo: "--repo",
@@ -15,7 +15,7 @@ export const AUTHORISE_OPTIONS: Readonly<Record<AuthoriseOptionName, string>> = 
   because: "--because",
   evidence: "--evidence",
   rootCause: "--root-cause",
-  rootCheck: "--root-check",
+  rootEvidence: "--root-evidence",
   readback: "--readback",
   owner: "--owner",
 };
@@ -74,7 +74,7 @@ const fileOf = (request: Reading): Read<RepoPath> => {
 
 type Site = Pick<AuthoriseRequest, "symptom" | "case" | "owes" | "owner">;
 
-type Root = Pick<AuthoriseRequest, "rootCause" | "rootCheck" | "readback">;
+type Root = Pick<AuthoriseRequest, "rootCause" | "rootEvidence" | "readback">;
 
 const siteOf = (request: Reading): Read<Site> => {
   const symptom = onceOf({ ...request, option: "symptom" });
@@ -95,15 +95,15 @@ const siteOf = (request: Reading): Read<Site> => {
 
 const rootOf = (request: Reading): Read<Root> => {
   const rootCause = onceOf({ ...request, option: "rootCause" });
-  const rootCheck = onceOf({ ...request, option: "rootCheck" });
+  const rootEvidence = onceOf({ ...request, option: "rootEvidence" });
   const readback = onceOf({ ...request, option: "readback" });
   if (rootCause.outcome === "failed") {
     return rootCause;
   }
-  if (rootCheck.outcome === "failed") {
-    return rootCheck;
+  if (rootEvidence.outcome === "failed") {
+    return rootEvidence;
   }
-  return readback.outcome === "failed" ? readback : { outcome: "ok", value: { rootCause: rootCause.value, rootCheck: rootCheck.value, readback: readback.value } };
+  return readback.outcome === "failed" ? readback : { outcome: "ok", value: { rootCause: rootCause.value, rootEvidence: rootEvidence.value, readback: readback.value } };
 };
 
 export const authoriseRequestOf = (request: Reading): Read<AuthoriseRequest> => {

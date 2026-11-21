@@ -3,7 +3,7 @@ import type { ExceptionRecord } from "../../../core/upgrade/version-one-records/
 import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { mechanismIdSchema } from "../../../core/values/identifiers.ts";
 import { repoPathSchema } from "../../../core/values/repo-path.ts";
-import { CAUSAL_WHY_CHAIN } from "../../../tests/causal-why-chain.ts";
+import { VERSION_ONE_CAUSAL_WHY_CHAIN } from "../../../tests/version-one-causal-why-chain.ts";
 import { projectionHolding } from "./projection-holding.ts";
 
 const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");
@@ -37,7 +37,7 @@ const CLAUSE_WIDE: ExceptionRecord = {
   clause: CLASS_SYNTAX,
   mechanism: ESLINT,
   reason: "Class syntax carved out during migration",
-  whyChain: CAUSAL_WHY_CHAIN,
+  whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN,
 };
 
 describe("projectionHolding", () => {

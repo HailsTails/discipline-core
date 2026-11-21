@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { versionTwoReportOutputSchema, reportOutputSchema } from "../values/report-output.ts";
 import { argumentProblemText } from "./argument-problem.ts";
 import {
+  parseAuthoriseArguments,
   parseCheckArguments,
   parseInvocation,
   parseProjectArguments,
@@ -189,5 +190,20 @@ describe("parsePruneDebtArguments", () => {
     { given: ["--repo", "/work/repo", "--leave", "src/clock.ts"], problem: { kind: "option-unknown", subcommand: "prune-debt", given: "--leave" } },
   ] as const)("is arguments-invalid for $given", ({ given, problem }) => {
     expect(parsePruneDebtArguments({ arguments: given })).toEqual(invalid({ detail: argumentProblemText({ problem }) }));
+  });
+});
+
+describe("parseAuthoriseArguments", () => {
+  it("reads --root-evidence beside --repo", () => {
+    expect(parseAuthoriseArguments({ arguments: ["--repo", "/work/repo", "--root-evidence", "src/a.ts:1 still holds today"] })).toEqual({
+      outcome: "ok",
+      value: { repo: "/work/repo", values: new Map([["--repo", ["/work/repo"]], ["--root-evidence", ["src/a.ts:1 still holds today"]]]) },
+    });
+  });
+
+  it("refuses --root-check, the version 1 name, as an unknown option", () => {
+    expect(parseAuthoriseArguments({ arguments: ["--repo", "/work/repo", "--root-check", "src/a.ts:1 still holds today"] })).toEqual(
+      invalid({ detail: argumentProblemText({ problem: { kind: "option-unknown", subcommand: "authorise", given: "--root-check" } }) }),
+    );
   });
 });

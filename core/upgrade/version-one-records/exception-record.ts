@@ -1,7 +1,7 @@
 import type { ClauseAddress } from "../../values/clause-address.ts";
 import type { MechanismId } from "../../values/identifiers.ts";
 import type { RepoPath } from "../../values/repo-path.ts";
-import type { RecordedWhyChain } from "../../values/why-chain.ts";
+import type { RecordedWhyChain } from "./version-one-why-chain.ts";
 
 export type ExistingAuthorisationProvenance = {
   readonly kind: "existing-authorisation";
