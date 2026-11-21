@@ -28,7 +28,7 @@ const OUTCOMES: readonly (readonly [DebtOutcome, Readonly<Record<string, string>
   [{ address: "CD-99#nowhere", file: FILE, effect: "unrecordable" }, { clause: "CD-99#nowhere" }],
 ];
 
-const PRUNED_REASONS: readonly PrunedReason[] = ["paid", "stale", "forfeited"];
+const PRUNED_REASONS: readonly PrunedReason[] = ["paid", "credited-nothing", "file-gone", "file-excluded", "forfeited"];
 
 const AUTHORISINGS: readonly (readonly [Authorising, Readonly<Record<string, string>>])[] = [
   [{ judged: "accepted", edit: { write: [], remove: [] } }, {}],

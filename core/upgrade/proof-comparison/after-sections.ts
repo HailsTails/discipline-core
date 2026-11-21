@@ -43,7 +43,7 @@ export const afterSectionsOf = (request: { readonly report: RunReport; readonly 
     unrecorded: report.unrecorded.map((exception) => nativeKeyOf({ exception })),
     misnamed: report.misnamed.map(({ kind, ruleId, file, line }) => joinedKey({ parts: [kind, ruleId, file, line] })),
     paid: report.paid.map(({ debt }) => joinedKey({ parts: [debt.place.file, debt.place.index] })),
-    stale: report.stale.map((placed) => recordFileKeyOf({ placed })),
+    stale: report.stale.map(({ placed }) => recordFileKeyOf({ placed })),
     forfeited: report.forfeited.map((placed) => recordFileKeyOf({ placed })),
     doublyHeld: [],
     invalidRecords: report.refused.map(({ place }) => joinedKey({ parts: [place.file, place.index] })),

@@ -15,7 +15,7 @@ import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
+import { engineProblemsOf, engineUnmeasuredOf, runMeasurementsOf } from "./engine-states.ts";
 import { checksOfClauses, editionsOf } from "./selection-checks.ts";
 
 export type RunReportRequest = {
@@ -26,6 +26,7 @@ export type RunReportRequest = {
   readonly records: RecordsReading;
   readonly touched: TouchedSet;
   readonly runs: readonly EngineRun[];
+  readonly tracked: readonly RepoPath[];
   readonly assessment: Assessment;
 };
 
@@ -42,7 +43,7 @@ const partyOf = (request: { readonly finding: Finding }): PartyReport =>
 
 const answeringOf = (request: RunReportRequest): Answering => {
   const raised: readonly RaisedFinding[] = findingsOf(request).map((finding) => ({ finding, party: partyOf({ finding }) }));
-  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs });
+  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs, measurements: runMeasurementsOf({ runs: request.runs, selected: request.selection.selected, tracked: request.tracked, excluded: request.excluded }) });
 };
 
 const symptomsOf = (request: { readonly catalogue: SymptomCatalogue; readonly findings: readonly Finding[] }): readonly Symptom[] => {
@@ -75,7 +76,7 @@ export const runReportOf = (request: RunReportRequest): RunReport => {
     misnamed: runs.flatMap((run) => run.misnamedRuleIds),
     paid: answering.paid,
     refused: records.refused,
-    unmeasured: [...recordsUnmeasuredOf({ records: records.records, base: records.base, touched: request.touched }), ...engineUnmeasuredOf({ catalogue, runs })],
+    unmeasured: [...recordsUnmeasuredOf({ records: records.records, base: records.base, touched: request.touched }), ...engineUnmeasuredOf({ catalogue, runs, selected: selection.selected, tracked: request.tracked })],
     projectionProblems: engineProblemsOf({ catalogue, runs }),
     assessment: assessmentOf(request),
     notes: request.notes,

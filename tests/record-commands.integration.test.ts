@@ -100,7 +100,7 @@ const answering = (request: { readonly findings: readonly RaisedFinding[] }) => 
     records: reading.value.records,
     findings: request.findings,
     touched: NOTHING_CHANGED,
-    runs: [],
+    runs: [], measurements: { runs: [], tracked: [], excluded: [] },
   });
 };
 
@@ -115,7 +115,7 @@ describe("the version 2 record commands over a real hone-records folder, built i
 
     const fixed = answering({ findings: [] });
     expect(fixed.stale).toHaveLength(1);
-    expect(pruneDebt({ report: fixed })).toMatchObject({ outcome: "ok", value: [{ reason: "stale" }] });
+    expect(pruneDebt({ report: fixed })).toMatchObject({ outcome: "ok", value: [{ reason: "credited-nothing" }] });
     expect(fileText.exists({ path: `${made.value}/${DEBT_FILE}` })).toBe("absent");
   });
 

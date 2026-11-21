@@ -48,14 +48,27 @@ describe("staleLine", () => {
     { name: "debt", placed: DEBT, line: `claimed-type debt src/adapters/stripe-webhook.ts; nothing it holds is found: run ${PRUNE_COMMAND} to remove it` },
     { name: "carried debt", placed: CARRIED_DEBT, line: `claimed-type debt src/adapters/stripe-webhook.ts carried; nothing it holds is found: run ${PRUNE_COMMAND} to remove it` },
   ])("ends $name with the command that removes it", ({ placed, line }) => {
-    expect(staleLine({ placed, pruneCommand: PRUNE_COMMAND })).toBe(line);
+    expect(staleLine({ stale: { placed, reason: "credited-nothing" }, pruneCommand: PRUNE_COMMAND })).toBe(line);
+  });
+
+  it.each([
+    { reason: "file-gone", line: `claimed-type debt src/adapters/stripe-webhook.ts; its file is no longer in the repository: run ${PRUNE_COMMAND} to remove it` },
+    { reason: "file-excluded", line: `claimed-type debt src/adapters/stripe-webhook.ts; its file is excluded by the settings, so nothing there was checked: run ${PRUNE_COMMAND} to remove it` },
+  ] as const)("says why debt is stale when $reason", ({ reason, line }) => {
+    expect(staleLine({ stale: { placed: DEBT, reason }, pruneCommand: PRUNE_COMMAND })).toBe(line);
+  });
+
+  it("says why a record that is not debt is stale only when its file is gone or excluded", () => {
+    expect(staleLine({ stale: { placed: DEVIATION, reason: "file-excluded" }, pruneCommand: PRUNE_COMMAND })).toBe(
+      "world-values-through-a-port deviation src/adapters/stripe-webhook.ts; its file is excluded by the settings, so nothing there was checked",
+    );
   });
 
   it.each([
     { name: "an authorised location", placed: LOCATION, line: 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: the catalogue has no case "parses a webhook", owing "declared-not-asserted"' },
     { name: "a deviation", placed: DEVIATION, line: "world-values-through-a-port deviation src/adapters/stripe-webhook.ts" },
   ])("prints $name by its subject alone, since prune-debt removes only debt", ({ placed, line }) => {
-    expect(staleLine({ placed, pruneCommand: PRUNE_COMMAND })).toBe(line);
+    expect(staleLine({ stale: { placed, reason: "credited-nothing" }, pruneCommand: PRUNE_COMMAND })).toBe(line);
   });
 });
 

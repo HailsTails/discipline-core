@@ -90,7 +90,7 @@ describe("afterSectionsOf", () => {
           answered: [{ finding: NAMED_LOOP_FINDING, by: [DEBT] }],
           misnamed: [{ kind: "names-no-check", ruleId: "hone/loop-keyword/none", file: SRC_A, line: 4, text: "eslint-disable" }],
           paid: [{ debt: DEBT, answeredBy: [DEBT] }],
-          stale: [DEBT],
+          stale: [{ placed: DEBT, reason: "credited-nothing" }],
           forfeited: [DEBT],
           uncovered: [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_LOOPS],
           notRun: [LOOP_KEYWORD_LOOPS],

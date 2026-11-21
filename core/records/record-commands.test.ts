@@ -67,7 +67,7 @@ const answeredFor = (request: { readonly documents: readonly RecordsDocument[]; 
     records: reading.value.records,
     findings: [{ finding: request.finding, party: { reported: "not-reported" } }],
     touched: request.touched,
-    runs: [],
+    runs: [], measurements: { runs: [], tracked: [], excluded: [] },
   });
 };
 

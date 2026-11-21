@@ -1,6 +1,10 @@
+import type { RunMeasurement, RunMeasurements } from "../records/measured-at.ts";
 import type { EngineNotRun, RunProjectionProblem } from "../report/run-report.ts";
 import type { Engine, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { SelectedClause } from "../settings/selection.ts";
 import type { MechanismId } from "../values/identifiers.ts";
+import type { RepoPath } from "../values/repo-path.ts";
+import { typescriptFilesOf } from "./checked-tree-of.ts";
 import type { EngineRun } from "./engine-run.ts";
 
 type CatalogueEngines = Pick<SymptomCatalogue, "engines">;
@@ -8,7 +12,34 @@ type CatalogueEngines = Pick<SymptomCatalogue, "engines">;
 const engineOf = (request: { readonly catalogue: CatalogueEngines; readonly mechanism: MechanismId }): Engine =>
   request.catalogue.engines.find((engine) => engine.mechanism === request.mechanism) ?? { name: request.mechanism, mechanism: request.mechanism };
 
-const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun }): readonly EngineNotRun[] => {
+export type EngineMeasurement = "measured-something" | "measured-nothing" | "nothing-selected" | "nothing-to-measure";
+
+export const engineMeasurementOf = (request: { readonly run: RunMeasurement; readonly inReach: readonly RepoPath[] }): EngineMeasurement => {
+  if (request.run.selected.length === 0) {
+    return "nothing-selected";
+  }
+  if (request.inReach.length === 0) {
+    return "nothing-to-measure";
+  }
+  return request.run.measured.length === 0 ? "measured-nothing" : "measured-something";
+};
+
+const runMeasurementOf = (request: { readonly run: EngineRun; readonly selected: readonly SelectedClause[] }): RunMeasurement => ({
+  mechanism: request.run.mechanism,
+  selected: request.selected.filter((clause) => clause.mechanism === request.run.mechanism).map((clause) => clause.address),
+  measured: request.run.measured,
+});
+
+export const runMeasurementsOf = (request: { readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[]; readonly excluded: readonly RepoPath[] }): RunMeasurements => ({
+  runs: request.runs.map((run) => runMeasurementOf({ run, selected: request.selected })),
+  tracked: request.tracked,
+  excluded: request.excluded,
+});
+
+const measuredNothingOf = (request: { readonly engine: Engine; readonly measurement: RunMeasurement; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] =>
+  engineMeasurementOf({ run: request.measurement, inReach: typescriptFilesOf({ tracked: request.tracked }) }) === "measured-nothing" ? [{ kind: "engine-not-run", engine: request.engine, projection: "measured-nothing" }] : [];
+
+const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] => {
   const engine = engineOf({ catalogue: request.catalogue, mechanism: request.run.mechanism });
   switch (request.run.projection) {
     case "missing":
@@ -16,9 +47,10 @@ const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run:
     case "not-included":
       return [{ kind: "engine-not-run", engine, projection: "not-included", nestedConfigurations: [] }];
     case "none":
+      return [];
     case "current":
     case "out-of-date":
-      return [];
+      return measuredNothingOf({ engine, measurement: runMeasurementOf(request), tracked: request.tracked });
   }
 };
 
@@ -33,8 +65,8 @@ const problemOf = (request: { readonly catalogue: CatalogueEngines; readonly run
   ];
 };
 
-export const engineUnmeasuredOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[] }): readonly EngineNotRun[] =>
-  request.runs.flatMap((run) => notRunOf({ catalogue: request.catalogue, run }));
+export const engineUnmeasuredOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] =>
+  request.runs.flatMap((run) => notRunOf({ catalogue: request.catalogue, run, selected: request.selected, tracked: request.tracked }));
 
 export const engineProblemsOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[] }): readonly RunProjectionProblem[] =>
   request.runs.flatMap((run) => problemOf({ catalogue: request.catalogue, run }));

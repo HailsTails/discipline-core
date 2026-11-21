@@ -1,6 +1,6 @@
 import type { Authorising } from "../records/authorising.ts";
 import { type DebtOutcome, debtAddressOf } from "../records/debt-effects.ts";
-import type { PrunableDebt } from "../records/prunable-debt.ts";
+import type { PrunableDebt, PrunedReason } from "../records/prunable-debt.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { recordsFileText, refusalText } from "./record-lines.ts";
 
@@ -27,8 +27,16 @@ const withDetail = (request: { readonly head: string; readonly detail: string })
 export const debtOutcomeLine = (request: { readonly outcome: DebtOutcome }): string =>
   withDetail({ head: `${request.outcome.address} ${request.outcome.effect} ${request.outcome.file}`, detail: detailOf(request) });
 
+const PRUNED_REASON_TEXT: Readonly<Record<PrunedReason, string>> = {
+  paid: "paid",
+  forfeited: "forfeited",
+  "credited-nothing": "stale",
+  "file-gone": "stale, its file is no longer in the repository",
+  "file-excluded": "stale, its file is excluded by the settings",
+};
+
 export const prunedDebtLine = (request: { readonly pruned: PrunableDebt }): string =>
-  `${debtAddressOf({ debt: request.pruned.debt })} removed ${request.pruned.debt.file}: ${request.pruned.reason}`;
+  `${debtAddressOf({ debt: request.pruned.debt })} removed ${request.pruned.debt.file}: ${PRUNED_REASON_TEXT[request.pruned.reason]}`;
 
 export const authorisingLines = (request: { readonly address: string; readonly file: RepoPath; readonly authorising: Authorising }): readonly string[] => {
   const { address, file, authorising } = request;

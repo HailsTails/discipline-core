@@ -45,7 +45,9 @@ describe("the lines hone record-debt prints", () => {
 describe("the lines hone prune-debt prints", () => {
   it("prints each debt it removed with the reason the report listed it for", () => {
     expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "paid" } })).toBe("date-used-directly removed src/orders/charge-order.ts: paid");
-    expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "stale" } })).toBe("date-used-directly removed src/orders/charge-order.ts: stale");
+    expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "credited-nothing" } })).toBe("date-used-directly removed src/orders/charge-order.ts: stale");
+    expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "file-gone" } })).toBe("date-used-directly removed src/orders/charge-order.ts: stale, its file is no longer in the repository");
+    expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "file-excluded" } })).toBe("date-used-directly removed src/orders/charge-order.ts: stale, its file is excluded by the settings");
     expect(prunedDebtLine({ pruned: { place: PLACE, debt: DEBT, reason: "forfeited" } })).toBe("date-used-directly removed src/orders/charge-order.ts: forfeited");
   });
 });

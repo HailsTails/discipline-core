@@ -1,5 +1,5 @@
 import type { FoundCheck } from "../symptom-catalogue/check-address.ts";
-import type { Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { Check, Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { AuthorisedReach, BoundaryRecord, Deviation, HoneRecord, OutsideParty, RuntimeFacility } from "./hone-record.ts";
 import { banStandingOf, dependencyOf } from "./outside-dependency.ts";
@@ -40,7 +40,7 @@ const reachesCheck = (request: { readonly reach: AuthorisedReach; readonly check
   }
 };
 
-const reachesSymptom = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach; readonly site: Site }): Holding =>
+const reachesSymptom = (request: { readonly symptom: Symptom; readonly reach: AuthorisedReach; readonly site: Pick<Site, "symptom" | "check"> }): Holding =>
   everyHolds({ holdings: [sameName({ left: request.symptom.name, right: request.site.symptom.name }), reachesCheck({ reach: request.reach, check: request.site.check })] });
 
 const clearOfOutsideParties = (request: { readonly symptom: Symptom }): Holding =>
@@ -97,6 +97,55 @@ const boundaryPartyNamed = (request: { readonly record: BoundaryRecord; readonly
     case "specifier":
       return reportedPartyIs({ party: request.record.outsideParty, specifier: request.site.party.specifier });
   }
+};
+
+export type RecordPlace = { readonly at: "file"; readonly file: RepoPath } | { readonly at: "module"; readonly module: RepoPath };
+
+export type ReachedPlace = { readonly check: Check; readonly place: RecordPlace };
+
+export const placeCovers = (request: { readonly place: RecordPlace; readonly file: RepoPath }): Holding => {
+  switch (request.place.at) {
+    case "file":
+      return sameName({ left: request.place.file, right: request.file });
+    case "module":
+      return moduleCovers({ module: request.place.module, file: request.file });
+  }
+};
+
+const checksReachedBy = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue }): readonly Check[] => {
+  const { record, catalogue } = request;
+  switch (record.kind) {
+    case "debt":
+    case "authorised-location":
+      return catalogue.checks.filter(
+        (check) => reachesSymptom({ symptom: record.symptom, reach: record.reach, site: { symptom: check.symptom, check: { found: "check", check } } }) === "holds",
+      );
+    case "deviation":
+      return catalogue.checks.filter((check) => recipeOfSymptom({ record, symptom: check.symptom }) === "holds");
+    case "boundary-record":
+      return catalogue.checks.filter((check) => namedIn({ name: check.symptom.name, names: reachOf({ party: record.outsideParty }) }) === "holds");
+    case "dependency-record":
+      return [];
+  }
+};
+
+const placeOf = (request: { readonly record: HoneRecord }): RecordPlace | undefined => {
+  const { record } = request;
+  switch (record.kind) {
+    case "debt":
+    case "authorised-location":
+    case "deviation":
+      return { at: "file", file: record.file };
+    case "boundary-record":
+      return { at: "module", module: record.module };
+    case "dependency-record":
+      return undefined;
+  }
+};
+
+export const placesReachedBy = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue }): readonly ReachedPlace[] => {
+  const place = placeOf(request);
+  return place === undefined ? [] : checksReachedBy(request).map((check) => ({ check, place }));
 };
 
 const sitedAt = (request: { readonly record: HoneRecord; readonly site: Site }): Holding => {

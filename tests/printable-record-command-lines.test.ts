@@ -33,6 +33,8 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: paid`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale`, fills: { address: "date-used-directly", file: FILE } },
+      { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale, its file is no longer in the repository`, fills: { address: "date-used-directly", file: FILE } },
+      { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale, its file is excluded by the settings`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: forfeited`, fills: { address: "date-used-directly", file: FILE } },
       { label: "authorise", text: `${ADDRESS} authorised ${FILE}`, fills: { address: ADDRESS, file: FILE } },
       {

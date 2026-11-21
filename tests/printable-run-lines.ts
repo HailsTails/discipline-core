@@ -196,6 +196,8 @@ const DEBT_PLACED: PlacedRecord = { place: { file: DEBT_FILE, index: 0 }, record
 
 const LOCATION_PLACED: PlacedRecord = { place: { file: AUTHORISED_FILE, index: 0 }, record: UNOWED_LOCATION };
 
+const LOCATION_SUBJECT = 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: gives-a-value-its-type does not owe "written-out-answers"';
+
 const DEBT_SUBJECT = "claimed-type debt src/adapters/stripe-webhook.ts";
 
 const UNOWED_REFERENCE = 'authorised-location note: gives-a-value-its-type does not owe "written-out-answers"';
@@ -388,6 +390,7 @@ const RECORDS_UNMEASURED: readonly Filled<RunUnmeasured>[] = Object.values(RECOR
 
 const ENGINES_NOT_RUN: Readonly<Record<EngineNotRun["projection"], readonly Filled<RunUnmeasured>[]>> = {
   missing: [{ entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "missing" }, fills: { engine: "eslint" } }],
+  "measured-nothing": [{ entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }, fills: { engine: "eslint" } }],
   "not-included": [
     { entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "not-included", nestedConfigurations: [] }, fills: { engine: "eslint" } },
     {
@@ -470,7 +473,14 @@ const SECTION_SAMPLES: SectionSamples = {
     },
   ],
   uncovered: [{ entry: CLOCK_CHECK, fills: CLOCK_FILLS }],
-  stale: [{ entry: LOCATION_PLACED, fills: { subject: 'claimed-type authorised-location src/adapters/stripe-webhook.ts note: gives-a-value-its-type does not owe "written-out-answers"' } }, { entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
+  stale: [
+    { entry: { placed: LOCATION_PLACED, reason: "credited-nothing" }, fills: { subject: LOCATION_SUBJECT } },
+    { entry: { placed: LOCATION_PLACED, reason: "file-gone" }, fills: { subject: LOCATION_SUBJECT } },
+    { entry: { placed: LOCATION_PLACED, reason: "file-excluded" }, fills: { subject: LOCATION_SUBJECT } },
+    { entry: { placed: DEBT_PLACED, reason: "credited-nothing" }, fills: { subject: DEBT_SUBJECT } },
+    { entry: { placed: DEBT_PLACED, reason: "file-gone" }, fills: { subject: DEBT_SUBJECT } },
+    { entry: { placed: DEBT_PLACED, reason: "file-excluded" }, fills: { subject: DEBT_SUBJECT } },
+  ],
   forfeited: [{ entry: DEBT_PLACED, fills: { subject: DEBT_SUBJECT } }],
   unrecorded: [...Object.values(SIMPLE_NATIVES), ...Object.values(INLINE_DISABLES), ...Object.values(SCRIPT_OPTIONS)],
   misnamed: MISNAMED_RULE_IDS,
