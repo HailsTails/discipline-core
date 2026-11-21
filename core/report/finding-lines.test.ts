@@ -51,7 +51,7 @@ const DEBT: PlacedRecord = {
 };
 
 const CLOCK_BOUNDARY: PlacedRecord = {
-  place: { file: repoPathSchema.parse("hone-records/boundaries.json"), index: 0 },
+  place: { file: repoPathSchema.parse("hone-records/boundary-records.json"), index: 0 },
   record: { kind: "boundary-record", module: ORDER_FILE, outsideParty: { kind: "runtime", facility: "clock" }, holding: { held: "stated", ports: ["Clock"] } },
 };
 

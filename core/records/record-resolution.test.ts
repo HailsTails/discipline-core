@@ -146,11 +146,11 @@ const DEBT_FILE = repoPathSchema.parse("hone-records/debt/text-past-its-reader.j
 
 const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
 
-const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundary-records.json");
 
 const DEVIATIONS_FILE = repoPathSchema.parse("hone-records/deviations/stub-with-vifn.json");
 
-const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependencies.json");
+const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependency-records.json");
 
 const STATED_AUTHORISED_LOCATION = {
   symptom: "claimed-type",
@@ -599,7 +599,7 @@ describe("recordOf, carried records", () => {
   it("lists a carried boundary record as lacking its ports", () => {
     const entry = { kind: "authorised-location", clause: "CD-19#import-boundaries", file: "src/adapters/ids.ts", reason: "uuid stays at the ids adapter." };
     expect(
-      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/ids.ts", outsideParty: "uuid", carried: entry } }),
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/ids.ts", outsideParty: "uuid", carried: entry } }),
     ).toEqual({
       outcome: "ok",
       value: {
@@ -635,7 +635,7 @@ describe("recordOf, boundary records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: BOUNDARIES_FILE,
-        filedUnder: { kind: "boundaries" },
+        filedUnder: { kind: "boundary-records" },
         entry: { module: "src/adapters/system-clock.ts", outsideParty: "runtime:clock", ports: ["Clock"] },
       }),
     ).toEqual({
@@ -650,7 +650,7 @@ describe("recordOf, boundary records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: BOUNDARIES_FILE,
-        filedUnder: { kind: "boundaries" },
+        filedUnder: { kind: "boundary-records" },
         entry: { module: "src/adapters/files", outsideParty: "node:fs", ports: ["FileReader"] },
       }),
     ).toEqual({
@@ -663,7 +663,7 @@ describe("recordOf, boundary records", () => {
     "reads $outsideParty as a module its scheme names, which no package provides",
     ({ outsideParty }) => {
       expect(
-        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/platform.ts", outsideParty, ports: ["Platform"] } }),
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/platform.ts", outsideParty, ports: ["Platform"] } }),
       ).toEqual({
         outcome: "ok",
         value: { kind: "boundary-record", module: "src/adapters/platform.ts", outsideParty: { kind: "scheme-module", specifier: outsideParty }, holding: { held: "stated", ports: ["Platform"] } },
@@ -678,7 +678,7 @@ describe("recordOf, boundary records", () => {
     { outsideParty: "npm:@date-fns/tz@1.2.0/locale", dependency: "@date-fns/tz" },
   ])("reads $outsideParty as the package $dependency", ({ outsideParty, dependency }) => {
     expect(
-      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/streams.ts", outsideParty, ports: ["Stream"] } }),
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/streams.ts", outsideParty, ports: ["Stream"] } }),
     ).toEqual({
       outcome: "ok",
       value: { kind: "boundary-record", module: "src/adapters/streams.ts", outsideParty: { kind: "package", specifier: outsideParty, dependency }, holding: { held: "stated", ports: ["Stream"] } },
@@ -692,7 +692,7 @@ describe("recordOf, boundary records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: BOUNDARIES_FILE,
-        filedUnder: { kind: "boundaries" },
+        filedUnder: { kind: "boundary-records" },
         entry: { module: "src/adapters/orders", outsideParty: "@acme/orders-schema", ports: ["OrderStore"], conformist },
       }),
     ).toEqual({
@@ -708,7 +708,7 @@ describe("recordOf, boundary records", () => {
 
   it("refuses a runtime facility Hone does not know", () => {
     expect(
-      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/env.ts", outsideParty: "runtime:env", ports: ["Settings"] } }),
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/env.ts", outsideParty: "runtime:env", ports: ["Settings"] } }),
     ).toEqual({ outcome: "failed", error: [{ kind: "unknown-runtime-facility", outsideParty: "runtime:env" }] });
   });
 
@@ -718,7 +718,7 @@ describe("recordOf, boundary records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: BOUNDARIES_FILE,
-        filedUnder: { kind: "boundaries" },
+        filedUnder: { kind: "boundary-records" },
         entry: { module: "src/adapters/dates.ts", outsideParty: "@date-fns/tz/locale", ports: ["Calendar"] },
       }),
     ).toEqual({
@@ -736,7 +736,7 @@ describe("recordOf, boundary records", () => {
     "accepts a boundary record on $outsideParty, since a ban refuses only a deviation or a dependency record",
     ({ outsideParty }) => {
       expect(
-        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
       ).toEqual({
         outcome: "ok",
         value: {
@@ -760,7 +760,7 @@ describe("recordOf, boundary records", () => {
     "refuses an outside party written $outsideParty, which names no outside module or runtime facility",
     ({ outsideParty }) => {
       expect(
-        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundaries" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
+        recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: BOUNDARIES_FILE, filedUnder: { kind: "boundary-records" }, entry: { module: "src/adapters/collections.ts", outsideParty, ports: ["Grouping"] } }),
       ).toEqual({ outcome: "failed", error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["outsideParty"] })] }] });
     },
   );
@@ -838,7 +838,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency: "zod", nativeWay: "hand-written parsing at each adapter", whyNotEnough: "Each adapter would repeat its own checks." },
       }),
     ).toEqual({
@@ -853,7 +853,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency: "eslint", nativeWay: "a walker of our own", whyNotEnough: "Teams already lint.", peerRisk: "A team on an older ESLint line gets a load failure." },
       }),
     ).toEqual({
@@ -868,7 +868,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency: "lodash", nativeWay: "Array methods", whyNotEnough: "groupBy was missing." },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "named-ban", dependency: "lodash" }] });
@@ -880,7 +880,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency, nativeWay: "Array methods", whyNotEnough: "groupBy was missing." },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "named-ban", dependency }] });
@@ -892,7 +892,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency: "JSONStream", nativeWay: "a hand-written stream parser", whyNotEnough: "The payload is too large to hold." },
       }),
     ).toEqual({
@@ -909,7 +909,7 @@ describe("recordOf, dependency records", () => {
           catalogue: CATALOGUE,
           base: UNMEASURED,
           file: DEPENDENCIES_FILE,
-          filedUnder: { kind: "dependencies" },
+          filedUnder: { kind: "dependency-records" },
           entry: { dependency, nativeWay: "Array methods", whyNotEnough: "groupBy was missing." },
         }),
       ).toEqual({ outcome: "failed", error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["dependency"] })] }] });
@@ -922,7 +922,7 @@ describe("recordOf, dependency records", () => {
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEPENDENCIES_FILE,
-        filedUnder: { kind: "dependencies" },
+        filedUnder: { kind: "dependency-records" },
         entry: { dependency: "@typescript-eslint/parser", nativeWay: "TypeScript's own parser", whyNotEnough: "ESLint reads only an ESTree." },
       }),
     ).toEqual({

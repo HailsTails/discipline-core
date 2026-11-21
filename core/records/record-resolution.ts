@@ -296,9 +296,9 @@ export const recordOf = (request: Resolving & { readonly filedUnder: FiledUnder 
       return authorisedLocationOf(request);
     case "deviations":
       return deviationOf(request);
-    case "boundaries":
+    case "boundary-records":
       return boundaryRecordOf(request);
-    case "dependencies":
+    case "dependency-records":
       return dependencyRecordOf(request);
   }
 };

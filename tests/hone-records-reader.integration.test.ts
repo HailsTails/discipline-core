@@ -125,13 +125,13 @@ const made = recordsRepositoryIn({
       },
       {
         folder: "hone-records",
-        name: "boundaries.json",
+        name: "boundary-records.json",
         records: [
           { module: "src/adapters/system-clock.ts", outsideParty: "runtime:clock", ports: ["Clock"] },
           { module: "src/adapters/files", outsideParty: "node:fs", ports: ["FileReader"] },
         ],
       },
-      { folder: "hone-records", name: "dependencies.json", records: [{ dependency: "zod", nativeWay: "hand-written parsing at each adapter", whyNotEnough: "Each adapter would repeat its own checks." }] },
+      { folder: "hone-records", name: "dependency-records.json", records: [{ dependency: "zod", nativeWay: "hand-written parsing at each adapter", whyNotEnough: "Each adapter would repeat its own checks." }] },
     ],
   },
 });
@@ -196,13 +196,13 @@ const AUTHORISED_CLAIMED = repoPathSchema.parse("hone-records/authorised-locatio
 
 const AUTHORISED_IMPORTS = repoPathSchema.parse("hone-records/authorised-locations/outside-import-past-a-boundary.json");
 
-const BOUNDARIES = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES = repoPathSchema.parse("hone-records/boundary-records.json");
 
 const DEBT = repoPathSchema.parse("hone-records/debt/text-past-its-reader.json");
 
 const DEBT_CLAIMED = repoPathSchema.parse("hone-records/debt/claimed-type.json");
 
-const DEPENDENCIES = repoPathSchema.parse("hone-records/dependencies.json");
+const DEPENDENCIES = repoPathSchema.parse("hone-records/dependency-records.json");
 
 const DEVIATIONS = repoPathSchema.parse("hone-records/deviations/stub-with-vifn.json");
 

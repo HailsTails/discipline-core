@@ -101,11 +101,11 @@ const DEBT_FILE = repoPathSchema.parse("hone-records/debt/authored-class-or-this
 
 const AUTHORISED_FILE = repoPathSchema.parse("hone-records/authorised-locations/authored-class-or-this.json");
 
-const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundaries.json");
+const BOUNDARIES_FILE = repoPathSchema.parse("hone-records/boundary-records.json");
 
 const DEVIATIONS_FILE = repoPathSchema.parse("hone-records/deviations/adapter-per-outside-party.json");
 
-const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependencies.json");
+const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependency-records.json");
 
 const NO_CLASS_IN_A: Finding = { clause: NO_CLASS, file: FILE_A, anchor: { line: 3, column: 5 }, snippet: "class A {}", mechanism: AUDIT };
 

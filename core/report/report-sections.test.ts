@@ -102,7 +102,7 @@ describe("runVerdictOf", () => {
   });
 
   it("fails a run with an entry in a failing section", () => {
-    expect(runVerdictOf({ report: { ...EMPTY_REPORT, refused: [{ place: { file: repoPathSchema.parse("hone-records/boundaries.json"), index: 0 }, refusals: [{ kind: "carried-changed-since-base" }] }] } })).toBe(
+    expect(runVerdictOf({ report: { ...EMPTY_REPORT, refused: [{ place: { file: repoPathSchema.parse("hone-records/boundary-records.json"), index: 0 }, refusals: [{ kind: "carried-changed-since-base" }] }] } })).toBe(
       "fail",
     );
   });

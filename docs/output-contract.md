@@ -1125,7 +1125,7 @@ It never prints `why-chains-required`, `records-in-both-layouts` or `records-uns
 | `records-folder-unreadable` | `load failure: records-folder-unreadable <records folder> <detail>` |
 | `records-file-unreadable` | `load failure: records-file-unreadable <records file> <detail>` |
 | `records-file-not-json` | `load failure: records-file-not-json <records file> <detail>` |
-| `not-a-records-file` | `load failure: not-a-records-file <records file>: a records file is boundaries.json or dependencies.json, or a .json file named for its symptom, or for its recipe in deviations, inside the folder authorised-locations, debt or deviations of hone-records; move this file to where its kind belongs, or out of hone-records if it holds no records` |
+| `not-a-records-file` | `load failure: not-a-records-file <records file>: a records file is boundary-records.json or dependency-records.json, or a .json file named for its symptom, or for its recipe in deviations, inside the folder authorised-locations, debt or deviations of hone-records; move this file to where its kind belongs, or out of hone-records if it holds no records` |
 | `not-a-records-name` | `load failure: not-a-records-name <records folder> <name>: no repository path can hold that name; rename it` |
 | `records-refused` | `load failure: records-refused <records file> document-refused <document issues>` |
 | `records-refused` | `load failure: records-refused <records file> not-a-records-file` |
