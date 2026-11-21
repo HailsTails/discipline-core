@@ -2,10 +2,9 @@ import type { Subcommand } from "../command-line/command-line.ts";
 import type { CommandRequest } from "../command-line/command-request.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
-import { repoArgumentOf } from "./repo-argument.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
+import { commandRunPathOf } from "./command-run-path.ts";
 import { runLoadFailureOutcomeOf, upgradeCommandFor } from "./run-load-failure-outcome.ts";
-import { runPathOf } from "./run-path.ts";
 
 export type VersionedHandler<Request extends CommandRequest = CommandRequest> = (command: Request) => Promise<void>;
 
@@ -30,22 +29,20 @@ type NoSettingsHandler<Request extends CommandRequest> = (request: { readonly co
 const chosenCommandOf =
   <Request extends CommandRequest>(request: VersionChoice<Request> & { readonly noSettings: NoSettingsHandler<Request> }): VersionedHandler<Request> =>
   (command) => {
-    const repo = repoArgumentOf({ arguments: command.process.arguments });
-    const resolved = repo === undefined ? undefined : command.path.resolve({ path: repo });
-    if (resolved === undefined || resolved.outcome === "failed") {
+    const located = commandRunPathOf({ command });
+    if (located.kind === "no-repository") {
       return request.versionOne(command);
     }
-    const chosen = runPathOf({ fileText: command.fileText, path: command.path, repoRoot: resolved.value });
-    if (chosen.outcome === "failed") {
-      return printFailure({ command, failure: chosen.error, repoRoot: resolved.value });
+    if (located.chosen.outcome === "failed") {
+      return printFailure({ command, failure: located.chosen.error, repoRoot: located.repoRoot });
     }
-    switch (chosen.value) {
+    switch (located.chosen.value) {
       case "version-1":
         return request.versionOne(command);
       case "version-2":
         return request.versionTwo(command);
       case "no-settings":
-        return request.noSettings({ command, repoRoot: resolved.value });
+        return request.noSettings({ command, repoRoot: located.repoRoot });
     }
   };
 

@@ -15,7 +15,10 @@ import { installedStagesOver } from "../run/version-two-repository.ts";
 import { versionOneAwareRecordsSourceOf } from "../upgrade/version-one-at-base/base-standing-records-source.ts";
 import { parseInvocation } from "../command-line/command-arguments.ts";
 import { helpText } from "./command-help.ts";
-import type { Subcommand } from "../command-line/command-line.ts";
+import type { HelpTopic, Subcommand } from "../command-line/command-line.ts";
+import { RUN_SUBCOMMANDS, runHelpText } from "../report/run-help.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
+import { commandRunPathOf } from "../run/command-run-path.ts";
 import { loadFailureOutcome, versionCommandOutcome } from "../command-line/command-outcome.ts";
 import { installedVersionOf } from "./installed-version.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
@@ -33,6 +36,20 @@ export type Subcommands = Readonly<Record<Subcommand, CommandHandler>>;
 const thrownMessage = (request: { readonly thrown: unknown }): string =>
   request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
 
+type HelpEdition = "version-1" | "version-2";
+
+const helpEditionOf = (request: { readonly command: CommandRequest }): HelpEdition => {
+  const located = commandRunPathOf({ command: request.command });
+  return located.kind === "repository" && located.chosen.outcome === "ok" && located.chosen.value === "version-1" ? "version-1" : "version-2";
+};
+
+const helpOf = (request: { readonly command: CommandRequest; readonly topic: HelpTopic }): string => {
+  const runTopic = request.topic === "tool" ? request.topic : RUN_SUBCOMMANDS.find((subcommand) => subcommand === request.topic);
+  return runTopic === undefined || helpEditionOf({ command: request.command }) === "version-1"
+    ? helpText({ topic: request.topic })
+    : runHelpText({ topic: runTopic });
+};
+
 const dispatched = (request: { readonly subcommands: Subcommands; readonly command: VersionOneCommandRequest }): Promise<void> => {
   const { command } = request;
   const invocation = parseInvocation({ arguments: command.process.arguments });
@@ -42,7 +59,7 @@ const dispatched = (request: { readonly subcommands: Subcommands; readonly comma
   }
   switch (invocation.value.kind) {
     case "help":
-      printOutcome({ process: command.process, outcome: { code: 0, text: helpText(invocation.value) } });
+      printOutcome({ process: command.process, outcome: { code: 0, text: helpOf({ command, topic: invocation.value.topic }) } });
       return Promise.resolve();
     case "version":
       printOutcome({ process: command.process, outcome: versionCommandOutcome({ result: installedVersionOf(command) }) });

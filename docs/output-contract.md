@@ -841,6 +841,8 @@ A subject is its head, then ` carried` when the record is carried, then one ` no
 
 ## Version 2 commands
 
+The help below is what `hone --help` and `hone <command> --help` print for a repository that holds `hone.config.json`, for a folder that holds neither settings file, and when `--repo` is not given; a repository that holds `disciplines.json` prints the 1.x help shown above. `hone split-records --help` has no version 2 help, so it prints the 1.x help shown above under `hone split-records` for every repository.
+
 The commands, their options and their exit codes are those of 1.x, with `split-records` removed; `upgrade` is the command listed above, with the help shown here. Help says "debt" where 1.x said "file carve-out", and "forfeiture" where 1.x said "decay". The synopsis, then the help of the tool and of each command, exactly as printed:
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
