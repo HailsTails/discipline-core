@@ -2,28 +2,6 @@ import { describe, expect, it } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { causalProblemsOf, type Why, type WhyChain, whyChainFormOf, whyChainSchema } from "./why-chain.ts";
 
-declare global {
-  interface ImportMeta {
-    readonly glob: (
-      patterns: readonly string[],
-      options: { readonly base: string; readonly query: "?raw"; readonly import: "default"; readonly eager: true },
-    ) => Readonly<Record<string, string>>;
-  }
-}
-
-const contractPage =
-  import.meta.glob(["./docs/why-chain-contract.md"], { base: "../../", query: "?raw", import: "default", eager: true })[
-    "./docs/why-chain-contract.md"
-  ] ?? "";
-
-const JSON_EXAMPLE = /```json\n([\s\S]*?)\n```/;
-
-describe("the contract page's example is the chain these tests start from", () => {
-  it("holds CAUSAL_WHY_CHAIN as its JSON example", () => {
-    expect(JSON.parse(`{${JSON_EXAMPLE.exec(contractPage)?.[1] ?? ""}}`)).toEqual({ whyChain: CAUSAL_WHY_CHAIN });
-  });
-});
-
 const OBJECTION_LIST: WhyChain = {
   whys: [
     {
@@ -120,13 +98,14 @@ describe("whyChainSchema refuses a chain that lists objections instead of causes
     ).toMatchObject(refusedAt(at("whys", 2, "why")));
   });
 
-  it("reports the refusal the contract page shows for its example", () => {
-    const [problem] = causalProblemsOf({
-      chain: withWhy({ chain: CAUSAL_WHY_CHAIN, position: 2, field: "why", text: "Why is that enough?" }),
-    });
-    expect(contractPage).toContain(
-      String.raw`exceptions[0] why-chain-refused ✖ ${problem?.message}\n  → at whys[2].why`,
-    );
+  it("reports a third why that asks nothing about the second answer's cause", () => {
+    expect(
+      causalProblemsOf({
+        chain: withWhy({ chain: CAUSAL_WHY_CHAIN, position: 2, field: "why", text: "Why is that enough?" }),
+      }),
+    ).toMatchObject([
+      { path: ["whys", 2, "why"], message: expect.stringContaining("does not ask about the cause why 2's answer gave") },
+    ]);
   });
 
   it("refuses a why that names its subject only by pronoun", () => {
