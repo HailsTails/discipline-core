@@ -28,7 +28,7 @@ describe("docs/output-contract.md, read against every line the command can print
   });
 
   it("shows the README the same synopsis the command prints", () => {
-    expect(README_TEXT).toContain(PRINTED_BLOCKS[0]);
+    expect(README_TEXT).toContain(RUN_PRINTED_BLOCKS[0]);
   });
 });
 
