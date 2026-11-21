@@ -8,7 +8,7 @@ import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort, type PathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { helpText } from "./command-help.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { type CommandHandler, type Subcommands, TOOL_SUBCOMMANDS, toolCommandOf } from "./run-tool-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
@@ -45,7 +45,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandRequest = (request: { readonly process: ProcessPort }): CommandRequest => ({
+const commandRequest = (request: { readonly process: ProcessPort }): VersionOneCommandRequest => ({
   process: request.process,
   path: UNUSED_PATH,
   fileText: UNUSED_FILE_TEXT,
@@ -184,7 +184,7 @@ describe("toolCommandOf printing help", () => {
 
 const PACKAGE_PATH = "/install/package.json";
 
-const versionRequest = (request: { readonly process: ProcessPort; readonly read: ReturnType<FileTextPort["read"]> }): CommandRequest => ({
+const versionRequest = (request: { readonly process: ProcessPort; readonly read: ReturnType<FileTextPort["read"]> }): VersionOneCommandRequest => ({
   ...commandRequest(request),
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: { ...UNUSED_FILE_TEXT, read: ({ path }) => requiredEntry({ table: { [PACKAGE_PATH]: request.read }, key: path }) },

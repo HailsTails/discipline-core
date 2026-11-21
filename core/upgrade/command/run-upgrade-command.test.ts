@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { commandOver, memoryRepositoryOf, recordedProcessWith } from "../../../tests/command-harness.ts";
-import type { CommandRequest } from "../../check/run-check-command.ts";
+import type { VersionOneCommandRequest } from "../version-one-records/version-one-command-request.ts";
 import type { GitPort } from "../../platform-ports/git-port.ts";
 import { alreadyUpgradedCommand, type UpgradePorts, upgradeCommandOf } from "./run-upgrade-command.ts";
 
@@ -25,7 +25,7 @@ const gitFailing = (): GitPort => ({
 const commandWith = (request: { readonly arguments: readonly string[]; readonly files: Readonly<Record<string, string>>; readonly git: GitPort }) => {
   const recorded = recordedProcessWith({ arguments: request.arguments });
   const base = commandOver({ process: recorded.port, fileText: memoryRepositoryOf({ files: request.files }).fileText });
-  const command: CommandRequest = { ...base, git: request.git, exceptionRepositoryOf: vi.fn() };
+  const command: VersionOneCommandRequest = { ...base, git: request.git, exceptionRepositoryOf: vi.fn() };
   return { command, recorded };
 };
 

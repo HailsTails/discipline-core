@@ -19,21 +19,21 @@ import type { Subcommand } from "../command-line/command-line.ts";
 import { loadFailureOutcome, versionCommandOutcome } from "../command-line/command-outcome.ts";
 import { installedVersionOf } from "./installed-version.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { runGuidedCheckCommand } from "./run-guided-check-command.ts";
 import { runProjectCommand } from "./run-project-command.ts";
 import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 import { recordDebtCommandOf } from "./run-record-debt-command.ts";
 import { runSplitRecordsCommand } from "./run-split-records-command.ts";
 
-export type CommandHandler = (request: CommandRequest) => Promise<void>;
+export type CommandHandler = (request: VersionOneCommandRequest) => Promise<void>;
 
 export type Subcommands = Readonly<Record<Subcommand, CommandHandler>>;
 
 const thrownMessage = (request: { readonly thrown: unknown }): string =>
   request.thrown instanceof Error ? request.thrown.message : String(request.thrown);
 
-const dispatched = (request: { readonly subcommands: Subcommands; readonly command: CommandRequest }): Promise<void> => {
+const dispatched = (request: { readonly subcommands: Subcommands; readonly command: VersionOneCommandRequest }): Promise<void> => {
   const { command } = request;
   const invocation = parseInvocation({ arguments: command.process.arguments });
   if (invocation.outcome === "failed") {

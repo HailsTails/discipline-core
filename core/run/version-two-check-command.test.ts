@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CAST_EXPRESSIONS, ESLINT, REPORT_CATALOGUE } from "../../tests/report-catalogue.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
 import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { DirectoryPort } from "../platform-ports/file-system-port.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
@@ -94,7 +94,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
 
-const commandWith = (request: { readonly process: ProcessPort; readonly moduleUrl: string }): CommandRequest => ({
+const commandWith = (request: { readonly process: ProcessPort; readonly moduleUrl: string }): CommandRequest & { readonly exceptionRepositoryOf: ExceptionRepositoryOf } => ({
   process: request.process,
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: {

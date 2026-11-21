@@ -1,4 +1,4 @@
-import type { CommandRequest } from "../core/check/run-check-command.ts";
+import type { VersionOneCommandRequest } from "../core/upgrade/version-one-records/version-one-command-request.ts";
 import { runToolCommand } from "../core/check/run-tool-command.ts";
 import { createDefaultExceptionRepositoryOf } from "../core/exception-records/exception-layout.ts";
 import { createDefaultDirectoryPort } from "../core/platform-ports/file-system-port.ts";
@@ -52,7 +52,7 @@ const trackingGit = (request: { readonly tracked: readonly RepoPath[] }): GitPor
   textInBase: notUsed,
 });
 
-const commandOver = (request: { readonly tracked: readonly RepoPath[]; readonly process: ProcessPort }): CommandRequest => ({
+const commandOver = (request: { readonly tracked: readonly RepoPath[]; readonly process: ProcessPort }): VersionOneCommandRequest => ({
   process: request.process,
   path: createDefaultPathPort({}),
   fileText: createDefaultFileTextPort({}),

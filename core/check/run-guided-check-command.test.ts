@@ -8,7 +8,8 @@ import type { ProcessPort } from "../platform-ports/process-port.ts";
 import type { RecordKind } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import type { SymptomGuide } from "../verdict/symptom-notes.ts";
-import type { CheckRunAt, CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import type { CheckRunAt } from "./run-check-command.ts";
 import { guidedCheckRunFor } from "./run-guided-check-command.ts";
 import type { SymptomGuideIn } from "./symptom-guide.ts";
 
@@ -79,7 +80,7 @@ const EXCEPTION_REPOSITORY_OF = vi.fn<ExceptionRepositoryOf>();
 
 const MODULE_URL = "file:///repo/node_modules/@hailstails/hone/core/check/tool-command.ts";
 
-const COMMAND: CommandRequest = {
+const COMMAND: VersionOneCommandRequest = {
   process: {
     arguments: ["--repo", "/repo"],
     writeOut: vi.fn<ProcessPort["writeOut"]>(),
@@ -94,7 +95,7 @@ const COMMAND: CommandRequest = {
   moduleUrl: MODULE_URL,
 };
 
-const ABSENT_SELECTION_COMMAND: CommandRequest = {
+const ABSENT_SELECTION_COMMAND: VersionOneCommandRequest = {
   process: COMMAND.process,
   path: PATH,
   fileText: {

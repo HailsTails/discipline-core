@@ -8,7 +8,7 @@ import { createDefaultPathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { runPruneDebtCommand } from "./run-prune-debt-command.ts";
 
 const FIXTURE = `${import.meta.dirname}/../../tests/test-fixtures/prune-debt`;
@@ -55,7 +55,7 @@ const pruning = (request: {
   readonly git: GitPort;
   readonly remove: ExceptionRepository["remove"];
   readonly moduleUrl: string;
-}): CommandRequest => ({
+}): VersionOneCommandRequest => ({
   process: request.process,
   path: createDefaultPathPort({}),
   fileText: createDefaultFileTextPort({}),

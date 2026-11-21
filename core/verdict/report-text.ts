@@ -6,7 +6,7 @@ import { PRUNE_DEBT_SUBCOMMAND } from "../command-line/subcommand-names.ts";
 import { clauseAddressText } from "../values/clause-address.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
-import { TOOL_IDENTITY } from "../values/tool-identity.ts";
+import { NESTED_CONFIGURATION_ISSUE } from "../values/nested-configuration-issue.ts";
 import type { ReportOutput } from "../values/report-output.ts";
 import { ASSESSMENT_FILE_NAME, assessmentSectionHeading } from "../values/assessment-file.ts";
 import type { BaseRevisionAvailability } from "../values/base-revision-availability.ts";
@@ -170,8 +170,6 @@ const baseDependentLine = (request: { readonly unmeasured: BaseDependentUnmeasur
       return `${kind} base-git-failed ${quoted({ text: base.revision })}: git could not ${needs.gitAttempt} and said ${quoted({ text: base.gitMessage })}; ${needs.needs}`;
   }
 };
-
-export const NESTED_CONFIGURATION_ISSUE = `${TOOL_IDENTITY.repository}/issues/72`;
 
 type NextCommands = { readonly projectCommand: string; readonly pruneCommand: string };
 

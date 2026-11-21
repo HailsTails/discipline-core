@@ -1,4 +1,4 @@
-import type { CommandRequest } from "../../check/run-check-command.ts";
+import type { CommandRequest } from "../../command-line/command-request.ts";
 import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import type { RecordsAtBase, RecordsReading } from "../../records/hone-record.ts";
 import { recordsReadingOf } from "../../records/records-reading.ts";

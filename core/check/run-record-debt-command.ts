@@ -21,10 +21,11 @@ import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import { type CommandRequest, withShownPaths } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import { withShownPaths } from "./run-check-command.ts";
 import { runReachedCheck } from "./run-check.ts";
 
-type AdoptionRequest = CommandRequest & {
+type AdoptionRequest = VersionOneCommandRequest & {
   readonly gitTree: GitTreePort;
   readonly arguments: RecordDebtArguments;
   readonly repoRoot: AbsolutePath;
@@ -95,7 +96,7 @@ const adoptionDebt = (request: AdoptionRequest): Promise<DebtResult> => {
   return debtOutcomesOf({ ...request, selection: selection.value, existing: existing.value, inBase: inBase.value });
 };
 
-const recordDebtResult = async (request: CommandRequest & { readonly gitTree: GitTreePort }): Promise<DebtResult> => {
+const recordDebtResult = async (request: VersionOneCommandRequest & { readonly gitTree: GitTreePort }): Promise<DebtResult> => {
   const parsed = parseRecordDebtArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
     return parsed;
@@ -119,7 +120,7 @@ const recordDebtResult = async (request: CommandRequest & { readonly gitTree: Gi
 };
 
 export const recordDebtCommandOf =
-  (ports: { readonly gitTree: GitTreePort }): ((request: CommandRequest) => Promise<void>) =>
+  (ports: { readonly gitTree: GitTreePort }): ((request: VersionOneCommandRequest) => Promise<void>) =>
   (request) =>
     recordDebtResult({ ...request, gitTree: ports.gitTree }).then((debt) =>
       printOutcome({ process: request.process, outcome: recordDebtCommandOutcome({ result: debt }) }),

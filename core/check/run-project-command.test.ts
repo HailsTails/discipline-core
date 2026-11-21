@@ -11,7 +11,7 @@ import { type AbsolutePath, absolutePathSchema } from "../values/absolute-path.t
 import type { ProcessPort } from "../platform-ports/process-port.ts";
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
-import type { CommandRequest } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
 import { runProjectCommand } from "./run-project-command.ts";
 
 const ENTRY_URL = "file:///install/core/check/tool-command.ts";
@@ -109,7 +109,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandRequest = (overrides: Partial<CommandRequest>): CommandRequest => {
+const commandRequest = (overrides: Partial<VersionOneCommandRequest>): VersionOneCommandRequest => {
   const ports = {
     process: processWith({ arguments: ["--repo", "/repo"] }),
     path: TABLE_PATH,

@@ -8,11 +8,12 @@ import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 import { repoRootOf } from "./check-locations.ts";
 import { printOutcome } from "../command-line/print-outcome.ts";
-import { type CommandRequest, withShownPaths } from "./run-check-command.ts";
+import type { VersionOneCommandRequest } from "../upgrade/version-one-records/version-one-command-request.ts";
+import { withShownPaths } from "./run-check-command.ts";
 import { runProject } from "./run-project.ts";
 
 const projectionsIn = (
-  request: CommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: Result<AbsolutePath, LoadFailure> },
+  request: VersionOneCommandRequest & { readonly repoRoot: AbsolutePath; readonly installRoot: Result<AbsolutePath, LoadFailure> },
 ): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
   if (request.installRoot.outcome === "failed") {
     return Promise.resolve(request.installRoot);
@@ -29,7 +30,7 @@ const projectionsIn = (
   });
 };
 
-const projectResult = (request: CommandRequest): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
+const projectResult = (request: VersionOneCommandRequest): Promise<Result<readonly ProjectionWrite[], LoadFailure>> => {
   const parsed = parseProjectArguments({ arguments: request.process.arguments });
   if (parsed.outcome === "failed") {
     return Promise.resolve(parsed);
@@ -44,7 +45,7 @@ const projectResult = (request: CommandRequest): Promise<Result<readonly Project
   );
 };
 
-export const runProjectCommand = (request: CommandRequest): Promise<void> =>
+export const runProjectCommand = (request: VersionOneCommandRequest): Promise<void> =>
   projectResult(request).then((projected) =>
     printOutcome({ process: request.process, outcome: projectCommandOutcome({ result: projected }) }),
   );

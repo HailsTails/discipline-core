@@ -5,7 +5,7 @@ import type { GitPort } from "../platform-ports/git-port.ts";
 import type { ModuleLoaderPort } from "../platform-ports/module-loader-port.ts";
 import { createPathPort } from "../platform-ports/path-port.ts";
 import type { ProcessPort } from "../platform-ports/process-port.ts";
-import type { CommandRequest } from "../check/run-check-command.ts";
+import type { CommandRequest } from "../command-line/command-request.ts";
 import { notReadyCommandOf, type VersionedHandler, versionChosenCommandOf } from "./version-chosen-command.ts";
 
 type Presences = { readonly versionOne: FilePresence; readonly versionTwo: FilePresence };
@@ -25,7 +25,7 @@ const processWith = (request: { readonly arguments: readonly string[] }): Proces
   exitWith: vi.fn<ProcessPort["exitWith"]>(),
 });
 
-const commandOver = (request: { readonly process: ProcessPort; readonly present: Presences }): CommandRequest => ({
+const commandOver = (request: { readonly process: ProcessPort; readonly present: Presences }): CommandRequest & { readonly exceptionRepositoryOf: ExceptionRepositoryOf } => ({
   process: request.process,
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: {
