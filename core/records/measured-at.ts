@@ -14,11 +14,10 @@ export type RunMeasurement = {
 export type RunMeasurements = {
   readonly runs: readonly RunMeasurement[];
   readonly tracked: readonly RepoPath[];
+  readonly excluded: readonly RepoPath[];
 };
 
-export type Measurement = "measured" | "not-measured" | "not-run" | "gone";
-
-export type EngineMeasurement = "measured-something" | "measured-nothing" | "nothing-selected" | "nothing-to-measure";
+export type Measurement = "measured" | "not-measured" | "not-run" | "gone" | "excluded";
 
 const runsOfCheck = (request: { readonly runs: readonly RunMeasurement[]; readonly check: Check }): readonly RunMeasurement[] =>
   request.runs.filter(
@@ -33,6 +32,11 @@ const pairIsAt = (request: { readonly pair: MeasuredPair; readonly reached: Reac
     ? "at"
     : "elsewhere";
 
+const pathOfPlace = (request: { readonly place: ReachedPlace["place"] }): RepoPath => (request.place.at === "file" ? request.place.file : request.place.module);
+
+const placeIsExcluded = (request: { readonly excluded: readonly RepoPath[]; readonly place: ReachedPlace["place"] }): "excluded" | "included" =>
+  request.excluded.some((path) => placeCovers({ place: { at: "module", module: path }, file: pathOfPlace(request) }) === "holds") ? "excluded" : "included";
+
 const placeExists = (request: { readonly tracked: readonly RepoPath[]; readonly place: ReachedPlace["place"] }): "exists" | "gone" =>
   request.tracked.some((file) => placeCovers({ place: request.place, file }) === "holds") ? "exists" : "gone";
 
@@ -42,18 +46,11 @@ export const measurementOf = (request: { readonly measurements: RunMeasurements;
   if (running.length === 0) {
     return "not-run";
   }
+  if (placeIsExcluded({ excluded: measurements.excluded, place: reached.place }) === "excluded") {
+    return "excluded";
+  }
   if (placeExists({ tracked: measurements.tracked, place: reached.place }) === "gone") {
     return "gone";
   }
   return running.some((run) => run.measured.some((pair) => pairIsAt({ pair, reached }) === "at")) ? "measured" : "not-measured";
-};
-
-export const engineMeasurementOf = (request: { readonly run: RunMeasurement; readonly inReach: readonly RepoPath[] }): EngineMeasurement => {
-  if (request.run.selected.length === 0) {
-    return "nothing-selected";
-  }
-  if (request.inReach.length === 0) {
-    return "nothing-to-measure";
-  }
-  return request.run.measured.length === 0 ? "measured-nothing" : "measured-something";
 };

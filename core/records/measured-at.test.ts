@@ -3,7 +3,7 @@ import type { Check, Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { engineMeasurementOf, measurementOf, type RunMeasurement, type RunMeasurements } from "./measured-at.ts";
+import { measurementOf, type RunMeasurement, type RunMeasurements } from "./measured-at.ts";
 import type { ReachedPlace } from "./record-reach.ts";
 
 const WALKER = mechanismIdSchema.parse("audit");
@@ -28,7 +28,7 @@ const AT_SRC: ReachedPlace = { check: CHECK, place: { at: "module", module: repo
 
 const TRACKED = [FILE_A, FILE_B];
 
-const measurementsOf = (request: { readonly runs: readonly RunMeasurement[] }): RunMeasurements => ({ runs: request.runs, tracked: TRACKED });
+const measurementsOf = (request: { readonly runs: readonly RunMeasurement[] }): RunMeasurements => ({ runs: request.runs, tracked: TRACKED, excluded: [] });
 
 const eslintRun = (request: Pick<RunMeasurement, "selected" | "measured">): RunMeasurement => ({ mechanism: ESLINT, ...request });
 
@@ -54,29 +54,21 @@ describe("measurementOf", () => {
   });
 
   it("says gone when the run selected the clause and the place is no longer in the tree", () => {
-    const measurements: RunMeasurements = { runs: [eslintRun({ selected: [CLAUSE], measured: [] })], tracked: [FILE_B] };
+    const measurements: RunMeasurements = { runs: [eslintRun({ selected: [CLAUSE], measured: [] })], tracked: [FILE_B], excluded: [] };
     expect(measurementOf({ measurements, reached: AT_FILE_A })).toBe("gone");
+  });
+
+  it("says excluded, not gone, when the settings exclude the file, which is also out of the tracked files", () => {
+    const measurements: RunMeasurements = { runs: [eslintRun({ selected: [CLAUSE], measured: [] })], tracked: [FILE_B], excluded: [FILE_A] };
+    expect(measurementOf({ measurements, reached: AT_FILE_A })).toBe("excluded");
+  });
+
+  it("says excluded for a module place inside an excluded folder", () => {
+    const measurements: RunMeasurements = { runs: [eslintRun({ selected: [CLAUSE], measured: [] })], tracked: [], excluded: [repoPathSchema.parse("src")] };
+    expect(measurementOf({ measurements, reached: { check: CHECK, place: { at: "module", module: repoPathSchema.parse("src/adapters") } } })).toBe("excluded");
   });
 
   it("says not-run when there are no runs", () => {
     expect(measurementOf({ measurements: measurementsOf({ runs: [] }), reached: AT_FILE_A })).toBe("not-run");
-  });
-});
-
-describe("engineMeasurementOf", () => {
-  it("says measured-nothing for a run with selected clauses that reported no measured pair", () => {
-    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [] }), inReach: TRACKED })).toBe("measured-nothing");
-  });
-
-  it("says measured-something for a run that reported a measured pair", () => {
-    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [{ clause: CLAUSE, file: FILE_A }] }), inReach: TRACKED })).toBe("measured-something");
-  });
-
-  it("says nothing-to-measure for a run with selected clauses when no file is in its reach", () => {
-    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [] }), inReach: [] })).toBe("nothing-to-measure");
-  });
-
-  it("says nothing-selected for a run with no selected clause", () => {
-    expect(engineMeasurementOf({ run: eslintRun({ selected: [], measured: [] }), inReach: TRACKED })).toBe("nothing-selected");
   });
 });

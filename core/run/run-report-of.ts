@@ -43,7 +43,7 @@ const partyOf = (request: { readonly finding: Finding }): PartyReport =>
 
 const answeringOf = (request: RunReportRequest): Answering => {
   const raised: readonly RaisedFinding[] = findingsOf(request).map((finding) => ({ finding, party: partyOf({ finding }) }));
-  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs, measurements: runMeasurementsOf({ runs: request.runs, selected: request.selection.selected, tracked: request.tracked }) });
+  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs, measurements: runMeasurementsOf({ runs: request.runs, selected: request.selection.selected, tracked: request.tracked, excluded: request.excluded }) });
 };
 
 const symptomsOf = (request: { readonly catalogue: SymptomCatalogue; readonly findings: readonly Finding[] }): readonly Symptom[] => {

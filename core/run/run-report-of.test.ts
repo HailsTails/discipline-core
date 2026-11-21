@@ -174,6 +174,20 @@ describe("runReportOf, findings and records", () => {
     ).toEqual({ ...EMPTY_REPORT, stale: [debt] });
   });
 
+  it("calls a record stale when the settings exclude its file, which is still in the repository but out of what is checked", () => {
+    const debt = debtAt({ file: FILE_A, index: 0 });
+    expect(
+      runReportOf({
+        ...REQUEST,
+        selection: SELECTS_CAST,
+        excluded: [FILE_A],
+        tracked: [FILE_B],
+        records: { ...NO_RECORDS, records: [debt] },
+        runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
+      }),
+    ).toEqual({ ...EMPTY_REPORT, excluded: [FILE_A], stale: [debt] });
+  });
+
   it("does not call a record stale when the engine measured other files but not its file", () => {
     const debt = debtAt({ file: FILE_B, index: 0 });
     expect(

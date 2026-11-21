@@ -4,7 +4,8 @@ import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
+import type { RunMeasurement } from "../records/measured-at.ts";
+import { engineMeasurementOf, engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
 
 const runWith = (request: { readonly mechanism: EngineRun["mechanism"]; readonly projection: EngineRun["projection"] }): EngineRun => ({
   mechanism: request.mechanism,
@@ -85,6 +86,34 @@ describe("engineUnmeasuredOf, an engine that measured nothing", () => {
       }),
     ).toEqual([]);
     expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" })], tracked: TRACKED, selected: [] })).toEqual([]);
+  });
+});
+
+const FILE_A = repoPathSchema.parse("src/a.ts");
+
+const FILE_B = repoPathSchema.parse("src/b.ts");
+
+const eslintRun = (request: Pick<RunMeasurement, "selected" | "measured">): RunMeasurement => ({ mechanism: ESLINT, ...request });
+
+const CLAUSE = clauseAddressSchema.parse("CD-2#cast-expressions");
+
+const IN_REACH = [FILE_A, FILE_B];
+
+describe("engineMeasurementOf", () => {
+  it("says measured-nothing for a run with selected clauses that reported no measured pair", () => {
+    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [] }), inReach: IN_REACH })).toBe("measured-nothing");
+  });
+
+  it("says measured-something for a run that reported a measured pair", () => {
+    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [{ clause: CLAUSE, file: FILE_A }] }), inReach: IN_REACH })).toBe("measured-something");
+  });
+
+  it("says nothing-to-measure for a run with selected clauses when no file is in its reach", () => {
+    expect(engineMeasurementOf({ run: eslintRun({ selected: [CLAUSE], measured: [] }), inReach: [] })).toBe("nothing-to-measure");
+  });
+
+  it("says nothing-selected for a run with no selected clause", () => {
+    expect(engineMeasurementOf({ run: eslintRun({ selected: [], measured: [] }), inReach: IN_REACH })).toBe("nothing-selected");
   });
 });
 
