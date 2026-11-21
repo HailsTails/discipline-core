@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { repoPathSchema } from "../core/values/repo-path.ts";
-import { checksDeclarationText, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
+import { checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
+import { INSTALLED_DECLARATION_TEXT as DECLARATION_TEXT } from "./installed-declaration-text.ts";
 import { type ConsumerFiles, consumerDiagnosticsOn, consumerLocationsOn, ESLINT_LINES, RESOLUTIONS } from "./consumer-typing.ts";
 
 const PLUGIN_SPECIFIER = "@hailstails/hone/eslint-plugin";
-
 const CHECKS = [
   { symptom: "S-1", check: "C-1", ruleId: "hone/S-1-C-1", options: [{ maximum: 3 }] },
   { symptom: "S-2", check: "C-2", ruleId: "hone/S-2-C-2", options: [] },
@@ -40,7 +40,7 @@ export const first: string = hone[0];
 export const count: string = hone.length;
 `;
 
-const DECLARATIONS: ConsumerFiles = { "hone.eslint.d.mts": checksDeclarationText(), "packages/a/hone.eslint.d.mts": checksDeclarationText() };
+const DECLARATIONS: ConsumerFiles = { "hone.eslint.d.mts": DECLARATION_TEXT, "packages/a/hone.eslint.d.mts": DECLARATION_TEXT };
 
 const NO_DECLARATIONS: ConsumerFiles = {};
 

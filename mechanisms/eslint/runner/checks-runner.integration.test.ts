@@ -15,7 +15,8 @@ import { createDefaultScratchFilesPort } from "../../../scripts/install-proof-po
 import { scratchRepositoriesUnder } from "../../../tests/scratch-repositories.ts";
 import { repositoryWithSubfolder } from "../../../tests/subfolder-scratch-repository.ts";
 import ESLINT_CD_14_PIECE from "../CD-14/piece.json" with { type: "json" };
-import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksDeclarationText, checksProjectionText } from "./checks-projection.ts";
+import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksProjectionText } from "./checks-projection.ts";
+import { INSTALLED_DECLARATION_TEXT as DECLARATION_TEXT } from "../../../tests/installed-declaration-text.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { createChecksRunner } from "./checks-runner.ts";
 
@@ -56,9 +57,9 @@ const repositoryHoldingSub = (request: { readonly files: Readonly<Record<string,
     repositories,
     scratch,
     fileText,
-    files: { [CHECKS_DECLARATION_PATH]: checksDeclarationText(), ...request.files },
+    files: { [CHECKS_DECLARATION_PATH]: DECLARATION_TEXT, ...request.files },
     subfolder: "sub",
-    subfolderFiles: { [CHECKS_DECLARATION_PATH]: checksDeclarationText(), ...request.sub },
+    subfolderFiles: { [CHECKS_DECLARATION_PATH]: DECLARATION_TEXT, ...request.sub },
   });
 
 afterAll(() => {
@@ -325,9 +326,9 @@ const SUB_SLICE = repoPathSchema.parse("sub/hone.eslint.mjs");
 
 const SUB_DECLARATION_PATH = repoPathSchema.parse(`sub/${CHECKS_DECLARATION_PATH}`);
 
-const ROOT_DECLARATION = { file: CHECKS_DECLARATION_PATH, text: checksDeclarationText() };
+const ROOT_DECLARATION = { file: CHECKS_DECLARATION_PATH, text: DECLARATION_TEXT };
 
-const SUB_DECLARATION = { file: SUB_DECLARATION_PATH, text: checksDeclarationText() };
+const SUB_DECLARATION = { file: SUB_DECLARATION_PATH, text: DECLARATION_TEXT };
 
 const SUB_PROJECTION_TEXT = checksProjectionText({ pluginImport: "../../../api/eslint-plugin.ts", checks: [CLASS_PROJECTED], answered: [] });
 

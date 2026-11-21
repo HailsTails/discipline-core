@@ -13,6 +13,8 @@ import {
   relativeImportOfAnyForm,
   relativeImportReaching,
 } from "../../tests/confinement.ts";
+import { INSTALLED_DECLARATION_TEXT } from "../../tests/installed-declaration-text.ts";
+import { withoutProjectionOutputs } from "../../tests/without-projection-outputs.ts";
 
 declare global {
   interface ImportMeta {
@@ -23,7 +25,7 @@ declare global {
   }
 }
 
-const sourcesOutsideMechanisms = import.meta.glob(
+const loadedOutsideMechanisms = import.meta.glob(
   [
     "./**/*.{ts,mts,cts,tsx,js,mjs,cjs}",
     "!./node_modules/**",
@@ -51,6 +53,10 @@ const sourcesOutsideMechanisms = import.meta.glob(
   ],
   { base: "../../", query: "?raw", import: "default", eager: true },
 );
+
+const sourcesOutsideMechanisms = withoutProjectionOutputs({ sources: loadedOutsideMechanisms });
+
+const UPGRADED_ROOT_DECLARATION: Readonly<Record<string, string>> = { "./hone.eslint.d.mts": INSTALLED_DECLARATION_TEXT };
 
 const runnerSources = import.meta.glob(
   [
@@ -275,6 +281,15 @@ describe("Vendor confinement over what this repository's own Hone source imports
 
   it("finds every file outside the mechanisms, platform ports, probe pieces and tests importing only relative paths and zod", () => {
     expect(importsOutside({ sources: sourcesOutsideMechanisms, allowed: [relativeImport, zodImport] })).toEqual([]);
+  });
+
+  it("finds an upgraded repository's root declaration, which hone project writes, outside that scan, so the files it holds stay as they were", () => {
+    expect(
+      importsOutside({
+        sources: withoutProjectionOutputs({ sources: UPGRADED_ROOT_DECLARATION }),
+        allowed: [relativeImport, zodImport],
+      }),
+    ).toEqual([]);
   });
 
   it("finds every runner file outside the wrapping files importing only relative paths and zod", () => {

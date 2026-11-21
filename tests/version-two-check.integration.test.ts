@@ -8,7 +8,8 @@ import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loa
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
-import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksDeclarationText, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
+import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
+import { INSTALLED_DECLARATION_TEXT as DECLARATION_TEXT } from "./installed-declaration-text.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
 import { trackedRepositoryWith } from "./tracked-scratch-repository.ts";
@@ -83,7 +84,7 @@ describe("the tool's commands on a repository holding hone.config.json, through 
         "hone.config.json": CONFIG,
         "eslint.config.mjs": PROJECTION_IMPORT,
         [CHECKS_PROJECTION_PATH]: PROJECTION,
-        [CHECKS_DECLARATION_PATH]: checksDeclarationText(),
+        [CHECKS_DECLARATION_PATH]: DECLARATION_TEXT,
         "kept.ts": "export class Kept {}\n",
       },
     });
@@ -98,7 +99,7 @@ describe("the tool's commands on a repository holding hone.config.json, through 
         "hone.config.json": CONFIG,
         "eslint.config.mjs": PROJECTION_IMPORT,
         [CHECKS_PROJECTION_PATH]: PROJECTION,
-        [CHECKS_DECLARATION_PATH]: checksDeclarationText(),
+        [CHECKS_DECLARATION_PATH]: DECLARATION_TEXT,
         "kept.ts": "export class Kept {}\n",
       },
     });

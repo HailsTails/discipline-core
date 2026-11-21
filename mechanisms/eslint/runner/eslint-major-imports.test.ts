@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type ImportAllowance, importFactsReaching, importNotMatching, importsOutside, importsWithoutFacts } from "../../../tests/confinement.ts";
+import { INSTALLED_DECLARATION_TEXT } from "../../../tests/installed-declaration-text.ts";
+import { withoutProjectionOutputs } from "../../../tests/without-projection-outputs.ts";
 
 declare global {
   interface ImportMeta {
@@ -14,7 +16,7 @@ const ESLINT_MAJOR_SPECIFIER = /^eslint(?:-9)?(?:\/|$)/;
 
 const notAnEslintMajor: ImportAllowance = importNotMatching({ specifier: ESLINT_MAJOR_SPECIFIER });
 
-const outsideTheBoundaries = import.meta.glob(
+const loadedOutsideTheBoundaries = import.meta.glob(
   [
     "./**/*.{ts,mts,cts,js,mjs,cjs}",
     "!./node_modules/**",
@@ -26,6 +28,10 @@ const outsideTheBoundaries = import.meta.glob(
   ],
   { base: "../../../", query: "?raw", import: "default", eager: true },
 );
+
+const outsideTheBoundaries = withoutProjectionOutputs({ sources: loadedOutsideTheBoundaries });
+
+const UPGRADED_ROOT_DECLARATION: Readonly<Record<string, string>> = { "./hone.eslint.d.mts": INSTALLED_DECLARATION_TEXT };
 
 const insideTheBoundaries = import.meta.glob(
   ["./mechanisms/eslint/runner/eslint-9/*.ts", "./mechanisms/eslint/runner/eslint-10/*.ts", "!./mechanisms/eslint/runner/eslint-*/*.test.ts"],
@@ -56,6 +62,12 @@ describe("where ESLint is imported, read as build-time raw modules (CD-47: that 
       { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9", form: "value", names: ["ESLint"] },
       { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
     ]);
+  });
+
+  it("finds an upgraded repository's root declaration, which hone project writes, outside every scan of the files outside the two boundaries, so the facts above stay as they were", () => {
+    expect(
+      importsOutside({ sources: withoutProjectionOutputs({ sources: UPGRADED_ROOT_DECLARATION }), allowed: [notAnEslintMajor] }),
+    ).toEqual([]);
   });
 
   it("finds no static import or re-export of eslint or eslint-9 outside the two boundaries that the facts above fail to hold", () => {
