@@ -191,6 +191,23 @@ describe("versionTwoPruneDebtCommandOf", () => {
     expect(ran.repository.filesHeld()).toEqual([]);
   });
 
+  it("keeps the debt, printing nothing, when the engine measuring its check was not in effect, since nothing was measured to show it stale", async () => {
+    const ran = await ranWith({
+      handler: versionTwoPruneDebtCommandOf,
+      arguments: ["--repo", "/repo"],
+      stages: stagesGiving({
+        records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: { ...NO_RECORDS, records: [HELD_DEBT] } }),
+        engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [{ ...runOf({ hits: [] }), projection: "not-included" }] }),
+      }),
+      files: { [DEBT_FILE]: DEBT_DOCUMENT },
+    });
+    expect({ writes: ran.writes, exits: ran.exits, filesHeld: ran.repository.filesHeld() }).toEqual({
+      writes: [[{ text: "" }]],
+      exits: [[{ code: 0 }]],
+      filesHeld: [DEBT_FILE],
+    });
+  });
+
   it("measures the change only when debt is held, as the check does, and prints nothing when none is shown", async () => {
     const stages = stagesGiving({});
     const ran = await ranWith({ handler: versionTwoPruneDebtCommandOf, arguments: ["--repo", "/repo"], stages, files: {} });

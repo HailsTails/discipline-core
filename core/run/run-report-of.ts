@@ -15,7 +15,7 @@ import type { TouchedSet } from "../touched-set/touched-set.ts";
 import type { Assessment } from "../values/assessment.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
-import { engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
+import { engineProblemsOf, enginesNotMeasuredOf, engineUnmeasuredOf } from "./engine-states.ts";
 import { checksOfClauses, editionsOf } from "./selection-checks.ts";
 
 export type RunReportRequest = {
@@ -42,7 +42,7 @@ const partyOf = (request: { readonly finding: Finding }): PartyReport =>
 
 const answeringOf = (request: RunReportRequest): Answering => {
   const raised: readonly RaisedFinding[] = findingsOf(request).map((finding) => ({ finding, party: partyOf({ finding }) }));
-  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs });
+  return answerFindings({ catalogue: request.catalogue, records: request.records.records, findings: raised, touched: request.touched, runs: request.runs, unmeasuredEngines: enginesNotMeasuredOf({ runs: request.runs }) });
 };
 
 const symptomsOf = (request: { readonly catalogue: SymptomCatalogue; readonly findings: readonly Finding[] }): readonly Symptom[] => {
