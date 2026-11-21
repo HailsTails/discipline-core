@@ -24,9 +24,14 @@ export type RehomedImports = {
 
 const OUTSIDE_THE_ROOT = "..";
 
+const OUTSIDE_THE_ROOT_PREFIX = `${OUTSIDE_THE_ROOT}/`;
+
+const leavesTheRoot = (request: { readonly path: string }): "leaves" | "stays" =>
+  request.path === OUTSIDE_THE_ROOT || request.path.startsWith(OUTSIDE_THE_ROOT_PREFIX) ? "leaves" : "stays";
+
 const placeOfTarget = (request: Omit<RehomedImports, "text"> & { readonly target: string }): "inside-the-fixture" | "outside-the-fixture" => {
   const inside = request.path.relative({ from: request.fixtureRoot, to: request.target });
-  return inside.relation === "within-root" && !inside.path.startsWith(OUTSIDE_THE_ROOT) ? "inside-the-fixture" : "outside-the-fixture";
+  return inside.relation === "within-root" && leavesTheRoot({ path: inside.path }) === "stays" ? "inside-the-fixture" : "outside-the-fixture";
 };
 
 const rehomedSpecifier = (request: Omit<RehomedImports, "text"> & { readonly specifier: string }): string => {
@@ -115,11 +120,29 @@ const copiedEntry = (request: EntryRequest): void => {
   copiedFile(request);
 };
 
+export type TextFiles = Readonly<Record<string, string>>;
+
+export const NO_TEXT_FILES: TextFiles = {};
+
+export type RestoredFixture = { readonly fixtureRoot: AbsolutePath; readonly textFiles: TextFiles };
+
 export type RestoredFixtureRepositories = {
-  readonly restoredFrom: (request: { readonly fixtureRoot: AbsolutePath }) => AbsolutePath;
+  readonly restoredFrom: (request: RestoredFixture) => AbsolutePath;
 };
 
-const restoredOnce = (request: Dependencies & { readonly fixtureRoot: AbsolutePath }): AbsolutePath => {
+const writtenText = (request: Dependencies & { readonly repo: AbsolutePath; readonly file: string; readonly text: string }): void => {
+  const target = `${request.repo}/${request.file}`;
+  const made = request.scratch.makeDirectory({ path: request.path.directoryOf({ path: target }) });
+  if (made.outcome !== "ok") {
+    failed({ what: `a folder for the fixture text could not be made for ${request.file}`, detail: made.error.detail });
+  }
+  const written = request.fileText.write({ path: target, text: request.text });
+  if (written.outcome !== "ok") {
+    failed({ what: `a fixture text could not be written at ${target}`, detail: written.error.detail });
+  }
+};
+
+const restoredOnce = (request: Dependencies & RestoredFixture): AbsolutePath => {
   const listed = request.scratch.listTree({ path: request.fixtureRoot });
   if (listed.outcome !== "ok") {
     return failed({ what: `the fixture at ${request.fixtureRoot} could not be listed`, detail: listed.error.detail });
@@ -130,20 +153,24 @@ const restoredOnce = (request: Dependencies & { readonly fixtureRoot: AbsolutePa
   [...folders, ...files].forEach((entry) => {
     copiedEntry({ ...request, repo, entry });
   });
+  Object.entries(request.textFiles).forEach(([file, text]) => {
+    writtenText({ ...request, repo, file, text });
+  });
   const resolved = request.path.resolve({ path: repo });
   return resolved.outcome === "ok" ? resolved.value : failed({ what: `the restored repository at ${repo} has no absolute path`, detail: resolved.error.path });
 };
 
 export const restoredFixtureRepositoriesOver = (dependencies: Dependencies): RestoredFixtureRepositories => {
-  const restoredByFixture = new Map<AbsolutePath, AbsolutePath>();
+  const restoredByFixture = new Map<string, AbsolutePath>();
   return {
-    restoredFrom: ({ fixtureRoot }) => {
-      const known = restoredByFixture.get(fixtureRoot);
+    restoredFrom: (fixture) => {
+      const key = JSON.stringify([fixture.fixtureRoot, fixture.textFiles]);
+      const known = restoredByFixture.get(key);
       if (known !== undefined) {
         return known;
       }
-      const repo = restoredOnce({ ...dependencies, fixtureRoot });
-      restoredByFixture.set(fixtureRoot, repo);
+      const repo = restoredOnce({ ...dependencies, ...fixture });
+      restoredByFixture.set(key, repo);
       return repo;
     },
   };
