@@ -54,7 +54,7 @@ describe("unmeasuredLine", () => {
     {
       name: "an engine whose projection is not written",
       unmeasured: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "missing" },
-      line: `engine-not-run eslint missing: hone.eslint.mjs is not written; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
+      line: `engine-not-run eslint missing: hone.eslint.mjs is not written; run ${PROJECT_COMMAND} and commit every file it writes`,
     },
     { name: "an engine whose projection is not in effect", unmeasured: NOT_INCLUDED, line: NOT_INCLUDED_TEXT },
     { name: "an engine whose projection is not in effect under nested configurations", unmeasured: NESTED_NOT_INCLUDED, line: `${NOT_INCLUDED_TEXT}${NESTED_NOTE}` },
@@ -76,17 +76,22 @@ describe("projectionProblemLine", () => {
     {
       name: "an out-of-date projection",
       problem: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" },
-      line: `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
+      line: `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every file it writes`,
     },
     {
       name: "an out-of-date slice",
       problem: { scope: "slice", engine: ESLINT_ENGINE, state: "out-of-date", slice: SLICE },
-      line: `eslint out-of-date packages/web/hone.eslint.mjs: that slice differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
+      line: `eslint out-of-date packages/web/hone.eslint.mjs: that slice differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every file it writes`,
     },
     {
       name: "a missing slice",
       problem: ESLINT_SLICE_PROBLEM,
-      line: `eslint missing packages/web/hone.eslint.mjs: that slice is not written; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
+      line: `eslint missing packages/web/hone.eslint.mjs: that slice is not written; run ${PROJECT_COMMAND} and commit every file it writes`,
+    },
+    {
+      name: "a missing declaration of a slice's type",
+      problem: { scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: repoPathSchema.parse("packages/web/hone.eslint.d.mts") },
+      line: `eslint missing packages/web/hone.eslint.d.mts: that slice is not written; run ${PROJECT_COMMAND} and commit every file it writes`,
     },
     {
       name: "a slice with no configuration to load it",

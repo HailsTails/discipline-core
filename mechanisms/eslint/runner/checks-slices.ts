@@ -2,7 +2,7 @@ import type { EslintConfigLookup } from "../../../core/values/eslint-config-look
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { outsideNestedRepositories, packageConfigFilesOf } from "./checks-config-roots.ts";
 import { directoryOf } from "./checks-paths.ts";
-import { type AnsweredFile, CHECKS_PROJECTION_PATH } from "./checks-projection.ts";
+import { type AnsweredFile, CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH } from "./checks-projection.ts";
 
 export type ChecksSlice = { readonly directory: RepoPath | undefined; readonly file: RepoPath };
 
@@ -14,6 +14,9 @@ const packageSliceOf = (request: { readonly directory: string }): ChecksSlice =>
   directory: repoPathSchema.parse(request.directory),
   file: repoPathSchema.parse(`${request.directory}/${CHECKS_PROJECTION_PATH}`),
 });
+
+export const declarationPathOf = (request: { readonly slice: ChecksSlice }): RepoPath =>
+  request.slice.directory === undefined ? CHECKS_DECLARATION_PATH : repoPathSchema.parse(`${request.slice.directory}/${CHECKS_DECLARATION_PATH}`);
 
 export const slicesOf = (request: {
   readonly trackedPaths: readonly RepoPath[];

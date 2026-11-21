@@ -753,14 +753,14 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `unmeasured` | `forfeiture-unmeasured base-git-failed <revision>: git could not list the files changed since that revision and said <git message>; Hone needs that revision and the history back to where this branch left it, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere` |
 | `unmeasured` | `import-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main` |
 | `unmeasured` | `import-unmeasured base-git-failed <revision>: git could not read hone-records at that revision and said <git message>; Hone needs hone-records as it was at that revision` |
-| `unmeasured` | `engine-not-run <engine> missing: hone.<engine>.mjs is not written; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `unmeasured` | `engine-not-run <engine> missing: hone.<engine>.mjs is not written; run <project command> and commit every file it writes` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
 | `unmeasured` | `engine-not-run <engine> not-included: the <engine> configuration leaves the projection out of effect for a file under check; spread the default export of hone.<engine>.mjs, or of a package's own hone.<engine>.mjs in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), or, where a tool such as sku generates the configuration, last in the configuration the tool takes; the <engine> lines under projectionProblems name the package slices involved; <folders> hold their own hone.config.json, and nested Hone configurations are not supported yet (https://github.com/HailsTails/hone/issues/72): to govern such a folder from this repository, remove its hone.config.json and keep its records here, then run <project command>, which writes its slice` |
-| `projectionProblems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
-| `projectionProblems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every hone.<engine>.mjs it writes` |
-| `projectionProblems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every hone.<engine>.mjs it writes` |
+| `projectionProblems` | `<engine> out-of-date: hone.<engine>.mjs differs from what hone project writes now; run <project command> and commit every file it writes` |
+| `projectionProblems` | `<engine> out-of-date <slice>: that slice differs from what hone project writes now; run <project command> and commit every file it writes` |
+| `projectionProblems` | `<engine> missing <slice>: that slice is not written; run <project command> and commit every file it writes` |
 | `projectionProblems` | `<engine> unconfigured <slice>: <folder> has no <engine> configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check` |
 | `assessment` | `forfeiture elsewhere: 1 debt record not checked for forfeiture in this run` |
 | `assessment` | `forfeiture elsewhere: <count> debt records not checked for forfeiture in this run` |
@@ -840,7 +840,7 @@ Checks a repository against the checks hone.config.json lists, answers its findi
 
 commands:
   check        check the repository against the checks hone.config.json lists and print the report, ending in its verdict
-  project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
+  project      write the native configuration, hone.<engine>.mjs, and any file that types it beside it, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
   authorise    write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
@@ -879,7 +879,7 @@ exit codes:
 ```text
 usage: hone project --repo <dir>
 
-write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
+write the native configuration, hone.<engine>.mjs, and any file that types it beside it, for each engine that runs a listed check through one, printing each file as written or unchanged
 
 options:
   --repo <dir>

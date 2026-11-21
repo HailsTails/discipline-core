@@ -1,3 +1,4 @@
+import { projectionFileNameOf } from "../../../core/values/projection-file-name.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { enabledRuleEntry } from "./eslint-instance.ts";
 import type { RuleOptions } from "./eslint-piece-settings-schema.ts";
@@ -12,7 +13,7 @@ type AnsweredGroup = { readonly reaches: readonly string[]; readonly files: read
 
 type RuleEntry = { readonly ruleId: string; readonly entry: string };
 
-export const CHECKS_PROJECTION_PATH: RepoPath = repoPathSchema.parse("hone.eslint.mjs");
+export const CHECKS_PROJECTION_PATH: RepoPath = repoPathSchema.parse(projectionFileNameOf({ engineName: "eslint" }));
 
 const SOURCE_FILES = "**/*.{ts,tsx,mts,cts}";
 
@@ -83,3 +84,10 @@ export const checksProjectionText = (request: {
   const blocks = [checksBlock(request), ...answeredGroupsOf(request).map((group) => answeredBlock({ group, checks: request.checks }))];
   return `import ${CHECKS_PLUGIN_NAMESPACE} from ${quoted({ text: request.pluginImport })};\nexport default [${blocks.join(",\n")}];\n`;
 };
+
+export const CHECKS_DECLARATION_PATH: RepoPath = repoPathSchema.parse("hone.eslint.d.mts");
+
+const ESLINT_PACKAGE = "eslint";
+
+export const checksDeclarationText = (): string =>
+  `import type { Linter } from ${quoted({ text: ESLINT_PACKAGE })};\ndeclare const projection: Linter.Config[];\nexport default projection;\n`;

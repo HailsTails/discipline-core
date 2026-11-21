@@ -27,7 +27,7 @@ Checks a repository against the checks hone.config.json lists, answers its findi
 
 commands:
   check        check the repository against the checks hone.config.json lists and print the report, ending in its verdict
-  project      write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged
+  project      write the native configuration, hone.<engine>.mjs, and any file that types it beside it, for each engine that runs a listed check through one, printing each file as written or unchanged
   record-debt  add debt to hone-records for each symptom and file the check finds, printing each and what was done
   prune-debt   remove from hone-records the debt a run shows is paid, stale or forfeited, printing each debt removed
   authorise    write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done

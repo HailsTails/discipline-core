@@ -115,7 +115,7 @@ describe("hone upgrade over a real repository, through the real ports", () => {
         writes: [
           [
             {
-              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
             },
           ],
         ],
@@ -167,7 +167,7 @@ describe("hone upgrade over a real repository, through the real ports", () => {
         writes: [
           [
             {
-              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions/file-carve-outs/cd-14.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\nremoved discipline-exceptions/file-carve-outs\nremoved discipline-exceptions\n",
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions/file-carve-outs/cd-14.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\nremoved discipline-exceptions/file-carve-outs\nremoved discipline-exceptions\n",
             },
           ],
         ],
@@ -185,10 +185,10 @@ describe("hone upgrade over a real repository, through the real ports", () => {
     const upgraded = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
     expect({ upgraded, after: listedPathsOf({ repo }) }).toEqual({
       upgraded: {
-        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
         exits: [[{ code: 0 }]],
       },
-      after: ["eslint.config.mjs", "hone.config.json", "hone.eslint.mjs", "src/", "src/kept.ts"],
+      after: ["eslint.config.mjs", "hone.config.json", "hone.eslint.d.mts", "hone.eslint.mjs", "src/", "src/kept.ts"],
     });
   });
 
@@ -203,13 +203,13 @@ describe("hone upgrade over a real repository, through the real ports", () => {
         writes: [
           [
             {
-              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions/file-carve-outs/cd-14.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\nremoved discipline-exceptions/authorised-locations\nremoved discipline-exceptions/file-carve-outs\nremoved discipline-exceptions\n",
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions/file-carve-outs/cd-14.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\nremoved discipline-exceptions/authorised-locations\nremoved discipline-exceptions/file-carve-outs\nremoved discipline-exceptions\n",
             },
           ],
         ],
         exits: [[{ code: 0 }]],
       },
-      after: ["eslint.config.mjs", "hone-records/", "hone-records/debt/", "hone-records/debt/authored-class-or-this.json", "hone.config.json", "hone.eslint.mjs", "src/", "src/kept.ts"],
+      after: ["eslint.config.mjs", "hone-records/", "hone-records/debt/", "hone-records/debt/authored-class-or-this.json", "hone.config.json", "hone.eslint.d.mts", "hone.eslint.mjs", "src/", "src/kept.ts"],
     });
   });
 });
@@ -273,7 +273,7 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         writes: [
           [
             {
-              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nrewrote eslint.config.mjs\nrewrote packages/a/eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n",
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nwrote hone.eslint.d.mts\nwrote packages/a/hone.eslint.d.mts\nrewrote eslint.config.mjs\nrewrote packages/a/eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n",
             },
           ],
         ],
@@ -296,10 +296,12 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         "hone-records/debt/",
         "hone-records/debt/authored-class-or-this.json",
         "hone.config.json",
+        "hone.eslint.d.mts",
         "hone.eslint.mjs",
         "packages/",
         "packages/a/",
         "packages/a/eslint.config.mjs",
+        "packages/a/hone.eslint.d.mts",
         "packages/a/hone.eslint.mjs",
         "packages/a/kept.ts",
       ],
@@ -322,7 +324,7 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         writes: [
           [
             {
-              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nrewrote eslint.config.mjs\nrewrote packages/a/eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n",
+              text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nwrote hone.eslint.d.mts\nwrote packages/a/hone.eslint.d.mts\nrewrote eslint.config.mjs\nrewrote packages/a/eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n",
             },
           ],
         ],
@@ -358,7 +360,7 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
     const configuration = fileText.read({ path: `${repo}/hone.config.json` });
     expect({ upgraded, checked, configuration, after: listedPathsOf({ repo }) }).toEqual({
       upgraded: {
-        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/debt/authored-class-or-this.json\nwrote hone.eslint.mjs\nwrote packages/a/hone.eslint.mjs\nwrote hone.eslint.d.mts\nwrote packages/a/hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved packages/a/disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
         exits: [[{ code: 0 }]],
       },
       checked: {
@@ -376,11 +378,13 @@ describe.each(ESLINT_LINES)("hone upgrade over a real repository whose ESLint sl
         "hone-records/debt/",
         "hone-records/debt/authored-class-or-this.json",
         "hone.config.json",
+        "hone.eslint.d.mts",
         "hone.eslint.mjs",
         "kept.ts",
         "packages/",
         "packages/a/",
         "packages/a/eslint.config.mjs",
+        "packages/a/hone.eslint.d.mts",
         "packages/a/hone.eslint.mjs",
         "packages/a/kept.ts",
       ],
@@ -510,7 +514,7 @@ describe("hone upgrade over a real repository that selects only some disciplines
       writes: [
         [
           {
-            text: "upgraded to version 2\nmarked claimed-type#unlisted-cast-site not-adopted: its discipline was not selected in version 1\nmarked claimed-type#non-null-assertions not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
+            text: "upgraded to version 2\nmarked claimed-type#unlisted-cast-site not-adopted: its discipline was not selected in version 1\nmarked claimed-type#non-null-assertions not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
           },
         ],
       ],
@@ -531,7 +535,7 @@ describe("hone upgrade over a real repository that selects only CD-10", () => {
       writes: [
         [
           {
-            text: "upgraded to version 2\nmarked branch-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked throw-or-catch-in-a-test#try-block not-adopted: its discipline was not selected in version 1\nmarked rebinding#test-body not-adopted: its discipline was not selected in version 1\nmarked computed-value-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked text-past-its-reader#test-body not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#logic-in-a-passed-function not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#stub-implementation not-adopted: its discipline was not selected in version 1\nmarked rebinding#parameter-reassignment not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
+            text: "upgraded to version 2\nmarked branch-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked throw-or-catch-in-a-test#try-block not-adopted: its discipline was not selected in version 1\nmarked rebinding#test-body not-adopted: its discipline was not selected in version 1\nmarked computed-value-in-a-test#test-body not-adopted: its discipline was not selected in version 1\nmarked text-past-its-reader#test-body not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#logic-in-a-passed-function not-adopted: its discipline was not selected in version 1\nmarked double-with-a-body#stub-implementation not-adopted: its discipline was not selected in version 1\nmarked rebinding#parameter-reassignment not-adopted: its discipline was not selected in version 1\nwrote hone.config.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n",
           },
         ],
       ],
@@ -553,7 +557,7 @@ describe("hone upgrade over a real repository whose clause is bound to the audit
     const checked = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"], modules: DEFAULT_MODULES });
     expect({ upgraded, checked }).toEqual({
       upgraded: {
-        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/authorised-locations/claimed-type.json\nwrote hone-records/debt/claimed-type.json\nwrote hone-records/debt/untyped-value.json\nwrote hone.eslint.mjs\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
+        writes: [[{ text: "upgraded to version 2\nwrote hone.config.json\nwrote hone-records/authorised-locations/claimed-type.json\nwrote hone-records/debt/claimed-type.json\nwrote hone-records/debt/untyped-value.json\nwrote hone.eslint.mjs\nwrote hone.eslint.d.mts\nrewrote eslint.config.mjs\nremoved discipline-exceptions.json\nremoved disciplines.eslint.mjs\nremoved disciplines.json\n" }]],
         exits: [[{ code: 0 }]],
       },
       checked: {

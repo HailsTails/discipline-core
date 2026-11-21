@@ -26,10 +26,12 @@ export type VersionOneReading = {
 
 export type ProjectionFailure = { readonly kind: "projection-failed"; readonly failure: RunLoadFailure };
 
+export type PlannedProjection = { readonly files: readonly PlannedRepoFile[]; readonly projections: readonly PlannedRepoFile[] };
+
 export type ProjectionFilesOf = (request: {
   readonly settings: SettingsFile;
   readonly documents: readonly MappedRecordsDocument[];
-}) => Promise<Result<readonly PlannedRepoFile[], ProjectionFailure>>;
+}) => Promise<Result<PlannedProjection, ProjectionFailure>>;
 
 export type UpgradePlan = {
   readonly markedNotAdopted: readonly MarkedNotAdopted[];
@@ -87,8 +89,8 @@ export const upgradePlanOf = async (request: UpgradePlanRequest): Promise<Result
     value: {
       markedNotAdopted: settings.value.markedNotAdopted,
       inputs: inputs.value,
-      files: [{ file: SETTINGS_FILE, text: settingsTextOf({ settings: settings.value.settings }) }, ...recordFilesOf({ documents }), ...projected.value],
-      projected: projected.value,
+      files: [{ file: SETTINGS_FILE, text: settingsTextOf({ settings: settings.value.settings }) }, ...recordFilesOf({ documents }), ...projected.value.files],
+      projected: projected.value.projections,
     },
   };
 };

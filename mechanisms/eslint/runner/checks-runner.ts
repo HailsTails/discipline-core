@@ -9,7 +9,7 @@ import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
 import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
-import { checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
+import { checksDeclarationText, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
 import { nestedVersionTwoFoldersOf, nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
@@ -22,7 +22,7 @@ import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 import { configLookupDeclaring, folderConfigurationOf, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
-import { answeredWithin, type ChecksSlice, type ChecksSlices, slicesOf } from "./checks-slices.ts";
+import { answeredWithin, type ChecksSlice, type ChecksSlices, declarationPathOf, slicesOf } from "./checks-slices.ts";
 import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
 import type { EslintConfigLookup } from "../../../core/values/eslint-config-lookup.ts";
@@ -138,7 +138,7 @@ type SliceRequest = {
   readonly slices: ChecksSlices;
 };
 
-type ExpectedFiles = { readonly root: ProjectedFile; readonly packages: readonly ProjectedFile[] };
+type ExpectedFiles = { readonly root: ProjectedFile; readonly packages: readonly ProjectedFile[]; readonly declarations: readonly ProjectedFile[] };
 
 type ProjectionStatus = { readonly projection: GeneratedState; readonly slices: readonly ChecksSliceProblem[] };
 
@@ -169,13 +169,24 @@ const expectedSliceOf = (request: Omit<SliceRequest, "slices"> & { readonly slic
     : toolFailed({ detail: `the Hone plugin cannot be imported from ${importing.value}` });
 };
 
+const expectedDeclarationOf = (request: { readonly slice: ChecksSlice }): ProjectedFile => ({ file: declarationPathOf(request), text: checksDeclarationText() });
+
 const expectedFilesOf = (request: SliceRequest): Result<ExpectedFiles, RunnerFailure> => {
   const root = expectedSliceOf({ ...request, slice: request.slices.root });
   if (root.outcome === "failed") {
     return root;
   }
   const packages = gatheredOutcomes({ outcomes: request.slices.packages.map((slice) => listedOutcome({ outcome: expectedSliceOf({ ...request, slice }) })) });
-  return packages.outcome === "failed" ? packages : { outcome: "ok", value: { root: root.value, packages: packages.value } };
+  return packages.outcome === "failed"
+    ? packages
+    : {
+        outcome: "ok",
+        value: {
+          root: root.value,
+          packages: packages.value,
+          declarations: [request.slices.root, ...request.slices.packages].map((slice) => expectedDeclarationOf({ slice })),
+        },
+      };
 };
 
 const sliceStateOf = (request: { readonly states: ProjectionStates; readonly expected: ProjectedFile }): Result<GeneratedState, RunnerFailure> => {
@@ -196,9 +207,9 @@ const currentProjectionStatus = (request: SliceRequest): Result<ProjectionStatus
   if (expected.outcome === "failed") {
     return expected;
   }
-  const { root, packages } = expected.value;
+  const { root, packages, declarations } = expected.value;
   const repository = request.ports.repositoryAt({ repoRoot: request.run.repoRoot });
-  const states = repository.projectionFiles.currentOf({ files: [root.file, ...packages.map((file) => file.file)] });
+  const states = repository.projectionFiles.currentOf({ files: [root.file, ...packages.map((file) => file.file), ...declarations.map((file) => file.file)] });
   if (states.outcome === "failed") {
     return states;
   }
@@ -206,7 +217,7 @@ const currentProjectionStatus = (request: SliceRequest): Result<ProjectionStatus
   if (rootState.outcome === "failed") {
     return rootState;
   }
-  const problems = gatheredOutcomes({ outcomes: packages.map((file) => packageProblemOf({ states: states.value, expected: file })) });
+  const problems = gatheredOutcomes({ outcomes: [...packages, ...declarations].map((file) => packageProblemOf({ states: states.value, expected: file })) });
   return problems.outcome === "failed" ? problems : { outcome: "ok", value: { projection: rootState.value, slices: problems.value } };
 };
 
@@ -328,7 +339,7 @@ const projectedFilesOf = (request: { readonly run: ChecksRunRequest; readonly po
     return selected.outcome === "failed" ? selected : { outcome: "ok", value: [] };
   }
   const expected = expectedFilesOf({ run: request.run, ports: request.ports, projected: projected.value, slices: slicesOver({ run: request.run, lookup: lookupOf(request) }) });
-  return expected.outcome === "failed" ? expected : { outcome: "ok", value: [expected.value.root, ...expected.value.packages] };
+  return expected.outcome === "failed" ? expected : { outcome: "ok", value: [expected.value.root, ...expected.value.packages, ...expected.value.declarations] };
 };
 
 export const checksRunnerOver = (request: { readonly ports: ChecksRunnerPorts; readonly platform: EslintPlatformPorts }): ChecksRunner => ({

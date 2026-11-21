@@ -374,6 +374,11 @@ const sliceProblem = (request: { readonly state: SliceState }): Filled<RunProjec
   fills: { engine: "eslint", slice: "packages/web/hone.eslint.mjs", folder: "packages/web" },
 });
 
+const DECLARATION_SLICE_PROBLEM: Filled<RunProjectionProblem> = {
+  entry: { scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: repoPathSchema.parse("packages/web/hone.eslint.d.mts") },
+  fills: { engine: "eslint", slice: "packages/web/hone.eslint.d.mts", folder: "packages/web" },
+};
+
 const SLICE_PROBLEMS: Readonly<Record<SliceState, Filled<RunProjectionProblem>>> = {
   "out-of-date": sliceProblem({ state: "out-of-date" }),
   missing: sliceProblem({ state: "missing" }),
@@ -442,7 +447,7 @@ const SECTION_SAMPLES: SectionSamples = {
   paid: [{ entry: { debt: DEBT_PLACED, answeredBy: [LOCATION_PLACED] }, fills: { subject: DEBT_SUBJECT, reference: UNOWED_REFERENCE } }],
   refused: [...Object.values(REFUSALS), SPACED_RECORDS_FILE],
   unmeasured: [...RECORDS_UNMEASURED, ...Object.values(ENGINES_NOT_RUN).flat()],
-  projectionProblems: [{ entry: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }, fills: { engine: "eslint" } }, ...Object.values(SLICE_PROBLEMS)],
+  projectionProblems: [{ entry: { scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }, fills: { engine: "eslint" } }, ...Object.values(SLICE_PROBLEMS), DECLARATION_SLICE_PROBLEM],
   assessment: [
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 1 }, fills: {} },
     { entry: { concern: "forfeiture", assessedBy: "elsewhere", debts: 3 }, fills: { count: "3" } },

@@ -9,9 +9,11 @@ import { toolCatalogueOf } from "../../run/tool-catalogue.ts";
 import { type SettingsReading, readSettings } from "../../settings/read-settings.ts";
 import { type SettingsFile, settingsWireOf } from "../../settings/settings-file.ts";
 import { SETTINGS_FILE_NAME, createSettingsSources } from "../../settings/settings-sources.ts";
-import type { SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
+import type { ProjectedFile } from "../../mechanism-port/checks-runner-types.ts";
+import type { Engine, SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../../values/absolute-path.ts";
 import { moduleExtensionOf } from "../../values/install-layout.ts";
+import { projectionFileNameOf } from "../../values/projection-file-name.ts";
 import type { Result } from "../../values/result.ts";
 import type { MappedRecordsDocument } from "../version-two-mapping/records-mapping.ts";
 import type { ProjectionFailure, ProjectionFilesOf } from "../proof/upgrade-plan.ts";
@@ -60,6 +62,13 @@ const treeOf = (request: Context & { readonly settings: SettingsReading }): Resu
   return tree.outcome === "failed" ? refusedBy({ failure: runFailureOf({ engines: [], source: tree.error }) }) : tree;
 };
 
+const fileNameOf = (request: { readonly file: string }): string => request.file.slice(request.file.lastIndexOf("/") + 1);
+
+const projectionsAmong = (request: { readonly files: readonly ProjectedFile[]; readonly engines: readonly Engine[] }): readonly ProjectedFile[] => {
+  const names = request.engines.map((engine) => projectionFileNameOf({ engineName: engine.name }));
+  return request.files.filter(({ file }) => names.includes(fileNameOf({ file })));
+};
+
 export const plannedProjectionOf =
   (context: Context): ProjectionFilesOf =>
   async ({ settings, documents }) => {
@@ -91,5 +100,7 @@ export const plannedProjectionOf =
       path: command.path,
       modules: command.modules,
     });
-    return projected.outcome === "failed" ? refusedBy({ failure: projected.error }) : projected;
+    return projected.outcome === "failed"
+      ? refusedBy({ failure: projected.error })
+      : { outcome: "ok", value: { files: projected.value, projections: projectionsAmong({ files: projected.value, engines: catalogue.value.engines }) } };
   };

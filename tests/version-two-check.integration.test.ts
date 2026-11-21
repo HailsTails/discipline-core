@@ -8,7 +8,7 @@ import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loa
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
-import { CHECKS_PROJECTION_PATH, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
+import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksDeclarationText, checksProjectionText } from "../mechanisms/eslint/runner/checks-projection.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
 import { trackedRepositoryWith } from "./tracked-scratch-repository.ts";
@@ -79,7 +79,13 @@ describe("the tool's commands on a repository holding hone.config.json, through 
     const repo = trackedRepositoryWith({
       repositories,
       commands,
-      files: { "hone.config.json": CONFIG, "eslint.config.mjs": PROJECTION_IMPORT, [CHECKS_PROJECTION_PATH]: PROJECTION, "kept.ts": "export class Kept {}\n" },
+      files: {
+        "hone.config.json": CONFIG,
+        "eslint.config.mjs": PROJECTION_IMPORT,
+        [CHECKS_PROJECTION_PATH]: PROJECTION,
+        [CHECKS_DECLARATION_PATH]: checksDeclarationText(),
+        "kept.ts": "export class Kept {}\n",
+      },
     });
     expect(await runCommandIn({ repo, subcommand: "check", options: [] })).toEqual({ writes: [[{ text: EXPECTED_REPORT }]], exits: [[{ code: 1 }]] });
   });
@@ -88,7 +94,13 @@ describe("the tool's commands on a repository holding hone.config.json, through 
     const repo = trackedRepositoryWith({
       repositories,
       commands,
-      files: { "hone.config.json": CONFIG, "eslint.config.mjs": PROJECTION_IMPORT, [CHECKS_PROJECTION_PATH]: PROJECTION, "kept.ts": "export class Kept {}\n" },
+      files: {
+        "hone.config.json": CONFIG,
+        "eslint.config.mjs": PROJECTION_IMPORT,
+        [CHECKS_PROJECTION_PATH]: PROJECTION,
+        [CHECKS_DECLARATION_PATH]: checksDeclarationText(),
+        "kept.ts": "export class Kept {}\n",
+      },
     });
     commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: repo });
     const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
@@ -106,8 +118,8 @@ describe("the tool's commands on a repository holding hone.config.json, through 
       second: await runCommandIn({ repo, subcommand: "project", options: [] }),
       checked: await runCommandIn({ repo, subcommand: "check", options: [] }),
     }).toEqual({
-      first: { writes: [[{ text: "hone.eslint.mjs written\n" }]], exits: [[{ code: 0 }]] },
-      second: { writes: [[{ text: "hone.eslint.mjs unchanged\n" }]], exits: [[{ code: 0 }]] },
+      first: { writes: [[{ text: "hone.eslint.mjs written\nhone.eslint.d.mts written\n" }]], exits: [[{ code: 0 }]] },
+      second: { writes: [[{ text: "hone.eslint.mjs unchanged\nhone.eslint.d.mts unchanged\n" }]], exits: [[{ code: 0 }]] },
       checked: { writes: [[{ text: EXPECTED_REPORT }]], exits: [[{ code: 1 }]] },
     });
   });

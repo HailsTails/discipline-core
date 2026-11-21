@@ -3,6 +3,7 @@ import type { RecordsUnmeasured } from "../records/records-unmeasured.ts";
 import { type SettingsNote, settingsNoteText } from "../settings/read-settings.ts";
 import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import type { Engine } from "../symptom-catalogue/symptom-catalogue.ts";
+import { projectionFileNameOf } from "../values/projection-file-name.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import { counted, quoted } from "./printed-text.ts";
@@ -46,9 +47,9 @@ const recordsUnmeasuredLine = (request: { readonly unmeasured: RecordsUnmeasured
   }
 };
 
-const projectionFileOf = (request: { readonly engine: Engine }): string => `hone.${request.engine.name}.mjs`;
+const projectionFileOf = (request: { readonly engine: Engine }): string => projectionFileNameOf({ engineName: request.engine.name });
 
-const refreshStep = (request: ProjectCommand & { readonly engine: Engine }): string => `run ${request.projectCommand} and commit every ${projectionFileOf(request)} it writes`;
+const refreshStep = (request: ProjectCommand): string => `run ${request.projectCommand} and commit every file it writes`;
 
 type EngineRequest = ProjectCommand & { readonly problems: readonly RunProjectionProblem[] };
 
@@ -68,7 +69,7 @@ const engineNotRunLine = (request: EngineRequest & { readonly unmeasured: Engine
   const file = projectionFileOf({ engine });
   switch (unmeasured.projection) {
     case "missing":
-      return `${unmeasured.kind} ${engine.name} missing: ${file} is not written; ${refreshStep({ ...request, engine })}`;
+      return `${unmeasured.kind} ${engine.name} missing: ${file} is not written; ${refreshStep(request)}`;
     case "not-included":
       return `${unmeasured.kind} ${engine.name} not-included: the ${engine.name} configuration leaves the projection out of effect for a file under check; spread the default export of ${file}, or of a package's own ${file} in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}${sliceNote({ ...request, engine })}${nestedNote({ ...request, folders: unmeasured.nestedConfigurations })}`;
   }
@@ -94,9 +95,9 @@ const sliceProblemReason = (request: ProjectCommand & { readonly problem: SliceP
   const folder = folderOf({ slice });
   switch (request.problem.state) {
     case "out-of-date":
-      return `that slice differs from what hone project writes now; ${refreshStep({ ...request, engine })}`;
+      return `that slice differs from what hone project writes now; ${refreshStep(request)}`;
     case "missing":
-      return `that slice is not written; ${refreshStep({ ...request, engine })}`;
+      return `that slice is not written; ${refreshStep(request)}`;
     case "unconfigured":
       return `${folder} has no ${engine.name} configuration file on disk, so nothing loads that slice; run the tool that generates it (for sku, sku configure) before the check`;
   }
@@ -106,7 +107,7 @@ export const projectionProblemLine = (request: ProjectCommand & { readonly probl
   const { problem } = request;
   switch (problem.scope) {
     case "projection":
-      return `${problem.engine.name} ${problem.state}: ${projectionFileOf(problem)} differs from what hone project writes now; ${refreshStep({ ...request, engine: problem.engine })}`;
+      return `${problem.engine.name} ${problem.state}: ${projectionFileOf(problem)} differs from what hone project writes now; ${refreshStep(request)}`;
     case "slice":
       return `${problem.engine.name} ${problem.state} ${problem.slice}: ${sliceProblemReason({ ...request, problem })}`;
   }

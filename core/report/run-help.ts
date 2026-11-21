@@ -88,7 +88,7 @@ export const RUN_COMMANDS: Readonly<Record<RunSubcommand, CommandSpec>> = {
     ],
   },
   project: {
-    summary: "write the native configuration, hone.<engine>.mjs, for each engine that runs a listed check through one, printing each file as written or unchanged",
+    summary: "write the native configuration, hone.<engine>.mjs, and any file that types it beside it, for each engine that runs a listed check through one, printing each file as written or unchanged",
     options: [REPO_OPTION],
     exits: [
       { code: 0, meaning: "every projection was written or already current" },

@@ -149,8 +149,8 @@ describe("versionTwoCheckCommandOf", () => {
         [
           {
             text: `projectionProblems (2)
-eslint missing packages/a/hone.eslint.mjs: that slice is not written; run node /install/core/check/tool-command.ts project --repo /repo and commit every hone.eslint.mjs it writes
-eslint out-of-date packages/b/hone.eslint.mjs: that slice differs from what hone project writes now; run node /install/core/check/tool-command.ts project --repo /repo and commit every hone.eslint.mjs it writes
+eslint missing packages/a/hone.eslint.mjs: that slice is not written; run node /install/core/check/tool-command.ts project --repo /repo and commit every file it writes
+eslint out-of-date packages/b/hone.eslint.mjs: that slice differs from what hone project writes now; run node /install/core/check/tool-command.ts project --repo /repo and commit every file it writes
 verdict: fail
 `,
           },
