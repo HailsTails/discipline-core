@@ -140,6 +140,15 @@ describe("runReportOf, findings and records", () => {
     });
   });
 
+  it("does not call a record stale when the projection is out of date and the engine linted nothing, and says the engine measured nothing beside the out-of-date problem", () => {
+    const debt = debtAt({ file: FILE_A, index: 0 });
+    expect(runReportOf({ ...REQUEST, selection: SELECTS_CAST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [], projection: "out-of-date" })] })).toEqual({
+      ...EMPTY_REPORT,
+      unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }],
+      projectionProblems: [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
+    });
+  });
+
   it("calls a record stale once the engine measured its check at its file and nothing credited it", () => {
     const debt = debtAt({ file: FILE_B, index: 0 });
     expect(
