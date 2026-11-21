@@ -7,7 +7,7 @@ import { projectionFileNameOf } from "../values/projection-file-name.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import { counted, quoted } from "./printed-text.ts";
-import type { EngineNotRun, ForfeitureElsewhere, RunProjectionProblem, RunUnmeasured } from "./run-report.ts";
+import type { AssessmentLeftElsewhere, EngineNotRun, RunProjectionProblem, RunUnmeasured } from "./run-report.ts";
 
 export type ProjectCommand = { readonly projectCommand: string };
 
@@ -30,7 +30,7 @@ const BASE_NEEDS: Readonly<Record<RecordsUnmeasured["kind"], BaseNeeds>> = {
   },
   "import-unmeasured": {
     unchecked: "carried records cannot be checked against it",
-    nextStep: PASS_A_BASE,
+    nextStep: `${PASS_A_BASE}, or ${LEAVE_FORFEITURE_ELSEWHERE}`,
     gitAttempt: `read ${RECORDS_FOLDER} at that revision`,
     needs: `Hone needs ${RECORDS_FOLDER} as it was at that revision`,
   },
@@ -120,10 +120,13 @@ export const projectionProblemLine = (request: ProjectCommand & { readonly probl
   }
 };
 
-export const assessmentLine = (request: { readonly partial: ForfeitureElsewhere }): string => {
-  switch (request.partial.concern) {
+export const assessmentLine = (request: { readonly partial: AssessmentLeftElsewhere }): string => {
+  const { partial } = request;
+  switch (partial.concern) {
     case "forfeiture":
-      return `forfeiture ${request.partial.assessedBy}: ${counted({ count: request.partial.debts, noun: "debt record" })} not checked for forfeiture in this run`;
+      return `forfeiture ${partial.assessedBy}: ${counted({ count: partial.debts, noun: "debt record" })} not checked for forfeiture in this run`;
+    case "carried-standing":
+      return `carried standing ${partial.assessedBy}: ${counted({ count: partial.carried, noun: "carried record" })} not checked against the base in this run`;
   }
 };
 

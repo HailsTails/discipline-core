@@ -4,7 +4,7 @@ import { absolutePathSchema } from "../values/absolute-path.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import type { Equal } from "../values/type-equality.ts";
-import { baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "./touched-set.ts";
+import { baseJudgementOf, baseRevisionAvailabilityOf, computeTouchedSet, type TouchedSet } from "./touched-set.ts";
 
 const REPO_ROOT = absolutePathSchema.parse("/repo");
 const A = repoPathSchema.parse("a.ts");
@@ -127,5 +127,15 @@ describe("baseRevisionAvailabilityOf", () => {
     expect(
       baseRevisionAvailabilityOf({ revision: "HEAD", failure: { kind: "git-failed", command: "git ls-tree", detail: "" } }),
     ).toEqual({ state: "git-failed", revision: "HEAD", gitMessage: "" });
+  });
+});
+
+describe("baseJudgementOf", () => {
+  it.each<{ readonly name: string; readonly touched: TouchedSet; readonly judgement: "in-this-run" | "left-to-another-run" }>([
+    { name: "a touched set measured against a base", touched: { measured: "yes", paths: new Set([A]) }, judgement: "in-this-run" },
+    { name: "a touched set that could not be measured", touched: { measured: "no", base: { state: "not-given" } }, judgement: "in-this-run" },
+    { name: "a touched set left to another run", touched: { measured: "elsewhere" }, judgement: "left-to-another-run" },
+  ])("judges what needs the base $judgement for $name", ({ touched, judgement }) => {
+    expect(baseJudgementOf({ touched })).toBe(judgement);
   });
 });

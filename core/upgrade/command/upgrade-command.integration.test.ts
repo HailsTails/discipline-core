@@ -611,3 +611,36 @@ describe("hone upgrade over a real repository whose clause is bound to the audit
     });
   });
 });
+
+const CARRIED_EXCEPTIONS = exceptionsTextOf({
+  exceptions: [
+    { kind: "file-carve-out", clause: "CD-1#any-cast", file: "src/owed.ts", reason: "legacy cast" },
+    { kind: "file-carve-out", clause: "CD-1#explicit-any", file: "src/owed.ts", reason: "legacy cast" },
+    { kind: "file-carve-out", clause: "CD-1#explicit-any", file: "src/located.ts", reason: "legacy cast" },
+    AUTHORISED_LOCATION,
+  ],
+});
+
+const upgradedRepositoryWithCarriedRecords = async (): Promise<string> => {
+  const repo = await versionOneRepositoryOf({
+    selection: AUDIT_SELECTION,
+    exceptions: CARRIED_EXCEPTIONS,
+    sources: { "owed.ts": ANY_CAST, "located.ts": ANY_CAST },
+  });
+  commitEverything({ repo });
+  await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+  trackEverything({ repo });
+  return repo;
+};
+
+describe("hone check with no base revision on an upgraded repository holding carried records", () => {
+  it("leaves the carried records to the run that has a base when forfeiture is left elsewhere, and passes", async () => {
+    const repo = await upgradedRepositoryWithCarriedRecords();
+    expect(await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "elsewhere"], modules: DEFAULT_MODULES })).toEqual({ writes: [[{ text: "answered (4)\nclaimed-type#cast-to-any walker src/located.ts:1:22 JSON.parse(text) as any;  answered by authorised-location carried\nclaimed-type#cast-to-any walker src/owed.ts:1:22 JSON.parse(text) as any;  answered by debt\nuntyped-value#explicit-any eslint src/located.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nuntyped-value#explicit-any eslint src/owed.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nassessment (2)\nforfeiture elsewhere: 3 debt records not checked for forfeiture in this run\ncarried standing elsewhere: 1 carried record not checked against the base in this run\ncarried (1)\nhone-records/authorised-locations/claimed-type.json records[0] unjudged lacks case, owes, whyChain\nverdict: pass (partial assessment)\n" }]], exits: [[{ code: 0 }]] });
+  });
+
+  it("fails with import-unmeasured when forfeiture is assessed in this run", async () => {
+    const repo = await upgradedRepositoryWithCarriedRecords();
+    expect(await runCommandIn({ repo, subcommand: "check", options: ["--forfeiture", "this-run"], modules: DEFAULT_MODULES })).toEqual({ writes: [[{ text: "answered (4)\nclaimed-type#cast-to-any walker src/located.ts:1:22 JSON.parse(text) as any;  answered by authorised-location carried\nclaimed-type#cast-to-any walker src/owed.ts:1:22 JSON.parse(text) as any;  answered by debt\nuntyped-value#explicit-any eslint src/located.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nuntyped-value#explicit-any eslint src/owed.ts:1:42 export const parsed = JSON.parse(text) as any; answered by debt\nunmeasured (2)\nforfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with \"forfeiture\": \"elsewhere\" in hone.config.json or --forfeiture elsewhere\nimport-unmeasured no-base-revision: no --base-revision was given, so carried records cannot be checked against it; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with \"forfeiture\": \"elsewhere\" in hone.config.json or --forfeiture elsewhere\ncarried (1)\nhone-records/authorised-locations/claimed-type.json records[0] unjudged lacks case, owes, whyChain\nverdict: fail\n" }]], exits: [[{ code: 1 }]] });
+  });
+});

@@ -2,17 +2,16 @@ import type { Selection } from "../settings/selection.ts";
 import type { Finding } from "../governance/governance.ts";
 import { type Answering, answerFindings, type RaisedFinding } from "../records/answering.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
-import type { PartyReport } from "../records/record-reach.ts";
 import { carriedListingOf } from "../records/records-reading.ts";
-import { recordsUnmeasuredOf } from "../records/records-unmeasured.ts";
+import type { PartyReport } from "../records/record-reach.ts";
+import { carriedJudgementOf, recordsUnmeasuredOf } from "../records/records-unmeasured.ts";
 import { findingSiteOf } from "../report/check-site.ts";
-import type { ForfeitureElsewhere, RunReport } from "../report/run-report.ts";
+import type { AssessmentLeftElsewhere, RunReport } from "../report/run-report.ts";
 import type { SettingsNote } from "../settings/read-settings.ts";
 import { checkAddressOf } from "../symptom-catalogue/check-address.ts";
 import { checkOfFinding } from "../symptom-catalogue/finding-check.ts";
 import type { Symptom, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
-import type { TouchedSet } from "../touched-set/touched-set.ts";
-import type { Assessment } from "../values/assessment.ts";
+import { baseJudgementOf, type TouchedSet } from "../touched-set/touched-set.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import type { EngineRun } from "./engine-run.ts";
 import { engineProblemsOf, engineUnmeasuredOf, runMeasurementsOf } from "./engine-states.ts";
@@ -27,7 +26,6 @@ export type RunReportRequest = {
   readonly touched: TouchedSet;
   readonly runs: readonly EngineRun[];
   readonly tracked: readonly RepoPath[];
-  readonly assessment: Assessment;
 };
 
 const namingItsCheck = (request: { readonly catalogue: SymptomCatalogue; readonly finding: Finding }): Finding => {
@@ -54,10 +52,20 @@ const symptomsOf = (request: { readonly catalogue: SymptomCatalogue; readonly fi
   return named.filter((symptom, index) => named.findIndex((earlier) => earlier.name === symptom.name) === index);
 };
 
-const assessmentOf = (request: RunReportRequest): readonly ForfeitureElsewhere[] =>
-  request.assessment.forfeiture === "elsewhere"
+const forfeitureLeftElsewhereOf = (request: RunReportRequest): readonly AssessmentLeftElsewhere[] =>
+  baseJudgementOf({ touched: request.touched }) === "left-to-another-run"
     ? [{ concern: "forfeiture", assessedBy: "elsewhere", debts: request.records.records.filter((placed) => placed.record.kind === "debt").length }]
     : [];
+
+const carriedStandingLeftElsewhereOf = (request: RunReportRequest): readonly AssessmentLeftElsewhere[] => {
+  const judgement = carriedJudgementOf({ records: request.records.records, base: request.records.base, touched: request.touched });
+  return judgement.judgement === "left-elsewhere" ? [{ concern: "carried-standing", assessedBy: "elsewhere", carried: judgement.carried }] : [];
+};
+
+const assessmentOf = (request: RunReportRequest): readonly AssessmentLeftElsewhere[] => [
+  ...forfeitureLeftElsewhereOf(request),
+  ...carriedStandingLeftElsewhereOf(request),
+];
 
 export const runReportOf = (request: RunReportRequest): RunReport => {
   const answering = answeringOf(request);

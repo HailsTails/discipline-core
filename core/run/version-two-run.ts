@@ -84,7 +84,6 @@ export const versionTwoRunOver = async (request: { readonly stages: VersionTwoSt
     touched,
     runs: runs.value,
     tracked: tree.value.tracked,
-    assessment,
   });
   return { outcome: "ok", value: { report, catalogue, touched, output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: settings.runSettings.reportOutput }) } };
 };

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Symptom } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { PlacedRecord } from "./hone-record.ts";
-import { recordsUnmeasuredOf } from "./records-unmeasured.ts";
+import { carriedJudgementOf, recordsUnmeasuredOf } from "./records-unmeasured.ts";
 
 const CLAIMED_TYPE: Symptom = { name: "claimed-type", title: "Claimed type", seen: "A cast.", mayIndicate: [], breachUsuallySits: "in the unit", recipes: [], correctUses: [] };
 
@@ -67,5 +68,42 @@ describe("recordsUnmeasuredOf", () => {
 
   it("lists nothing when forfeiture is measured elsewhere and the base was measured", () => {
     expect(recordsUnmeasuredOf({ records: [STATED_DEBT, CARRIED_LOCATION], base: { measured: "yes" }, touched: { measured: "elsewhere" } })).toEqual([]);
+  });
+
+  it("lists nothing for a carried record when forfeiture is left to another run, though the base was not measured", () => {
+    expect(
+      recordsUnmeasuredOf({ records: [STATED_DEBT, CARRIED_LOCATION], base: { measured: "no", base: { state: "not-given" } }, touched: { measured: "elsewhere" } }),
+    ).toEqual([]);
+  });
+
+  it("still lists import unmeasured when forfeiture is left to another run and the base was given but cannot be read", () => {
+    const gitFailed = { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad object" } as const;
+    expect(recordsUnmeasuredOf({ records: [CARRIED_LOCATION], base: { measured: "no", base: gitFailed }, touched: { measured: "elsewhere" } })).toEqual([
+      { kind: "import-unmeasured", base: gitFailed },
+    ]);
+  });
+});
+
+describe("carriedJudgementOf", () => {
+  const NOT_GIVEN = { measured: "no", base: { state: "not-given" } } as const;
+
+  const ELSEWHERE = { measured: "elsewhere" } as const;
+
+  const THIS_RUN: TouchedSet = { measured: "yes", paths: new Set() };
+
+  it("says nothing-carried when no record is carried, whatever the base", () => {
+    expect(carriedJudgementOf({ records: [STATED_DEBT], base: NOT_GIVEN, touched: THIS_RUN })).toEqual({ judgement: "nothing-carried" });
+  });
+
+  it("says judged when the base was measured, whatever forfeiture does", () => {
+    expect(carriedJudgementOf({ records: [CARRIED_LOCATION], base: { measured: "yes" }, touched: ELSEWHERE })).toEqual({ judgement: "judged" });
+  });
+
+  it("says unmeasured, naming the base, when carried records exist and no base was given while forfeiture is assessed in this run", () => {
+    expect(carriedJudgementOf({ records: [CARRIED_LOCATION], base: NOT_GIVEN, touched: THIS_RUN })).toEqual({ judgement: "unmeasured", base: { state: "not-given" } });
+  });
+
+  it("says left-elsewhere, counting the carried records, only when no base was given and forfeiture is left to another run", () => {
+    expect(carriedJudgementOf({ records: [CARRIED_LOCATION], base: NOT_GIVEN, touched: ELSEWHERE })).toEqual({ judgement: "left-elsewhere", carried: 1 });
   });
 });

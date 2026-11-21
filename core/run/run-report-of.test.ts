@@ -45,6 +45,19 @@ const SELECTS_CAST: RunReportRequest["selection"] = {
   editions: [],
 };
 
+const LOCATION_FILE = repoPathSchema.parse("hone-records/authorised-locations/claimed-type.json");
+
+const carriedLocationAt = (request: { readonly file: Debt["file"]; readonly index: number }): PlacedRecord => ({
+  place: { file: LOCATION_FILE, index: request.index },
+  record: {
+    kind: "authorised-location",
+    symptom: CLAIMED_TYPE,
+    reach: WHOLE_SYMPTOM,
+    file: request.file,
+    holding: { held: "carried", entry: {}, lacks: [], standing: "unjudged" },
+  },
+});
+
 const NO_RECORDS: RecordsReading = { records: [], refused: [], notes: [], base: { measured: "yes" } };
 
 const MEASURED_NOTHING_TOUCHED: TouchedSet = { measured: "yes", paths: new Set() };
@@ -58,7 +71,6 @@ const REQUEST: RunReportRequest = {
   touched: MEASURED_NOTHING_TOUCHED,
   runs: [],
   tracked: [FILE_A, FILE_B],
-  assessment: { forfeiture: "this-run" },
 };
 
 const EMPTY_REPORT: RunReport = {
@@ -252,11 +264,52 @@ describe("runReportOf, what the run could not measure", () => {
     expect(
       runReportOf({
         ...REQUEST,
-        assessment: { forfeiture: "elsewhere" },
         touched: { measured: "elsewhere" },
         records: { ...NO_RECORDS, records: [debtAt({ file: FILE_A, index: 0 }), debtAt({ file: FILE_B, index: 1 })] },
       }),
     ).toMatchObject({ assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", debts: 2 }] });
+  });
+
+  it("counts the carried records left to another run when forfeiture is left elsewhere and no base was measured", () => {
+    expect(
+      runReportOf({
+        ...REQUEST,
+        touched: { measured: "elsewhere" },
+        records: { ...NO_RECORDS, base: { measured: "no", base: { state: "not-given" } }, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
+      }),
+    ).toEqual({
+      ...EMPTY_REPORT,
+      stale: [{ placed: carriedLocationAt({ file: FILE_A, index: 0 }), reason: "credited-nothing" }],
+      assessment: [
+        { concern: "forfeiture", assessedBy: "elsewhere", debts: 0 },
+        { concern: "carried-standing", assessedBy: "elsewhere", carried: 1 },
+      ],
+      carried: [{ place: { file: LOCATION_FILE, index: 0 }, lacks: [], standing: "unjudged" }],
+    });
+  });
+
+  it("lists import-unmeasured and leaves nothing to another run when forfeiture is left elsewhere but the base was given and cannot be read", () => {
+    const gitFailed = { state: "git-failed", revision: "origin/main", gitMessage: "fatal: bad object" } as const;
+    expect(
+      runReportOf({
+        ...REQUEST,
+        touched: { measured: "elsewhere" },
+        records: { ...NO_RECORDS, base: { measured: "no", base: gitFailed }, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
+      }),
+    ).toMatchObject({
+      unmeasured: [{ kind: "import-unmeasured", base: gitFailed }],
+      assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", debts: 0 }],
+    });
+  });
+
+  it("counts no carried records left to another run when forfeiture is left elsewhere but the base was measured", () => {
+    expect(
+      runReportOf({
+        ...REQUEST,
+        touched: { measured: "elsewhere" },
+        records: { ...NO_RECORDS, records: [carriedLocationAt({ file: FILE_A, index: 0 })] },
+      }).assessment,
+    ).toEqual([{ concern: "forfeiture", assessedBy: "elsewhere", debts: 0 }]);
   });
 });
 

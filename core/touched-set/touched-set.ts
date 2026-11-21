@@ -8,6 +8,11 @@ export type TouchedSet =
   | { readonly measured: "no"; readonly base: BaseRevisionAvailability }
   | { readonly measured: "elsewhere" };
 
+export type BaseJudgement = "in-this-run" | "left-to-another-run";
+
+export const baseJudgementOf = (request: { readonly touched: TouchedSet }): BaseJudgement =>
+  request.touched.measured === "elsewhere" ? "left-to-another-run" : "in-this-run";
+
 const firstLineOf = (request: { readonly failure: GitFailure }): string =>
   request.failure.detail
     .split("\n")
