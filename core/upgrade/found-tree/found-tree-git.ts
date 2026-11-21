@@ -27,4 +27,5 @@ export const foundTreeGitOf = (request: { readonly git: GitPort } & TreeReach): 
     value: request.fileText.exists({ path: locationOf({ ...request, query }) }) === "present" ? "present-in-base" : "absent-from-base",
   }),
   textInBase: (query) => textInTreeOf({ ...request, query }),
+  renamedSince: () => ({ outcome: "ok", value: new Map() }),
 });

@@ -92,7 +92,7 @@ export const commandOver = (request: { readonly process: ProcessPort; readonly f
   path: createPathPort({ flavour: "posix", workingDirectory: () => "/work" }),
   fileText: request.fileText,
   modules: { load: notUsed },
-  git: { trackedPaths: notUsed, changedSince: notUsed, contentInBase: notUsed, textInBase: notUsed },
+  git: { trackedPaths: notUsed, changedSince: notUsed, contentInBase: notUsed, textInBase: notUsed, renamedSince: notUsed },
   exceptionRepositoryOf: notUsed,
   moduleUrl: ENTRY_URL,
 });

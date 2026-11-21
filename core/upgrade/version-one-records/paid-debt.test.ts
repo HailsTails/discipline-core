@@ -295,7 +295,7 @@ describe("paidDebtOf naming debt whose every finding an authorised location answ
   });
 });
 
-const MEASURED_BASELINE: PaidDebtRequest["baseline"] = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() };
+const MEASURED_BASELINE: PaidDebtRequest["baseline"] = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map(), basePathOfRenamed: new Map() };
 
 const IMPORTED_BASKET_LOOP: ExceptionRecord = {
   ...AUTHORISED_BASKET_LOOP,

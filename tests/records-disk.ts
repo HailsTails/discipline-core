@@ -81,6 +81,7 @@ export const recordsDisk = (request: {
           const text = request.base[file];
           return { outcome: "ok", value: text === undefined ? { presence: "absent-from-base" } : { presence: "present-in-base", text } };
         },
+        renamedSince: () => ({ outcome: "ok", value: new Map() }),
       },
       gitTree: {
         pathsAt: () => ({ outcome: "ok", value: Object.keys(request.base).map((file) => repoPathSchema.parse(file)) }),

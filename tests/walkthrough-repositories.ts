@@ -50,6 +50,7 @@ const trackingGit = (request: { readonly tracked: readonly RepoPath[] }): GitPor
   changedSince: notUsed,
   contentInBase: notUsed,
   textInBase: notUsed,
+  renamedSince: notUsed,
 });
 
 const commandOver = (request: { readonly tracked: readonly RepoPath[]; readonly process: ProcessPort }): VersionOneCommandRequest => ({

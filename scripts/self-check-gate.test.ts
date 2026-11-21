@@ -260,6 +260,7 @@ const requestOver = (request: { readonly process: ProcessPort }): VersionOneComm
     changedSince: vi.fn<GitPort["changedSince"]>(),
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
+    renamedSince: vi.fn<GitPort["renamedSince"]>(),
   },
   exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
   moduleUrl: "file:///install/core/check/tool-command.ts",

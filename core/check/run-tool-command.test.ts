@@ -37,6 +37,7 @@ const UNUSED_GIT: GitPort = {
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 };
 
 const processWith = (request: { readonly arguments: readonly string[] }): ProcessPort => ({

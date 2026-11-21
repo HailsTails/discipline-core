@@ -103,6 +103,7 @@ const gitTracking = (request: { readonly trackedPaths: ReturnType<GitPort["track
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 });
 
 const checkRequest = (overrides: Partial<CheckRequest>): CheckRequest => ({

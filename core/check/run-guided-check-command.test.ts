@@ -74,6 +74,7 @@ const GIT: GitPort = {
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 };
 
 const EXCEPTION_REPOSITORY_OF = vi.fn<ExceptionRepositoryOf>();
