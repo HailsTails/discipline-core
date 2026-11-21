@@ -131,9 +131,9 @@ const AUTHORISE_OPTIONS = [
   CAUSAL_WHY_CHAIN.owner,
 ];
 
-const NOT_ADOPTED = "notAdopted (3)\nauthored-class-or-this#static-members-only\nclaimed-type#unlisted-cast-site\nclaimed-type#non-null-assertions\n";
+const NOT_ADOPTED = "not-adopted (3)\nauthored-class-or-this#static-members-only\nclaimed-type#unlisted-cast-site\nclaimed-type#non-null-assertions\n";
 
-const NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE = "notAdopted (2)\nauthored-class-or-this#static-members-only\nclaimed-type#non-null-assertions\n";
+const NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE = "not-adopted (2)\nauthored-class-or-this#static-members-only\nclaimed-type#non-null-assertions\n";
 
 const CLASS_FINDING =
   "authored-class-or-this#class-keyword eslint src/kept.ts:1:7 export class Kept {} may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted\n";
@@ -333,7 +333,7 @@ describe("a version 2 adopter's repository judged against a base revision, run a
 });
 
 const outOfDateProjection = (request: { readonly repo: string }): string =>
-  `projectionProblems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every file it writes\n`;
+  `projection-problems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every file it writes\n`;
 
 const missingProjection = (request: { readonly repo: string }): string =>
   `unmeasured (1)\nengine-not-run eslint missing: hone.eslint.mjs is not written; run ${projectCommandIn({ repo: request.repo })} and commit every file it writes\n`;

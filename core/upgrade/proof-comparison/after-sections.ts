@@ -45,18 +45,18 @@ export const afterSectionsOf = (request: { readonly report: RunReport; readonly 
     paid: report.paid.map(({ debt }) => joinedKey({ parts: [debt.place.file, debt.place.index] })),
     stale: report.stale.map(({ placed }) => recordFileKeyOf({ placed })),
     forfeited: report.forfeited.map((placed) => recordFileKeyOf({ placed })),
-    doublyHeld: [],
-    invalidRecords: report.refused.map(({ place }) => joinedKey({ parts: [place.file, place.index] })),
+    "doubly-held": [],
+    "invalid-records": report.refused.map(({ place }) => joinedKey({ parts: [place.file, place.index] })),
     uncovered: uniqueKeys({ keys: report.uncovered.map((check) => clauseTextOfCheck({ check })) }),
-    notAdopted: uniqueKeys({ keys: report.notAdopted.map((check) => clauseTextOfCheck({ check })) }),
-    notRun: uniqueKeys({ keys: report.notRun.map((check) => clauseTextOfCheck({ check })) }),
+    "not-adopted": uniqueKeys({ keys: report["not-adopted"].map((check) => clauseTextOfCheck({ check })) }),
+    "not-run": uniqueKeys({ keys: report["not-run"].map((check) => clauseTextOfCheck({ check })) }),
     editions: uniqueKeys({
       keys: report.editions.map(({ check, engine, edition, latest }) => joinedKey({ parts: [clauseTextOfCheck({ check }), engine.mechanism, edition, latest] })),
     }),
     unmeasured: report.unmeasured.map((unmeasured) =>
       unmeasured.kind === "engine-not-run" ? joinedKey({ parts: [unmeasured.engine.mechanism, "not-run", unmeasured.projection] }) : unmeasured.kind,
     ),
-    projectionProblems: report.projectionProblems.map((problem) =>
+    "projection-problems": report["projection-problems"].map((problem) =>
       joinedKey({ parts: [problem.scope, problem.engine.mechanism, problem.state, problem.scope === "slice" ? problem.slice : ""] }),
     ),
     assessment: report.assessment.map(({ concern, assessedBy }) => joinedKey({ parts: [concern, assessedBy] })),

@@ -18,7 +18,7 @@ describe("RUN_PRINTABLE_LINES", () => {
     { label: "findings", text: "acme/AC-1#no-moment eslint src/orders/charge-order.ts:3:6 moment()" },
     { label: "refused", text: 'hone-records/debt/claimed-type.json records[1] unknown-symptom "claimed type"' },
     { label: "carried", text: "hone-records/authorised-locations/claimed-type.json records[6] unjudged lacks case, owes, whyChain" },
-    { label: "notes", text: "conventions.generated is declared; no check reads it yet" },
+    { label: "settings-notes", text: "conventions.generated is declared; no check reads it yet" },
   ])("includes the $label line $text", (line) => {
     expect(RUN_PRINTABLE_LINES).toContainEqual(expect.objectContaining(line));
   });
@@ -28,8 +28,8 @@ describe("RUN_SECTION_ROLES", () => {
   it("names each section once with its role, in the order the report prints them", () => {
     expect(RUN_SECTION_ROLES).toEqual([
       { section: "excluded", role: "informational" },
-      { section: "notAdopted", role: "informational" },
-      { section: "notRun", role: "informational" },
+      { section: "not-adopted", role: "informational" },
+      { section: "not-run", role: "informational" },
       { section: "editions", role: "informational" },
       { section: "findings", role: "failing" },
       { section: "answered", role: "informational" },
@@ -41,10 +41,10 @@ describe("RUN_SECTION_ROLES", () => {
       { section: "paid", role: "next-step" },
       { section: "refused", role: "failing" },
       { section: "unmeasured", role: "failing" },
-      { section: "projectionProblems", role: "failing" },
+      { section: "projection-problems", role: "failing" },
       { section: "assessment", role: "informational" },
-      { section: "notes", role: "informational" },
-      { section: "recordNotes", role: "informational" },
+      { section: "settings-notes", role: "informational" },
+      { section: "record-notes", role: "informational" },
       { section: "carried", role: "informational" },
       { section: "symptoms", role: "guidance" },
     ]);

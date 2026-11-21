@@ -85,8 +85,8 @@ const EMPTY_BEFORE: CheckReport = {
 
 const EMPTY_AFTER: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -98,10 +98,10 @@ const EMPTY_AFTER: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };

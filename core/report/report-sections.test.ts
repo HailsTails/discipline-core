@@ -7,8 +7,8 @@ import type { RunReport } from "./run-report.ts";
 
 const EMPTY_REPORT: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -20,10 +20,10 @@ const EMPTY_REPORT: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
@@ -32,8 +32,8 @@ describe("RUN_SECTION_NAMES", () => {
   it("names every section in the order the report prints them", () => {
     expect(RUN_SECTION_NAMES).toEqual([
       "excluded",
-      "notAdopted",
-      "notRun",
+      "not-adopted",
+      "not-run",
       "editions",
       "findings",
       "answered",
@@ -45,10 +45,10 @@ describe("RUN_SECTION_NAMES", () => {
       "paid",
       "refused",
       "unmeasured",
-      "projectionProblems",
+      "projection-problems",
       "assessment",
-      "notes",
-      "recordNotes",
+      "settings-notes",
+      "record-notes",
       "carried",
       "symptoms",
     ]);
@@ -61,8 +61,8 @@ describe("runSectionRoleOf", () => {
     { section: "answered", role: "informational" },
     { section: "paid", role: "next-step" },
     { section: "refused", role: "failing" },
-    { section: "notes", role: "informational" },
-    { section: "recordNotes", role: "informational" },
+    { section: "settings-notes", role: "informational" },
+    { section: "record-notes", role: "informational" },
     { section: "carried", role: "informational" },
     { section: "symptoms", role: "guidance" },
   ])("gives $section the role $role", ({ section, role }) => {
@@ -72,7 +72,7 @@ describe("runSectionRoleOf", () => {
 
 describe("runVerdictOf", () => {
   it("passes a run whose failing sections are all empty, whatever its informational sections hold", () => {
-    expect(runVerdictOf({ report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("dist")], notes: [{ kind: "declared-not-read", key: "layers" }] } })).toBe("pass");
+    expect(runVerdictOf({ report: { ...EMPTY_REPORT, excluded: [repoPathSchema.parse("dist")], "settings-notes": [{ kind: "declared-not-read", key: "layers" }] } })).toBe("pass");
   });
 
   it("passes a run whose only entries are paid debt and a record's catalogue note, since neither fails a run", () => {
@@ -95,7 +95,7 @@ describe("runVerdictOf", () => {
         report: {
           ...EMPTY_REPORT,
           paid: [{ debt, answeredBy: [location] }],
-          recordNotes: [{ place: location.place, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "cast-old" } }],
+          "record-notes": [{ place: location.place, note: { kind: "unknown-check", symptom: CLAIMED_TYPE, check: "cast-old" } }],
         },
       }),
     ).toBe("pass");

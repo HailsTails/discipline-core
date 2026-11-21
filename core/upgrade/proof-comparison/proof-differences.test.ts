@@ -39,8 +39,8 @@ const EMPTY_BEFORE: CheckReport = {
 
 const EMPTY_AFTER: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -52,10 +52,10 @@ const EMPTY_AFTER: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
@@ -119,7 +119,7 @@ describe("proofDifferencesOf", () => {
     expect(
       differencesBetween({
         before: { notAdopted: [LOOPS_CLAUSE] },
-        after: { notAdopted: [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_TEST_BODY] },
+        after: { "not-adopted": [LOOP_KEYWORD_LOOPS, LOOP_KEYWORD_TEST_BODY] },
         marked: [MARKED_TEST_BODY],
       }),
     ).toEqual([]);
@@ -127,14 +127,14 @@ describe("proofDifferencesOf", () => {
 
   it("names a mark version 2 does not report as not adopted", () => {
     expect(differencesBetween({ marked: [MARKED_TEST_BODY] })).toEqual([
-      { section: "notAdopted", onlyBefore: ["CD-27#test-body-logic"], onlyAfter: [] },
+      { section: "not-adopted", onlyBefore: ["CD-27#test-body-logic"], onlyAfter: [] },
     ]);
   });
 
   it("names a clause version 2 reports as not adopted that version 1 reported as not run", () => {
-    expect(differencesBetween({ before: { notRun: [LOOPS_CLAUSE] }, after: { notAdopted: [LOOP_KEYWORD_LOOPS] } })).toEqual([
-      { section: "notAdopted", onlyBefore: [], onlyAfter: ["CD-15#loops"] },
-      { section: "notRun", onlyBefore: ["CD-15#loops"], onlyAfter: [] },
+    expect(differencesBetween({ before: { notRun: [LOOPS_CLAUSE] }, after: { "not-adopted": [LOOP_KEYWORD_LOOPS] } })).toEqual([
+      { section: "not-adopted", onlyBefore: [], onlyAfter: ["CD-15#loops"] },
+      { section: "not-run", onlyBefore: ["CD-15#loops"], onlyAfter: [] },
     ]);
   });
 
@@ -252,7 +252,7 @@ describe("proofDifferencesOf", () => {
 
   it("names a pair version 1 holds doubly, which version 2 has no section for", () => {
     expect(differencesBetween({ before: { doublyHeld: [{ clause: LOOPS_CLAUSE, file: SRC_A, mechanism: AUDIT }] } })).toEqual([
-      { section: "doublyHeld", onlyBefore: ["CD-15#loops src/a.ts audit"], onlyAfter: [] },
+      { section: "doubly-held", onlyBefore: ["CD-15#loops src/a.ts audit"], onlyAfter: [] },
       { section: "verdict", onlyBefore: ["fail"], onlyAfter: ["pass"] },
     ]);
   });
@@ -263,7 +263,7 @@ describe("proofDifferencesOf", () => {
         before: { invalidRecords: [{ place: { layout: "single-file", file: SRC_A, index: 1 }, problem: { kind: "clause-unparseable", detail: "x" } }] },
         after: { refused: [{ place: { file: repoPathSchema.parse("hone-records/debt/loop-keyword.json"), index: 0 }, refusals: [{ kind: "unknown-symptom", symptom: "x" }] }] },
       }),
-    ).toEqual([{ section: "invalidRecords", onlyBefore: ["src/a.ts 1"], onlyAfter: ["hone-records/debt/loop-keyword.json 0"] }]);
+    ).toEqual([{ section: "invalid-records", onlyBefore: ["src/a.ts 1"], onlyAfter: ["hone-records/debt/loop-keyword.json 0"] }]);
   });
 
   it("reads each side's editions at the clause its checks serve", () => {

@@ -53,7 +53,7 @@ type EngineRequest = ProjectCommand & { readonly problems: readonly RunProjectio
 
 const sliceNote = (request: EngineRequest & { readonly engine: Engine }): string =>
   request.problems.some((problem) => problem.scope === "slice" && problem.engine.name === request.engine.name)
-    ? `; the ${request.engine.name} lines under projectionProblems name the package slices involved`
+    ? `; the ${request.engine.name} lines under projection-problems name the package slices involved`
     : "";
 
 const nestedNote = (request: ProjectCommand & { readonly folders: readonly RepoPath[] }): string =>
@@ -63,7 +63,7 @@ const nestedNote = (request: ProjectCommand & { readonly folders: readonly RepoP
 
 const measuredNothingNextStep = (request: EngineRequest & { readonly engine: Engine }): string =>
   request.problems.some((problem) => problem.engine.name === request.engine.name)
-    ? `the ${request.engine.name} lines under projectionProblems name what to fix`
+    ? `the ${request.engine.name} lines under projection-problems name what to fix`
     : `check that the ${request.engine.name} configuration lints the files under check`;
 
 const engineNotRunLine = (request: EngineRequest & { readonly unmeasured: EngineNotRun }): string => {

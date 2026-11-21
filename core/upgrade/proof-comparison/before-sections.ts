@@ -56,18 +56,18 @@ export const beforeSectionsOf = (request: { readonly report: CheckReport }): Sec
     paid: [],
     stale: report.stale.map((record) => recordFileKeyOf({ record })),
     forfeited: report.forfeited.map((record) => recordFileKeyOf({ record })),
-    doublyHeld: report.doublyHeld.map(({ clause, file, mechanism }) => joinedKey({ parts: [clauseAddressText({ address: clause }), file, mechanism] })),
-    invalidRecords: report.invalidRecords.map(({ place }) => joinedKey({ parts: [place.file, place.index] })),
+    "doubly-held": report.doublyHeld.map(({ clause, file, mechanism }) => joinedKey({ parts: [clauseAddressText({ address: clause }), file, mechanism] })),
+    "invalid-records": report.invalidRecords.map(({ place }) => joinedKey({ parts: [place.file, place.index] })),
     uncovered: uniqueKeys({ keys: report.uncovered.map((address) => clauseAddressText({ address })) }),
-    notAdopted: uniqueKeys({ keys: report.notAdopted.map((address) => clauseAddressText({ address })) }),
-    notRun: uniqueKeys({ keys: report.notRun.map((address) => clauseAddressText({ address })) }),
+    "not-adopted": uniqueKeys({ keys: report.notAdopted.map((address) => clauseAddressText({ address })) }),
+    "not-run": uniqueKeys({ keys: report.notRun.map((address) => clauseAddressText({ address })) }),
     editions: uniqueKeys({
       keys: report.editions.map(({ address, mechanism, edition, latest }) => joinedKey({ parts: [clauseAddressText({ address }), mechanism, edition, latest] })),
     }),
     unmeasured: report.unmeasured.map((unmeasured) =>
       unmeasured.kind === "mechanism-not-run" ? joinedKey({ parts: [unmeasured.mechanism, "not-run", unmeasured.projection] }) : unmeasured.kind,
     ),
-    projectionProblems: report.projectionProblems.map((problem) =>
+    "projection-problems": report.projectionProblems.map((problem) =>
       joinedKey({ parts: [problem.scope, problem.mechanism, problem.state, problem.scope === "slice" ? problem.slice : ""] }),
     ),
     assessment: report.assessment.map(({ concern, assessedBy }) => joinedKey({ parts: [concern, assessedBy] })),

@@ -57,8 +57,8 @@ const NOTED_LOCATION: PlacedRecord = {
 
 const EMPTY_REPORT: RunReport = {
   excluded: [],
-  notAdopted: [],
-  notRun: [],
+  "not-adopted": [],
+  "not-run": [],
   editions: [],
   findings: [],
   answered: [],
@@ -70,18 +70,18 @@ const EMPTY_REPORT: RunReport = {
   paid: [],
   refused: [],
   unmeasured: [],
-  projectionProblems: [],
+  "projection-problems": [],
   assessment: [],
-  notes: [],
-  recordNotes: [],
+  "settings-notes": [],
+  "record-notes": [],
   carried: [],
   symptoms: [],
 };
 
 const EVERY_SECTION: RunReport = {
   excluded: [repoPathSchema.parse("dist")],
-  notAdopted: [CAST_CHECK],
-  notRun: [TEST_BODY_CHECK],
+  "not-adopted": [CAST_CHECK],
+  "not-run": [TEST_BODY_CHECK],
   editions: [{ check: CLOCK_CHECK, engine: WALKER, edition: editionSchema.parse("1"), latest: editionSchema.parse("2") }],
   findings: [CLOCK_FINDING],
   answered: [{ finding: CAST_FINDING, by: [NOTED_LOCATION] }],
@@ -102,10 +102,10 @@ const EVERY_SECTION: RunReport = {
   paid: [{ debt: DEBT, answeredBy: [NOTED_LOCATION] }],
   refused: [{ place: { file: AUTHORISED_FILE, index: 1 }, refusals: [{ kind: "carried-changed-since-base" }] }],
   unmeasured: [{ kind: "forfeiture-unmeasured", base: { state: "not-given" } }],
-  projectionProblems: [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
+  "projection-problems": [{ scope: "projection", engine: ESLINT_ENGINE, state: "out-of-date" }],
   assessment: [{ concern: "forfeiture", assessedBy: "elsewhere", debts: 2 }],
-  notes: [{ kind: "declared-not-read", key: "layers" }],
-  recordNotes: [{ place: NOTED_LOCATION.place, note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } }],
+  "settings-notes": [{ kind: "declared-not-read", key: "layers" }],
+  "record-notes": [{ place: NOTED_LOCATION.place, note: { kind: "owes-not-owed", case: GIVES_A_VALUE_ITS_TYPE, owes: "written-out-answers" } }],
   carried: [{ place: { file: AUTHORISED_FILE, index: 2 }, lacks: ["case"], standing: "established" }],
   symptoms: [DATE_USED_DIRECTLY],
 };
@@ -146,19 +146,19 @@ describe("renderRunReportText", () => {
 
   it("prints every non-empty section in order, each headed by its count, then the verdict", () => {
     expect(rendered({ report: EVERY_SECTION, output: "full" })).toBe(
-      `excluded (1)\n${LINES.excluded}\nnotAdopted (1)\n${LINES.notAdopted}\nnotRun (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nnotes (1)\n${LINES.notes}\nrecordNotes (1)\n${LINES.recordNotes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `excluded (1)\n${LINES.excluded}\nnot-adopted (1)\n${LINES.notAdopted}\nnot-run (1)\n${LINES.notRun}\neditions (1)\n${LINES.editions}\nfindings (1)\n${LINES.findings}\nanswered (1)\n${LINES.answered}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojection-problems (1)\n${LINES.projectionProblems}\nassessment (1)\n${LINES.assessment}\nsettings-notes (1)\n${LINES.notes}\nrecord-notes (1)\n${LINES.recordNotes}\ncarried (1)\n${LINES.carried}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
   it("leaves out the informational sections when it prints failures only, and keeps paid debt, whose next step a hook must see", () => {
     expect(rendered({ report: EVERY_SECTION, output: "failures-only" })).toBe(
-      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojectionProblems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
+      `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojection-problems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
 
   it("prints each section's heading alone, naming the role of each that does not fail the run, when it prints counts", () => {
     expect(rendered({ report: EVERY_SECTION, output: "counts" })).toBe(
-      `excluded (1) informational\nnotAdopted (1) informational\nnotRun (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\nmisnamed (1)\npaid (1) next-step\nrefused (1)\nunmeasured (1)\nprojectionProblems (1)\nassessment (1) informational\nnotes (1) informational\nrecordNotes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
+      `excluded (1) informational\nnot-adopted (1) informational\nnot-run (1) informational\neditions (1) informational\nfindings (1)\nanswered (1) informational\nuncovered (1)\nstale (1)\nforfeited (1)\nunrecorded (1)\nmisnamed (1)\npaid (1) next-step\nrefused (1)\nunmeasured (1)\nprojection-problems (1)\nassessment (1) informational\nsettings-notes (1) informational\nrecord-notes (1) informational\ncarried (1) informational\nsymptoms (1) guidance\nverdict: fail (partial assessment)\n`,
     );
   });
 
@@ -169,14 +169,14 @@ describe("renderRunReportText", () => {
   it("passes a run whose answered finding carries a catalogue note, with its notes, carried records and symptoms", () => {
     expect(
       rendered({
-        report: { ...EMPTY_REPORT, answered: EVERY_SECTION.answered, notes: EVERY_SECTION.notes, carried: EVERY_SECTION.carried, symptoms: EVERY_SECTION.symptoms },
+        report: { ...EMPTY_REPORT, answered: EVERY_SECTION.answered, "settings-notes": EVERY_SECTION["settings-notes"], carried: EVERY_SECTION.carried, symptoms: EVERY_SECTION.symptoms },
         output: "verdict-only",
       }),
     ).toBe("verdict: pass\n");
   });
 
-  it("prints a record's catalogue note under recordNotes though the record answers no finding, and passes the run", () => {
-    expect(rendered({ report: { ...EMPTY_REPORT, recordNotes: EVERY_SECTION.recordNotes }, output: "full" })).toBe(`recordNotes (1)\n${LINES.recordNotes}\nverdict: pass\n`);
+  it("prints a record's catalogue note under record-notes though the record answers no finding, and passes the run", () => {
+    expect(rendered({ report: { ...EMPTY_REPORT, "record-notes": EVERY_SECTION["record-notes"] }, output: "full" })).toBe(`record-notes (1)\n${LINES.recordNotes}\nverdict: pass\n`);
   });
 
   it("passes a run whose only entry is paid debt, and prints it with its next step when it prints failures only", () => {

@@ -276,6 +276,23 @@ Nothing was changed.
     },
   },
   {
+    name: "the two runs differ in sections version 2 names with hyphens",
+    failure: {
+      kind: "differences",
+      differences: [
+        { section: "not-adopted", onlyBefore: ["CD-6#naming-convention"], onlyAfter: [] },
+        { section: "doubly-held", onlyBefore: ["CD-15#loops src/a.ts audit"], onlyAfter: [] },
+        { section: "invalid-records", onlyBefore: [], onlyAfter: ["hone-records/debt/loop-keyword.json 0"] },
+      ],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    outcome: {
+      code: 1,
+      text: `upgrade refused:\nversion 2 does not report what version 1 reported:\n  not-adopted:\n    only before: CD-6#naming-convention\n  doubly-held:\n    only before: CD-15#loops src/a.ts audit\n  invalid-records:\n    only after: hone-records/debt/loop-keyword.json 0\n${FAULT}\nNothing was changed.\n`,
+    },
+  },
+  {
     name: "inline directives of both kinds, after version 1's own project removed a file",
     failure: {
       kind: "directives-name-no-check",
