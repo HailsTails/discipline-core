@@ -1,23 +1,22 @@
-import { afterAll, assert, describe, expect, it, vi } from "vitest";
-import type { Subcommand } from "../core/command-line/command-line.ts";
-import { TOOL_SUBCOMMANDS } from "../core/check/run-tool-command.ts";
-import type { ExceptionRepositoryOf } from "../core/upgrade/version-one-records/exception-records.ts";
+import { afterAll, assert, describe, expect, it } from "vitest";
 import { projectCommandOf, pruneCommandOf } from "../core/command-line/tool-invocations.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
-import { createDefaultGitPort } from "../core/platform-ports/git-port.ts";
-import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
-import type { ProcessPort } from "../core/platform-ports/process-port.ts";
 import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { createDefaultCommandRunPort, createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { repositoryRootOf } from "./allowed-forms-proof.ts";
 import { CAUSAL_WHY_CHAIN } from "./causal-why-chain.ts";
 import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
 import { repositoryWithSubfolder } from "./subfolder-scratch-repository.ts";
+import { settingsTextOf } from "./version-two-files.ts";
 
 const INSTALL_ROOT = absolutePathSchema.parse(repositoryRootOf({ testFolder: import.meta.dirname }));
 
+const TOOL_COMMAND_FILE = `${INSTALL_ROOT}/core/check/tool-command.ts`;
+
 const ENTRY_URL = new URL("../core/check/tool-command.ts", import.meta.url).href;
+
+const EACH_STEP_IS_A_PROCESS_MILLISECONDS = 120_000;
 
 const fileText = createDefaultFileTextPort({});
 
@@ -31,28 +30,44 @@ afterAll(() => {
 
 const commands = createDefaultCommandRunPort({});
 
-const configOf = (request: { readonly exclude: string; readonly castEngine: string; readonly unlistedCastSite: string }): string => `{
-  "version": 2,
-  "exclude": [${request.exclude}],
-  "ruleSets": {},
-  "checks": {
-    "authored-class-or-this#class-keyword": "eslint",
-    "authored-class-or-this#static-members-only": "not-adopted",
-    "claimed-type#cast-to-any": "${request.castEngine}",
-${request.unlistedCastSite}    "claimed-type#non-null-assertions": "not-adopted"
-  },
-  "checkSettings": {},
-  "conventions": {},
-  "layers": {}
-}
-`;
+const CHECKS = {
+  "authored-class-or-this#class-keyword": "eslint",
+  "authored-class-or-this#static-members-only": "not-adopted",
+  "claimed-type#cast-to-any": "walker",
+  "claimed-type#unlisted-cast-site": "not-adopted",
+  "claimed-type#non-null-assertions": "not-adopted",
+};
 
-const UNLISTED_CAST_SITE_NOT_ADOPTED = '    "claimed-type#unlisted-cast-site": "not-adopted",\n';
+const CHECKS_WITH_UNKNOWN_ENGINE = {
+  "authored-class-or-this#class-keyword": "eslint",
+  "authored-class-or-this#static-members-only": "not-adopted",
+  "claimed-type#cast-to-any": "nope",
+  "claimed-type#unlisted-cast-site": "not-adopted",
+  "claimed-type#non-null-assertions": "not-adopted",
+};
 
-const CONFIG = configOf({ exclude: "", castEngine: "walker", unlistedCastSite: UNLISTED_CAST_SITE_NOT_ADOPTED });
+const CHECKS_LEAVING_A_CHECK_UNLISTED = {
+  "authored-class-or-this#class-keyword": "eslint",
+  "authored-class-or-this#static-members-only": "not-adopted",
+  "claimed-type#cast-to-any": "walker",
+  "claimed-type#non-null-assertions": "not-adopted",
+};
+
+const CONFIG = settingsTextOf({ checks: CHECKS, exclude: [] });
+
+const CONFIG_EXCLUDING_GENERATED = settingsTextOf({ checks: CHECKS, exclude: ["src/generated"] });
+
+const CONFIG_WITH_UNKNOWN_ENGINE = settingsTextOf({ checks: CHECKS_WITH_UNKNOWN_ENGINE, exclude: [] });
+
+const CONFIG_LEAVING_A_CHECK_UNLISTED = settingsTextOf({ checks: CHECKS_LEAVING_A_CHECK_UNLISTED, exclude: [] });
 
 const ESLINT_CONFIG = `import hone from "./hone.eslint.mjs";
 export default [...hone];
+`;
+
+const PROJECTION_WITH_AN_EXTRA_LINE = `import hone from "../../api/eslint-plugin.ts";
+export default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins: { hone }, rules: { "hone/authored-class-or-this/class-keyword": "error" } }];
+
 `;
 
 const CLASS_SOURCE = "export class Kept {}\n";
@@ -64,6 +79,8 @@ const CAST_SOURCE = "export const parsed = JSON.parse(text) as any;\n";
 const SECOND_CAST_SOURCE = "export const added = JSON.parse(text) as any;\n";
 
 const TOUCHED_CAST_SOURCE = "export const parsed = JSON.parse(raw) as any;\n";
+
+const CLEAN_SOURCE = "export const clean = 1;\n";
 
 const AUTHORISE_OPTIONS = [
   "--symptom",
@@ -116,8 +133,12 @@ const AUTHORISE_OPTIONS = [
 
 const NOT_ADOPTED = "notAdopted (3)\nauthored-class-or-this#static-members-only\nclaimed-type#unlisted-cast-site\nclaimed-type#non-null-assertions\n";
 
+const NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE = "notAdopted (2)\nauthored-class-or-this#static-members-only\nclaimed-type#non-null-assertions\n";
+
 const CLASS_FINDING =
   "authored-class-or-this#class-keyword eslint src/kept.ts:1:7 export class Kept {} may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted\n";
+
+const CLASS_ANSWERED_BY_DEBT = "authored-class-or-this#class-keyword eslint src/kept.ts:1:7 export class Kept {} answered by debt\n";
 
 const MAY_INDICATE = "may indicate: declared-not-asserted, straight-through-tests, handed-what-it-uses";
 
@@ -142,12 +163,7 @@ const CLASS_SYMPTOM =
 const CAST_SYMPTOM =
   "claimed-type: Claimed type. May indicate: gives a value its type (declares it, or needs it narrower) → Declared, not asserted; checks a value that may be one of several outcomes → Straight-through tests; gives a value its type (declares it, or needs it narrower): in a test, a cast to build an input → Handed what it uses. The breach usually sits in the declaration: an input too wide, a generic not bounded, a missing parse. Recipes: Fix the declaration, not the value; Assert to narrow; One argument object. Correct use: an authorised location in the adapter whose outside contract forces it. Known debt: debt. Read ../../rules/typescript/symptoms.md#claimed-type\n";
 
-type Printed = { readonly writes: readonly [readonly [{ readonly text: string }]]; readonly exits: readonly [readonly [{ readonly code: number }]] };
-
-const printed = (request: { readonly text: string; readonly code: number }): Printed => ({
-  writes: [[{ text: request.text }]],
-  exits: [[{ code: request.code }]],
-});
+type Printed = { readonly text: string; readonly code: number };
 
 const PATH = createDefaultPathPort({});
 
@@ -163,27 +179,21 @@ const pruneCommandAtHeadIn = (request: { readonly repo: string }): string => {
   return command.value;
 };
 
-const runCommandIn = async (request: { readonly repo: string; readonly subcommand: Subcommand; readonly options: readonly string[] }) => {
-  const processPort: ProcessPort = {
-    arguments: ["--repo", request.repo, ...request.options],
-    writeOut: vi.fn<ProcessPort["writeOut"]>(),
-    writeError: vi.fn<ProcessPort["writeError"]>(),
-    exitWith: vi.fn<ProcessPort["exitWith"]>(),
-  };
-  await TOOL_SUBCOMMANDS[request.subcommand]({
-    process: processPort,
-    path: createDefaultPathPort({}),
-    fileText,
-    modules: createDefaultModuleLoaderPort({}),
-    git: createDefaultGitPort({}),
-    exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
-    moduleUrl: ENTRY_URL,
+const runCommandIn = (request: { readonly repo: string; readonly subcommand: string; readonly options: readonly string[] }): Printed => {
+  const run = commands.run({
+    command: "node",
+    arguments: [TOOL_COMMAND_FILE, request.subcommand, "--repo", request.repo, ...request.options],
+    directory: request.repo,
   });
-  return { writes: vi.mocked(processPort.writeOut).mock.calls, exits: vi.mocked(processPort.exitWith).mock.calls };
+  assert(run.outcome === "exited", "the tool command ran to an exit");
+  return { text: run.output, code: run.exitCode };
 };
 
+const GIT_IDENTITY = ["-c", "user.name=adopter", "-c", "user.email=adopter@example.test", "-c", "commit.gpgsign=false"];
+
 const git = (request: { readonly repo: string; readonly arguments: readonly string[] }): void => {
-  commands.run({ command: "git", arguments: request.arguments, directory: request.repo });
+  const run = commands.run({ command: "git", arguments: [...GIT_IDENTITY, ...request.arguments], directory: request.repo });
+  assert(run.outcome === "exited" && run.exitCode === 0, "a git step in the scratch repository succeeded");
 };
 
 const trackEverything = (request: { readonly repo: string }): void => {
@@ -192,11 +202,12 @@ const trackEverything = (request: { readonly repo: string }): void => {
 
 const commitEverything = (request: { readonly repo: string }): void => {
   trackEverything(request);
-  git({ repo: request.repo, arguments: ["-c", "user.name=adopter", "-c", "user.email=adopter@example.test", "commit", "-m", "commit"] });
+  git({ repo: request.repo, arguments: ["commit", "-m", "commit"] });
 };
 
 const writeIn = (request: { readonly repo: string; readonly file: string; readonly text: string }): void => {
-  fileText.write({ path: `${request.repo}/${request.file}`, text: request.text });
+  const written = fileText.write({ path: `${request.repo}/${request.file}`, text: request.text });
+  assert(written.outcome === "ok", "the scratch file is written");
 };
 
 const adopterRepository = (request: { readonly sources: Readonly<Record<string, string>> }): string => {
@@ -208,158 +219,179 @@ const adopterRepository = (request: { readonly sources: Readonly<Record<string, 
     subfolder: "src",
     subfolderFiles: request.sources,
   });
-  git({ repo, arguments: ["init"] });
+  git({ repo, arguments: ["init", "-q"] });
   trackEverything({ repo });
   return repo;
 };
 
 const adopterRepositoryWithGeneratedFolder = (): string => {
-  const repo = adopterRepository({ sources: { "clean.ts": "export const clean = 1;\n" } });
-  scratch.makeDirectory({ path: `${repo}/src/generated` });
+  const repo = adopterRepository({ sources: { "clean.ts": CLEAN_SOURCE } });
+  const made = scratch.makeDirectory({ path: `${repo}/src/generated` });
+  assert(made.outcome === "ok", "the generated folder is made");
   writeIn({ repo, file: "src/generated/gen.ts", text: CAST_SOURCE });
   trackEverything({ repo });
   return repo;
 };
 
-const PROJECTION_WRITTEN = printed({ text: "hone.eslint.mjs written\n", code: 0 });
+const PROJECTION_WRITTEN: Printed = { text: "hone.eslint.mjs written\n", code: 0 };
 
-const PROJECTION_UNCHANGED = printed({ text: "hone.eslint.mjs unchanged\n", code: 0 });
+const PROJECTION_UNCHANGED: Printed = { text: "hone.eslint.mjs unchanged\n", code: 0 };
 
-const DEBT_RECORDED = printed({
-  text: "claimed-type#cast-to-any recorded src/cast.ts\nauthored-class-or-this#class-keyword left src/kept.ts: under --leave src/kept.ts; record it as an authorised location with its own reason, or fix it\n",
-  code: 0,
-});
+const forfeitedLine = (request: { readonly repo: string; readonly check: string; readonly file: string }): string =>
+  `forfeited (1)\n${request.check} debt ${request.file}; this change touched its file, so it no longer answers: fix what it held, then run ${pruneCommandAtHeadIn({ repo: request.repo })} to remove it\n`;
 
-describe("a version 2 adopter's repository, from the first project to a clean check, through the real ports", () => {
-  it("projects, finds each violation, answers one by debt, replaces that debt with an authorised location, prunes what that paid, and passes once the other is fixed", async () => {
-    const repo = adopterRepository({ sources: { "kept.ts": CLASS_SOURCE, "cast.ts": CAST_SOURCE } });
-    const projected = await runCommandIn({ repo, subcommand: "project", options: [] });
-    const projectedAgain = await runCommandIn({ repo, subcommand: "project", options: [] });
-    const checked = await runCommandIn({ repo, subcommand: "check", options: [] });
-    commitEverything({ repo });
-    const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD", "--leave", "src/kept.ts"] });
-    trackEverything({ repo });
-    const answeredByDebt = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    const authorised = await runCommandIn({ repo, subcommand: "authorise", options: AUTHORISE_OPTIONS });
-    trackEverything({ repo });
-    const answeredByLocation = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    const pruned = await runCommandIn({ repo, subcommand: "prune-debt", options: ["--base-revision", "HEAD"] });
-    writeIn({ repo, file: "src/kept.ts", text: FIXED_CLASS_SOURCE });
-    trackEverything({ repo });
-    const clean = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    expect({ projected, projectedAgain, checked, recorded, answeredByDebt, authorised, answeredByLocation, pruned, clean }).toEqual({
-      projected: PROJECTION_WRITTEN,
-      projectedAgain: PROJECTION_UNCHANGED,
-      checked: printed({ text: `${NOT_ADOPTED}findings (2)\n${CLASS_FINDING}${CAST_FINDING}symptoms (2)\n${CLASS_SYMPTOM}${CAST_SYMPTOM}verdict: fail\n`, code: 1 }),
-      recorded: DEBT_RECORDED,
-      answeredByDebt: printed({
-        text: `${NOT_ADOPTED}findings (1)\n${CLASS_FINDING}answered (1)\n${CAST_ANSWERED_BY_DEBT}symptoms (1)\n${CLASS_SYMPTOM}verdict: fail\n`,
-        code: 1,
-      }),
-      authorised: printed({ text: "claimed-type authorised src/cast.ts\n", code: 0 }),
-      answeredByLocation: printed({
-        text: `${NOT_ADOPTED}findings (1)\n${CLASS_FINDING}answered (1)\n${CAST_ANSWERED_BY_LOCATION}paid (1)\nclaimed-type#cast-to-any debt src/cast.ts answered by authorised-location; run ${pruneCommandAtHeadIn({ repo })} to remove the paid debt\nsymptoms (1)\n${CLASS_SYMPTOM}verdict: fail\n`,
-        code: 1,
-      }),
-      pruned: printed({ text: "claimed-type#cast-to-any removed src/cast.ts: paid\n", code: 0 }),
-      clean: printed({ text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_LOCATION}verdict: pass\n`, code: 0 }),
-    });
-  });
+describe("a version 2 adopter's repository, from the first project to a clean check, run as the real tool command", () => {
+  it(
+    "projects, finds each violation, answers both by debt, replaces one debt with an authorised location, prunes what that paid, and passes once the other is fixed",
+    () => {
+      const repo = adopterRepository({ sources: { "kept.ts": CLASS_SOURCE, "cast.ts": CAST_SOURCE } });
+      const projected = runCommandIn({ repo, subcommand: "project", options: [] });
+      const projectedAgain = runCommandIn({ repo, subcommand: "project", options: [] });
+      const checked = runCommandIn({ repo, subcommand: "check", options: [] });
+      commitEverything({ repo });
+      const recorded = runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
+      const projectedWithDebt = runCommandIn({ repo, subcommand: "project", options: [] });
+      trackEverything({ repo });
+      const answeredByDebt = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      const authorised = runCommandIn({ repo, subcommand: "authorise", options: AUTHORISE_OPTIONS });
+      trackEverything({ repo });
+      const answeredByLocation = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      const pruned = runCommandIn({ repo, subcommand: "prune-debt", options: ["--base-revision", "HEAD"] });
+      writeIn({ repo, file: "src/kept.ts", text: FIXED_CLASS_SOURCE });
+      trackEverything({ repo });
+      const forfeited = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      const prunedForfeited = runCommandIn({ repo, subcommand: "prune-debt", options: ["--base-revision", "HEAD"] });
+      const projectedWithoutDebt = runCommandIn({ repo, subcommand: "project", options: [] });
+      trackEverything({ repo });
+      const clean = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      expect({ projected, projectedAgain, checked, recorded, projectedWithDebt, answeredByDebt, authorised, answeredByLocation, pruned, forfeited, prunedForfeited, projectedWithoutDebt, clean }).toEqual({
+        projected: PROJECTION_WRITTEN,
+        projectedAgain: PROJECTION_UNCHANGED,
+        checked: { text: `${NOT_ADOPTED}findings (2)\n${CLASS_FINDING}${CAST_FINDING}symptoms (2)\n${CLASS_SYMPTOM}${CAST_SYMPTOM}verdict: fail\n`, code: 1 },
+        recorded: {
+          text: "claimed-type#cast-to-any recorded src/cast.ts\nauthored-class-or-this#class-keyword recorded src/kept.ts\n",
+          code: 0,
+        },
+        projectedWithDebt: PROJECTION_WRITTEN,
+        answeredByDebt: { text: `${NOT_ADOPTED}answered (2)\n${CLASS_ANSWERED_BY_DEBT}${CAST_ANSWERED_BY_DEBT}verdict: pass\n`, code: 0 },
+        authorised: { text: "claimed-type authorised src/cast.ts\n", code: 0 },
+        answeredByLocation: {
+          text: `${NOT_ADOPTED}answered (2)\n${CLASS_ANSWERED_BY_DEBT}${CAST_ANSWERED_BY_LOCATION}paid (1)\nclaimed-type#cast-to-any debt src/cast.ts answered by authorised-location; run ${pruneCommandAtHeadIn({ repo })} to remove the paid debt\nverdict: pass\n`,
+          code: 0,
+        },
+        pruned: { text: "claimed-type#cast-to-any removed src/cast.ts: paid\n", code: 0 },
+        forfeited: {
+          text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_LOCATION}${forfeitedLine({ repo, check: "authored-class-or-this#class-keyword", file: "src/kept.ts" })}verdict: fail\n`,
+          code: 1,
+        },
+        prunedForfeited: { text: "authored-class-or-this#class-keyword removed src/kept.ts: forfeited\n", code: 0 },
+        projectedWithoutDebt: PROJECTION_WRITTEN,
+        clean: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_LOCATION}verdict: pass\n`, code: 0 },
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 });
 
 const FORFEITURE_UNMEASURED =
   'unmeasured (1)\nforfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch\'s base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere\n';
 
-const forfeitedLine = (request: { readonly repo: string }): string =>
-  `forfeited (1)\nclaimed-type#cast-to-any debt src/cast.ts; this change touched its file, so it no longer answers: fix what it held, then run ${pruneCommandAtHeadIn({ repo: request.repo })} to remove it\n`;
-
-describe("a version 2 adopter's repository judged against a base revision, through the real ports", () => {
-  it("cannot judge debt with no base, passes with the base when nothing changed, reports a new violation, and forfeits debt on a file the change touched", async () => {
-    const repo = adopterRepository({ sources: { "kept.ts": FIXED_CLASS_SOURCE, "cast.ts": CAST_SOURCE } });
-    await runCommandIn({ repo, subcommand: "project", options: [] });
-    commitEverything({ repo });
-    const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
-    commitEverything({ repo });
-    const withoutBase = await runCommandIn({ repo, subcommand: "check", options: [] });
-    const unchanged = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    writeIn({ repo, file: "src/added.ts", text: SECOND_CAST_SOURCE });
-    trackEverything({ repo });
-    const added = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    writeIn({ repo, file: "src/cast.ts", text: TOUCHED_CAST_SOURCE });
-    const touched = await runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
-    expect({ recorded, withoutBase, unchanged, added, touched }).toEqual({
-      recorded: printed({ text: "claimed-type#cast-to-any recorded src/cast.ts\n", code: 0 }),
-      withoutBase: printed({ text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}${FORFEITURE_UNMEASURED}verdict: fail\n`, code: 1 }),
-      unchanged: printed({ text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}verdict: pass\n`, code: 0 }),
-      added: printed({ text: `${NOT_ADOPTED}findings (1)\n${SECOND_CAST_FINDING}answered (1)\n${CAST_ANSWERED_BY_DEBT}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 }),
-      touched: printed({
-        text: `${NOT_ADOPTED}findings (2)\n${SECOND_CAST_FINDING}${TOUCHED_CAST_FINDING}${forfeitedLine({ repo })}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`,
-        code: 1,
-      }),
-    });
-  });
+describe("a version 2 adopter's repository judged against a base revision, run as the real tool command", () => {
+  it(
+    "cannot judge debt with no base, passes with the base when nothing changed, reports a new violation, and forfeits debt on a file the change touched",
+    () => {
+      const repo = adopterRepository({ sources: { "kept.ts": FIXED_CLASS_SOURCE, "cast.ts": CAST_SOURCE } });
+      runCommandIn({ repo, subcommand: "project", options: [] });
+      commitEverything({ repo });
+      const recorded = runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
+      commitEverything({ repo });
+      const withoutBase = runCommandIn({ repo, subcommand: "check", options: [] });
+      const unchanged = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      writeIn({ repo, file: "src/added.ts", text: SECOND_CAST_SOURCE });
+      trackEverything({ repo });
+      const added = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      writeIn({ repo, file: "src/cast.ts", text: TOUCHED_CAST_SOURCE });
+      const touched = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
+      expect({ recorded, withoutBase, unchanged, added, touched }).toEqual({
+        recorded: { text: "claimed-type#cast-to-any recorded src/cast.ts\n", code: 0 },
+        withoutBase: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}${FORFEITURE_UNMEASURED}verdict: fail\n`, code: 1 },
+        unchanged: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}verdict: pass\n`, code: 0 },
+        added: { text: `${NOT_ADOPTED}findings (1)\n${SECOND_CAST_FINDING}answered (1)\n${CAST_ANSWERED_BY_DEBT}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 },
+        touched: {
+          text: `${NOT_ADOPTED}findings (2)\n${SECOND_CAST_FINDING}${TOUCHED_CAST_FINDING}${forfeitedLine({ repo, check: "claimed-type#cast-to-any", file: "src/cast.ts" })}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`,
+          code: 1,
+        },
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 });
 
-const CONFIG_EXCLUDING_GENERATED = configOf({ exclude: '"src/generated"', castEngine: "walker", unlistedCastSite: UNLISTED_CAST_SITE_NOT_ADOPTED });
+const outOfDateProjection = (request: { readonly repo: string }): string =>
+  `projectionProblems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every hone.eslint.mjs it writes\n`;
 
-const CONFIG_WITH_UNKNOWN_ENGINE = configOf({ exclude: "", castEngine: "nope", unlistedCastSite: UNLISTED_CAST_SITE_NOT_ADOPTED });
-
-const CONFIG_LEAVING_A_CHECK_UNLISTED = configOf({ exclude: "", castEngine: "walker", unlistedCastSite: "" });
-
-const NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE = "notAdopted (2)\nauthored-class-or-this#static-members-only\nclaimed-type#non-null-assertions\n";
-
-const FILES_THE_EMPTIED_PROJECTION_LEAVES_UNCONFIGURED =
-  "unrecorded (2)\nauthored-class-or-this#class-keyword eslint ignore src/clean.ts\nauthored-class-or-this#class-keyword eslint ignore src/generated/gen.ts\n";
-
-const projectionProblem = (request: { readonly repo: string }): string =>
-  `${FILES_THE_EMPTIED_PROJECTION_LEAVES_UNCONFIGURED}projectionProblems (1)\neslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${projectCommandIn({ repo: request.repo })} and commit every hone.eslint.mjs it writes\n`;
-
-const projectionMissing = (request: { readonly repo: string }): string =>
+const missingProjection = (request: { readonly repo: string }): string =>
   `unmeasured (1)\nengine-not-run eslint missing: hone.eslint.mjs is not written; run ${projectCommandIn({ repo: request.repo })} and commit every hone.eslint.mjs it writes\n`;
 
-describe("the settings a version 2 adopter edits, through the real ports", () => {
-  it("drops an excluded folder from the check, and prints the folder as excluded", async () => {
-    const repo = adopterRepositoryWithGeneratedFolder();
-    await runCommandIn({ repo, subcommand: "project", options: [] });
-    const before = await runCommandIn({ repo, subcommand: "check", options: [] });
-    writeIn({ repo, file: "hone.config.json", text: CONFIG_EXCLUDING_GENERATED });
-    const after = await runCommandIn({ repo, subcommand: "check", options: [] });
-    expect({ before, after }).toEqual({
-      before: printed({ text: `${NOT_ADOPTED}findings (1)\n${GENERATED_CAST_FINDING}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 }),
-      after: printed({ text: `excluded (1)\nsrc/generated\n${NOT_ADOPTED}verdict: pass\n`, code: 0 }),
-    });
-  });
+describe("the settings a version 2 adopter edits, run as the real tool command", () => {
+  it(
+    "drops an excluded folder from the check, and prints the folder as excluded",
+    () => {
+      const repo = adopterRepositoryWithGeneratedFolder();
+      runCommandIn({ repo, subcommand: "project", options: [] });
+      const before = runCommandIn({ repo, subcommand: "check", options: [] });
+      writeIn({ repo, file: "hone.config.json", text: CONFIG_EXCLUDING_GENERATED });
+      const after = runCommandIn({ repo, subcommand: "check", options: [] });
+      expect({ before, after }).toEqual({
+        before: { text: `${NOT_ADOPTED}findings (1)\n${GENERATED_CAST_FINDING}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 },
+        after: { text: `excluded (1)\nsrc/generated\n${NOT_ADOPTED}verdict: pass\n`, code: 0 },
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 
-  it("refuses an engine a check does not run on, naming the check, and exits 2 with no verdict", async () => {
-    const repo = adopterRepositoryWithGeneratedFolder();
-    writeIn({ repo, file: "hone.config.json", text: CONFIG_WITH_UNKNOWN_ENGINE });
-    expect(await runCommandIn({ repo, subcommand: "check", options: [] })).toEqual(
-      printed({ text: "load failure: engine-not-allowed claimed-type#cast-to-any nope: it runs on walker; list it with one of those\n", code: 2 }),
-    );
-  });
+  it(
+    "refuses an engine a check does not run on, naming the check, and exits 2 with no verdict",
+    () => {
+      const repo = adopterRepositoryWithGeneratedFolder();
+      writeIn({ repo, file: "hone.config.json", text: CONFIG_WITH_UNKNOWN_ENGINE });
+      expect(runCommandIn({ repo, subcommand: "check", options: [] })).toEqual({
+        text: "load failure: engine-not-allowed claimed-type#cast-to-any nope: it runs on walker; list it with one of those\n",
+        code: 2,
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 
-  it("fails on a check of a selected symptom that is neither listed nor marked not-adopted", async () => {
-    const repo = adopterRepositoryWithGeneratedFolder();
-    await runCommandIn({ repo, subcommand: "project", options: [] });
-    writeIn({ repo, file: "hone.config.json", text: CONFIG_LEAVING_A_CHECK_UNLISTED });
-    expect(await runCommandIn({ repo, subcommand: "check", options: [] })).toEqual(
-      printed({
-        text: `${NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE}findings (1)\n${GENERATED_CAST_FINDING}uncovered (1)\nclaimed-type#unlisted-cast-site\nsymptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`,
+  it(
+    "fails on a check of a selected symptom that is neither listed nor marked not-adopted, with nothing else wrong",
+    () => {
+      const repo = adopterRepository({ sources: { "clean.ts": CLEAN_SOURCE } });
+      runCommandIn({ repo, subcommand: "project", options: [] });
+      writeIn({ repo, file: "hone.config.json", text: CONFIG_LEAVING_A_CHECK_UNLISTED });
+      expect(runCommandIn({ repo, subcommand: "check", options: [] })).toEqual({
+        text: `${NOT_ADOPTED_WITHOUT_THE_UNLISTED_CAST_SITE}uncovered (1)\nclaimed-type#unlisted-cast-site\nverdict: fail\n`,
         code: 1,
-      }),
-    );
-  });
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 
-  it("says a projection that differs from what project writes is out of date, and one that is not written is missing, each with the command that fixes it", async () => {
-    const repo = adopterRepositoryWithGeneratedFolder();
-    await runCommandIn({ repo, subcommand: "project", options: [] });
-    writeIn({ repo, file: "hone.eslint.mjs", text: "export default [];\n" });
-    const outOfDate = await runCommandIn({ repo, subcommand: "check", options: [] });
-    scratch.removeTree({ path: `${repo}/hone.eslint.mjs` });
-    const missing = await runCommandIn({ repo, subcommand: "check", options: [] });
-    expect({ outOfDate, missing }).toEqual({
-      outOfDate: printed({ text: `${NOT_ADOPTED}findings (1)\n${GENERATED_CAST_FINDING}${projectionProblem({ repo })}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 }),
-      missing: printed({ text: `${NOT_ADOPTED}findings (1)\n${GENERATED_CAST_FINDING}${projectionMissing({ repo })}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 }),
-    });
-  });
+  it(
+    "says a projection that differs from what project writes is out of date, and one that is not written is missing, each with the command that fixes it, with nothing else wrong",
+    () => {
+      const repo = adopterRepository({ sources: { "clean.ts": CLEAN_SOURCE } });
+      runCommandIn({ repo, subcommand: "project", options: [] });
+      writeIn({ repo, file: "hone.eslint.mjs", text: PROJECTION_WITH_AN_EXTRA_LINE });
+      const outOfDate = runCommandIn({ repo, subcommand: "check", options: [] });
+      const removed = scratch.removeTree({ path: `${repo}/hone.eslint.mjs` });
+      assert(removed.outcome === "ok", "the projection is removed");
+      const missing = runCommandIn({ repo, subcommand: "check", options: [] });
+      expect({ outOfDate, missing }).toEqual({
+        outOfDate: { text: `${NOT_ADOPTED}${outOfDateProjection({ repo })}verdict: fail\n`, code: 1 },
+        missing: { text: `${NOT_ADOPTED}${missingProjection({ repo })}verdict: fail\n`, code: 1 },
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
 });
