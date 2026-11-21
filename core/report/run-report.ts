@@ -12,7 +12,8 @@ export type CheckEdition = { readonly check: Check; readonly engine: Engine; rea
 
 export type EngineNotRun =
   | { readonly kind: "engine-not-run"; readonly engine: Engine; readonly projection: "missing" }
-  | { readonly kind: "engine-not-run"; readonly engine: Engine; readonly projection: "not-included"; readonly nestedConfigurations: readonly RepoPath[] };
+  | { readonly kind: "engine-not-run"; readonly engine: Engine; readonly projection: "not-included"; readonly nestedConfigurations: readonly RepoPath[] }
+  | { readonly kind: "engine-not-run"; readonly engine: Engine; readonly projection: "measured-nothing" };
 
 export type RunUnmeasured = RecordsUnmeasured | EngineNotRun;
 

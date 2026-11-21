@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AUDIT, CAST_CHECK, DATE_USED_DIRECTLY, CAST_EXPRESSIONS, CLAIMED_TYPE, CLOCK_CHECK, CLOCK_SOURCES, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE, TEST_BODY_CHECK, TEST_BODY_LOGIC, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
-import type { MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
+import type { ChecksSliceProblem, MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
 import type { Hit } from "../mechanism-port/runner-result-schema.ts";
 import type { Debt, PlacedRecord, RecordsReading, RefusedRecord } from "../records/hone-record.ts";
 import type { RunReport } from "../report/run-report.ts";
@@ -36,6 +36,14 @@ const debtAt = (request: { readonly file: Debt["file"]; readonly index: number }
   place: { file: DEBT_FILE, index: request.index },
   record: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: request.file, holding: { held: "stated" } },
 });
+
+const SELECTS_CAST: RunReportRequest["selection"] = {
+  selected: [{ address: CAST_EXPRESSIONS, mechanism: ESLINT, exceptions: "allowed" }],
+  uncovered: [],
+  notAdopted: [],
+  notRun: [],
+  editions: [],
+};
 
 const NO_RECORDS: RecordsReading = { records: [], refused: [], notes: [], base: { measured: "yes" } };
 
@@ -113,10 +121,46 @@ describe("runReportOf, findings and records", () => {
 
   it("does not call a record stale when the engine measuring its check was not in effect, since nothing was measured", () => {
     const debt = debtAt({ file: FILE_A, index: 0 });
-    expect(runReportOf({ ...REQUEST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [], projection: "not-included" })] })).toMatchObject({
-      stale: [],
+    expect(runReportOf({ ...REQUEST, selection: SELECTS_CAST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [], projection: "not-included" })] })).toEqual({
+      ...EMPTY_REPORT,
       unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "not-included", nestedConfigurations: [] }],
     });
+  });
+
+  it("does not call a record stale when a package slice is missing and the engine measured no file under a current root projection, and says the engine measured nothing", () => {
+    const debt = debtAt({ file: FILE_A, index: 0 });
+    const missingSlice: ChecksSliceProblem = { slice: repoPathSchema.parse("packages/a/hone.eslint.mjs"), state: "missing" };
+    expect(
+      runReportOf({ ...REQUEST, selection: SELECTS_CAST, records: { ...NO_RECORDS, records: [debt] }, runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), slices: [missingSlice] }] }),
+    ).toEqual({
+      ...EMPTY_REPORT,
+      unmeasured: [{ kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }],
+      projectionProblems: [{ scope: "slice", engine: ESLINT_ENGINE, state: "missing", slice: missingSlice.slice }],
+    });
+  });
+
+  it("calls a record stale once the engine measured its check at its file and nothing credited it", () => {
+    const debt = debtAt({ file: FILE_B, index: 0 });
+    expect(
+      runReportOf({
+        ...REQUEST,
+        selection: SELECTS_CAST,
+        records: { ...NO_RECORDS, records: [debt] },
+        runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
+      }),
+    ).toEqual({ ...EMPTY_REPORT, stale: [debt] });
+  });
+
+  it("does not call a record stale when the engine measured other files but not its file", () => {
+    const debt = debtAt({ file: FILE_B, index: 0 });
+    expect(
+      runReportOf({
+        ...REQUEST,
+        selection: SELECTS_CAST,
+        records: { ...NO_RECORDS, records: [debt] },
+        runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_A }] }],
+      }),
+    ).toEqual(EMPTY_REPORT);
   });
 
   it("reports debt on a file the change touched as forfeited, and the finding it held as unanswered", () => {

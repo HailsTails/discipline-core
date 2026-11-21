@@ -100,7 +100,7 @@ const answering = (request: { readonly findings: readonly RaisedFinding[] }) => 
     records: reading.value.records,
     findings: request.findings,
     touched: NOTHING_CHANGED,
-    runs: [],
+    runs: [], measurements: [],
   });
 };
 

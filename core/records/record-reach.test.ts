@@ -5,7 +5,7 @@ import type { Case, Check, Recipe, RecordKind, Symptom, SymptomCatalogue } from 
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
 import type { AuthorisedLocation, BoundaryRecord, Debt, HoneRecord, RuntimeFacility, SymptomReach } from "./hone-record.ts";
-import { holdsAt, type PartyReport } from "./record-reach.ts";
+import { holdsAt, type PartyReport, placeCovers, placesReachedBy } from "./record-reach.ts";
 
 const AUTHORISED_LOCATION_KIND: RecordKind = { name: "authorised-location", title: "Authorised location", phrase: "an authorised location", todaysFormat: "authorised-location" };
 
@@ -340,5 +340,46 @@ describe("holdsAt, a record that names one check of its symptom", () => {
 describe("holdsAt, an authorised location naming a check its symptom does not have", () => {
   it.each([{ check: AT_CAST }, { check: AT_NON_NULL }, { check: UNCHECKED }])("holds no site of its symptom, here one found $check.found, and never widens to the whole symptom", ({ check }) => {
     expect(holdsAt({ record: UNKNOWN_CHECK_LOCATION, site: { check, symptom: CLAIMED_TYPE, file: ADAPTER, party: NOT_REPORTED }, catalogue: CATALOGUE })).toBe("does-not-hold");
+  });
+});
+
+const IMPORT_CHECK: Check = { name: "import-or-require", symptom: OUTSIDE_IMPORT, clause: clauseAddressSchema.parse("CD-19#import-boundaries"), engines: [], forms: [] };
+
+const CATALOGUE_WITH_CHECKS: SymptomCatalogue = { ...CATALOGUE, checks: [CAST_CHECK, NON_NULL_CHECK, IMPORT_CHECK] };
+
+describe("placesReachedBy", () => {
+  it("places a debt on a whole symptom at its file for every check of the symptom", () => {
+    expect(placesReachedBy({ record: DEBT, catalogue: CATALOGUE_WITH_CHECKS })).toEqual([
+      { check: CAST_CHECK, place: { at: "file", file: ADAPTER } },
+      { check: NON_NULL_CHECK, place: { at: "file", file: ADAPTER } },
+    ]);
+  });
+
+  it("places a debt that names one check at its file for that check alone", () => {
+    expect(placesReachedBy({ record: CAST_DEBT, catalogue: CATALOGUE_WITH_CHECKS })).toEqual([{ check: CAST_CHECK, place: { at: "file", file: ADAPTER } }]);
+  });
+
+  it("places a deviation at its file for the checks of every symptom that has its recipe, imported-party symptoms included", () => {
+    expect(placesReachedBy({ record: ADAPTER_DEVIATION, catalogue: CATALOGUE_WITH_CHECKS })).toEqual([{ check: IMPORT_CHECK, place: { at: "file", file: ADAPTER } }]);
+  });
+
+  it("places a boundary record at its module for the checks of the symptoms its outside party reaches", () => {
+    expect(placesReachedBy({ record: UUID_BOUNDARY, catalogue: CATALOGUE_WITH_CHECKS })).toEqual([{ check: IMPORT_CHECK, place: { at: "module", module: IDS_FILE } }]);
+  });
+
+  it("places a dependency record nowhere", () => {
+    const dependency: HoneRecord = { kind: "dependency-record", dependency: "zod", nativeWay: "by hand", whyNotEnough: "Each adapter would repeat its checks." };
+    expect(placesReachedBy({ record: dependency, catalogue: CATALOGUE_WITH_CHECKS })).toEqual([]);
+  });
+});
+
+describe("placeCovers", () => {
+  it("holds for the file of a file place and for a file under a module place, and not for another file", () => {
+    expect([
+      placeCovers({ place: { at: "file", file: ADAPTER }, file: ADAPTER }),
+      placeCovers({ place: { at: "file", file: ADAPTER }, file: OTHER_FILE }),
+      placeCovers({ place: { at: "module", module: repoPathSchema.parse("src/adapters/files") }, file: READ_TEXT_FILE }),
+      placeCovers({ place: { at: "module", module: repoPathSchema.parse("src/adapters/files") }, file: OTHER_FILE }),
+    ]).toEqual(["holds", "does-not-hold", "holds", "does-not-hold"]);
   });
 });

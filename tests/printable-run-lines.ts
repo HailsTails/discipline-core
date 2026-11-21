@@ -358,6 +358,7 @@ const RECORDS_UNMEASURED: readonly Filled<RunUnmeasured>[] = Object.values(RECOR
 
 const ENGINES_NOT_RUN: Readonly<Record<EngineNotRun["projection"], readonly Filled<RunUnmeasured>[]>> = {
   missing: [{ entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "missing" }, fills: { engine: "eslint" } }],
+  "measured-nothing": [{ entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "measured-nothing" }, fills: { engine: "eslint" } }],
   "not-included": [
     { entry: { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "not-included", nestedConfigurations: [] }, fills: { engine: "eslint" } },
     {

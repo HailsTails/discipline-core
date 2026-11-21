@@ -63,6 +63,11 @@ const nestedNote = (request: ProjectCommand & { readonly folders: readonly RepoP
     ? ""
     : `; ${request.folders.join(", ")} hold their own ${SETTINGS_FILE_NAME}, and nested Hone configurations are not supported yet (${NESTED_CONFIGURATION_ISSUE}): to govern such a folder from this repository, remove its ${SETTINGS_FILE_NAME} and keep its records here, then run ${request.projectCommand}, which writes its slice`;
 
+const measuredNothingNextStep = (request: EngineRequest & { readonly engine: Engine }): string =>
+  request.problems.some((problem) => problem.engine.name === request.engine.name)
+    ? `the ${request.engine.name} lines under projectionProblems name what to fix`
+    : `check that the ${request.engine.name} configuration lints the files under check`;
+
 const engineNotRunLine = (request: EngineRequest & { readonly unmeasured: EngineNotRun }): string => {
   const { unmeasured } = request;
   const { engine } = unmeasured;
@@ -70,6 +75,8 @@ const engineNotRunLine = (request: EngineRequest & { readonly unmeasured: Engine
   switch (unmeasured.projection) {
     case "missing":
       return `${unmeasured.kind} ${engine.name} missing: ${file} is not written; ${refreshStep(request)}`;
+    case "measured-nothing":
+      return `${unmeasured.kind} ${engine.name} measured-nothing: the ${engine.name} engine measured no file in this run, so the records its checks answer were not judged, neither kept as answering nor removed as stale; ${measuredNothingNextStep({ ...request, engine })}`;
     case "not-included":
       return `${unmeasured.kind} ${engine.name} not-included: the ${engine.name} configuration leaves the projection out of effect for a file under check; spread the default export of ${file}, or of a package's own ${file} in that package, last in the configuration that file loads, after every other block (an import placed last without the spread applies nothing), ${GENERATED_CONFIGURATION}${sliceNote({ ...request, engine })}${nestedNote({ ...request, folders: unmeasured.nestedConfigurations })}`;
   }

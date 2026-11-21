@@ -1,101 +1,55 @@
-import type {
-	EngineNotRun,
-	RunProjectionProblem,
-} from "../report/run-report.ts";
-import type {
-	Engine,
-	SymptomCatalogue,
-} from "../symptom-catalogue/symptom-catalogue.ts";
+import { engineMeasurementOf, type RunMeasurement } from "../records/measured-at.ts";
+import type { EngineNotRun, RunProjectionProblem } from "../report/run-report.ts";
+import type { Engine, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
+import type { SelectedClause } from "../settings/selection.ts";
 import type { MechanismId } from "../values/identifiers.ts";
 import type { EngineRun } from "./engine-run.ts";
 
 type CatalogueEngines = Pick<SymptomCatalogue, "engines">;
 
-const NO_ENGINES: CatalogueEngines = { engines: [] };
+const engineOf = (request: { readonly catalogue: CatalogueEngines; readonly mechanism: MechanismId }): Engine =>
+  request.catalogue.engines.find((engine) => engine.mechanism === request.mechanism) ?? { name: request.mechanism, mechanism: request.mechanism };
 
-const engineOf = (request: {
-	readonly catalogue: CatalogueEngines;
-	readonly mechanism: MechanismId;
-}): Engine =>
-	request.catalogue.engines.find(
-		(engine) => engine.mechanism === request.mechanism,
-	) ?? { name: request.mechanism, mechanism: request.mechanism };
+const runMeasurementOf = (request: { readonly run: EngineRun; readonly selected: readonly SelectedClause[] }): RunMeasurement => ({
+  mechanism: request.run.mechanism,
+  selected: request.selected.filter((clause) => clause.mechanism === request.run.mechanism).map((clause) => clause.address),
+  measured: request.run.measured,
+});
 
-const notRunOf = (request: {
-	readonly catalogue: CatalogueEngines;
-	readonly run: EngineRun;
-}): readonly EngineNotRun[] => {
-	const engine = engineOf({
-		catalogue: request.catalogue,
-		mechanism: request.run.mechanism,
-	});
-	switch (request.run.projection) {
-		case "missing":
-			return [{ kind: "engine-not-run", engine, projection: "missing" }];
-		case "not-included":
-			return [
-				{
-					kind: "engine-not-run",
-					engine,
-					projection: "not-included",
-					nestedConfigurations: [],
-				},
-			];
-		case "none":
-		case "current":
-		case "out-of-date":
-			return [];
-	}
+export const runMeasurementsOf = (request: { readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[] }): readonly RunMeasurement[] =>
+  request.runs.map((run) => runMeasurementOf({ run, selected: request.selected }));
+
+const measuredNothingOf = (request: { readonly engine: Engine; readonly measurement: RunMeasurement }): readonly EngineNotRun[] =>
+  engineMeasurementOf({ run: request.measurement }) === "measured-nothing" ? [{ kind: "engine-not-run", engine: request.engine, projection: "measured-nothing" }] : [];
+
+const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun; readonly selected: readonly SelectedClause[] }): readonly EngineNotRun[] => {
+  const engine = engineOf({ catalogue: request.catalogue, mechanism: request.run.mechanism });
+  switch (request.run.projection) {
+    case "missing":
+      return [{ kind: "engine-not-run", engine, projection: "missing" }];
+    case "not-included":
+      return [{ kind: "engine-not-run", engine, projection: "not-included", nestedConfigurations: [] }];
+    case "none":
+      return [];
+    case "current":
+    case "out-of-date":
+      return measuredNothingOf({ engine, measurement: runMeasurementOf(request) });
+  }
 };
 
-const projectionProblemOf = (request: {
-	readonly engine: Engine;
-	readonly run: EngineRun;
-}): readonly RunProjectionProblem[] =>
-	request.run.projection === "out-of-date"
-		? [{ scope: "projection", engine: request.engine, state: "out-of-date" }]
-		: [];
+const projectionProblemOf = (request: { readonly engine: Engine; readonly run: EngineRun }): readonly RunProjectionProblem[] =>
+  request.run.projection === "out-of-date" ? [{ scope: "projection", engine: request.engine, state: "out-of-date" }] : [];
 
-const problemOf = (request: {
-	readonly catalogue: CatalogueEngines;
-	readonly run: EngineRun;
-}): readonly RunProjectionProblem[] => {
-	const engine = engineOf({
-		catalogue: request.catalogue,
-		mechanism: request.run.mechanism,
-	});
-	return [
-		...projectionProblemOf({ engine, run: request.run }),
-		...request.run.slices.map(
-			(slice): RunProjectionProblem => ({
-				scope: "slice",
-				engine,
-				state: slice.state,
-				slice: slice.slice,
-			}),
-		),
-	];
+const problemOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun }): readonly RunProjectionProblem[] => {
+  const engine = engineOf({ catalogue: request.catalogue, mechanism: request.run.mechanism });
+  return [
+    ...projectionProblemOf({ engine, run: request.run }),
+    ...request.run.slices.map((slice): RunProjectionProblem => ({ scope: "slice", engine, state: slice.state, slice: slice.slice })),
+  ];
 };
 
-export const engineUnmeasuredOf = (request: {
-	readonly catalogue: CatalogueEngines;
-	readonly runs: readonly EngineRun[];
-}): readonly EngineNotRun[] =>
-	request.runs.flatMap((run) =>
-		notRunOf({ catalogue: request.catalogue, run }),
-	);
+export const engineUnmeasuredOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[] }): readonly EngineNotRun[] =>
+  request.runs.flatMap((run) => notRunOf({ catalogue: request.catalogue, run, selected: request.selected }));
 
-export const enginesNotMeasuredOf = (request: {
-	readonly runs: readonly EngineRun[];
-}): readonly MechanismId[] =>
-	request.runs
-		.filter((run) => notRunOf({ catalogue: NO_ENGINES, run }).length > 0)
-		.map((run) => run.mechanism);
-
-export const engineProblemsOf = (request: {
-	readonly catalogue: CatalogueEngines;
-	readonly runs: readonly EngineRun[];
-}): readonly RunProjectionProblem[] =>
-	request.runs.flatMap((run) =>
-		problemOf({ catalogue: request.catalogue, run }),
-	);
+export const engineProblemsOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[] }): readonly RunProjectionProblem[] =>
+  request.runs.flatMap((run) => problemOf({ catalogue: request.catalogue, run }));

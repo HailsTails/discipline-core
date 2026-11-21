@@ -241,7 +241,7 @@ describe("Hone's records over a real hone-records folder with a git base, built 
   it("answers each finding at an example's site by that record alone, leaves the rest, lists nothing stale, and lists the debt the authorised location holds as paid", () => {
     const reading = readHoneRecords({ source, catalogue, baseRevision: "HEAD" });
     assert(reading.outcome === "ok", "the records read");
-    expect(answerFindings({ catalogue, records: reading.value.records, findings: FINDINGS, touched: NOTHING_TOUCHED, runs: [] })).toMatchObject({
+    expect(answerFindings({ catalogue, records: reading.value.records, findings: FINDINGS, touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toMatchObject({
       findings: [CAST_IN_ORDERS, DATE_FNS_IMPORT_IN_CLOCK_SOURCE],
       answered: [
         { finding: CAST_IN_WEBHOOK, by: [{ place: { file: AUTHORISED_CLAIMED, index: 0 } }] },
@@ -262,7 +262,7 @@ describe("Hone's records over a real hone-records folder with a git base, built 
     const reading = readHoneRecords({ source, catalogue, baseRevision: undefined });
     assert(reading.outcome === "ok", "the records read");
     expect({
-      answering: answerFindings({ catalogue, records: reading.value.records, findings: FINDINGS, touched: NOTHING_TOUCHED, runs: [] }),
+      answering: answerFindings({ catalogue, records: reading.value.records, findings: FINDINGS, touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
       unmeasured: recordsUnmeasuredOf({ records: reading.value.records, base: reading.value.base, touched: NOTHING_TOUCHED }),
     }).toMatchObject({
       answering: { findings: [CAST_IN_ORDERS], stale: [] },

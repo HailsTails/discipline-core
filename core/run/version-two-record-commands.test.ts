@@ -2,6 +2,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { authoriseArgumentsFor, commandOver, gitTreeStub, memoryRepositoryOf, recordedProcessWith } from "../../tests/command-harness.ts";
 import { CAST_EXPRESSIONS, CLAIMED_TYPE, ESLINT, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
+import type { ChecksSliceProblem } from "../mechanism-port/checks-runner-types.ts";
 import type { Hit } from "../mechanism-port/runner-result-schema.ts";
 import type { PlacedRecord, RecordsReading } from "../records/hone-record.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
@@ -191,20 +192,54 @@ describe("versionTwoPruneDebtCommandOf", () => {
     expect(ran.repository.filesHeld()).toEqual([]);
   });
 
-  it("keeps the debt, printing nothing, when the engine measuring its check was not in effect, since nothing was measured to show it stale", async () => {
+  const settingsSelectingCast = (): SettingsReading => {
+    const settings = settingsWith({ forfeiture: "this-run" });
+    return {
+      ...settings,
+      selection: {
+        ...settings.selection,
+        selection: { ...settings.selection.selection, selected: [{ address: CAST_EXPRESSIONS, mechanism: ESLINT, exceptions: "allowed" }] },
+      },
+    };
+  };
+
+  const prunedWhileEngineRan = async (request: { readonly run: EngineRun }) => {
     const ran = await ranWith({
       handler: versionTwoPruneDebtCommandOf,
       arguments: ["--repo", "/repo"],
       stages: stagesGiving({
+        settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: settingsSelectingCast() }),
         records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: { ...NO_RECORDS, records: [HELD_DEBT] } }),
-        engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [{ ...runOf({ hits: [] }), projection: "not-included" }] }),
+        engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [request.run] }),
       }),
       files: { [DEBT_FILE]: DEBT_DOCUMENT },
     });
-    expect({ writes: ran.writes, exits: ran.exits, filesHeld: ran.repository.filesHeld() }).toEqual({
+    return { writes: ran.writes, exits: ran.exits, filesHeld: ran.repository.filesHeld() };
+  };
+
+  it("keeps the debt, printing nothing, when the engine measuring its check was not in effect, since nothing was measured to show it stale", async () => {
+    expect(await prunedWhileEngineRan({ run: { ...runOf({ hits: [] }), projection: "not-included" } })).toEqual({
       writes: [[{ text: "" }]],
       exits: [[{ code: 0 }]],
       filesHeld: [DEBT_FILE],
+    });
+  });
+
+  it("keeps the debt when a package slice is missing, so the engine linted nothing under a current root projection", async () => {
+    const missingSlice: ChecksSliceProblem = { slice: repoPathSchema.parse("packages/a/hone.eslint.mjs"), state: "missing" };
+    expect(await prunedWhileEngineRan({ run: { ...runOf({ hits: [] }), slices: [missingSlice] } })).toEqual({
+      writes: [[{ text: "" }]],
+      exits: [[{ code: 0 }]],
+      filesHeld: [DEBT_FILE],
+    });
+  });
+
+  it("removes the debt once the engine measured its check at its file and found nothing", async () => {
+    const measured = { ...runOf({ hits: [] }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_A }] };
+    expect(await prunedWhileEngineRan({ run: measured })).toEqual({
+      writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]],
+      exits: [[{ code: 0 }]],
+      filesHeld: [],
     });
   });
 
