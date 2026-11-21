@@ -337,7 +337,7 @@ Neither `"not-run"` nor `"not-adopted"` takes an exception record. Stop and ask 
 
 ## 16. Moving to the split layout
 
-`discipline-exceptions.json` holds every record in one file. The split layout keeps the same records in the `discipline-exceptions` folder, one file for each record kind and discipline, as `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json` did: [README.md](README.md#the-split-layout) describes it. Moving is optional, and a repository that does nothing keeps the single file.
+`discipline-exceptions.json` holds every record in one file. The split layout keeps the same records in the `discipline-exceptions` folder, one file for each record kind and discipline, as `.constitution-carve-outs/cd-<id>.json` and `.constitution-authorised-locations/cd-<id>.json` did. Moving is optional, and a repository that does nothing keeps the single file.
 
 1. **Start a branch from the base your hook and CI pass to the check**, such as `origin/main`, with no other change to the records in it. Fetch the base first, so it is current.
 2. **Split the records:**
