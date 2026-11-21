@@ -60,7 +60,7 @@ const INLINE_DISABLE: NativeException = {
   clause: CAST_EXPRESSIONS,
   file: FILE_A,
   line: 3,
-  text: "// eslint-disable-next-line hone/claimed-type/cast-expressions",
+  text: "// eslint-disable-next-line hone/claimed-type#cast-expressions",
   reach: "one-clause",
 };
 
@@ -71,7 +71,7 @@ const INLINE_RULE_CONFIG: NativeException = {
   clause: CAST_EXPRESSIONS,
   file: FILE_A,
   line: 4,
-  text: '/* eslint hone/claimed-type/cast-expressions: "off" */',
+  text: '/* eslint hone/claimed-type#cast-expressions: "off" */',
 };
 
 const SUPPRESSION_ENTRY: NativeException = { kind: "suppression-entry", clause: CAST_EXPRESSIONS, file: FILE_A, location: repoPathSchema.parse("eslint-suppressions.json") };

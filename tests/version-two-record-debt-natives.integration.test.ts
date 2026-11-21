@@ -43,7 +43,7 @@ export default [...hone];
 `;
 
 const ESLINT_CONFIG_WITH_OVERRIDE = `import hone from "./hone.eslint.mjs";
-export default [...hone, { files: ["src/legacy-*.ts"], rules: { "hone/authored-class-or-this/class-keyword": "warn" } }];
+export default [...hone, { files: ["src/legacy-*.ts"], rules: { "hone/authored-class-or-this#class-keyword": "warn" } }];
 `;
 
 const CLEAN_LEGACY_SOURCE = "export const clean = 1;\n";
@@ -54,7 +54,7 @@ const FIXED_CLASS_LEGACY_SOURCE = "export const legacy = 1;\n";
 
 const CLASS_SOURCE = "export class Kept {}\n";
 
-const INLINE_DISABLE_SOURCE = "// eslint-disable-next-line hone/authored-class-or-this/class-keyword\nexport const inherited = 1;\n";
+const INLINE_DISABLE_SOURCE = "// eslint-disable-next-line hone/authored-class-or-this#class-keyword\nexport const inherited = 1;\n";
 
 const TYPE_DIRECTIVE_SOURCE = '// @ts-expect-error\nexport const wrong: number = "a";\n';
 
@@ -141,7 +141,7 @@ authored-class-or-this#class-keyword eslint src/legacy-class.ts:1:7 export class
 unrecorded (4)
 authored-class-or-this#class-keyword eslint config-override src/legacy-class.ts
 authored-class-or-this#class-keyword eslint config-override src/legacy-clean.ts
-authored-class-or-this#class-keyword eslint inline-disable src/disabled.ts:1 // eslint-disable-next-line hone/authored-class-or-this/class-keyword
+authored-class-or-this#class-keyword eslint inline-disable src/disabled.ts:1 // eslint-disable-next-line hone/authored-class-or-this#class-keyword
 claimed-type#unlisted-cast-site walker inline-disable src/directive.ts:1 // @ts-expect-error
 assessment (1)
 forfeiture elsewhere: 0 debt records not checked for forfeiture in this run
@@ -221,7 +221,7 @@ const ESLINT_CONFIG_IGNORING = `import hone from "./hone.eslint.mjs";
 export default [...hone, { ignores: ["src/ignored.ts"] }];
 `;
 
-const SUPPRESSIONS = `{ "src/suppressed.ts": { "hone/authored-class-or-this/class-keyword": { "count": 1 } } }
+const SUPPRESSIONS = `{ "src/suppressed.ts": { "hone/authored-class-or-this#class-keyword": { "count": 1 } } }
 `;
 
 const hidingRepository = (): string => {
