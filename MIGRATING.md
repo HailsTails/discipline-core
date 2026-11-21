@@ -32,7 +32,7 @@ Old code often holds `any` ([Untyped value](rules/typescript/symptoms.md#untyped
 
 Do [ADOPTING.md](ADOPTING.md) steps 1, 2 and 4 (and 4a for any `eslint` clause). A repository that used only Biome has no `eslint.config.*`. If it selects any clause through `eslint`, create `eslint.config.mjs` as step 4a shows before the first check, or the check stops with `runner-failed eslint team-config-unloadable`. If it lists every ESLint clause as `"not-run"` or `"not-adopted"`, it needs no ESLint config and no ESLint installed. Leave the old files in place until step 6.
 
-Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. Where the rule binds but a clause's mechanism cannot work in this repository, such as an ESLint-only clause with no ESLint installed, list that clause as `"not-run"`; where the rule does not apply at all, list it as `"not-adopted"`. [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out the clause values and the three declared states.
+Map each chosen discipline to its clauses with this table. A discipline is adopted whole: select every mechanical clause it lists, or the check reports the rest as `uncovered`. Where the rule binds but a clause's mechanism cannot work in this repository, such as an ESLint-only clause with no ESLint installed, list that clause as `"not-run"`; where the rule does not apply at all, list it as `"not-adopted"`. [ADOPTING.md](ADOPTING.md#4-write-honeconfigjson) step 4 sets out the clause values and the three declared states.
 
 Find each old rule's number in [Every numbered discipline](rules/numbers.md#every-numbered-discipline), the one page that maps old numbers to names, and select every mechanical clause its row lists, each with a mechanism its CHECKS.md lists. Four kinds of row need more:
 
@@ -52,7 +52,7 @@ Do this before step 3, and before you delete any record Hone lists as `stale`. T
 | Old route | Where to look | In Hone |
 | --- | --- | --- |
 | Packages confined to wrapping files | a list in the tool's code or its config. Rin's walker holds it as `BANNED_THIRD_PARTY_IMPORTS`: search its tools folder for that name, since an installed copy keeps it in `constitution-audit/audit-constitution.runtime.js`, and its `audit-constitution.ts` only re-exports that file | `confinedPackages` for `CD-19#import-boundaries` under `clauseSettings` in `disciplines.json`. Hone confines no package by default, so until you list them `outside-import-past-a-boundary#import-or-require` flags only `node:` imports. `outside-import-past-a-boundary#import-or-require` is the check's name, given for reading: today's tool neither accepts nor prints a check's name, so write and expect the clause address; check names become typeable in 2.0. A package covers its subpaths, as the clause's checks page, `rules/CD-19/CHECKS.md`, says under "What the check flags", where the old walker matched each listed name exactly, so Hone can flag a subpath import the old list did not name. |
-| Scope | `constitution.include` and `constitution.exclude` in `harness.config.json` | `exclude` in `disciplines.json`, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 says. Hone has no include list and no globs: list each folder or file outside the old scope as an exact path. |
+| Scope | `constitution.include` and `constitution.exclude` in `harness.config.json` | `exclude` in `disciplines.json`, as [ADOPTING.md](ADOPTING.md#4-write-honeconfigjson) step 4 says. Hone has no include list and no globs: list each folder or file outside the old scope as an exact path. |
 | Rules relaxed by folder | `scriptGlobs`, `uiGlobs` or similar in `harness.config.json` | nothing. Hone has one selection for the whole repository. What those folders fail under the full rules is existing debt: fix it or record it in step 3. There is no old record to import it from, so once the human approves recording it, `hone record-debt` writes the records (step 3). Do not exclude the folders to hide it. |
 | Files the tool skipped in its own code | a list such as `SELF_AUDIT_EXCLUDED_FILENAMES` | an `exclude` entry or an exception record for each file. Stop and ask the human which, and why. |
 
@@ -66,7 +66,7 @@ Do step 2a first. Then run the check once with no exceptions file, to see what H
 npm run --silent hone:check
 ```
 
-Findings of the strict-flag checks ([Strictness weakened](rules/typescript/symptoms.md#strictness-weakened)) on `tsconfig.json` are fixed in step 4, not recorded. Then write `discipline-exceptions.json` from the old records, using the format in [README.md](README.md#discipline-exceptionsjson):
+Findings of the strict-flag checks ([Strictness weakened](rules/typescript/symptoms.md#strictness-weakened)) on `tsconfig.json` are fixed in step 4, not recorded. Then write `discipline-exceptions.json` from the old records, using the format in [README.md](README.md#hone-records):
 
 An old record file is a JSON array of entries, each listing one or more files:
 
@@ -288,7 +288,7 @@ Earlier releases let a repository record a `clause-wide-carve-out` and set `"ass
 
 For each clause the setting skipped:
 
-1. **Say what is true of it.** Set the clause to `"not-run"` when the rule binds but its check is not a true measure of the rule here, or cannot work here, such as the ESLint-only `CD-6#naming-convention` (`name-off-its-casing#naming-convention`) with no ESLint installed: the report lists it under `notRun`, and the rule is owed through review. Set it to `"not-adopted"` when the rule does not apply to this codebase. If neither is true, and the clause is debt the codebase cannot pay right now, keep its mechanism and its carve-out, and let the check run; see [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4.
+1. **Say what is true of it.** Set the clause to `"not-run"` when the rule binds but its check is not a true measure of the rule here, or cannot work here, such as the ESLint-only `CD-6#naming-convention` (`name-off-its-casing#naming-convention`) with no ESLint installed: the report lists it under `notRun`, and the rule is owed through review. Set it to `"not-adopted"` when the rule does not apply to this codebase. If neither is true, and the clause is debt the codebase cannot pay right now, keep its mechanism and its carve-out, and let the check run; see [ADOPTING.md](ADOPTING.md#4-write-honeconfigjson) step 4.
 2. **Delete its carve-out** from `discipline-exceptions.json` when the clause is now `"not-run"` or `"not-adopted"`: an entry on such a clause is invalid, as `clause-not-run` or `clause-not-adopted`, and fails the run.
 3. **Remove the setting and the flag.** Delete `waivedClauses` from `assessment` in `disciplines.json`, and `--waived-clauses` from scripts, CI and the pre-push hook.
 4. **Re-project** if any clause was `eslint`: run `npm run --silent hone:project`. The projection no longer carries the clause's rule or its `"off"` block; commit it.
@@ -327,7 +327,7 @@ The cast discipline gained a clause, `CD-2#non-null-assertions` (`claimed-type#n
 CD-2#non-null-assertions
 ```
 
-Choose one state for it, as [ADOPTING.md](ADOPTING.md#4-write-disciplinesjson) step 4 sets out:
+Choose one state for it, as [ADOPTING.md](ADOPTING.md#4-write-honeconfigjson) step 4 sets out:
 
 1. **The repository runs the ESLint mechanism.** Add `"CD-2#non-null-assertions": "eslint"` (`claimed-type#non-null-assertions`) to `clauses`, then run `npm run --silent hone:project` and commit `disciplines.eslint.mjs`, and each package slice it writes. Run the check. Each existing `!` is a finding; fix it, or hold it as debt with a `file-carve-out` per file, or a `clause-wide-carve-out` with an owner, after the human approves, and re-run `hone:project` so the projection carries the records. An `eslint-disable` naming no rule now escapes this clause too, and is listed under `unrecorded` for it until a file record on this clause holds it, as section 14 says; naming the rule it means is the cheap fix.
 2. **The repository has no ESLint, or the rule binds but its check is not a true measure here.** Add `"CD-2#non-null-assertions": "not-run"` (`claimed-type#non-null-assertions`). The report lists it under `notRun`, and review owes the rule. Nothing is projected and ESLint is not loaded for it.

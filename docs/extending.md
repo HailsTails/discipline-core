@@ -356,7 +356,7 @@ Exception records in `discipline-exceptions.json` name team clauses by their ful
 }
 ```
 
-A `file-carve-out` is debt and needs no `whyChain` and no `reason`. Where the clause does not apply to a file at all, record an `authorised-location` instead: it is never forfeited, so it needs a `reason` and a `whyChain` that follows the [why-chain contract](why-chain-contract.md), and without the chain it is refused as `evidence-refused`. [README.md](../README.md#discipline-exceptionsjson) describes the record kinds and what each needs.
+A `file-carve-out` is debt and needs no `whyChain` and no `reason`. Where the clause does not apply to a file at all, record an `authorised-location` instead: it is never forfeited, so it needs a `reason` and a `whyChain` that follows the [why-chain contract](why-chain-contract.md), and without the chain it is refused as `evidence-refused`. [README.md](../README.md#hone-records) describes the record kinds and what each needs.
 
 ## What is stable
 
