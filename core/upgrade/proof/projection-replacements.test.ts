@@ -98,14 +98,6 @@ export default [...slice, ...root];
     });
   });
 
-  it("pairs only the projections a config imports, a declaration written beside each standing behind none", () => {
-    const declaration: PlannedRepoFile = { file: path("hone.eslint.d.mts"), text: "root declaration" };
-    expect(replacementsOf({ projections: [ROOT_VERSION_ONE], projected: [ROOT_VERSION_TWO, declaration] })).toEqual({
-      outcome: "ok",
-      value: [{ file: "eslint.config.mjs", text: importing("./hone.eslint.mjs") }],
-    });
-  });
-
   it("replaces nothing when version 1 wrote no projection and version 2 projects none", () => {
     expect(replacementsOf({ projections: [], projected: [] })).toEqual({ outcome: "ok", value: [] });
   });

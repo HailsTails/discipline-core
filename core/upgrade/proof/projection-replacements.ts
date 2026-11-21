@@ -7,8 +7,6 @@ import type { VersionOneProjection } from "./team-config-finder.ts";
 
 const PATH_SEPARATOR = "/";
 
-const IMPORTABLE_PROJECTION = /\.mjs$/;
-
 export type PairingRefusal =
   | { readonly kind: "version-one-projection-unpaired"; readonly projection: RepoPath; readonly config: RepoPath; readonly folder: string }
   | { readonly kind: "version-two-projection-unpaired"; readonly file: RepoPath; readonly folder: string };
@@ -67,12 +65,11 @@ export const replacementsOf = (request: {
   readonly projections: readonly VersionOneProjection[];
   readonly projected: readonly PlannedRepoFile[];
 }): Result<readonly PlannedRepoFile[], ReplacementRefusal> => {
-  const projected = request.projected.filter((candidate) => IMPORTABLE_PROJECTION.test(candidate.file));
-  const pairs = pairsOf({ projections: request.projections, projected });
+  const pairs = pairsOf(request);
   if (pairs.outcome === "failed") {
     return pairs;
   }
-  const alone = unpairedProjectedOf({ pairs: pairs.value, projected });
+  const alone = unpairedProjectedOf({ pairs: pairs.value, projected: request.projected });
   if (alone !== undefined) {
     return { outcome: "failed", error: { kind: "projections-unpaired", refusal: { kind: "version-two-projection-unpaired", file: alone.file, folder: folderOf({ file: alone.file }) } } };
   }

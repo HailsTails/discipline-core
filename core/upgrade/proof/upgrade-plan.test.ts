@@ -75,7 +75,7 @@ const LOOPS_SETTINGS = {
 const PLANNED_PROJECTION = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" };
 
 const projecting = (request: { readonly files: readonly (typeof PLANNED_PROJECTION)[] }) =>
-  vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: request.files });
+  vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: { files: request.files, projections: request.files } });
 
 const requestOver =(overrides: Partial<UpgradePlanRequest>): UpgradePlanRequest => ({
   reading: READING,

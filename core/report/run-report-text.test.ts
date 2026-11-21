@@ -119,7 +119,7 @@ const LINES = {
   refused: "hone-records/authorised-locations/claimed-type.json records[1] carried-changed-since-base",
   unmeasured:
     'forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch\'s base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere',
-  projectionProblems: `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every hone.eslint.mjs it writes`,
+  projectionProblems: `eslint out-of-date: hone.eslint.mjs differs from what hone project writes now; run ${PROJECT_COMMAND} and commit every file it writes`,
   assessment: "forfeiture elsewhere: 2 debt records not checked for forfeiture in this run",
   notes: "layers is declared; no check reads it yet",
   recordNotes: 'hone-records/authorised-locations/claimed-type.json records[0] owes-not-owed: gives-a-value-its-type does not owe "written-out-answers"',

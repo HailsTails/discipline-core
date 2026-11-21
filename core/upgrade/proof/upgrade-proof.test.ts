@@ -172,6 +172,10 @@ const doublesOver = (request: { readonly kindOf: Mock<EntryKindPort["kindOf"]> }
   },
 });
 
+const ROOT_PROJECTION_FILE = { file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" };
+
+const SLICE_PROJECTION_FILE = { file: repoPathSchema.parse("packages/a/hone.eslint.mjs"), text: "slice text" };
+
 const requestOver = (request: { readonly doubles: Doubles }): UpgradeProofRequest => ({
   ports: request.doubles.ports,
   oracle: request.doubles.oracle,
@@ -185,7 +189,7 @@ const requestOver = (request: { readonly doubles: Doubles }): UpgradeProofReques
   },
   catalogues: CATALOGUES,
   repoRoot: REPO,
-  projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: [{ file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" }] }),
+  projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({ outcome: "ok", value: { files: [ROOT_PROJECTION_FILE], projections: [ROOT_PROJECTION_FILE] } }),
   versionOneProjectionsOf: request.doubles.projections,
 });
 
@@ -523,10 +527,7 @@ describe("upgradeProof", () => {
       ...requestOver({ doubles }),
       projectionFilesOf: vi.fn<ProjectionFilesOf>().mockResolvedValue({
         outcome: "ok",
-        value: [
-          { file: repoPathSchema.parse("hone.eslint.mjs"), text: "projection text" },
-          { file: repoPathSchema.parse("packages/a/hone.eslint.mjs"), text: "slice text" },
-        ],
+        value: { files: [ROOT_PROJECTION_FILE, SLICE_PROJECTION_FILE], projections: [ROOT_PROJECTION_FILE, SLICE_PROJECTION_FILE] },
       }),
     };
     await expect(upgradeProof(request)).resolves.toEqual({
