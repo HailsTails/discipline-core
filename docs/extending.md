@@ -159,7 +159,7 @@ export default [
 ];
 ```
 
-Every `eslint.config.*` that applies to checked files spreads the projection last. The projection sets rules only, so the config also sets the typescript-eslint parser, as [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) step 4a explains. The example's `eslint.config.mjs`:
+Every `eslint.config.*` that applies to checked files spreads the projection last. The projection sets rules only, so the config also sets the typescript-eslint parser, as [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-checks) step 4a explains. The example's `eslint.config.mjs`:
 
 ```js
 import typescriptParser from "@typescript-eslint/parser";
@@ -171,7 +171,7 @@ export default [
 ];
 ```
 
-In a monorepo each package's own config does the same, importing the projection by its relative path, such as `../../disciplines.eslint.mjs`. A package config that leaves the projection out fails the check, listing each of its files under `unrecorded` as `acme/ACME-1#console-calls eslint config-override <file>`. [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) step 4a says which config ESLint applies to a file and how to state it in `disciplines.json` when detection cannot tell.
+In a monorepo each package's own config does the same, importing the projection by its relative path, such as `../../disciplines.eslint.mjs`. A package config that leaves the projection out fails the check, listing each of its files under `unrecorded` as `acme/ACME-1#console-calls eslint config-override <file>`. [ADOPTING.md](../ADOPTING.md#4a-set-up-eslint-for-eslint-checks) step 4a says which config ESLint applies to a file and how to state it in `disciplines.json` when detection cannot tell.
 
 ## An audit piece
 
