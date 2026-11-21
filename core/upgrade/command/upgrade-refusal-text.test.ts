@@ -287,7 +287,7 @@ Nothing was changed.
           file: repoPathSchema.parse("src/b.ts"),
           line: 7,
           text: "the text",
-          replacedBy: ["hone/authored-class-or-this/class-keyword"],
+          replacedBy: ["hone/authored-class-or-this#class-keyword"],
         },
       ],
       unrestored: [],
@@ -295,7 +295,7 @@ Nothing was changed.
     },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/b.ts:7 hone/no-class-authoring: write hone/authored-class-or-this/class-keyword\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nthese inline directives name a hone rule id that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n",
+      text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/b.ts:7 hone/no-class-authoring: write hone/authored-class-or-this#class-keyword\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nthese inline directives name a hone rule id that version 2 has no check under:\n  src/a.ts:3 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nversion 1's own project removed these files, and the upgrade does not put them back; restore them from version control:\n  /repo/old/disciplines.eslint.mjs\n",
     },
   },
   {
@@ -316,14 +316,14 @@ Nothing was changed.
     failure: {
       kind: "directives-name-no-check",
       directives: [
-        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: ["hone/a/first", "hone/a/second"] },
+        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text", replacedBy: ["hone/a#first", "hone/a#second"] },
       ],
       unrestored: [],
       removedByVersionOne: [],
     },
     outcome: {
       code: 1,
-      text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/a.ts:3 hone/no-class-authoring: write each of hone/a/first, hone/a/second\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nNothing was changed.\n",
+      text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/a.ts:3 hone/no-class-authoring: write each of hone/a#first, hone/a#second\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nNothing was changed.\n",
     },
   },
   {

@@ -9,11 +9,11 @@ import type { SuppressionsReader } from "./suppressions-scanner.ts";
 
 const CLAUSE = clauseAddressSchema.parse("CD-1#explicit-any");
 
-const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value/explicit-any", clause: CLAUSE, options: [] };
+const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value#explicit-any", clause: CLAUSE, options: [] };
 
 const SUPPRESSIONS = repoPathSchema.parse("eslint-suppressions.json");
 
-const SUPPRESSING_A = { "src/a.ts": { "hone/untyped-value/explicit-any": { count: 2 }, "no-console": { count: 1 } } };
+const SUPPRESSING_A = { "src/a.ts": { "hone/untyped-value#explicit-any": { count: 2 }, "no-console": { count: 1 } } };
 
 const trackedOver = (request: { readonly trackedPaths: readonly RepoPath[] }) =>
   trackedExceptionsOf({

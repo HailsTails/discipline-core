@@ -50,8 +50,8 @@ const EVERY_NATIVE_KIND_NAMING_A_CHECK = [
   { kind: "ignore", check: CHECK, clause: CLASS_SYNTAX, file: "src/generated.ts" },
   { kind: "config-override", check: CHECK, clause: CLASS_SYNTAX, file: "src/legacy.ts" },
   { kind: "suppression-entry", check: CHECK, clause: CLASS_SYNTAX, file: "src/old.ts", location: "eslint-suppressions.json" },
-  { kind: "inline-disable", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 4, text: "// eslint-disable-next-line hone/authored-class-or-this/class-keyword", reach: "one-clause" },
-  { kind: "inline-rule-config", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 1, text: '/* eslint hone/authored-class-or-this/class-keyword: "off" */' },
+  { kind: "inline-disable", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 4, text: "// eslint-disable-next-line hone/authored-class-or-this#class-keyword", reach: "one-clause" },
+  { kind: "inline-rule-config", check: CHECK, clause: CLASS_SYNTAX, file: "src/a.ts", line: 1, text: '/* eslint hone/authored-class-or-this#class-keyword: "off" */' },
   { kind: "command-line-option", check: CHECK, clause: CLASS_SYNTAX, location: "package.json", script: "lint", option: "--suppress-all", cause: { kind: "weakens-run" } },
 ];
 

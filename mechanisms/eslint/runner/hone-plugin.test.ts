@@ -37,7 +37,7 @@ describe("honePluginAt", () => {
   it("builds the plugin from the piece of each ESLint check's discipline and the plugin module that piece names", async () => {
     expect(await pluginBuiltFrom({ read: PIECE_READ, load: PLUGIN_LOADED }).built).toEqual({
       outcome: "ok",
-      value: { meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" }, rules: { "test-switched-off/skipped-tests": expect.anything() } },
+      value: { meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" }, rules: { "test-switched-off#skipped-tests": expect.anything() } },
     });
   });
 
@@ -120,8 +120,8 @@ describe("honePluginFailureText", () => {
       text: "the piece /install/mechanisms/eslint/CD-27/piece.json runs the rule skipped-tests, which its plugin module does not hold",
     },
     {
-      failure: { kind: "check-rule-missing", ruleId: "hone/test-switched-off/skipped-tests" },
-      text: "the check hone/test-switched-off/skipped-tests runs on ESLint, but no piece of this install holds its rule",
+      failure: { kind: "check-rule-missing", ruleId: "hone/test-switched-off#skipped-tests" },
+      text: "the check hone/test-switched-off#skipped-tests runs on ESLint, but no piece of this install holds its rule",
     },
   ])("says $failure.kind as $text", ({ failure, text }) => {
     expect(honePluginFailureText({ failure })).toBe(text);

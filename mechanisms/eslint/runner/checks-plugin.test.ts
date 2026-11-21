@@ -22,15 +22,15 @@ describe("checksPluginOf", () => {
     expect(PLUGIN).toMatchObject({ outcome: "ok", value: { meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" } } });
   });
 
-  it("holds one rule for each check on ESLint, named <symptom>/<check>, and none for a check that runs elsewhere", () => {
+  it("holds one rule for each check on ESLint, named <symptom>#<check>, and none for a check that runs elsewhere", () => {
     expect(PLUGIN).toEqual({
       outcome: "ok",
       value: {
         meta: { name: "@hailstails/hone/eslint-plugin", version: "0.0.0-local" },
         rules: {
-          "test-switched-off/skipped-tests": expect.anything(),
-          "claimed-type/non-null-assertions": expect.anything(),
-          "positional-parameters/parameter-count": expect.anything(),
+          "test-switched-off#skipped-tests": expect.anything(),
+          "claimed-type#non-null-assertions": expect.anything(),
+          "positional-parameters#parameter-count": expect.anything(),
         },
       },
     });
@@ -41,7 +41,7 @@ describe("checksPluginOf", () => {
       outcome: "ok",
       value: {
         rules: {
-          "test-switched-off/skipped-tests": {
+          "test-switched-off#skipped-tests": {
             meta: { type: "problem", schema: [], messages: { modifiedTest: "Test switched off: remove the skip so the test runs, or delete the test." } },
           },
         },
@@ -52,7 +52,7 @@ describe("checksPluginOf", () => {
   it("fails naming the rule id of an ESLint check whose piece is not among its sources", () => {
     expect(checksPluginOf({ checks: CHECKS_PLUGIN_CATALOGUE.checks, sources: [CD_27_SOURCE], boundary: SILENT_BOUNDARY })).toEqual({
       outcome: "failed",
-      error: { kind: "check-rule-missing", ruleId: "hone/claimed-type/non-null-assertions" },
+      error: { kind: "check-rule-missing", ruleId: "hone/claimed-type#non-null-assertions" },
     });
   });
 

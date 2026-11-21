@@ -60,8 +60,8 @@ describe("projectedChecksOf", () => {
     ).toEqual({
       outcome: "ok",
       value: [
-        { symptom: "test-switched-off", check: "skipped-tests", ruleId: "hone/test-switched-off/skipped-tests", options: [] },
-        { symptom: "positional-parameters", check: "parameter-count", ruleId: "hone/positional-parameters/parameter-count", options: [{ max: 2, countVoidThis: true }] },
+        { symptom: "test-switched-off", check: "skipped-tests", ruleId: "hone/test-switched-off#skipped-tests", options: [] },
+        { symptom: "positional-parameters", check: "parameter-count", ruleId: "hone/positional-parameters#parameter-count", options: [{ max: 2, countVoidThis: true }] },
       ],
     });
   });

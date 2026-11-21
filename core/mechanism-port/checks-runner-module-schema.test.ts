@@ -27,7 +27,7 @@ const REPORT = {
       file: "src/a.ts",
       line: 2,
       text: "// eslint-disable-next-line hone/no-class-authoring",
-      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+      replacedBy: ["hone/authored-class-or-this#class-keyword"],
     },
   ],
 };
@@ -53,7 +53,7 @@ const MISNAMED_SITE = { ruleId: "hone/no-class-authoring", file: "src/a.ts", lin
 describe("misnamedRuleIdSchema", () => {
   it("accepts a version 1 id naming the version 2 ids to write, and an id naming no check", () => {
     expect([
-      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE, replacedBy: ["hone/a/first", "hone/a/second"] }).success,
+      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE, replacedBy: ["hone/a#first", "hone/a#second"] }).success,
       misnamedRuleIdSchema.safeParse({ kind: "names-no-check", ...MISNAMED_SITE }).success,
     ]).toEqual([true, true]);
   });
@@ -67,7 +67,7 @@ describe("misnamedRuleIdSchema", () => {
   });
 
   it("rejects an id naming no check that carries a version 2 id", () => {
-    expect(misnamedRuleIdSchema.safeParse({ kind: "names-no-check", ...MISNAMED_SITE, replacedBy: ["hone/a/first"] }).success).toBe(false);
+    expect(misnamedRuleIdSchema.safeParse({ kind: "names-no-check", ...MISNAMED_SITE, replacedBy: ["hone/a#first"] }).success).toBe(false);
   });
 });
 

@@ -171,7 +171,7 @@ describe.each(ESLINT_LINES)("on %s, the version 1 projection and its version 2 f
 
   it("switch off, on a file its records answer, only the rules of the symptoms they answer", async () => {
     expect(await resolvedRules({ line, config: VERSION_TWO_CONFIG, file: "src/legacy.ts" })).toMatchObject({
-      "hone/claimed-type/non-null-assertions": [
+      "hone/claimed-type#non-null-assertions": [
         0,
         { selector: "TSNonNullExpression", message: "CD-2: a non-null assertion claims a value the compiler cannot see; narrow it with a check instead." },
         {
@@ -179,29 +179,29 @@ describe.each(ESLINT_LINES)("on %s, the version 1 projection and its version 2 f
           message: "CD-2: a definite assignment assertion claims an assignment the compiler cannot see; initialise the binding instead.",
         },
       ],
-      "hone/rebinding/parameter-reassignment": [0, { props: false }],
-      "hone/positional-parameters/parameter-count": [2, { max: 2, countVoidThis: true }],
-      "hone/test-switched-off/skipped-tests": [2],
+      "hone/rebinding#parameter-reassignment": [0, { props: false }],
+      "hone/positional-parameters#parameter-count": [2, { max: 2, countVoidThis: true }],
+      "hone/test-switched-off#skipped-tests": [2],
     });
   });
 
   it("switch off, on a file a record answers for one check of a symptom with two, only that check's rule", async () => {
     expect(await resolvedRules({ line, config: VERSION_TWO_CONFIG, file: "src/skipping.test.ts" })).toMatchObject({
-      "hone/test-switched-off/skipped-tests": [0],
-      "hone/test-switched-off/focused-tests": [2],
+      "hone/test-switched-off#skipped-tests": [0],
+      "hone/test-switched-off#focused-tests": [2],
     });
   });
 
   it("report through the adopter's own config, each message under its symptom's title", async () => {
     expect(await lintedMessages({ line })).toMatchObject([
-      { ruleId: "hone/test-switched-off/skipped-tests", line: 1, message: "Test switched off: remove the skip so the test runs, or delete the test." },
+      { ruleId: "hone/test-switched-off#skipped-tests", line: 1, message: "Test switched off: remove the skip so the test runs, or delete the test." },
       {
-        ruleId: "hone/claimed-type/non-null-assertions",
+        ruleId: "hone/claimed-type#non-null-assertions",
         line: 2,
         message: "Claimed type: a non-null assertion claims a value the compiler cannot see; narrow it with a check instead.",
       },
       {
-        ruleId: "hone/positional-parameters/parameter-count",
+        ruleId: "hone/positional-parameters#parameter-count",
         line: 3,
         message: "Positional parameters: Arrow function has too many parameters (3). Maximum allowed is 2.",
       },

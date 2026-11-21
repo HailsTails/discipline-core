@@ -1,3 +1,4 @@
+import { checkAddressTextOf } from "../values/check-address-text.ts";
 import { type ClauseAddress, sameClauseAddress } from "../values/clause-address.ts";
 import type { Check, SymptomCatalogue } from "./symptom-catalogue.ts";
 
@@ -10,7 +11,7 @@ const foundAmong = (request: { readonly checks: readonly Check[] }): FoundCheck 
   return check === undefined ? NO_CHECK : { found: "check", check };
 };
 
-export const checkAddressOf = (request: { readonly check: Check }): string => `${request.check.symptom.name}#${request.check.name}`;
+export const checkAddressOf = (request: { readonly check: Check }): string => checkAddressTextOf(request);
 
 export const checkAt = (request: { readonly catalogue: SymptomCatalogue; readonly address: string }): FoundCheck =>
   foundAmong({ checks: request.catalogue.checks.filter((candidate) => checkAddressOf({ check: candidate }) === request.address) });

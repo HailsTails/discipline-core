@@ -1,3 +1,4 @@
+import { CHECK_ADDRESS_SEPARATOR } from "../../../core/values/check-address-text.ts";
 import { projectionOutputsOf } from "../../../core/values/projection-outputs.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import { enabledRuleEntry } from "./eslint-instance.ts";
@@ -27,8 +28,6 @@ const ANSWERED_BLOCK = `${CHECKS_PLUGIN_NAMESPACE}/answered`;
 
 const LIST_SEPARATOR = ", ";
 
-const CHECK_SEPARATOR = "#";
-
 const quoted = (request: { readonly text: string }): string => JSON.stringify(request.text);
 
 const rulesText = (request: { readonly rules: readonly RuleEntry[] }): string => {
@@ -52,11 +51,11 @@ const checksBlock = (request: { readonly checks: readonly ProjectedCheck[] }): s
   `{ name: ${quoted({ text: CHECKS_BLOCK })}, files: [${quoted({ text: SOURCE_FILES })}], plugins: { ${CHECKS_PLUGIN_NAMESPACE} }, rules: ${rulesText({ rules: enabledRules(request) })} }`;
 
 const reachOfAnswer = (request: { readonly answer: AnsweredFile }): string =>
-  request.answer.check === undefined ? request.answer.symptom : `${request.answer.symptom}${CHECK_SEPARATOR}${request.answer.check}`;
+  request.answer.check === undefined ? request.answer.symptom : `${request.answer.symptom}${CHECK_ADDRESS_SEPARATOR}${request.answer.check}`;
 
 const reachesOfCheck = (request: { readonly check: ProjectedCheck }): readonly string[] => [
   request.check.symptom,
-  `${request.check.symptom}${CHECK_SEPARATOR}${request.check.check}`,
+  `${request.check.symptom}${CHECK_ADDRESS_SEPARATOR}${request.check.check}`,
 ];
 
 const answeredGroupsOf = (request: { readonly checks: readonly ProjectedCheck[]; readonly answered: readonly AnsweredFile[] }): readonly AnsweredGroup[] => {

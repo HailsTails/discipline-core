@@ -66,7 +66,7 @@ export default [...hone];
 `;
 
 const PROJECTION_WITH_AN_EXTRA_LINE = `import hone from "../../api/eslint-plugin.ts";
-export default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins: { hone }, rules: { "hone/authored-class-or-this/class-keyword": "error" } }];
+export default [{ name: "hone/checks", files: ["**/*.{ts,tsx,mts,cts}"], plugins: { hone }, rules: { "hone/authored-class-or-this#class-keyword": "error" } }];
 
 `;
 

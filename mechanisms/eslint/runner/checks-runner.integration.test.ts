@@ -30,7 +30,7 @@ const CLASS_SYNTAX = clauseAddressSchema.parse("CD-14#class-syntax");
 
 const CLASS_CHECK = "authored-class-or-this#class-keyword";
 
-const CLASS_RULE = "hone/authored-class-or-this/class-keyword";
+const CLASS_RULE = "hone/authored-class-or-this#class-keyword";
 
 const SOURCE_FILE = repoPathSchema.parse("kept.ts");
 
@@ -163,7 +163,7 @@ const SUPPRESSIONS_PATH = repoPathSchema.parse("eslint-suppressions.json");
 
 const PACKAGE_PATH = repoPathSchema.parse("package.json");
 
-const SUPPRESSIONS = `{ "kept.ts": { "hone/authored-class-or-this/class-keyword": { "count": 1 } } }\n`;
+const SUPPRESSIONS = `{ "kept.ts": { "hone/authored-class-or-this#class-keyword": { "count": 1 } } }\n`;
 
 const SUPPRESS_SCRIPT = `{ "scripts": { "lint:suppress": "eslint --suppress-all ." } }\n`;
 
@@ -213,15 +213,54 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
             file: "kept.ts",
             line: 1,
             text: "// eslint-disable-next-line hone/no-class-authoring",
-            replacedBy: ["hone/authored-class-or-this/class-keyword"],
+            replacedBy: ["hone/authored-class-or-this#class-keyword"],
           },
         ],
       },
     });
   });
 
+  it("reports an inline disable that gives a reason after the check's id as a native exception whose text keeps the reason", async () => {
+    const comment = `// eslint-disable-next-line ${CLASS_RULE} -- inherited from the billing module`;
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": `${comment}\n${ONE_CLASS}` } })).toEqual({
+      outcome: "ok",
+      value: {
+        ...REPORT,
+        hits: [CLASS_HIT_ON_LINE_2],
+        nativeExceptions: [{ kind: "inline-disable", clause: CLASS_SYNTAX, file: "kept.ts", line: 1, text: comment, reach: "one-clause", check: CLASS_CHECK }],
+        measured: MEASURED,
+      },
+    });
+  });
+
+  it("reports an inline rule configuration written with the check's id as a native exception on that check", async () => {
+    const comment = `/* eslint ${CLASS_RULE}: "off" */`;
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": `${comment}\n${ONE_CLASS}` } })).toEqual({
+      outcome: "ok",
+      value: {
+        ...REPORT,
+        hits: [CLASS_HIT_ON_LINE_2],
+        nativeExceptions: [{ kind: "inline-rule-config", clause: CLASS_SYNTAX, file: "kept.ts", line: 1, text: comment, check: CLASS_CHECK }],
+        measured: MEASURED,
+      },
+    });
+  });
+
+  it("reports an inline disable whose id splits the check's address with a slash as misnamed, naming no check, and suppresses nothing", async () => {
+    const comment = "// eslint-disable-next-line hone/authored-class-or-this/class-keyword";
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": `${comment}\n${ONE_CLASS}` } })).toEqual({
+      outcome: "ok",
+      value: {
+        ...REPORT,
+        hits: [CLASS_HIT_ON_LINE_2],
+        measured: MEASURED,
+        misnamedRuleIds: [{ kind: "names-no-check", ruleId: "hone/authored-class-or-this/class-keyword", file: "kept.ts", line: 1, text: comment }],
+      },
+    });
+  });
+
   it("does not call a disable misnamed when it names a real check of the catalogue that the repository has not selected", async () => {
-    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/authored-class-or-this/static-members-only" }) } })).toEqual({
+    expect(await runOver({ ...ROOT_FILE_RUN, line, files: { ...ADOPTED, "kept.ts": sourceDisabling({ ruleId: "hone/authored-class-or-this#static-members-only" }) } })).toEqual({
       outcome: "ok",
       value: { ...REPORT, hits: [CLASS_HIT_ON_LINE_2], measured: MEASURED },
     });

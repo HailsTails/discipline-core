@@ -15,7 +15,7 @@ import type { GoverningIgnores } from "./governing-config.ts";
 
 const CLAUSE = clauseAddressSchema.parse("CD-1#explicit-any");
 
-const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value/explicit-any", clause: CLAUSE, options: [] };
+const EXPLICIT_ANY: SelectedCheck = { address: "untyped-value#explicit-any", symptom: "untyped-value", ruleId: "hone/untyped-value#explicit-any", clause: CLAUSE, options: [] };
 
 const A = repoPathSchema.parse("src/a.ts");
 
