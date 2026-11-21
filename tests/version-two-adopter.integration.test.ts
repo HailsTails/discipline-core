@@ -167,13 +167,13 @@ type Printed = { readonly text: string; readonly code: number };
 
 const PATH = createDefaultPathPort({});
 
-const projectNextLineIn = (request: { readonly repo: string }): string => `run ${projectCommandIn(request)} to put the recorded debt into effect\n`;
-
 const projectCommandIn = (request: { readonly repo: string }): string => {
   const command = projectCommandOf({ path: PATH, moduleUrl: ENTRY_URL, repoRoot: absolutePathSchema.parse(request.repo) });
   assert(command.outcome === "ok", "the project command is made");
   return command.value;
 };
+
+const projectNextLineIn = (request: { readonly repo: string }): string => `run ${projectCommandIn(request)} to put the recorded debt into effect\n`;
 
 const pruneCommandAtHeadIn = (request: { readonly repo: string }): string => {
   const command = pruneCommandOf({ path: PATH, moduleUrl: ENTRY_URL, repoRoot: absolutePathSchema.parse(request.repo), baseRevision: "HEAD", forfeiture: undefined });

@@ -36,7 +36,7 @@ const OUTCOME_LINES: readonly (readonly [DebtOutcome, string])[] = [
   ],
   [
     { ...SITE, effect: "unrecordable", because: { kind: "ignore" } },
-    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration",
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run checked the file and recorded what it found there as debt, so what is left is the ignore: remove it, or, if the file is generated or vendored and not yours to hold to the checks, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree",
   ],
   [
     { ...SITE, effect: "unrecordable", because: { kind: "inline-rule-config" } },
