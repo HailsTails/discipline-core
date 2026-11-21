@@ -1,3 +1,4 @@
+import type { GovernedRun } from "../governance/governance.ts";
 import type { ProjectedFile } from "../mechanism-port/checks-runner-types.ts";
 import type { RecordsReading } from "../records/hone-record.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
@@ -19,6 +20,7 @@ export type VersionTwoRun = {
   readonly catalogue: SymptomCatalogue;
   readonly touched: TouchedSet;
   readonly output: ReportOutput;
+  readonly runs: readonly GovernedRun[];
 };
 
 export type EngineStageRequest = {
@@ -85,5 +87,8 @@ export const versionTwoRunOver = async (request: { readonly stages: VersionTwoSt
     runs: runs.value,
     tracked: tree.value.tracked,
   });
-  return { outcome: "ok", value: { report, catalogue, touched, output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: settings.runSettings.reportOutput }) } };
+  return {
+    outcome: "ok",
+    value: { report, catalogue, touched, runs: runs.value, output: reportOutputInEffect({ requested: request.arguments.reportOutput, configured: settings.runSettings.reportOutput }) },
+  };
 };

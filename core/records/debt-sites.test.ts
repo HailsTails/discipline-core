@@ -23,24 +23,24 @@ const UNCATALOGUED_FINDING: Finding = {
 
 describe("the findings no debt can be written for", () => {
   it("names a finding whose clause the catalogue names no symptom for, by its clause", () => {
-    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [UNCATALOGUED_FINDING, CLOCK_FINDING] })).toEqual([{ address: "CD-99#nowhere", file: ORDER_FILE }]);
+    expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [UNCATALOGUED_FINDING, CLOCK_FINDING] })).toEqual([{ address: "CD-99#nowhere", file: ORDER_FILE, because: "no-check" }]);
   });
 
   it("names a finding whose named check is not of its clause", () => {
     expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [{ ...CAST_FINDING, check: "claimed-type#no-such-check" }] })).toEqual([
-      { address: "CD-2#cast-expressions", file: WEBHOOK_FILE },
+      { address: "CD-2#cast-expressions", file: WEBHOOK_FILE, because: "no-check" },
     ]);
   });
 
   it("names a finding whose named check is not run by the engine that raised it", () => {
     expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [{ ...CLOCK_FINDING, mechanism: ESLINT, check: "date-used-directly#clock-sources" }] })).toEqual([
-      { address: "CD-17#clock-sources", file: ORDER_FILE },
+      { address: "CD-17#clock-sources", file: ORDER_FILE, because: "no-check" },
     ]);
   });
 
   it("names each clause and file once", () => {
     expect(unrecordableSitesOf({ catalogue: REPORT_CATALOGUE, findings: [UNCATALOGUED_FINDING, { ...UNCATALOGUED_FINDING, anchor: { line: 9, column: 1 } }] })).toEqual([
-      { address: "CD-99#nowhere", file: ORDER_FILE },
+      { address: "CD-99#nowhere", file: ORDER_FILE, because: "no-check" },
     ]);
   });
 });

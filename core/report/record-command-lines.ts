@@ -1,10 +1,21 @@
 import type { Authorising } from "../records/authorising.ts";
 import { type DebtOutcome, debtAddressOf } from "../records/debt-effects.ts";
 import type { PrunableDebt, PrunedReason } from "../records/prunable-debt.ts";
+import type { UnrecordableBecause } from "../records/unrecordable-site.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { recordsFileText, refusalText } from "./record-lines.ts";
 
 const NO_DETAIL = "";
+
+const UNRECORDABLE_DETAIL: Readonly<Record<UnrecordableBecause, string>> = {
+  "no-check": "the catalogue gives this finding no symptom or check to record debt against; fix the finding",
+  ignore: "an ESLint ignore leaves the file out of the lint run, which no record can hold; remove the ignore from the ESLint configuration, or list the file in exclude in hone.config.json",
+  "inline-rule-config": "a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment",
+  "suppression-entry": "an entry in the suppressions file hides the finding where no record can hold it; fix the code and remove the entry",
+  "command-line-option": "a lint-script option weakens the script's whole run, so no record can cover it; remove it from the script",
+  "config-override": "no record of this engine holds this override; fix the code, or remove the override",
+  "inline-disable": "no record of this engine holds this comment; fix the code, or remove the comment",
+};
 
 const detailOf = (request: { readonly outcome: DebtOutcome }): string => {
   const { outcome } = request;
@@ -18,7 +29,7 @@ const detailOf = (request: { readonly outcome: DebtOutcome }): string => {
     case "touched":
       return "this change created or changed the file, so this run would forfeit debt on it; fix the finding there";
     case "unrecordable":
-      return "the catalogue gives this finding no symptom or check to record debt against; fix the finding";
+      return UNRECORDABLE_DETAIL[outcome.because];
   }
 };
 

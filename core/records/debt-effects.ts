@@ -4,19 +4,20 @@ import type { RepoPath } from "../values/repo-path.ts";
 import { debtForfeitureAt } from "./debt-forfeiture.ts";
 import { type DebtSite, inSiteOrder } from "./debt-sites.ts";
 import type { Debt, PlacedRecord } from "./hone-record.ts";
+import type { UnrecordableBecause, UnrecordableSite } from "./unrecordable-site.ts";
 
 export type DebtEffect =
   | { readonly effect: "recorded" }
   | { readonly effect: "already-recorded"; readonly heldIn: RepoPath }
   | { readonly effect: "left"; readonly under: RepoPath }
   | { readonly effect: "touched" }
-  | { readonly effect: "unrecordable" };
+  | { readonly effect: "unrecordable"; readonly because: UnrecordableBecause };
 
 export type DebtOutcome = DebtSite & DebtEffect;
 
 export type DebtEffectsRequest = {
   readonly sites: readonly DebtSite[];
-  readonly unrecordable: readonly DebtSite[];
+  readonly unrecordable: readonly UnrecordableSite[];
   readonly records: readonly PlacedRecord[];
   readonly leave: readonly RepoPath[];
   readonly touched: TouchedSet;
@@ -49,6 +50,6 @@ const effectOf = (request: { readonly site: DebtSite; readonly held: readonly He
 export const debtOutcomesOf = (request: DebtEffectsRequest): readonly DebtOutcome[] => {
   const held = heldDebtsIn(request);
   const decided = request.sites.map((site): DebtOutcome => ({ ...site, ...effectOf({ site, held, rest: request }) }));
-  const undecided = request.unrecordable.map((site): DebtOutcome => ({ ...site, effect: "unrecordable" }));
+  const undecided = request.unrecordable.map((site): DebtOutcome => ({ address: site.address, file: site.file, effect: "unrecordable", because: site.because }));
   return inSiteOrder({ sites: [...decided, ...undecided] });
 };

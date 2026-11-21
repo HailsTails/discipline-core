@@ -3,7 +3,7 @@ import { CAUSAL_WHY_CHAIN } from "../../tests/causal-why-chain.ts";
 import { authoriseArgumentsFor, commandOver, gitTreeStub, memoryRepositoryOf, recordedProcessWith } from "../../tests/command-harness.ts";
 import { CAST_EXPRESSIONS, CLAIMED_TYPE, ESLINT, REPORT_CATALOGUE, WHOLE_SYMPTOM } from "../../tests/report-catalogue.ts";
 import type { ChecksSliceProblem } from "../mechanism-port/checks-runner-types.ts";
-import type { Hit } from "../mechanism-port/runner-result-schema.ts";
+import type { Hit, NativeException } from "../mechanism-port/runner-result-schema.ts";
 import type { PlacedRecord, RecordsReading } from "../records/hone-record.ts";
 import { createRecordsFolder } from "../records/records-folder.ts";
 import type { RunLoadFailure } from "../report/run-load-failure.ts";
@@ -54,6 +54,45 @@ const runOf = (request: { readonly hits: readonly Hit[] }): EngineRun => ({
   measured: [],
   misnamedRuleIds: [],
 });
+
+const INLINE_DISABLE: NativeException = {
+  kind: "inline-disable",
+  clause: CAST_EXPRESSIONS,
+  file: FILE_A,
+  line: 3,
+  text: "// eslint-disable-next-line hone/claimed-type/cast-expressions",
+  reach: "one-clause",
+};
+
+const IGNORE: NativeException = { kind: "ignore", clause: CAST_EXPRESSIONS, file: FILE_A };
+
+const INLINE_RULE_CONFIG: NativeException = {
+  kind: "inline-rule-config",
+  clause: CAST_EXPRESSIONS,
+  file: FILE_A,
+  line: 4,
+  text: '/* eslint hone/claimed-type/cast-expressions: "off" */',
+};
+
+const SUPPRESSION_ENTRY: NativeException = { kind: "suppression-entry", clause: CAST_EXPRESSIONS, file: FILE_A, location: repoPathSchema.parse("eslint-suppressions.json") };
+
+const COMMAND_LINE_OPTION: NativeException = {
+  kind: "command-line-option",
+  clause: CAST_EXPRESSIONS,
+  location: repoPathSchema.parse("package.json"),
+  script: "lint",
+  option: "--no-inline-config",
+  cause: { kind: "weakens-run" },
+};
+
+const runHoldingNatives = (request: { readonly nativeExceptions: readonly NativeException[] }): EngineRun => ({
+  ...runOf({ hits: [] }),
+  nativeExceptions: request.nativeExceptions,
+  coverableKinds: ["config-override", "inline-disable"],
+});
+
+const stagesHoldingNatives = (request: { readonly nativeExceptions: readonly NativeException[] }): VersionTwoStages =>
+  stagesGiving({ engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [runHoldingNatives(request)] }) });
 
 const settingsStageFor = (request: { readonly forfeiture: ForfeitureAssessment }) =>
   vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: settingsWith(request) });
@@ -160,6 +199,40 @@ describe("versionTwoRecordDebtCommandOf", () => {
       [{ text: `claimed-type#cast-expressions already-recorded src/a.ts: ${DEBT_FILE} already holds debt on this symptom and file; the check says why it does not answer\n` }],
     ]);
     expect(ran.repository.textOf({ file: DEBT_FILE })).toBe(DEBT_DOCUMENT);
+  });
+
+  it("writes the debt an inline disable needs on its check and file when no finding is on that site, printing it recorded", async () => {
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages: stagesHoldingNatives({ nativeExceptions: [INLINE_DISABLE] }), files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "claimed-type#cast-expressions recorded src/a.ts\n" }]], exits: [[{ code: 0 }]] });
+    expect(ran.repository.textOf({ file: DEBT_FILE })).toBe(DEBT_DOCUMENT);
+  });
+
+  it("prints one line for a finding and an inline disable on the same check and file", async () => {
+    const stages = stagesGiving({
+      engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [{ ...runHoldingNatives({ nativeExceptions: [INLINE_DISABLE] }), hits: [CAST] }] }),
+    });
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect(ran.writes).toEqual([[{ text: "claimed-type#cast-expressions recorded src/a.ts\n" }]]);
+  });
+
+  it("writes nothing and names what to do instead for each exception no debt can hold", async () => {
+    const stages = stagesHoldingNatives({ nativeExceptions: [IGNORE, INLINE_RULE_CONFIG, SUPPRESSION_ENTRY, COMMAND_LINE_OPTION] });
+    const ran = await ranWith({ handler: versionTwoRecordDebtCommandOf, arguments: RECORD_ARGUMENTS, stages, files: {} });
+    expect({ writes: ran.writes, exits: ran.exits }).toEqual({
+      writes: [
+        [
+          {
+            text: `CD-2#cast-expressions unrecordable package.json: a lint-script option weakens the script's whole run, so no record can cover it; remove it from the script
+CD-2#cast-expressions unrecordable src/a.ts: an ESLint ignore leaves the file out of the lint run, which no record can hold; remove the ignore from the ESLint configuration, or list the file in exclude in hone.config.json
+CD-2#cast-expressions unrecordable src/a.ts: a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment
+CD-2#cast-expressions unrecordable src/a.ts: an entry in the suppressions file hides the finding where no record can hold it; fix the code and remove the entry
+`,
+          },
+        ],
+      ],
+      exits: [[{ code: 0 }]],
+    });
+    expect(ran.repository.filesHeld()).toEqual([]);
   });
 
   it("prints the load failure line and exits 2 when a stage fails", async () => {

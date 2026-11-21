@@ -31,6 +31,36 @@ describe("every line the version 2 record commands can print, as the contract is
         text: `CD-99#nowhere unrecordable ${FILE}: the catalogue gives this finding no symptom or check to record debt against; fix the finding`,
         fills: { address: ADDRESS, file: FILE, clause: "CD-99#nowhere" },
       },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the lint run, which no record can hold; remove the ignore from the ESLint configuration, or list the file in exclude in hone.config.json`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: an entry in the suppressions file hides the finding where no record can hold it; fix the code and remove the entry`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: a lint-script option weakens the script's whole run, so no record can cover it; remove it from the script`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: no record of this engine holds this override; fix the code, or remove the override`,
+        fills: { address: ADDRESS, file: FILE },
+      },
+      {
+        label: "record-debt",
+        text: `${ADDRESS} unrecordable ${FILE}: no record of this engine holds this comment; fix the code, or remove the comment`,
+        fills: { address: ADDRESS, file: FILE },
+      },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: paid`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale`, fills: { address: "date-used-directly", file: FILE } },
       { label: "prune-debt", text: `date-used-directly removed ${FILE}: stale, its file is no longer in the repository`, fills: { address: "date-used-directly", file: FILE } },

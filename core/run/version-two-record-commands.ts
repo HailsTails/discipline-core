@@ -81,6 +81,8 @@ const recordDebtOutcome: OutcomeOf = async (request) => {
   }
   const recorded = recordDebtOf({ catalogue: run.value.catalogue, source: sourceOf({ ...context.value, catalogue: run.value.catalogue }), store: storeOf(context.value) })({
     findings: run.value.report.findings,
+    unrecorded: run.value.report.unrecorded,
+    runs: run.value.runs,
     touched: run.value.touched,
     leave: parsed.value.leave,
   });

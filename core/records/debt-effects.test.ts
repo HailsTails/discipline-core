@@ -99,9 +99,9 @@ describe("what record-debt does with each symptom and file the check finds", () 
   });
 
   it("gives a finding no debt can be written for its own line, ordered by file with the rest", () => {
-    expect(debtOutcomesOf({ ...REQUEST, unrecordable: [{ address: "CD-99#nowhere", file: LEFT_FILE }, { address: "CD-98#nowhere", file: ORDER_FILE }] })).toEqual([
-      { address: "CD-99#nowhere", file: LEFT_FILE, effect: "unrecordable" },
-      { address: "CD-98#nowhere", file: ORDER_FILE, effect: "unrecordable" },
+    expect(debtOutcomesOf({ ...REQUEST, unrecordable: [{ address: "CD-99#nowhere", file: LEFT_FILE, because: "no-check" }, { address: "CD-98#nowhere", file: ORDER_FILE, because: "no-check" }] })).toEqual([
+      { address: "CD-99#nowhere", file: LEFT_FILE, effect: "unrecordable", because: "no-check" },
+      { address: "CD-98#nowhere", file: ORDER_FILE, effect: "unrecordable", because: "no-check" },
       { address: CLOCK_ADDRESS, file: ORDER_FILE, effect: "recorded" },
     ]);
   });

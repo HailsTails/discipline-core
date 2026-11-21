@@ -1,4 +1,4 @@
-import type { Finding } from "../governance/governance.ts";
+import type { AttributedNativeException, Finding, GovernedRun } from "../governance/governance.ts";
 import type { RunReport } from "../report/run-report.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
@@ -7,7 +7,8 @@ import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import type { Result } from "../values/result.ts";
 import { type AuthoriseRequest, type Authorising, authorisingOf } from "./authorising.ts";
 import { type DebtOutcome, debtOutcomesOf } from "./debt-effects.ts";
-import { debtSitesOf, unrecordableSitesOf } from "./debt-sites.ts";
+import { debtSitesOf, inSiteOrder, unrecordableSitesOf } from "./debt-sites.ts";
+import { nativeDebtSitesOf } from "./native-debt-sites.ts";
 import type { RecordsAtBase, RecordsDocument, RecordsReading } from "./hone-record.ts";
 import { type PrunableDebt, prunableDebtOf } from "./prunable-debt.ts";
 import type { HoneRecordsFailure } from "./read-hone-records.ts";
@@ -28,6 +29,8 @@ export type RecordDebtPorts = {
 
 export type RecordDebtRequest = {
   readonly findings: readonly Finding[];
+  readonly unrecorded: readonly AttributedNativeException[];
+  readonly runs: readonly GovernedRun[];
   readonly touched: TouchedSet;
   readonly leave: readonly RepoPath[];
 };
@@ -92,11 +95,13 @@ const outcomesOf = (request: { readonly ports: RecordDebtPorts; readonly run: Re
   if (touched.measured === "no") {
     return unmeasuredFailure({ base: touched.base });
   }
+  const { catalogue } = request.ports;
+  const natives = nativeDebtSitesOf({ catalogue, unrecorded: request.run.unrecorded, runs: request.run.runs });
   return {
     outcome: "ok",
     value: debtOutcomesOf({
-      sites: debtSitesOf({ catalogue: request.ports.catalogue, findings: request.run.findings }),
-      unrecordable: unrecordableSitesOf({ catalogue: request.ports.catalogue, findings: request.run.findings }),
+      sites: inSiteOrder({ sites: [...debtSitesOf({ catalogue, findings: request.run.findings }), ...natives.recordable] }),
+      unrecordable: [...unrecordableSitesOf({ catalogue, findings: request.run.findings }), ...natives.unrecordable],
       records: held.value.records,
       leave: request.run.leave,
       touched,
@@ -107,7 +112,7 @@ const outcomesOf = (request: { readonly ports: RecordDebtPorts; readonly run: Re
 export const recordDebtOf =
   (ports: RecordDebtPorts) =>
   (run: RecordDebtRequest): Commanded<readonly DebtOutcome[]> => {
-    if (run.findings.length === 0) {
+    if (run.findings.length === 0 && run.unrecorded.length === 0) {
       return { outcome: "ok", value: [] };
     }
     const documents = documentsOf(ports);

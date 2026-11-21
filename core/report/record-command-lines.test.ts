@@ -27,8 +27,32 @@ const OUTCOME_LINES: readonly (readonly [DebtOutcome, string])[] = [
     "date-used-directly#clock-sources touched src/orders/charge-order.ts: this change created or changed the file, so this run would forfeit debt on it; fix the finding there",
   ],
   [
-    { address: "CD-99#nowhere", file: FILE, effect: "unrecordable" },
+    { address: "CD-99#nowhere", file: FILE, effect: "unrecordable", because: "no-check" },
     "CD-99#nowhere unrecordable src/orders/charge-order.ts: the catalogue gives this finding no symptom or check to record debt against; fix the finding",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "ignore" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an ESLint ignore leaves the file out of the lint run, which no record can hold; remove the ignore from the ESLint configuration, or list the file in exclude in hone.config.json",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "inline-rule-config" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "suppression-entry" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an entry in the suppressions file hides the finding where no record can hold it; fix the code and remove the entry",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "command-line-option" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: a lint-script option weakens the script's whole run, so no record can cover it; remove it from the script",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "config-override" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: no record of this engine holds this override; fix the code, or remove the override",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: "inline-disable" },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: no record of this engine holds this comment; fix the code, or remove the comment",
   ],
 ];
 

@@ -25,7 +25,13 @@ const OUTCOMES: readonly (readonly [DebtOutcome, Readonly<Record<string, string>
   [{ ...SITE, effect: "already-recorded", heldIn: RECORDS_FILE }, { "records file": RECORDS_FILE }],
   [{ ...SITE, effect: "left", under: LEFT_UNDER }, { path: LEFT_UNDER }],
   [{ ...SITE, effect: "touched" }, {}],
-  [{ address: "CD-99#nowhere", file: FILE, effect: "unrecordable" }, { clause: "CD-99#nowhere" }],
+  [{ address: "CD-99#nowhere", file: FILE, effect: "unrecordable", because: "no-check" }, { clause: "CD-99#nowhere" }],
+  [{ ...SITE, effect: "unrecordable", because: "ignore" }, {}],
+  [{ ...SITE, effect: "unrecordable", because: "inline-rule-config" }, {}],
+  [{ ...SITE, effect: "unrecordable", because: "suppression-entry" }, {}],
+  [{ ...SITE, effect: "unrecordable", because: "command-line-option" }, {}],
+  [{ ...SITE, effect: "unrecordable", because: "config-override" }, {}],
+  [{ ...SITE, effect: "unrecordable", because: "inline-disable" }, {}],
 ];
 
 const PRUNED_REASONS: readonly PrunedReason[] = ["paid", "credited-nothing", "file-gone", "file-excluded", "forfeited"];

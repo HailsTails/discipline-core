@@ -106,11 +106,11 @@ const answering = (request: { readonly findings: readonly RaisedFinding[] }) => 
 
 describe("the version 2 record commands over a real hone-records folder, built in the test's own scratch", () => {
   it("record-debt writes debt the records reader reads and that answers the finding; run again it writes nothing; prune-debt removes it once the finding is fixed", () => {
-    expect(recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "recorded" }] });
+    expect(recordDebt({ findings: [CAST_IN_ORDERS], unrecorded: [], runs: [], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "recorded" }] });
     expect(textOf({ file: DEBT_FILE })).toBe(DEBT_TEXT);
     expect(answering({ findings: RAISED })).toMatchObject({ findings: [], answered: [{ finding: CAST_IN_ORDERS, by: [{ place: { file: DEBT_FILE, index: 0 } }] }], stale: [] });
 
-    expect(recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "already-recorded" }] });
+    expect(recordDebt({ findings: [CAST_IN_ORDERS], unrecorded: [], runs: [], touched: NOTHING_CHANGED, leave: [] })).toMatchObject({ outcome: "ok", value: [{ effect: "already-recorded" }] });
     expect(textOf({ file: DEBT_FILE })).toBe(DEBT_TEXT);
 
     const fixed = answering({ findings: [] });
@@ -120,7 +120,7 @@ describe("the version 2 record commands over a real hone-records folder, built i
   });
 
   it("authorise writes the record the reader reads; the debt it now answers in place of is paid, and prune-debt removes exactly that", () => {
-    recordDebt({ findings: [CAST_IN_ORDERS], touched: NOTHING_CHANGED, leave: [] });
+    recordDebt({ findings: [CAST_IN_ORDERS], unrecorded: [], runs: [], touched: NOTHING_CHANGED, leave: [] });
     const authorised = authorise({
       symptom: "claimed-type",
       file: ORDER_FILE,
