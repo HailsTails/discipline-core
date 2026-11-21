@@ -27,7 +27,7 @@ describe("docs/output-contract.md, read against every line the command can print
     expect(CONTRACT_PARTS.versionOne).toContain(block);
   });
 
-  it("shows the README the same synopsis the command prints", () => {
+  it("pins the README to the version 2 run synopsis, which no command prints yet", () => {
     expect(README_TEXT).toContain(RUN_PRINTED_BLOCKS[0]);
   });
 });

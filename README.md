@@ -38,7 +38,7 @@ hone --help
 hone --version
 ```
 
-`--repo` is the folder that holds `hone.config.json`, usually the repository root; for `hone upgrade` it is the folder that holds `disciplines.json`. `hone --help` lists the commands, `hone check --help`, `hone project --help`, `hone record-debt --help`, `hone prune-debt --help`, `hone authorise --help` and `hone upgrade --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with no `hone.config.json` is the load failure `config-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
+`--repo` is the folder that holds `hone.config.json`, usually the repository root; for `hone upgrade` it is the folder that holds `disciplines.json`. `hone --help` lists the commands, `hone check --help`, `hone project --help`, `hone record-debt --help`, `hone prune-debt --help`, `hone authorise --help` and `hone upgrade --help` list each one's options and exit codes, and `hone --version` prints the installed version. A command typed wrongly is a load failure `arguments-invalid` that says what was wrong, a `--repo` folder with neither `hone.config.json` nor `disciplines.json` is the load failure `selection-absent`, saying it holds no `disciplines.json`, for every command but `hone authorise`, which prints `config-absent`, and an error Hone did not expect is the load failure `unexpected-error`; each exits `2`. Everything Hone prints goes to standard output, so exit `1` always comes with `verdict: fail`. From a source checkout the same command is `node core/check/tool-command.ts check --repo <dir>`.
 
 [docs/output-contract.md](docs/output-contract.md) lists every line `hone` prints, exactly as it prints it, with the exit codes and which parts are stable for hooks, CI and agents to rely on. A test renders every kind of line and checks it against that page, both ways.
 
@@ -78,7 +78,7 @@ forfeiture-unmeasured base-git-failed "origin/main": git could not list the file
 import-unmeasured base-git-failed "origin/main": git could not read hone-records at that revision and said "<git's message>"; Hone needs hone-records as it was at that revision
 ```
 
-`--forfeiture elsewhere` makes a run leave debt forfeiture to another run, such as a pre-push hook given a base revision, overriding `forfeiture` in `hone.config.json`; `--forfeiture this-run`, the default, assesses it in this run. A run with forfeiture elsewhere asks git for no change set for debt, forfeits no debt and never reports `forfeiture-unmeasured`, with or without `--base-revision`. It ends its report with an `assessment` section, printed whenever the run assesses less than the default, and marks its verdict line in every output:
+`--forfeiture elsewhere` makes a run leave debt forfeiture to another run, such as a pre-push hook given a base revision, overriding `forfeiture` in `hone.config.json`; `--forfeiture this-run`, the default, assesses it in this run. A run with forfeiture elsewhere asks git for no change set for debt, forfeits no debt and never reports `forfeiture-unmeasured`, with or without `--base-revision`. It adds an `assessment` section to its report, printed whenever the run assesses less than the default, and marks its verdict line in every output:
 
 ```text
 assessment (1)
@@ -88,7 +88,7 @@ verdict: pass (partial assessment)
 
 The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing about the records carried from version 1: they are judged against the base revision as [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) says.
 
-`hone project` writes the native configuration each engine that runs a listed check through one needs, and prints `<path> <effect>` per file: `written`, `unchanged`, `removed` for a package slice Hone wrote whose folder is no longer a config root, or `left-in-place` for such a file whose bytes are not what Hone would write there. For the ESLint engine the files are `hone.eslint.mjs` and, beside it, `hone.eslint.d.mts`, which types the projection. The walker is standalone and writes nothing, so with only the walker listed the command prints nothing and exits `0`.
+`hone project` writes the native configuration each engine that runs a listed check through one needs, and prints `<path> <effect>` per file: `written` or `unchanged`. For the ESLint engine the files are `hone.eslint.mjs` and, beside it, `hone.eslint.d.mts`, which types the projection. The walker is standalone and writes nothing, so with only the walker listed the command prints nothing and exits `0`.
 
 ### Recording inherited debt
 
@@ -111,27 +111,24 @@ The command does not refuse to run again later, and has no flag for it. Forfeitu
 
 ### Pruning paid debt
 
-Debt is a record that a finding is owed, and once the debt is paid the record should go. `hone prune-debt` removes the debt a run lists under `paid`, `stale` or `forfeited`: debt that another record answers in place of, debt on a file that is gone or whose check its engine measured there with nothing found, and debt on a file this change touched. Only the engine knows what it measured. A file it was handed and skipped, a file outside the checked set and an engine that did not run are not measured, so their debt is unjudged: it is not listed as stale and the command leaves it.
+Debt is a record that a finding is owed, and once the debt is paid the record should go. `hone prune-debt` removes the debt a run lists under `paid`, `stale` or `forfeited`: debt that another record answers in place of, debt on a file that is gone, a file the settings exclude, or a file whose check its engine measured there with nothing found, and debt on a file this change touched, whether or not that file still breaks its check. The `stale` line and the `prune-debt` line say which of the three it was. Only the engine knows what it measured. A file it was handed and skipped, a file outside the checked set and an engine that did not run are not measured, so their debt is unjudged: it is not listed as stale and the command leaves it.
 
-Every other record stays for a person:
+Every other record stays for a person, such as a `stale` authorised location whose finding is gone: it carries a person's judgement, so delete it by hand.
 
-- **A `stale` record that is not debt,** such as an authorised location whose finding is gone: it carries a person's judgement, so delete it by hand.
-- **Debt `forfeited` on a file that still breaks its check:** fix the file, then run the command, which removes the record once its engine measures the check there with nothing left. While the file still breaks its check, the record keeps failing the run.
-
-The command runs the check with the `--base-revision` and `--forfeiture` it is given, so give it what the check was given. A check that finds debt that is paid names the command exactly in the `paid` section, with `hone project` after it when any of the records is for a check that runs on `eslint`:
+The command runs the check with the `--base-revision` and `--forfeiture` it is given, so give it what the check was given. A check that finds debt that is paid names the command exactly in the `paid` section:
 
 ```text
 paid (1)
 claimed-type debt src/a.ts answered by authorised-location; run node /work/shop/node_modules/@hailstails/hone/core/check/tool-command.js prune-debt --repo /work/shop --base-revision origin/main to remove the paid debt
 ```
 
-It prints `<symptom> removed <file>: <why>` for each record it removed, where `<why>` is `paid`, `stale` or `forfeited`, and nothing when it removed none. Like `hone record-debt`, it writes `hone-records`, keeps every other record's text as written, stages and commits nothing, and does not write the projection: run `hone project` after it when any check runs on `eslint`, so the projection drops the records' off-switches. When it removes the last record from a file, it deletes the file. It has no dry run, as no other Hone command has: the `prune-debt` lines name what it removes, and the diff of `hone-records` is the review.
+It prints `<symptom> removed <file>: <why>` for each record it removed, where `<why>` is `paid`, `stale` (followed by `, its file is no longer in the repository` or `, its file is excluded by the settings` when that is why) or `forfeited`, and nothing when it removed none. Like `hone record-debt`, it writes `hone-records`, keeps every other record's text as written, stages and commits nothing, and does not write the projection: run `hone project` after it when any check runs on `eslint`, so the projection drops the records' off-switches. When it removes the last record from a file, it deletes the file. It has no dry run, as no other Hone command has: the `prune-debt` lines name what it removes, and the diff of `hone-records` is the review.
 
 For an `eslint` check, the off-switch the projection writes for a record is Hone's own. The check does not list it as a `config-override`, so it never counts as a native exception the record holds. A `config-override` on a check and file no record holds is reported under `unrecorded`. Once a record is removed, a team off-switch placed after the projection is listed under `unrecorded` as a `config-override`, and one placed before it never takes effect, since the projection turns the rule on after it, so ESLint and the check both flag the file. A team block placed after the projection that sets a recorded file's rule to `"warn"` or `"error"` leaves the projection out of effect, and the check says `not-included`.
 
 ## Adopting the ESLint mechanism
 
-With any check listed for `eslint`, run `hone project`. It writes `hone.eslint.mjs` at the repository root: one block enabling the listed checks' rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block for the files a record answers, turning the rules of the checks it answers `"off"` there. Beside it, it writes `hone.eslint.d.mts`, which types the projection's default export as ESLint's `Linter.Config[]`. Commit both, and spread the default export of the projection last in the repository's flat config:
+With any check listed for `eslint`, run `hone project`. It writes `hone.eslint.mjs` at the repository root: one block enabling the listed checks' rules at `"error"` on `**/*.{ts,tsx,mts,cts}`, then one block for each group of files whose records answer the same checks, turning the rules of those checks `"off"` there. Beside it, it writes `hone.eslint.d.mts`, which types the projection's default export as ESLint's `Linter.Config[]`. Commit both, and spread the default export of the projection last in the repository's flat config:
 
 ```js
 import hone from "./hone.eslint.mjs";
@@ -205,7 +202,7 @@ At the repository root. It lists the checks the repository runs and the engine t
 - `forfeiture`, optional, is `"this-run"` (the default) or `"elsewhere"`, and says which run assesses whether debt is forfeited; `--forfeiture` overrides it for one run; see [Commands](#commands).
 - `reportOutput`, optional, is `"full"` (the default), `"failures-only"`, `"counts"` or `"verdict-only"`: the repository's default for how much of the report the check prints. `--report-output` overrides it for one run; see [Commands](#commands).
 - `checkEditions`, optional, is `"pinned"` (the default) or `"latest"`. A check that has been tightened has more than one edition, listed on its CHECKS.md. `"pinned"` runs each check's default edition, which changes only in a major release; `"latest"` runs the newest edition the installed Hone has for every listed check, so a minor release can add findings. `"edition"` in a check's `checkSettings` holds that one check to the edition it names over either. The report lists the edition each such check ran under `editions`.
-- `checkSettings`, optional, maps a listed check address to an object of that check's settings, for a check whose CHECKS.md lists settings. Each key must be one the check's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `hone.config.json` malformed, naming the check, the key and what is accepted.
+- `checkSettings`, optional, maps a listed check address to an object of that check's settings, for a check whose CHECKS.md lists settings. Each key must be one the check's piece declares, and its value must be the same JSON kind as the declared default and, where the piece lists choices, one of them; the value replaces the default. Anything else makes `hone.config.json` malformed, naming the check, the key and what is accepted; `confinedPackages` is refused there, as the setting is now `confinedOutsideDependencies`.
 - `exclude`, optional, lists repository folders or exact files that no engine checks. A folder entry covers everything under it. Globs are refused: an entry containing `*` makes `hone.config.json` malformed. The report lists the active entries under `excluded`. Exclude Hone's own install when it is vendored inside the repository.
 - `conventions` and `layers`, optional, are declared for checks that will read them; no check reads either yet, and the report says so under `notes`.
 
@@ -266,7 +263,7 @@ An `authorised-location` follows the [why-chain contract](docs/why-chain-contrac
 
 - A record that `hone upgrade` moved from version 1 keeps its old entry word for word under a `carried` key, in place of the keys version 1 did not hold. The check lists it under `carried`, with what it lacks, and judges it against `--base-revision`: it is `established` when the base held it unchanged and `unjudged` when the run could not compare it; a carried record changed since the base is refused as `carried-changed-since-base`. [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) section 20 describes them.
 - A record the catalogue does not recognise, or whose form is wrong, is refused with its records file and index, and the run fails. A record that names a case or an `owes` the catalogue does not list is kept, with a note under `recordNotes`.
-- A record that answers no finding and holds no native exception is stale, debt on a file this change touched is forfeited, and a record that duplicates another is refused. Each fails the run. Debt that another record answers in place of is paid, which does not.
+- A record that answers no finding and holds no native exception is stale, except a dependency record, which no check reads yet and so is never stale, debt on a file this change touched is forfeited, and a record that duplicates another is refused. Each fails the run. Debt that another record answers in place of is paid, which does not.
 - An inline exception, an `eslint-disable` comment naming a selected rule or no rule, or a `@ts-expect-error`, `@ts-ignore` or `@ts-nocheck` directive under `claimed-type#unlisted-cast-site`, is held only by a record on its check and file. A comment naming no rule escapes every selected ESLint check and needs one per check. Without a record it is listed under `unrecorded` and fails the run. A lint-script option that weakens the whole run, such as `--rule`, `--suppress-all` or `-c` naming another config, cannot be recorded.
 - Files are exact repository paths, never globs.
 
@@ -274,7 +271,7 @@ An `authorised-location` follows the [why-chain contract](docs/why-chain-contrac
 
 Hone installs as one npm package, `@hailstails/hone`, installed from npm at an exact version, `@hailstails/hone@<version>` with `--save-exact`, downloaded as the tarball `hailstails-hone-<version>.tgz` attached to a GitHub release, or built by `pnpm run pack-package` into `artefacts/hailstails-hone-<version>.tgz`, the file name `npm pack` gives the scoped package, and added to the repository root as a development dependency; [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) step 2 has the steps. The package is plain JavaScript holding only Hone's own code. It declares `zod`, `jsonc-parser` and `@eslint/plugin-kit` as `dependencies`, each as a caret range starting at the version `pnpm-lock.yaml` locks, so the package manager installs them from the registry, and the repository's own audit tools see them as it does any other dependency. Which release inside each range is installed is decided by the repository's own lockfile and overrides, so a patched release can be taken without waiting for a new Hone. It declares the toolchain as `peerDependencies`, `typescript` required and the ESLint packages optional, and exposes one command, `hone`, whose six subcommands are described under [Commands](#commands). It ships the rule data and pages, both mechanisms, the review methods and the why-chain contract, and no TypeScript source, only the declaration files of the public type entries below.
 
-With the ESLint mechanism selected, a packaged install's projection imports each piece by package name, `@hailstails/hone/mechanisms/eslint/<DisciplineId>/...`, so the repository's ESLint must resolve the package from the repository root. Hone compares the committed projection `hone.eslint.mjs` and its declaration `hone.eslint.d.mts` byte for byte with what `hone project` would write now.
+With the ESLint mechanism selected, a packaged install's projection imports one plugin, `@hailstails/hone/eslint-plugin`, registered under the namespace `hone`, so the repository's ESLint must resolve the package from the repository root. Hone compares the committed projection `hone.eslint.mjs` and its declaration `hone.eslint.d.mts` byte for byte with what `hone project` would write now.
 
 ## Public type entries
 
@@ -315,13 +312,13 @@ Hone's version numbers follow semantic versioning under these rules:
 
 `hone.config.json` and the records in `hone-records` follow the same rules. A new key with a safe default, where nothing changes for an adopter who does not set it, is not breaking and can arrive in a minor release. A new required key with no safe default is breaking, and so is a change that makes a file that loads today stop loading or mean something else; both wait for a major release.
 
-A check that accepts the `audit` mechanism keeps accepting it: `audit` is never removed from the engines such a check lists, so a `hone.config.json` that names it for the check keeps loading. A check can only gain engines.
+A check that accepts an engine keeps accepting it: an engine is never removed from the engines a check lists, so a `hone.config.json` that names it for the check keeps loading. A check can only gain engines. The standalone engine's id is `walker`; `audit` was version 1's name for it, and `hone.config.json` naming it is refused as `engine-not-allowed`.
 
 Each release's changes are listed in [CHANGELOG.md](CHANGELOG.md), which the package ships: after an upgrade, read `node_modules/@hailstails/hone/CHANGELOG.md` for what changed between the version you had and the one you have now.
 
 ## Known limits
 
-The ESLint pieces use the plugin namespace `hone` for the [Authored class or this](rules/typescript/symptoms.md#authored-class-or-this) checks and `hone-cd<N>` for the others, so a rule id reads `hone/no-class-authoring`. The namespace `hone-core` is reserved for Hone's own machinery, never a discipline's rule: it names the projection's block names, such as `hone-core/piece/hone`, and the governance rule `hone-core/inline-config`, which reports inline configuration comments. No piece may use it.
+The ESLint engine registers one plugin under the namespace `hone`, so a check's rule id reads `hone/<symptom>/<check>`, such as `hone/authored-class-or-this/class-keyword`. The namespace `hone-core` is reserved for Hone's own machinery, never a check's rule: it names the projection's block names, such as `hone-core/piece/hone`, and the governance rule `hone-core/inline-config`, which reports inline configuration comments. No piece may use it.
 
 Hone's tests cover each supported platform's ordinary paths and drives, and a committed ESLint projection checked out with either LF or CRLF line endings. The cases below are not covered by tests. Some may already work, but none is supported until a consumer needs it and a test is added:
 
