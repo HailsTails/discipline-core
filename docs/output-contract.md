@@ -595,6 +595,13 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `  <section>:` |
 | `upgrade` | `    only before: <before>` |
 | `upgrade` | `    only after: <after>` |
+| `upgrade` | `these inline directives name a version 1 rule id, which version 2 names differently:` |
+| `upgrade` | `  <file>:<line> <rule id>: write <version 2 rule id>` |
+| `upgrade` | `  <file>:<line> <rule id>: write each of <version 2 rule ids>` |
+| `upgrade` | `Replace each version 1 id with the version 2 id shown, then run the upgrade again.` |
+| `upgrade` | `these inline directives name a hone rule id that version 2 has no check under:` |
+| `upgrade` | `  <file>:<line> <rule id>` |
+| `upgrade` | `Fix each one to name a check of version 2, or remove it, then run the upgrade again.` |
 | `upgrade` | `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:` |
 | `upgrade` | `  <removed path>` |
 | `upgrade` | `These files could not be put back; put them right by hand:` |
@@ -735,7 +742,8 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <command> is not the first command of its script, so Hone cannot tell what the option does to the files under check; give <command> a script of its own, such as <invocation>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: <wrapper> comes before <command> and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before <command>` |
 | `unrecorded` | `<check> <engine> command-line-option <package file> <script> <option>: a quote in the script has no partner, so Hone cannot read what the script passes to <command> or tell what that does to the files under check; pair every quote in the script` |
-| `misnamed` | `<file>:<line> version-1-id <rule id> <comment>` |
+| `misnamed` | `<file>:<line> version-1-id <rule id> write <version 2 rule id> <comment>` |
+| `misnamed` | `<file>:<line> version-1-id <rule id> write each of <version 2 rule ids> <comment>` |
 | `misnamed` | `<file>:<line> names-no-check <rule id> <comment>` |
 | `paid` | `<subject> answered by <reference>; run <prune command> to remove the paid debt` |
 | `refused` | `<records file> records[<index>] form-refused <issues>` |

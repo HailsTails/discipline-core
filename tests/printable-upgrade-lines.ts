@@ -149,6 +149,35 @@ const SAMPLES: readonly Sample[] = [
   },
   {
     failure: {
+      kind: "directives-name-no-check",
+      directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: FILE, line: 3, text: "the text" }],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    fills: { line: "3", "rule id": "hone/no-such-check" },
+  },
+  {
+    failure: {
+      kind: "directives-name-no-check",
+      directives: [
+        { kind: "version-1-id", ruleId: "hone/no-class-authoring", file: FILE, line: 3, text: "the text", replacedBy: ["hone/authored-class-or-this/class-keyword"] },
+      ],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    fills: { line: "3", "rule id": "hone/no-class-authoring", "version 2 rule id": "hone/authored-class-or-this/class-keyword" },
+  },
+  {
+    failure: {
+      kind: "directives-name-no-check",
+      directives: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: FILE, line: 3, text: "the text", replacedBy: ["hone/a/first", "hone/a/second"] }],
+      unrestored: [],
+      removedByVersionOne: [],
+    },
+    fills: { line: "3", "rule id": "hone/no-class-authoring", "version 2 rule ids": "hone/a/first, hone/a/second" },
+  },
+  {
+    failure: {
       kind: "records-refused",
       refusal: { kind: "invalid-records", invalid: [{ place: { layout: "split", file: repoPathSchema.parse("discipline-exceptions/file-carve-outs/cd-15.json"), index: 1 }, problem: { kind: "clause-unparseable", detail: "the detail" } }] },
     },

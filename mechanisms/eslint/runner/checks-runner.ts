@@ -7,14 +7,15 @@ import type { Result } from "../../../core/values/result.ts";
 import type { ChecksRunnerPorts, EslintPlatformPorts } from "./checks-ports.ts";
 import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
-import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck } from "./checks-run-types.ts";
+import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck, VersionOneRuleId } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
 import { checksDeclarationText, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
 import { nestedVersionTwoFoldersOf, nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
 import { trackedExceptionsOf } from "./checks-tracked-exceptions.ts";
-import { CHECKS_PLUGIN_NAMESPACE, eslintRuleIdsOf } from "./check-rule-id.ts";
+import { CHECKS_PLUGIN_NAMESPACE, checkRuleIdOf, eslintRuleIdsOf, runsOnEslint } from "./check-rule-id.ts";
+import { type ClauseAddress, sameClauseAddress } from "../../../core/values/clause-address.ts";
 import { cachedGoverningIgnores } from "./governing-config.ts";
 import { coreInstallOf } from "./core-install.ts";
 import { MISNAMED_DISABLE_RULE, MISNAMED_DISABLE_RULE_ID, misnamedDisableRule } from "./misnamed-disable-rule.ts";
@@ -65,10 +66,17 @@ const projectionFailureOf = (request: { readonly failure: ProjectionFailure }): 
   }
 };
 
-const versionOneRuleIdsOf = (request: { readonly bindings: ChecksRunRequest["bindings"] }): readonly string[] =>
+const replacementRuleIdsOf = (request: { readonly checks: ChecksRunRequest["checks"]; readonly clause: ClauseAddress }): readonly string[] =>
+  request.checks
+    .filter((check) => sameClauseAddress({ left: check.clause, right: request.clause }) === "same" && runsOnEslint({ check }) === "eslint")
+    .map((check) => checkRuleIdOf({ check }));
+
+const versionOneRuleIdsOf = (request: { readonly checks: ChecksRunRequest["checks"]; readonly bindings: ChecksRunRequest["bindings"] }): readonly VersionOneRuleId[] =>
   request.bindings.flatMap((binding) => {
     const settings = eslintPieceSettingsSchema.safeParse(binding.clause.settings);
-    return settings.success ? [`${settings.data.pluginNamespace}/${settings.data.rule}`] : [];
+    return settings.success
+      ? [{ ruleId: `${settings.data.pluginNamespace}/${settings.data.rule}`, replacedBy: replacementRuleIdsOf({ checks: request.checks, clause: binding.clause.address }) }]
+      : [];
   });
 
 const lookupRequestOf = (request: { readonly run: ChecksRunRequest; readonly platform: EslintPlatformPorts }) => ({
@@ -237,7 +245,7 @@ type LintRequest = {
   readonly queried: QueriedFiles;
   readonly query: QueryInstance;
   readonly ports: ChecksRunnerPorts;
-  readonly versionOneRuleIds: readonly string[];
+  readonly versionOneRuleIds: readonly VersionOneRuleId[];
 };
 
 const lintedReport = async (request: LintRequest & { readonly status: ProjectionStatus }): Promise<Outcome<ChecksRunReport>> => {

@@ -1,3 +1,4 @@
+import type { MisnamedRuleId } from "../../mechanism-port/checks-runner-types.ts";
 import { failureDetailOf } from "../../platform-ports/failure-detail.ts";
 import type { RunReport } from "../../report/run-report.ts";
 import type { RuleSetCatalogue } from "../../settings/check-choices.ts";
@@ -67,6 +68,7 @@ export type ProofRefusal =
   | ({ readonly kind: "removal-refused"; readonly failure: OutsideRoot } & AfterVersionOneProject)
   | ({ readonly kind: "write-refused"; readonly refusal: ProofWriteRefusal } & AfterVersionOneProject)
   | ({ readonly kind: "version-two-run-failed"; readonly failure: ProofRunFailure; readonly unrestored: readonly Unrestored[] } & AfterVersionOneProject)
+  | ({ readonly kind: "directives-name-no-check"; readonly directives: readonly MisnamedRuleId[]; readonly unrestored: readonly Unrestored[] } & AfterVersionOneProject)
   | ({ readonly kind: "differences"; readonly differences: readonly ProofDifference[]; readonly unrestored: readonly Unrestored[] } & AfterVersionOneProject)
   | ({ readonly kind: "removal-failed"; readonly failure: RemovalFailure; readonly remaining: readonly AbsolutePath[] } & AfterWriting);
 
@@ -175,6 +177,9 @@ const comparedAfterWriting = async (request: UpgradeProofRequest & Written): Pro
   const after = await request.runs.versionTwo();
   if (after.outcome === "failed") {
     return { outcome: "failed", error: { kind: "version-two-run-failed", failure: after.error, unrestored: rolledBackWith(request), removedByVersionOne: [] } };
+  }
+  if (after.value.misnamed.length > 0) {
+    return { outcome: "failed", error: { kind: "directives-name-no-check", directives: after.value.misnamed, unrestored: rolledBackWith(request), removedByVersionOne: [] } };
   }
   const differences = proofDifferencesOf({
     before: request.before,

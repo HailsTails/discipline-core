@@ -9,6 +9,7 @@ import {
   isMisnamedRuleIdSchemaEqual,
   isNotReadyYetFailureSchemaEqual,
   isProjectedFileSchemaEqual,
+  misnamedRuleIdSchema,
 } from "./checks-runner-module-schema.ts";
 
 const CLASS_SYNTAX = { ruleSet: "hone", discipline: "CD-14", clause: "class-syntax" };
@@ -19,7 +20,16 @@ const REPORT = {
   measured: [{ clause: CLASS_SYNTAX, file: "src/a.ts" }],
   projection: "current",
   slices: [{ slice: "packages/web/hone.eslint.mjs", state: "out-of-date" }],
-  misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "src/a.ts", line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" }],
+  misnamedRuleIds: [
+    {
+      kind: "version-1-id",
+      ruleId: "hone/no-class-authoring",
+      file: "src/a.ts",
+      line: 2,
+      text: "// eslint-disable-next-line hone/no-class-authoring",
+      replacedBy: ["hone/authored-class-or-this/class-keyword"],
+    },
+  ],
 };
 
 describe("the checks runner's ties to its module schema", () => {
@@ -35,6 +45,29 @@ describe("the checks runner's ties to its module schema", () => {
       true,
       true,
     ]);
+  });
+});
+
+const MISNAMED_SITE = { ruleId: "hone/no-class-authoring", file: "src/a.ts", line: 2, text: "// eslint-disable-next-line hone/no-class-authoring" };
+
+describe("misnamedRuleIdSchema", () => {
+  it("accepts a version 1 id naming the version 2 ids to write, and an id naming no check", () => {
+    expect([
+      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE, replacedBy: ["hone/a/first", "hone/a/second"] }).success,
+      misnamedRuleIdSchema.safeParse({ kind: "names-no-check", ...MISNAMED_SITE }).success,
+    ]).toEqual([true, true]);
+  });
+
+  it("rejects a version 1 id that names no version 2 id to write", () => {
+    expect([
+      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE, replacedBy: [] }).success,
+      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE }).success,
+      misnamedRuleIdSchema.safeParse({ kind: "version-1-id", ...MISNAMED_SITE, replacedBy: [""] }).success,
+    ]).toEqual([false, false, false]);
+  });
+
+  it("rejects an id naming no check that carries a version 2 id", () => {
+    expect(misnamedRuleIdSchema.safeParse({ kind: "names-no-check", ...MISNAMED_SITE, replacedBy: ["hone/a/first"] }).success).toBe(false);
   });
 });
 

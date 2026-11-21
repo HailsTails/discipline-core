@@ -8,7 +8,10 @@ const FILE = repoPathSchema.parse("src/kept.ts");
 
 const CHECK_RULE_IDS = ["hone/untyped-value/explicit-any"];
 
-const VERSION_ONE_RULE_IDS = ["hone/no-explicit-any"];
+const VERSION_ONE_RULE_IDS = [
+  { ruleId: "hone/no-explicit-any", replacedBy: ["hone/untyped-value/explicit-any"] },
+  { ruleId: "hone/no-implicit-any", replacedBy: [] },
+];
 
 const commentOn = (request: { readonly line: number; readonly message: string }): LintedMessage => ({
   ruleId: MISNAMED_DISABLE_RULE_ID,
@@ -22,9 +25,22 @@ const misnamedIn = (request: { readonly messages: readonly LintedMessage[] }) =>
   misnamedRuleIdsIn({ file: FILE, messages: request.messages, checkRuleIds: CHECK_RULE_IDS, versionOneRuleIds: VERSION_ONE_RULE_IDS });
 
 describe("misnamedRuleIdsIn", () => {
-  it("names a version 1 id as a version 1 id, with its file, line and comment", () => {
+  it("names a version 1 id as a version 1 id, with its file, line and comment and the version 2 id of its check", () => {
     expect(misnamedIn({ messages: [commentOn({ line: 4, message: "// eslint-disable-next-line hone/no-explicit-any" })] })).toEqual([
-      { kind: "version-1-id", ruleId: "hone/no-explicit-any", file: "src/kept.ts", line: 4, text: "// eslint-disable-next-line hone/no-explicit-any" },
+      {
+        kind: "version-1-id",
+        ruleId: "hone/no-explicit-any",
+        file: "src/kept.ts",
+        line: 4,
+        text: "// eslint-disable-next-line hone/no-explicit-any",
+        replacedBy: ["hone/untyped-value/explicit-any"],
+      },
+    ]);
+  });
+
+  it("names a version 1 id whose check version 2 does not run on ESLint as naming no check", () => {
+    expect(misnamedIn({ messages: [commentOn({ line: 3, message: "// eslint-disable-next-line hone/no-implicit-any" })] })).toEqual([
+      { kind: "names-no-check", ruleId: "hone/no-implicit-any", file: "src/kept.ts", line: 3, text: "// eslint-disable-next-line hone/no-implicit-any" },
     ]);
   });
 

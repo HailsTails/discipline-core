@@ -6,7 +6,7 @@ import type { ClauseAddress } from "../../../core/values/clause-address.ts";
 import { gatheredOutcomes, listedOutcome } from "../../../core/values/gathered-outcomes.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import type { Result } from "../../../core/values/result.ts";
-import type { MisnamedRuleId, SelectedCheck } from "./checks-run-types.ts";
+import type { MisnamedRuleId, SelectedCheck, VersionOneRuleId } from "./checks-run-types.ts";
 import type { LintedFile } from "./eslint-instance.ts";
 import { hitsCutFrom, messageReadingOf } from "./lint-hits.ts";
 import { misnamedRuleIdsIn } from "./misnamed-rule-ids.ts";
@@ -28,7 +28,7 @@ type FileRequest = {
   readonly sourceLines: LinesReader;
   readonly selected: readonly SelectedCheck[];
   readonly checkRuleIds: readonly string[];
-  readonly versionOneRuleIds: readonly string[];
+  readonly versionOneRuleIds: readonly VersionOneRuleId[];
 };
 
 const outsideRepository = (request: { readonly linted: LintedFile }): Outcome<RepoPath> => ({

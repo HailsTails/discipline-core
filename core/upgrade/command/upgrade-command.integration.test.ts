@@ -154,6 +154,44 @@ describe("hone upgrade over a real repository, through the real ports", () => {
     });
   });
 
+  it("refuses a recorded inline disable written with a version 1 rule id, naming the version 2 id to write, and leaves every file of the repository byte for byte as it was", async () => {
+    const repo = await versionOneRepository({ source: "// eslint-disable-next-line hone/no-class-authoring\nexport class Kept {}\n", exceptions: EXCEPTIONS });
+    const before = treeOf({ repo });
+    const refused = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    expect({ refused, after: treeOf({ repo }) }).toEqual({
+      refused: {
+        writes: [
+          [
+            {
+              text: "upgrade refused:\nthese inline directives name a version 1 rule id, which version 2 names differently:\n  src/kept.ts:1 hone/no-class-authoring: write hone/authored-class-or-this/class-keyword\nReplace each version 1 id with the version 2 id shown, then run the upgrade again.\nNothing was changed.\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 1 }]],
+      },
+      after: before,
+    });
+  });
+
+  it("refuses an inline directive naming a hone rule id version 2 has no check under, with the file and line, and leaves every file of the repository byte for byte as it was", async () => {
+    const repo = await versionOneRepository({ source: "export class Kept {} // eslint-disable-line hone/no-such-check\n", exceptions: EXCEPTIONS });
+    const before = treeOf({ repo });
+    const refused = await runCommandIn({ repo, subcommand: "upgrade", options: [], modules: DEFAULT_MODULES });
+    expect({ refused, after: treeOf({ repo }) }).toEqual({
+      refused: {
+        writes: [
+          [
+            {
+              text: "upgrade refused:\nthese inline directives name a hone rule id that version 2 has no check under:\n  src/kept.ts:1 hone/no-such-check\nFix each one to name a check of version 2, or remove it, then run the upgrade again.\nNothing was changed.\n",
+            },
+          ],
+        ],
+        exits: [[{ code: 1 }]],
+      },
+      after: before,
+    });
+  });
+
   it("upgrades a repository whose records are split, and checks it against a real git base revision", async () => {
     const repo = await versionOneRepository({ source: KEPT_CLASS, exceptions: EXCEPTIONS });
     await runCommandIn({ repo, subcommand: "split-records", options: [], modules: DEFAULT_MODULES });

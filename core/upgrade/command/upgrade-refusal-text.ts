@@ -1,4 +1,6 @@
 import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
+import type { MisnamedRuleId } from "../../mechanism-port/checks-runner-types.ts";
+import { replacementText } from "../../report/misnamed-lines.ts";
 import { runLoadFailureLine } from "../../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import { type ClauseAddress, clauseAddressText } from "../../values/clause-address.ts";
@@ -225,6 +227,31 @@ const differenceLinesOf = (request: { readonly failure: Extract<ProofRefusal, { 
     ...onlyAfter.map((line) => `    only after: ${line}`),
   ]);
 
+type DirectiveBlock<Directive> = {
+  readonly directives: readonly Directive[];
+  readonly header: string;
+  readonly lineOf: (directive: Directive) => string;
+  readonly action: string;
+};
+
+const blockOfDirectives = <Directive>(request: DirectiveBlock<Directive>): readonly string[] =>
+  request.directives.length === 0 ? [] : [request.header, ...request.directives.map(request.lineOf), request.action];
+
+const directiveLinesOf = (request: { readonly directives: readonly MisnamedRuleId[] }): readonly string[] => [
+  ...blockOfDirectives({
+    directives: request.directives.flatMap((directive) => (directive.kind === "version-1-id" ? [directive] : [])),
+    header: "these inline directives name a version 1 rule id, which version 2 names differently:",
+    lineOf: ({ file, line, ruleId, replacedBy }) => `  ${file}:${line} ${ruleId}: write ${replacementText({ replacedBy })}`,
+    action: "Replace each version 1 id with the version 2 id shown, then run the upgrade again.",
+  }),
+  ...blockOfDirectives({
+    directives: request.directives.flatMap((directive) => (directive.kind === "names-no-check" ? [directive] : [])),
+    header: "these inline directives name a hone rule id that version 2 has no check under:",
+    lineOf: ({ file, line, ruleId }) => `  ${file}:${line} ${ruleId}`,
+    action: "Fix each one to name a check of version 2, or remove it, then run the upgrade again.",
+  }),
+];
+
 const uncoveredLineOf = (request: { readonly clauses: readonly ClauseAddress[] }): string =>
   `version 1 already reports ${request.clauses.map((address) => clauseAddressText({ address })).join(", ")} as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.`;
 
@@ -269,6 +296,8 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placem
       return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ ...failure, placement, unrestored: failure.refusal.unrestored })] };
     case "version-two-run-failed":
       return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, placement })] };
+    case "directives-name-no-check":
+      return { code: 1, lines: [...directiveLinesOf({ directives: failure.directives }), ...unrestoredLinesOf({ ...failure, placement })] };
     case "differences":
       return {
         code: 1,

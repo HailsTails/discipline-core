@@ -383,6 +383,24 @@ describe("upgradeProof", () => {
     expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
   });
 
+  it("restores what it wrote and names each directive, before any difference, when version 2 reports a directive naming no check, removing nothing", async () => {
+    const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
+    doubles.runs.versionTwo.mockResolvedValue({
+      outcome: "ok",
+      value: { ...EMPTY_AFTER, findings: [LOOP_FINDING], misnamed: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: repoPathSchema.parse("src/a.ts"), line: 3, text: "the text" }] },
+    });
+    await expect(upgradeProof(requestOver({ doubles }))).resolves.toEqual({
+      outcome: "failed",
+      error: {
+        kind: "directives-name-no-check",
+        directives: [{ kind: "names-no-check", ruleId: "hone/no-such-check", file: "src/a.ts", line: 3, text: "the text" }],
+        unrestored: [],
+        removedByVersionOne: [],
+      },
+    });
+    expect(sequenceOf({ doubles })).toEqual([...ASKING_THE_ORACLE, ...RUNNING_VERSION_ONE_THEN_READING_PROJECTIONS, ...PLANNING_THE_WRITES, ...WRITING, ...RUNNING_VERSION_TWO, ...ROLLING_BACK]);
+  });
+
   it("leaves the version 2 files in place and reports what was removed when a version 1 file cannot be removed", async () => {
     const doubles = doublesOver({ kindOf: kindsOfEveryPlannedFileNew() });
     doubles.ports.fileRemoval.remove.mockReturnValue({ outcome: "failed", error: { kind: "unremovable", path: "/repo/discipline-exceptions/cd-15.json", detail: "EBUSY" } });

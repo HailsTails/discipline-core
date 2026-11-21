@@ -205,7 +205,16 @@ describe.each(ESLINT_LINES)("the version 2 ESLint runner on %s, over a repositor
         ...REPORT,
         hits: [CLASS_HIT_ON_LINE_2],
         measured: MEASURED,
-        misnamedRuleIds: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: "kept.ts", line: 1, text: "// eslint-disable-next-line hone/no-class-authoring" }],
+        misnamedRuleIds: [
+          {
+            kind: "version-1-id",
+            ruleId: "hone/no-class-authoring",
+            file: "kept.ts",
+            line: 1,
+            text: "// eslint-disable-next-line hone/no-class-authoring",
+            replacedBy: ["hone/authored-class-or-this/class-keyword"],
+          },
+        ],
       },
     });
   });
