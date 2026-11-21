@@ -240,18 +240,26 @@ type ImportedIdentity = {
   readonly file: RepoPath;
 };
 
+type Repointing = (request: { readonly text: string }) => string;
+
 const sameEntry = (request: {
-  readonly left: StructuralExceptionEntry;
-  readonly right: StructuralExceptionEntry;
-}): "same" | "different" => (JSON.stringify(request.left) === JSON.stringify(request.right) ? "same" : "different");
+  readonly atBase: StructuralExceptionEntry;
+  readonly atHead: StructuralExceptionEntry;
+  readonly repointed: Repointing;
+}): "same" | "different" =>
+  JSON.stringify(request.atBase, (_key, value: unknown) => (typeof value === "string" ? request.repointed({ text: value }) : value)) ===
+  JSON.stringify(request.atHead)
+    ? "same"
+    : "different";
 
 const sameIdentity = (request: {
-  readonly entry: StructuralExceptionEntry;
+  readonly atBase: StructuralExceptionEntry;
   readonly identity: ImportedIdentity;
+  readonly repointed: Repointing;
 }): "same" | "different" =>
-  request.entry.kind === request.identity.kind &&
-  request.entry.clause === request.identity.clause &&
-  request.entry.file === request.identity.file
+  request.atBase.kind === request.identity.kind &&
+  request.atBase.clause === request.identity.clause &&
+  request.repointed({ text: request.atBase.file }) === request.identity.file
     ? "same"
     : "different";
 
@@ -286,24 +294,31 @@ type MeasuredBaseline = Extract<ExceptionBaseline, { readonly measured: "yes" }>
 const basePathOf = (request: { readonly file: RepoPath; readonly baseline: MeasuredBaseline }): RepoPath =>
   request.baseline.basePathOfRenamed.get(request.file) ?? request.file;
 
-const entryAsAtBase = (request: {
-  readonly entry: StructuralExceptionEntry;
-  readonly baseline: MeasuredBaseline;
-}): StructuralExceptionEntry => {
-  const { entry } = request;
-  if (entry.kind === "clause-wide-carve-out") {
-    return entry;
+const REGULAR_EXPRESSION_SYNTAX = /[.*+?^${}()|[\]\\]/g;
+
+const NOT_INSIDE_A_LONGER_PATH_BEFORE = "(?<![\\w./-])";
+
+const NOT_INSIDE_A_LONGER_PATH_AFTER = "(?![\\w/-]|\\.\\w)";
+
+const repointingOf = (request: { readonly baseline: MeasuredBaseline }): Repointing => {
+  const headPathOf = new Map<string, RepoPath>([...request.baseline.basePathOfRenamed].map(([headPath, basePath]) => [basePath, headPath]));
+  if (headPathOf.size === 0) {
+    return ({ text }) => text;
   }
-  const file = repoPathSchema.safeParse(entry.file);
-  return file.success ? { ...entry, file: basePathOf({ file: file.data, baseline: request.baseline }) } : entry;
+  const longestFirst = [...headPathOf.keys()].sort((left, right) => right.length - left.length);
+  const basePaths = new RegExp(
+    `${NOT_INSIDE_A_LONGER_PATH_BEFORE}(?:${longestFirst.map((path) => path.replace(REGULAR_EXPRESSION_SYNTAX, "\\$&")).join("|")})${NOT_INSIDE_A_LONGER_PATH_AFTER}`,
+    "g",
+  );
+  return ({ text }) => text.replace(basePaths, (basePath) => headPathOf.get(basePath) ?? basePath);
 };
 
 const heldAtBase = (request: {
   readonly entry: StructuralExceptionEntry;
   readonly baseline: MeasuredBaseline;
 }): "held" | "not-held" => {
-  const entryAtBase = entryAsAtBase(request);
-  return request.baseline.entriesAtBase.some((baseEntry) => sameEntry({ left: baseEntry, right: entryAtBase }) === "same")
+  const repointed = repointingOf(request);
+  return request.baseline.entriesAtBase.some((atBase) => sameEntry({ atBase, atHead: request.entry, repointed }) === "same")
     ? "held"
     : "not-held";
 };
@@ -340,21 +355,22 @@ const importAgainstBase = <ImportedRecord>(request: {
   if (heldAtBase({ entry: request.entry, baseline }) === "held") {
     return { outcome: "ok", value: request.record };
   }
-  const identityAtBase = { ...request.identity, file: basePathOf({ file: request.identity.file, baseline }) };
-  if (baseline.entriesAtBase.some((baseEntry) => sameIdentity({ entry: baseEntry, identity: identityAtBase }) === "same")) {
+  const repointed = repointingOf({ baseline });
+  if (baseline.entriesAtBase.some((atBase) => sameIdentity({ atBase, identity: request.identity, repointed }) === "same")) {
     return importRefused({ detail: "the imported record was edited since the base revision", kind: request.identity.kind });
   }
+  const fileAtBase = basePathOf({ file: request.identity.file, baseline });
   const source = legacySourceOf({ source: request.provenance.source });
   const listed =
     source !== "not-legacy-source" &&
     source.directory === LEGACY_DIRECTORY_OF[request.provenance.kind] &&
     source.discipline === request.discipline.toUpperCase() &&
-    legacyListing({ sourceTextsAtBase: baseline.sourceTextsAtBase, source, file: identityAtBase.file }) === "listed";
+    legacyListing({ sourceTextsAtBase: baseline.sourceTextsAtBase, source, file: fileAtBase }) === "listed";
   return listed
     ? { outcome: "ok", value: request.record }
     : importRefused({
         kind: request.identity.kind,
-        detail: `the record is new since the base revision, and its provenance source ${request.provenance.source} is not an entry at the base revision listing ${identityAtBase.file} under ${LEGACY_DIRECTORY_OF[request.provenance.kind]}/${request.discipline.toLowerCase()}.json`,
+        detail: `the record is new since the base revision, and its provenance source ${request.provenance.source} is not an entry at the base revision listing ${fileAtBase} under ${LEGACY_DIRECTORY_OF[request.provenance.kind]}/${request.discipline.toLowerCase()}.json`,
       });
 };
 

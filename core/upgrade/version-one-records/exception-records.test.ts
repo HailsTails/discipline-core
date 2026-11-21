@@ -768,6 +768,116 @@ describe("parseExceptionEntries follows a file renamed since the base revision",
     });
   });
 
+  it("accepts a moved record whose reason names another renamed file, repointed to its new path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/moved/legacy.ts",
+              reason: "paid down once tools/install-proof.ts stops importing it",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "paid down once scripts/install-proof.ts stops importing it",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([
+            [repoPathSchema.parse("src/moved/legacy.ts"), repoPathSchema.parse("src/legacy.ts")],
+            [repoPathSchema.parse("tools/install-proof.ts"), repoPathSchema.parse("scripts/install-proof.ts")],
+          ]),
+        },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "file-carve-out",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/moved/legacy.ts",
+          reason: "paid down once tools/install-proof.ts stops importing it",
+          provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it.each([
+    {
+      name: "a changed word beside the repointed path",
+      baseReason: "paid down once scripts/install-proof.ts stops importing it",
+      reason: "paid down once tools/install-proof.ts stops requiring it",
+    },
+    {
+      name: "a path repointed inside a longer path git did not rename",
+      baseReason: "paid down once scripts/install-proof.tsx stops importing it",
+      reason: "paid down once tools/install-proof.tsx stops importing it",
+    },
+  ])("refuses as edited a moved record whose reason holds $name", ({ baseReason, reason }) => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/moved/legacy.ts",
+              reason,
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: baseReason,
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([
+            [repoPathSchema.parse("src/moved/legacy.ts"), repoPathSchema.parse("src/legacy.ts")],
+            [repoPathSchema.parse("tools/install-proof.ts"), repoPathSchema.parse("scripts/install-proof.ts")],
+          ]),
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail: "the imported record was edited since the base revision: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
+  });
+
   it("judges a record whose file was not renamed by its own path, whatever else moved", () => {
     expect(
       parseExceptionEntries({
