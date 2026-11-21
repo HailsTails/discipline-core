@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "records": [
+    { "module": "src/clock.ts", "outsideParty": "runtime:clock", "ports": ["Clock"] }
+  ]
+}
