@@ -25,7 +25,7 @@ A team adds its own disciplines as a rule set in its own repository, with ESLint
 
 ## Commands
 
-The package ships one command, `hone`, with six subcommands. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone; `prune-debt` runs when the check names it, to remove the records of debt that is paid; `authorise` writes one authorised location; `upgrade` runs once, to move a version 1 repository to version 2, as [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) section 20 shows:
+The package ships one command, `hone`, with six subcommands for a version 2 repository, and a seventh, `hone split-records`, which belongs to version 1 and prints `load failure: not-ready-yet` on a version 2 repository. `check` and `project` run through a `package.json` script as [ADOPTING.md](ADOPTING.md#2-install-the-hone-package) shows; `record-debt` runs once, when a repository adopts Hone; `prune-debt` runs when the check names it, to remove the records of debt that is paid; `authorise` writes one authorised location; `upgrade` runs once, to move a version 1 repository to version 2, as [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) section 20 shows:
 
 ```text
 hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
@@ -64,7 +64,7 @@ The `symptoms` section comes last, just before the verdict, so a reader who look
 
 The output changes only what is printed: the verdict and exit code always come from the whole report. An unknown `--report-output` value is a load failure `arguments-invalid`; an unknown `reportOutput` value is a load failure in `hone.config.json`, even when `--report-output` is given. Load failures print the same in every output.
 
-Without `--base-revision`, Hone cannot tell which files were touched, so debt cannot be forfeited; if any debt exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot compare a record carried from version 1 against the base; if one exists the report lists `import-unmeasured` and the run fails. Each line says what Hone needs:
+Without `--base-revision`, Hone cannot tell which files were touched, so debt cannot be forfeited; if any debt exists the report lists `forfeiture-unmeasured` and the run fails. For the same reason it cannot compare a record carried from version 1 against the base; if one exists the report lists `import-unmeasured` and the run fails, unless forfeiture is left elsewhere, below. Each line says what Hone needs:
 
 ```text
 forfeiture-unmeasured no-base-revision: no --base-revision was given, so debt cannot be checked for forfeiture; pass --base-revision with the branch's base, such as origin/main, or leave forfeiture to another run with "forfeiture": "elsewhere" in hone.config.json or --forfeiture elsewhere
@@ -86,7 +86,7 @@ forfeiture elsewhere: 37 debt records not checked for forfeiture in this run
 verdict: pass (partial assessment)
 ```
 
-The `assessment` section is informational and the marker does not change the exit code. Forfeiture elsewhere changes nothing about the records carried from version 1: they are judged against the base revision as [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) says.
+The `assessment` section is informational and the marker does not change the exit code. Records carried from version 1 follow the same setting, as [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) says: with forfeiture elsewhere, a run given no base leaves them to the run that has one and prints `carried standing elsewhere` with how many; a run given a base judges them against it; and if no run is ever given a base they are never judged. A base that is given but cannot be read prints `import-unmeasured base-git-failed` and fails under either setting.
 
 `hone project` writes the native configuration each engine that runs a listed check through one needs, and prints `<path> <effect>` per file: `written` or `unchanged`. For the ESLint engine the files are `hone.eslint.mjs` and, beside it, `hone.eslint.d.mts`, which types the projection. The walker is standalone and writes nothing, so with only the walker listed the command prints nothing and exits `0`.
 

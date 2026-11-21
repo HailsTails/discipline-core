@@ -272,13 +272,13 @@ pnpm run --silent hone:check --forfeiture this-run --base-revision origin/main
 
 A run that leaves forfeiture to another run ends `verdict: pass (partial assessment)` or `verdict: fail (partial assessment)`, not `verdict: pass` or `verdict: fail`. A hook or gate that matches `verdict: pass` or `verdict: fail` at the end of the line reads neither, and may report the run as unverified. Act on the exit code, or match all four verdict lines that [docs/output-contract.md](docs/output-contract.md#the-version-2-report) lists.
 
-CI leaves forfeiture to the hook. A repository with no records carried over from version 1 runs the check with no base revision:
+CI leaves forfeiture to the hook, and with `elsewhere` in effect it can run the check with no base revision:
 
 ```bash
 npm run --silent hone:check
 ```
 
-A repository with records carried over by `hone upgrade` still needs a base revision in CI, because those records are checked against it; without one the report lists `import-unmeasured` and the run fails. Pass the pull request's base commit with `elsewhere` in effect: the base is then used for those records only, and no debt is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history:
+Records carried over by `hone upgrade` follow the same setting. A run given no base leaves them to the run that has one: it prints `carried standing elsewhere` with how many, and passes as a partial assessment when nothing else fails. A run given a base judges them against it, whatever `forfeiture` says. So keep at least one run that has a base, the pre-push hook above, or they are never judged. If CI should judge them too, pass the pull request's base commit; the base is then used for those records only, and no debt is forfeited. CI needs that one commit fetched, for example `git fetch --depth=1 origin <base-commit>`, not the full history:
 
 ```bash
 npm run --silent hone:check -- --base-revision <base-commit>
