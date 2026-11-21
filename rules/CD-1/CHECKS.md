@@ -38,4 +38,4 @@ Give it a concrete type where it enters: parse it once with a schema in the adap
 In a test file, edition 2 of `CD-27#test-body-logic` flags `JSON.parse`; edition 1, the default, does not.
 
 ## Exceptions
-CD-1 is exempted like any other discipline: record an `authorised-location`, a `file-carve-out` for existing debt, or a clause-wide carve-out in `discipline-exceptions.json`. A carved or authorised file keeps its existing `any`; an `any` anywhere else still fails. See [discipline-exceptions.json](../../README.md#discipline-exceptionsjson).
+CD-1 is exempted like any other discipline: record an `authorised-location`, a `file-carve-out` for existing debt, or a clause-wide carve-out in `discipline-exceptions.json`. A carved or authorised file keeps its existing `any`; an `any` anywhere else still fails. See [discipline-exceptions.json](../../README.md#hone-records).

@@ -174,8 +174,6 @@ eslint unconfigured packages/a/hone.eslint.mjs: packages/a has no eslint configu
 A debt record stays in the projection after it is forfeited, so the team's own ESLint run keeps ignoring that file; Hone's check is what fails it, as `forfeited`.
 
 Hone's own ESLint run uses only the runner's configuration, with ignores, suppressions and inline configuration off, so nothing in the team's setup can change a finding. Every way the team's setup can weaken a selected rule (a native channel) is reported instead, and only an override that matches a record is accepted.
-<a id="disciplinesjson"></a>
-
 ## hone.config.json
 
 At the repository root. It lists the checks the repository runs and the engine that runs each one. The example lists the checks `authored-class-or-this#class-keyword` and `authored-class-or-this#static-members-only` on ESLint and a team's check on the walker.
@@ -207,8 +205,6 @@ At the repository root. It lists the checks the repository runs and the engine t
 - `conventions` and `layers`, optional, are declared for checks that will read them; no check reads either yet, and the report says so under `notes`.
 
 The keys version 1's `disciplines.json` used under other names are refused, each naming what replaces it: `clauses` is `checks`, `clauseSettings` is `checkSettings`, `assessment` is `forfeiture`, and `fileExceptionWhyChains` is gone, since every record shows its why-chain. [MIGRATING.md](MIGRATING.md#20-moving-from-version-1-to-version-2) section 20 lists what moved.
-
-<a id="discipline-exceptionsjson"></a>
 
 ## hone-records
 
