@@ -219,6 +219,15 @@ describe("checksRunnerOver, reporting the state of hone.eslint.mjs from the repo
     });
   });
 
+  it("reports the projection out of date, and lints nothing, when it differs from what project would write and the team's config leaves the check's rule out of a checked file", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_THAT_DIFFERS), ruleState: RULE_ABSENT, governance }).run(SELECTING_THE_CLASS_CHECK);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "out-of-date", slices: [] } },
+      linted: [],
+    });
+  });
+
   it("reports the projection not included, and lints nothing, when the team's config leaves the check's rule out of a checked file", async () => {
     const governance = lintingNothing();
     const outcome = await runnerOverProjection({ currents: rootOnly(PROJECTION_WRITTEN_AS_PROJECT_WOULD), ruleState: RULE_ABSENT, governance }).run(SELECTING_THE_CLASS_CHECK);

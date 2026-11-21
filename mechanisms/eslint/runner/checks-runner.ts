@@ -300,7 +300,7 @@ const queriedRun = async (
     return queried;
   }
   return projectionEffectOf({ selected: request.selected, answered: request.run.answered, queried: queried.value }) === "not-in-effect"
-    ? reportAs({ projection: "not-included", slices: request.status.slices })
+    ? reportAs({ projection: request.status.projection === "current" ? "not-included" : request.status.projection, slices: request.status.slices })
     : lintedReport({ ...request, query: query.value, queried: queried.value });
 };
 
