@@ -878,6 +878,243 @@ describe("parseExceptionEntries follows a file renamed since the base revision",
     });
   });
 
+  it("accepts a record left as the base holds it, though git renamed the file it names", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "legacy class awaiting paydown",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "legacy class awaiting paydown",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("src/moved/legacy.ts"), repoPathSchema.parse("src/legacy.ts")]]),
+        },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "file-carve-out",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/legacy.ts",
+          reason: "legacy class awaiting paydown",
+          provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("accepts a legacy chain for an unmoved file, left as the base holds it, whose reason names a renamed file", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/other.ts",
+              reason: "held until src/legacy.ts is paid down",
+              whyChain: LEGACY_WHY_CHAIN,
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/other.ts",
+              reason: "held until src/legacy.ts is paid down",
+              whyChain: LEGACY_WHY_CHAIN,
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("src/moved/legacy.ts"), repoPathSchema.parse("src/legacy.ts")]]),
+        },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "file-carve-out",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/other.ts",
+          reason: "held until src/legacy.ts is paid down",
+          whyChain: LEGACY_WHY_CHAIN,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("refuses as edited an imported record that keeps its renamed file's old path and changes its reason, though its provenance source lists that path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "legacy class, now partly paid down",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "legacy class awaiting paydown",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("src/moved/legacy.ts"), repoPathSchema.parse("src/legacy.ts")]]),
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail: "the imported record was edited since the base revision: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
+  });
+
+  it.each([
+    { name: "a fullwidth at sign", baseReason: "held until src/＠x/a.ts is paid down", reason: "held until src/＠y/a.ts is paid down" },
+    { name: "a plus sign", baseReason: "held until src/+x/a.ts is paid down", reason: "held until src/+y/a.ts is paid down" },
+    { name: "a tilde", baseReason: "held until src/~x/a.ts is paid down", reason: "held until src/~y/a.ts is paid down" },
+  ])("refuses as edited a record whose reason repoints a renamed path found inside a longer path after $name", ({ baseReason, reason }) => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason,
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: baseReason,
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("y/a.ts"), repoPathSchema.parse("x/a.ts")]]),
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail: "the imported record was edited since the base revision: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
+  });
+
+  it("accepts a record whose reason repoints a renamed path that ends a sentence", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [
+          {
+            place: AT_0,
+            entry: {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "held until it stops importing y/a.ts.",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          },
+        ],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [
+            {
+              kind: "file-carve-out",
+              clause: "CD-14#class-syntax",
+              file: "src/legacy.ts",
+              reason: "held until it stops importing x/a.ts.",
+              provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+            },
+          ],
+          sourceTextsAtBase: new Map(),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("y/a.ts"), repoPathSchema.parse("x/a.ts")]]),
+        },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "file-carve-out",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/legacy.ts",
+          reason: "held until it stops importing y/a.ts.",
+          provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+        },
+      ],
+      invalid: [],
+    });
+  });
+
   it("judges a record whose file was not renamed by its own path, whatever else moved", () => {
     expect(
       parseExceptionEntries({

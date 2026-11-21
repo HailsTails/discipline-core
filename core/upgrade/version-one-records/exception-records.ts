@@ -296,29 +296,39 @@ const basePathOf = (request: { readonly file: RepoPath; readonly baseline: Measu
 
 const REGULAR_EXPRESSION_SYNTAX = /[.*+?^${}()|[\]\\]/g;
 
-const NOT_INSIDE_A_LONGER_PATH_BEFORE = "(?<![\\w./-])";
+const PATH_CHARACTER_BESIDES_DOT = "[\\p{L}\\p{N}\\p{M}_\\/\\-+~@＿／－＋～＠．]";
 
-const NOT_INSIDE_A_LONGER_PATH_AFTER = "(?![\\w/-]|\\.\\w)";
+const PATH_CHARACTER = "[\\p{L}\\p{N}\\p{M}_.\\/\\-+~@＿／－＋～＠．]";
+
+const NOT_INSIDE_A_LONGER_PATH_BEFORE = `(?<!${PATH_CHARACTER})`;
+
+const NOT_INSIDE_A_LONGER_PATH_AFTER = `(?!${PATH_CHARACTER_BESIDES_DOT}|\\.${PATH_CHARACTER})`;
+
+const AS_RECORDED: Repointing = ({ text }) => text;
 
 const repointingOf = (request: { readonly baseline: MeasuredBaseline }): Repointing => {
   const headPathOf = new Map<string, RepoPath>([...request.baseline.basePathOfRenamed].map(([headPath, basePath]) => [basePath, headPath]));
   if (headPathOf.size === 0) {
-    return ({ text }) => text;
+    return AS_RECORDED;
   }
   const longestFirst = [...headPathOf.keys()].sort((left, right) => right.length - left.length);
   const basePaths = new RegExp(
     `${NOT_INSIDE_A_LONGER_PATH_BEFORE}(?:${longestFirst.map((path) => path.replace(REGULAR_EXPRESSION_SYNTAX, "\\$&")).join("|")})${NOT_INSIDE_A_LONGER_PATH_AFTER}`,
-    "g",
+    "gu",
   );
   return ({ text }) => text.replace(basePaths, (basePath) => headPathOf.get(basePath) ?? basePath);
 };
+
+const baseFormsOf = (request: { readonly baseline: MeasuredBaseline }): readonly Repointing[] => [AS_RECORDED, repointingOf(request)];
 
 const heldAtBase = (request: {
   readonly entry: StructuralExceptionEntry;
   readonly baseline: MeasuredBaseline;
 }): "held" | "not-held" => {
-  const repointed = repointingOf(request);
-  return request.baseline.entriesAtBase.some((atBase) => sameEntry({ atBase, atHead: request.entry, repointed }) === "same")
+  const forms = baseFormsOf(request);
+  return request.baseline.entriesAtBase.some((atBase) =>
+    forms.some((repointed) => sameEntry({ atBase, atHead: request.entry, repointed }) === "same"),
+  )
     ? "held"
     : "not-held";
 };
@@ -355,8 +365,12 @@ const importAgainstBase = <ImportedRecord>(request: {
   if (heldAtBase({ entry: request.entry, baseline }) === "held") {
     return { outcome: "ok", value: request.record };
   }
-  const repointed = repointingOf({ baseline });
-  if (baseline.entriesAtBase.some((atBase) => sameIdentity({ atBase, identity: request.identity, repointed }) === "same")) {
+  const forms = baseFormsOf({ baseline });
+  if (
+    baseline.entriesAtBase.some((atBase) =>
+      forms.some((repointed) => sameIdentity({ atBase, identity: request.identity, repointed }) === "same"),
+    )
+  ) {
     return importRefused({ detail: "the imported record was edited since the base revision", kind: request.identity.kind });
   }
   const fileAtBase = basePathOf({ file: request.identity.file, baseline });
