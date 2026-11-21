@@ -3,8 +3,8 @@ import { AUDIT, ESLINT, ESLINT_ENGINE, REPORT_CATALOGUE } from "../../tests/repo
 import { clauseAddressSchema } from "../values/clause-address.ts";
 import { mechanismIdSchema } from "../values/identifiers.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { EngineRun } from "./engine-run.ts";
 import type { RunMeasurement } from "../records/measured-at.ts";
+import type { EngineRun } from "./engine-run.ts";
 import { engineMeasurementOf, engineProblemsOf, engineUnmeasuredOf } from "./engine-states.ts";
 
 const runWith = (request: { readonly mechanism: EngineRun["mechanism"]; readonly projection: EngineRun["projection"] }): EngineRun => ({

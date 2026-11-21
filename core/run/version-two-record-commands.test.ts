@@ -248,13 +248,13 @@ describe("versionTwoPruneDebtCommandOf", () => {
       files: { [DEBT_FILE]: DEBT_DOCUMENT },
     });
     expect({ writes: ran.writes, exits: ran.exits, filesHeld: ran.repository.filesHeld() }).toEqual({
-      writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]],
+      writes: [[{ text: "claimed-type removed src/a.ts: stale, its file is no longer in the repository\n" }]],
       exits: [[{ code: 0 }]],
       filesHeld: [],
     });
   });
 
-  it("removes the debt on a file the settings exclude, which is still in the repository, as it did before engines reported what they measured", async () => {
+  it("removes the debt on a file the settings exclude, saying its file is excluded, as it did before engines reported what they measured", async () => {
     const settings = settingsSelectingCast();
     const ran = await ranWith({
       handler: versionTwoPruneDebtCommandOf,
@@ -268,7 +268,7 @@ describe("versionTwoPruneDebtCommandOf", () => {
       files: { [DEBT_FILE]: DEBT_DOCUMENT },
     });
     expect({ writes: ran.writes, exits: ran.exits, filesHeld: ran.repository.filesHeld() }).toEqual({
-      writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]],
+      writes: [[{ text: "claimed-type removed src/a.ts: stale, its file is excluded by the settings\n" }]],
       exits: [[{ code: 0 }]],
       filesHeld: [],
     });

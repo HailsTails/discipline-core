@@ -1,6 +1,6 @@
 import type { AttributedNativeException, Finding } from "../governance/governance.ts";
 import type { MisnamedRuleId } from "../mechanism-port/checks-runner-types.ts";
-import type { AnsweredFinding, PaidDebt } from "../records/answering.ts";
+import type { AnsweredFinding, PaidDebt, StaleRecord } from "../records/answering.ts";
 import type { CarriedListing, PlacedRecord, RecordNote, RefusedRecord } from "../records/hone-record.ts";
 import type { RecordsUnmeasured } from "../records/records-unmeasured.ts";
 import type { SettingsNote } from "../settings/read-settings.ts";
@@ -31,7 +31,7 @@ export type RunReport = {
   readonly findings: readonly Finding[];
   readonly answered: readonly AnsweredFinding[];
   readonly uncovered: readonly Check[];
-  readonly stale: readonly PlacedRecord[];
+  readonly stale: readonly StaleRecord[];
   readonly forfeited: readonly PlacedRecord[];
   readonly unrecorded: readonly AttributedNativeException[];
   readonly misnamed: readonly MisnamedRuleId[];

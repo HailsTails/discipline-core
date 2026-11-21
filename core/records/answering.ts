@@ -17,6 +17,10 @@ export type AnsweredFinding = { readonly finding: Finding; readonly by: readonly
 
 export type PaidDebt = { readonly debt: PlacedRecord; readonly answeredBy: readonly PlacedRecord[] };
 
+export type StaleReason = "credited-nothing" | "file-gone" | "file-excluded";
+
+export type StaleRecord = { readonly placed: PlacedRecord; readonly reason: StaleReason };
+
 type DebtStanding = "answers-in-debts-place" | "answers-beside-debt";
 
 export type AnsweringRequest = {
@@ -31,7 +35,7 @@ export type AnsweringRequest = {
 export type Answering = {
   readonly findings: readonly Finding[];
   readonly answered: readonly AnsweredFinding[];
-  readonly stale: readonly PlacedRecord[];
+  readonly stale: readonly StaleRecord[];
   readonly forfeited: readonly PlacedRecord[];
   readonly paid: readonly PaidDebt[];
   readonly unrecorded: readonly AttributedNativeException[];
@@ -155,8 +159,16 @@ const nativeHoldings = (request: {
     })),
   );
 
-const wasJudged = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue; readonly measurements: RunMeasurements }): "judged" | "unjudged" =>
-  placesReachedBy(request).some((reached) => measurementOf({ measurements: request.measurements, reached }) === "not-measured") ? "unjudged" : "judged";
+const staleReasonOf = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue; readonly measurements: RunMeasurements }): StaleReason | "unjudged" => {
+  const measurements = placesReachedBy(request).map((reached) => measurementOf({ measurements: request.measurements, reached }));
+  if (measurements.includes("not-measured")) {
+    return "unjudged";
+  }
+  if (measurements.includes("excluded")) {
+    return "file-excluded";
+  }
+  return measurements.includes("gone") ? "file-gone" : "credited-nothing";
+};
 
 const staleRecords = (request: {
   readonly inForce: readonly PlacedRecord[];
@@ -164,14 +176,13 @@ const staleRecords = (request: {
   readonly paidDebt: ReadonlySet<PlacedRecord>;
   readonly catalogue: SymptomCatalogue;
   readonly measurements: RunMeasurements;
-}): readonly PlacedRecord[] =>
-  request.inForce.filter(
-    (placed) =>
-      placed.record.kind !== "dependency-record" &&
-      !request.credited.has(placed) &&
-      !request.paidDebt.has(placed) &&
-      wasJudged({ record: placed.record, catalogue: request.catalogue, measurements: request.measurements }) === "judged",
-  );
+}): readonly StaleRecord[] =>
+  request.inForce
+    .filter((placed) => placed.record.kind !== "dependency-record" && !request.credited.has(placed) && !request.paidDebt.has(placed))
+    .flatMap((placed) => {
+      const reason = staleReasonOf({ record: placed.record, catalogue: request.catalogue, measurements: request.measurements });
+      return reason === "unjudged" ? [] : [{ placed, reason }];
+    });
 
 export const answerFindings = (request: AnsweringRequest): Answering => {
   const { catalogue } = request;

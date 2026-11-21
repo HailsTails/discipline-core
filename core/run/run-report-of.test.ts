@@ -115,7 +115,7 @@ describe("runReportOf, findings and records", () => {
     expect(runReportOf({ ...REQUEST, records: { ...NO_RECORDS, records: [debt] }, runs: [eslintRunOf({ hits: [CAST_HIT], projection: "current" })] })).toEqual({
       ...EMPTY_REPORT,
       findings: [CAST_FINDING],
-      stale: [debt],
+      stale: [{ placed: debt, reason: "credited-nothing" }],
       symptoms: [CLAIMED_TYPE],
     });
   });
@@ -158,7 +158,7 @@ describe("runReportOf, findings and records", () => {
         records: { ...NO_RECORDS, records: [debt] },
         runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
       }),
-    ).toEqual({ ...EMPTY_REPORT, stale: [debt] });
+    ).toEqual({ ...EMPTY_REPORT, stale: [{ placed: debt, reason: "credited-nothing" }] });
   });
 
   it("calls a record stale when its file is no longer in the tree, since no run can measure a file that is gone", () => {
@@ -171,7 +171,7 @@ describe("runReportOf, findings and records", () => {
         records: { ...NO_RECORDS, records: [debt] },
         runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
       }),
-    ).toEqual({ ...EMPTY_REPORT, stale: [debt] });
+    ).toEqual({ ...EMPTY_REPORT, stale: [{ placed: debt, reason: "file-gone" }] });
   });
 
   it("calls a record stale when the settings exclude its file, which is still in the repository but out of what is checked", () => {
@@ -185,7 +185,7 @@ describe("runReportOf, findings and records", () => {
         records: { ...NO_RECORDS, records: [debt] },
         runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
       }),
-    ).toEqual({ ...EMPTY_REPORT, excluded: [FILE_A], stale: [debt] });
+    ).toEqual({ ...EMPTY_REPORT, excluded: [FILE_A], stale: [{ placed: debt, reason: "file-excluded" }] });
   });
 
   it("does not call a record stale when the engine measured other files but not its file", () => {

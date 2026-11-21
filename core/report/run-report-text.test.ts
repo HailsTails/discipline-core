@@ -86,7 +86,7 @@ const EVERY_SECTION: RunReport = {
   findings: [CLOCK_FINDING],
   answered: [{ finding: CAST_FINDING, by: [NOTED_LOCATION] }],
   uncovered: [CLOCK_CHECK],
-  stale: [NOTED_LOCATION],
+  stale: [{ placed: NOTED_LOCATION, reason: "credited-nothing" }],
   forfeited: [DEBT],
   unrecorded: [{ kind: "ignore", clause: CAST_EXPRESSIONS, file: WEBHOOK_FILE, mechanism: ESLINT }],
   misnamed: [{ kind: "version-1-id", ruleId: "hone/no-class-authoring", file: WEBHOOK_FILE, line: 3, text: "// eslint-disable-next-line hone/no-class-authoring" }],

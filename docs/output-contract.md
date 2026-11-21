@@ -723,7 +723,11 @@ A finding names what its symptom may indicate after the snippet, and ends with `
 | `answered` | `<check> <engine> <file>:<line>:<column> <snippet> answered by <reference>` |
 | `uncovered` | `<check>` |
 | `stale` | `<subject>` |
+| `stale` | `<subject>; its file is no longer in the repository` |
+| `stale` | `<subject>; its file is excluded by the settings, so nothing there was checked` |
 | `stale` | `<subject>; nothing it holds is found: run <prune command> to remove it` |
+| `stale` | `<subject>; its file is no longer in the repository: run <prune command> to remove it` |
+| `stale` | `<subject>; its file is excluded by the settings, so nothing there was checked: run <prune command> to remove it` |
 | `forfeited` | `<subject>; this change touched its file, so it no longer answers: fix what it held, then run <prune command> to remove it` |
 | `unrecorded` | `<check> <engine> ignore <file>` |
 | `unrecorded` | `<check> <engine> config-override <file>` |
@@ -780,7 +784,7 @@ In `symptoms`, `<answers>` is one sentence for each correct use the symptom has,
 
 ## Version 2 record subjects and references
 
-A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` for each of them, wherever it is named, and each note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom. A record is listed under `stale` when nothing credits it and any one of three things holds: every check it reaches that a run selected was measured, where the record reaches it, by an engine of that check; or its place, the file or module it names, is no longer in the repository; or the settings exclude its place, which leaves the place out of what any engine checks. A record that reaches a selected check its engine did not measure at a place that is in the repository and not excluded is not stale, and `hone prune-debt` leaves it; when an engine with selected checks measured no file at all, an `engine-not-run` line says so.
+A record is named by its `<subject>` in `stale`, `forfeited` and `paid`, and by its `<reference>` beside a finding it answers or a debt it answers in place of. A debt or authorised location that names one check of its symptom leads its subject with that check's address. An authorised location whose check, case or owes the catalogue does not list prints a ` note: ` for each of them, wherever it is named, and each note is listed again under `recordNotes`. The record is still read and never refused for it, and the note never changes the verdict. An authorised location whose check its symptom does not have answers nothing until its check is corrected; it does not widen to the whole symptom. A record is listed under `stale` when nothing credits it and any one of three things holds: every check it reaches that a run selected was measured, where the record reaches it, by an engine of that check; or its place, the file or module it names, is no longer in the repository; or the settings exclude its place, which leaves the place out of what any engine checks. The line says which holds, in that order: a measured record prints `nothing it holds is found` on debt and nothing on any other record, a record whose place is gone prints `its file is no longer in the repository`, and an excluded place prints `its file is excluded by the settings, so nothing there was checked`; a `hone prune-debt` line carries the same reason after `stale`. A record that reaches a selected check its engine did not measure at a place that is in the repository and not excluded is not stale, and `hone prune-debt` leaves it; when an engine with selected checks measured no file at all, an `engine-not-run` line says so.
 
 | Part | Text |
 | --- | --- |
@@ -1012,6 +1016,8 @@ The commands that write and remove records in `hone-records` print one line for 
 | --- | --- |
 | `prune-debt` | `<address> removed <file>: paid` |
 | `prune-debt` | `<address> removed <file>: stale` |
+| `prune-debt` | `<address> removed <file>: stale, its file is no longer in the repository` |
+| `prune-debt` | `<address> removed <file>: stale, its file is excluded by the settings` |
 | `prune-debt` | `<address> removed <file>: forfeited` |
 
 `hone authorise` writes one authorised location under `hone-records/authorised-locations/<symptom>.json` from the arguments it is given, with the why chain the person supplied. It never writes a why of its own. It refuses a chain the why-chain form refuses, and a symptom the catalogue does not name, and writes nothing then. It never refuses a case or an `owes` the catalogue does not list: the record is written and the next run prints a note for it. A `refused` line is printed for each reason, and a `form-refused` line names the `<path>` in the record and the `<message>` the form gives; the `<given>` is what was typed, quoted.

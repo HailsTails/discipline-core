@@ -37,10 +37,10 @@ describe("the records prune-debt removes: those the version 2 report says to run
   it("removes paid debt, stale debt and forfeited debt, and says which each was", () => {
     expect(
       prunableDebtOf({
-        report: { paid: [{ debt: DATE_DEBT, answeredBy: [AUTHORISED_LOCATION_PLACED] }], stale: [CLAIMED_TYPE_DEBT], forfeited: [] },
+        report: { paid: [{ debt: DATE_DEBT, answeredBy: [AUTHORISED_LOCATION_PLACED] }], stale: [{ placed: CLAIMED_TYPE_DEBT, reason: "credited-nothing" }], forfeited: [] },
       }),
     ).toEqual([
-      { place: CLAIMED_TYPE_DEBT.place, debt: CLAIMED_TYPE_DEBT.record, reason: "stale" },
+      { place: CLAIMED_TYPE_DEBT.place, debt: CLAIMED_TYPE_DEBT.record, reason: "credited-nothing" },
       { place: DATE_DEBT.place, debt: DATE_DEBT.record, reason: "paid" },
     ]);
   });
@@ -50,7 +50,7 @@ describe("the records prune-debt removes: those the version 2 report says to run
   });
 
   it("leaves every record that is not debt, since its line does not say to run prune-debt", () => {
-    expect(prunableDebtOf({ report: { paid: [], stale: [AUTHORISED_LOCATION_PLACED, DEPENDENCY_PLACED], forfeited: [AUTHORISED_LOCATION_PLACED] } })).toEqual([]);
+    expect(prunableDebtOf({ report: { paid: [], stale: [{ placed: AUTHORISED_LOCATION_PLACED, reason: "credited-nothing" }, { placed: DEPENDENCY_PLACED, reason: "credited-nothing" }], forfeited: [AUTHORISED_LOCATION_PLACED] } })).toEqual([]);
   });
 
   it("removes nothing when the report lists nothing", () => {
