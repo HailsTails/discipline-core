@@ -13,7 +13,7 @@ import type { ProjectedFile } from "../../mechanism-port/checks-runner-types.ts"
 import type { Engine, SymptomCatalogue } from "../../symptom-catalogue/symptom-catalogue.ts";
 import type { AbsolutePath } from "../../values/absolute-path.ts";
 import { moduleExtensionOf } from "../../values/install-layout.ts";
-import { projectionFileNameOf } from "../../values/projection-file-name.ts";
+import { projectionOutputsOf } from "../../values/projection-outputs.ts";
 import type { Result } from "../../values/result.ts";
 import type { MappedRecordsDocument } from "../version-two-mapping/records-mapping.ts";
 import type { ProjectionFailure, ProjectionFilesOf } from "../proof/upgrade-plan.ts";
@@ -65,7 +65,7 @@ const treeOf = (request: Context & { readonly settings: SettingsReading }): Resu
 const fileNameOf = (request: { readonly file: string }): string => request.file.slice(request.file.lastIndexOf("/") + 1);
 
 const projectionsAmong = (request: { readonly files: readonly ProjectedFile[]; readonly engines: readonly Engine[] }): readonly ProjectedFile[] => {
-  const names = request.engines.map((engine) => projectionFileNameOf({ engineName: engine.name }));
+  const names = request.engines.map((engine) => projectionOutputsOf({ engineName: engine.name }).configuration);
   return request.files.filter(({ file }) => names.includes(fileNameOf({ file })));
 };
 

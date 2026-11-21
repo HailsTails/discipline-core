@@ -9,13 +9,13 @@ import { clauseAddressSchema } from "../../../core/values/clause-address.ts";
 import { type RepoPath, repoPathSchema } from "../../../core/values/repo-path.ts";
 import SYMPTOMS from "../../../rules/typescript/symptoms.json" with { type: "json" };
 import ESLINT_CD_14_PIECE from "../CD-14/piece.json" with { type: "json" };
-import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksDeclarationText, checksProjectionText } from "./checks-projection.ts";
+import { CHECKS_DECLARATION_PATH, CHECKS_PROJECTION_PATH, checksProjectionText } from "./checks-projection.ts";
 import type { ChecksRepository } from "./checks-repository.ts";
 import type { ChecksRunRequest } from "./checks-run-types.ts";
 import { checksRunnerOver } from "./checks-runner.ts";
 import type { ChecksRunnerPorts } from "./checks-ports.ts";
 import { countedReadsOver } from "../../../tests/counted-reads.ts";
-import { SILENT_BOUNDARY } from "../../../tests/eslint-major-boundary-stub.ts";
+import { SILENT_BOUNDARY, STUB_DECLARATION_TEXT } from "../../../tests/eslint-major-boundary-stub.ts";
 import type { RuleState } from "./eslint-config-schema.ts";
 import type { EslintPort, GovernanceInstance, QueryInstance } from "./eslint-instance.ts";
 import type { CurrentProjection, ProjectionFiles } from "./projection.ts";
@@ -132,7 +132,7 @@ const PROJECTION_THAT_DIFFERS: CurrentProjection = { presence: "present", text: 
 
 const PROJECTION_NOT_WRITTEN: CurrentProjection = { presence: "absent" };
 
-const DECLARATION_TEXT = checksDeclarationText();
+const DECLARATION_TEXT = STUB_DECLARATION_TEXT;
 
 const DECLARATION_PRESENT: CurrentProjection = { presence: "present", text: DECLARATION_TEXT };
 

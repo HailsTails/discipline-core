@@ -3,7 +3,7 @@ import type { RecordsUnmeasured } from "../records/records-unmeasured.ts";
 import { type SettingsNote, settingsNoteText } from "../settings/read-settings.ts";
 import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import type { Engine } from "../symptom-catalogue/symptom-catalogue.ts";
-import { projectionFileNameOf } from "../values/projection-file-name.ts";
+import { projectionOutputsOf } from "../values/projection-outputs.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 import { counted, quoted } from "./printed-text.ts";
@@ -47,7 +47,7 @@ const recordsUnmeasuredLine = (request: { readonly unmeasured: RecordsUnmeasured
   }
 };
 
-const projectionFileOf = (request: { readonly engine: Engine }): string => projectionFileNameOf({ engineName: request.engine.name });
+const projectionFileOf = (request: { readonly engine: Engine }): string => projectionOutputsOf({ engineName: request.engine.name }).configuration;
 
 const refreshStep = (request: ProjectCommand): string => `run ${request.projectCommand} and commit every file it writes`;
 

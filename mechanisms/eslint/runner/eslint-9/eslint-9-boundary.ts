@@ -13,7 +13,10 @@ const reportDataValueOf = (request: { readonly candidate: unknown }): ReportData
 const reportDataFrom = (request: { readonly data: Readonly<Record<string, unknown>> }): ReportData =>
   Object.fromEntries(Object.entries(request.data).map(([name, candidate]) => [name, reportDataValueOf({ candidate })]));
 
+const DECLARATION_TEXT = `import type { Linter } from ${JSON.stringify("eslint")};\ndeclare const projection: Linter.Config[];\nexport default projection;\n`;
+
 export const eslintBoundary: EslintMajorBoundary = {
   nearestLookup: { flags: [NEAREST_LOOKUP_FLAG] },
+  declarationText: DECLARATION_TEXT,
   reportDataOf: (request) => (request.descriptor.data === undefined ? undefined : reportDataFrom({ data: request.descriptor.data })),
 };

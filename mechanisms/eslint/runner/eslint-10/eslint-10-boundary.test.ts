@@ -13,6 +13,10 @@ describe("the ESLint 10 boundary", () => {
     });
   });
 
+  it("declares the projection as the list of configuration blocks that ESLint 10 names Linter.Config", () => {
+    expect(eslintBoundary.declarationText).toContain("declare const projection: Linter.Config[];\nexport default projection;\n");
+  });
+
   it("reads a report without data as having none", () => {
     expect(eslintBoundary.reportDataOf({ descriptor: { loc: { line: 1, column: 0 }, messageId: "a" } })).toBeUndefined();
   });

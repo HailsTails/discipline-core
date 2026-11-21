@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type ImportAllowance, importFactsReaching, importNotMatching, importsOutside, importsWithoutFacts } from "../../../tests/confinement.ts";
+import { INSTALLED_DECLARATION_TEXT } from "../../../tests/installed-declaration-text.ts";
+import { projectionDeclarationKeyIn, ROOT_PROJECTION_DECLARATION_KEY, withoutProjectionOutputs } from "../../../tests/without-projection-outputs.ts";
 
 declare global {
   interface ImportMeta {
@@ -14,7 +16,7 @@ const ESLINT_MAJOR_SPECIFIER = /^eslint(?:-9)?(?:\/|$)/;
 
 const notAnEslintMajor: ImportAllowance = importNotMatching({ specifier: ESLINT_MAJOR_SPECIFIER });
 
-const outsideTheBoundaries = import.meta.glob(
+const loadedOutsideTheBoundaries = import.meta.glob(
   [
     "./**/*.{ts,mts,cts,js,mjs,cjs}",
     "!./node_modules/**",
@@ -26,6 +28,15 @@ const outsideTheBoundaries = import.meta.glob(
   ],
   { base: "../../../", query: "?raw", import: "default", eager: true },
 );
+
+const outsideTheBoundaries = withoutProjectionOutputs({ sources: loadedOutsideTheBoundaries });
+
+const NESTED_DECLARATION_KEY = projectionDeclarationKeyIn({ folder: "mechanisms/eslint/runner" });
+
+const UPGRADED_TREE: Readonly<Record<string, string>> = {
+  [ROOT_PROJECTION_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+  [NESTED_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+};
 
 const insideTheBoundaries = import.meta.glob(
   ["./mechanisms/eslint/runner/eslint-9/*.ts", "./mechanisms/eslint/runner/eslint-10/*.ts", "!./mechanisms/eslint/runner/eslint-*/*.test.ts"],
@@ -55,6 +66,19 @@ describe("where ESLint is imported, read as build-time raw modules (CD-47: that 
       { file: "./mechanisms/eslint/runner/native-rules.ts", kind: "import", specifier: "eslint/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
       { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9", form: "value", names: ["ESLint"] },
       { file: "./tests/test-fixtures/eslint-9/eslint-9-engine.ts", kind: "import", specifier: "eslint-9/use-at-your-own-risk", form: "value", names: ["builtinRules"] },
+    ]);
+  });
+
+  it("finds the root declaration hone project writes importing eslint when nothing is left out, and a declaration of that name in a folder too", () => {
+    expect(importsOutside({ sources: UPGRADED_TREE, allowed: [notAnEslintMajor] })).toEqual([
+      { file: ROOT_PROJECTION_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+    ]);
+  });
+
+  it("finds only the declaration of that name in a folder, once the root declaration hone project writes is left out", () => {
+    expect(importsOutside({ sources: withoutProjectionOutputs({ sources: UPGRADED_TREE }), allowed: [notAnEslintMajor] })).toEqual([
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
     ]);
   });
 

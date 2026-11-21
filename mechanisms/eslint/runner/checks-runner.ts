@@ -9,7 +9,7 @@ import { checksRepositoryOver } from "./checks-repository.ts";
 import type { ChecksPlugin } from "./checks-plugin.ts";
 import type { ChecksRunFailure, ChecksRunReport, ChecksRunRequest, ChecksProjectionState, SelectedCheck, VersionOneRuleId } from "./checks-run-types.ts";
 import { lintedFindingsOf } from "./checks-lint-findings.ts";
-import { checksDeclarationText, checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
+import { checksProjectionText, type ProjectedCheck } from "./checks-projection.ts";
 import { queriedFilesOf, projectionEffectOf, queryExceptionsOf, type QueriedFiles } from "./checks-queried-files.ts";
 import { nestedVersionTwoFoldersOf, nestedVersionTwoRepositoriesOf, SETTINGS_FILE_NAME } from "./checks-nested-repositories.ts";
 import { selectedChecksOf } from "./checks-selection.ts";
@@ -23,6 +23,7 @@ import { eslintPieceSettingsSchema } from "./eslint-piece-settings-schema.ts";
 import { eslintPluginModuleSchema, type LoadedEslintPlugin } from "./eslint-plugin-schema.ts";
 import { configLookupDeclaring, folderConfigurationOf, teamConfigLookupFor } from "./config-lookup.ts";
 import type { QueryInstance } from "./eslint-instance.ts";
+import type { EslintMajorBoundary } from "./eslint-major-boundary.ts";
 import { answeredWithin, type ChecksSlice, type ChecksSlices, declarationPathOf, slicesOf } from "./checks-slices.ts";
 import type { ChecksSliceProblem } from "../../../core/mechanism-port/checks-runner-types.ts";
 import type { AbsolutePath } from "../../../core/values/absolute-path.ts";
@@ -177,7 +178,10 @@ const expectedSliceOf = (request: Omit<SliceRequest, "slices"> & { readonly slic
     : toolFailed({ detail: `the Hone plugin cannot be imported from ${importing.value}` });
 };
 
-const expectedDeclarationOf = (request: { readonly slice: ChecksSlice }): ProjectedFile => ({ file: declarationPathOf(request), text: checksDeclarationText() });
+const expectedDeclarationOf = (request: { readonly slice: ChecksSlice; readonly boundary: EslintMajorBoundary }): ProjectedFile => ({
+  file: declarationPathOf(request),
+  text: request.boundary.declarationText,
+});
 
 const expectedFilesOf = (request: SliceRequest): Result<ExpectedFiles, RunnerFailure> => {
   const root = expectedSliceOf({ ...request, slice: request.slices.root });
@@ -192,7 +196,7 @@ const expectedFilesOf = (request: SliceRequest): Result<ExpectedFiles, RunnerFai
         value: {
           root: root.value,
           packages: packages.value,
-          declarations: [request.slices.root, ...request.slices.packages].map((slice) => expectedDeclarationOf({ slice })),
+          declarations: [request.slices.root, ...request.slices.packages].map((slice) => expectedDeclarationOf({ slice, boundary: request.ports.eslint.boundary })),
         },
       };
 };
