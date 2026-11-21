@@ -1,4 +1,5 @@
 import { loadFailureDetail } from "../../command-line/load-failure-text.ts";
+import type { MisnamedRuleId } from "../../mechanism-port/checks-runner-types.ts";
 import { runLoadFailureLine } from "../../report/load-failure-lines.ts";
 import type { RunLoadFailure } from "../../report/run-load-failure.ts";
 import { type ClauseAddress, clauseAddressText } from "../../values/clause-address.ts";
@@ -225,7 +226,13 @@ const differenceLinesOf = (request: { readonly failure: Extract<ProofRefusal, { 
     ...onlyAfter.map((line) => `    only after: ${line}`),
   ]);
 
-const uncoveredLineOf = (request: { readonly clauses: readonly ClauseAddress[] }): string =>
+const directiveLinesOf = (request: { readonly directives: readonly MisnamedRuleId[] }): readonly string[] => [
+  "these inline directives name a hone rule that version 2 has no check under:",
+  ...request.directives.map(({ file, line, ruleId }) => `  ${file}:${line} ${ruleId}`),
+  "Fix each one to name a check of version 2, or remove it, then run the upgrade again.",
+];
+
+const uncoveredLineOf =(request: { readonly clauses: readonly ClauseAddress[] }): string =>
   `version 1 already reports ${request.clauses.map((address) => clauseAddressText({ address })).join(", ")} as uncovered. Select or mark each of them in disciplines.json, then run the upgrade again.`;
 
 const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placement: RepositoryPlacement }): { readonly code: UpgradeFailureCode; readonly lines: readonly string[] } => {
@@ -269,6 +276,8 @@ const proofLinesOf = (request: { readonly failure: ProofRefusal; readonly placem
       return { code: 1, lines: [writeLineOf({ failure: failure.refusal.failure }), ...unrestoredLinesOf({ ...failure, placement, unrestored: failure.refusal.unrestored })] };
     case "version-two-run-failed":
       return { code: 1, lines: [`version 2's run failed (${failure.failure.detail}). ${FAULT_IN_HONE}`, ...unrestoredLinesOf({ ...failure, placement })] };
+    case "directives-name-no-check":
+      return { code: 1, lines: [...directiveLinesOf({ directives: failure.directives }), ...unrestoredLinesOf({ ...failure, placement })] };
     case "differences":
       return {
         code: 1,

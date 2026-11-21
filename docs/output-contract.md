@@ -595,6 +595,9 @@ When version 2 is in place but a version 1 file could not be removed, it prints 
 | `upgrade` | `  <section>:` |
 | `upgrade` | `    only before: <before>` |
 | `upgrade` | `    only after: <after>` |
+| `upgrade` | `these inline directives name a hone rule that version 2 has no check under:` |
+| `upgrade` | `  <file>:<line> <rule id>` |
+| `upgrade` | `Fix each one to name a check of version 2, or remove it, then run the upgrade again.` |
 | `upgrade` | `version 1's own project removed these files, and the upgrade does not put them back; restore them from version control:` |
 | `upgrade` | `  <removed path>` |
 | `upgrade` | `These files could not be put back; put them right by hand:` |
