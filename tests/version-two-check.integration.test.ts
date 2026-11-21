@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, assert, describe, expect, it, vi } from "vitest";
+import { projectCommandOf } from "../core/command-line/tool-invocations.ts";
 import type { Subcommand } from "../core/command-line/command-line.ts";
 import { TOOL_SUBCOMMANDS } from "../core/check/run-tool-command.ts";
 import type { ExceptionRepositoryOf } from "../core/upgrade/version-one-records/exception-records.ts";
@@ -105,7 +106,15 @@ describe("the tool's commands on a repository holding hone.config.json, through 
     });
     commands.run({ command: "git", arguments: ["-c", "user.name=proof", "-c", "user.email=proof@example.test", "commit", "-m", "base"], directory: repo });
     const recorded = await runCommandIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
-    expect(recorded).toEqual({ writes: [[{ text: "authored-class-or-this#class-keyword recorded kept.ts\n" }]], exits: [[{ code: 0 }]] });
+    const path = createDefaultPathPort({});
+    const resolved = path.resolve({ path: repo });
+    assert(resolved.outcome === "ok", "the repository path resolves");
+    const projectCommand = projectCommandOf({ path, moduleUrl: ENTRY_URL, repoRoot: resolved.value });
+    assert(projectCommand.outcome === "ok", "the project command is made");
+    expect(recorded).toEqual({
+      writes: [[{ text: `authored-class-or-this#class-keyword recorded kept.ts\nrun ${projectCommand.value} to put the recorded debt into effect\n` }]],
+      exits: [[{ code: 0 }]],
+    });
   });
 
   it("writes the projection through project, confirms it unchanged the second time, and then checks with the projection current", async () => {

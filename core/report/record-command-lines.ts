@@ -1,10 +1,42 @@
 import type { Authorising } from "../records/authorising.ts";
-import { type DebtOutcome, debtAddressOf } from "../records/debt-effects.ts";
+import type { ScriptOptionCause } from "../mechanism-port/runner-result-schema.ts";
+import { type DebtEffect, type DebtOutcome, debtAddressOf } from "../records/debt-effects.ts";
 import type { PrunableDebt, PrunedReason } from "../records/prunable-debt.ts";
+import type { UnrecordableBecause } from "../records/unrecordable-site.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { recordsFileText, refusalText } from "./record-lines.ts";
+import { scriptOptionAdviceOf } from "./script-option-advice.ts";
 
 const NO_DETAIL = "";
+
+type RecordableOrigin = Extract<DebtEffect, { readonly effect: "touched" }>["of"];
+
+const TOUCHED_DETAIL: Readonly<Record<RecordableOrigin, string>> = {
+  finding: "this change created or changed the file, so this run would forfeit debt on it; fix the finding there",
+  "native-exception": "this change created or changed the file, so this run would forfeit debt on it; fix what the comment hides, then remove the comment",
+};
+
+const UNRECORDABLE_DETAIL: Readonly<Record<Exclude<UnrecordableBecause["kind"], "command-line-option">, string>> = {
+  "no-check": "the catalogue gives this finding no symptom or check to record debt against; fix the finding",
+  ignore:
+    "an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration",
+  "inline-rule-config": "a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment",
+  "suppression-entry":
+    "an entry in the suppressions file hides a finding from the team's lint run, which no record can hold; Hone's run still finds it and records it as debt, so remove the entry from the suppressions file",
+  "config-override":
+    "an override in the ESLint configuration turns the check down for this file, which no record can hold; where debt holds the check the projection already turns it off, so remove the override or narrow it to the files that need it",
+  "inline-disable": "no record of this engine holds this comment; fix the code, or remove the comment",
+};
+
+const scriptOptionDetailOf = (request: { readonly cause: ScriptOptionCause }): string => {
+  const { problem, fix } = scriptOptionAdviceOf(request);
+  return `${request.cause.kind === "weakens-run" ? "a lint-script option " : ""}${problem}; ${fix}`;
+};
+
+const unrecordableDetailOf = (request: { readonly because: UnrecordableBecause }): string => {
+  const { because } = request;
+  return because.kind === "command-line-option" ? scriptOptionDetailOf({ cause: because.cause }) : UNRECORDABLE_DETAIL[because.kind];
+};
 
 const detailOf = (request: { readonly outcome: DebtOutcome }): string => {
   const { outcome } = request;
@@ -16,9 +48,9 @@ const detailOf = (request: { readonly outcome: DebtOutcome }): string => {
     case "left":
       return `under --leave ${outcome.under}; record it as an authorised location with its own reason, or fix it`;
     case "touched":
-      return "this change created or changed the file, so this run would forfeit debt on it; fix the finding there";
+      return TOUCHED_DETAIL[outcome.of];
     case "unrecordable":
-      return "the catalogue gives this finding no symptom or check to record debt against; fix the finding";
+      return unrecordableDetailOf({ because: outcome.because });
   }
 };
 
@@ -26,6 +58,8 @@ const withDetail = (request: { readonly head: string; readonly detail: string })
 
 export const debtOutcomeLine = (request: { readonly outcome: DebtOutcome }): string =>
   withDetail({ head: `${request.outcome.address} ${request.outcome.effect} ${request.outcome.file}`, detail: detailOf(request) });
+
+export const projectNextLine = (request: { readonly projectCommand: string }): string => `run ${request.projectCommand} to put the recorded debt into effect`;
 
 const PRUNED_REASON_TEXT: Readonly<Record<PrunedReason, string>> = {
   paid: "paid",

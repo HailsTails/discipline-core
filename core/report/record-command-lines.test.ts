@@ -4,7 +4,7 @@ import type { Authorising } from "../records/authorising.ts";
 import type { DebtOutcome } from "../records/debt-effects.ts";
 import type { Debt } from "../records/hone-record.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import { authorisingLines, debtOutcomeLine, prunedDebtLine } from "./record-command-lines.ts";
+import { authorisingLines, debtOutcomeLine, projectNextLine, prunedDebtLine } from "./record-command-lines.ts";
 
 const FILE = repoPathSchema.parse("src/orders/charge-order.ts");
 
@@ -23,12 +23,52 @@ const OUTCOME_LINES: readonly (readonly [DebtOutcome, string])[] = [
     "date-used-directly#clock-sources left src/orders/charge-order.ts: under --leave src/orders; record it as an authorised location with its own reason, or fix it",
   ],
   [
-    { ...SITE, effect: "touched" },
+    { ...SITE, effect: "touched", of: "finding" },
     "date-used-directly#clock-sources touched src/orders/charge-order.ts: this change created or changed the file, so this run would forfeit debt on it; fix the finding there",
   ],
   [
-    { address: "CD-99#nowhere", file: FILE, effect: "unrecordable" },
+    { ...SITE, effect: "touched", of: "native-exception" },
+    "date-used-directly#clock-sources touched src/orders/charge-order.ts: this change created or changed the file, so this run would forfeit debt on it; fix what the comment hides, then remove the comment",
+  ],
+  [
+    { address: "CD-99#nowhere", file: FILE, effect: "unrecordable", because: { kind: "no-check" } },
     "CD-99#nowhere unrecordable src/orders/charge-order.ts: the catalogue gives this finding no symptom or check to record debt against; fix the finding",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "ignore" } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "inline-rule-config" } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "suppression-entry" } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an entry in the suppressions file hides a finding from the team's lint run, which no record can hold; Hone's run still finds it and records it as debt, so remove the entry from the suppressions file",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "command-line-option", cause: { kind: "weakens-run" } } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: a lint-script option weakens the script's whole run, so no record can cover it; remove it from the script",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "command-line-option", cause: { kind: "after-another-command", command: "eslint", invocation: "eslint --rule x:off ." } } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: eslint is not the first command of its script, so Hone cannot tell what the option does to the files under check; give eslint a script of its own, such as \"eslint --rule x:off .\"",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "command-line-option", cause: { kind: "wrapped", command: "eslint", wrapper: "time" } } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: \"time\" comes before eslint and is neither a package runner nor a NAME=value setting, so Hone cannot tell what the option does to the files under check; put only package runners and NAME=value settings before eslint",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "command-line-option", cause: { kind: "unreadable", command: "eslint" } } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: a quote in the script has no partner, so Hone cannot read what the script passes to eslint or tell what that does to the files under check; pair every quote in the script",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "config-override" } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: an override in the ESLint configuration turns the check down for this file, which no record can hold; where debt holds the check the projection already turns it off, so remove the override or narrow it to the files that need it",
+  ],
+  [
+    { ...SITE, effect: "unrecordable", because: { kind: "inline-disable" } },
+    "date-used-directly#clock-sources unrecordable src/orders/charge-order.ts: no record of this engine holds this comment; fix the code, or remove the comment",
   ],
 ];
 
@@ -39,6 +79,12 @@ const PLACE = { file: RECORDS_FILE, index: 0 };
 describe("the lines hone record-debt prints", () => {
   it.each(OUTCOME_LINES)("prints %j as one line", (outcome, line) => {
     expect(debtOutcomeLine({ outcome })).toBe(line);
+  });
+});
+
+describe("the line hone record-debt prints after the debt it recorded", () => {
+  it("names the command that puts the recorded debt into effect", () => {
+    expect(projectNextLine({ projectCommand: "node hone.ts project --repo ." })).toBe("run node hone.ts project --repo . to put the recorded debt into effect");
   });
 });
 

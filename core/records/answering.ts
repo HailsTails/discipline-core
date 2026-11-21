@@ -130,7 +130,7 @@ const checksReachedBy = (request: { readonly exception: NativeException; readonl
   }
 };
 
-const nativeSitesOf = (request: {
+export const nativeSitesOf = (request: {
   readonly exception: NativeException;
   readonly run: GovernedRun;
   readonly catalogue: SymptomCatalogue;

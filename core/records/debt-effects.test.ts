@@ -34,7 +34,7 @@ const HELD_CAST_DEBT: PlacedRecord = {
 };
 
 const REQUEST: DebtEffectsRequest = {
-  sites: [{ address: CLOCK_ADDRESS, file: ORDER_FILE }],
+  sites: [{ address: CLOCK_ADDRESS, file: ORDER_FILE, origin: "finding" }],
   unrecordable: [],
   records: [],
   leave: [],
@@ -55,8 +55,8 @@ describe("what record-debt does with each symptom and file the check finds", () 
       debtOutcomesOf({
         ...REQUEST,
         sites: [
-          { address: "claimed-type", file: ORDER_FILE },
-          { address: "claimed-type#cast-expressions", file: ORDER_FILE },
+          { address: "claimed-type", file: ORDER_FILE, origin: "finding" },
+          { address: "claimed-type#cast-expressions", file: ORDER_FILE, origin: "finding" },
         ],
         records: [HELD_WHOLE_SYMPTOM_DEBT],
       }),
@@ -67,41 +67,47 @@ describe("what record-debt does with each symptom and file the check finds", () 
   });
 
   it("does not take another file's debt, or another check's, for this one", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: "claimed-type#cast-expressions", file: LEFT_FILE }], records: [HELD_CAST_DEBT] })).toEqual([
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: "claimed-type#cast-expressions", file: LEFT_FILE, origin: "finding" }], records: [HELD_CAST_DEBT] })).toEqual([
       { address: "claimed-type#cast-expressions", file: LEFT_FILE, effect: "recorded" },
     ]);
   });
 
   it("leaves a file under a --leave path, naming the path", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: LEFT_FILE }], leave: [LEFT_FOLDER] })).toEqual([
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: LEFT_FILE, origin: "finding" }], leave: [LEFT_FOLDER] })).toEqual([
       { address: CLOCK_ADDRESS, file: LEFT_FILE, effect: "left", under: LEFT_FOLDER },
     ]);
   });
 
   it("leaves a file that is exactly a --leave path", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: ORDER_FILE }], leave: [ORDER_FILE] })).toEqual([
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: ORDER_FILE, origin: "finding" }], leave: [ORDER_FILE] })).toEqual([
       { address: CLOCK_ADDRESS, file: ORDER_FILE, effect: "left", under: ORDER_FILE },
     ]);
   });
 
   it("does not record debt on a file this change changed, since the run would forfeit it", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: TOUCHED_FILE }] })).toEqual([{ address: CLOCK_ADDRESS, file: TOUCHED_FILE, effect: "touched" }]);
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: TOUCHED_FILE, origin: "finding" }] })).toEqual([{ address: CLOCK_ADDRESS, file: TOUCHED_FILE, effect: "touched", of: "finding" }]);
   });
 
   it("does not record debt on a file this change created, since the run would forfeit it", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: NEW_FILE }] })).toEqual([{ address: CLOCK_ADDRESS, file: NEW_FILE, effect: "touched" }]);
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: NEW_FILE, origin: "finding" }] })).toEqual([{ address: CLOCK_ADDRESS, file: NEW_FILE, effect: "touched", of: "finding" }]);
+  });
+
+  it("says a touched file's debt came from a native exception when no finding stands there", () => {
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: TOUCHED_FILE, origin: "native-exception" }] })).toEqual([
+      { address: CLOCK_ADDRESS, file: TOUCHED_FILE, effect: "touched", of: "native-exception" },
+    ]);
   });
 
   it("records debt on a file this change changed when another run assesses forfeiture", () => {
-    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: TOUCHED_FILE }], touched: { measured: "elsewhere" } })).toEqual([
+    expect(debtOutcomesOf({ ...REQUEST, sites: [{ address: CLOCK_ADDRESS, file: TOUCHED_FILE, origin: "finding" }], touched: { measured: "elsewhere" } })).toEqual([
       { address: CLOCK_ADDRESS, file: TOUCHED_FILE, effect: "recorded" },
     ]);
   });
 
   it("gives a finding no debt can be written for its own line, ordered by file with the rest", () => {
-    expect(debtOutcomesOf({ ...REQUEST, unrecordable: [{ address: "CD-99#nowhere", file: LEFT_FILE }, { address: "CD-98#nowhere", file: ORDER_FILE }] })).toEqual([
-      { address: "CD-99#nowhere", file: LEFT_FILE, effect: "unrecordable" },
-      { address: "CD-98#nowhere", file: ORDER_FILE, effect: "unrecordable" },
+    expect(debtOutcomesOf({ ...REQUEST, unrecordable: [{ address: "CD-99#nowhere", file: LEFT_FILE, because: { kind: "no-check" } }, { address: "CD-98#nowhere", file: ORDER_FILE, because: { kind: "no-check" } }] })).toEqual([
+      { address: "CD-99#nowhere", file: LEFT_FILE, effect: "unrecordable", because: { kind: "no-check" } },
+      { address: "CD-98#nowhere", file: ORDER_FILE, effect: "unrecordable", because: { kind: "no-check" } },
       { address: CLOCK_ADDRESS, file: ORDER_FILE, effect: "recorded" },
     ]);
   });

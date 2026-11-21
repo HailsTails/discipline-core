@@ -167,6 +167,8 @@ type Printed = { readonly text: string; readonly code: number };
 
 const PATH = createDefaultPathPort({});
 
+const projectNextLineIn = (request: { readonly repo: string }): string => `run ${projectCommandIn(request)} to put the recorded debt into effect\n`;
+
 const projectCommandIn = (request: { readonly repo: string }): string => {
   const command = projectCommandOf({ path: PATH, moduleUrl: ENTRY_URL, repoRoot: absolutePathSchema.parse(request.repo) });
   assert(command.outcome === "ok", "the project command is made");
@@ -272,7 +274,7 @@ describe("a version 2 adopter's repository, from the first project to a clean ch
         projectedAgain: PROJECTION_UNCHANGED,
         checked: { text: `${NOT_ADOPTED}findings (2)\n${CLASS_FINDING}${CAST_FINDING}symptoms (2)\n${CLASS_SYMPTOM}${CAST_SYMPTOM}verdict: fail\n`, code: 1 },
         recorded: {
-          text: "claimed-type#cast-to-any recorded src/cast.ts\nauthored-class-or-this#class-keyword recorded src/kept.ts\n",
+          text: `claimed-type#cast-to-any recorded src/cast.ts\nauthored-class-or-this#class-keyword recorded src/kept.ts\n${projectNextLineIn({ repo })}`,
           code: 0,
         },
         projectedWithDebt: PROJECTION_REWRITTEN,
@@ -316,7 +318,7 @@ describe("a version 2 adopter's repository judged against a base revision, run a
       writeIn({ repo, file: "src/cast.ts", text: TOUCHED_CAST_SOURCE });
       const touched = runCommandIn({ repo, subcommand: "check", options: ["--base-revision", "HEAD"] });
       expect({ recorded, withoutBase, unchanged, added, touched }).toEqual({
-        recorded: { text: "claimed-type#cast-to-any recorded src/cast.ts\n", code: 0 },
+        recorded: { text: `claimed-type#cast-to-any recorded src/cast.ts\n${projectNextLineIn({ repo })}`, code: 0 },
         withoutBase: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}${FORFEITURE_UNMEASURED}verdict: fail\n`, code: 1 },
         unchanged: { text: `${NOT_ADOPTED}answered (1)\n${CAST_ANSWERED_BY_DEBT}verdict: pass\n`, code: 0 },
         added: { text: `${NOT_ADOPTED}findings (1)\n${SECOND_CAST_FINDING}answered (1)\n${CAST_ANSWERED_BY_DEBT}symptoms (1)\n${CAST_SYMPTOM}verdict: fail\n`, code: 1 },

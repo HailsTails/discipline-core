@@ -72,7 +72,7 @@ const answeredFor = (request: { readonly documents: readonly RecordsDocument[]; 
 };
 
 describe("hone record-debt over a run's unanswered findings", () => {
-  const request: RecordDebtRequest = { findings: [CLOCK_FINDING], touched: NOTHING_CHANGED, leave: [] };
+  const request: RecordDebtRequest = { findings: [CLOCK_FINDING], unrecorded: [], runs: [], touched: NOTHING_CHANGED, leave: [] };
 
   it("writes one debt record under hone-records/debt for the symptom and check, in the format the records reader reads", () => {
     const { apply, store } = storeOf();
@@ -100,8 +100,8 @@ describe("hone record-debt over a run's unanswered findings", () => {
     expect(recorded).toEqual({
       outcome: "ok",
       value: [
-        { address: "claimed-type#cast-expressions", file: TOUCHED_FILE, effect: "touched" },
-        { address: "date-used-directly#clock-sources", file: NEW_FILE, effect: "touched" },
+        { address: "claimed-type#cast-expressions", file: TOUCHED_FILE, effect: "touched", of: "finding" },
+        { address: "date-used-directly#clock-sources", file: NEW_FILE, effect: "touched", of: "finding" },
       ],
     });
     expect(apply).not.toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe("hone record-debt over a run's unanswered findings", () => {
     expect(recorded).toEqual({
       outcome: "ok",
       value: [
-        { address: "CD-99#nowhere", file: ORDER_FILE, effect: "unrecordable" },
+        { address: "CD-99#nowhere", file: ORDER_FILE, effect: "unrecordable", because: { kind: "no-check" } },
         { address: "date-used-directly#clock-sources", file: ORDER_FILE, effect: "recorded" },
       ],
     });
@@ -140,7 +140,7 @@ describe("hone record-debt over a run's unanswered findings", () => {
     const { apply, store } = storeOf();
     expect(recordDebtOf({ ...COMMAND, source: sourceOf({ documents: [] }), store })({ ...request, findings: [UNCATALOGUED_FINDING] })).toEqual({
       outcome: "ok",
-      value: [{ address: "CD-99#nowhere", file: ORDER_FILE, effect: "unrecordable" }],
+      value: [{ address: "CD-99#nowhere", file: ORDER_FILE, effect: "unrecordable", because: { kind: "no-check" } }],
     });
     expect(apply).not.toHaveBeenCalled();
   });
