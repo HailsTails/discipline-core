@@ -14,7 +14,13 @@ import {
   SETTINGS_TEXT_BEFORE,
 } from "./walkthrough-repositories.ts";
 
+const FOUR_BLOCKS = 4;
+
 describe("the adopting guide's worked example, run on version 2 through the shipped engines (CD-47: the shipped pieces and the fixture's own files are the assertion's subject; nothing is spawned or written)", () => {
+  it("shows exactly the four blocks the test reads: the settings, the two reports and the record", () => {
+    expect(GUIDE.blocks).toBe(FOUR_BLOCKS);
+  });
+
   it("shows the settings file both repositories hold", () => {
     expect(GUIDE.settings).toEqual(SETTINGS_FILE);
     expect(SETTINGS_TEXT_AFTER).toBe(SETTINGS_TEXT_BEFORE);

@@ -1,4 +1,5 @@
 import type { CommandRequest } from "../core/check/run-check-command.ts";
+import { runToolCommand } from "../core/check/run-tool-command.ts";
 import { createDefaultExceptionRepositoryOf } from "../core/exception-records/exception-layout.ts";
 import { createDefaultDirectoryPort } from "../core/platform-ports/file-system-port.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
@@ -6,12 +7,10 @@ import type { GitPort } from "../core/platform-ports/git-port.ts";
 import { createDefaultModuleLoaderPort } from "../core/platform-ports/module-loader-port.ts";
 import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
 import type { ProcessPort } from "../core/platform-ports/process-port.ts";
-import { createRecordsFolder } from "../core/records/records-folder.ts";
-import { installedStagesOver } from "../core/run/version-two-repository.ts";
-import { versionTwoCheckCommandOf } from "../core/run/version-two-check-command.ts";
+import { absolutePathSchema } from "../core/values/absolute-path.ts";
 import { type RepoPath, repoPathSchema } from "../core/values/repo-path.ts";
 import { ADOPTING_GUIDE_TEXT, reportAsInstalled, workedExampleOf } from "./adopting-guide.ts";
-import { gitTreeStub, recordedProcessWith } from "./command-harness.ts";
+import { recordedProcessWith } from "./command-harness.ts";
 import { contractTextAt } from "./output-contract.ts";
 
 const WALKTHROUGH = `${import.meta.dirname}/test-fixtures/walkthrough`;
@@ -64,13 +63,8 @@ const commandOver = (request: { readonly tracked: readonly RepoPath[]; readonly 
 });
 
 const checkedOutput = async (request: { readonly repo: string; readonly tracked: readonly RepoPath[] }) => {
-  const recorded = recordedProcessWith({ arguments: ["--repo", request.repo] });
-  await versionTwoCheckCommandOf({
-    gitTree: gitTreeStub(),
-    directory: createDefaultDirectoryPort({}),
-    recordsSourceOf: createRecordsFolder,
-    stagesOver: installedStagesOver,
-  })(commandOver({ tracked: request.tracked, process: recorded.port }));
+  const recorded = recordedProcessWith({ arguments: ["check", "--repo", request.repo] });
+  await runToolCommand(commandOver({ tracked: request.tracked, process: recorded.port }));
   return { writes: recorded.writes, exits: recorded.exits };
 };
 
@@ -96,3 +90,16 @@ export const BEFORE_REPORT = { writes: [{ text: `${GUIDE.beforeReport.body}
 
 export const AFTER_REPORT = { writes: [{ text: `${GUIDE.afterReport.body}
 ` }], exits: [[{ code: 0 }]] };
+
+const directory = createDefaultDirectoryPort({});
+
+const filesUnder = (request: { readonly folder: string; readonly prefix: string }): readonly string[] => {
+  const listed = directory.list({ path: absolutePathSchema.parse(request.folder) });
+  return listed.outcome === "ok"
+    ? listed.value.flatMap((entry) =>
+        entry.kind === "file" ? [`${request.prefix}${entry.name}`] : filesUnder({ folder: `${request.folder}/${entry.name}`, prefix: `${request.prefix}${entry.name}/` }),
+      )
+    : [];
+};
+
+export const fixtureFilesOf = (request: { readonly folder: string }): readonly string[] => filesUnder({ folder: request.folder, prefix: "" }).toSorted();

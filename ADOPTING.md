@@ -488,7 +488,7 @@ To remove, run `npm uninstall @hailstails/hone`, delete the two `hone:` scripts,
 
 ## Worked example
 
-In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, written for version 1; the reports below are the same repository's checks run on version 2. It lists `claimed-type#unlisted-cast-site` and `claimed-type#cast-to-any`, `loop-keyword#loop-statement`, `date-used-directly#clock-sources` and `unit-without-a-running-test#companion-test-file` on the walker, with the ESLint-only `claimed-type#non-null-assertions` listed as `"not-run"`, because the repository has no ESLint, and a `generated/` folder excluded:
+In the Hone source repository, `tests/test-fixtures/walkthrough/` is a small repository before and after its fix, and a test runs both through the shipped `hone check` and requires the reports below, and the two files shown, to be what it prints. It lists `claimed-type#unlisted-cast-site` and `claimed-type#cast-to-any`, `loop-keyword#loop-statement`, `date-used-directly#clock-sources` and `unit-without-a-running-test#companion-test-file` on the walker, with the ESLint-only `claimed-type#non-null-assertions` listed as `"not-run"`, because the repository has no ESLint, and a `generated/` folder excluded:
 
 ```json
 {
