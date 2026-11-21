@@ -14,7 +14,7 @@ Read [the verdict and the named pages it points at](README.md) first. This page 
 ## What the check flags
 - `.ts` and `.tsx` files only, judged by path; generated folders such as `node_modules`, `dist`, `build` and `coverage` are skipped.
 - File names, exactly and in lower case, with a `.ts` extension: `types.ts interfaces.ts models.ts enums.ts utils.ts util.ts helpers.ts helper.ts common.ts lib.ts misc.ts shared.ts`.
-- Any folder in the path named `utils`, `helpers`, `common`, `lib`, `misc`, `shared` or `scripts`. Each file under such a folder is reported once for the folder.
+- Any folder in the path named `utils`, `helpers`, `common`, `lib`, `misc`, `shared`, `scripts`, `values`, `tests`, `test` or `__tests__`. Each file under such a folder is reported once for the folder.
 - Allowed: `account-types.ts`, `Types.ts` and `types.tsx`, which are not exact matches.
 
 ## What the ESLint check flags
