@@ -12,7 +12,7 @@ const FORBIDDEN_FILENAMES: readonly string[] = [
   "helpers.ts", "helper.ts", "common.ts", "lib.ts", "misc.ts", "shared.ts",
 ];
 
-const FORBIDDEN_FOLDERS: readonly string[] = ["utils", "helpers", "common", "lib", "misc", "shared"];
+const FORBIDDEN_FOLDERS: readonly string[] = ["utils", "helpers", "common", "lib", "misc", "shared", "scripts"];
 
 export const check: WalkerPiece = {
   prepare: ({ clauses }) => ({
