@@ -118,7 +118,7 @@ Give it the branch's base, `origin/main`, not `HEAD` as this migration's other c
 The ESLint projection from step 2 now carries every `eslint` clause. Remove only the rules the old route added for the disciplines; keep every other rule the repository uses:
 
 - `biome.json`: remove `suspicious.noExplicitAny` and `suspicious.noImplicitAnyLet`. If nothing else in the file was added for the trial, remove the file, the `@biomejs/biome` dev dependency the old quick start installed and the `package.json` script that ran `biome lint` (step 6 replaces it); otherwise keep it for its other rules.
-- `eslint.config.*`: remove `@typescript-eslint/no-explicit-any` (and any other rule the old route added for a CD), and spread the projection last as [ADOPTING.md](ADOPTING.md#4a-set-up-eslint-for-eslint-clauses) shows.
+- `eslint.config.*`: remove `@typescript-eslint/no-explicit-any` (and any other rule the old route added for a CD), and spread the projection last as [ADOPTING.md](ADOPTING.md#4a-set-up-eslint-for-eslint-checks) shows.
 - `.oxlintrc.json`: remove `typescript/no-explicit-any`; remove the file if it held nothing else.
 - Compiler strictness ([Strictness weakened](rules/typescript/symptoms.md#strictness-weakened)): Hone flags any of the seven strict flags written in a file named `tsconfig.json`, even when it is `true`, because the flags must be inherited, never set per project. Move them from every `tsconfig.json` into one shared base file with another name, for example `tsconfig.base.json`, and make each `tsconfig.json` extend it (`"extends": "./tsconfig.base.json"`). Keep every other compiler option where it is. Then run the repository's own typecheck, which must still pass.
 
