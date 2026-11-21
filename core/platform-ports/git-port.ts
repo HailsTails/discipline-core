@@ -31,6 +31,10 @@ export type GitPort = {
   }) => Result<readonly RepoPath[], GitFailure>;
   readonly contentInBase: (request: GitContentQuery) => Result<BaseContentMembership, GitFailure>;
   readonly textInBase: (request: GitContentQuery) => Result<BaseFileText, GitFailure>;
+  readonly renamedSince: (request: {
+    readonly repoRoot: AbsolutePath;
+    readonly baseRevision: string;
+  }) => Result<ReadonlyMap<RepoPath, RepoPath>, GitFailure>;
 };
 
 export type GitHistoryPort = {
@@ -269,6 +273,60 @@ const fileTextInBase = (request: GitContext & GitContentQuery): Result<BaseFileT
   return { outcome: "ok", value: { presence: "present-in-base", text: blob.value.stdout } };
 };
 
+const NAME_STATUS_ENTRY = /(?<pairedStatus>[RC]\d*)\0(?<from>[^\0]+)\0(?<to>[^\0]+)\0|(?![RC])[A-Z]\d*\0[^\0]+\0/gy;
+
+const RENAME_STATUS = /^R/;
+
+type ListedRename = { readonly from: string; readonly to: string };
+
+const listedRenamesOf = (request: { readonly stdout: string }): Result<readonly ListedRename[], "incomplete"> => {
+  const entries = [...request.stdout.matchAll(NAME_STATUS_ENTRY)];
+  const consumed = entries.reduce((length, entry) => length + entry[0].length, 0);
+  if (consumed !== request.stdout.length) {
+    return { outcome: "failed", error: "incomplete" };
+  }
+  return {
+    outcome: "ok",
+    value: entries.flatMap(({ groups }): readonly ListedRename[] =>
+      groups?.pairedStatus !== undefined && RENAME_STATUS.test(groups.pairedStatus) && groups.from !== undefined && groups.to !== undefined
+        ? [{ from: groups.from, to: groups.to }]
+        : [],
+    ),
+  };
+};
+
+const basePathByHeadPathOf = (request: { readonly rename: ListedRename }): Result<readonly [RepoPath, RepoPath], string> => {
+  const from = repoPathSchema.safeParse(request.rename.from);
+  if (!from.success) {
+    return { outcome: "failed", error: request.rename.from };
+  }
+  const to = repoPathSchema.safeParse(request.rename.to);
+  return to.success ? { outcome: "ok", value: [to.data, from.data] } : { outcome: "failed", error: request.rename.to };
+};
+
+const renamedPaths = (
+  request: GitContext & { readonly baseRevision: string },
+): Result<ReadonlyMap<RepoPath, RepoPath>, GitFailure> => {
+  const output = gitOutput({ ...request, gitArguments: ["diff", "--name-status", "-M", "-z", "--end-of-options", request.baseRevision] });
+  if (output.outcome === "failed") {
+    return output;
+  }
+  const { command } = output.value;
+  const listed = listedRenamesOf({ stdout: output.value.stdout });
+  if (listed.outcome === "failed") {
+    return { outcome: "failed", error: { kind: "git-failed", command, detail: "git diff did not return a complete NUL-separated name-status listing" } };
+  }
+  const parsed = listed.value.map((rename) => basePathByHeadPathOf({ rename }));
+  const refused = parsed.find((rename) => rename.outcome === "failed");
+  if (refused !== undefined && refused.outcome === "failed") {
+    return { outcome: "failed", error: { kind: "git-failed", command, detail: `git listed a path that is not a repo path: ${refused.error}` } };
+  }
+  return {
+    outcome: "ok",
+    value: new Map(parsed.flatMap((rename): readonly (readonly [RepoPath, RepoPath])[] => (rename.outcome === "ok" ? [rename.value] : []))),
+  };
+};
+
 export const createGitPort = (options: {
   readonly spawn: GitSpawn;
   readonly ambientEnvironment: GitEnvironment;
@@ -288,6 +346,7 @@ export const createGitPort = (options: {
       }),
     contentInBase: (request) => contentMembership({ ...request, spawn: options.spawn, environment }),
     textInBase: (request) => fileTextInBase({ ...request, spawn: options.spawn, environment }),
+    renamedSince: (request) => renamedPaths({ ...request, spawn: options.spawn, environment }),
   };
 };
 

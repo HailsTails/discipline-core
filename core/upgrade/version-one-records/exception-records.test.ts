@@ -105,7 +105,7 @@ const LEGACY_CHAIN_LOCATION = { ...FICTIONAL_LOCATION_INPUT, whyChain: LEGACY_WH
 
 const CAUSAL_CHAIN_LOCATION = { ...FICTIONAL_LOCATION_INPUT, whyChain: VERSION_ONE_CAUSAL_WHY_CHAIN } as const;
 
-const LEGACY_LOCATION_UNCHANGED_AT_BASE: ExceptionBaseline = { measured: "yes", entriesAtBase: [LEGACY_CHAIN_LOCATION], sourceTextsAtBase: new Map() };
+const LEGACY_LOCATION_UNCHANGED_AT_BASE: ExceptionBaseline = { measured: "yes", entriesAtBase: [LEGACY_CHAIN_LOCATION], sourceTextsAtBase: new Map(), basePathOfRenamed: new Map() };
 
 describe("authorisationStandingOf, from the same judgement that accepted the record", () => {
   it.each([
@@ -409,7 +409,7 @@ const IMPORTED_RECORD = {
 const baselineHolding = (request: {
   readonly entriesAtBase: readonly StructuralExceptionEntry[];
   readonly sourceTextsAtBase: ReadonlyMap<RepoPath, string>;
-}): ExceptionBaseline => ({ measured: "yes", ...request });
+}): ExceptionBaseline => ({ measured: "yes", ...request, basePathOfRenamed: new Map() });
 
 const NOTHING_AT_BASE = baselineHolding({ entriesAtBase: [], sourceTextsAtBase: new Map() });
 
@@ -570,6 +570,246 @@ describe("parseExceptionEntries imported records against the base revision", () 
     expect(
       parseExceptionEntries({ entries: [{ place: AT_0, entry: IMPORTED_CARVE_OUT }], selection: SELECTION, fileExceptionWhyChains: "required", baseline: UNMEASURED_EXCEPTION_BASELINE }),
     ).toEqual({ records: [IMPORTED_RECORD], invalid: [] });
+  });
+});
+
+const MOVED_LEGACY_FILE = repoPathSchema.parse("src/moved/legacy.ts");
+
+const LEGACY_FILE_AT_BASE = repoPathSchema.parse("src/legacy.ts");
+
+const MOVED_IMPORTED_CARVE_OUT = {
+  kind: "file-carve-out",
+  clause: "CD-14#class-syntax",
+  file: "src/moved/legacy.ts",
+  reason: "legacy class awaiting paydown",
+  provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+} as const;
+
+const MOVED_IMPORTED_RECORD = {
+  kind: "file-carve-out",
+  clause: CLASS_SYNTAX,
+  mechanism: "audit",
+  file: "src/moved/legacy.ts",
+  reason: "legacy class awaiting paydown",
+  provenance: { kind: "inherited-debt", source: ".constitution-carve-outs/cd-14.json#0", decision: "fictional migration fixture; not a live debt decision" },
+};
+
+const MOVED_IMPORTED_LOCATION = {
+  kind: "authorised-location",
+  clause: "CD-14#class-syntax",
+  file: "src/moved/legacy.ts",
+  reason: "the wrapping factory for the library",
+  provenance: { kind: "existing-authorisation", source: ".constitution-authorised-locations/cd-14.json#0" },
+} as const;
+
+const MOVED_LEGACY_CHAIN_CARVE_OUT = {
+  kind: "file-carve-out",
+  clause: "CD-14#class-syntax",
+  file: "src/moved/legacy.ts",
+  reason: "legacy class awaiting paydown",
+  whyChain: LEGACY_WHY_CHAIN,
+} as const;
+
+const LEGACY_CHAIN_CARVE_OUT_AT_BASE = {
+  kind: "file-carve-out",
+  clause: "CD-14#class-syntax",
+  file: "src/legacy.ts",
+  reason: "legacy class awaiting paydown",
+  whyChain: LEGACY_WHY_CHAIN,
+} as const;
+
+const LEGACY_FILE_MOVED: ReadonlyMap<RepoPath, RepoPath> = new Map([[MOVED_LEGACY_FILE, LEGACY_FILE_AT_BASE]]);
+
+describe("parseExceptionEntries follows a file renamed since the base revision", () => {
+  it("accepts an imported carve-out the base holds unchanged at the file's old path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_IMPORTED_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: { measured: "yes", entriesAtBase: [IMPORTED_CARVE_OUT], sourceTextsAtBase: new Map(), basePathOfRenamed: LEGACY_FILE_MOVED },
+      }),
+    ).toEqual({ records: [MOVED_IMPORTED_RECORD], invalid: [] });
+  });
+
+  it("accepts a new imported carve-out whose provenance source at base lists the file's old path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_IMPORTED_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: LEGACY_FILE_MOVED,
+        },
+      }),
+    ).toEqual({ records: [MOVED_IMPORTED_RECORD], invalid: [] });
+  });
+
+  it("accepts a new imported authorised location whose provenance source at base lists the file's old path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_IMPORTED_LOCATION }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-authorised-locations/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: LEGACY_FILE_MOVED,
+        },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "authorised-location",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/moved/legacy.ts",
+          reason: "the wrapping factory for the library",
+          provenance: { kind: "existing-authorisation", source: ".constitution-authorised-locations/cd-14.json#0" },
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("accepts a legacy chain the base holds unchanged at the file's old path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_LEGACY_CHAIN_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: { measured: "yes", entriesAtBase: [LEGACY_CHAIN_CARVE_OUT_AT_BASE], sourceTextsAtBase: new Map(), basePathOfRenamed: LEGACY_FILE_MOVED },
+      }),
+    ).toEqual({
+      records: [
+        {
+          kind: "file-carve-out",
+          clause: CLASS_SYNTAX,
+          mechanism: "audit",
+          file: "src/moved/legacy.ts",
+          reason: "legacy class awaiting paydown",
+          whyChain: LEGACY_WHY_CHAIN,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("refuses an imported record whose file moved and whose reason was also edited, though its provenance source lists the old path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: { ...MOVED_IMPORTED_CARVE_OUT, reason: "legacy class, now partly paid down" } }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [IMPORTED_CARVE_OUT],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: LEGACY_FILE_MOVED,
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail: "the imported record was edited since the base revision: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
+  });
+
+  it("refuses a legacy chain whose file moved and whose reason was also edited", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: { ...MOVED_LEGACY_CHAIN_CARVE_OUT, reason: "legacy class, now partly paid down" } }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: { measured: "yes", entriesAtBase: [LEGACY_CHAIN_CARVE_OUT_AT_BASE], sourceTextsAtBase: new Map(), basePathOfRenamed: LEGACY_FILE_MOVED },
+      }),
+    ).toMatchObject({ records: [], invalid: [{ place: AT_0, problem: { kind: "why-chain-refused", detail: expect.stringContaining("docs/why-chain-contract.md") } }] });
+  });
+
+  it.each([
+    { name: "another file", listing: '[{ "files": ["src/other.ts"] }]' },
+    { name: "only the file's new path", listing: '[{ "files": ["src/moved/legacy.ts"] }]' },
+  ])("refuses a new imported record whose file moved when its provenance source at base lists $name", ({ listing }) => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_IMPORTED_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), listing]]),
+          basePathOfRenamed: LEGACY_FILE_MOVED,
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail:
+              "the record is new since the base revision, and its provenance source .constitution-carve-outs/cd-14.json#0 is not an entry at the base revision listing src/legacy.ts under .constitution-carve-outs/cd-14.json: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
+  });
+
+  it("judges a record whose file was not renamed by its own path, whatever else moved", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: IMPORTED_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: new Map([[repoPathSchema.parse("src/moved/other.ts"), repoPathSchema.parse("src/other.ts")]]),
+        },
+      }),
+    ).toEqual({ records: [IMPORTED_RECORD], invalid: [] });
+  });
+
+  it("refuses a record at a new path that git did not see renamed, though the provenance source lists another path", () => {
+    expect(
+      parseExceptionEntries({
+        entries: [{ place: AT_0, entry: MOVED_IMPORTED_CARVE_OUT }],
+        selection: SELECTION,
+        fileExceptionWhyChains: "required",
+        baseline: {
+          measured: "yes",
+          entriesAtBase: [IMPORTED_CARVE_OUT],
+          sourceTextsAtBase: new Map([[repoPathSchema.parse(".constitution-carve-outs/cd-14.json"), '[{ "files": ["src/legacy.ts"] }]']]),
+          basePathOfRenamed: new Map(),
+        },
+      }),
+    ).toEqual({
+      records: [],
+      invalid: [
+        {
+          place: AT_0,
+          problem: {
+            kind: "import-unverified",
+            detail:
+              "the record is new since the base revision, and its provenance source .constitution-carve-outs/cd-14.json#0 is not an entry at the base revision listing src/moved/legacy.ts under .constitution-carve-outs/cd-14.json: give it a whyChain, or remove its provenance to keep it as debt",
+          },
+        },
+      ],
+    });
   });
 });
 

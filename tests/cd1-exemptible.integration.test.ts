@@ -34,6 +34,7 @@ const git: GitPort = {
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 };
 
 describe("the shipped CD-1 rule, read from rules/CD-1/discipline.json through a full check (CD-47: the shipped rule file is the assertion's subject; nothing is spawned or written)", () => {
@@ -88,6 +89,7 @@ const cascadeCheck = (request: { readonly changed: readonly RepoPath[] }) => {
     changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: request.changed }),
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
+    renamedSince: vi.fn<GitPort["renamedSince"]>(),
   };
   return runCheck(withSingleFileRecords({
     repoRoot: CASCADE_REPO,
