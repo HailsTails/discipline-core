@@ -193,7 +193,8 @@ const GIT_IDENTITY = ["-c", "user.name=adopter", "-c", "user.email=adopter@examp
 
 const git = (request: { readonly repo: string; readonly arguments: readonly string[] }): void => {
   const run = commands.run({ command: "git", arguments: [...GIT_IDENTITY, ...request.arguments], directory: request.repo });
-  assert(run.outcome === "exited" && run.exitCode === 0, "a git step in the scratch repository succeeded");
+  assert(run.outcome === "exited", "a git step in the scratch repository ran to an exit");
+  assert(run.exitCode === 0, "a git step in the scratch repository succeeded");
 };
 
 const trackEverything = (request: { readonly repo: string }): void => {
