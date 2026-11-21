@@ -1,8 +1,10 @@
-import { engineMeasurementOf, type RunMeasurement } from "../records/measured-at.ts";
+import { engineMeasurementOf, type RunMeasurement, type RunMeasurements } from "../records/measured-at.ts";
 import type { EngineNotRun, RunProjectionProblem } from "../report/run-report.ts";
 import type { Engine, SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { SelectedClause } from "../settings/selection.ts";
 import type { MechanismId } from "../values/identifiers.ts";
+import type { RepoPath } from "../values/repo-path.ts";
+import { typescriptFilesOf } from "./checked-tree-of.ts";
 import type { EngineRun } from "./engine-run.ts";
 
 type CatalogueEngines = Pick<SymptomCatalogue, "engines">;
@@ -16,13 +18,15 @@ const runMeasurementOf = (request: { readonly run: EngineRun; readonly selected:
   measured: request.run.measured,
 });
 
-export const runMeasurementsOf = (request: { readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[] }): readonly RunMeasurement[] =>
-  request.runs.map((run) => runMeasurementOf({ run, selected: request.selected }));
+export const runMeasurementsOf = (request: { readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[] }): RunMeasurements => ({
+  runs: request.runs.map((run) => runMeasurementOf({ run, selected: request.selected })),
+  tracked: request.tracked,
+});
 
-const measuredNothingOf = (request: { readonly engine: Engine; readonly measurement: RunMeasurement }): readonly EngineNotRun[] =>
-  engineMeasurementOf({ run: request.measurement }) === "measured-nothing" ? [{ kind: "engine-not-run", engine: request.engine, projection: "measured-nothing" }] : [];
+const measuredNothingOf = (request: { readonly engine: Engine; readonly measurement: RunMeasurement; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] =>
+  engineMeasurementOf({ run: request.measurement, inReach: typescriptFilesOf({ tracked: request.tracked }) }) === "measured-nothing" ? [{ kind: "engine-not-run", engine: request.engine, projection: "measured-nothing" }] : [];
 
-const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun; readonly selected: readonly SelectedClause[] }): readonly EngineNotRun[] => {
+const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run: EngineRun; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] => {
   const engine = engineOf({ catalogue: request.catalogue, mechanism: request.run.mechanism });
   switch (request.run.projection) {
     case "missing":
@@ -33,7 +37,7 @@ const notRunOf = (request: { readonly catalogue: CatalogueEngines; readonly run:
       return [];
     case "current":
     case "out-of-date":
-      return measuredNothingOf({ engine, measurement: runMeasurementOf(request) });
+      return measuredNothingOf({ engine, measurement: runMeasurementOf(request), tracked: request.tracked });
   }
 };
 
@@ -48,8 +52,8 @@ const problemOf = (request: { readonly catalogue: CatalogueEngines; readonly run
   ];
 };
 
-export const engineUnmeasuredOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[] }): readonly EngineNotRun[] =>
-  request.runs.flatMap((run) => notRunOf({ catalogue: request.catalogue, run, selected: request.selected }));
+export const engineUnmeasuredOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[]; readonly selected: readonly SelectedClause[]; readonly tracked: readonly RepoPath[] }): readonly EngineNotRun[] =>
+  request.runs.flatMap((run) => notRunOf({ catalogue: request.catalogue, run, selected: request.selected, tracked: request.tracked }));
 
 export const engineProblemsOf = (request: { readonly catalogue: CatalogueEngines; readonly runs: readonly EngineRun[] }): readonly RunProjectionProblem[] =>
   request.runs.flatMap((run) => problemOf({ catalogue: request.catalogue, run }));

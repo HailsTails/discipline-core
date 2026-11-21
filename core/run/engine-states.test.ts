@@ -18,22 +18,24 @@ const runWith = (request: { readonly mechanism: EngineRun["mechanism"]; readonly
   misnamedRuleIds: [],
 });
 
+const TRACKED = [repoPathSchema.parse("src/a.ts")];
+
 describe("engineUnmeasuredOf", () => {
   it("names the engine a run left out of effect because its projection is not written", () => {
-    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "missing" })], selected: [] })).toEqual([
+    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "missing" })], tracked: TRACKED, selected: [] })).toEqual([
       { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "missing" },
     ]);
   });
 
   it("names the engine a run left out of effect because the team's configuration does not include its projection", () => {
-    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "not-included" })], selected: [] })).toEqual([
+    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "not-included" })], tracked: TRACKED, selected: [] })).toEqual([
       { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "not-included", nestedConfigurations: [] },
     ]);
   });
 
   it("names the mechanism when the catalogue gives it no engine", () => {
     const stranger = mechanismIdSchema.parse("stranger");
-    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: stranger, projection: "missing" })], selected: [] })).toEqual([
+    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: stranger, projection: "missing" })], tracked: TRACKED, selected: [] })).toEqual([
       { kind: "engine-not-run", engine: { name: "stranger", mechanism: stranger }, projection: "missing" },
     ]);
   });
@@ -43,7 +45,7 @@ describe("engineUnmeasuredOf", () => {
       engineUnmeasuredOf({
         catalogue: REPORT_CATALOGUE,
         runs: [runWith({ mechanism: ESLINT, projection: "current" }), runWith({ mechanism: ESLINT, projection: "out-of-date" }), runWith({ mechanism: AUDIT, projection: "none" })],
-        selected: [],
+        tracked: TRACKED, selected: [],
       }),
     ).toEqual([]);
   });
@@ -58,12 +60,18 @@ describe("engineUnmeasuredOf, an engine that measured nothing", () => {
 
   it("names an engine with selected checks that measured no file under a current or out-of-date projection", () => {
     expect(
-      engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" }), runWith({ mechanism: ESLINT, projection: "out-of-date" })], selected: SELECTED }),
+      engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" }), runWith({ mechanism: ESLINT, projection: "out-of-date" })], tracked: TRACKED, selected: SELECTED }),
     ).toEqual([MEASURED_NOTHING, MEASURED_NOTHING]);
   });
 
+  it("names nothing for an engine with selected checks when the tree holds no TypeScript file to measure", () => {
+    expect(
+      engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" })], tracked: [repoPathSchema.parse("README.md")], selected: SELECTED }),
+    ).toEqual([]);
+  });
+
   it("names the missing projection and not the engine measuring nothing when both hold", () => {
-    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "missing" })], selected: SELECTED })).toEqual([
+    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "missing" })], tracked: TRACKED, selected: SELECTED })).toEqual([
       { kind: "engine-not-run", engine: ESLINT_ENGINE, projection: "missing" },
     ]);
   });
@@ -73,10 +81,10 @@ describe("engineUnmeasuredOf, an engine that measured nothing", () => {
       engineUnmeasuredOf({
         catalogue: REPORT_CATALOGUE,
         runs: [{ ...runWith({ mechanism: ESLINT, projection: "current" }), measured: [{ clause: CLAUSE, file: repoPathSchema.parse("src/a.ts") }] }, runWith({ mechanism: AUDIT, projection: "none" })],
-        selected: [...SELECTED, { address: CLAUSE, mechanism: AUDIT, exceptions: "allowed" as const }],
+        tracked: TRACKED, selected: [...SELECTED, { address: CLAUSE, mechanism: AUDIT, exceptions: "allowed" as const }],
       }),
     ).toEqual([]);
-    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" })], selected: [] })).toEqual([]);
+    expect(engineUnmeasuredOf({ catalogue: REPORT_CATALOGUE, runs: [runWith({ mechanism: ESLINT, projection: "current" })], tracked: TRACKED, selected: [] })).toEqual([]);
   });
 });
 

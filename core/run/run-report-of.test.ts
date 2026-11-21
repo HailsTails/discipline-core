@@ -57,6 +57,7 @@ const REQUEST: RunReportRequest = {
   records: NO_RECORDS,
   touched: MEASURED_NOTHING_TOUCHED,
   runs: [],
+  tracked: [FILE_A, FILE_B],
   assessment: { forfeiture: "this-run" },
 };
 
@@ -145,6 +146,19 @@ describe("runReportOf, findings and records", () => {
       runReportOf({
         ...REQUEST,
         selection: SELECTS_CAST,
+        records: { ...NO_RECORDS, records: [debt] },
+        runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
+      }),
+    ).toEqual({ ...EMPTY_REPORT, stale: [debt] });
+  });
+
+  it("calls a record stale when its file is no longer in the tree, since no run can measure a file that is gone", () => {
+    const debt = debtAt({ file: FILE_A, index: 0 });
+    expect(
+      runReportOf({
+        ...REQUEST,
+        selection: SELECTS_CAST,
+        tracked: [FILE_B],
         records: { ...NO_RECORDS, records: [debt] },
         runs: [{ ...eslintRunOf({ hits: [], projection: "current" }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_B }] }],
       }),

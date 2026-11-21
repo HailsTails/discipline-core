@@ -266,7 +266,7 @@ const NOTHING_ANSWERED = { findings: [], answered: [], stale: [], forfeited: [],
 
 describe("answerFindings with no records", () => {
   it("keeps every finding and lists nothing else", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_A],
     });
@@ -277,7 +277,7 @@ describe("answerFindings, answer", () => {
   it.each([{ placed: DEBT_ON_CLASS_IN_A }, { placed: LOCATED_CLASS_IN_A }, { placed: CARRIED_CLASS_IN_A }])(
     "answers a finding whose symptom and file the $placed.record.kind at $placed.place.file names, and leaves it out of findings",
     ({ placed }) => {
-      expect(answerFindings({ catalogue: CATALOGUE, records: [placed], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+      expect(answerFindings({ catalogue: CATALOGUE, records: [placed], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
         ...NOTHING_ANSWERED,
         answered: [{ finding: NO_CLASS_IN_A, by: [placed] }],
       });
@@ -291,7 +291,7 @@ describe("answerFindings, answer", () => {
         records: [ADAPTER_DEVIATION_IN_A],
         findings: [importing({ finding: { ...UUID_IMPORT_IN_IDS, file: FILE_A }, specifier: "uuid" })],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: { ...UUID_IMPORT_IN_IDS, file: FILE_A }, by: [ADAPTER_DEVIATION_IN_A] }] });
   });
@@ -303,14 +303,14 @@ describe("answerFindings, answer", () => {
         records: [ADAPTER_DEVIATION_IN_A],
         findings: [importing({ finding: LODASH_IMPORT_IN_A, specifier: "lodash/fp" })],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [LODASH_IMPORT_IN_A], stale: [ADAPTER_DEVIATION_IN_A] });
   });
 
   it("does not answer an import finding whose outside party is not reported by a deviation, since it may be a named ban", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [unreported(LODASH_IMPORT_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [unreported(LODASH_IMPORT_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [LODASH_IMPORT_IN_A], stale: [ADAPTER_DEVIATION_IN_A] });
   });
 
@@ -321,7 +321,7 @@ describe("answerFindings, answer", () => {
         records: [IDS_BOUNDARY],
         findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid/v4" })],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: UUID_IMPORT_IN_IDS, by: [IDS_BOUNDARY] }] });
   });
@@ -329,7 +329,7 @@ describe("answerFindings, answer", () => {
   it("does not answer by a boundary record an import of another outside party in its module, and lists it stale", () => {
     const lodashInIds: Finding = { ...UUID_IMPORT_IN_IDS, snippet: "banned third-party import: lodash — use its recorded wrapping boundary" };
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [importing({ finding: lodashInIds, specifier: "lodash" })], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [importing({ finding: lodashInIds, specifier: "lodash" })], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [lodashInIds], stale: [IDS_BOUNDARY] });
   });
 
@@ -340,13 +340,13 @@ describe("answerFindings, answer", () => {
         records: [LOCATED_UUID_IN_IDS, IDS_BOUNDARY],
         findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" })],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: UUID_IMPORT_IN_IDS, by: [LOCATED_UUID_IN_IDS, IDS_BOUNDARY] }] });
   });
 
   it("does not answer a finding in a file the record does not name", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_B)], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_B)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_B],
       stale: [DEBT_ON_CLASS_IN_A],
@@ -354,7 +354,7 @@ describe("answerFindings, answer", () => {
   });
 
   it("does not answer a finding of a symptom the record does not name", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [FOR_OF_IN_A],
       stale: [DEBT_ON_CLASS_IN_A],
@@ -363,14 +363,14 @@ describe("answerFindings, answer", () => {
 
   it("does not answer a finding whose check the catalogue names no symptom for", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(UNCATALOGUED_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(UNCATALOGUED_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [UNCATALOGUED_IN_A], stale: [DEBT_ON_CLASS_IN_A] });
   });
 });
 
 describe("answerFindings, forfeit", () => {
   it("forfeits debt whose file was touched, and it answers nothing", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       findings: [NO_CLASS_IN_A],
       forfeited: [DEBT_ON_CLASS_IN_A],
@@ -378,7 +378,7 @@ describe("answerFindings, forfeit", () => {
   });
 
   it("does not forfeit an authorised location whose file was touched", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: FILE_A_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }],
     });
@@ -387,7 +387,7 @@ describe("answerFindings, forfeit", () => {
   it.each([{ touched: UNMEASURED }, { touched: ELSEWHERE }])(
     "forfeits nothing when the touched set is measured $touched.measured, so the debt still answers",
     ({ touched }) => {
-      expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched, runs: [], measurements: [] })).toEqual({
+      expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
         ...NOTHING_ANSWERED,
         answered: [{ finding: NO_CLASS_IN_A, by: [DEBT_ON_CLASS_IN_A] }],
       });
@@ -403,7 +403,7 @@ describe("answerFindings, a record naming one check", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
         findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -421,7 +421,7 @@ describe("answerFindings, a record naming one check", () => {
         records: [LOCATED_CLASS_SYNTAX_IN_A, DEBT_ON_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A_BY_ESLINT)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A_BY_ESLINT, by: [DEBT_ON_CLASS_IN_A] }], stale: [LOCATED_CLASS_SYNTAX_IN_A] });
   });
@@ -433,7 +433,7 @@ describe("answerFindings, a record naming one check", () => {
         records: [LOCATED_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
         findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -446,7 +446,7 @@ describe("answerFindings, a record naming one check", () => {
 
   it("lists an inline disable of a check that an authorised location on another check of its symptom does not name", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [LOCATED_THIS_KEYWORD_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [LOCATED_THIS_KEYWORD_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [LOCATED_THIS_KEYWORD_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
   });
 });
@@ -459,7 +459,7 @@ describe("answerFindings, paid debt", () => {
         records: [LOCATED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -469,7 +469,7 @@ describe("answerFindings, paid debt", () => {
   });
 
   it("does not pay debt on a file where nothing is found, and lists it stale beside the authorised location", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       stale: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A],
     });
@@ -477,7 +477,7 @@ describe("answerFindings, paid debt", () => {
 
   it("does not pay debt whose file holds findings only of another symptom, and lists it stale", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(FOR_OF_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [FOR_OF_IN_A], stale: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A] });
   });
 
@@ -488,7 +488,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_UNKNOWN_CHECK_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A, by: [DEBT_ON_CLASS_IN_A] }], stale: [LOCATED_UNKNOWN_CHECK_IN_A] });
   });
@@ -500,7 +500,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A, ESTABLISHED_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -516,7 +516,7 @@ describe("answerFindings, paid debt", () => {
         records: [CARRIED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A, by: [CARRIED_CLASS_IN_A, DEBT_ON_CLASS_IN_A] }] });
   });
@@ -528,7 +528,7 @@ describe("answerFindings, paid debt", () => {
         records: [ESTABLISHED_CLASS_IN_A, DEBT_ON_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -539,7 +539,7 @@ describe("answerFindings, paid debt", () => {
 
   it("pays debt on one check that an authorised location on the whole symptom also holds", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({
       ...NOTHING_ANSWERED,
       answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }],
@@ -549,7 +549,7 @@ describe("answerFindings, paid debt", () => {
 
   it("pays debt on the whole symptom when every finding it held was answered by an authorised location on one check, which holds only part of its reach", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A], findings: [unreported(NO_CLASS_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({
       ...NOTHING_ANSWERED,
       answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_SYNTAX_IN_A] }],
@@ -564,7 +564,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
         findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" })],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -580,7 +580,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_THIS_KEYWORD_IN_A, LOCATED_CLASS_SYNTAX_IN_A],
         findings: [unreported(NO_CLASS_IN_A), unreported(NO_THIS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -599,7 +599,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_SYNTAX_IN_A, LOCATED_CLASS_IN_A],
         findings: [unreported(NO_THIS_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -617,7 +617,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_IMPORTS_IN_IDS, IDS_BOUNDARY],
         findings: [importing({ finding: UUID_IMPORT_IN_IDS, specifier: "uuid" }), importing({ finding: lodashInIds, specifier: "lodash" }), unreported(lodashInIds)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({
       ...NOTHING_ANSWERED,
@@ -636,7 +636,7 @@ describe("answerFindings, paid debt", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A],
         findings: [unreported(NO_CLASS_IN_A)],
         touched: FILE_A_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: NO_CLASS_IN_A, by: [LOCATED_CLASS_IN_A] }], forfeited: [DEBT_ON_CLASS_IN_A] });
   });
@@ -644,25 +644,25 @@ describe("answerFindings, paid debt", () => {
 
 describe("answerFindings, stale", () => {
   it("lists a record in force that answers no finding", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [LOCATED_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       stale: [LOCATED_CLASS_IN_A],
     });
   });
 
   it("does not list a forfeited record as stale", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: FILE_A_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: FILE_A_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       forfeited: [DEBT_ON_CLASS_IN_A],
     });
   });
 
   it("does not list a dependency record as stale, since no check asks for one yet", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [ZOD_DEPENDENCY], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual(NOTHING_ANSWERED);
+    expect(answerFindings({ catalogue: CATALOGUE, records: [ZOD_DEPENDENCY], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual(NOTHING_ANSWERED);
   });
 
   it("keeps stale records in the records' order", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_B, LOCATED_UUID_IN_IDS], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_B, LOCATED_UUID_IN_IDS], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       stale: [DEBT_ON_CLASS_IN_B, LOCATED_UUID_IN_IDS],
     });
@@ -672,7 +672,7 @@ describe("answerFindings, stale", () => {
 describe("answerFindings, natives held", () => {
   it("does not list an inline disable that debt on its check's symptom at its file holds, and the debt is not stale", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual(NOTHING_ANSWERED);
   });
 
@@ -683,14 +683,14 @@ describe("answerFindings, natives held", () => {
         records: [DEBT_ON_CLASS_IN_A, LOCATED_CLASS_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })],
       }),
     ).toEqual({ ...NOTHING_ANSWERED, paid: [{ debt: DEBT_ON_CLASS_IN_A, answeredBy: [LOCATED_CLASS_IN_A] }] });
   });
 
   it("lists, attributed to its engine, an inline disable no record holds", () => {
-    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: [] })).toEqual({
+    expect(answerFindings({ catalogue: CATALOGUE, records: [], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: { runs: [], tracked: [] } })).toEqual({
       ...NOTHING_ANSWERED,
       unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }],
     });
@@ -698,7 +698,7 @@ describe("answerFindings, natives held", () => {
 
   it("lists an inline disable whose record names another file", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_B], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_B], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [DEBT_ON_CLASS_IN_B], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
   });
 
@@ -709,7 +709,7 @@ describe("answerFindings, natives held", () => {
         records: [DEBT_ON_CLASS_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [{ mechanism: AUDIT, nativeExceptions: [DISABLE_IN_A], coverableKinds: [] }],
       }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [DEBT_ON_CLASS_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
@@ -717,27 +717,27 @@ describe("answerFindings, natives held", () => {
 
   it("lists an inline disable that only forfeited debt matches, since forfeited debt no longer holds it", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: FILE_A_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [DEBT_ON_CLASS_IN_A], findings: [], touched: FILE_A_TOUCHED, runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, forfeited: [DEBT_ON_CLASS_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: AUDIT }] });
   });
 
   it("lists an inline disable on an import check in a boundary record's module, since a suppression does not report its outside party", () => {
     const disableInIds: NativeException = { kind: "inline-disable", clause: IMPORT_BOUNDARIES, file: IDS_ADAPTER, line: 1, text: "// eslint-disable-next-line", reach: "one-clause" };
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInIds] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [IDS_BOUNDARY], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInIds] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [IDS_BOUNDARY], unrecorded: [{ ...disableInIds, mechanism: AUDIT }] });
   });
 
   it("lists an inline disable on an import check at a deviation's file, since the import it hides may be a named ban", () => {
     const disableInA: NativeException = { kind: "inline-disable", clause: IMPORT_BOUNDARIES, file: FILE_A, line: 1, text: "// eslint-disable-next-line", reach: "one-clause" };
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInA] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [ADAPTER_DEVIATION_IN_A], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [disableInA] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [ADAPTER_DEVIATION_IN_A], unrecorded: [{ ...disableInA, mechanism: AUDIT }] });
   });
 
   it("lists a command-line option even where its run makes the kind coverable, since no record names a file it sits in", () => {
     expect(
-      answerFindings({ catalogue: CATALOGUE, records: [], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [SCRIPT_RULE_OFF] })], measurements: [] }),
+      answerFindings({ catalogue: CATALOGUE, records: [], findings: [], touched: NOTHING_TOUCHED, runs: [inlineRun({ nativeExceptions: [SCRIPT_RULE_OFF] })], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, unrecorded: [{ ...SCRIPT_RULE_OFF, mechanism: AUDIT }] });
   });
 
@@ -748,7 +748,7 @@ describe("answerFindings, natives held", () => {
         records: [DEBT_ON_CLASS_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [{ mechanism: ESLINT, nativeExceptions: [DISABLE_IN_A], coverableKinds: ["inline-disable"] }],
       }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [DEBT_ON_CLASS_IN_A], unrecorded: [{ ...DISABLE_IN_A, mechanism: ESLINT }] });
@@ -762,7 +762,7 @@ describe("answerFindings, natives held", () => {
         records: [],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [
           { mechanism: ESLINT, nativeExceptions: [disableInB], coverableKinds: [] },
           inlineRun({ nativeExceptions: [DISABLE_IN_A, SCRIPT_RULE_OFF] }),
@@ -802,21 +802,21 @@ describe("answerFindings, a finding or exception that names its check", () => {
         records: [LOCATED_CLASS_SYNTAX_IN_A, LOCATED_CLASS_HERITAGE_IN_A],
         findings: [unreported(HERITAGE_FINDING_IN_A)],
         touched: NOTHING_TOUCHED,
-        runs: [], measurements: [],
+        runs: [], measurements: { runs: [], tracked: [] },
       }),
     ).toEqual({ ...NOTHING_ANSWERED, answered: [{ finding: HERITAGE_FINDING_IN_A, by: [LOCATED_CLASS_HERITAGE_IN_A] }], stale: [LOCATED_CLASS_SYNTAX_IN_A] });
   });
 
   it("does not answer a finding naming a check its clause does not have, even by a record on the whole symptom", () => {
     expect(
-      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_IN_A], findings: [unreported(MISNAMED_FINDING_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_IN_A], findings: [unreported(MISNAMED_FINDING_IN_A)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [MISNAMED_FINDING_IN_A], stale: [LOCATED_CLASS_IN_A] });
   });
 
   it("does not answer a finding naming a check that its mechanism's engine does not run, by a record naming that check", () => {
     const heritageByEslint = { ...HERITAGE_FINDING_IN_A, mechanism: ESLINT };
     expect(
-      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_HERITAGE_IN_A], findings: [unreported(heritageByEslint)], touched: NOTHING_TOUCHED, runs: [], measurements: [] }),
+      answerFindings({ catalogue: TWO_CHECKS_ON_NO_CLASS, records: [LOCATED_CLASS_HERITAGE_IN_A], findings: [unreported(heritageByEslint)], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: [], tracked: [] } }),
     ).toEqual({ ...NOTHING_ANSWERED, findings: [heritageByEslint], stale: [LOCATED_CLASS_HERITAGE_IN_A] });
   });
 
@@ -827,7 +827,7 @@ describe("answerFindings, a finding or exception that names its check", () => {
         records: [LOCATED_CLASS_HERITAGE_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [inlineRun({ nativeExceptions: [HERITAGE_DISABLE_IN_A] })],
       }),
     ).toEqual(NOTHING_ANSWERED);
@@ -840,7 +840,7 @@ describe("answerFindings, a finding or exception that names its check", () => {
         records: [LOCATED_CLASS_SYNTAX_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [inlineRun({ nativeExceptions: [HERITAGE_DISABLE_IN_A] })],
       }),
     ).toEqual({ ...NOTHING_ANSWERED, stale: [LOCATED_CLASS_SYNTAX_IN_A], unrecorded: [{ ...HERITAGE_DISABLE_IN_A, mechanism: AUDIT }] });
@@ -853,7 +853,7 @@ describe("answerFindings, a finding or exception that names its check", () => {
         records: [LOCATED_CLASS_SYNTAX_IN_A],
         findings: [],
         touched: NOTHING_TOUCHED,
-        measurements: [],
+        measurements: { runs: [], tracked: [] },
         runs: [inlineRun({ nativeExceptions: [DISABLE_IN_A] })],
       }),
     ).toEqual(NOTHING_ANSWERED);
@@ -876,8 +876,10 @@ const MIXED_ENGINES: SymptomCatalogue = {
   ],
 };
 
-const staleAmong = (request: { readonly record: PlacedRecord; readonly measurements: readonly RunMeasurement[] }): readonly PlacedRecord[] =>
-  answerFindings({ catalogue: MIXED_ENGINES, records: [request.record], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: request.measurements }).stale;
+const TRACKED: readonly (typeof FILE_A)[] = [FILE_A, FILE_B, IDS_ADAPTER];
+
+const staleAmong = (request: { readonly record: PlacedRecord; readonly measurements: readonly RunMeasurement[]; readonly tracked: readonly (typeof FILE_A)[] }): readonly PlacedRecord[] =>
+  answerFindings({ catalogue: MIXED_ENGINES, records: [request.record], findings: [], touched: NOTHING_TOUCHED, runs: [], measurements: { runs: request.measurements, tracked: request.tracked } }).stale;
 
 const walkerMeasured = (request: { readonly file: typeof FILE_A }): RunMeasurement => ({
   mechanism: AUDIT,
@@ -898,36 +900,44 @@ describe("answerFindings, what the runs measured", () => {
       selected: [CLASS_IN_TYPES],
       measured: [{ clause: CLASS_IN_TYPES, file: FILE_A }],
     };
-    expect(staleAmong({ record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_A }), eslintMeasured] })).toEqual([DEBT_ON_CLASS_IN_A]);
+    expect(staleAmong({ tracked: TRACKED, record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_A }), eslintMeasured] })).toEqual([DEBT_ON_CLASS_IN_A]);
   });
 
   it("does not list a record as stale when one check it reaches was measured and another, selected, was not", () => {
-    expect(staleAmong({ record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
+    expect(staleAmong({ tracked: TRACKED, record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
   });
 
   it("lists a record that reaches only a measured check as stale while an engine of another check measured nothing", () => {
-    expect(staleAmong({ record: DEBT_ON_CLASS_SYNTAX_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([DEBT_ON_CLASS_SYNTAX_IN_A]);
+    expect(staleAmong({ tracked: TRACKED, record: DEBT_ON_CLASS_SYNTAX_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([DEBT_ON_CLASS_SYNTAX_IN_A]);
   });
 
   it("does not list a record as stale when the engine of a check it reaches measured only other files", () => {
-    expect(staleAmong({ record: DEBT_ON_CLASS_SYNTAX_IN_A, measurements: [walkerMeasured({ file: FILE_B })] })).toEqual([]);
+    expect(staleAmong({ tracked: TRACKED, record: DEBT_ON_CLASS_SYNTAX_IN_A, measurements: [walkerMeasured({ file: FILE_B })] })).toEqual([]);
   });
 
   it("lists a record as stale when no run selected a check it reaches", () => {
-    expect(staleAmong({ record: DEBT_ON_CLASS_IN_A, measurements: [] })).toEqual([DEBT_ON_CLASS_IN_A]);
+    expect(staleAmong({ tracked: TRACKED, record: DEBT_ON_CLASS_IN_A, measurements: [] })).toEqual([DEBT_ON_CLASS_IN_A]);
+  });
+
+  it("lists a record as stale when its file is no longer in the tree, whatever the engines measured, since no run can measure a file that is gone", () => {
+    expect(staleAmong({ tracked: [FILE_B], record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_B }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([DEBT_ON_CLASS_IN_A]);
+  });
+
+  it("does not list a record as stale when its file is in the tree and a check it reaches was not measured there", () => {
+    expect(staleAmong({ tracked: [FILE_A], record: DEBT_ON_CLASS_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
   });
 
   it("does not list a boundary record as stale when an engine of a check it reaches measured nothing in its module", () => {
-    expect(staleAmong({ record: IDS_BOUNDARY, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
+    expect(staleAmong({ tracked: TRACKED, record: IDS_BOUNDARY, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
   });
 
   it("lists a boundary record as stale once its module's files were measured by every engine of a check it reaches", () => {
     const eslintMeasured: RunMeasurement = { mechanism: ESLINT, selected: [IMPORT_IN_TYPES], measured: [{ clause: IMPORT_IN_TYPES, file: IDS_ADAPTER }] };
     const walkerInModule: RunMeasurement = { mechanism: AUDIT, selected: [IMPORT_BOUNDARIES], measured: [{ clause: IMPORT_BOUNDARIES, file: IDS_ADAPTER }] };
-    expect(staleAmong({ record: IDS_BOUNDARY, measurements: [walkerInModule, eslintMeasured] })).toEqual([IDS_BOUNDARY]);
+    expect(staleAmong({ tracked: TRACKED, record: IDS_BOUNDARY, measurements: [walkerInModule, eslintMeasured] })).toEqual([IDS_BOUNDARY]);
   });
 
   it("does not list a deviation on an imported-party symptom as stale when an engine of a check it reaches measured nothing", () => {
-    expect(staleAmong({ record: ADAPTER_DEVIATION_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
+    expect(staleAmong({ tracked: TRACKED, record: ADAPTER_DEVIATION_IN_A, measurements: [walkerMeasured({ file: FILE_A }), ESLINT_SELECTED_MEASURING_NOTHING] })).toEqual([]);
   });
 });

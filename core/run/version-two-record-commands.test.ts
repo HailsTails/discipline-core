@@ -234,6 +234,22 @@ describe("versionTwoPruneDebtCommandOf", () => {
     });
   });
 
+  it("removes the debt on a file no longer in the tree, with no base revision, since nothing is left to measure", async () => {
+    const ran = await ranWith({
+      handler: versionTwoPruneDebtCommandOf,
+      arguments: ["--repo", "/repo"],
+      stages: stagesGiving({
+        settings: vi.fn<VersionTwoStages["settings"]>().mockReturnValue({ outcome: "ok", value: settingsSelectingCast() }),
+        records: vi.fn<VersionTwoStages["records"]>().mockReturnValue({ outcome: "ok", value: { ...NO_RECORDS, records: [HELD_DEBT] } }),
+        tree: vi.fn<VersionTwoStages["tree"]>().mockReturnValue({ outcome: "ok", value: { tracked: [], declaredConfigRoots: [] } }),
+        engines: vi.fn<VersionTwoStages["engines"]>().mockResolvedValue({ outcome: "ok", value: [{ ...runOf({ hits: [] }), projection: "not-included" }] }),
+        touched: vi.fn<VersionTwoStages["touched"]>().mockReturnValue({ measured: "no", base: { state: "not-given" } }),
+      }),
+      files: { [DEBT_FILE]: DEBT_DOCUMENT },
+    });
+    expect({ writes: ran.writes, filesHeld: ran.repository.filesHeld() }).toEqual({ writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]], filesHeld: [] });
+  });
+
   it("removes the debt once the engine measured its check at its file and found nothing", async () => {
     const measured = { ...runOf({ hits: [] }), measured: [{ clause: CAST_EXPRESSIONS, file: FILE_A }] };
     expect(await prunedWhileEngineRan({ run: measured })).toEqual({

@@ -8,7 +8,7 @@ import type { MechanismId } from "../values/identifiers.ts";
 import type { RepoPath } from "../values/repo-path.ts";
 import { debtForfeitureAt } from "./debt-forfeiture.ts";
 import type { HoneRecord, PlacedRecord } from "./hone-record.ts";
-import { measurementOf, type RunMeasurement } from "./measured-at.ts";
+import { measurementOf, type RunMeasurements } from "./measured-at.ts";
 import { holdsAt, type PartyReport, placesReachedBy, type Site } from "./record-reach.ts";
 
 export type RaisedFinding = { readonly finding: Finding; readonly party: PartyReport };
@@ -25,7 +25,7 @@ export type AnsweringRequest = {
   readonly findings: readonly RaisedFinding[];
   readonly touched: TouchedSet;
   readonly runs: readonly GovernedRun[];
-  readonly measurements: readonly RunMeasurement[];
+  readonly measurements: RunMeasurements;
 };
 
 export type Answering = {
@@ -155,7 +155,7 @@ const nativeHoldings = (request: {
     })),
   );
 
-const wasJudged = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue; readonly measurements: readonly RunMeasurement[] }): "judged" | "unjudged" =>
+const wasJudged = (request: { readonly record: HoneRecord; readonly catalogue: SymptomCatalogue; readonly measurements: RunMeasurements }): "judged" | "unjudged" =>
   placesReachedBy(request).some((reached) => measurementOf({ measurements: request.measurements, reached }) === "not-measured") ? "unjudged" : "judged";
 
 const staleRecords = (request: {
@@ -163,7 +163,7 @@ const staleRecords = (request: {
   readonly credited: ReadonlySet<PlacedRecord>;
   readonly paidDebt: ReadonlySet<PlacedRecord>;
   readonly catalogue: SymptomCatalogue;
-  readonly measurements: readonly RunMeasurement[];
+  readonly measurements: RunMeasurements;
 }): readonly PlacedRecord[] =>
   request.inForce.filter(
     (placed) =>
