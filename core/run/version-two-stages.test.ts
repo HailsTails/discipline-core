@@ -27,6 +27,7 @@ const gitListing = (request: { readonly tracked: GitPort["trackedPaths"] }): Git
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: [] }),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 });
 
 const portsOver = (request: { readonly git: GitPort }): VersionTwoPorts => ({

@@ -357,6 +357,81 @@ describe("createGitPort textInBase", () => {
   });
 });
 
+describe("createGitPort renamedSince", () => {
+  it("diffs the base against the worktree with rename detection, using option-safe arguments", () => {
+    const spawn = vi.fn<GitSpawn>().mockReturnValue(EXITED_EMPTY);
+
+    const renames = gitOver(spawn).renamedSince({ repoRoot: REPO_ROOT, baseRevision: "-selected-base" });
+
+    expect({ renames, calls: spawn.mock.calls }).toEqual({
+      renames: { outcome: "ok", value: new Map() },
+      calls: [[{ file: "git", arguments: ["-C", "/repo", "diff", "--name-status", "-M", "-z", "--end-of-options", "-selected-base"], maxBuffer: 268435456, environment: { PATH: "/usr/bin", HOME: "/home/someone" } }]],
+    });
+  });
+
+  it("maps each renamed path to its path at the base, passing over every other change", () => {
+    const renames = gitOver(
+      vi.fn<GitSpawn>().mockReturnValue({
+        ...EXITED_EMPTY,
+        stdout: "M\0src/kept.ts\0R100\0src/old.ts\0src/moved/old.ts\0A\0src/added.ts\0D\0src/gone.ts\0R087\0lib/a.ts\0lib/b.ts\0",
+      }),
+    ).renamedSince({ repoRoot: REPO_ROOT, baseRevision: "base" });
+
+    expect(renames).toEqual({
+      outcome: "ok",
+      value: new Map([
+        ["src/moved/old.ts", "src/old.ts"],
+        ["lib/b.ts", "lib/a.ts"],
+      ]),
+    });
+  });
+
+  it("refuses a rename naming a path that is not a repo path", () => {
+    const renames = gitOver(
+      vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "R100\0src/old.ts\0../outside.ts\0" }),
+    ).renamedSince({ repoRoot: REPO_ROOT, baseRevision: "base" });
+
+    expect(renames).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo diff --name-status -M -z --end-of-options base",
+        detail: "git listed a path that is not a repo path: ../outside.ts",
+      },
+    });
+  });
+
+  it("refuses a rename missing its new path rather than mapping part of it", () => {
+    const renames = gitOver(
+      vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_EMPTY, stdout: "R100\0src/old.ts\0" }),
+    ).renamedSince({ repoRoot: REPO_ROOT, baseRevision: "base" });
+
+    expect(renames).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo diff --name-status -M -z --end-of-options base",
+        detail: "git diff did not return a complete NUL-separated name-status listing",
+      },
+    });
+  });
+
+  it("preserves an invalid selected base as GitFailure rather than no renames", () => {
+    const renames = gitOver(
+      vi.fn<GitSpawn>().mockReturnValue({ ...EXITED_NOT_A_REPOSITORY, stderr: "fatal: bad revision 'missing-base'" }),
+    ).renamedSince({ repoRoot: REPO_ROOT, baseRevision: "missing-base" });
+
+    expect(renames).toEqual({
+      outcome: "failed",
+      error: {
+        kind: "git-failed",
+        command: "git -C /repo diff --name-status -M -z --end-of-options missing-base",
+        detail: "fatal: bad revision 'missing-base'",
+      },
+    });
+  });
+});
+
 describe("createGitTreePort pathsAt", () => {
   it("lists every path at the revision with option-safe arguments", () => {
     const spawn = vi.fn<GitSpawn>().mockReturnValue(EXITED_WITH_LISTING);

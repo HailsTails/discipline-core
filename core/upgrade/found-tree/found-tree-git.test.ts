@@ -18,6 +18,7 @@ const underlyingGit = (): GitPort => ({
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 });
 
 type Tree = Pick<FileTextPort, "read" | "exists">;
@@ -49,6 +50,14 @@ describe("foundTreeGitOf, git with the tree the upgrade found as its base", () =
     const { found, git } = foundTreeOver({ fileText: treeLacking() });
     expect({ changed: found.changedSince({ repoRoot: REPO_ROOT, baseRevision: FOUND_TREE_REVISION }), asked: vi.mocked(git.changedSince).mock.calls }).toEqual({
       changed: { outcome: "ok", value: [] },
+      asked: [],
+    });
+  });
+
+  it("reports nothing renamed since the base, which is the tree itself, and never asks git", () => {
+    const { found, git } = foundTreeOver({ fileText: treeLacking() });
+    expect({ renamed: found.renamedSince({ repoRoot: REPO_ROOT, baseRevision: FOUND_TREE_REVISION }), asked: vi.mocked(git.renamedSince).mock.calls }).toEqual({
+      renamed: { outcome: "ok", value: new Map() },
       asked: [],
     });
   });

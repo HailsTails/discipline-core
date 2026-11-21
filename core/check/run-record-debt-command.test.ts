@@ -132,6 +132,7 @@ const gitChanging = (changed: readonly RepoPath[]): GitPort => ({
   changedSince: vi.fn<GitPort["changedSince"]>().mockReturnValue({ outcome: "ok", value: changed }),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
 });
 
 const treeHolding = (listing: ReturnType<GitTreePort["pathsAt"]>): GitTreePort => ({

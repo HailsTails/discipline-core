@@ -137,7 +137,7 @@ const UNMEASURED_GIT_FAILED = {
 
 const MEASURED_NOTHING_TOUCHED: TouchedSet = { measured: "yes", paths: new Set() };
 
-const MEASURED_BASELINE: ExceptionBaseline = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() };
+const MEASURED_BASELINE: ExceptionBaseline = { measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map(), basePathOfRenamed: new Map() };
 
 
 const changedSinceAnswering = (answer: ReturnType<GitPort["changedSince"]>): Pick<GitPort, "changedSince"> => ({
@@ -146,11 +146,20 @@ const changedSinceAnswering = (answer: ReturnType<GitPort["changedSince"]>): Pic
 
 const UNASKED_CHANGE_SET: Pick<GitPort, "changedSince"> = { changedSince: vi.fn<GitPort["changedSince"]>() };
 
-const textInBaseAnswering = (answer: ReturnType<GitPort["textInBase"]>): Pick<GitPort, "textInBase"> => ({
-  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(answer),
+const NO_RENAMES: ReturnType<GitPort["renamedSince"]> = { outcome: "ok", value: new Map() };
+
+const baseGitAnswering = (answers: {
+  readonly text: ReturnType<GitPort["textInBase"]>;
+  readonly renames: ReturnType<GitPort["renamedSince"]>;
+}): Pick<GitPort, "textInBase" | "renamedSince"> => ({
+  textInBase: vi.fn<GitPort["textInBase"]>().mockReturnValue(answers.text),
+  renamedSince: vi.fn<GitPort["renamedSince"]>().mockReturnValue(answers.renames),
 });
 
-const UNASKED_TEXT: Pick<GitPort, "textInBase"> = { textInBase: vi.fn<GitPort["textInBase"]>() };
+const UNASKED_BASE_GIT: Pick<GitPort, "textInBase" | "renamedSince"> = {
+  textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>(),
+};
 
 const exceptionRepositoryAnswering = (
   answer: ReturnType<ExceptionRepository["readAt"]>,
@@ -362,17 +371,27 @@ describe("baselineNeedOf", () => {
 });
 
 describe("baselineAtBase", () => {
-  it("reads the records and each source at the base revision, keeping the sources present there", () => {
-    const git = textInBaseAnswering({ outcome: "ok", value: { presence: "present-in-base", text: "[]" } });
+  it("reads the records, each source and the renames since the base revision, keeping the sources present there", () => {
+    const git = baseGitAnswering({
+      text: { outcome: "ok", value: { presence: "present-in-base", text: "[]" } },
+      renames: { outcome: "ok", value: new Map([[repoPathSchema.parse("src/moved/legacy.ts"), LEGACY_FILE]]) },
+    });
     const exceptionRepository = exceptionRepositoryAnswering({ outcome: "ok", value: [CARVE_OUT_ENTRY] });
     expect({
       baseline: baselineAtBase({ reach: { repoRoot: REPO_ROOT, git, exceptionRepository }, baseRevision: "main", sources: [LEGACY_SOURCE_FILE] }),
       readAt: vi.mocked(exceptionRepository.readAt).mock.calls,
       textInBase: vi.mocked(git.textInBase).mock.calls,
+      renamedSince: vi.mocked(git.renamedSince).mock.calls,
     }).toEqual({
-      baseline: { measured: "yes", entriesAtBase: [CARVE_OUT_ENTRY], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]) },
+      baseline: {
+        measured: "yes",
+        entriesAtBase: [CARVE_OUT_ENTRY],
+        sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]),
+        basePathOfRenamed: new Map([["src/moved/legacy.ts", "src/legacy.ts"]]),
+      },
       readAt: [[{ revision: "main" }]],
       textInBase: [[{ repoRoot: REPO_ROOT, baseRevision: "main", file: LEGACY_SOURCE_FILE }]],
+      renamedSince: [[{ repoRoot: REPO_ROOT, baseRevision: "main" }]],
     });
   });
 
@@ -381,23 +400,31 @@ describe("baselineAtBase", () => {
       baselineAtBase({
         reach: {
           repoRoot: REPO_ROOT,
-          git: textInBaseAnswering({ outcome: "ok", value: { presence: "absent-from-base" } }),
+          git: baseGitAnswering({ text: { outcome: "ok", value: { presence: "absent-from-base" } }, renames: NO_RENAMES }),
           exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
         },
         baseRevision: "main",
         sources: [LEGACY_SOURCE_FILE],
       }),
-    ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map() });
+    ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map(), basePathOfRenamed: new Map() });
   });
 
-  it("is measured from the records alone when there is no source to read", () => {
-    expect(
-      baselineAtBase({
-        reach: { repoRoot: REPO_ROOT, git: UNASKED_TEXT, exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [LEGACY_CHAIN_ENTRY] }) },
+  it("is measured from the records and renames alone when there is no source to read", () => {
+    const git: Pick<GitPort, "textInBase" | "renamedSince"> = {
+      textInBase: vi.fn<GitPort["textInBase"]>(),
+      renamedSince: vi.fn<GitPort["renamedSince"]>().mockReturnValue(NO_RENAMES),
+    };
+    expect({
+      baseline: baselineAtBase({
+        reach: { repoRoot: REPO_ROOT, git, exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [LEGACY_CHAIN_ENTRY] }) },
         baseRevision: "main",
         sources: [],
       }),
-    ).toEqual({ measured: "yes", entriesAtBase: [LEGACY_CHAIN_ENTRY], sourceTextsAtBase: new Map() });
+      textInBase: vi.mocked(git.textInBase).mock.calls,
+    }).toEqual({
+      baseline: { measured: "yes", entriesAtBase: [LEGACY_CHAIN_ENTRY], sourceTextsAtBase: new Map(), basePathOfRenamed: new Map() },
+      textInBase: [],
+    });
   });
 
   it("is unmeasured with git's message when the records at the base cannot be read", () => {
@@ -405,7 +432,7 @@ describe("baselineAtBase", () => {
       baselineAtBase({
         reach: {
           repoRoot: REPO_ROOT,
-          git: textInBaseAnswering({ outcome: "ok", value: { presence: "absent-from-base" } }),
+          git: baseGitAnswering({ text: { outcome: "ok", value: { presence: "absent-from-base" } }, renames: NO_RENAMES }),
           exceptionRepository: exceptionRepositoryAnswering({ outcome: "failed", error: GIT_FAILURE }),
         },
         baseRevision: "main",
@@ -419,7 +446,7 @@ describe("baselineAtBase", () => {
       baselineAtBase({
         reach: {
           repoRoot: REPO_ROOT,
-          git: textInBaseAnswering({ outcome: "failed", error: SOURCE_FAILURE }),
+          git: baseGitAnswering({ text: { outcome: "failed", error: SOURCE_FAILURE }, renames: NO_RENAMES }),
           exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
         },
         baseRevision: "main",
@@ -428,12 +455,29 @@ describe("baselineAtBase", () => {
     ).toEqual({ measured: "no", base: { state: "git-failed", revision: "main", gitMessage: "fatal: bad object main:cd-14.json" } });
   });
 
+  it("is unmeasured with git's message when the renames since the base cannot be read", () => {
+    expect(
+      baselineAtBase({
+        reach: {
+          repoRoot: REPO_ROOT,
+          git: baseGitAnswering({
+            text: { outcome: "ok", value: { presence: "present-in-base", text: "[]" } },
+            renames: { outcome: "failed", error: { kind: "git-failed", command: "git diff", detail: "fatal: bad revision 'main'" } },
+          }),
+          exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
+        },
+        baseRevision: "main",
+        sources: [LEGACY_SOURCE_FILE],
+      }),
+    ).toEqual({ measured: "no", base: { state: "git-failed", revision: "main", gitMessage: "fatal: bad revision 'main'" } });
+  });
+
   it("reports the records' failure, not a source's, when both cannot be read at the base", () => {
     expect(
       baselineAtBase({
         reach: {
           repoRoot: REPO_ROOT,
-          git: textInBaseAnswering({ outcome: "failed", error: SOURCE_FAILURE }),
+          git: baseGitAnswering({ text: { outcome: "failed", error: SOURCE_FAILURE }, renames: NO_RENAMES }),
           exceptionRepository: exceptionRepositoryAnswering({ outcome: "failed", error: GIT_FAILURE }),
         },
         baseRevision: "main",
@@ -450,18 +494,18 @@ describe("exceptionBaselineOf", () => {
         check: {
           repoRoot: REPO_ROOT,
           baseRevision: "main",
-          git: textInBaseAnswering({ outcome: "ok", value: { presence: "present-in-base", text: "[]" } }),
+          git: baseGitAnswering({ text: { outcome: "ok", value: { presence: "present-in-base", text: "[]" } }, renames: NO_RENAMES }),
           exceptionRepository: exceptionRepositoryAnswering({ outcome: "ok", value: [] }),
         },
         entries: [IMPORTED_LOCATION_ENTRY],
       }),
-    ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]) });
+    ).toEqual({ measured: "yes", entriesAtBase: [], sourceTextsAtBase: new Map([[LEGACY_SOURCE_FILE, "[]"]]), basePathOfRenamed: new Map() });
   });
 
   it("is the settled baseline when none is needed", () => {
     expect(
       exceptionBaselineOf({
-        check: { repoRoot: REPO_ROOT, baseRevision: undefined, git: UNASKED_TEXT, exceptionRepository: UNASKED_REPOSITORY },
+        check: { repoRoot: REPO_ROOT, baseRevision: undefined, git: UNASKED_BASE_GIT, exceptionRepository: UNASKED_REPOSITORY },
         entries: [IMPORTED_LOCATION_ENTRY, LEGACY_CHAIN_ENTRY],
       }),
     ).toEqual(UNMEASURED_NOT_GIVEN);

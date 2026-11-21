@@ -39,6 +39,7 @@ const CHECK: CheckRequest = {
     changedSince: vi.fn<GitPort["changedSince"]>(),
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
+    renamedSince: vi.fn<GitPort["renamedSince"]>(),
   },
   selectionRepository: { read: vi.fn<SelectionRepository["read"]>() },
   exceptionRepository: { read: vi.fn<ExceptionRepository["read"]>(), readAt: vi.fn<ExceptionRepository["readAt"]>() },

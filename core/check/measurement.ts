@@ -26,7 +26,7 @@ export type ChangeSetReach = {
 
 export type BaselineReach = {
   readonly repoRoot: AbsolutePath;
-  readonly git: Pick<GitPort, "textInBase">;
+  readonly git: Pick<GitPort, "textInBase" | "renamedSince">;
   readonly exceptionRepository: Pick<ExceptionRepository, "readAt">;
 };
 
@@ -162,7 +162,11 @@ export const baselineAtBase = (request: {
   if (texts.outcome === "failed") {
     return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: texts.error }) };
   }
-  return { measured: "yes", entriesAtBase: entriesAtBase.value, sourceTextsAtBase: texts.value };
+  const renames = request.reach.git.renamedSince({ repoRoot: request.reach.repoRoot, baseRevision });
+  if (renames.outcome === "failed") {
+    return { measured: "no", base: baseRevisionAvailabilityOf({ revision: baseRevision, failure: renames.error }) };
+  }
+  return { measured: "yes", entriesAtBase: entriesAtBase.value, sourceTextsAtBase: texts.value, basePathOfRenamed: renames.value };
 };
 
 export const exceptionBaselineOf = (request: {

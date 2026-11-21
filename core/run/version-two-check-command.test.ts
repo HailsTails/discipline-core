@@ -108,6 +108,7 @@ const commandWith = (request: { readonly process: ProcessPort; readonly moduleUr
     changedSince: vi.fn<GitPort["changedSince"]>(),
     contentInBase: vi.fn<GitPort["contentInBase"]>(),
     textInBase: vi.fn<GitPort["textInBase"]>(),
+    renamedSince: vi.fn<GitPort["renamedSince"]>(),
   },
   exceptionRepositoryOf: vi.fn<ExceptionRepositoryOf>(),
   moduleUrl: request.moduleUrl,

@@ -242,6 +242,7 @@ const gitReporting = (request: { readonly trackedPaths: Result<readonly RepoPath
   changedSince: vi.fn<GitPort["changedSince"]>(),
   contentInBase: vi.fn<GitPort["contentInBase"]>(),
   textInBase: vi.fn<GitPort["textInBase"]>(),
+  renamedSince: vi.fn<GitPort["renamedSince"]>().mockReturnValue({ outcome: "ok", value: new Map() }),
 });
 
 const gitMeasuring = (request: {
