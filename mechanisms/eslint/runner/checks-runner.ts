@@ -283,6 +283,9 @@ const lintedReport = async (request: LintRequest & { readonly status: Projection
       };
 };
 
+const projectionWhenNotInEffect = (request: { readonly status: ProjectionStatus }): ChecksProjectionState =>
+  request.status.projection === "current" && request.status.slices.every((slice) => slice.state !== "out-of-date") ? "not-included" : request.status.projection;
+
 const queriedRun = async (
   request: Omit<LintRequest, "queried" | "query"> & { readonly platform: EslintPlatformPorts; readonly status: ProjectionStatus; readonly lookup: EslintConfigLookup },
 ): Promise<Outcome<ChecksRunReport>> => {
@@ -300,7 +303,7 @@ const queriedRun = async (
     return queried;
   }
   return projectionEffectOf({ selected: request.selected, answered: request.run.answered, queried: queried.value }) === "not-in-effect"
-    ? reportAs({ projection: request.status.projection === "current" ? "not-included" : request.status.projection, slices: request.status.slices })
+    ? reportAs({ projection: projectionWhenNotInEffect({ status: request.status }), slices: request.status.slices })
     : lintedReport({ ...request, query: query.value, queried: queried.value });
 };
 

@@ -281,6 +281,19 @@ describe("checksRunnerOver, over a repository holding a package eslint.config.*"
     });
   });
 
+  it("names the package's file out of date, not the projection not included, and lints nothing, when only the package's file differs and the team's config leaves the rule out of a checked file", async () => {
+    const governance = lintingNothing();
+    const outcome = await runnerOverProjection({
+      currents: slicesHolding({ root: PROJECTION_WRITTEN_AS_PROJECT_WOULD, web: PROJECTION_THAT_DIFFERS }),
+      ruleState: RULE_ABSENT,
+      governance,
+    }).run(WITH_A_PACKAGE_CONFIG);
+    expect({ outcome, linted: vi.mocked(governance.lintFiles).mock.calls }).toEqual({
+      outcome: { outcome: "ok", value: { hits: [], nativeExceptions: [], measured: [], misnamedRuleIds: [], projection: "current", slices: [{ slice: PACKAGE_SLICE_PATH, state: "out-of-date" }] } },
+      linted: [],
+    });
+  });
+
   it("names the package's file missing, beside an out-of-date root file, when the package's file is not written and the root file differs", async () => {
     expect(await runOverSlices({ root: PROJECTION_THAT_DIFFERS, web: PROJECTION_NOT_WRITTEN })).toEqual({
       outcome: "ok",
