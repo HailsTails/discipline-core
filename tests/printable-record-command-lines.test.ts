@@ -48,7 +48,7 @@ const UNRECORDABLE_LINES: readonly PrintedLine[] = [
   },
   {
     label: "record-debt",
-    text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; remove the ignore and Hone records what it finds in the file as debt, or, if the file is generated or vendored, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree`,
+    text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run checked the file and recorded what it found there as debt, so what is left is the ignore: remove it, or, if the file is generated or vendored and not yours to hold to the checks, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree`,
     fills: { address: ADDRESS, file: FILE },
   },
   {

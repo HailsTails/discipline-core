@@ -19,7 +19,7 @@ const TOUCHED_DETAIL: Readonly<Record<RecordableOrigin, string>> = {
 const UNRECORDABLE_DETAIL: Readonly<Record<Exclude<UnrecordableBecause["kind"], "command-line-option">, string>> = {
   "no-check": "the catalogue gives this finding no symptom or check to record debt against; fix the finding",
   ignore:
-    "an ESLint ignore leaves the file out of the team's lint run, which no record can hold; remove the ignore and Hone records what it finds in the file as debt, or, if the file is generated or vendored, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree",
+    "an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run checked the file and recorded what it found there as debt, so what is left is the ignore: remove it, or, if the file is generated or vendored and not yours to hold to the checks, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree",
   "inline-rule-config": "a comment that sets a rule's configuration changes what the rule checks, which no record can hold; remove the comment",
   "suppression-entry":
     "an entry in the suppressions file hides a finding from the team's lint run, which no record can hold; Hone's run still finds it and records it as debt, so remove the entry from the suppressions file",

@@ -21,10 +21,10 @@ describe("scriptOptionAdviceOf", () => {
     },
     {
       name: "a command behind a wrapper that is neither a package runner nor a setting",
-      cause: { kind: "wrapped", command: "eslint", wrapper: "env" },
+      cause: { kind: "wrapped", command: "biome", wrapper: "env" },
       advice: {
-        problem: `"env" comes before eslint and is neither a package runner nor a NAME=value setting, ${UNJUDGED}`,
-        fix: "put only package runners and NAME=value settings before eslint",
+        problem: `"env" comes before biome and is neither a package runner nor a NAME=value setting, ${UNJUDGED}`,
+        fix: "put only package runners and NAME=value settings before biome",
       },
     },
     {
