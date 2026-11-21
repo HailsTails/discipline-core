@@ -1,12 +1,19 @@
-import { projectionOutputNamesOf } from "../core/values/projection-outputs.ts";
+import { projectionOutputNamesOf, projectionOutputsOf } from "../core/values/projection-outputs.ts";
 
-const PROJECTED_ENGINE_NAMES: readonly string[] = ["eslint"];
+const ESLINT_ENGINE_NAME = "eslint";
 
-const PROJECTION_OUTPUT_NAMES: readonly string[] = projectionOutputNamesOf({ engineNames: PROJECTED_ENGINE_NAMES });
+const REPOSITORY_ROOT = ".";
 
-const PATH_SEPARATOR = "/";
+const keyIn = (request: { readonly folder: string; readonly name: string }): string => `${request.folder}/${request.name}`;
 
-const fileNameOf = (request: { readonly file: string }): string => request.file.slice(request.file.lastIndexOf(PATH_SEPARATOR) + PATH_SEPARATOR.length);
+export const ROOT_PROJECTION_DECLARATION_KEY: string = keyIn({ folder: REPOSITORY_ROOT, name: projectionOutputsOf({ engineName: ESLINT_ENGINE_NAME }).declaration });
+
+export const projectionDeclarationKeyIn = (request: { readonly folder: string }): string =>
+  keyIn({ folder: `${REPOSITORY_ROOT}/${request.folder}`, name: projectionOutputsOf({ engineName: ESLINT_ENGINE_NAME }).declaration });
+
+const WRITTEN_AT_THE_ROOT: readonly string[] = projectionOutputNamesOf({ engineNames: [ESLINT_ENGINE_NAME] }).map((name) =>
+  keyIn({ folder: REPOSITORY_ROOT, name }),
+);
 
 export const withoutProjectionOutputs = (request: { readonly sources: Readonly<Record<string, string>> }): Readonly<Record<string, string>> =>
-  Object.fromEntries(Object.entries(request.sources).filter(([file]) => !PROJECTION_OUTPUT_NAMES.includes(fileNameOf({ file }))));
+  Object.fromEntries(Object.entries(request.sources).filter(([file]) => !WRITTEN_AT_THE_ROOT.includes(file)));

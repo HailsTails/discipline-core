@@ -14,7 +14,7 @@ import {
   relativeImportReaching,
 } from "../../tests/confinement.ts";
 import { INSTALLED_DECLARATION_TEXT } from "../../tests/installed-declaration-text.ts";
-import { withoutProjectionOutputs } from "../../tests/without-projection-outputs.ts";
+import { projectionDeclarationKeyIn, ROOT_PROJECTION_DECLARATION_KEY, withoutProjectionOutputs } from "../../tests/without-projection-outputs.ts";
 
 declare global {
   interface ImportMeta {
@@ -56,7 +56,12 @@ const loadedOutsideMechanisms = import.meta.glob(
 
 const sourcesOutsideMechanisms = withoutProjectionOutputs({ sources: loadedOutsideMechanisms });
 
-const UPGRADED_ROOT_DECLARATION: Readonly<Record<string, string>> = { "./hone.eslint.d.mts": INSTALLED_DECLARATION_TEXT };
+const NESTED_DECLARATION_KEY = projectionDeclarationKeyIn({ folder: "mechanisms/eslint/runner" });
+
+const UPGRADED_TREE: Readonly<Record<string, string>> = {
+  [ROOT_PROJECTION_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+  [NESTED_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+};
 
 const runnerSources = import.meta.glob(
   [
@@ -283,13 +288,17 @@ describe("Vendor confinement over what this repository's own Hone source imports
     expect(importsOutside({ sources: sourcesOutsideMechanisms, allowed: [relativeImport, zodImport] })).toEqual([]);
   });
 
-  it("finds an upgraded repository's root declaration, which hone project writes, outside that scan, so the files it holds stay as they were", () => {
-    expect(
-      importsOutside({
-        sources: withoutProjectionOutputs({ sources: UPGRADED_ROOT_DECLARATION }),
-        allowed: [relativeImport, zodImport],
-      }),
-    ).toEqual([]);
+  it("finds the root declaration hone project writes importing a vendor package when nothing is left out, and a declaration of that name in a folder too", () => {
+    expect(importsOutside({ sources: UPGRADED_TREE, allowed: [relativeImport, zodImport] })).toEqual([
+      { file: ROOT_PROJECTION_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+    ]);
+  });
+
+  it("finds only the declaration of that name in a folder, once the root declaration hone project writes is left out", () => {
+    expect(importsOutside({ sources: withoutProjectionOutputs({ sources: UPGRADED_TREE }), allowed: [relativeImport, zodImport] })).toEqual([
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+    ]);
   });
 
   it("finds every runner file outside the wrapping files importing only relative paths and zod", () => {

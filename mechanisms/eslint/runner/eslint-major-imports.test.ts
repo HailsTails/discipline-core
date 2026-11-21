@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type ImportAllowance, importFactsReaching, importNotMatching, importsOutside, importsWithoutFacts } from "../../../tests/confinement.ts";
 import { INSTALLED_DECLARATION_TEXT } from "../../../tests/installed-declaration-text.ts";
-import { withoutProjectionOutputs } from "../../../tests/without-projection-outputs.ts";
+import { projectionDeclarationKeyIn, ROOT_PROJECTION_DECLARATION_KEY, withoutProjectionOutputs } from "../../../tests/without-projection-outputs.ts";
 
 declare global {
   interface ImportMeta {
@@ -31,7 +31,12 @@ const loadedOutsideTheBoundaries = import.meta.glob(
 
 const outsideTheBoundaries = withoutProjectionOutputs({ sources: loadedOutsideTheBoundaries });
 
-const UPGRADED_ROOT_DECLARATION: Readonly<Record<string, string>> = { "./hone.eslint.d.mts": INSTALLED_DECLARATION_TEXT };
+const NESTED_DECLARATION_KEY = projectionDeclarationKeyIn({ folder: "mechanisms/eslint/runner" });
+
+const UPGRADED_TREE: Readonly<Record<string, string>> = {
+  [ROOT_PROJECTION_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+  [NESTED_DECLARATION_KEY]: INSTALLED_DECLARATION_TEXT,
+};
 
 const insideTheBoundaries = import.meta.glob(
   ["./mechanisms/eslint/runner/eslint-9/*.ts", "./mechanisms/eslint/runner/eslint-10/*.ts", "!./mechanisms/eslint/runner/eslint-*/*.test.ts"],
@@ -64,10 +69,17 @@ describe("where ESLint is imported, read as build-time raw modules (CD-47: that 
     ]);
   });
 
-  it("finds an upgraded repository's root declaration, which hone project writes, outside every scan of the files outside the two boundaries, so the facts above stay as they were", () => {
-    expect(
-      importsOutside({ sources: withoutProjectionOutputs({ sources: UPGRADED_ROOT_DECLARATION }), allowed: [notAnEslintMajor] }),
-    ).toEqual([]);
+  it("finds the root declaration hone project writes importing eslint when nothing is left out, and a declaration of that name in a folder too", () => {
+    expect(importsOutside({ sources: UPGRADED_TREE, allowed: [notAnEslintMajor] })).toEqual([
+      { file: ROOT_PROJECTION_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+    ]);
+  });
+
+  it("finds only the declaration of that name in a folder, once the root declaration hone project writes is left out", () => {
+    expect(importsOutside({ sources: withoutProjectionOutputs({ sources: UPGRADED_TREE }), allowed: [notAnEslintMajor] })).toEqual([
+      { file: NESTED_DECLARATION_KEY, specifier: "eslint", form: "type-only" },
+    ]);
   });
 
   it("finds no static import or re-export of eslint or eslint-9 outside the two boundaries that the facts above fail to hold", () => {
