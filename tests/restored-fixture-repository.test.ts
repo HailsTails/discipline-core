@@ -1,0 +1,75 @@
+import { afterAll, assert, describe, expect, it } from "vitest";
+import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
+import { createDefaultPathPort } from "../core/platform-ports/path-port.ts";
+import { absolutePathSchema } from "../core/values/absolute-path.ts";
+import { createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
+import { listedPathsOf } from "./repository-tree.ts";
+import { rehomedImports, restoredFixtureRepositoriesOver, STORED_LINT_CONFIG_NAME } from "./restored-fixture-repository.ts";
+import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
+
+const fileText = createDefaultFileTextPort({});
+
+const scratch = createDefaultScratchFilesPort({});
+
+const path = createDefaultPathPort({});
+
+const parent = scratch.createTemporaryDirectory({ prefix: "hone-restored-fixture-" });
+
+assert(parent.outcome === "ok", "a parent folder is made for the restored fixtures");
+
+const repositories = scratchRepositoriesUnder({ parent: parent.value, fileText, scratch });
+
+const restored = restoredFixtureRepositoriesOver({ repositories, scratch, fileText, path });
+
+const fixtureRoot = absolutePathSchema.parse(`${parent.value}/deeper/a-fixture`);
+
+scratch.makeDirectory({ path: `${fixtureRoot}/packages/a` });
+
+fileText.write({ path: `${fixtureRoot}/${STORED_LINT_CONFIG_NAME}`, text: 'import projection from "./projection.mjs";\n' });
+
+fileText.write({ path: `${fixtureRoot}/projection.mjs`, text: 'import piece from "../../../CD-14/plugin.ts";\n' });
+
+fileText.write({ path: `${fixtureRoot}/packages/a/x.ts`, text: "export class Kept {}\n" });
+
+fileText.write({ path: `${fixtureRoot}/packages/a/${STORED_LINT_CONFIG_NAME}`, text: 'import projection from "../../projection.mjs";\n' });
+
+describe("rehomedImports", () => {
+  it("points a relative import that leaves the fixture at the file it named, from where the module now sits, and leaves the rest as written", () => {
+    expect(
+      rehomedImports({
+        text: 'import piece from "../../../CD-14/plugin.ts";\nimport own from "./own.mjs";\nimport pkg from "zod";\n',
+        path,
+        fixtureRoot: "/install/mechanisms/eslint/runner/test-fixtures/a",
+        from: "/install/mechanisms/eslint/runner/test-fixtures/a",
+        to: "/install/artefacts/scratch-1",
+      }),
+    ).toBe('import piece from "../../mechanisms/eslint/CD-14/plugin.ts";\nimport own from "./own.mjs";\nimport pkg from "zod";\n');
+  });
+});
+
+describe("restoredFixtureRepositoriesOver", () => {
+  it("copies the fixture into a scratch repository with every lint config under the name ESLint reads", () => {
+    expect(listedPathsOf({ repo: restored.restoredFrom({ fixtureRoot }) })).toEqual(["eslint.config.mjs", "packages/", "packages/a/", "packages/a/eslint.config.mjs", "packages/a/x.ts", "projection.mjs"]);
+  });
+
+  it("restores a fixture once and hands the same repository to every later ask", () => {
+    expect(restored.restoredFrom({ fixtureRoot })).toBe(restored.restoredFrom({ fixtureRoot }));
+  });
+
+  it("rehomes the imports of the copied modules that leave the fixture, and keeps the ones inside it", () => {
+    const repo = restored.restoredFrom({ fixtureRoot });
+    expect([
+      fileText.read({ path: `${repo}/eslint.config.mjs` }),
+      fileText.read({ path: `${repo}/projection.mjs` }),
+      fileText.read({ path: `${repo}/packages/a/eslint.config.mjs` }),
+    ]).toEqual([
+      { outcome: "ok", value: 'import projection from "./projection.mjs";\n' },
+      { outcome: "ok", value: 'import piece from "../../CD-14/plugin.ts";\n' },
+      { outcome: "ok", value: 'import projection from "../../projection.mjs";\n' },
+    ]);
+  });
+});
+
+afterAll(() => {
+  scratch.removeTree({ path: parent.value });
+});

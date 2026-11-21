@@ -1,5 +1,8 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { afterAll, assert, describe, expect, it, vi } from "vitest";
+import { createDefaultScratchFilesPort } from "../scripts/install-proof-ports.ts";
 import { withSingleFileRecords, } from "./records-disk.ts";
+import { restoredFixtureRepositoriesOver } from "./restored-fixture-repository.ts";
+import { scratchRepositoriesUnder } from "./scratch-repositories.ts";
 import { runCheck } from "../core/check/run-check.ts";
 import { createDefaultFileTextPort } from "../core/platform-ports/file-text-port.ts";
 import type { GitPort } from "../core/platform-ports/git-port.ts";
@@ -57,7 +60,17 @@ describe("the shipped CD-1 rule, read from rules/CD-1/discipline.json through a 
   });
 });
 
-const CASCADE_REPO = resolvedPath({ path: `${import.meta.dirname}/test-fixtures/cd1-cascade` });
+const scratch = createDefaultScratchFilesPort({});
+
+const repositories = scratchRepositoriesUnder({ parent: resolvedPath({ path: `${import.meta.dirname}/../artefacts` }), fileText: createDefaultFileTextPort({}), scratch });
+
+afterAll(() => {
+  repositories.removeAll();
+});
+
+const CASCADE_REPO = restoredFixtureRepositoriesOver({ repositories, scratch, fileText: createDefaultFileTextPort({}), path }).restoredFrom({
+  fixtureRoot: resolvedPath({ path: `${import.meta.dirname}/test-fixtures/cd1-cascade` }),
+});
 
 const LEGACY_FILE = repoPathSchema.parse("src/legacy.ts");
 
