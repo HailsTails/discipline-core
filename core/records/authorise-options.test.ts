@@ -3,7 +3,7 @@ import { repoPathSchema } from "../values/repo-path.ts";
 import { AUTHORISE_OPTIONS, authoriseRequestOf } from "./authorise-options.ts";
 
 const FULL_VALUES: readonly (readonly [string, readonly string[]])[] = [
-  [AUTHORISE_OPTIONS.symptom, ["claimed-type#cast-expressions"]],
+  [AUTHORISE_OPTIONS.answers, ["claimed-type#cast-expressions"]],
   [AUTHORISE_OPTIONS.file, ["src/adapters/stripe-webhook.ts"]],
   [AUTHORISE_OPTIONS.case, ["gives-a-value-its-type"]],
   [AUTHORISE_OPTIONS.owes, ["declared-not-asserted"]],
@@ -21,7 +21,7 @@ describe("the arguments of hone authorise, read as the record they write", () =>
     expect(authoriseRequestOf({ values: new Map(FULL_VALUES) })).toEqual({
       outcome: "ok",
       value: {
-        symptom: "claimed-type#cast-expressions",
+        answers: "claimed-type#cast-expressions",
         file: repoPathSchema.parse("src/adapters/stripe-webhook.ts"),
         case: "gives-a-value-its-type",
         owes: "declared-not-asserted",
@@ -41,8 +41,8 @@ describe("the arguments of hone authorise, read as the record they write", () =>
   });
 
   it("needs each option, naming the first it lacks", () => {
-    expect(authoriseRequestOf({ values: new Map() })).toEqual({ outcome: "failed", error: { kind: "arguments-invalid", detail: "hone authorise needs --symptom" } });
-    expect(authoriseRequestOf({ values: new Map([[AUTHORISE_OPTIONS.symptom, ["claimed-type"]]]) })).toEqual({
+    expect(authoriseRequestOf({ values: new Map() })).toEqual({ outcome: "failed", error: { kind: "arguments-invalid", detail: "hone authorise needs --answers" } });
+    expect(authoriseRequestOf({ values: new Map([[AUTHORISE_OPTIONS.answers, ["claimed-type"]]]) })).toEqual({
       outcome: "failed",
       error: { kind: "arguments-invalid", detail: "hone authorise needs --case" },
     });

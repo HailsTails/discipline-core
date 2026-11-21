@@ -6,11 +6,11 @@ const DEBT_FILE = repoPathSchema.parse("hone-records/debt/claimed-type.json");
 
 const OTHER_FILE = repoPathSchema.parse("hone-records/debt/date-used-directly.json");
 
-const FIRST = { symptom: "claimed-type", file: "src/a.ts" };
+const FIRST = { answers: "claimed-type", file: "src/a.ts" };
 
-const SECOND = { symptom: "claimed-type#cast-expressions", file: "src/b.ts" };
+const SECOND = { answers: "claimed-type#cast-expressions", file: "src/b.ts" };
 
-const THIRD = { symptom: "claimed-type", file: "src/c.ts" };
+const THIRD = { answers: "claimed-type", file: "src/c.ts" };
 
 const HELD = { file: DEBT_FILE, document: { version: 2, records: [FIRST, SECOND] } };
 
@@ -100,7 +100,7 @@ describe("removing records from the documents hone-records holds", () => {
 describe("the text a records document is written as", () => {
   it("is the document's object at two spaces of indent, then a newline", () => {
     expect(recordsTextOf({ document: { version: 2, records: [FIRST] } })).toBe(
-      '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n',
+      '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n',
     );
   });
 });

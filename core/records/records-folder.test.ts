@@ -12,7 +12,7 @@ const REPO = absolutePathSchema.parse("/repo");
 
 const path = createPathPort({ flavour: "posix", workingDirectory: vi.fn<(request: Record<string, never>) => string>().mockReturnValue("/repo") });
 
-const DEBT_TEXT = '{ "version": 2, "records": [{ "symptom": "claimed-type", "file": "src/a.ts" }] }';
+const DEBT_TEXT = '{ "version": 2, "records": [{ "answers": "claimed-type", "file": "src/a.ts" }] }';
 
 const BOUNDARIES_TEXT = '{ "version": 2, "records": [] }';
 
@@ -56,7 +56,7 @@ describe("createRecordsFolder, read", () => {
         outcome: "ok",
         value: [
           { file: "hone-records/boundary-records.json", document: { version: 2, records: [] } },
-          { file: "hone-records/debt/claimed-type.json", document: { version: 2, records: [{ symptom: "claimed-type", file: "src/a.ts" }] } },
+          { file: "hone-records/debt/claimed-type.json", document: { version: 2, records: [{ answers: "claimed-type", file: "src/a.ts" }] } },
         ],
       },
       listed: [[{ path: "/repo/hone-records" }], [{ path: "/repo/hone-records/debt" }]],
@@ -157,7 +157,7 @@ describe("createRecordsFolder, readAt", () => {
       repoRoot: REPO,
     });
     expect({ read: folder.readAt({ revision: "origin/main" }), asked: textInBase.mock.calls }).toEqual({
-      read: { outcome: "ok", value: [{ file: "hone-records/debt/claimed-type.json", document: { version: 2, records: [{ symptom: "claimed-type", file: "src/a.ts" }] } }] },
+      read: { outcome: "ok", value: [{ file: "hone-records/debt/claimed-type.json", document: { version: 2, records: [{ answers: "claimed-type", file: "src/a.ts" }] } }] },
       asked: [[{ repoRoot: REPO, baseRevision: "origin/main", file: "hone-records/debt/claimed-type.json" }]],
     });
   });

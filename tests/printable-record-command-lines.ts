@@ -56,7 +56,7 @@ const REFUSALS: readonly (readonly [RecordRefusal, Readonly<Record<string, strin
 const ADDRESS_FILE = { address: ADDRESS, file: FILE };
 
 const MISTAKEN_CHAIN: AuthoriseRequest = {
-  symptom: "claimed-type",
+  answers: "claimed-type",
   file: FILE,
   case: "gives-a-value-its-type",
   owes: "declared-not-asserted",

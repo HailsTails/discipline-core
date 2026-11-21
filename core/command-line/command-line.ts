@@ -21,7 +21,7 @@ export type OptionName =
   | "--report-output"
   | "--forfeiture"
   | "--leave"
-  | "--symptom"
+  | "--answers"
   | "--file"
   | "--case"
   | "--owes"
@@ -124,7 +124,7 @@ const repeatedRequired = (request: { readonly name: OptionName; readonly value: 
 });
 
 export const AUTHORISE_COMMAND_OPTIONS: readonly CommandOption[] = [
-  onceRequired({ name: "--symptom", value: "<symptom>", summary: "the catalogue's name for the symptom the location is on" }),
+  onceRequired({ name: "--answers", value: "<address>", summary: "the symptom, or the symptom#check, the location answers, by the catalogue's names" }),
   onceRequired({ name: "--file", value: "<path>", summary: "the file the location is for, relative to --repo" }),
   onceRequired({ name: "--case", value: "<case>", summary: "the case the file is, as the cases page names it" }),
   onceRequired({ name: "--owes", value: "<principle>", summary: "the principle the case owes, as the cases page names it" }),

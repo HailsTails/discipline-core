@@ -129,7 +129,7 @@ const authorisedOutcome = (request: { readonly context: Context; readonly author
   const authorised = authoriseOf({ catalogue: catalogue.value, source: sourceOf({ ...context, catalogue: catalogue.value }), store: storeOf(context) })(authorising);
   return authorised.outcome === "failed"
     ? recordFailureOutcome({ context, failure: authorised.error })
-    : linesOutcome({ lines: authorisingLines({ address: authorising.symptom, file: authorising.file, authorising: authorised.value }) });
+    : linesOutcome({ lines: authorisingLines({ address: authorising.answers, file: authorising.file, authorising: authorised.value }) });
 };
 
 const authoriseOutcome: OutcomeOf = (request) => {

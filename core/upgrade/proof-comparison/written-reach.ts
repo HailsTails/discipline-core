@@ -15,11 +15,11 @@ const checkNamed = (request: { readonly address: string; readonly catalogues: re
     .flatMap((found) => (found.found === "check" ? [found.check] : []))[0];
 
 const reachOf = (request: { readonly written: WrittenRecord; readonly inputs: readonly RecordInput[]; readonly catalogues: readonly RuleSetCatalogue[] }): Reach => {
-  const reach = recordedReachSchema.safeParse(request.written.symptom);
+  const reach = recordedReachSchema.safeParse(request.written.answers);
   if (!reach.success || reach.data.reaches !== "one-check") {
     return "beyond-the-entries";
   }
-  const check = checkNamed({ address: request.written.symptom, catalogues: request.catalogues });
+  const check = checkNamed({ address: request.written.answers, catalogues: request.catalogues });
   const held =
     check !== undefined &&
     request.inputs.some(
@@ -36,4 +36,4 @@ export const reachBeyondEntriesOf = (request: {
 }): readonly ReachBeyondEntries[] =>
   request.written
     .filter((written) => reachOf({ written, inputs: request.inputs, catalogues: request.catalogues }) === "beyond-the-entries")
-    .map(({ symptom, file }) => ({ symptom, file }));
+    .map(({ answers, file }) => ({ symptom: answers, file }));

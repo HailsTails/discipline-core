@@ -153,7 +153,7 @@ const DEVIATIONS_FILE = repoPathSchema.parse("hone-records/deviations/stub-with-
 const DEPENDENCIES_FILE = repoPathSchema.parse("hone-records/dependency-records.json");
 
 const STATED_AUTHORISED_LOCATION = {
-  symptom: "claimed-type",
+  answers: "claimed-type",
   file: "src/adapters/stripe-webhook.ts",
   case: "gives-a-value-its-type",
   owes: "declared-not-asserted",
@@ -168,7 +168,7 @@ const CARRIED_ENTRY = {
   provenance: { kind: "existing-authorisation", source: "docs/decisions/0007-stripe.md" },
 };
 
-const CARRIED_AUTHORISED_LOCATION = { symptom: "claimed-type", file: "src/adapters/stripe-webhook.ts", carried: CARRIED_ENTRY };
+const CARRIED_AUTHORISED_LOCATION = { answers: "claimed-type", file: "src/adapters/stripe-webhook.ts", carried: CARRIED_ENTRY };
 
 const DEVIATION = {
   recipe: "stub-with-vifn",
@@ -182,7 +182,7 @@ const DEVIATION = {
 describe("recordOf, debt", () => {
   it("reads the plan's debt record, which states the symptom and the site and nothing more", () => {
     expect(
-      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts" } }),
+      recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { answers: "text-past-its-reader", file: "src/orders/charge-order.test.ts" } }),
     ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: TEXT_PAST_ITS_READER, reach: WHOLE_SYMPTOM, file: "src/orders/charge-order.test.ts", holding: { held: "stated" } } });
   });
 
@@ -193,7 +193,7 @@ describe("recordOf, debt", () => {
         base: UNMEASURED,
         file: DEBT_FILE,
         filedUnder: { kind: "debt" },
-        entry: { symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts", note: "paid with the orders rewrite" },
+        entry: { answers: "text-past-its-reader", file: "src/orders/charge-order.test.ts", note: "paid with the orders rewrite" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -207,7 +207,7 @@ describe("recordOf, debt", () => {
     { symptom: BRANCH_IN_A_TEST, file: repoPathSchema.parse("hone-records/debt/branch-in-a-test.json") },
     { symptom: DOUBLE_WITH_A_BODY, file: repoPathSchema.parse("hone-records/debt/double-with-a-body.json") },
   ])("accepts debt on $symptom.name, since every symptom accepts debt", ({ symptom, file }) => {
-    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file, filedUnder: { kind: "debt" }, entry: { symptom: symptom.name, file: "src/held.ts" } })).toEqual({
+    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file, filedUnder: { kind: "debt" }, entry: { answers: symptom.name, file: "src/held.ts" } })).toEqual({
       outcome: "ok",
       value: { kind: "debt", symptom, reach: WHOLE_SYMPTOM, file: "src/held.ts", holding: { held: "stated" } },
     });
@@ -215,21 +215,21 @@ describe("recordOf, debt", () => {
 
   it("refuses debt on a symptom the catalogue does not hold", () => {
     const file = repoPathSchema.parse("hone-records/debt/unheard-of.json");
-    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file, filedUnder: { kind: "debt" }, entry: { symptom: "unheard-of", file: "src/held.ts" } })).toEqual({
+    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file, filedUnder: { kind: "debt" }, entry: { answers: "unheard-of", file: "src/held.ts" } })).toEqual({
       outcome: "failed",
       error: [{ kind: "unknown-symptom", symptom: "unheard-of" }],
     });
   });
 
   it("refuses debt filed under another symptom's file, naming the file it belongs in", () => {
-    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom: "claimed-type", file: "src/held.ts" } })).toEqual({
+    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { answers: "claimed-type", file: "src/held.ts" } })).toEqual({
       outcome: "failed",
       error: [{ kind: "misplaced", belongsIn: "hone-records/debt/claimed-type.json" }],
     });
   });
 
   it("refuses debt that names no site, with the form's issues as values", () => {
-    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom: "text-past-its-reader" } })).toEqual({
+    expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { answers: "text-past-its-reader" } })).toEqual({
       outcome: "failed",
       error: [{ kind: "form-refused", issues: [expect.objectContaining({ code: "invalid_type", path: ["file"] })] }],
     });
@@ -257,7 +257,7 @@ describe("recordOf, authorised locations", () => {
         base: UNMEASURED,
         file: repoPathSchema.parse("hone-records/authorised-locations/branch-in-a-test.json"),
         filedUnder: { kind: "authorised-locations" },
-        entry: { ...STATED_AUTHORISED_LOCATION, symptom: "branch-in-a-test", case: "states-what-the-unit-gives-back-for-one-case-or-several", owes: "straight-through-tests" },
+        entry: { ...STATED_AUTHORISED_LOCATION, answers: "branch-in-a-test", case: "states-what-the-unit-gives-back-for-one-case-or-several", owes: "straight-through-tests" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -340,7 +340,7 @@ describe("recordOf, authorised locations", () => {
         filedUnder: { kind: "authorised-locations" },
         entry: {
           ...STATED_AUTHORISED_LOCATION,
-          symptom: "text-past-its-reader",
+          answers: "text-past-its-reader",
           file: "src/orders/charge-order.test.ts",
           case: "states-what-the-unit-gives-back-for-one-case-or-several",
           owes: "written-out-answers",
@@ -385,7 +385,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: DEBT_ON_CLAIMED_TYPE_FILE,
         filedUnder: { kind: "debt" },
-        entry: { symptom: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
+        entry: { answers: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -400,7 +400,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: AUTHORISED_FILE,
         filedUnder: { kind: "authorised-locations" },
-        entry: { ...STATED_AUTHORISED_LOCATION, symptom: "claimed-type#cast-expressions" },
+        entry: { ...STATED_AUTHORISED_LOCATION, answers: "claimed-type#cast-expressions" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -421,7 +421,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: AUTHORISED_FILE,
         filedUnder: { kind: "authorised-locations" },
-        entry: { ...CARRIED_AUTHORISED_LOCATION, symptom: "claimed-type#cast-expressions" },
+        entry: { ...CARRIED_AUTHORISED_LOCATION, answers: "claimed-type#cast-expressions" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -436,16 +436,16 @@ describe("recordOf, a record naming one check of its symptom", () => {
   });
 
   it.each([
-    { name: "a check the catalogue does not hold", symptom: "claimed-type#non-null-assertions", check: "non-null-assertions" },
-    { name: "another symptom's check", symptom: "claimed-type#test-body", check: "test-body" },
-  ])("refuses debt naming $name for its symptom", ({ symptom, check }) => {
+    { name: "a check the catalogue does not hold", answers: "claimed-type#non-null-assertions", check: "non-null-assertions" },
+    { name: "another symptom's check", answers: "claimed-type#test-body", check: "test-body" },
+  ])("refuses debt naming $name for its symptom", ({ answers, check }) => {
     expect(
       recordOf({
         catalogue: CATALOGUE,
         base: UNMEASURED,
         file: DEBT_ON_CLAIMED_TYPE_FILE,
         filedUnder: { kind: "debt" },
-        entry: { symptom, file: "src/adapters/stripe-webhook.ts" },
+        entry: { answers, file: "src/adapters/stripe-webhook.ts" },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "unknown-check", symptom: "claimed-type", check }] });
   });
@@ -457,7 +457,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: AUTHORISED_FILE,
         filedUnder: { kind: "authorised-locations" },
-        entry: { ...STATED_AUTHORISED_LOCATION, symptom: "claimed-type#non-null-assertions" },
+        entry: { ...STATED_AUTHORISED_LOCATION, answers: "claimed-type#non-null-assertions" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -478,7 +478,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: AUTHORISED_FILE,
         filedUnder: { kind: "authorised-locations" },
-        entry: { ...CARRIED_AUTHORISED_LOCATION, symptom: "claimed-type#test-body" },
+        entry: { ...CARRIED_AUTHORISED_LOCATION, answers: "claimed-type#test-body" },
       }),
     ).toEqual({
       outcome: "ok",
@@ -499,7 +499,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: DEBT_FILE,
         filedUnder: { kind: "debt" },
-        entry: { symptom: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
+        entry: { answers: "claimed-type#cast-expressions", file: "src/adapters/stripe-webhook.ts" },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "misplaced", belongsIn: "hone-records/debt/claimed-type.json" }] });
   });
@@ -511,7 +511,7 @@ describe("recordOf, a record naming one check of its symptom", () => {
         base: UNMEASURED,
         file: repoPathSchema.parse("hone-records/debt/unheard-of.json"),
         filedUnder: { kind: "debt" },
-        entry: { symptom: "unheard-of#cast-expressions", file: "src/held.ts" },
+        entry: { answers: "unheard-of#cast-expressions", file: "src/held.ts" },
       }),
     ).toEqual({ outcome: "failed", error: [{ kind: "unknown-symptom", symptom: "unheard-of" }] });
   });
@@ -619,7 +619,7 @@ describe("recordOf, carried records", () => {
         base: UNMEASURED,
         file: DEBT_FILE,
         filedUnder: { kind: "debt" },
-        entry: { symptom: "text-past-its-reader", file: "src/orders/charge-order.test.ts", carried: entry },
+        entry: { answers: "text-past-its-reader", file: "src/orders/charge-order.test.ts", carried: entry },
       }),
     ).toEqual({
       outcome: "ok",
@@ -767,12 +767,12 @@ describe("recordOf, boundary records", () => {
 });
 
 describe("recordOf, a record's own text never stops the reader", () => {
-  it.each([{ symptom: "/x" }, { symptom: "../claimed-type" }, { symptom: "claimed type" }, { symptom: "Claimed-Type" }])(
-    "refuses debt whose symptom is written $symptom as a form refusal",
-    ({ symptom }) => {
-      expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { symptom, file: "src/held.ts" } })).toEqual({
+  it.each([{ answers: "/x" }, { answers: "../claimed-type" }, { answers: "claimed type" }, { answers: "Claimed-Type" }])(
+    "refuses debt whose address is written $answers as a form refusal",
+    ({ answers }) => {
+      expect(recordOf({ catalogue: CATALOGUE, base: UNMEASURED, file: DEBT_FILE, filedUnder: { kind: "debt" }, entry: { answers, file: "src/held.ts" } })).toEqual({
         outcome: "failed",
-        error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["symptom"] })] }],
+        error: [{ kind: "form-refused", issues: [expect.objectContaining({ path: ["answers"] })] }],
       });
     },
   );
@@ -940,7 +940,7 @@ describe("recordOf, a named ban refuses no debt and no authorised location", () 
         base: UNMEASURED,
         file: repoPathSchema.parse("hone-records/debt/claimed-type.json"),
         filedUnder: { kind: "debt" },
-        entry: { symptom: "claimed-type", file: "src/collections/lodash-grouping.ts" },
+        entry: { answers: "claimed-type", file: "src/collections/lodash-grouping.ts" },
       }),
     ).toEqual({ outcome: "ok", value: { kind: "debt", symptom: CLAIMED_TYPE, reach: WHOLE_SYMPTOM, file: "src/collections/lodash-grouping.ts", holding: { held: "stated" } } });
   });

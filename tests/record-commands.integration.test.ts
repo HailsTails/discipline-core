@@ -84,7 +84,7 @@ const pruneDebt = pruneDebtOf({ source, store });
 
 const authorise = authoriseOf({ catalogue, source, store });
 
-const DEBT_TEXT = '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/orders/charge-order.ts"\n    }\n  ]\n}\n';
+const DEBT_TEXT = '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "claimed-type",\n      "file": "src/orders/charge-order.ts"\n    }\n  ]\n}\n';
 
 const textOf = (request: { readonly file: string }): string => {
   const read = fileText.read({ path: `${made.value}/${request.file}` });
@@ -122,7 +122,7 @@ describe("the version 2 record commands over a real hone-records folder, built i
   it("authorise writes the record the reader reads; the debt it now answers in place of is paid, and prune-debt removes exactly that", () => {
     recordDebt({ findings: [CAST_IN_ORDERS], unrecorded: [], runs: [], touched: NOTHING_CHANGED, leave: [] });
     const authorised = authorise({
-      symptom: "claimed-type",
+      answers: "claimed-type",
       file: ORDER_FILE,
       case: "gives-a-value-its-type",
       owes: "declared-not-asserted",

@@ -64,7 +64,7 @@ const additionOf = (request: { readonly outcome: DebtOutcome }): Commanded<reado
   const file = namedRecordsFileOf({ kind: "debt", name: symptomNameOf({ address: request.outcome.address }) });
   return file.outcome === "failed"
     ? { outcome: "failed", error: { kind: "records-folder", failure: { kind: "not-a-records-name", folder: DEBT_FOLDER, name: file.error.name } } }
-    : { outcome: "ok", value: [{ file: file.value, entry: { symptom: request.outcome.address, file: request.outcome.file } }] };
+    : { outcome: "ok", value: [{ file: file.value, entry: { answers: request.outcome.address, file: request.outcome.file } }] };
 };
 
 const additionsOf = (request: { readonly outcomes: readonly DebtOutcome[] }): Commanded<readonly RecordAddition[]> =>

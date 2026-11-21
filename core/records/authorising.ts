@@ -9,7 +9,7 @@ import { namedRecordsFileOf } from "./records-layout.ts";
 import { recordsReadingOf } from "./records-reading.ts";
 
 export type AuthoriseRequest = {
-  readonly symptom: string;
+  readonly answers: string;
   readonly file: RepoPath;
   readonly case: string;
   readonly owes: string;
@@ -34,8 +34,8 @@ type Judging = {
 const UNMEASURED_BASE: RecordsAtBase = { measured: "no", base: { state: "not-given" } };
 
 const entryOf = (request: { readonly request: AuthoriseRequest }): RecordAddition["entry"] => {
-  const { symptom, file, case: caseName, owes, whys, rootCause, rootEvidence, readback, owner } = request.request;
-  return { symptom, file, case: caseName, owes, whyChain: { whys, rootCause, rootEvidence, readback, owner } };
+  const { answers, file, case: caseName, owes, whys, rootCause, rootEvidence, readback, owner } = request.request;
+  return { answers, file, case: caseName, owes, whyChain: { whys, rootCause, rootEvidence, readback, owner } };
 };
 
 const refusedOutcome = (request: { readonly refusals: readonly RecordRefusal[] }): Authorising => {
@@ -70,7 +70,7 @@ export const authorisingOf = (request: {
   readonly documents: readonly RecordsDocument[];
   readonly catalogue: SymptomCatalogue;
 }): Result<Authorising, RecordsEditFailure> => {
-  const file = namedRecordsFileOf({ kind: "authorised-locations", name: symptomNameOf({ address: request.request.symptom }) });
+  const file = namedRecordsFileOf({ kind: "authorised-locations", name: symptomNameOf({ address: request.request.answers }) });
   if (file.outcome === "failed") {
     return { outcome: "ok", value: { judged: "refused", refusals: [file.error] } };
   }

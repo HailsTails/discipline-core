@@ -8,7 +8,7 @@ import { type RecordsRepository, recipeReasonIn, recordsRepositoryIn, type Scrat
 const ROOT = "/tmp/hone-records-1";
 
 const REPOSITORY: RecordsRepository = {
-  base: [{ folder: "hone-records/debt", name: "claimed-type.json", records: [{ symptom: "claimed-type", file: "src/a.ts" }] }],
+  base: [{ folder: "hone-records/debt", name: "claimed-type.json", records: [{ answers: "claimed-type", file: "src/a.ts" }] }],
   working: [{ folder: "hone-records", name: "dependency-records.json", records: [{ dependency: "zod", nativeWay: "parsing", whyNotEnough: "Repeated." }] }],
 };
 
@@ -58,7 +58,7 @@ describe("recordsRepositoryIn", () => {
     expect({ made: recordsRepositoryIn({ ports: portsOf({ createTemporaryDirectory: madeAt(), write, run }), repository: REPOSITORY }), writes: write.mock.calls, runs: run.mock.calls }).toEqual({
       made: { outcome: "ok", value: ROOT },
       writes: [
-        [{ path: "/tmp/hone-records-1/hone-records/debt/claimed-type.json", text: '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' }],
+        [{ path: "/tmp/hone-records-1/hone-records/debt/claimed-type.json", text: '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' }],
         [
           {
             path: "/tmp/hone-records-1/hone-records/dependency-records.json",

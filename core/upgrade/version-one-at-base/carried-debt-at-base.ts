@@ -12,12 +12,12 @@ import type { VersionOneEntry } from "./version-one-entries.ts";
 
 const carveOutEntrySchema = z.looseObject({ kind: z.literal("file-carve-out"), clause: clauseAddressSchema, file: repoPathSchema });
 
-type PlacedDebt = { readonly file: RepoPath; readonly record: { readonly symptom: string; readonly file: RepoPath; readonly carried: VersionOneEntry } };
+type PlacedDebt = { readonly file: RepoPath; readonly record: { readonly answers: string; readonly file: RepoPath; readonly carried: VersionOneEntry } };
 
 const debtAt = (request: { readonly check: Check; readonly entry: VersionOneEntry; readonly file: RepoPath }): readonly PlacedDebt[] => {
   const filed = namedRecordsFileOf({ kind: "debt", name: request.check.symptom.name });
   return filed.outcome === "ok"
-    ? [{ file: filed.value, record: { symptom: checkAddressOf({ check: request.check }), file: request.file, carried: request.entry } }]
+    ? [{ file: filed.value, record: { answers: checkAddressOf({ check: request.check }), file: request.file, carried: request.entry } }]
     : [];
 };
 

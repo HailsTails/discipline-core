@@ -83,7 +83,7 @@ hone check --repo <dir> [--base-revision <revision>] [--report-output <full|fail
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
-hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
+hone authorise --repo <dir> --answers <address> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
 hone split-records --repo <dir>
 hone upgrade --repo <dir>
 hone --help
@@ -205,15 +205,15 @@ exit codes:
 `hone authorise --help` prints:
 
 ```text
-usage: hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
+usage: hone authorise --repo <dir> --answers <address> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
 
 write one authorised location to the records of a hone.config.json repository from the arguments given, with the why chain given, printing what was done
 
 options:
   --repo <dir>
       the folder that holds hone.config.json, usually the repository root
-  --symptom <symptom>
-      the catalogue's name for the symptom the location is on
+  --answers <address>
+      the symptom, or the symptom#check, the location answers, by the catalogue's names
   --file <path>
       the file the location is for, relative to --repo
   --case <case>
@@ -851,7 +851,7 @@ hone check --repo <dir> [--base-revision <revision>] [--report-output <full|acti
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
-hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
+hone authorise --repo <dir> --answers <address> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
 hone upgrade --repo <dir>
 hone --help
 hone --version
@@ -957,15 +957,15 @@ exit codes:
 ```
 
 ```text
-usage: hone authorise --repo <dir> --symptom <symptom> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
+usage: hone authorise --repo <dir> --answers <address> --file <path> --case <case> --owes <principle> --why <question>... --because <answer>... --evidence <evidence>... --root-cause <text> --root-evidence <text> --readback <text> --owner <owner>
 
 write one authorised location to hone-records from the arguments given, with the why chain given, printing what was done
 
 options:
   --repo <dir>
       the folder that holds hone.config.json, usually the repository root
-  --symptom <symptom>
-      the catalogue's name for the symptom the location is on
+  --answers <address>
+      the symptom, or the symptom#check, the location answers, by the catalogue's names
   --file <path>
       the file the location is for, relative to --repo
   --case <case>

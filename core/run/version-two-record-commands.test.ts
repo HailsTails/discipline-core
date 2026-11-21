@@ -151,7 +151,7 @@ const DEBT_FILE = "hone-records/debt/claimed-type.json";
 
 const PROJECT_LINE = "run node /install/core/check/tool-command.ts project --repo /repo to put the recorded debt into effect\n";
 
-const DEBT_DOCUMENT = '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type#cast-expressions",\n      "file": "src/a.ts"\n    }\n  ]\n}\n';
+const DEBT_DOCUMENT = '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "claimed-type#cast-expressions",\n      "file": "src/a.ts"\n    }\n  ]\n}\n';
 
 describe("versionTwoRecordDebtCommandOf", () => {
   it("builds the stages over the repository, the install and the base revision given, and measures the change whether or not debt is held", async () => {
@@ -299,7 +299,7 @@ describe("versionTwoPruneDebtCommandOf", () => {
       handler: versionTwoPruneDebtCommandOf,
       arguments: ["--repo", "/repo"],
       stages: HELD_DEBT_STAGES,
-      files: { "hone-records/debt/claimed-type.json": '{\n  "version": 2,\n  "records": [\n    {\n      "symptom": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' },
+      files: { "hone-records/debt/claimed-type.json": '{\n  "version": 2,\n  "records": [\n    {\n      "answers": "claimed-type",\n      "file": "src/a.ts"\n    }\n  ]\n}\n' },
     });
     expect({ writes: ran.writes, exits: ran.exits }).toEqual({ writes: [[{ text: "claimed-type removed src/a.ts: stale\n" }]], exits: [[{ code: 0 }]] });
     expect(ran.repository.filesHeld()).toEqual([]);

@@ -178,7 +178,7 @@ const debtOf = (request: Resolving): Resolution<Debt> => {
   if (form.outcome === "failed") {
     return form;
   }
-  const { symptom: recorded, file, note, carried } = form.value;
+  const { answers: recorded, file, note, carried } = form.value;
   const symptom = debtSymptomFiledAt({ ...request, recorded });
   const holding = debtHoldingOf({ ...request, carried });
   if (symptom.outcome === "failed" || holding.outcome === "failed") {
@@ -192,7 +192,7 @@ const statedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedLo
   if (form.outcome === "failed") {
     return form;
   }
-  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.symptom });
+  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.answers });
   if (symptom.outcome === "failed") {
     return symptom;
   }
@@ -209,7 +209,7 @@ const carriedAuthorisedLocationOf = (request: Resolving): Resolution<AuthorisedL
   if (form.outcome === "failed") {
     return form;
   }
-  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.symptom });
+  const symptom = symptomFiledAt({ ...request, kind: "authorised-locations", recorded: form.value.answers });
   const standing = carriedStandingOf(request);
   if (symptom.outcome === "failed" || standing.outcome === "failed") {
     return { outcome: "failed", error: [...refusalsOf(symptom), ...refusalsOf(standing)] };

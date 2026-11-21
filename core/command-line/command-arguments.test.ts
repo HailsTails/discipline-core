@@ -206,4 +206,10 @@ describe("parseAuthoriseArguments", () => {
       invalid({ detail: argumentProblemText({ problem: { kind: "option-unknown", subcommand: "authorise", given: "--root-check" } }) }),
     );
   });
+
+  it("refuses --symptom, the version 1 name, as an unknown option", () => {
+    expect(parseAuthoriseArguments({ arguments: ["--repo", "/work/repo", "--symptom", "claimed-type"] })).toEqual(
+      invalid({ detail: argumentProblemText({ problem: { kind: "option-unknown", subcommand: "authorise", given: "--symptom" } }) }),
+    );
+  });
 });
