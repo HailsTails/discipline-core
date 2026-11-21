@@ -21,7 +21,7 @@ import type { Finding } from "../governance/governance.ts";
 import type { PlacedRecord } from "../records/hone-record.ts";
 import { editionSchema } from "../values/edition.ts";
 import { repoPathSchema } from "../values/repo-path.ts";
-import type { ReportOutput } from "../values/report-output.ts";
+import type { VersionTwoReportOutput } from "../values/report-output.ts";
 import type { RunReport } from "./run-report.ts";
 import { renderRunReportText } from "./run-report-text.ts";
 
@@ -136,7 +136,7 @@ const LINES = {
   symptoms: `date-used-directly: Date used directly. May indicate: needs the current time, a random value, a new id or an outside ordering → Ports declared inside, Written-out answers; does one job → Doer or orchestrator. The breach usually sits in the unit that should be passed the time, often a doer doing two jobs. Recipe: World values through a port. Correct use: a boundary record on the clock adapter. Known debt: debt. Read ${SYMPTOM_PAGE}#date-used-directly`,
 };
 
-const rendered = (request: { readonly report: RunReport; readonly output: ReportOutput }): string =>
+const rendered = (request: { readonly report: RunReport; readonly output: VersionTwoReportOutput }): string =>
   renderRunReportText({ ...request, catalogue: REPORT_CATALOGUE, symptomPage: SYMPTOM_PAGE, projectCommand: PROJECT_COMMAND, pruneCommand: PRUNE_COMMAND });
 
 describe("renderRunReportText", () => {
@@ -151,7 +151,7 @@ describe("renderRunReportText", () => {
   });
 
   it("leaves out the informational sections when it prints failures only, and keeps paid debt, whose next step a hook must see", () => {
-    expect(rendered({ report: EVERY_SECTION, output: "failures-only" })).toBe(
+    expect(rendered({ report: EVERY_SECTION, output: "actionable" })).toBe(
       `findings (1)\n${LINES.findings}\nuncovered (1)\n${LINES.uncovered}\nstale (1)\n${LINES.stale}\nforfeited (1)\n${LINES.forfeited}\nunrecorded (1)\n${LINES.unrecorded}\nmisnamed (1)\n${LINES.misnamed}\npaid (1)\n${LINES.paid}\nrefused (1)\n${LINES.refused}\nunmeasured (1)\n${LINES.unmeasured}\nprojection-problems (1)\n${LINES.projectionProblems}\nsymptoms (1)\n${LINES.symptoms}\nverdict: fail (partial assessment)\n`,
     );
   });
@@ -180,7 +180,7 @@ describe("renderRunReportText", () => {
   });
 
   it("passes a run whose only entry is paid debt, and prints it with its next step when it prints failures only", () => {
-    expect(rendered({ report: { ...EMPTY_REPORT, paid: EVERY_SECTION.paid }, output: "failures-only" })).toBe(`paid (1)\n${LINES.paid}\nverdict: pass\n`);
+    expect(rendered({ report: { ...EMPTY_REPORT, paid: EVERY_SECTION.paid }, output: "actionable" })).toBe(`paid (1)\n${LINES.paid}\nverdict: pass\n`);
   });
 
   it("passes a run with a partial assessment and says so", () => {

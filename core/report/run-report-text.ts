@@ -1,5 +1,5 @@
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
-import type { ReportOutput } from "../values/report-output.ts";
+import type { VersionTwoReportOutput } from "../values/report-output.ts";
 import { forfeitedLine, type PruneCommand, paidLine, staleLine } from "./debt-lines.ts";
 import { answeredLine, checkLine, editionLine, findingLine, notRunLine, unrecordedLines } from "./finding-lines.ts";
 import { misnamedLine } from "./misnamed-lines.ts";
@@ -14,7 +14,7 @@ export type RunReportRequest = PruneCommand & {
   readonly catalogue: SymptomCatalogue;
   readonly symptomPage: string;
   readonly projectCommand: string;
-  readonly output: ReportOutput;
+  readonly output: VersionTwoReportOutput;
 };
 
 type SectionLines = (request: RunReportRequest) => readonly string[];
@@ -52,12 +52,12 @@ const countLine = (request: { readonly section: PrintedSection }): string => {
   return role === "failing" ? headingOf(request) : `${headingOf(request)} ${role}`;
 };
 
-const printedLines = (request: { readonly output: ReportOutput; readonly section: PrintedSection }): readonly string[] => {
+const printedLines = (request: { readonly output: VersionTwoReportOutput; readonly section: PrintedSection }): readonly string[] => {
   const headed = [headingOf(request), ...request.section.lines];
   switch (request.output) {
     case "full":
       return headed;
-    case "failures-only":
+    case "actionable":
       return runSectionRoleOf({ section: request.section.name }) === "informational" ? [] : headed;
     case "counts":
       return [countLine(request)];

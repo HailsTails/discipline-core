@@ -8,6 +8,7 @@ import { settledClauseSettings } from "../upgrade/version-one-settings/clause-se
 import { defaultClauseSettings } from "../settings/default-clause-settings.ts";
 import { editionPinOf } from "../settings/edition-pin.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
+import type { ReportOutput } from "../values/report-output.ts";
 import type { ClauseBinding, ClauseEditionReading, SelectionReading } from "../settings/selection.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { type ClauseAddress, clauseAddressText, sameClauseAddress, TOOL_RULE_SET } from "../values/clause-address.ts";
@@ -473,7 +474,7 @@ export const readRunSettings = (request: {
   readonly fileText: FileTextPort;
   readonly path: PathPort;
   readonly repoRoot: AbsolutePath;
-}): Result<RunSettings, LoadFailure> => {
+}): Result<RunSettings<ReportOutput>, LoadFailure> => {
   const file = readSelectionFile({ fileText: request.fileText, path: selectionFilePathOf(request) });
   return file.outcome === "failed" ? file : { outcome: "ok", value: runSettingsOf({ file: file.value }) };
 };

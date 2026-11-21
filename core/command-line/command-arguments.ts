@@ -1,6 +1,5 @@
 import { type RepoPath, repoPathSchema } from "../values/repo-path.ts";
 import { type ForfeitureAssessment, forfeitureAssessmentSchema, WAIVED_CLAUSES_REPLACEMENT } from "../values/assessment.ts";
-import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import { type ArgumentProblem, argumentsInvalid } from "./argument-problem.ts";
 import {
@@ -22,10 +21,10 @@ import {
 } from "./command-line.ts";
 import type { LoadFailure } from "./load-failure.ts";
 
-export type CheckArguments = {
+export type CheckArguments<Output extends string> = {
   readonly repo: string;
   readonly baseRevision: string | undefined;
-  readonly reportOutput: ReportOutput | undefined;
+  readonly reportOutput: Output | undefined;
   readonly forfeiture: ForfeitureAssessment | undefined;
 };
 
@@ -164,12 +163,15 @@ const chosenValue = <Choice extends string>(request: {
   return { outcome: "ok", value: chosen };
 };
 
-const checkArgumentsOf = (request: { readonly values: OptionValues }): Result<CheckArguments, LoadFailure> => {
+const checkArgumentsOf = <Output extends string>(request: {
+  readonly values: OptionValues;
+  readonly reportOutputs: readonly Output[];
+}): Result<CheckArguments<Output>, LoadFailure> => {
   const repo = requiredRepo({ subcommand: "check", values: request.values });
   if (repo.outcome === "failed") {
     return repo;
   }
-  const reportOutput = chosenValue({ option: REPORT_OUTPUT_OPTION, choices: reportOutputSchema.options, values: request.values });
+  const reportOutput = chosenValue({ option: REPORT_OUTPUT_OPTION, choices: request.reportOutputs, values: request.values });
   if (reportOutput.outcome === "failed") {
     return reportOutput;
   }
@@ -188,11 +190,12 @@ const checkArgumentsOf = (request: { readonly values: OptionValues }): Result<Ch
   };
 };
 
-export const parseCheckArguments = (request: {
+export const parseCheckArguments = <Output extends string>(request: {
   readonly arguments: readonly string[];
-}): Result<CheckArguments, LoadFailure> => {
+  readonly reportOutputs: readonly Output[];
+}): Result<CheckArguments<Output>, LoadFailure> => {
   const values = givenOptionValues({ subcommand: "check", arguments: request.arguments });
-  return values.outcome === "failed" ? values : checkArgumentsOf({ values: values.value });
+  return values.outcome === "failed" ? values : checkArgumentsOf({ values: values.value, reportOutputs: request.reportOutputs });
 };
 
 const pruneDebtArgumentsOf = (request: { readonly values: OptionValues }): Result<PruneDebtArguments, LoadFailure> => {

@@ -1,5 +1,6 @@
 import { createSelectionRepository, readRunSettings } from "../consumer-selection/consumer-selection.ts";
 import type { RunSettings } from "../settings/run-settings.ts";
+import type { ReportOutput } from "../values/report-output.ts";
 import type { DebtPair } from "../upgrade/version-one-records/debt-pair.ts";
 import type { ExceptionRepository } from "../upgrade/version-one-records/exception-records.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
@@ -19,7 +20,7 @@ import { type ReachedCheck, runReachedCheck } from "./run-check.ts";
 type PruneResult = Result<readonly DebtPair[], LoadFailure>;
 
 export type RunSettingsReader = {
-  readonly read: (request: Record<string, never>) => Result<RunSettings, LoadFailure>;
+  readonly read: (request: Record<string, never>) => Result<RunSettings<ReportOutput>, LoadFailure>;
 };
 
 export type PruneCheck = (request: {

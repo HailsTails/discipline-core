@@ -679,7 +679,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 
 ## The version 2 report
 
-`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; a next-step, informational or guidance section never does, so paid debt, a note, an answered finding, a carried record or a symptom never fails a run. `failures-only` prints the failing, next-step and guidance sections and leaves out the informational ones, so a hook that prints failures only still shows paid debt and the command that removes it. A passing run can therefore print a `paid` section under `failures-only`, so a hook tells pass from fail by the exit code, not by whether anything was printed.
+`hone check` prints the report's non-empty sections in this order, then the verdict line. A failing section makes the verdict `fail`; a next-step, informational or guidance section never does, so paid debt, a note, an answered finding, a carried record or a symptom never fails a run. `actionable` prints the failing, next-step and guidance sections and leaves out the informational ones, so a hook that prints failures only still shows paid debt and the command that removes it. A passing run can therefore print a `paid` section under `actionable`, so a hook tells pass from fail by the exit code, not by whether anything was printed.
 
 | Section | Role | What it lists |
 | --- | --- | --- |
@@ -704,7 +704,7 @@ As in 1.x, a minor release may add a section, a line form or a value, and a tool
 | `carried` | informational | records carried from version 1 word for word, with what each lacks |
 | `symptoms` | guidance | one note for each symptom the findings name |
 
-The outputs are those of 1.x: `full`, `failures-only`, `counts` and `verdict-only`.
+The outputs are `full`, `actionable`, `counts` and `verdict-only`; `actionable` is the output version 1 called `failures-only`, and `hone upgrade` writes a version 1 `failures-only` as `actionable`. A version 2 settings file or `--report-output` that says `failures-only` is refused like any other word that is not an output.
 
 | Line | Template |
 | --- | --- |
@@ -847,7 +847,7 @@ The help below is what `hone --help` and `hone <command> --help` print for a rep
 
 The commands, their options and their exit codes are those of 1.x, with `split-records` removed; `upgrade` is the command listed above, with the help shown here. Help says "debt" where 1.x said "file carve-out", and "forfeiture" where 1.x said "decay". The synopsis, then the help of the tool and of each command, exactly as printed:
 ```text
-hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+hone check --repo <dir> [--base-revision <revision>] [--report-output <full|actionable|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 hone project --repo <dir>
 hone record-debt --repo <dir> --base-revision <revision> [--leave <path>]...
 hone prune-debt --repo <dir> [--base-revision <revision>] [--forfeiture <this-run|elsewhere>]
@@ -878,7 +878,7 @@ run hone <command> --help for a command's options and exit codes
 ```
 
 ```text
-usage: hone check --repo <dir> [--base-revision <revision>] [--report-output <full|failures-only|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
+usage: hone check --repo <dir> [--base-revision <revision>] [--report-output <full|actionable|counts|verdict-only>] [--forfeiture <this-run|elsewhere>]
 
 check the repository against the checks hone.config.json lists and print the report, ending in its verdict
 
@@ -887,7 +887,7 @@ options:
       the folder that holds hone.config.json, usually the repository root
   --base-revision <revision>
       the revision the change is measured from; without it no debt can be forfeited and no carried record is checked against it
-  --report-output <full|failures-only|counts|verdict-only>
+  --report-output <full|actionable|counts|verdict-only>
       how much of the report to print, over reportOutput in hone.config.json; full when neither is set
   --forfeiture <this-run|elsewhere>
       check debt for forfeiture in this run or leave it to another, over forfeiture in hone.config.json; this-run when neither is set

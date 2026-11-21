@@ -2,7 +2,7 @@ import { AUTHORISE_COMMAND_OPTIONS, COMMANDS, type CommandOption, type CommandSp
 import { RECORDS_FOLDER } from "../records/records-layout.ts";
 import { SETTINGS_FILE_NAME } from "../settings/settings-sources.ts";
 import { forfeitureAssessmentSchema } from "../values/assessment.ts";
-import { reportOutputSchema } from "../values/report-output.ts";
+import { versionTwoReportOutputSchema } from "../values/report-output.ts";
 import { TOOL_IDENTITY } from "../values/tool-identity.ts";
 
 export type RunSubcommand = "check" | "project" | "record-debt" | "prune-debt" | "authorise" | "upgrade";
@@ -47,7 +47,7 @@ const BASE_REVISION_OPTION: CommandOption = {
 
 const REPORT_OUTPUT_OPTION: CommandOption = {
   name: "--report-output",
-  value: choiceValue({ choices: reportOutputSchema.options }),
+  value: choiceValue({ choices: versionTwoReportOutputSchema.options }),
   need: "optional",
   occurrence: "once",
   summary: `how much of the report to print, over reportOutput in ${SETTINGS_FILE_NAME}; full when neither is set`,

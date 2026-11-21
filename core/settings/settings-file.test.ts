@@ -157,6 +157,11 @@ describe("settingsFileOf", () => {
       fault: { kind: "malformed", detail: "✖ Invalid option: expected one of \"this-run\"|\"elsewhere\"\n  → at forfeiture" },
     },
     {
+      name: "the version 1 report output failures-only, which version 2 calls actionable",
+      document: { ...SMALLEST_DOCUMENT, reportOutput: "failures-only" },
+      fault: { kind: "malformed", detail: "✖ Invalid option: expected one of \"full\"|\"actionable\"|\"counts\"|\"verdict-only\"\n  → at reportOutput" },
+    },
+    {
       name: "a generated entry that names files anywhere, through the conventions reading",
       document: { ...SMALLEST_DOCUMENT, conventions: { generated: [{ files: ["**/*.ts"], outsideParty: "@graphql-codegen/cli" }] } },
       fault: { kind: "malformed", detail: "✖ a generated entry names files under a named folder\n  → at conventions.generated[0].files[0]" },

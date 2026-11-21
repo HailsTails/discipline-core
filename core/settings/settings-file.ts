@@ -6,7 +6,7 @@ import { TOOL_RULE_SET } from "../values/clause-address.ts";
 import { type EslintConfigLookup, eslintConfigLookupSchema } from "../values/eslint-config-lookup.ts";
 import { NOT_ADOPTED, NOT_RUN, type RuleSetName, ruleSetNameSchema } from "../values/identifiers.ts";
 import { brandedRepoPathSchema, type RepoPath, repoPathSchema, repoPathTextSchema } from "../values/repo-path.ts";
-import { type ReportOutput, reportOutputSchema } from "../values/report-output.ts";
+import { type VersionTwoReportOutput, versionTwoReportOutputSchema } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import { type ConventionsReading, type ConventionsWire, conventionsOf, conventionsWireOf } from "./conventions.ts";
 import { type ListedAddress, listedAddressSchema, listedAddressText } from "./listed-address.ts";
@@ -29,7 +29,7 @@ export type SettingsFile = {
   readonly checks: readonly ListedCheck[];
   readonly checkSettings: readonly GivenCheckSettings[];
   readonly forfeiture: ForfeitureAssessment;
-  readonly reportOutput: ReportOutput;
+  readonly reportOutput: VersionTwoReportOutput;
   readonly checkEditions: CheckEditions;
   readonly eslintConfigLookup: EslintConfigLookupChoice;
   readonly eslintConfigRoots: readonly RepoPath[];
@@ -55,7 +55,7 @@ const REPOSITORY_ROOT_TEXT = ".";
 
 const DEFAULT_FORFEITURE: ForfeitureAssessment = "this-run";
 
-const DEFAULT_REPORT_OUTPUT: ReportOutput = "full";
+const DEFAULT_REPORT_OUTPUT: VersionTwoReportOutput = "full";
 
 const DEFAULT_CHECK_EDITIONS: CheckEditions = "pinned";
 
@@ -114,7 +114,7 @@ const settingsFileWireSchema = z.strictObject({
     .pipe(z.array(z.tuple([listedAddressSchema, z.record(z.string(), z.json())])))
     .default([]),
   forfeiture: forfeitureAssessmentSchema.default(DEFAULT_FORFEITURE),
-  reportOutput: reportOutputSchema.default(DEFAULT_REPORT_OUTPUT),
+  reportOutput: versionTwoReportOutputSchema.default(DEFAULT_REPORT_OUTPUT),
   checkEditions: checkEditionsSchema.default(DEFAULT_CHECK_EDITIONS),
   eslintConfigLookup: eslintConfigLookupSchema.optional(),
   eslintConfigRoots: folderListSchema({ refusal: "an eslintConfigRoots entry is a repository folder, not a glob" }),
@@ -168,7 +168,7 @@ export type SettingsWire = {
   readonly exclude?: readonly string[];
   readonly eslintConfigRoots?: readonly string[];
   readonly forfeiture?: ForfeitureAssessment;
-  readonly reportOutput?: ReportOutput;
+  readonly reportOutput?: VersionTwoReportOutput;
   readonly checkEditions?: CheckEditions;
   readonly eslintConfigLookup?: EslintConfigLookup;
 } & ConventionsWire;

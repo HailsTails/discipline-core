@@ -7,7 +7,7 @@ import type { SettingsReading } from "../settings/read-settings.ts";
 import type { SymptomCatalogue } from "../symptom-catalogue/symptom-catalogue.ts";
 import type { TouchedSet } from "../touched-set/touched-set.ts";
 import { type Assessment, assessmentInEffect } from "../values/assessment.ts";
-import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
+import { type VersionTwoReportOutput, reportOutputInEffect } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { ForfeitureAssessment } from "../values/assessment.ts";
 import type { CheckedTree } from "./checked-tree-of.ts";
@@ -19,7 +19,7 @@ export type VersionTwoRun = {
   readonly report: RunReport;
   readonly catalogue: SymptomCatalogue;
   readonly touched: TouchedSet;
-  readonly output: ReportOutput;
+  readonly output: VersionTwoReportOutput;
   readonly runs: readonly GovernedRun[];
 };
 
@@ -42,7 +42,7 @@ export type VersionTwoStages = {
 
 export type VersionTwoRequest = {
   readonly forfeiture: ForfeitureAssessment | undefined;
-  readonly reportOutput: ReportOutput | undefined;
+  readonly reportOutput: VersionTwoReportOutput | undefined;
   readonly measuring: TouchedMeasuring;
 };
 

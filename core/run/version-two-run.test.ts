@@ -20,7 +20,7 @@ const SETTINGS: SettingsReading = {
     eslintConfigRoots: [],
     fileExceptionWhyChains: "required",
   },
-  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: "this-run" } },
+  runSettings: { reportOutput: "actionable", assessment: { forfeiture: "this-run" } },
   eslintConfigLookup: { lookup: "detected" },
   conventions: DEFAULT_CONVENTIONS,
   notes: [],
@@ -64,7 +64,7 @@ describe("versionTwoRunOver", () => {
     const run = await versionTwoRunOver({ stages: stagesGiving({}), arguments: NO_ARGUMENTS });
     expect(run).toMatchObject({
       outcome: "ok",
-      value: { catalogue: REPORT_CATALOGUE, output: "failures-only", report: { excluded: ["dist"], findings: [{ ...HIT, mechanism: ESLINT }], symptoms: [CLAIMED_TYPE] } },
+      value: { catalogue: REPORT_CATALOGUE, output: "actionable", report: { excluded: ["dist"], findings: [{ ...HIT, mechanism: ESLINT }], symptoms: [CLAIMED_TYPE] } },
     });
   });
 

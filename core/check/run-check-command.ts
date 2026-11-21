@@ -5,7 +5,7 @@ import type { PathPort } from "../platform-ports/path-port.ts";
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import { assessmentInEffect } from "../values/assessment.ts";
 import { moduleExtensionOf } from "../values/install-layout.ts";
-import { type ReportOutput, reportOutputInEffect } from "../values/report-output.ts";
+import { reportOutputInEffect, type ReportOutput } from "../values/report-output.ts";
 import type { Result } from "../values/result.ts";
 import type { CheckReport } from "../verdict/check-report.ts";
 import { type CheckLocations, checkLocationsFor } from "./check-locations.ts";
@@ -53,7 +53,7 @@ const checkRunOf = (request: {
 
 const unshownCheckRunAt = async (
   request: Omit<VersionOneCommandRequest, "process"> & {
-    readonly arguments: CheckArguments;
+    readonly arguments: CheckArguments<ReportOutput>;
     readonly repoRoot: AbsolutePath;
     readonly installRoot: AbsolutePath;
   },

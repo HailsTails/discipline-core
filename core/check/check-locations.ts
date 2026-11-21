@@ -4,13 +4,14 @@ import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 import { argumentsInvalid } from "../command-line/argument-problem.ts";
 import { type CheckArguments, parseCheckArguments } from "../command-line/command-arguments.ts";
+import { reportOutputSchema, type ReportOutput } from "../values/report-output.ts";
 import { installRootOf } from "../command-line/install-root.ts";
 import type { LoadFailure } from "../command-line/load-failure.ts";
 
 const SELECTION_FILE_NAME = "disciplines.json";
 
 export type CheckLocations = {
-  readonly arguments: CheckArguments;
+  readonly arguments: CheckArguments<ReportOutput>;
   readonly repoRoot: AbsolutePath;
   readonly installRoot: AbsolutePath;
 };
@@ -36,7 +37,7 @@ export const checkLocationsFor = (request: {
   readonly fileText: Pick<FileTextPort, "exists">;
   readonly moduleUrl: string;
 }): Result<CheckLocations, LoadFailure> => {
-  const parsed = parseCheckArguments({ arguments: request.arguments });
+  const parsed = parseCheckArguments({ arguments: request.arguments, reportOutputs: reportOutputSchema.options });
   if (parsed.outcome === "failed") {
     return parsed;
   }

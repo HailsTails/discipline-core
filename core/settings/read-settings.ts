@@ -1,4 +1,5 @@
 import type { VersionTwoLoadFailure } from "../command-line/load-failure.ts";
+import type { VersionTwoReportOutput } from "../values/report-output.ts";
 import type { RunSettings } from "./run-settings.ts";
 import type { ClauseBinding, ClauseEditionReading, ClauseRoot, SelectedClause, SelectionReading } from "./selection.ts";
 import type { ClauseExceptions, ClauseSettingDeclarations } from "../rule-set-reader/rule-set-reader.ts";
@@ -46,7 +47,7 @@ export type SettingsFailure = VersionTwoLoadFailure | CheckChoiceRefusal;
 
 export type SettingsReading = {
   readonly selection: SelectionReading;
-  readonly runSettings: RunSettings;
+  readonly runSettings: RunSettings<VersionTwoReportOutput>;
   readonly eslintConfigLookup: EslintConfigLookupChoice;
   readonly conventions: Conventions;
   readonly notes: readonly SettingsNote[];

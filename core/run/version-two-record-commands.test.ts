@@ -28,7 +28,7 @@ const settingsWith = (request: { readonly forfeiture: ForfeitureAssessment }): S
     eslintConfigRoots: [],
     fileExceptionWhyChains: "required",
   },
-  runSettings: { reportOutput: "failures-only", assessment: { forfeiture: request.forfeiture } },
+  runSettings: { reportOutput: "actionable", assessment: { forfeiture: request.forfeiture } },
   eslintConfigLookup: { lookup: "detected" },
   conventions: DEFAULT_CONVENTIONS,
   notes: [],
