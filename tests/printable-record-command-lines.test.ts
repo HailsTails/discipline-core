@@ -38,7 +38,7 @@ describe("every line the version 2 record commands can print, as the contract is
       },
       {
         label: "record-debt",
-        text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration`,
+        text: `${ADDRESS} unrecordable ${FILE}: an ESLint ignore leaves the file out of the team's lint run, which no record can hold; remove the ignore and Hone records what it finds in the file as debt, or, if the file is generated or vendored, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree`,
         fills: { address: ADDRESS, file: FILE },
       },
       {

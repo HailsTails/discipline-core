@@ -259,7 +259,7 @@ ${CLASS_SYMPTOM}verdict: fail (partial assessment)
 `;
 
 const IGNORE_DETAIL =
-  "an ESLint ignore leaves the file out of the team's lint run, which no record can hold; Hone's run still checks the file and records what it finds there as debt, so remove the ignore from the ESLint configuration";
+  "an ESLint ignore leaves the file out of the team's lint run, which no record can hold; remove the ignore and Hone records what it finds in the file as debt, or, if the file is generated or vendored, list it in exclude in hone.config.json so Hone's setting and the team's ignore agree";
 
 const SUPPRESSION_DETAIL =
   "an entry in the suppressions file hides a finding from the team's lint run, which no record can hold; Hone's run still finds it and records it as debt, so remove the entry from the suppressions file";
@@ -279,6 +279,73 @@ ${HIDDEN_UNRECORDED}verdict: fail
 const HIDDEN_ADOPTED_TEXT = `${NOT_ADOPTED}answered (2)
 ${HIDDEN_ANSWERED}verdict: pass
 `;
+
+const CONFIG_EXCLUDING_SOME_IGNORED = settingsTextOf({
+  checks: {
+    "authored-class-or-this#class-keyword": "eslint",
+    "authored-class-or-this#static-members-only": "not-adopted",
+    "claimed-type#cast-to-any": "not-adopted",
+    "claimed-type#unlisted-cast-site": "walker",
+    "claimed-type#non-null-assertions": "not-adopted",
+  },
+  exclude: ["src/ignored.ts", "src/vendor-a.ts"],
+});
+
+const ESLINT_CONFIG_IGNORING_VENDORED = `import hone from "./hone.eslint.mjs";
+export default [...hone, { ignores: ["src/ignored.ts", "src/vendor-*.ts"] }];
+`;
+
+const excludingRepository = (): string => {
+  const repo = repositoryWithSubfolder({
+    repositories,
+    scratch,
+    fileText,
+    files: { "hone.config.json": CONFIG_EXCLUDING_SOME_IGNORED, "eslint.config.mjs": ESLINT_CONFIG_IGNORING_VENDORED },
+    subfolder: "src",
+    subfolderFiles: { "ignored.ts": CLASS_SOURCE, "vendor-a.ts": CLASS_SOURCE, "vendor-b.ts": CLASS_SOURCE },
+  });
+  git({ repo, arguments: ["init", "-q"] });
+  trackEverything({ repo });
+  return repo;
+};
+
+const EXCLUDED_CHECK_TEXT = `excluded (2)
+src/ignored.ts
+src/vendor-a.ts
+notAdopted (3)
+authored-class-or-this#static-members-only
+claimed-type#cast-to-any
+claimed-type#non-null-assertions
+findings (1)
+authored-class-or-this#class-keyword eslint src/vendor-b.ts:1:7 export class Kept {} may indicate: no-hidden-effects, one-reason-per-module, declared-not-asserted
+unrecorded (1)
+authored-class-or-this#class-keyword eslint ignore src/vendor-b.ts
+symptoms (1)
+${CLASS_SYMPTOM}verdict: fail
+`;
+
+const excludedRecordedText = (request: { readonly repo: string }): string => `authored-class-or-this#class-keyword recorded src/vendor-b.ts
+authored-class-or-this#class-keyword unrecordable src/vendor-b.ts: ${IGNORE_DETAIL}
+run ${projectCommandIn({ repo: request.repo })} to put the recorded debt into effect
+`;
+
+describe("hone over a repository whose ESLint configuration ignores files that Hone's exclude lists only in part, run as the real tool command", () => {
+  it(
+    "prints no ignore line for an excluded file, and the line naming both routes for an ignored file that is not excluded",
+    () => {
+      const repo = excludingRepository();
+      toolIn({ repo, subcommand: "project", options: [] });
+      commitEverything({ repo });
+      const checked = toolIn({ repo, subcommand: "check", options: [] });
+      const recorded = toolIn({ repo, subcommand: "record-debt", options: ["--base-revision", "HEAD"] });
+      expect({ checked, recorded }).toEqual({
+        checked: { text: EXCLUDED_CHECK_TEXT, code: 1 },
+        recorded: { text: excludedRecordedText({ repo }), code: 0 },
+      });
+    },
+    EACH_STEP_IS_A_PROCESS_MILLISECONDS,
+  );
+});
 
 describe("hone record-debt over a repository whose ESLint configuration ignores a file and whose suppressions file hides another, run as the real tool command", () => {
   it(
