@@ -22,8 +22,11 @@ export type MemoryRepository = {
 
 const absoluteOf = (request: { readonly file: string }): string => `${REPO_FOLDER}${SEPARATOR}${request.file}`;
 
-export const memoryRepositoryOf = (request: { readonly files: Readonly<Record<string, string>> }): MemoryRepository => {
-  const held = new Map(Object.entries(request.files).map(([file, text]) => [absoluteOf({ file }), text]));
+export const memoryRepositoryOf = (request: {
+  readonly files: Readonly<Record<string, string>>;
+  readonly outsideFiles?: Readonly<Record<string, string>>;
+}): MemoryRepository => {
+  const held = new Map([...Object.entries(request.files).map(([file, text]) => [absoluteOf({ file }), text] as const), ...Object.entries({ ...request.outsideFiles })]);
   const keysUnder = (folder: string): readonly string[] => [...held.keys()].filter((key) => key.startsWith(`${folder}${SEPARATOR}`));
   const entriesIn = (folder: string): readonly DirectoryEntry[] => {
     const names = keysUnder(folder).map((key) => key.slice(folder.length + 1));

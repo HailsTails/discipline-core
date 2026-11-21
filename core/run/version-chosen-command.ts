@@ -25,8 +25,10 @@ export const printFailure = (request: {
   return Promise.resolve();
 };
 
-export const versionChosenCommandOf =
-  <Request extends CommandRequest>(request: VersionChoice<Request>): VersionedHandler<Request> =>
+type NoSettingsHandler<Request extends CommandRequest> = (request: { readonly command: Request; readonly repoRoot: AbsolutePath }) => Promise<void>;
+
+const chosenCommandOf =
+  <Request extends CommandRequest>(request: VersionChoice<Request> & { readonly noSettings: NoSettingsHandler<Request> }): VersionedHandler<Request> =>
   (command) => {
     const repo = repoArgumentOf({ arguments: command.process.arguments });
     const resolved = repo === undefined ? undefined : command.path.resolve({ path: repo });
@@ -37,8 +39,24 @@ export const versionChosenCommandOf =
     if (chosen.outcome === "failed") {
       return printFailure({ command, failure: chosen.error, repoRoot: resolved.value });
     }
-    return chosen.value === "version-2" ? request.versionTwo(command) : request.versionOne(command);
+    switch (chosen.value) {
+      case "version-1":
+        return request.versionOne(command);
+      case "version-2":
+        return request.versionTwo(command);
+      case "no-settings":
+        return request.noSettings({ command, repoRoot: resolved.value });
+    }
   };
+
+export const versionChosenCommandOf = <Request extends CommandRequest>(request: VersionChoice<Request>): VersionedHandler<Request> =>
+  chosenCommandOf({ ...request, noSettings: ({ command }) => request.versionTwo(command) });
+
+export const settingsRequiringCommandOf = <Request extends CommandRequest>(request: VersionChoice<Request>): VersionedHandler<Request> =>
+  chosenCommandOf({
+    ...request,
+    noSettings: ({ command, repoRoot }) => printFailure({ command, failure: { kind: "config-absent", repo: repoRoot }, repoRoot }),
+  });
 
 export const notReadyCommandOf =
   (request: { readonly command: Subcommand }): VersionedHandler =>

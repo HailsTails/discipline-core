@@ -5,7 +5,7 @@ import { SETTINGS_FILE_NAME, VERSION_ONE_SETTINGS_FILE_NAME } from "../settings/
 import type { AbsolutePath } from "../values/absolute-path.ts";
 import type { Result } from "../values/result.ts";
 
-export type RunPath = "version-1" | "version-2";
+export type RunPath = "version-1" | "version-2" | "no-settings";
 
 type RunPathRequest = {
   readonly fileText: Pick<FileTextPort, "exists">;
@@ -22,5 +22,8 @@ export const runPathOf = (request: RunPathRequest): Result<RunPath, RunLoadFailu
   if (versionOne === "present" && versionTwo === "present") {
     return { outcome: "failed", error: { kind: "settings-in-both-versions", repo: request.repoRoot } };
   }
-  return { outcome: "ok", value: versionTwo === "present" ? "version-2" : "version-1" };
+  if (versionOne === "present") {
+    return { outcome: "ok", value: "version-1" };
+  }
+  return { outcome: "ok", value: versionTwo === "present" ? "version-2" : "no-settings" };
 };

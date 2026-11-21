@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { commandOver, memoryRepositoryOf } from "../../tests/command-harness.ts";
+import { authoriseArgumentsFor, commandOver, memoryRepositoryOf } from "../../tests/command-harness.ts";
 import { requiredEntry } from "../../tests/required-entry.ts";
 import type { ExceptionRepositoryOf } from "../upgrade/version-one-records/exception-records.ts";
 import type { FileTextPort } from "../platform-ports/file-text-port.ts";
@@ -286,6 +286,43 @@ describe("TOOL_SUBCOMMANDS authorise, which has no version 1 form", () => {
     await TOOL_SUBCOMMANDS.authorise({ ...commandOver({ process: processPort, fileText: memoryRepositoryOf({ files }).fileText }), path });
 
     expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: line }]], exits: [[{ code: 2 }]] });
+  });
+});
+
+const CONFIG_ABSENT_LINE = "load failure: config-absent /repo holds no hone.config.json; give the folder that holds it, usually the repository root\n";
+
+const CATALOGUE_PATH = "/install/rules/typescript/symptoms.json";
+
+declare global {
+  interface ImportMeta {
+    readonly glob: (
+      patterns: readonly string[],
+      options: { readonly base: string; readonly query: "?raw"; readonly import: "default"; readonly eager: true },
+    ) => Readonly<Record<string, string>>;
+  }
+}
+
+const SHIPPED_CATALOGUE = requiredEntry({
+  table: import.meta.glob(["./rules/typescript/symptoms.json"], { base: "../../", query: "?raw", import: "default", eager: true }),
+  key: "./rules/typescript/symptoms.json",
+});
+
+describe("TOOL_SUBCOMMANDS on a folder holding neither settings file", () => {
+  it.each([
+    { subcommand: "check", given: ["--repo", "/repo"] },
+    { subcommand: "project", given: ["--repo", "/repo"] },
+    { subcommand: "record-debt", given: ["--repo", "/repo", "--base-revision", "main"] },
+    { subcommand: "prune-debt", given: ["--repo", "/repo", "--base-revision", "main"] },
+    { subcommand: "upgrade", given: ["--repo", "/repo"] },
+    { subcommand: "split-records", given: ["--repo", "/repo"] },
+    { subcommand: "authorise", given: authoriseArgumentsFor({ repo: "/repo", rootCause: "Older tools still carry patterns written before the monorepo move gave them shared value types." }) },
+  ] as const)("prints the config-absent line and exits 2, given $subcommand", async ({ subcommand, given }) => {
+    const processPort = processWith({ arguments: given });
+    const command = commandOver({ process: processPort, fileText: memoryRepositoryOf({ files: {}, outsideFiles: { [CATALOGUE_PATH]: SHIPPED_CATALOGUE } }).fileText });
+
+    await TOOL_SUBCOMMANDS[subcommand](command);
+
+    expect(outputOf({ process: processPort })).toEqual({ writes: [[{ text: CONFIG_ABSENT_LINE }]], exits: [[{ code: 2 }]] });
   });
 });
 

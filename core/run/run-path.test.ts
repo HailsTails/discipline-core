@@ -32,9 +32,9 @@ describe("runPathOf", () => {
     });
   });
 
-  it("is the version 1 path for a folder that holds neither, so version 1 reports it as it does today", () => {
+  it("is no settings for a folder that holds neither, so every command reports the missing hone.config.json", () => {
     expect(runPathWith({ versionOne: "absent", versionTwo: "absent" })).toEqual({
-      result: { outcome: "ok", value: "version-1" },
+      result: { outcome: "ok", value: "no-settings" },
       asked: [[VERSION_ONE_FILE], [VERSION_TWO_FILE]],
     });
   });
